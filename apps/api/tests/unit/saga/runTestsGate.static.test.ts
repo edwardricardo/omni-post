@@ -4,8 +4,9 @@
  *              the gate every "the tests pass" claim in this repository rests on.
  *              The script is shell, so its honesty is only auditable structurally:
  *              the final gate must act on the per-batch runner exit it already
- *              captures, the Vitest phase must not throw its runner exit away, and
- *              the header must not carry a count that rots.
+ *              captures, the script must refuse to start without a test database
+ *              rather than read an environment file, it must never start vitest,
+ *              and the header must not carry a count that rots.
  *
  *              A runner that reports a batch FAILED and then exits zero is worse
  *              than one that never noticed, because every downstream gate believes
@@ -35,8 +36,14 @@ const runnerLines = runner.split("\n");
  */
 const FAILED_BATCHES = "FAILED_BATCHES";
 
-/** The name the Vitest phase must contribute to that accumulator. */
-const VITEST_BATCH_NAME = "vitest-unit";
+/**
+ * The condition that opens the refusal: an unset and an empty `DATABASE_URL` alike.
+ * The braces-and-default form is what makes it hold under `set -u` as well.
+ */
+const EMPTY_DATABASE_URL_CONDITION = 'if [ -z "${DATABASE_URL:-}" ]; then';
+
+/** A phrase that lives only in a comment of the script, for the stripper's tripwire. */
+const KNOWN_COMMENT_PROSE = "The database is never guessed";
 
 /**
  * Line budgets for the three block scans below. Each is the block's CURRENT length
@@ -46,8 +53,8 @@ const VITEST_BATCH_NAME = "vitest-unit";
  * to find out what it assumes, and because a too-small window fails with a message
  * about the wrong thing.
  */
-const GATE_BLOCK_LINES = 23;
-const VITEST_GUARD_BLOCK_LINES = 7;
+const GATE_BLOCK_LINES = 22;
+const REFUSAL_BLOCK_LINES = 11;
 const COUNT_APPEND_BLOCK_LINES = 3;
 const WINDOW_SLACK = 3;
 
@@ -127,9 +134,19 @@ function finalGateCondition(): string {
   return "";
 }
 
-/** The line that invokes the Vitest runner. */
-function vitestInvocation(): string {
-  return codeLinesContaining("vitest run")[0]?.trim() ?? "";
+/** Index of the code line that opens the empty-`DATABASE_URL` refusal, or -1. */
+function refusalIndex(): number {
+  return codeLines.findIndex((line) => line.trim() === EMPTY_DATABASE_URL_CONDITION);
+}
+
+/**
+ * Index of the first code line that starts work: the opening banner or the first
+ * `run_batch` call, whichever comes first. The refusal must sit above it.
+ */
+function firstWorkIndex(): number {
+  return codeLines.findIndex(
+    (line) => /^\s*echo "Running/.test(line) || /^\s*(?:[A-Z_]+=\S+\s+)*run_batch\s+"/.test(line)
+  );
 }
 
 /** The script's header comment block: every leading `#` line after the shebang. */
@@ -152,7 +169,8 @@ describe("run-tests.sh is a gate that can go red", () => {
     // nothing at all.
     expect(runner.length).toBeGreaterThan(0);
     expect(finalGateCondition()).not.toBe("");
-    expect(vitestInvocation()).not.toBe("");
+    expect(refusalIndex()).toBeGreaterThanOrEqual(0);
+    expect(firstWorkIndex()).toBeGreaterThanOrEqual(0);
     expect(headerComment()).not.toBe("");
   });
 
@@ -167,7 +185,10 @@ describe("run-tests.sh is a gate that can go red", () => {
       lineCountPreserved: codeLines.length === runnerLines.length,
       keepsCode: code.includes("run_batch()"),
       keepsQuotedHash: code.includes('grep "^# tests "'),
-      dropsCommentProse: !code.includes("Load .env if DATABASE_URL is not already set"),
+      // Read in both copies, so a reworded comment fails here instead of passing
+      // on a phrase that no longer exists anywhere.
+      dropsCommentProse:
+        runner.includes(KNOWN_COMMENT_PROSE) && !code.includes(KNOWN_COMMENT_PROSE),
     }).toEqual({
       lengthPreserved: true,
       lineCountPreserved: true,
@@ -286,49 +307,72 @@ describe("run-tests.sh is a gate that can go red", () => {
     });
   });
 
-  describe("the Vitest phase keeps its runner exit", () => {
-    it("does not discard the Vitest runner exit with `|| true`", () => {
-      // Same defect as the node:test batches had, one phase earlier: a Vitest
-      // process that dies before printing a summary parses as `0 failed`, and
-      // `|| true` erases the only other evidence there was.
-      expect(vitestInvocation()).not.toMatch(/\|\|\s*true\s*$/);
+  describe("the runner collects integration suites only, and never guesses a database", () => {
+    it("refuses an empty DATABASE_URL before it starts any work", () => {
+      // The reproduction: with DATABASE_URL unset, a local run used to load the
+      // repository's development `.env` and run every suite against the shared
+      // development database and its Redis, which the suites write to and flush.
+      // A refusal placed after the first batch would still let that batch run.
+      expect(refusalIndex()).toBeGreaterThanOrEqual(0);
+      expect(refusalIndex()).toBeLessThan(firstWorkIndex());
     });
 
-    it("captures that exit into a variable", () => {
-      expect(vitestInvocation()).toMatch(/\|\|\s*[A-Z_]*EXIT[A-Z_]*=\$\?/);
+    it("refuses with TIER unset as well, because the condition is not nested in any branch", () => {
+      // A local run without TIER has as much to lose as a CI tier. Nesting depth is
+      // counted over the code above the refusal: an enclosing `if` (on TIER or on
+      // anything else) would make the refusal conditional.
+      const above = codeLines.slice(0, refusalIndex());
+      const opened = above.filter((line) => /^\s*if\s/.test(line)).length;
+      const closed = above.filter((line) => /^\s*fi\b/.test(line)).length;
+
+      expect({
+        depth: opened - closed,
+        namesTier: codeLines[refusalIndex()]?.includes("TIER"),
+      }).toEqual({
+        depth: 0,
+        namesTier: false,
+      });
     });
 
-    it("records the vitest batch as failed on a non-zero exit with zero parsed failures", () => {
-      // The count-based append stays; this is the independent second signal, so
-      // a Vitest crash with no parsed failures still reddens the run.
-      const exitVariable = /\|\|\s*([A-Z_]*EXIT[A-Z_]*)=\$\?/.exec(vitestInvocation())?.[1] ?? "";
-      expect(exitVariable).not.toBe("");
-
-      const guardIndex = codeLines.findIndex(
-        (line) => line.includes(`$${exitVariable}`) && line.includes("-ne 0")
-      );
-      expect(guardIndex).toBeGreaterThanOrEqual(0);
-
-      // Window = the `if` line, its body (the marker echo, the output dump, the
-      // append) and its `fi`, plus slack for one more diagnostic line.
-      const guardBlock = codeLines
-        .slice(guardIndex, guardIndex + VITEST_GUARD_BLOCK_LINES + WINDOW_SLACK)
+    it("exits 2 with a message on stderr that names the variable and the test environment", () => {
+      // Window = the `if` line, its brace-grouped echo lines redirected to stderr,
+      // `exit 2` and `fi`, plus slack for one more line of guidance.
+      const refusalBlock = codeLines
+        .slice(refusalIndex(), refusalIndex() + REFUSAL_BLOCK_LINES + WINDOW_SLACK)
         .join("\n");
-      expect(guardBlock).toContain(FAILED_BATCHES);
-      expect(guardBlock).toContain(VITEST_BATCH_NAME);
+
+      expect({
+        exitsTwo: /^\s*exit 2\s*$/m.test(refusalBlock),
+        toStderr: refusalBlock.includes(">&2"),
+        namesVariable: /echo ".*DATABASE_URL/.test(refusalBlock),
+        namesTestEnvironment: /echo ".*\.env\.test/.test(refusalBlock),
+      }).toEqual({
+        exitsTwo: true,
+        toStderr: true,
+        namesVariable: true,
+        namesTestEnvironment: true,
+      });
     });
 
-    it("keeps the count-based append as its own signal", () => {
-      const countIndex = codeLines.findIndex(
-        (line) => line.includes("VITEST_FAILED") && line.includes("-gt 0")
-      );
-      expect(countIndex).toBeGreaterThanOrEqual(0);
+    it("reads no environment file", () => {
+      // The caller exports the test environment; the script never loads one on its
+      // own, so no file found at the repository root can choose the database.
+      // Quoted text is emptied first: the refusal's own message prints the command
+      // a developer runs, and printing it is not running it.
+      const sourcing = codeLines
+        .map((line) => line.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '""'))
+        .filter(
+          (line) =>
+            /(?:^|[;&|]|\bthen|\bdo)\s*(?:source|\.)\s+\S/.test(line) || line.includes("--env-file")
+        );
 
-      // Window = `if` + the single append + `fi`, plus slack.
-      const countBlock = codeLines
-        .slice(countIndex, countIndex + COUNT_APPEND_BLOCK_LINES + WINDOW_SLACK)
-        .join("\n");
-      expect(countBlock).toContain(`${FAILED_BATCHES}="$${FAILED_BATCHES} ${VITEST_BATCH_NAME}"`);
+      expect(sourcing).toEqual([]);
+    });
+
+    it("never starts vitest", () => {
+      // Vitest collects the unit tier from the tree on its own. A second start here
+      // runs every unit test twice and folds a second verdict into this one.
+      expect(codeLinesContaining("vitest")).toEqual([]);
     });
   });
 

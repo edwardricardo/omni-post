@@ -1,7 +1,8 @@
 /**
  * @file runTestsGate.behavior.test.ts
  * @description Executable proof that `apps/api/scripts/run-tests.sh` exits non-zero
- *              whenever a batch is recorded failed. Its sibling
+ *              whenever a batch is recorded failed, and refuses to start at all
+ *              without a test database. Its sibling
  *              `runTestsGate.static.test.ts` reads the script's SHAPE; this one runs
  *              the real script and reads its EXIT CODE, which is the contract every
  *              "the tests pass" claim in this repository actually rests on.
@@ -26,7 +27,15 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  chmodSync,
+  rmSync,
+  existsSync,
+  readFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,17 +46,24 @@ const runnerPath = join(apiRoot, "scripts", "run-tests.sh");
 
 /**
  * `pr-integration` runs the node:test batches without the live-API ones, so no
- * scenario waits on `wait_for_api`'s curl loop, and the Vitest phase (which needs
- * `TIER` unset) stays out of the way. It is also the tier CI runs on pull requests.
+ * scenario waits on `wait_for_api`'s curl loop. It is also the tier CI runs on
+ * pull requests.
  */
 const TIER = "pr-integration";
 
 /**
- * Overrides the runner's `.env` sourcing at the top of the script. Nothing connects
- * — the stub never opens a socket — but leaving the real URL in place would let a
- * future edit reach a live database from a unit test.
+ * Satisfies the runner's refusal to start without a test database. Nothing connects
+ * — the stand-in never opens a socket — and the URL names a closed port, so no
+ * future edit can reach a live database from a unit test through the inherited one.
  */
 const UNUSED_DATABASE_URL = "postgresql://gate-behavior@127.0.0.1:1/none";
+
+/**
+ * Every program a refused run could start in place of a suite: the node:test
+ * runner, `npx` (the way a vitest start would be spelled) and `curl` (the live-API
+ * probes). The refusal scenarios put a recorder for each first on `PATH`.
+ */
+const RECORDED_PROGRAMS = ["node", "npx", "curl"] as const;
 
 /** The TAP summary a stub run reports, plus the exit code it ends on. */
 interface StubShape {
@@ -63,6 +79,14 @@ interface StubShape {
 interface RunResult {
   exitCode: number;
   stdout: string;
+}
+
+/** A run whose streams are read apart, plus every recorded program it started. */
+interface RefusedRun {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  started: string[];
 }
 
 let stubDir: string;
@@ -235,6 +259,100 @@ describe("run-tests.sh exits non-zero when a batch is recorded failed", () => {
 
     expect(run.exitCode).toBe(1);
     expect(reportedFailedBatches(run.stdout).length).toBeGreaterThan(1);
+  });
+});
+
+describe("run-tests.sh refuses to start without a test database", () => {
+  let recorderDir: string;
+  let recordPath: string;
+
+  /**
+   * Writes one recorder per program: it appends its own name to `GATE_RECORD` and
+   * exits 97, so a refused run that started anything is caught by name, and a run
+   * that went on would fail rather than reach a database, the network or vitest.
+   */
+  beforeAll(() => {
+    recorderDir = mkdtempSync(join(tmpdir(), "run-tests-refusal-"));
+    recordPath = join(recorderDir, "started.log");
+    for (const program of RECORDED_PROGRAMS) {
+      const programPath = join(recorderDir, program);
+      writeFileSync(
+        programPath,
+        ["#!/usr/bin/env bash", `echo ${program} >> "$GATE_RECORD"`, "exit 97", ""].join("\n"),
+        "utf8"
+      );
+      chmodSync(programPath, 0o755);
+    }
+  });
+
+  afterAll(() => {
+    rmSync(recorderDir, { recursive: true, force: true });
+  });
+
+  /**
+   * Runs the real script with the recorders first on `PATH`. `DATABASE_URL` and
+   * `TIER` are removed from the inherited environment first — the vitest process
+   * holds the test database's URL — so each scenario states both itself.
+   */
+  function runWithoutDatabase(overrides: NodeJS.ProcessEnv): RefusedRun {
+    rmSync(recordPath, { force: true });
+    const { DATABASE_URL: _inheritedDatabaseUrl, TIER: _inheritedTier, ...inherited } = process.env;
+    const result = spawnSync("bash", [runnerPath], {
+      cwd: apiRoot,
+      encoding: "utf8",
+      timeout: 60_000,
+      env: {
+        ...inherited,
+        PATH: `${recorderDir}:${process.env.PATH ?? ""}`,
+        GATE_RECORD: recordPath,
+        ...overrides,
+      },
+    });
+    const started = existsSync(recordPath)
+      ? readFileSync(recordPath, "utf8").split("\n").filter(Boolean)
+      : [];
+
+    return {
+      exitCode: result.status ?? -1,
+      stdout: result.stdout ?? "",
+      stderr: result.stderr ?? "",
+      started,
+    };
+  }
+
+  it("exits 2 under a TIER when DATABASE_URL is empty, before any suite starts", () => {
+    // The reproduction: with no test database exported, the run reached the
+    // development database instead. `full-integration` is the widest tier — it
+    // also probes the live API — so a refusal that holds there holds everywhere.
+    const run = runWithoutDatabase({ TIER: "full-integration", DATABASE_URL: "" });
+
+    expect({
+      exitCode: run.exitCode,
+      started: run.started,
+      stdout: run.stdout,
+      namesTheVariable: run.stderr.includes("DATABASE_URL"),
+      namesTheTestEnvironment: run.stderr.includes(".env.test"),
+    }).toEqual({
+      exitCode: 2,
+      started: [],
+      stdout: "",
+      namesTheVariable: true,
+      namesTheTestEnvironment: true,
+    });
+  });
+
+  it("exits 2 with TIER unset when DATABASE_URL is not set at all", () => {
+    // The local default path, `pnpm --filter @apps/api test:integration` from a
+    // shell that exported nothing: no tier, no variable. Nothing legitimate runs
+    // the suites against whatever database a file at the repository root names.
+    const run = runWithoutDatabase({});
+
+    expect({
+      exitCode: run.exitCode,
+      started: run.started,
+      stdout: run.stdout,
+      namesTheVariable: run.stderr.includes("DATABASE_URL"),
+    }).toEqual({ exitCode: 2, started: [], stdout: "", namesTheVariable: true });
   });
 });
 
