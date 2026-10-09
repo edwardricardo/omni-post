@@ -22,8 +22,8 @@
  *
  *              Rate limiting is ON (the boot command sets
  *              `ENABLE_RATE_LIMITING=true`): the AUTH preset caps
- *              `/auth/customer/login` at 5 / 15 min per `ip:url` bucket, and
- *              `/auth/customer/login/mfa` is a DISTINCT url → its own 5 / 15 min
+ *              `/auth/customer/login` at 5 / 15 min per `ip:<resource path>` bucket,
+ *              and `/auth/customer/login/mfa` is a DISTINCT path → its own 5 / 15 min
  *              bucket. This suite issues 1 request to the login bucket and 4 to
  *              the login/mfa bucket (happy-path cycle folded into one test to
  *              avoid re-issuing challenges), staying under both caps with

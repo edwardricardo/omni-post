@@ -286,11 +286,12 @@ export const linkRoutes: FastifyPluginAsync = async (fastify) => {
   //
   // MANDATORY compensating control for the capability-URL guard bypass (D7):
   // a dedicated NAMESPACE-keyed rate limiter (`redirect:{clientIp}`, NOT the
-  // global limiter's `ip:url` key). The global limiter keys by URL, so every
-  // guessed shortCode hits a fresh bucket → it does NOT throttle namespace
-  // enumeration. This per-IP namespace bucket makes ALL `/r/*` hits from one IP
-  // share one bucket → true anti-enumeration for both auto-generated shortCodes
-  // and user-chosen vanity slugs. The response leaks nothing (bare 302).
+  // global limiter's `ip:<resource path>` key). The global limiter keys by the
+  // resource path, so every guessed shortCode hits a fresh bucket → it does NOT
+  // throttle namespace enumeration. This per-IP namespace bucket makes ALL
+  // `/r/*` hits from one IP share one bucket → true anti-enumeration for both
+  // auto-generated shortCodes and user-chosen vanity slugs. The response leaks
+  // nothing (bare 302).
   const httpRateLimiter = container.resolve<RateLimiterPort>(TOKENS.HttpRateLimiter);
   const redirectRateLimit = createNamespacedRateLimitPreHandler(
     httpRateLimiter,
