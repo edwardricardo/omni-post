@@ -64,6 +64,9 @@ run_batch() {
   local name="$1"
   shift
   local concurrency="${CONCURRENCY:-4}"
+  # The per-test budget node:test applies to every test and hook. It is the only time
+  # bound a batch has; a suite that needs longer passes `{ timeout }` to its own tests
+  # and hooks, which overrides it (a `describe` option does not).
   local timeout="${TIMEOUT:-30000}"
 
   local extra_flags="${EXTRA_FLAGS:-}"
@@ -327,7 +330,9 @@ CONCURRENCY=1 run_batch "integration:admin-single-use-claims" \
 # Saga recovery + promotion proofs. DB-only by dependency (Postgres + Redis; the
 # crash suite also owns a real BullMQ queue and worker), so they belong to the
 # tier that also runs on pull requests — a merge-blocking gate that only ran
-# after the merge would gate nothing. The three share one batch because all
+# after the merge would gate nothing. The crash suite, which drives a real queue
+# round trip and walks a retry envelope, is the slow one; the compensation and
+# promotion suites are quick. The three share one batch because all
 # three boot real managers, and a boot loads and dispatches every non-terminal
 # row in the table — running them in one serialized batch is what keeps that
 # from being three suites executing each other's sagas.

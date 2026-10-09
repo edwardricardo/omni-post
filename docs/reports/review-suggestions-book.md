@@ -132,6 +132,7 @@
 | SB-111 | same                                                                                  | R3-003                                                           | `apps/api/tests/cache.test.ts` (`assertDisposableRedis`, the `new URL` call)                                                                | error wording                | deferred: the suite still fails loudly before any connection; only the wording of the failure differs                                                           |
 | SB-112 | same                                                                                  | R3-004                                                           | `apps/api/tests/cache.test.ts` (`assertDisposableRedis`)                                                                                    | test coverage                | deferred: the red was proven by hand at landing; a unit test needs a helper module and a new file, which moves the M1 pin                                       |
 | SB-113 | Phase 1 U4 (`workstream/phase1-u4-timing-in-tests`, 3e2e0c60)                         | R2-001                                                           | the `TIMING` constant in nine node:test suites under `apps/api/tests` (integration and `*.flow`)                                            | naming                       | deferred: each constant carries a JSDoc; a longer name re-indents more three-argument `it` calls, so the rename is its own pass                                 |
+| SB-114 | Phase 1 U4 (`workstream/phase1-u4-timing-in-tests`, 9c502519)                         | R2-poll-timeout-mismatch                                         | `apps/api/tests/integration/sagaCustomerFlow.test.ts` (`TIMING`)                                                                            | budget legibility            | deferred: the move kept every case's budget identical; splitting it changes per-case limits                                                                     |
 
 ## Entries — code and prose
 
@@ -1057,6 +1058,14 @@
 - **Suggestion:** a name such as `TEST_TIMEOUT` would make the call sites (`it("…", TIMING, async () => {…})`) self-describing.
 - **Why deferred:** each constant carries a JSDoc stating its value and why. A longer name pushes more three-argument `it` calls past the print width, and prettier re-indents their bodies again; most of that unit's raw diff was already this re-indent.
 - **To implement:** rename in the nine files in one change, with `prettier --write`.
+
+### SB-114 — one 180 s budget for every case of the saga customer flow
+
+- **Source:** the native review of Phase 1 U4 (`workstream/phase1-u4-timing-in-tests`, `9c502519`), finding `R2-poll-timeout-mismatch`.
+- **Location:** `apps/api/tests/integration/sagaCustomerFlow.test.ts`, the `TIMING` constant.
+- **Suggestion:** give the publish-now cases, which poll up to 120 s for a terminal state, their own budget and the quick cases (missing auth, the XOR refinement, cross-tenant 404s) a shorter one, so each call site states its real cost.
+- **Why deferred:** the unit moved each batch's timeout into its suites with every case's budget unchanged, which is what its same-count acceptance measured; shortening some cases' limits is a behaviour change of its own.
+- **To implement:** a second constant for the quick cases, measured against their slowest `duration_ms` in CI.
 
 ## Implemented
 
