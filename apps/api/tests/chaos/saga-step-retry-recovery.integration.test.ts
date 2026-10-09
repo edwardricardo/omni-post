@@ -1,5 +1,5 @@
 /**
- * @file saga-step-retry-recovery.test.ts
+ * @file saga-step-retry-recovery.integration.test.ts
  * @description Chaos scenario: a saga step fails transiently — the recovery
  *   scheduler picks up the saga from the persisted `nextRetryAt` and eventually
  *   reaches COMPLETED.

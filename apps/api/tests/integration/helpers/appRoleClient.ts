@@ -17,7 +17,7 @@
  *
  *   The connection is the OWNER channel with `role=omnipost_app` in the startup packet, so the
  *   session runs as that role from its first statement — the same mechanism
- *   `rls-tenant-isolation.test.ts` uses with `SET LOCAL ROLE`, hoisted to the whole session so a
+ *   `rls-tenant-isolation.integration.test.ts` uses with `SET LOCAL ROLE`, hoisted to the whole session so a
  *   repository under test needs no cooperation from the suite. Measured, not assumed:
  *   `current_user = omnipost_app`, `session_user = postgres`, `current_setting('is_superuser')
  *   = off`, an unbound read of an RLS-covered table returns null, and the same read inside a
@@ -31,7 +31,7 @@
  *   route needs nothing beyond the owner channel every integration suite already has.
  *
  *   What it therefore does NOT prove, stated rather than implied: that the role can LOG IN and
- *   that its grants are right under its own login. `rls-tenant-isolation.test.ts` owns that
+ *   that its grants are right under its own login. `rls-tenant-isolation.integration.test.ts` owns that
  *   proof (`rolcanlogin/rolsuper/rolbypassrls`, ownership, and a real login connection), and
  *   this helper deliberately does not restate it.
  *

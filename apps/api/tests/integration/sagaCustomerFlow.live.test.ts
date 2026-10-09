@@ -17,7 +17,7 @@
  * skipping, per the canon "Never skip tests because services are down —
  * start them."
  *
- * @file sagaCustomerFlow.test.ts
+ * @file sagaCustomerFlow.live.test.ts
  * @description Tests for the customer-facing saga endpoint
  * @layer infrastructure
  */
@@ -516,7 +516,7 @@ describe("Saga customer flow integration", () => {
     // completed publish-now left the row in DRAFT. The harm it closes is a
     // duplicate send to a provider, and the DIRECT proof of that — the publish
     // queue receiving no new job — lives in the engine-harness suite
-    // (`sagaPublishNowPromotion.test.ts`), which runs in the pull-request CI
+    // (`sagaPublishNowPromotion.integration.test.ts`), which runs in the pull-request CI
     // job that this live tier is not part of. What is reachable here is the
     // link in the same chain: no saga was started, so no pivot ran, so nothing
     // was enqueued.

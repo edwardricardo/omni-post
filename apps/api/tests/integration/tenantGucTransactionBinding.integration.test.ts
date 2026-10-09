@@ -1,5 +1,5 @@
 /**
- * @file tenantGucTransactionBinding.test.ts
+ * @file tenantGucTransactionBinding.integration.test.ts
  * @description Real-database proof that a transaction opened by a REPOSITORY — not by the
  *   unit of work — keeps its atomicity once every model operation on the extended client is
  *   wrapped in its own GUC-binding transaction.

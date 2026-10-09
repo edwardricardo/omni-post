@@ -1,5 +1,5 @@
 /**
- * @file sagaTenantIsolation.test.ts
+ * @file sagaTenantIsolation.integration.test.ts
  * @description MERGE-BLOCKING two-tenant isolation proof for the saga engine,
  *   run against a REAL Postgres and a REAL Redis with the engine wired exactly
  *   as production wires it: a base client extended with `tenantGuardExtension`

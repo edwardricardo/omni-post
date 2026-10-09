@@ -1513,7 +1513,7 @@ async function readTrioPolicies(owner: PrismaClient): Promise<string> {
  *
  *   The DDL runs as the owner and the MEASUREMENT runs as `omnipost_app`, reached with
  *   `SET LOCAL ROLE` inside the same transaction — the mechanism
- *   `apps/api/tests/integration/rls-tenant-isolation.test.ts` already uses. A plan taken
+ *   `apps/api/tests/integration/rls-tenant-isolation.integration.test.ts` already uses. A plan taken
  *   as the owner would carry no policy qual at all, which is precisely what this
  *   comparison is about, so the arm asserts its own posture before measuring anything.
  * @param owner - Owner-channel client (policy DDL needs the table owner).

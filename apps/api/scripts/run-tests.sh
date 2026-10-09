@@ -266,8 +266,8 @@ CONCURRENCY=1 run_batch "integration:consumers" \
 # service is required, but they are node:test files and therefore belong to a
 # batch — a suite that no batch lists is a suite that never runs.
 CONCURRENCY=1 run_batch "chaos" \
-  tests/chaos/saga-step-retry-recovery.test.ts \
-  tests/chaos/sagaWaitAmplification.test.ts
+  tests/chaos/saga-step-retry-recovery.integration.test.ts \
+  tests/chaos/sagaWaitAmplification.integration.test.ts
 
 # Two-tenant isolation proofs for the tenant-guard rollout. Each suite seeds
 # two tenants against the real DB and drives the guarded client / in-process
@@ -290,12 +290,12 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
   tests/integration/preAuthSsoTenantIsolation.integration.test.ts \
   tests/integration/preAuthBillingTenantIsolation.integration.test.ts \
   tests/integration/preAuthInboundWebhookTenantIsolation.integration.test.ts \
-  tests/integration/sagaTenantIsolation.test.ts \
+  tests/integration/sagaTenantIsolation.integration.test.ts \
   tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts \
-  tests/integration/rls-tenant-isolation.test.ts \
-  tests/integration/tenantGucTransactionBinding.test.ts \
-  tests/integration/compositionRootTenantBinding.test.ts \
-  tests/integration/tenant-composite-fk.test.ts \
+  tests/integration/rls-tenant-isolation.integration.test.ts \
+  tests/integration/tenantGucTransactionBinding.integration.test.ts \
+  tests/integration/compositionRootTenantBinding.integration.test.ts \
+  tests/integration/tenant-composite-fk.integration.test.ts \
   tests/integration/post-trio-tenant-isolation.integration.test.ts
 
 # Customer pre-identity auth proofs. DB-only: the suite drives the four bare
@@ -337,9 +337,9 @@ CONCURRENCY=1 run_batch "integration:admin-single-use-claims" \
 # row in the table — running them in one serialized batch is what keeps that
 # from being three suites executing each other's sagas.
 CONCURRENCY=1 run_batch "integration:saga-recovery" \
-  tests/integration/sagaCrashRecovery.test.ts \
-  tests/integration/sagaCompensationRecovery.test.ts \
-  tests/integration/sagaPublishNowPromotion.test.ts
+  tests/integration/sagaCrashRecovery.integration.test.ts \
+  tests/integration/sagaCompensationRecovery.integration.test.ts \
+  tests/integration/sagaPublishNowPromotion.integration.test.ts
 
 fi # run_db_batches
 
@@ -397,7 +397,7 @@ assert_publish_consumers
 # this suite existed on disk but belonged to no batch, so `test:all` never ran
 # it.
 CONCURRENCY=1 run_batch "integration:saga-live" \
-  tests/integration/sagaCustomerFlow.test.ts
+  tests/integration/sagaCustomerFlow.live.test.ts
 
 CONCURRENCY=1 run_batch "flow" \
   tests/publish.flow.test.ts tests/analytics.flow.test.ts tests/media.flow.test.ts tests/schedule.flow.test.ts

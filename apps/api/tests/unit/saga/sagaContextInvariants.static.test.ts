@@ -1353,7 +1353,7 @@ describe("saga engine context invariants", () => {
       // a retry, and such a row can sit ON the pivot. What keeps that re-entry
       // from publishing twice is the pivot's RereadCheck, which aborts before
       // the enqueue when the aggregate has moved on — measured in
-      // `tests/integration/sagaCrashRecovery.test.ts`, "an inherited pivot-step
+      // `tests/integration/sagaCrashRecovery.integration.test.ts`, "an inherited pivot-step
       // retry claimed by the retry checker". The countermeasure only exists when
       // the composition passes the reread implementation, so a composition that
       // stopped passing it would silently remove the guarantee.
@@ -1635,10 +1635,10 @@ describe("saga engine context invariants", () => {
       // the wiring assertion below, not this one.
       expect(sagaSuites).toEqual(
         expect.arrayContaining([
-          "tests/chaos/saga-step-retry-recovery.test.ts",
-          "tests/integration/sagaCrashRecovery.test.ts",
-          "tests/integration/sagaCustomerFlow.test.ts",
-          "tests/integration/sagaTenantIsolation.test.ts",
+          "tests/chaos/saga-step-retry-recovery.integration.test.ts",
+          "tests/integration/sagaCrashRecovery.integration.test.ts",
+          "tests/integration/sagaCustomerFlow.live.test.ts",
+          "tests/integration/sagaTenantIsolation.integration.test.ts",
         ])
       );
       expect(sagaSuites.length).toBeGreaterThanOrEqual(4);
@@ -1984,7 +1984,12 @@ describe("saga engine context invariants", () => {
   });
 
   describe("the parked-replay evidence keeps the two flip causes apart", () => {
-    const evidencePath = join(apiRoot, "tests", "integration", "sagaCrashRecovery.test.ts");
+    const evidencePath = join(
+      apiRoot,
+      "tests",
+      "integration",
+      "sagaCrashRecovery.integration.test.ts"
+    );
     const evidence = readFileSync(evidencePath, "utf8");
     const lifecycle = sourceByName("SagaManagerLifecycle.ts");
 

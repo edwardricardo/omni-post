@@ -14,7 +14,7 @@
  *              with `async () => undefined`, so neither one would execute a query here. These
  *              tests therefore pin WIRING — which client instance each adapter receives — and
  *              never binding. The binding proof is
- *              `tests/integration/compositionRootTenantBinding.test.ts`, on a real connection as
+ *              `tests/integration/compositionRootTenantBinding.integration.test.ts`, on a real connection as
  *              the non-bypassing application role.
  * @layer infrastructure
  */

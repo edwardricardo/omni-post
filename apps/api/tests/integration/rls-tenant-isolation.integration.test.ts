@@ -1,5 +1,5 @@
 /**
- * @file rls-tenant-isolation.test.ts
+ * @file rls-tenant-isolation.integration.test.ts
  * @description Integration test for the PostgreSQL Row Level Security
  *   policies installed by `20260527000000_add_rls_tenant_isolation`. Verifies
  *   that the `tenant_isolation` policy gates row visibility and mutation by

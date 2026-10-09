@@ -1,5 +1,5 @@
 /**
- * @file compositionRootTenantBinding.test.ts
+ * @file compositionRootTenantBinding.integration.test.ts
  * @description Real-database proof that a repository the COMPOSITION ROOT registers is handed
  *   the container's guarded, GUC-bound client — and not the raw `@infra/prisma` singleton.
  *

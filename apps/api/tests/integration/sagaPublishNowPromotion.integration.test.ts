@@ -1,5 +1,5 @@
 /**
- * @file sagaPublishNowPromotion.test.ts
+ * @file sagaPublishNowPromotion.integration.test.ts
  * @description MERGE-BLOCKING proof that a publish-now saga whose every
  *   scheduled channel published leaves the Post aggregate in the persisted
  *   terminal state `PUBLISHED`, with `publishedAt` set and `PostPublished` in
@@ -265,7 +265,7 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
 
       // ONLY the saga row is rewound: the post stays PUBLISHED with P1, which is
       // exactly what a redelivered completion event finds. That is what separates
-      // this from the two crash-replay scenarios in sagaCrashRecovery.test.ts —
+      // this from the two crash-replay scenarios in sagaCrashRecovery.integration.test.ts —
       // one rewinds to the PIVOT (refused by its reread countermeasure, saga
       // FAILED) and the other also rewinds the POST to DRAFT (so the promotion
       // applies fresh). Neither exercises an idempotent re-entry, and the first

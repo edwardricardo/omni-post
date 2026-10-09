@@ -1,5 +1,5 @@
 /**
- * @file tenant-composite-fk.test.ts
+ * @file tenant-composite-fk.integration.test.ts
  * @description Real-database proof that the `Post` / `PostContent` / `PostMedia`
  *   tenant key is enforced by PostgreSQL itself — not by the application, not by
  *   the Prisma tenant guard, and not by row security.

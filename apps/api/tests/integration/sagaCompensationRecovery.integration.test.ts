@@ -1,5 +1,5 @@
 /**
- * @file sagaCompensationRecovery.test.ts
+ * @file sagaCompensationRecovery.integration.test.ts
  * @description MERGE-BLOCKING crash-mid-COMPENSATION proof for the saga engine,
  *   run against a REAL Postgres and a REAL Redis and booted through the REAL
  *   production composition: every manager here is a `SagaIntegration` built the

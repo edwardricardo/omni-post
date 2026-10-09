@@ -1,7 +1,7 @@
 /**
  * @file postTrioFixtures.ts
  * @description Raw-SQL fixtures for the `Post` / `PostContent` / `PostMedia`
- *   tenant-key work, shared by `tenant-composite-fk.test.ts` and
+ *   tenant-key work, shared by `tenant-composite-fk.integration.test.ts` and
  *   `post-trio-tenant-isolation.integration.test.ts`.
  *
  *   ## Why raw SQL rather than the typed client

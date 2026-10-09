@@ -1,5 +1,5 @@
 /**
- * @file sagaCrashRecovery.test.ts
+ * @file sagaCrashRecovery.integration.test.ts
  * @description MERGE-BLOCKING crash-recovery proof for the saga engine, run
  *   against a REAL Postgres, a REAL Redis and a REAL BullMQ queue, and booted
  *   through the REAL production composition: every manager here is a

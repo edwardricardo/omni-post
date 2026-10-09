@@ -1,5 +1,5 @@
 /**
- * @file sagaWaitAmplification.test.ts
+ * @file sagaWaitAmplification.integration.test.ts
  * @description The customer-facing invariant of a fan-out publish: a post whose
  *   channels all publish successfully reaches a terminal SUCCESS, whatever the
  *   number of channels and however their completion events are spaced.

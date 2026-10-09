@@ -566,7 +566,7 @@ export class SagaManagerLifecycle implements SagaManager {
     // window is finite: see `checkSagaTimeout`, which terminalizes the row as
     // `parked-expired` once the operator has had one full horizon to act.
     //
-    // @see apps/api/tests/integration/sagaCrashRecovery.test.ts — "the parked
+    // @see apps/api/tests/integration/sagaCrashRecovery.integration.test.ts — "the parked
     //   saga, resumed deliberately by an operator" holds the measurement.
     // Revisit ONLY when that test's `assert.notStrictEqual(terminal.status,
     // "COMPLETED")` fails — the assertion labelled THE PARKING REVISIT TRIGGER.
