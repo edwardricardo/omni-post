@@ -106,6 +106,15 @@ const RETRY_RECOVERY_TASK_ID = "saga-retry-recovery";
 const TIMEOUT_CHECKER_TASK_ID = "saga-timeout-checker";
 
 /**
+ * Budget for every test and hook in this file, passed to each call: the runner's
+ * `--test-timeout` binds every test and every hook, and a `describe` option would neither raise
+ * that limit nor leave the suite's total duration uncapped. 120 s: the cases drive a real
+ * BullMQ queue round trip and walk a retry envelope, each wait bounded at 20 s, around real
+ * manager boots.
+ */
+const TIMING = { timeout: 120_000 } as const;
+
+/**
  * The definition's own arithmetic, read once. Every index the scenarios below
  * seed derives from here rather than from a literal: "this row sits at the
  * pivot" is the premise the whole suite rests on, and a bare `2` states it only
@@ -825,7 +834,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       channelRepository,
       redis,
     };
-  });
+  }, TIMING);
 
   after(async () => {
     for (const harness of harnesses) {
@@ -884,7 +893,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     await queueConnection.quit().catch(() => undefined);
     await workerConnection.quit().catch(() => undefined);
     await base.$disconnect();
-  });
+  }, TIMING);
 
   describe("a boot in the production composition order", () => {
     let parkedSagaId: string;
@@ -934,30 +943,34 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         `the inherited pre-pivot saga ${inheritedSagaId} to terminalize without operator action`
       );
       parkedRowAfterBoot = await sagaSnapshot(parkedSagaId);
-    });
+    }, TIMING);
 
-    it("resumes the saga interrupted before its pivot and drives it to a terminal state", async () => {
-      assert.strictEqual(
-        inheritedTerminal.status,
-        "COMPLETED",
-        `the inherited pre-pivot saga must complete with no operator action (error=${String(inheritedTerminal.error)})`
-      );
-      assert.strictEqual(
-        inheritedTerminal.currentStep,
-        LAST_STEP_INDEX + 1,
-        "and it must have walked every remaining step, not stopped part-way"
-      );
+    it(
+      "resumes the saga interrupted before its pivot and drives it to a terminal state",
+      TIMING,
+      async () => {
+        assert.strictEqual(
+          inheritedTerminal.status,
+          "COMPLETED",
+          `the inherited pre-pivot saga must complete with no operator action (error=${String(inheritedTerminal.error)})`
+        );
+        assert.strictEqual(
+          inheritedTerminal.currentStep,
+          LAST_STEP_INDEX + 1,
+          "and it must have walked every remaining step, not stopped part-way"
+        );
 
-      const issued = commandsForSaga(inheritedSagaId, commandsBeforeBoot);
-      assert.deepStrictEqual(
-        issued.map((command) => command.type),
-        ["post.create", "post.complete-publishing"],
-        "exactly one command per remaining command-issuing step: a second create or a second " +
-          "promotion would mean the resume replayed a step the row had already passed"
-      );
-    });
+        const issued = commandsForSaga(inheritedSagaId, commandsBeforeBoot);
+        assert.deepStrictEqual(
+          issued.map((command) => command.type),
+          ["post.create", "post.complete-publishing"],
+          "exactly one command per remaining command-issuing step: a second create or a second " +
+            "promotion would mean the resume replayed a step the row had already passed"
+        );
+      }
+    );
 
-    it("reports one resume and one parked row in the boot summary", async () => {
+    it("reports one resume and one parked row in the boot summary", TIMING, async () => {
       const summary = bootSummary(bootLogLines);
 
       assert.strictEqual(summary.loaded, 2, "the boot inherited exactly the two seeded rows");
@@ -971,7 +984,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
     });
 
-    it("parks the saga interrupted at the pivot instead of replaying it", async () => {
+    it("parks the saga interrupted at the pivot instead of replaying it", TIMING, async () => {
       // The row is non-terminal with NO pending retry, so the retry checker
       // never claims it: the boot pass is the only mechanism that sees it, and
       // what it does with a pivot-interrupted row is the whole decision.
@@ -999,7 +1012,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
     });
 
-    it("counts the parked saga and names it in the logs", async () => {
+    it("counts the parked saga and names it in the logs", TIMING, async () => {
       // A row the engine declines to recover is invisible unless it says so:
       // the counter is what an operator alerts on, the log is what tells them
       // WHICH saga needs a decision.
@@ -1031,7 +1044,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
     });
 
-    it("dispatches nothing at all for the parked saga", async () => {
+    it("dispatches nothing at all for the parked saga", TIMING, async () => {
       const byId = await jobsWithId(parkedDedupeKey);
       assert.strictEqual(
         byId.length,
@@ -1059,7 +1072,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
     });
 
-    it("leaves the parked saga's post in a single consistent state", async () => {
+    it("leaves the parked saga's post in a single consistent state", TIMING, async () => {
       const afterBoot = await postSnapshot(parkedPostId);
 
       assert.strictEqual(
@@ -1113,76 +1126,80 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         restarted.scheduler,
         `the manually resumed saga ${sagaId} to reach a terminal state`
       );
-    });
+    }, TIMING);
 
-    it("records what a replay actually does: the queue absorbs the pivot, the step after it is rejected", async () => {
-      // This is the evidence the parking decision rests on, kept executable so
-      // it cannot quietly stop being true.
-      //
-      // The verdict is unchanged and the MECHANISM moved, which is worth
-      // reading carefully. A deliberate replay of a saga that already succeeded
-      // is now refused at the PIVOT, by its own reread countermeasure, because
-      // the first run left the post truthfully PUBLISHED and the pivot's plan
-      // requires DRAFT. It used to be refused one step later, by the post-pivot
-      // command carrying a create-time version the first run had already
-      // advanced. So the replay still cannot be made automatic — it just fails
-      // earlier, on a fact about the aggregate rather than on a stale token.
+    it(
+      "records what a replay actually does: the queue absorbs the pivot, the step after it is rejected",
+      TIMING,
+      async () => {
+        // This is the evidence the parking decision rests on, kept executable so
+        // it cannot quietly stop being true.
+        //
+        // The verdict is unchanged and the MECHANISM moved, which is worth
+        // reading carefully. A deliberate replay of a saga that already succeeded
+        // is now refused at the PIVOT, by its own reread countermeasure, because
+        // the first run left the post truthfully PUBLISHED and the pivot's plan
+        // requires DRAFT. It used to be refused one step later, by the post-pivot
+        // command carrying a create-time version the first run had already
+        // advanced. So the replay still cannot be made automatic — it just fails
+        // earlier, on a fact about the aggregate rather than on a stale token.
 
-      // The absorber half of the verdict: the pivot really is replay-safe.
-      const byId = await jobsWithId(dedupeKey);
-      assert.strictEqual(byId.length, 1, "the replayed pivot enqueued no second job");
-      const byTarget = await jobsForTarget(postId, deliveringChannelId);
-      assert.strictEqual(byTarget.length, 1, "and none addressed at the same post and channel");
-      assert.strictEqual(
-        processedCountFor(postId, deliveringChannelId),
-        processedBefore,
-        "no worker published a second time: the deterministic job id absorbed the replay"
-      );
-      const postAfter = await postSnapshot(postId);
-      assert.strictEqual(
-        postAfter.status,
-        postBefore.status,
-        "and the post kept its single consistent status"
-      );
+        // The absorber half of the verdict: the pivot really is replay-safe.
+        const byId = await jobsWithId(dedupeKey);
+        assert.strictEqual(byId.length, 1, "the replayed pivot enqueued no second job");
+        const byTarget = await jobsForTarget(postId, deliveringChannelId);
+        assert.strictEqual(byTarget.length, 1, "and none addressed at the same post and channel");
+        assert.strictEqual(
+          processedCountFor(postId, deliveringChannelId),
+          processedBefore,
+          "no worker published a second time: the deterministic job id absorbed the replay"
+        );
+        const postAfter = await postSnapshot(postId);
+        assert.strictEqual(
+          postAfter.status,
+          postBefore.status,
+          "and the post kept its single consistent status"
+        );
 
-      // The half that fails, and therefore the reason boot recovery declines —
-      // split into the SIGNAL and the MECHANICS, in that order, so a red run
-      // prints the signal first and the two can never be confused.
-      //
-      // (1) THE PARKING REVISIT TRIGGER. Only this assertion failing means the
-      // post-pivot step finally tolerates re-application and the parking branch
-      // should be revisited. It is deliberately about the row NOT reaching
-      // COMPLETED, so a reworded failure reason, a retry-timing change or a
-      // step-outcome contract change cannot fabricate the signal.
-      assert.notStrictEqual(
-        terminal.status,
-        "COMPLETED",
-        "THE PARKING REVISIT TRIGGER: the deliberately replayed post-pivot saga reached " +
-          "COMPLETED, which means re-applying the post-pivot transition is now safe and the " +
-          "boot-recovery parking branch should be revisited. No other assertion in this test " +
-          "carries that meaning"
-      );
+        // The half that fails, and therefore the reason boot recovery declines —
+        // split into the SIGNAL and the MECHANICS, in that order, so a red run
+        // prints the signal first and the two can never be confused.
+        //
+        // (1) THE PARKING REVISIT TRIGGER. Only this assertion failing means the
+        // post-pivot step finally tolerates re-application and the parking branch
+        // should be revisited. It is deliberately about the row NOT reaching
+        // COMPLETED, so a reworded failure reason, a retry-timing change or a
+        // step-outcome contract change cannot fabricate the signal.
+        assert.notStrictEqual(
+          terminal.status,
+          "COMPLETED",
+          "THE PARKING REVISIT TRIGGER: the deliberately replayed post-pivot saga reached " +
+            "COMPLETED, which means re-applying the post-pivot transition is now safe and the " +
+            "boot-recovery parking branch should be revisited. No other assertion in this test " +
+            "carries that meaning"
+        );
 
-      // (2) The mechanics this slice owns. They are allowed to evolve — the
-      // failure reason's text and the retry timing are not the evidence, they
-      // are how the evidence currently reads.
-      assert.strictEqual(
-        terminal.status,
-        "FAILED",
-        "the replayed saga ends FAILED (mechanics, not the revisit trigger)"
-      );
-      assert.match(
-        String(terminal.error),
-        /Reread check failed/i,
-        "and it fails on the pivot's own countermeasure, not on a queue side effect"
-      );
-      assert.match(
-        String(terminal.error),
-        /PUBLISHED/,
-        "naming the persisted status the first run left behind — the countermeasure can only " +
-          "refuse a replay because that status is now truthful"
-      );
-    });
+        // (2) The mechanics this slice owns. They are allowed to evolve — the
+        // failure reason's text and the retry timing are not the evidence, they
+        // are how the evidence currently reads.
+        assert.strictEqual(
+          terminal.status,
+          "FAILED",
+          "the replayed saga ends FAILED (mechanics, not the revisit trigger)"
+        );
+        assert.match(
+          String(terminal.error),
+          /Reread check failed/i,
+          "and it fails on the pivot's own countermeasure, not on a queue side effect"
+        );
+        assert.match(
+          String(terminal.error),
+          /PUBLISHED/,
+          "naming the persisted status the first run left behind — the countermeasure can only " +
+            "refuse a replay because that status is now truthful"
+        );
+      }
+    );
   });
 
   describe("a parked row and its operator window", () => {
@@ -1210,76 +1227,88 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       const tracked = restarted.lifecycle.activeInstances.get(sagaId);
       assert.ok(tracked, "the timeout checker only sees rows this process is tracking");
       tracked.startedAt = longAgo;
-    });
+    }, TIMING);
 
-    it("does not terminalize a parked row whose ordinary timeout has already passed", async () => {
-      await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
-
-      const snapshot = await sagaSnapshot(sagaId);
-      assert.strictEqual(
-        snapshot.status,
-        "RUNNING",
-        "a parked row is excluded from the ordinary sweep: its operator window opens when it is " +
-          "parked, not when the saga started, or the human is given no window at all"
-      );
-      assert.strictEqual(
-        await sagaFailedEventCount(sagaId),
-        0,
-        "and no terminal audit event was written for it"
-      );
-    });
-
-    it("terminalizes the parked row once its operator window expires, exactly once and as parked-expired", async () => {
-      const parkedAt = restarted.lifecycle.parkedAt.get(sagaId);
-      assert.ok(
-        typeof parkedAt === "number",
-        "the process records WHEN it parked each row, or the window has no origin"
-      );
-      restarted.lifecycle.parkedAt.set(sagaId, parkedAt - (SAGA_TIMEOUT_MS + 1_000));
-
-      const firstTick = await captureLogs(async () => {
+    it(
+      "does not terminalize a parked row whose ordinary timeout has already passed",
+      TIMING,
+      async () => {
         await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
-      });
 
-      const snapshot = await sagaSnapshot(sagaId);
-      assert.strictEqual(
-        snapshot.status,
-        "FAILED",
-        "an expired parked row reaches a terminal state: the canon forbids an infinite RUNNING"
-      );
-      assert.match(
-        String(snapshot.error),
-        /parked/i,
-        "and its durable trail says the operator window expired, not that a step hung"
-      );
-      assert.doesNotMatch(
-        String(snapshot.error),
-        /timeout exceeded/i,
-        "the ordinary timeout wording would send the operator to the wrong runbook"
-      );
+        const snapshot = await sagaSnapshot(sagaId);
+        assert.strictEqual(
+          snapshot.status,
+          "RUNNING",
+          "a parked row is excluded from the ordinary sweep: its operator window opens when it is " +
+            "parked, not when the saga started, or the human is given no window at all"
+        );
+        assert.strictEqual(
+          await sagaFailedEventCount(sagaId),
+          0,
+          "and no terminal audit event was written for it"
+        );
+      }
+    );
 
-      const failure = firstTick.find(
-        (line) => line.sagaId === sagaId && line.msg === "Saga failed"
-      );
-      assert.ok(failure, "the terminalization is logged against the saga it ended");
-      assert.strictEqual(
-        failure.reason,
-        "parked-expired",
-        "and it carries its own failure class, so the alerting series does not read it as a timeout"
-      );
+    it(
+      "terminalizes the parked row once its operator window expires, exactly once and as parked-expired",
+      TIMING,
+      async () => {
+        const parkedAt = restarted.lifecycle.parkedAt.get(sagaId);
+        assert.ok(
+          typeof parkedAt === "number",
+          "the process records WHEN it parked each row, or the window has no origin"
+        );
+        restarted.lifecycle.parkedAt.set(sagaId, parkedAt - (SAGA_TIMEOUT_MS + 1_000));
 
-      assert.strictEqual(await sagaFailedEventCount(sagaId), 1, "exactly one terminal audit event");
+        const firstTick = await captureLogs(async () => {
+          await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
+        });
 
-      // The re-fail loop: a terminal row left in the tracked set is re-failed on
-      // every subsequent tick, appending a fresh audit event each time.
-      await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
-      await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
-      assert.strictEqual(
-        await sagaFailedEventCount(sagaId),
-        1,
-        "and still exactly one after two more ticks: a terminal row is neither re-failed nor re-audited"
-      );
-    });
+        const snapshot = await sagaSnapshot(sagaId);
+        assert.strictEqual(
+          snapshot.status,
+          "FAILED",
+          "an expired parked row reaches a terminal state: the canon forbids an infinite RUNNING"
+        );
+        assert.match(
+          String(snapshot.error),
+          /parked/i,
+          "and its durable trail says the operator window expired, not that a step hung"
+        );
+        assert.doesNotMatch(
+          String(snapshot.error),
+          /timeout exceeded/i,
+          "the ordinary timeout wording would send the operator to the wrong runbook"
+        );
+
+        const failure = firstTick.find(
+          (line) => line.sagaId === sagaId && line.msg === "Saga failed"
+        );
+        assert.ok(failure, "the terminalization is logged against the saga it ended");
+        assert.strictEqual(
+          failure.reason,
+          "parked-expired",
+          "and it carries its own failure class, so the alerting series does not read it as a timeout"
+        );
+
+        assert.strictEqual(
+          await sagaFailedEventCount(sagaId),
+          1,
+          "exactly one terminal audit event"
+        );
+
+        // The re-fail loop: a terminal row left in the tracked set is re-failed on
+        // every subsequent tick, appending a fresh audit event each time.
+        await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
+        await restarted.scheduler.triggerTask(TIMEOUT_CHECKER_TASK_ID, { swallowErrors: false });
+        assert.strictEqual(
+          await sagaFailedEventCount(sagaId),
+          1,
+          "and still exactly one after two more ticks: a terminal row is neither re-failed nor re-audited"
+        );
+      }
+    );
   });
 
   describe("an inherited pivot-step retry claimed by the retry checker", () => {
@@ -1339,48 +1368,56 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         restarted.scheduler,
         `the checker to claim the inherited pivot-step retry ${sagaId} and settle it`
       );
-    });
+    }, TIMING);
 
-    it("aborts the pivot re-entry through its reread countermeasure instead of re-enqueueing", async () => {
-      assert.strictEqual(
-        terminal.status,
-        "FAILED",
-        "the pivot is not re-run: the saga settles instead of publishing again"
-      );
-      assert.match(
-        String(terminal.error),
-        /Reread check failed/i,
-        "and it settles because the pivot's RereadCheck refused, which is the countermeasure " +
-          "that makes the checker's claim of a pivot-step row safe"
-      );
-      assert.match(
-        String(terminal.error),
-        /expected DRAFT/i,
-        "naming the aggregate state that no longer matches the plan"
-      );
-    });
+    it(
+      "aborts the pivot re-entry through its reread countermeasure instead of re-enqueueing",
+      TIMING,
+      async () => {
+        assert.strictEqual(
+          terminal.status,
+          "FAILED",
+          "the pivot is not re-run: the saga settles instead of publishing again"
+        );
+        assert.match(
+          String(terminal.error),
+          /Reread check failed/i,
+          "and it settles because the pivot's RereadCheck refused, which is the countermeasure " +
+            "that makes the checker's claim of a pivot-step row safe"
+        );
+        assert.match(
+          String(terminal.error),
+          /expected DRAFT/i,
+          "naming the aggregate state that no longer matches the plan"
+        );
+      }
+    );
 
-    it("produces no second job and no second publish for the same post and channel", async () => {
-      const byId = await jobsWithId(dedupeKey);
-      assert.strictEqual(byId.length, 1, "no second job holds the pivot's deterministic id");
+    it(
+      "produces no second job and no second publish for the same post and channel",
+      TIMING,
+      async () => {
+        const byId = await jobsWithId(dedupeKey);
+        assert.strictEqual(byId.length, 1, "no second job holds the pivot's deterministic id");
 
-      const jobIdsAfter = (await jobsForTarget(postId, deliveringChannelId)).map((job) =>
-        String(job.id)
-      );
-      assert.deepStrictEqual(
-        jobIdsAfter,
-        jobIdsBefore,
-        "and the queue holds exactly the jobs it held before: the countermeasure aborts BEFORE " +
-          "the enqueue, so FOR A PROMOTED POST the guarantee does not depend on the job-id " +
-          "dedupe surviving retention"
-      );
+        const jobIdsAfter = (await jobsForTarget(postId, deliveringChannelId)).map((job) =>
+          String(job.id)
+        );
+        assert.deepStrictEqual(
+          jobIdsAfter,
+          jobIdsBefore,
+          "and the queue holds exactly the jobs it held before: the countermeasure aborts BEFORE " +
+            "the enqueue, so FOR A PROMOTED POST the guarantee does not depend on the job-id " +
+            "dedupe surviving retention"
+        );
 
-      assert.strictEqual(
-        processedCountFor(postId, deliveringChannelId),
-        processedBefore,
-        "no worker published a second time"
-      );
-    });
+        assert.strictEqual(
+          processedCountFor(postId, deliveringChannelId),
+          processedBefore,
+          "no worker published a second time"
+        );
+      }
+    );
   });
 
   describe("an inherited pivot-step retry whose post is still DRAFT", () => {
@@ -1442,33 +1479,37 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         restarted.scheduler,
         `the checker to claim the still-DRAFT pivot-step retry ${sagaId} and settle it`
       );
-    });
+    }, TIMING);
 
-    it("really re-enters the pivot: the reread countermeasure does NOT refuse a DRAFT post", async () => {
-      // Without this the scenario would be indistinguishable from the promoted
-      // one — a refused replay also leaves the queue untouched. The saga walking
-      // PAST the pivot and reaching a terminal state of its own is the proof
-      // that the pivot itself ran. COMPLETED carries the reread check on its
-      // own: a refusal terminates the saga FAILED with that error, so a
-      // separate `doesNotMatch(/Reread check failed/)` would assert nothing the
-      // next assertion does not already decide.
-      assert.strictEqual(
-        terminal.status,
-        "COMPLETED",
-        "and the saga settles by PROMOTING the post rather than dying on a stale token: the " +
-          "post-pivot step re-reads the aggregate on every attempt, so a re-entry that finds " +
-          "the post unpublished finishes the publication instead of failing a saga that " +
-          "genuinely succeeded"
-      );
-      const postAfter = await postSnapshot(postId);
-      assert.strictEqual(
-        postAfter.status,
-        "PUBLISHED",
-        "measured on the row, not inferred from the saga status"
-      );
-    });
+    it(
+      "really re-enters the pivot: the reread countermeasure does NOT refuse a DRAFT post",
+      TIMING,
+      async () => {
+        // Without this the scenario would be indistinguishable from the promoted
+        // one — a refused replay also leaves the queue untouched. The saga walking
+        // PAST the pivot and reaching a terminal state of its own is the proof
+        // that the pivot itself ran. COMPLETED carries the reread check on its
+        // own: a refusal terminates the saga FAILED with that error, so a
+        // separate `doesNotMatch(/Reread check failed/)` would assert nothing the
+        // next assertion does not already decide.
+        assert.strictEqual(
+          terminal.status,
+          "COMPLETED",
+          "and the saga settles by PROMOTING the post rather than dying on a stale token: the " +
+            "post-pivot step re-reads the aggregate on every attempt, so a re-entry that finds " +
+            "the post unpublished finishes the publication instead of failing a saga that " +
+            "genuinely succeeded"
+        );
+        const postAfter = await postSnapshot(postId);
+        assert.strictEqual(
+          postAfter.status,
+          "PUBLISHED",
+          "measured on the row, not inferred from the saga status"
+        );
+      }
+    );
 
-    it("re-enters the pivot, and the retained job id is what absorbs it", async () => {
+    it("re-enters the pivot, and the retained job id is what absorbs it", TIMING, async () => {
       const byId = await jobsWithId(dedupeKey);
       assert.strictEqual(byId.length, 1, "still exactly one job holds the deterministic id");
       assert.strictEqual(
@@ -1494,123 +1535,131 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   });
 
   describe("terminal rows and the pivot boundary at restart", () => {
-    it("leaves a saga that was already terminal untouched when a manager boots", async () => {
-      const terminalIds = new Map<string, string>();
-      const seeded: Array<{ id: string; status: string; updatedAt: Date }> = [];
+    it(
+      "leaves a saga that was already terminal untouched when a manager boots",
+      TIMING,
+      async () => {
+        const terminalIds = new Map<string, string>();
+        const seeded: Array<{ id: string; status: string; updatedAt: Date }> = [];
 
-      for (const status of ["COMPLETED", "FAILED", "COMPENSATED"] as const) {
-        const id = `${TAG}-terminal-${status.toLowerCase()}-${randomUUID()}`;
-        terminalIds.set(id, status);
-        createdSagaIds.push(id);
-        await base.sagaInstance.create({
-          data: {
-            id,
-            definitionId: PUBLISHING_SAGA_ID,
-            status,
-            // One step short of the end: a boot that resumed this row would run
-            // the post-pivot status step and its command would show up in the
-            // recorder below.
-            currentStep: LAST_STEP_INDEX,
-            accountId,
-            context: {
-              sagaId: id,
-              correlationId: `corr-${id}`,
+        for (const status of ["COMPLETED", "FAILED", "COMPENSATED"] as const) {
+          const id = `${TAG}-terminal-${status.toLowerCase()}-${randomUUID()}`;
+          terminalIds.set(id, status);
+          createdSagaIds.push(id);
+          await base.sagaInstance.create({
+            data: {
+              id,
+              definitionId: PUBLISHING_SAGA_ID,
+              status,
+              // One step short of the end: a boot that resumed this row would run
+              // the post-pivot status step and its command would show up in the
+              // recorder below.
+              currentStep: LAST_STEP_INDEX,
               accountId,
-              userId: customerUserId,
-              metadata: { accountId, mode: "publish-now" },
-              stepData: {},
-              events: [],
+              context: {
+                sagaId: id,
+                correlationId: `corr-${id}`,
+                accountId,
+                userId: customerUserId,
+                metadata: { accountId, mode: "publish-now" },
+                stepData: {},
+                events: [],
+              },
+              stepResults: [],
+              compensationResults: [],
+              retryCount: 0,
+              startedAt: new Date(Date.now() - 60_000),
+              completedAt: new Date(Date.now() - 30_000),
             },
-            stepResults: [],
-            compensationResults: [],
-            retryCount: 0,
-            startedAt: new Date(Date.now() - 60_000),
-            completedAt: new Date(Date.now() - 30_000),
-          },
-        });
-        const row = await sagaSnapshot(id);
-        seeded.push({ id, status: row.status, updatedAt: row.updatedAt });
-      }
+          });
+          const row = await sagaSnapshot(id);
+          seeded.push({ id, status: row.status, updatedAt: row.updatedAt });
+        }
 
-      // The canary is the synchronization point: it is loaded by the SAME boot
-      // and it runs to a terminal state, so by the time the assertions below
-      // execute the pass's detached work has demonstrably completed.
-      const canaryId = await seedPrePivotSaga("terminal-canary", deliveringChannelId);
-      const commandsBefore = dispatchedCommands.length;
-      const { harness: restarted } = await bootHarness("terminal-restarted");
-      await driveToTerminal(
-        canaryId,
-        restarted.scheduler,
-        `the canary ${canaryId} to terminalize, which proves this boot's dispatches ran`
-      );
-
-      for (const before of seeded) {
-        const after = await sagaSnapshot(before.id);
-        assert.strictEqual(
-          after.status,
-          before.status,
-          `a ${before.status} saga must keep its terminal state across a restart`
+        // The canary is the synchronization point: it is loaded by the SAME boot
+        // and it runs to a terminal state, so by the time the assertions below
+        // execute the pass's detached work has demonstrably completed.
+        const canaryId = await seedPrePivotSaga("terminal-canary", deliveringChannelId);
+        const commandsBefore = dispatchedCommands.length;
+        const { harness: restarted } = await bootHarness("terminal-restarted");
+        await driveToTerminal(
+          canaryId,
+          restarted.scheduler,
+          `the canary ${canaryId} to terminalize, which proves this boot's dispatches ran`
         );
+
+        for (const before of seeded) {
+          const after = await sagaSnapshot(before.id);
+          assert.strictEqual(
+            after.status,
+            before.status,
+            `a ${before.status} saga must keep its terminal state across a restart`
+          );
+          assert.strictEqual(
+            after.updatedAt.toISOString(),
+            before.updatedAt.toISOString(),
+            `a ${before.status} saga must not be rewritten at boot — a re-warm or a resume would move updatedAt`
+          );
+          assert.deepStrictEqual(
+            after.compensationResults,
+            [],
+            `a ${before.status} saga must run no compensation at boot`
+          );
+        }
+
+        const dispatchedForTerminals = dispatchedCommands
+          .slice(commandsBefore)
+          .filter((command) => [...terminalIds.keys()].some((id) => command.id.includes(id)));
+        assert.deepStrictEqual(
+          dispatchedForTerminals,
+          [],
+          "a terminal saga must dispatch no command at boot; the command id carries its saga id, so any step that ran would appear here"
+        );
+      }
+    );
+
+    it(
+      "compensates no pivot or post-pivot step when a post-pivot failure ends the saga",
+      TIMING,
+      async () => {
+        const { harness } = await bootHarness("postpivot");
+        const started = await startPublishNowSaga(harness, rejectingChannelId, "postpivot");
+        const sagaId = started.id;
+
+        const snapshot = await driveToTerminal(
+          sagaId,
+          harness.scheduler,
+          `the post-pivot failure of ${sagaId} to exhaust its retries`
+        );
+
         assert.strictEqual(
-          after.updatedAt.toISOString(),
-          before.updatedAt.toISOString(),
-          `a ${before.status} saga must not be rewritten at boot — a re-warm or a resume would move updatedAt`
+          snapshot.status,
+          "FAILED",
+          "a retryable step that exhausts its budget past the pivot ends the saga FAILED, never COMPENSATED"
         );
         assert.deepStrictEqual(
-          after.compensationResults,
+          snapshot.compensationResults,
           [],
-          `a ${before.status} saga must run no compensation at boot`
+          "no compensation runs for a failure at or past the pivot: the provider may already hold the side effect"
+        );
+
+        const postId = readCreatedPostId(snapshot.context);
+        const compensatingCommands = dispatchedCommands.filter(
+          (command) => command.id.includes(sagaId) && command.type === "post.delete"
+        );
+        assert.deepStrictEqual(
+          compensatingCommands,
+          [],
+          "the pre-pivot create step must not be walked back once the pivot has run"
+        );
+
+        const survivor = await base.post.findUnique({ where: { id: postId } });
+        assert.ok(
+          survivor,
+          "the post created before the pivot survives a post-pivot failure — a compensation walk would have deleted it"
         );
       }
-
-      const dispatchedForTerminals = dispatchedCommands
-        .slice(commandsBefore)
-        .filter((command) => [...terminalIds.keys()].some((id) => command.id.includes(id)));
-      assert.deepStrictEqual(
-        dispatchedForTerminals,
-        [],
-        "a terminal saga must dispatch no command at boot; the command id carries its saga id, so any step that ran would appear here"
-      );
-    });
-
-    it("compensates no pivot or post-pivot step when a post-pivot failure ends the saga", async () => {
-      const { harness } = await bootHarness("postpivot");
-      const started = await startPublishNowSaga(harness, rejectingChannelId, "postpivot");
-      const sagaId = started.id;
-
-      const snapshot = await driveToTerminal(
-        sagaId,
-        harness.scheduler,
-        `the post-pivot failure of ${sagaId} to exhaust its retries`
-      );
-
-      assert.strictEqual(
-        snapshot.status,
-        "FAILED",
-        "a retryable step that exhausts its budget past the pivot ends the saga FAILED, never COMPENSATED"
-      );
-      assert.deepStrictEqual(
-        snapshot.compensationResults,
-        [],
-        "no compensation runs for a failure at or past the pivot: the provider may already hold the side effect"
-      );
-
-      const postId = readCreatedPostId(snapshot.context);
-      const compensatingCommands = dispatchedCommands.filter(
-        (command) => command.id.includes(sagaId) && command.type === "post.delete"
-      );
-      assert.deepStrictEqual(
-        compensatingCommands,
-        [],
-        "the pre-pivot create step must not be walked back once the pivot has run"
-      );
-
-      const survivor = await base.post.findUnique({ where: { id: postId } });
-      assert.ok(
-        survivor,
-        "the post created before the pivot survives a post-pivot failure — a compensation walk would have deleted it"
-      );
-    });
+    );
   });
 
   describe("a retry-pending saga handed off by a graceful shutdown", () => {
@@ -1639,9 +1688,9 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
 
       const booted = await bootHarness("handoff-restarted");
       restarted = booted.harness;
-    });
+    }, TIMING);
 
-    it("leaves the saga PENDING with its pending retry intact", async () => {
+    it("leaves the saga PENDING with its pending retry intact", TIMING, async () => {
       // The premise of the hand-off class. Without it the next assertion could
       // pass for the wrong reason — a RUNNING row is claimed by today's
       // checker, so the gap would never be exercised.
@@ -1659,7 +1708,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
     });
 
-    it("is claimed by the retry checker and reaches a terminal state", async () => {
+    it("is claimed by the retry checker and reaches a terminal state", TIMING, async () => {
       const snapshot = await driveToTerminal(
         sagaId,
         restarted.scheduler,

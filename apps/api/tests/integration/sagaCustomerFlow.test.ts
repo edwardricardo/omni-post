@@ -32,6 +32,15 @@ import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 const API_URL = getBaseUrl();
 
+/**
+ * Budget for every test and hook in this file, passed to each call: the runner's
+ * `--test-timeout` binds every test and every hook, and a `describe` option would neither raise
+ * that limit nor leave the suite's total duration uncapped. 180 s: the publish-now cases poll up
+ * to 120 s for a terminal state (one 30 s saga poll of it is the designed tail), and each case
+ * makes requests around that poll.
+ */
+const TIMING = { timeout: 180_000 } as const;
+
 interface Fixture {
   accountId: string;
   customerUserId: string;
@@ -240,7 +249,7 @@ describe("Saga customer flow integration", () => {
       authHeader: `Bearer ${accessToken}`,
       otherAccountAuthHeader: `Bearer ${otherAccessToken}`,
     };
-  });
+  }, TIMING);
 
   after(async () => {
     if (!fixture) return;
@@ -270,13 +279,13 @@ describe("Saga customer flow integration", () => {
     } finally {
       await prisma.$disconnect();
     }
-  });
+  }, TIMING);
 
   // -----------------------------------------------------------------------
   // mode = draft
   // -----------------------------------------------------------------------
 
-  it("creates a draft (mode=draft) and reaches COMPLETED", async () => {
+  it("creates a draft (mode=draft) and reaches COMPLETED", TIMING, async () => {
     const start = await startSaga(fixture.authHeader, {
       mode: "draft",
       projectId: fixture.projectId,
@@ -308,36 +317,40 @@ describe("Saga customer flow integration", () => {
   // mode = schedule + existing draft (postId path)
   // -----------------------------------------------------------------------
 
-  it("schedules an existing draft (mode=schedule + postId) and skips Create step", async () => {
-    const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const start = await startSaga(fixture.authHeader, {
-      mode: "schedule",
-      projectId: fixture.projectId,
-      postId: fixture.draftPostId,
-      channelIds: [fixture.channelIds[0]!],
-      scheduledAt,
-    });
-    assert.strictEqual(start.status, 200);
-    const startBody = start.body as { data: { sagaId: string } };
-    const sagaId = startBody.data.sagaId;
+  it(
+    "schedules an existing draft (mode=schedule + postId) and skips Create step",
+    TIMING,
+    async () => {
+      const scheduledAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const start = await startSaga(fixture.authHeader, {
+        mode: "schedule",
+        projectId: fixture.projectId,
+        postId: fixture.draftPostId,
+        channelIds: [fixture.channelIds[0]!],
+        scheduledAt,
+      });
+      assert.strictEqual(start.status, 200);
+      const startBody = start.body as { data: { sagaId: string } };
+      const sagaId = startBody.data.sagaId;
 
-    const final = await waitForTerminal(fixture.authHeader, sagaId);
-    assert.strictEqual(final.status, "COMPLETED");
+      const final = await waitForTerminal(fixture.authHeader, sagaId);
+      assert.strictEqual(final.status, "COMPLETED");
 
-    const stepResults =
-      (final.data.stepResults as Array<{
-        data?: { postId?: string; skippedCreation?: boolean };
-      }>) || [];
-    // Create step (index 1) MUST flag skippedCreation since postId was provided.
-    assert.strictEqual(stepResults[1]?.data?.skippedCreation, true);
-    assert.strictEqual(stepResults[1]?.data?.postId, fixture.draftPostId);
-  });
+      const stepResults =
+        (final.data.stepResults as Array<{
+          data?: { postId?: string; skippedCreation?: boolean };
+        }>) || [];
+      // Create step (index 1) MUST flag skippedCreation since postId was provided.
+      assert.strictEqual(stepResults[1]?.data?.skippedCreation, true);
+      assert.strictEqual(stepResults[1]?.data?.postId, fixture.draftPostId);
+    }
+  );
 
   // -----------------------------------------------------------------------
   // mode = publish-now + new content
   // -----------------------------------------------------------------------
 
-  it("runs publish-now end-to-end through the worker pipeline", async () => {
+  it("runs publish-now end-to-end through the worker pipeline", TIMING, async () => {
     const start = await startSaga(fixture.authHeader, {
       mode: "publish-now",
       projectId: fixture.projectId,
@@ -370,69 +383,73 @@ describe("Saga customer flow integration", () => {
     );
   });
 
-  it("reports a multi-channel publish on the existing status surface, in the three-state contract", async () => {
-    // The customer-facing correction, asserted where the WRONG outcome used to
-    // be read: this endpoint. Two channels, so the saga's wait step is
-    // re-entered by a sibling's completion event — the exact shape that used to
-    // spend the retry budget until a fully-published post reported FAILED.
-    const start = await startSaga(fixture.authHeader, {
-      mode: "publish-now",
-      projectId: fixture.projectId,
-      locale: "en",
-      body: "multi-channel outcome body",
-      channelIds: [fixture.channelIds[0]!, fixture.channelIds[1]!],
-    });
-    assert.strictEqual(start.status, 200);
-    const startBody = start.body as { data: { sagaId: string } };
+  it(
+    "reports a multi-channel publish on the existing status surface, in the three-state contract",
+    TIMING,
+    async () => {
+      // The customer-facing correction, asserted where the WRONG outcome used to
+      // be read: this endpoint. Two channels, so the saga's wait step is
+      // re-entered by a sibling's completion event — the exact shape that used to
+      // spend the retry budget until a fully-published post reported FAILED.
+      const start = await startSaga(fixture.authHeader, {
+        mode: "publish-now",
+        projectId: fixture.projectId,
+        locale: "en",
+        body: "multi-channel outcome body",
+        channelIds: [fixture.channelIds[0]!, fixture.channelIds[1]!],
+      });
+      assert.strictEqual(start.status, 200);
+      const startBody = start.body as { data: { sagaId: string } };
 
-    // A longer budget than the single-channel scenario above, and the reason is
-    // the change itself: a step that has not finished re-arms on the poll
-    // cadence (30 s) instead of spending a retry, so when a completion event
-    // races BullMQ's own state update — the job's last attempt has failed but
-    // the job is not yet in the failed set — the saga waits one poll before it
-    // sees the outcome. Measured here: ~60 s to a terminal FAILED carrying "2
-    // out of 2 publishing jobs failed", of which one poll interval is the tail.
-    // That latency is the designed cost of never spending budget on a step that
-    // is merely waiting; events remain the primary advance.
-    const final = await waitForTerminal(fixture.authHeader, startBody.data.sagaId, 120_000);
+      // A longer budget than the single-channel scenario above, and the reason is
+      // the change itself: a step that has not finished re-arms on the poll
+      // cadence (30 s) instead of spending a retry, so when a completion event
+      // races BullMQ's own state update — the job's last attempt has failed but
+      // the job is not yet in the failed set — the saga waits one poll before it
+      // sees the outcome. Measured here: ~60 s to a terminal FAILED carrying "2
+      // out of 2 publishing jobs failed", of which one poll interval is the tail.
+      // That latency is the designed cost of never spending budget on a step that
+      // is merely waiting; events remain the primary advance.
+      const final = await waitForTerminal(fixture.authHeader, startBody.data.sagaId, 120_000);
 
-    // Whatever the dev provider credentials do, ONE outcome is now impossible:
-    // a saga ended because its own siblings were still publishing. Without real
-    // credentials the jobs genuinely fail, so a FAILED terminal is still valid
-    // here — it just may never carry the amplification reason again.
-    assert.doesNotMatch(
-      String(final.data.error ?? ""),
-      /still in progress/i,
-      "no publish may end because its own channels had not finished yet"
-    );
-
-    // The corrected outcome is visible on the EXISTING surface: step results
-    // carry the three-state discriminator, and a step still waiting on the
-    // channels is reported as waiting rather than as one that failed. No new
-    // surface, and no new customer message, was introduced for it.
-    const stepResults = (final.data.stepResults ?? []) as {
-      outcome?: string;
-      success?: unknown;
-    }[];
-    assert.ok(stepResults.length > 0, "the status surface reports the steps it ran");
-    for (const result of stepResults) {
-      assert.ok(
-        ["succeeded", "failed", "waiting"].includes(String(result.outcome)),
-        `every step outcome is one of the three states, got ${String(result.outcome)}`
+      // Whatever the dev provider credentials do, ONE outcome is now impossible:
+      // a saga ended because its own siblings were still publishing. Without real
+      // credentials the jobs genuinely fail, so a FAILED terminal is still valid
+      // here — it just may never carry the amplification reason again.
+      assert.doesNotMatch(
+        String(final.data.error ?? ""),
+        /still in progress/i,
+        "no publish may end because its own channels had not finished yet"
       );
-      assert.strictEqual(
-        result.success,
-        undefined,
-        "and the boolean that could not tell 'waiting' from 'failed' is gone"
-      );
+
+      // The corrected outcome is visible on the EXISTING surface: step results
+      // carry the three-state discriminator, and a step still waiting on the
+      // channels is reported as waiting rather than as one that failed. No new
+      // surface, and no new customer message, was introduced for it.
+      const stepResults = (final.data.stepResults ?? []) as {
+        outcome?: string;
+        success?: unknown;
+      }[];
+      assert.ok(stepResults.length > 0, "the status surface reports the steps it ran");
+      for (const result of stepResults) {
+        assert.ok(
+          ["succeeded", "failed", "waiting"].includes(String(result.outcome)),
+          `every step outcome is one of the three states, got ${String(result.outcome)}`
+        );
+        assert.strictEqual(
+          result.success,
+          undefined,
+          "and the boolean that could not tell 'waiting' from 'failed' is gone"
+        );
+      }
     }
-  });
+  );
 
   // -----------------------------------------------------------------------
   // Negative — Zod refinement (XOR)
   // -----------------------------------------------------------------------
 
-  it("rejects body with both postId AND content (XOR refinement)", async () => {
+  it("rejects body with both postId AND content (XOR refinement)", TIMING, async () => {
     const result = await startSaga(fixture.authHeader, {
       mode: "publish-now",
       projectId: fixture.projectId,
@@ -444,7 +461,7 @@ describe("Saga customer flow integration", () => {
     assert.strictEqual(result.status, 400);
   });
 
-  it("rejects body with neither postId nor content", async () => {
+  it("rejects body with neither postId nor content", TIMING, async () => {
     const result = await startSaga(fixture.authHeader, {
       mode: "publish-now",
       projectId: fixture.projectId,
@@ -457,7 +474,7 @@ describe("Saga customer flow integration", () => {
   // Negative — ownership (cross-tenant)
   // -----------------------------------------------------------------------
 
-  it("returns 404 when projectId belongs to another account", async () => {
+  it("returns 404 when projectId belongs to another account", TIMING, async () => {
     const result = await startSaga(fixture.otherAccountAuthHeader, {
       mode: "draft",
       projectId: fixture.projectId, // belongs to fixture.accountId, NOT otherAccount
@@ -467,7 +484,7 @@ describe("Saga customer flow integration", () => {
     assert.strictEqual(result.status, 404, "cross-tenant project must 404 (anti-IDOR)");
   });
 
-  it("returns 404 when postId belongs to another project", async () => {
+  it("returns 404 when postId belongs to another project", TIMING, async () => {
     // Create a post in a project the test account does NOT own.
     const foreignAccount = await prisma.account.create({
       data: { email: `foreign-${randomUUID()}@test.com`, name: "Foreign Account" },
@@ -494,7 +511,7 @@ describe("Saga customer flow integration", () => {
     }
   });
 
-  it("rejects scheduling an already PUBLISHED post, and starts nothing", async () => {
+  it("rejects scheduling an already PUBLISHED post, and starts nothing", TIMING, async () => {
     // The guard keys off the PERSISTED status, so it was inert for as long as a
     // completed publish-now left the row in DRAFT. The harm it closes is a
     // duplicate send to a provider, and the DIRECT proof of that — the publish
@@ -537,7 +554,7 @@ describe("Saga customer flow integration", () => {
   // Negative — channel ownership
   // -----------------------------------------------------------------------
 
-  it("returns 404 when channelId belongs to another project", async () => {
+  it("returns 404 when channelId belongs to another project", TIMING, async () => {
     const foreignAccount = await prisma.account.create({
       data: { email: `chan-${randomUUID()}@test.com`, name: "Foreign Channel Account" },
     });
@@ -577,7 +594,7 @@ describe("Saga customer flow integration", () => {
   // Negative — auth
   // -----------------------------------------------------------------------
 
-  it("returns 401 when Authorization header is missing", async () => {
+  it("returns 401 when Authorization header is missing", TIMING, async () => {
     const response = await fetch(`${API_URL}/sagas/post-publishing/start`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -595,27 +612,31 @@ describe("Saga customer flow integration", () => {
   // Status endpoint ownership
   // -----------------------------------------------------------------------
 
-  it("returns 404 from GET /sagas/:sagaId for a saga owned by another customer", async () => {
-    // Start a saga as account A
-    const start = await startSaga(fixture.authHeader, {
-      mode: "draft",
-      projectId: fixture.projectId,
-      locale: "en",
-      body: "ownership-check draft",
-    });
-    assert.strictEqual(start.status, 200);
-    const sagaId = (start.body as { data: { sagaId: string } }).data.sagaId;
+  it(
+    "returns 404 from GET /sagas/:sagaId for a saga owned by another customer",
+    TIMING,
+    async () => {
+      // Start a saga as account A
+      const start = await startSaga(fixture.authHeader, {
+        mode: "draft",
+        projectId: fixture.projectId,
+        locale: "en",
+        body: "ownership-check draft",
+      });
+      assert.strictEqual(start.status, 200);
+      const sagaId = (start.body as { data: { sagaId: string } }).data.sagaId;
 
-    // Read it as account B → 404 (anti-IDOR)
-    const result = await getSagaStatus(fixture.otherAccountAuthHeader, sagaId);
-    assert.strictEqual(result.status, 404);
-  });
+      // Read it as account B → 404 (anti-IDOR)
+      const result = await getSagaStatus(fixture.otherAccountAuthHeader, sagaId);
+      assert.strictEqual(result.status, 404);
+    }
+  );
 
   // -----------------------------------------------------------------------
   // Canon coverage — OCC (Azure saga §15-20)
   // -----------------------------------------------------------------------
 
-  it("rejects PATCH /posts/:id with stale expectedVersion (CONFLICT)", async () => {
+  it("rejects PATCH /posts/:id with stale expectedVersion (CONFLICT)", TIMING, async () => {
     // Create a fresh post via the saga so we know its starting version (0).
     const start = await startSaga(fixture.authHeader, {
       mode: "draft",
@@ -668,45 +689,49 @@ describe("Saga customer flow integration", () => {
   // Canon coverage — pivot semantics (Azure §5)
   // -----------------------------------------------------------------------
 
-  it("does NOT compensate steps at or after the pivot when saga fails post-pivot", async () => {
-    // The post-publishing-saga has pivotStepIndex=2 (Schedule). Steps 0-1 are
-    // compensable, step 2 is pivot, steps 3-4 are retryable. We force a
-    // failure post-pivot by starting publish-now with channels whose
-    // credentials are stubs — the worker pipeline will reject them. The
-    // saga should reach a terminal FAILED state without compensating step 2
-    // (no cancelJob) and without compensating steps 3-4 (retryable, no
-    // compensate by canon).
+  it(
+    "does NOT compensate steps at or after the pivot when saga fails post-pivot",
+    TIMING,
+    async () => {
+      // The post-publishing-saga has pivotStepIndex=2 (Schedule). Steps 0-1 are
+      // compensable, step 2 is pivot, steps 3-4 are retryable. We force a
+      // failure post-pivot by starting publish-now with channels whose
+      // credentials are stubs — the worker pipeline will reject them. The
+      // saga should reach a terminal FAILED state without compensating step 2
+      // (no cancelJob) and without compensating steps 3-4 (retryable, no
+      // compensate by canon).
 
-    const start = await startSaga(fixture.authHeader, {
-      mode: "publish-now",
-      projectId: fixture.projectId,
-      channelIds: [fixture.channelIds[0]!],
-      locale: "en",
-      body: "pivot enforcement scenario",
-    });
-    assert.strictEqual(start.status, 200);
-    const sagaId = (start.body as { data: { sagaId: string } }).data.sagaId;
+      const start = await startSaga(fixture.authHeader, {
+        mode: "publish-now",
+        projectId: fixture.projectId,
+        channelIds: [fixture.channelIds[0]!],
+        locale: "en",
+        body: "pivot enforcement scenario",
+      });
+      assert.strictEqual(start.status, 200);
+      const sagaId = (start.body as { data: { sagaId: string } }).data.sagaId;
 
-    // That 35s retry envelope (5 + 10 + 20) NO LONGER EXISTS: a step waiting on
-    // its publish jobs spends no retry budget, so this flow now ends on the
-    // saga's own timing — the completion event, or one 30s poll interval behind
-    // it when that event races the queue's state update. Measured on this
-    // environment: ~60s to a terminal state. 120s, the same budget and the same
-    // reason as the two publish-now scenarios above, keeps a full poll interval
-    // of headroom; 90s left barely one, which is a flake waiting to happen.
-    const final = await waitForTerminal(fixture.authHeader, sagaId, 120_000);
-    const compensationResults =
-      (final.data.compensationResults as Array<unknown> | undefined) ?? [];
+      // That 35s retry envelope (5 + 10 + 20) NO LONGER EXISTS: a step waiting on
+      // its publish jobs spends no retry budget, so this flow now ends on the
+      // saga's own timing — the completion event, or one 30s poll interval behind
+      // it when that event races the queue's state update. Measured on this
+      // environment: ~60s to a terminal state. 120s, the same budget and the same
+      // reason as the two publish-now scenarios above, keeps a full poll interval
+      // of headroom; 90s left barely one, which is a flake waiting to happen.
+      const final = await waitForTerminal(fixture.authHeader, sagaId, 120_000);
+      const compensationResults =
+        (final.data.compensationResults as Array<unknown> | undefined) ?? [];
 
-    // Canon: only compensable steps strictly before pivotStepIndex (2) may
-    // appear with a real compensation result. Steps 2-4 must NOT have been
-    // compensated regardless of saga outcome.
-    for (let i = 2; i < compensationResults.length; i++) {
-      const result = compensationResults[i] as { outcome?: string } | undefined;
-      assert.ok(
-        result === undefined || result === null,
-        `step ${i} (pivot/retryable) must not have a compensation result, got: ${JSON.stringify(result)}`
-      );
+      // Canon: only compensable steps strictly before pivotStepIndex (2) may
+      // appear with a real compensation result. Steps 2-4 must NOT have been
+      // compensated regardless of saga outcome.
+      for (let i = 2; i < compensationResults.length; i++) {
+        const result = compensationResults[i] as { outcome?: string } | undefined;
+        assert.ok(
+          result === undefined || result === null,
+          `step ${i} (pivot/retryable) must not have a compensation result, got: ${JSON.stringify(result)}`
+        );
+      }
     }
-  });
+  );
 });

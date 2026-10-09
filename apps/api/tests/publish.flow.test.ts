@@ -32,6 +32,15 @@ import type { CanonicalPost, Result } from "@shared/types";
 import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
 
 /**
+ * Budget for every test and hook in this file, passed to each call: the runner's
+ * `--test-timeout` binds every test and every hook, and a `describe` option would neither raise
+ * that limit nor leave the suite's total duration uncapped. 60 s: every case finishes well under
+ * a second against real Postgres and Redis, so the budget is headroom for a cold connection or a
+ * loaded runner, not a need of the cases.
+ */
+const TIMING = { timeout: 60_000 } as const;
+
+/**
  * Fixture channel. The subject is the publish path end to end; this client plants the post and
  * channel it publishes and reads the PublishLog back.
  */
@@ -156,9 +165,9 @@ describe("Publish Flow", { concurrency: 1 }, () => {
         /* ignore */
       }
     }
-  });
+  }, TIMING);
 
-  it("setup: create account, project, and channel", async () => {
+  it("setup: create account, project, and channel", TIMING, async () => {
     ctx = await setupTest();
 
     const account = await ctx.repo.createAccount({
@@ -193,7 +202,7 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     channelId = channel.id;
   });
 
-  it("happy path: publish single post and verify PublishLog OK", async () => {
+  it("happy path: publish single post and verify PublishLog OK", TIMING, async () => {
     ctx = await setupTest();
 
     const post = await ctx.repo.createPost({
@@ -226,7 +235,7 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     assert.strictEqual(okLog.channelId, channelId);
   });
 
-  it("provider failure: verify PublishLog has ERR status", async () => {
+  it("provider failure: verify PublishLog has ERR status", TIMING, async () => {
     ctx = await setupTest();
 
     const post = await ctx.repo.createPost({
@@ -270,7 +279,7 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     assert.strictEqual(errLog.provider, "X");
   });
 
-  it("idempotency: skip publish when PublishLog already has OK", async () => {
+  it("idempotency: skip publish when PublishLog already has OK", TIMING, async () => {
     ctx = await setupTest();
 
     const post = await ctx.repo.createPost({
@@ -319,7 +328,7 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     assert.strictEqual(logs.length, 1, "Should still have exactly 1 log entry");
   });
 
-  it("queue round-trip: enqueue and verify queue health", async () => {
+  it("queue round-trip: enqueue and verify queue health", TIMING, async () => {
     ctx = await setupTest();
 
     const health = await ctx.queue.health();

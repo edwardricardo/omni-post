@@ -82,6 +82,14 @@ const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
 const QUEUE_NAME = `${TAG}-publish`;
 const PROBE_SAGA_ID = `${TAG}-compensation-probe`;
 
+/**
+ * Budget for every test and hook in this file, passed to each call: the runner's
+ * `--test-timeout` binds every test and every hook, and a `describe` option would neither raise
+ * that limit nor leave the suite's total duration uncapped. 120 s: one case chains two waits
+ * bounded at 20 s each around two real manager boots, more than a 30 s budget allows.
+ */
+const TIMING = { timeout: 120_000 } as const;
+
 /** Compensable steps in the probe definition; the last one is the one that fails. */
 const COMPENSABLE_COUNT = 5;
 /** Index of the step whose failure triggers the walk. */
@@ -416,7 +424,7 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
       guarded,
       new ChannelCredentialsCrypto(new EncryptionService())
     );
-  });
+  }, TIMING);
 
   after(async () => {
     for (const harness of harnesses) {
@@ -451,108 +459,116 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
     await redis.quit().catch(() => undefined);
     await queueConnection.quit().catch(() => undefined);
     await base.$disconnect();
-  });
+  }, TIMING);
 
-  it("leaves COMPENSATING behind when the process dies mid-walk, and a fresh process resumes the WALK", async () => {
-    const first = await bootHarness("interrupted", { hangAt: HANGING_INDEX });
-    const started = await startProbeSaga(first, "interrupted");
+  it(
+    "leaves COMPENSATING behind when the process dies mid-walk, and a fresh process resumes the WALK",
+    TIMING,
+    async () => {
+      const first = await bootHarness("interrupted", { hangAt: HANGING_INDEX });
+      const started = await startProbeSaga(first, "interrupted");
 
-    // The walk runs 3, 2 and then hangs inside 1 — which is what a kill looks
-    // like from the database's side: two outcomes durable, nothing after.
-    const interrupted = await pollUntil(
-      async () => {
-        const snapshot = await sagaSnapshot(started.id);
-        const recorded = recordedCompensations(snapshot);
-        return recorded.length === 2 && first.journal.compensated.includes(HANGING_INDEX)
-          ? snapshot
-          : null;
-      },
-      () => "the walk to record two compensations and stall inside the third"
-    );
+      // The walk runs 3, 2 and then hangs inside 1 — which is what a kill looks
+      // like from the database's side: two outcomes durable, nothing after.
+      const interrupted = await pollUntil(
+        async () => {
+          const snapshot = await sagaSnapshot(started.id);
+          const recorded = recordedCompensations(snapshot);
+          return recorded.length === 2 && first.journal.compensated.includes(HANGING_INDEX)
+            ? snapshot
+            : null;
+        },
+        () => "the walk to record two compensations and stall inside the third"
+      );
 
-    assert.strictEqual(
-      interrupted.status,
-      "COMPENSATING",
-      "a process interrupted mid-walk must leave COMPENSATING: RUNNING would be resumed FORWARD " +
-        "by the next boot, over state this walk already undid"
-    );
-    assert.deepStrictEqual(
-      recordedCompensations(interrupted),
-      [FAILING_INDEX - 2, FAILING_INDEX - 1],
-      "per-step progress is durable as it goes, not once after the loop"
-    );
-    assert.strictEqual(
-      interrupted.error,
-      `probe step ${FAILING_INDEX} failed`,
-      "the triggering error is on the row, not only in the memory of the process that died"
-    );
+      assert.strictEqual(
+        interrupted.status,
+        "COMPENSATING",
+        "a process interrupted mid-walk must leave COMPENSATING: RUNNING would be resumed FORWARD " +
+          "by the next boot, over state this walk already undid"
+      );
+      assert.deepStrictEqual(
+        recordedCompensations(interrupted),
+        [FAILING_INDEX - 2, FAILING_INDEX - 1],
+        "per-step progress is durable as it goes, not once after the loop"
+      );
+      assert.strictEqual(
+        interrupted.error,
+        `probe step ${FAILING_INDEX} failed`,
+        "the triggering error is on the row, not only in the memory of the process that died"
+      );
 
-    // A SECOND composition, with its own step instances: fresh memory, same
-    // database. This is the process that inherits the row.
-    const second = await bootHarness("inheritor");
+      // A SECOND composition, with its own step instances: fresh memory, same
+      // database. This is the process that inherits the row.
+      const second = await bootHarness("inheritor");
 
-    const terminal = await pollUntil(
-      async () => {
-        const snapshot = await sagaSnapshot(started.id);
-        return snapshot.status === "COMPENSATED" ? snapshot : null;
-      },
-      () => "the inheriting process to finish the interrupted walk"
-    );
+      const terminal = await pollUntil(
+        async () => {
+          const snapshot = await sagaSnapshot(started.id);
+          return snapshot.status === "COMPENSATED" ? snapshot : null;
+        },
+        () => "the inheriting process to finish the interrupted walk"
+      );
 
-    assert.deepStrictEqual(
-      second.journal.compensated,
-      [HANGING_INDEX, HANGING_INDEX - 1],
-      "the resumed walk dispatches ONLY the steps with no recorded completion, in reverse order"
-    );
-    assert.deepStrictEqual(
-      second.journal.executed,
-      [],
-      "no step runs FORWARD in the inheriting process: the failed step is not re-executed and " +
-        "the saga's current step is not advanced"
-    );
-    assert.deepStrictEqual(
-      recordedCompensations(terminal),
-      [0, 1, 2, 3],
-      "every eligible compensable step below the failed one holds a durable outcome"
-    );
-    assert.strictEqual(
-      terminal.currentStep,
-      FAILING_INDEX,
-      "a resumed walk never advances the saga"
-    );
-  });
+      assert.deepStrictEqual(
+        second.journal.compensated,
+        [HANGING_INDEX, HANGING_INDEX - 1],
+        "the resumed walk dispatches ONLY the steps with no recorded completion, in reverse order"
+      );
+      assert.deepStrictEqual(
+        second.journal.executed,
+        [],
+        "no step runs FORWARD in the inheriting process: the failed step is not re-executed and " +
+          "the saga's current step is not advanced"
+      );
+      assert.deepStrictEqual(
+        recordedCompensations(terminal),
+        [0, 1, 2, 3],
+        "every eligible compensable step below the failed one holds a durable outcome"
+      );
+      assert.strictEqual(
+        terminal.currentStep,
+        FAILING_INDEX,
+        "a resumed walk never advances the saga"
+      );
+    }
+  );
 
-  it("lets an operator re-drive a COMPENSATING row to a terminal state read back from the row", async () => {
-    // Seeded AFTER the harness booted, so no boot pass has claimed it: this is
-    // the operator's door, not the automatic one.
-    const operatorHarness = await bootHarness("operator");
-    const sagaId = await seedCompensatingRow("redrive", [FAILING_INDEX - 1, FAILING_INDEX - 2]);
+  it(
+    "lets an operator re-drive a COMPENSATING row to a terminal state read back from the row",
+    TIMING,
+    async () => {
+      // Seeded AFTER the harness booted, so no boot pass has claimed it: this is
+      // the operator's door, not the automatic one.
+      const operatorHarness = await bootHarness("operator");
+      const sagaId = await seedCompensatingRow("redrive", [FAILING_INDEX - 1, FAILING_INDEX - 2]);
 
-    const accepted = await operatorHarness.manager.compensateSaga(sagaId);
-    assert.strictEqual(accepted.id, sagaId, "a COMPENSATING row is accepted for re-drive");
+      const accepted = await operatorHarness.manager.compensateSaga(sagaId);
+      assert.strictEqual(accepted.id, sagaId, "a COMPENSATING row is accepted for re-drive");
 
-    const terminal = await pollUntil(
-      async () => {
-        const snapshot = await sagaSnapshot(sagaId);
-        return snapshot.status === "COMPENSATED" ? snapshot : null;
-      },
-      () => "the operator-driven walk to reach a terminal state"
-    );
+      const terminal = await pollUntil(
+        async () => {
+          const snapshot = await sagaSnapshot(sagaId);
+          return snapshot.status === "COMPENSATED" ? snapshot : null;
+        },
+        () => "the operator-driven walk to reach a terminal state"
+      );
 
-    assert.deepStrictEqual(
-      operatorHarness.journal.compensated,
-      [1, 0],
-      "the re-drive RESUMES from the durable record: the two recorded steps are not re-dispatched"
-    );
-    assert.deepStrictEqual(
-      operatorHarness.journal.executed,
-      [],
-      "the operator door is the same walk, not a forward run"
-    );
-    assert.strictEqual(
-      terminal.status,
-      "COMPENSATED",
-      "the terminal state is read back FROM THE ROW, not from the manager that wrote it"
-    );
-  });
+      assert.deepStrictEqual(
+        operatorHarness.journal.compensated,
+        [1, 0],
+        "the re-drive RESUMES from the durable record: the two recorded steps are not re-dispatched"
+      );
+      assert.deepStrictEqual(
+        operatorHarness.journal.executed,
+        [],
+        "the operator door is the same walk, not a forward run"
+      );
+      assert.strictEqual(
+        terminal.status,
+        "COMPENSATED",
+        "the terminal state is read back FROM THE ROW, not from the manager that wrote it"
+      );
+    }
+  );
 });

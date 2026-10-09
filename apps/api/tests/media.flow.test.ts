@@ -7,15 +7,27 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { setupTest, TestContext, makeFlowCleanup } from "./setup.js";
 
+/**
+ * Budget for every test and hook in this file, passed to each call: the runner's
+ * `--test-timeout` binds every test and every hook, and a `describe` option would neither raise
+ * that limit nor leave the suite's total duration uncapped. 60 s: every case finishes well under
+ * a second against real Postgres and Redis, so the budget is headroom for a cold connection or a
+ * loaded runner, not a need of the cases.
+ */
+const TIMING = { timeout: 60_000 } as const;
+
 describe("Media Flow", { concurrency: 1 }, () => {
   let ctx: TestContext;
   const createdAccounts: string[] = [];
   const createdProjects: string[] = [];
   const createdPosts: string[] = [];
 
-  afterEach(makeFlowCleanup(() => ctx, createdPosts, createdProjects, createdAccounts));
+  afterEach(
+    makeFlowCleanup(() => ctx, createdPosts, createdProjects, createdAccounts),
+    TIMING
+  );
 
-  it("should create account and project for media flow", async () => {
+  it("should create account and project for media flow", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -45,7 +57,7 @@ describe("Media Flow", { concurrency: 1 }, () => {
     assert.strictEqual(projectResult.value.accountId, accountResult.value.id);
   });
 
-  it("should create post for media attachment", async () => {
+  it("should create post for media attachment", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -85,7 +97,7 @@ describe("Media Flow", { concurrency: 1 }, () => {
     assert.strictEqual(createResult.value.body, "Test post for media flow");
   });
 
-  it("should validate media metadata structure", async () => {
+  it("should validate media metadata structure", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -135,7 +147,7 @@ describe("Media Flow", { concurrency: 1 }, () => {
     assert.ok(mediaMetadata.url.includes(postId));
   });
 
-  it("should retrieve post after media operations", async () => {
+  it("should retrieve post after media operations", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -176,7 +188,7 @@ describe("Media Flow", { concurrency: 1 }, () => {
     assert.strictEqual(retrieveResult.value.body, "Test post for retrieval after media");
   });
 
-  it("should handle invalid media metadata gracefully", async () => {
+  it("should handle invalid media metadata gracefully", TIMING, async () => {
     ctx = await setupTest();
 
     // Test invalid media metadata structure
@@ -195,7 +207,7 @@ describe("Media Flow", { concurrency: 1 }, () => {
     assert.strictEqual(invalidMediaMetadata.height, -1);
   });
 
-  it("should handle post creation failure for media flow", async () => {
+  it("should handle post creation failure for media flow", TIMING, async () => {
     ctx = await setupTest();
 
     // Try to create post with invalid project ID
@@ -209,7 +221,7 @@ describe("Media Flow", { concurrency: 1 }, () => {
     assert.ok(!createResult.ok, "Expected post creation to fail with invalid project ID");
   });
 
-  it("should complete full media workflow", async () => {
+  it("should complete full media workflow", TIMING, async () => {
     ctx = await setupTest();
 
     // Create account

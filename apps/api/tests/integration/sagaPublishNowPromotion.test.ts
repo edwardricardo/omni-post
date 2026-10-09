@@ -48,16 +48,24 @@ const PROMOTION_STEP_INDEX = REFERENCE_DEFINITION.steps.findIndex(
   (step) => step.id === "update-post-status"
 );
 
+/**
+ * Budget for every test and hook in this file, passed to each call: the runner's
+ * `--test-timeout` binds every test and every hook, and a `describe` option would neither raise
+ * that limit nor leave the suite's total duration uncapped. 120 s: a case can chain two saga
+ * waits bounded at 20 s each behind a real manager boot, more than a 30 s budget allows.
+ */
+const TIMING = { timeout: 120_000 } as const;
+
 describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   const harness = new PublishNowPromotionHarness();
 
   before(async () => {
     await harness.setUp();
-  });
+  }, TIMING);
 
   after(async () => {
     await harness.tearDown();
-  });
+  }, TIMING);
 
   describe("a publish-now whose channels all succeed", () => {
     let postId: string;
@@ -83,35 +91,43 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       snapshot = await harness.postSnapshot(postId);
       rows = await harness.outboxFor(postId);
       contentAfter = await harness.contentSnapshot(postId);
-    });
+    }, TIMING);
 
-    it("lands the post in PUBLISHED with a publication timestamp, and the saga COMPLETED", () => {
-      assert.strictEqual(sagaStatus, "COMPLETED");
-      assert.strictEqual(snapshot.status, "PUBLISHED");
-      assert.notStrictEqual(snapshot.publishedAt, null);
-      assert.strictEqual(
-        snapshot.version,
-        1,
-        "the seeded version advanced exactly once: one aggregate save, not two"
-      );
-    });
+    it(
+      "lands the post in PUBLISHED with a publication timestamp, and the saga COMPLETED",
+      TIMING,
+      () => {
+        assert.strictEqual(sagaStatus, "COMPLETED");
+        assert.strictEqual(snapshot.status, "PUBLISHED");
+        assert.notStrictEqual(snapshot.publishedAt, null);
+        assert.strictEqual(
+          snapshot.version,
+          1,
+          "the seeded version advanced exactly once: one aggregate save, not two"
+        );
+      }
+    );
 
-    it("commits both transition events to the outbox, keyed by the channels that published", () => {
-      assert.deepStrictEqual(
-        rows.map((row) => row.eventType),
-        ["PostPublishingStarted", "PostPublished"],
-        "both hops are recorded, in the order the state machine requires"
-      );
-      const published = rows.find((row) => row.eventType === "PostPublished");
-      const payload = published?.payload as { providerResults?: Record<string, unknown> };
-      assert.deepStrictEqual(
-        Object.keys(payload.providerResults ?? {}).sort(),
-        [harness.channelId, harness.secondChannelId].sort(),
-        "the outcome reaching the event names the channels, not a count"
-      );
-    });
+    it(
+      "commits both transition events to the outbox, keyed by the channels that published",
+      TIMING,
+      () => {
+        assert.deepStrictEqual(
+          rows.map((row) => row.eventType),
+          ["PostPublishingStarted", "PostPublished"],
+          "both hops are recorded, in the order the state machine requires"
+        );
+        const published = rows.find((row) => row.eventType === "PostPublished");
+        const payload = published?.payload as { providerResults?: Record<string, unknown> };
+        assert.deepStrictEqual(
+          Object.keys(payload.providerResults ?? {}).sort(),
+          [harness.channelId, harness.secondChannelId].sort(),
+          "the outcome reaching the event names the channels, not a count"
+        );
+      }
+    );
 
-    it("writes no field beyond the status, the timestamp and its own bookkeeping", () => {
+    it("writes no field beyond the status, the timestamp and its own bookkeeping", TIMING, () => {
       assert.deepStrictEqual(
         contentAfter,
         contentBefore,
@@ -135,13 +151,17 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         })
       );
       failed = !result.ok;
-    });
+    }, TIMING);
 
-    it("returns an error Result rather than reporting a publication it did not commit", () => {
-      assert.strictEqual(failed, true);
-    });
+    it(
+      "returns an error Result rather than reporting a publication it did not commit",
+      TIMING,
+      () => {
+        assert.strictEqual(failed, true);
+      }
+    );
 
-    it("leaves the row exactly as it was, with no outbox row of either kind", async () => {
+    it("leaves the row exactly as it was, with no outbox row of either kind", TIMING, async () => {
       const snapshot = await harness.postSnapshot(postId);
       assert.strictEqual(snapshot.status, "DRAFT");
       assert.strictEqual(snapshot.publishedAt, null);
@@ -186,13 +206,13 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         "a re-application of a completed publication is a success, not an error"
       );
       secondApplied = second.value.applied;
-    });
+    }, TIMING);
 
-    it("answers the terminal state without applying anything a second time", () => {
+    it("answers the terminal state without applying anything a second time", TIMING, () => {
       assert.strictEqual(secondApplied, false);
     });
 
-    it("preserves the original publication timestamp, measurably", async () => {
+    it("preserves the original publication timestamp, measurably", TIMING, async () => {
       const snapshot = await harness.postSnapshot(postId);
       assert.ok(firstPublishedAt !== null);
       assert.strictEqual(snapshot.publishedAt?.getTime(), firstPublishedAt.getTime());
@@ -203,7 +223,7 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       assert.strictEqual(snapshot.version, 1, "and no second save advanced the version");
     });
 
-    it("writes no second event for the second application", async () => {
+    it("writes no second event for the second application", TIMING, async () => {
       const rows = await harness.outboxFor(postId);
       assert.deepStrictEqual(
         rows.map((row) => row.eventType),
@@ -253,81 +273,93 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       await harness.rewindToStep(sagaId, PROMOTION_STEP_INDEX);
       await manager.continueSaga(sagaId);
       terminal = await harness.waitForTerminal(sagaId);
-    });
+    }, TIMING);
 
-    it("reaches COMPLETED: a promotion that already committed is answered, not refused", () => {
-      assert.strictEqual(
-        terminal,
-        "COMPLETED",
-        "COMPLETED carries the 'never FAILED' half of the scenario on its own: a refused " +
-          "promotion reports a failed step, and a post-pivot step that exhausts its retries " +
-          "terminalizes the saga FAILED"
-      );
-    });
+    it(
+      "reaches COMPLETED: a promotion that already committed is answered, not refused",
+      TIMING,
+      () => {
+        assert.strictEqual(
+          terminal,
+          "COMPLETED",
+          "COMPLETED carries the 'never FAILED' half of the scenario on its own: a refused " +
+            "promotion reports a failed step, and a post-pivot step that exhausts its retries " +
+            "terminalizes the saga FAILED"
+        );
+      }
+    );
 
-    it("publishes nothing a second time: timestamp, version and outbox are the first run's", async () => {
-      const snapshot = await harness.postSnapshot(postId);
-      assert.strictEqual(snapshot.status, "PUBLISHED");
-      assert.strictEqual(
-        snapshot.publishedAt?.getTime(),
-        afterFirstRun.publishedAt?.getTime(),
-        "P1 is the publication's record and is immutable thereafter"
-      );
-      assert.strictEqual(
-        snapshot.version,
-        afterFirstRun.version,
-        "and no second save advanced the version"
-      );
-      assert.deepStrictEqual(
-        (await harness.outboxFor(postId)).map((row) => row.eventType),
-        eventsAfterFirstRun,
-        "exactly the first run's rows: the re-entered step wrote no second PostPublished"
-      );
-    });
+    it(
+      "publishes nothing a second time: timestamp, version and outbox are the first run's",
+      TIMING,
+      async () => {
+        const snapshot = await harness.postSnapshot(postId);
+        assert.strictEqual(snapshot.status, "PUBLISHED");
+        assert.strictEqual(
+          snapshot.publishedAt?.getTime(),
+          afterFirstRun.publishedAt?.getTime(),
+          "P1 is the publication's record and is immutable thereafter"
+        );
+        assert.strictEqual(
+          snapshot.version,
+          afterFirstRun.version,
+          "and no second save advanced the version"
+        );
+        assert.deepStrictEqual(
+          (await harness.outboxFor(postId)).map((row) => row.eventType),
+          eventsAfterFirstRun,
+          "exactly the first run's rows: the re-entered step wrote no second PostPublished"
+        );
+      }
+    );
   });
 
   describe("a saga in a mode that publishes nothing", () => {
-    it("promotes no post and emits no PostPublished for schedule or draft mode", async () => {
-      const { manager } = await harness.boot();
+    it(
+      "promotes no post and emits no PostPublished for schedule or draft mode",
+      TIMING,
+      async () => {
+        const { manager } = await harness.boot();
 
-      const scheduledPostId = await harness.seedDraftPost("scheduled");
-      const scheduledSaga = await harness.startSaga(manager, "schedule", {
-        projectId: harness.projectId,
-        postId: scheduledPostId,
-        channelIds: [harness.channelId],
-        scheduledAt: new Date(Date.now() + 3_600_000),
-        tags: [],
-        mediaIds: [],
-      });
-      const draftSaga = await harness.startSaga(manager, "draft", {
-        projectId: harness.projectId,
-        locale: "en",
-        body: `${harness.tag} draft-mode body`,
-        channelIds: [harness.channelId],
-        tags: [],
-        mediaIds: [],
-      });
+        const scheduledPostId = await harness.seedDraftPost("scheduled");
+        const scheduledSaga = await harness.startSaga(manager, "schedule", {
+          projectId: harness.projectId,
+          postId: scheduledPostId,
+          channelIds: [harness.channelId],
+          scheduledAt: new Date(Date.now() + 3_600_000),
+          tags: [],
+          mediaIds: [],
+        });
+        const draftSaga = await harness.startSaga(manager, "draft", {
+          projectId: harness.projectId,
+          locale: "en",
+          body: `${harness.tag} draft-mode body`,
+          channelIds: [harness.channelId],
+          tags: [],
+          mediaIds: [],
+        });
 
-      assert.strictEqual(await harness.waitForTerminal(scheduledSaga), "COMPLETED");
-      assert.strictEqual(await harness.waitForTerminal(draftSaga), "COMPLETED");
+        assert.strictEqual(await harness.waitForTerminal(scheduledSaga), "COMPLETED");
+        assert.strictEqual(await harness.waitForTerminal(draftSaga), "COMPLETED");
 
-      const draftPostId = await harness.createdPostId(draftSaga);
-      for (const id of [scheduledPostId, draftPostId]) {
-        const snapshot = await harness.postSnapshot(id);
-        assert.notStrictEqual(snapshot.status, "PUBLISHED", `post ${id} must not be published`);
-        assert.strictEqual(snapshot.publishedAt, null, `post ${id} must carry no publishedAt`);
-        const rows = await harness.outboxFor(id);
-        assert.strictEqual(
-          rows.filter((row) => row.eventType === "PostPublished").length,
-          0,
-          `post ${id} must have no PostPublished row`
-        );
+        const draftPostId = await harness.createdPostId(draftSaga);
+        for (const id of [scheduledPostId, draftPostId]) {
+          const snapshot = await harness.postSnapshot(id);
+          assert.notStrictEqual(snapshot.status, "PUBLISHED", `post ${id} must not be published`);
+          assert.strictEqual(snapshot.publishedAt, null, `post ${id} must carry no publishedAt`);
+          const rows = await harness.outboxFor(id);
+          assert.strictEqual(
+            rows.filter((row) => row.eventType === "PostPublished").length,
+            0,
+            `post ${id} must have no PostPublished row`
+          );
+        }
       }
-    });
+    );
   });
 
   describe("a promotion executed with no tenant scope", () => {
-    it("refuses and writes nothing, rather than running unscoped", async () => {
+    it("refuses and writes nothing, rather than running unscoped", TIMING, async () => {
       const postId = await harness.seedDraftPost("unscoped");
 
       const result = await harness.promotionUseCase.execute({
@@ -351,7 +383,7 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     // tenant guard plus RLS, neither of which this suite composes differently,
     // and a read attempted from outside the transaction would prove something
     // else. Stated here rather than implied by a stronger-sounding name.
-    it("leaves the foreign tenant's row and outbox exactly as they were", async () => {
+    it("leaves the foreign tenant's row and outbox exactly as they were", TIMING, async () => {
       const foreignPostId = await harness.seedForeignTenantPost();
       const foreignBefore = await harness.postSnapshot(foreignPostId);
       assert.deepStrictEqual(
@@ -384,54 +416,62 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   });
 
   describe("a second publish-now for a post the first one published", () => {
-    it("is rejected as a client error naming the status, and enqueues no new job", async () => {
-      const { fastify } = await harness.boot();
-      const postId = await harness.seedDraftPost("republish-guard");
+    it(
+      "is rejected as a client error naming the status, and enqueues no new job",
+      TIMING,
+      async () => {
+        const { fastify } = await harness.boot();
+        const postId = await harness.seedDraftPost("republish-guard");
 
-      const start = async () =>
-        await fastify.inject({
-          method: "POST",
-          url: "/sagas/post-publishing/start",
-          headers: { authorization: `Bearer ${harness.accessToken}` },
-          payload: {
-            mode: "publish-now",
-            projectId: harness.projectId,
-            postId,
-            channelIds: [harness.channelId],
-          },
-        });
+        const start = async () =>
+          await fastify.inject({
+            method: "POST",
+            url: "/sagas/post-publishing/start",
+            headers: { authorization: `Bearer ${harness.accessToken}` },
+            payload: {
+              mode: "publish-now",
+              projectId: harness.projectId,
+              postId,
+              channelIds: [harness.channelId],
+            },
+          });
 
-      const first = await start();
-      assert.strictEqual(first.statusCode, 200, `the first start must be accepted: ${first.body}`);
-      harness.trackSaga((first.json() as { data: { sagaId: string } }).data.sagaId);
-      assert.strictEqual(
-        await harness.waitForTerminal((first.json() as { data: { sagaId: string } }).data.sagaId),
-        "COMPLETED"
-      );
-      assert.strictEqual((await harness.postSnapshot(postId)).status, "PUBLISHED");
+        const first = await start();
+        assert.strictEqual(
+          first.statusCode,
+          200,
+          `the first start must be accepted: ${first.body}`
+        );
+        harness.trackSaga((first.json() as { data: { sagaId: string } }).data.sagaId);
+        assert.strictEqual(
+          await harness.waitForTerminal((first.json() as { data: { sagaId: string } }).data.sagaId),
+          "COMPLETED"
+        );
+        assert.strictEqual((await harness.postSnapshot(postId)).status, "PUBLISHED");
 
-      const jobsAfterFirst = harness.queue.countFor(postId);
-      assert.strictEqual(jobsAfterFirst, 1, "the first start enqueued exactly one publish job");
+        const jobsAfterFirst = harness.queue.countFor(postId);
+        assert.strictEqual(jobsAfterFirst, 1, "the first start enqueued exactly one publish job");
 
-      const second = await start();
+        const second = await start();
 
-      assert.ok(
-        second.statusCode >= 400 && second.statusCode < 500,
-        `the second start must be a client error, got ${second.statusCode}: ${second.body}`
-      );
-      assert.match(
-        second.body,
-        /PUBLISHED/,
-        "and the rejection names the status that makes the post ineligible"
-      );
-      // The harm this closes is a duplicate send to a provider, so the job
-      // count is the assertion — a status code alone would not notice a
-      // rejection that had already enqueued.
-      assert.strictEqual(
-        harness.queue.countFor(postId),
-        jobsAfterFirst,
-        "no publish job was enqueued by the rejected start"
-      );
-    });
+        assert.ok(
+          second.statusCode >= 400 && second.statusCode < 500,
+          `the second start must be a client error, got ${second.statusCode}: ${second.body}`
+        );
+        assert.match(
+          second.body,
+          /PUBLISHED/,
+          "and the rejection names the status that makes the post ineligible"
+        );
+        // The harm this closes is a duplicate send to a provider, so the job
+        // count is the assertion — a status code alone would not notice a
+        // rejection that had already enqueued.
+        assert.strictEqual(
+          harness.queue.countFor(postId),
+          jobsAfterFirst,
+          "no publish job was enqueued by the rejected start"
+        );
+      }
+    );
   });
 });

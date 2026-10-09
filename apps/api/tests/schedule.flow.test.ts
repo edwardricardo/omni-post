@@ -7,15 +7,27 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { setupTest, TestContext, makeFlowCleanup } from "./setup.js";
 
+/**
+ * Budget for every test and hook in this file, passed to each call: the runner's
+ * `--test-timeout` binds every test and every hook, and a `describe` option would neither raise
+ * that limit nor leave the suite's total duration uncapped. 60 s: every case finishes well under
+ * a second against real Postgres and Redis, so the budget is headroom for a cold connection or a
+ * loaded runner, not a need of the cases.
+ */
+const TIMING = { timeout: 60_000 } as const;
+
 describe("Schedule Flow", { concurrency: 1 }, () => {
   let ctx: TestContext;
   const createdAccounts: string[] = [];
   const createdProjects: string[] = [];
   const createdPosts: string[] = [];
 
-  afterEach(makeFlowCleanup(() => ctx, createdPosts, createdProjects, createdAccounts));
+  afterEach(
+    makeFlowCleanup(() => ctx, createdPosts, createdProjects, createdAccounts),
+    TIMING
+  );
 
-  it("should create account and project for scheduling", async () => {
+  it("should create account and project for scheduling", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -45,7 +57,7 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     assert.strictEqual(projectResult.value.accountId, accountResult.value.id);
   });
 
-  it("should create post for scheduling", async () => {
+  it("should create post for scheduling", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -85,7 +97,7 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     assert.strictEqual(createResult.value.body, "Test post for scheduling");
   });
 
-  it("should verify queue health for scheduling operations", async () => {
+  it("should verify queue health for scheduling operations", TIMING, async () => {
     ctx = await setupTest();
 
     const queueHealth = await ctx.queue.health();
@@ -95,7 +107,7 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     assert.ok(queueHealth.value);
   });
 
-  it("should prepare post for scheduling", async () => {
+  it("should prepare post for scheduling", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -135,7 +147,7 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     assert.strictEqual(retrieveResult.value.id, postId);
   });
 
-  it("should validate scheduling logic and parameters", async () => {
+  it("should validate scheduling logic and parameters", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
@@ -176,7 +188,7 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     assert.ok(dedupeKey.startsWith("test-"), "Dedupe key should start with test- prefix");
   });
 
-  it("should handle scheduling errors gracefully", async () => {
+  it("should handle scheduling errors gracefully", TIMING, async () => {
     ctx = await setupTest();
 
     // Try to schedule with invalid post ID
@@ -186,7 +198,7 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     assert.ok(!retrieveResult.ok, "Expected post retrieval to fail with invalid ID");
   });
 
-  it("should validate past schedule times are rejected", async () => {
+  it("should validate past schedule times are rejected", TIMING, async () => {
     ctx = await setupTest();
 
     // Test that past schedule times should be invalid
@@ -196,7 +208,7 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     assert.ok(pastScheduleTime < currentTime, "Past schedule time should be before current time");
   });
 
-  it("should validate future schedule times are accepted", async () => {
+  it("should validate future schedule times are accepted", TIMING, async () => {
     ctx = await setupTest();
 
     // Test that future schedule times should be valid
@@ -209,7 +221,7 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     );
   });
 
-  it("should complete full scheduling workflow", async () => {
+  it("should complete full scheduling workflow", TIMING, async () => {
     ctx = await setupTest();
 
     // Create account
@@ -262,7 +274,7 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     assert.ok(dedupeKey.includes(postId));
   });
 
-  it("should handle concurrent scheduling requests", async () => {
+  it("should handle concurrent scheduling requests", TIMING, async () => {
     ctx = await setupTest();
 
     const accountResult = await ctx.repo.createAccount({
