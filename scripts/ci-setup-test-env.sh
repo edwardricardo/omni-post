@@ -58,9 +58,13 @@ DIGEST_RING_KEY="$(printf 'omnipost-citest-name-digest-ring' | sha256sum | cut -
   #   "escaped"             -> bash yields the right value; dotenv keeps the
   #                            backslashes and yields {\"1\":\"x\"}.
   #   'single'              -> BOTH yield {"1":"x"}.
-  # `apps/api/scripts/run-tests.sh` sources the root env file with bash whenever
-  # DATABASE_URL is unset, so the unquoted form breaks the whole integration
-  # tier with a boot refusal that names the ring rather than the quoting.
+  # The bash reader is whoever exports the root env file before the integration
+  # tier: `scripts/testing/battery.sh` sources it, and so does a developer's
+  # `set -a; . ./.env.test; set +a` (`apps/api/scripts/run-tests.sh` reads no
+  # env file; it exits 2 when DATABASE_URL is empty). The dotenv readers are
+  # vitest's `setupFiles` (`apps/api/tests/setup-env.ts`) and
+  # `apps/api/src/config/env.ts`. So the unquoted form breaks the whole
+  # integration tier with a boot refusal that names the ring, not the quoting.
   echo "DELETION_NAME_DIGEST_KEY_RING='{\"1\":\"${DIGEST_RING_KEY}\"}'"
   echo "DELETION_NAME_DIGEST_ACTIVE_VERSION=1"
   echo "LOG_LEVEL=warn"

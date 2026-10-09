@@ -87,9 +87,14 @@ export function createSeedPrismaClient(env: NodeJS.ProcessEnv = process.env): Pr
  *   there are no children to cancel; the file fails to load, once, with the
  *   reason.
  *
- *   This is for the caller who runs a suite by hand, without the harness that
- *   sources the root env — `run-tests.sh` supplies both channels, so under the
- *   batch this call is a no-op that costs one environment read.
+ *   This is for the caller who runs a suite by hand without exporting the test
+ *   env. Under `run-tests.sh` both channels come from the environment its caller
+ *   exported, never from a file the runner reads (it reads none, and exits 2 when
+ *   `DATABASE_URL` is empty): the battery sources the root `.env.test`, the CI
+ *   `Integration Tests` step sets both in its env block (`chaos.yml` sets
+ *   `DATABASE_URL` alone, which the fallback above then uses for fixtures too),
+ *   and a developer runs `set -a; . ./.env.test; set +a`. Under a batch this call
+ *   is therefore a no-op that costs one environment read.
  * @param env - Environment to read; defaults to `process.env`.
  * @throws Error naming the missing channel, before any `describe` executes.
  */

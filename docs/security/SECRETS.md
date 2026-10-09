@@ -117,9 +117,13 @@ DELETION_NAME_DIGEST_KEY_RING='{"1":"<64 lowercase hex>"}'
 ```
 
 Not a style preference — these files have two readers that disagree, measured
-rather than assumed. `apps/api/scripts/run-tests.sh` SOURCES the root env file
-with bash whenever `DATABASE_URL` is unset, and bash strips the inner double
-quotes from an unquoted `{"1":"…"}`, producing `{1:…}` — which is not JSON, so
+rather than assumed. Bash SOURCES the root test env file before the integration
+tier — `scripts/testing/battery.sh` does, and so does a developer's
+`set -a; . ./.env.test; set +a` (`apps/api/scripts/run-tests.sh` reads no env
+file and exits 2 when `DATABASE_URL` is empty) — while dotenv reads it in
+vitest's `setupFiles` (`apps/api/tests/setup-env.ts`) and in
+`apps/api/src/config/env.ts`. Bash strips the inner double quotes from an
+unquoted `{"1":"…"}`, producing `{1:…}` — which is not JSON, so
 the app refuses to boot with an error naming the RING rather than the quoting.
 Escaped double quotes have the mirror defect: bash reads them correctly while
 dotenv keeps the backslashes. Only the single-quoted form survives both.

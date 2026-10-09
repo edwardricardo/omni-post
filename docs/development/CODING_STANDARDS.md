@@ -234,8 +234,8 @@ describe("Integration Feature", () => {
 
 - Unit tests: `pnpm --filter @apps/api test` (runs Vitest)
 - Unit tests with coverage: `pnpm --filter @apps/api test:unit:coverage`
-- All tests (unit + integration): `pnpm --filter @apps/api test:all` (runs `scripts/run-tests.sh`)
-- Integration tests only: `pnpm --filter @apps/api test:integration`
+- All tests (unit + integration): `pnpm --filter @apps/api test:all` (`pnpm test && pnpm test:integration`: Vitest first, then the node:test collector `scripts/run-tests.sh`)
+- Integration tests only: `pnpm --filter @apps/api test:integration`. Export the test env first (`set -a; . ./.env.test; set +a` from the repository root): `scripts/run-tests.sh` reads no env file and exits 2 when `DATABASE_URL` is empty
 - **Integration tests need real services**: Start PostgreSQL and Redis with `pnpm db:up` before running tests that use Prisma or Redis. Never skip tests because services are down — start them.
 - **Test env**: vitest auto-loads `.env.test` via the `setupFiles` hook (`apps/api/tests/setup-env.ts`, `apps/workers/tests/setup-env.ts`). On fresh clone, run `cp .env.test.example .env.test` and edit `DATABASE_URL` / `REDIS_URL` to point at your local infra. Full canon in [docs/architecture/secrets-and-env.md](../architecture/secrets-and-env.md) §Test environment.
 

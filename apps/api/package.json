@@ -18,7 +18,7 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest watch",
     "test:unit:coverage": "vitest run --coverage",
-    "test:all": "bash scripts/run-tests.sh",
+    "test:all": "pnpm test && pnpm test:integration",
     "test:integration": "bash scripts/run-tests.sh",
     "test:security": "cross-env NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/security.live.test.ts",
     "test:auth": "cross-env NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/auth.integration.test.ts",

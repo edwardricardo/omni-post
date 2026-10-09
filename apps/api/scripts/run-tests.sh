@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# Run API tests: Vitest for unit tests, node:test for integration/flow tests.
+# Run the API's node:test integration suites. This is the integration collector
+# and nothing else: Vitest collects the unit tier (tests/unit/**, tests/eval/**)
+# from the tree on its own (vitest.config.ts, `pnpm test`), and this script never
+# starts it, so no unit test runs twice and no Vitest verdict is folded into this
+# one. `pnpm test:all` runs the two in sequence.
 #
-# Unit tests (tests/unit/**) run on Vitest, which collects them from the tree
-# itself (vitest.config.ts). Integration/flow tests (tests/*.test.ts,
-# tests/integration/) remain on node:test because they depend on real services
+# The integration and flow suites (tests/*.test.ts, tests/integration/,
+# tests/chaos/) stay on node:test because they depend on real services
 # (PostgreSQL, Redis, a running API), and they are selected here by EXPLICIT file
 # list. The batch lists below are therefore the node:test inventory, and it is a
 # HAND-MAINTAINED one with two measured holes: a suite no batch names never runs
@@ -15,13 +18,6 @@
 set -e
 export NODE_ENV=test
 
-# Load .env if DATABASE_URL is not already set
-if [ -z "$DATABASE_URL" ] && [ -f "$(git rev-parse --show-toplevel 2>/dev/null)/.env" ]; then
-  set -a
-  source "$(git rev-parse --show-toplevel)/.env"
-  set +a
-fi
-
 TOTAL_TESTS=0
 TOTAL_PASS=0
 TOTAL_FAIL=0
@@ -29,11 +25,12 @@ TOTAL_CANCEL=0
 TOTAL_SKIP=0
 FAILED_BATCHES=""
 
-# TIER selects which slice of the suite runs, so CI can split it across jobs:
-#   (unset)          local default — Vitest unit phase + every node:test batch.
-#   pr-integration   DB-only node:test batches (no live API server needed);
-#                    the Vitest unit phase is skipped (owned by another CI job).
-#   full-integration every node:test batch (DB-only + live-API); Vitest skipped.
+# TIER selects which slice of the node:test inventory runs, so CI can split it
+# across jobs:
+#   (unset)          local default — every batch (DB-only + live-API), without
+#                    the skip and zero-collection guards, which are tier-only.
+#   pr-integration   DB-only batches (no live API server needed).
+#   full-integration every batch (DB-only + live-API).
 # DB-only batches talk to Postgres/Redis directly; live-API batches fetch
 # http://localhost:3000 and require a running API server.
 TIER="${TIER:-}"
@@ -45,10 +42,24 @@ case "$TIER" in
     ;;
 esac
 
-# Returns success when the Vitest unit phase should run for the current TIER.
-run_vitest_phase() {
-  [ -z "$TIER" ]
-}
+# The database is never guessed. The suites write to the database and Redis they
+# reach, and some delete rows or flush keys there, while the repository root also
+# holds `.env`, the development environment, whose services other checkouts
+# share. So this script reads no environment file: the caller exports the test
+# environment (CI in the job's env block, the local battery from .env.test, a
+# developer by hand), and an empty DATABASE_URL stops the run before any suite
+# starts. TIER unset is no exception, since a local run has as much to lose.
+if [ -z "${DATABASE_URL:-}" ]; then
+  {
+    echo "run-tests.sh: DATABASE_URL is empty, so there is no test database to run the integration suites against."
+    echo "  Export the test environment first, from the repository root:"
+    echo "    set -a; . ./.env.test; set +a"
+    echo "  .env.test is untracked (a linked worktree uses the main checkout's): copy it from"
+    echo "  .env.test.example and point it at a test database, or write it with"
+    echo "  scripts/ci-setup-test-env.sh from an exported DATABASE_URL and REDIS_URL."
+  } >&2
+  exit 2
+fi
 
 # Returns success when DB-only node:test batches should run for the current TIER.
 run_db_batches() {
@@ -159,58 +170,11 @@ run_batch() {
   fi
 }
 
-echo "Running API tests..."
+echo "Running API integration tests..."
 echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Phase 1: Unit tests via Vitest (all tests/unit/**)
-# ─────────────────────────────────────────────────────────────────────────────
-if run_vitest_phase; then
-echo "── Unit tests (Vitest) ──"
-# The Vitest runner's own exit is captured, exactly as run_batch captures the
-# node:test runner's: a Vitest process that dies before writing a summary — an
-# OOM-killed fork is the documented case here (vitest.config.ts) — parses as
-# "0 failed", so the exit code is the only remaining evidence that it died.
-VITEST_EXIT=0
-VITEST_RESULT=$(npx vitest run 2>&1) || VITEST_EXIT=$?
-echo "$VITEST_RESULT" | tail -5
-echo ""
-
-# Read the summary from the line that begins with `Tests`. Vitest prints
-# `Test Files  N passed` FIRST, so an unanchored match reports FILE counts as TEST
-# counts — 18 instead of 219 on the saga surface. `head -1` on an empty pipeline
-# exits 0, so `|| echo 0` never fires; the explicit defaults below do that job.
-VITEST_SUMMARY=$(echo "$VITEST_RESULT" | grep -E "^[[:space:]]*Tests[[:space:]]" | tail -1)
-VITEST_PASSED=$(echo "$VITEST_SUMMARY" | grep -oP '\d+(?= passed)' | head -1)
-VITEST_FAILED=$(echo "$VITEST_SUMMARY" | grep -oP '\d+(?= failed)' | head -1)
-VITEST_PASSED=${VITEST_PASSED:-0}
-VITEST_FAILED=${VITEST_FAILED:-0}
-VITEST_TOTAL=$((VITEST_PASSED + VITEST_FAILED))
-
-TOTAL_TESTS=$((TOTAL_TESTS + VITEST_TOTAL))
-TOTAL_PASS=$((TOTAL_PASS + VITEST_PASSED))
-TOTAL_FAIL=$((TOTAL_FAIL + VITEST_FAILED))
-
-if [ "$VITEST_FAILED" -gt 0 ]; then
-  FAILED_BATCHES="$FAILED_BATCHES vitest-unit"
-fi
-
-# The runner exit is an INDEPENDENT signal from the parsed count, not a refinement
-# of it: a non-zero exit reddens the phase on its own. Guarded on a zero count so
-# a run that failed both ways is not listed twice. The dump matches run_batch's:
-# the five-line tail above is enough for a summary that exists, and useless for a
-# process that died before writing one.
-if [ "$VITEST_EXIT" -ne 0 ] && [ "$VITEST_FAILED" -eq 0 ]; then
-  echo "  [FAIL] vitest-unit: runner exited $VITEST_EXIT with 0 parsed failures"
-  echo "── output of failing phase 'vitest-unit' (last 200 lines) ──"
-  echo "$VITEST_RESULT" | tail -200
-  echo "── end of 'vitest-unit' output ──"
-  FAILED_BATCHES="$FAILED_BATCHES vitest-unit"
-fi
-fi
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Phase 2: Integration tests via node:test (require real DB + Redis + API)
+# Integration tests via node:test (real DB + Redis; the live batches add an API)
 # ─────────────────────────────────────────────────────────────────────────────
 echo "── Integration tests (node:test) ──"
 
@@ -487,11 +451,10 @@ if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || { [ -n "${TIER:-}" ] 
   elif [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
     echo "ERROR: every test that ran reported passing, yet a batch runner exited"
     echo "       non-zero, or a batch collected nothing. A crash after the summary,"
-    echo "       an unhandled rejection, an OOM-killed Vitest fork (that phase"
-    echo "       collects from the tree, so no file list is involved), or a"
-    echo "       single-file batch whose one path no longer exists all end this way"
-    echo "       — with nothing in the counts to show for it. In a MULTI-file batch"
-    echo "       a missing path is dropped silently instead (SMELL-74)."
+    echo "       an unhandled rejection, or a single-file batch whose one path no"
+    echo "       longer exists all end this way — with nothing in the counts to show"
+    echo "       for it. In a MULTI-file batch a missing path is dropped silently"
+    echo "       instead (SMELL-74)."
     echo "       See the dumped output for the batch named on the FAILED batches"
     echo "       line above; its runner exit code is in the 'exit' column."
   elif [ "$TOTAL_FAIL" -eq 0 ]; then
