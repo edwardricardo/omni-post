@@ -38,11 +38,33 @@ const AUTH_HEADER = `Bearer ${signCustomerAccessToken({
   permissions: [],
 })}`;
 
+/** Hosts that name this machine; any other Redis may hold data that is not the suite's. */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+
+/**
+ * @method assertDisposableRedis
+ * @description Refuses to run the suite against a Redis on another machine. `flush()` below empties
+ *   the whole database behind REDIS_URL before every case, so a shared server's data (a development
+ *   stack's sessions, caches and queued jobs) would be wiped by one local run.
+ * @param url - The REDIS_URL the app under test will connect to
+ * @returns Nothing; throws naming the host when it is not this machine
+ */
+function assertDisposableRedis(url: string | undefined): void {
+  const host = new URL(url ?? "redis://localhost:6379").hostname;
+  if (!LOOPBACK_HOSTS.has(host)) {
+    throw new Error(
+      `cache.test.ts empties its Redis database before every case, and REDIS_URL points at "${host}", ` +
+        "which is not this machine. Point REDIS_URL at a local Redis (see .env.test.example)."
+    );
+  }
+}
+
 describe("API Response Caching", { concurrency: 1 }, () => {
   let app: FastifyInstance;
   let cacheManager: RedisCacheManager;
 
   beforeEach(async () => {
+    assertDisposableRedis(process.env.REDIS_URL);
     // Reset singleton so each app gets a fresh cache manager
     resetCacheManager();
     app = await createApp();
