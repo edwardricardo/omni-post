@@ -86,7 +86,7 @@ pnpm --filter @apps/api test:auth        # tests/auth.test.ts
 pnpm --filter @apps/api test:rbac        # tests/rbac.test.ts
 pnpm --filter @apps/api test:security    # tests/security.test.ts
 pnpm --filter @apps/api test:mfa         # tests/mfa.test.ts
-pnpm --filter @apps/api test:ratelimit   # vitest rate-limit unit suites
+pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts   # the two vitest rate-limit unit suites
 ```
 
 None of them live in this directory.

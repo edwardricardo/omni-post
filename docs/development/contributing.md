@@ -176,14 +176,14 @@ describe('ComponentUnderTest', () => {
 ### Commands
 
 ```bash
-# API tests (node:test)
+# API unit and eval tests (vitest)
 pnpm --filter @apps/api test
 
 # API with coverage
-pnpm --filter @apps/api test:coverage
+pnpm --filter @apps/api test:unit:coverage
 
-# API category
-pnpm --filter @apps/api test:category:security
+# API integration and flow tests (node:test batches of scripts/run-tests.sh; needs pnpm db:up)
+pnpm --filter @apps/api test:integration
 
 # Admin tests (vitest)
 pnpm --filter @apps/admin test

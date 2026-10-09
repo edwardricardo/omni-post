@@ -1,11 +1,21 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-08, the U5a measurement (Phase 1, WU-1.5's precondition) recorded the measured
-tier of the 98 node:test files under `apps/api/tests` outside unit/eval in the section "U5a — measured
-tier of the node:test population": integration 80, live 18, hermetic 8, 38 disagreements with the
-runner's batches. It is a data section with no file and no gate, so it moved no metric (M1
-`980 + 14`, M7 `23/23`); the 1.5 status row flips when U5 lands. Previous: the reserved-suffixes unit (`workstream/phase1-u2-reserved-suffixes`, PR R2,
+**As of:** 2026-10-09, the double-collection unit (`workstream/phase1-u3-double-collection`, PR R3,
+WU-1.3) removed the second collectors: `eval.yml` left (its `vitest run tests/eval` re-ran the 4 eval
+files the api shards already collect), and so did the `custom-security-tests` job of
+`security-testing.yml` (its `auth` and `security` files run in the `integration:flows` batch of
+`run-tests.sh`, `mfa` and `rbac` in `remaining`, its 2 rate-limit files in the vitest shards). 24
+subset scripts of `apps/api/package.json` left with them: 22 node:test ones that no workflow named,
+`test:eval` and `test:ratelimit`. `test:auth`, `test:rbac`, `test:security` and `test:mfa` stay:
+`security/scripts/security-scan.sh` and `security/scripts/vulnerability-report.ts` call them. It moved
+M5's second figure `≥10` → `0`, counted by hand over every test invocation in `.github/workflows`
+until the reach engine (WU-1.9) exists, and left M1 at `980 + 14` and M7 at `23/23`: it adds no test
+file and no gate. Previous: the U5a measurement (Phase 1, WU-1.5's precondition) recorded the
+measured tier of the 98 node:test files under `apps/api/tests` outside unit/eval in the section "U5a —
+measured tier of the node:test population": integration 80, live 18, hermetic 8, 38 disagreements with
+the runner's batches. It is a data section with no file and no gate, so it moved no metric (M1
+`980 + 14`, M7 `23/23`); the 1.5 status row flips when U5 lands. Before it, the reserved-suffixes unit (`workstream/phase1-u2-reserved-suffixes`, PR R2,
 WU-1.2) reserved the tier suffixes inside the collectors: `RESERVED_TIER_EXCLUDES` in
 `packages/vitest-shared` (`*.integration.test.*`, `*.live.test.*`, `*.spec.*`, `*.k6.js`) is set by
 `defineWorkspaceVitestConfig` in its 87 configs and spread by the four app configs, `apps/admin` and
@@ -159,7 +169,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
-| M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 23 · ≥10              | 0 · 0         | `metrics.mjs --m5` (`test-contracts reach --json`, WU-1.9; absent at baseline)          | —        |
+| M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 23 · 0                | 0 · 0         | `metrics.mjs --m5` (`test-contracts reach --json`, WU-1.9; absent at baseline)          | PR R3    |
 | M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —        |
 | M7  | Gates new/modified, red proven                                    | 0/0                   | 23/23                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR R2    |
 | M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/91 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR 0.20  |
@@ -267,7 +277,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.1    | Free the `.integration` suffix; name the k6 scenarios                       | ✅     | `R1`                          | `workstream/phase1-u1-suffixes` · 14    | 2026-10-08 |
 | 1     | 1.2    | Reserve the tier suffixes inside every collector                            | ✅     | `R2`                          | `phase1-u2-reserved-suffixes` · 126     | 2026-10-08 |
 | 1     | 1.2b   | vitest resolves every workspace import to `src/`                            | ⬜     | —                             | —                                       | —          |
-| 1     | 1.3    | Remove double collection and the subset entrypoints                         | ⬜     | —                             | —                                       | —          |
+| 1     | 1.3    | Remove double collection and the subset entrypoints                         | 🔄     | `R3`                          | `phase1-u3-double-collection` · 8       | 2026-10-09 |
 | 1     | 1.4    | Move the timing needs into the tests                                        | ⬜     | —                             | —                                       | —          |
 | 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ⬜     | —                             | —                                       | —          |
@@ -1252,9 +1262,17 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   (`security-testing.yml:78-282`, header :3-21) — `tests/{auth,security}.test.ts` run in
   `integration:flows` and `{mfa,rbac}` in `remaining` as the app role with rate limiting, STRICTER
   than that job's owner; the 2 of `test:ratelimit` are under `tests/unit`; delete the 26 node:test
-  subset scripts (`apps/api/package.json:21-25,27-47`), `test:eval` (:18) and `test:ratelimit` (:26).
+  subset scripts of `apps/api/package.json` (lines 21-25 and 27-47 when this was planned), `test:eval` and
+  `test:ratelimit`.
   Acceptance: the subset-script grep returns 0; the "files with >1 collector" metric goes 10 → 0.
-  CODE ~250 (deletions). PR R3. _(Absorbs WU-4.8.)_
+  CODE ~250 (deletions). PR R3. _(Absorbs WU-4.8.)_ Landed 2026-10-09: the workflow, the job, 22 of
+  the 26 node:test scripts, `test:eval` and `test:ratelimit` left, and the metric went 10 → 0.
+  `test:{auth,rbac,security,mfa}` stay, so the node:test subset grep returns 4: no workflow runs them,
+  but `security/scripts/security-scan.sh` (`security:scan`) and `vulnerability-report.ts`
+  (`security:report`) call them, and their removal waits on those callers. The removed job's per-suite
+  guards (zero passed, any skipped or cancelled case) live on in `run-tests.sh` per batch under `TIER`;
+  a single file collecting zero tests inside a batch that runs others is caught only by the per-file
+  verdicts of WU-1.7, which owns that residual.
 - **WU-1.4** Move the timing needs into the tests: `{ timeout }` on the top `describe` of
   `hardDeleteSerializableRace` (120_000), `sagaCrashRecovery`/`sagaCompensationRecovery`/
   `sagaPublishNowPromotion` (120_000), `sagaCustomerFlow` (180_000),
@@ -1386,8 +1404,8 @@ false })` plus `globTestSpecifications()`, falling back to `vitest list --filesO
   (`vitest run --shard=`, `--mergeReports`); (B2) every `pnpm … <script>` / `turbo run <task>` that
   starts with `test` is one of `test`, `test:coverage`, `test:integration`, `test:e2e`. These must go
   first: `nightly.yml:95` (WU-3.12), `production-ci.yml:149` (WU-3.5),
-  `dependency-updates.yml:193,270` (root `pnpm run test` → `turbo run test:coverage`, or removed),
-  `eval.yml:48` and the security jobs (WU-1.3). Red: plant
+  `dependency-updates.yml:193,270` (root `pnpm run test` → `turbo run test:coverage`, or removed);
+  `eval.yml` and the custom security job, once on this list, left with PR R3 (WU-1.3). Red: plant
   `run: pnpm --filter @apps/api exec vitest run tests/unit/foo` → exit 1. Dep: WU-1.10, 3.5, 3.12.
   CODE ~110. PR R14.
 - **WU-1.15** Retire the quarantine: delete `quarantine.json` and its handling in `run-tests.sh` and
@@ -1977,7 +1995,7 @@ is up (test ports = dev + 10; the script rejects an already-bound port).
   `TEST_API_URL` → the live tier fails naming it. Dep: 4b.2. CODE ~360 (E3a script ~200 / E3b adoption
   ~160). PR E3.
 - **WU-4b.4** Adoption in performance (`performance.yml:64-111`, :146-252), ZAP
-  (`security-testing.yml:327-396`) and nightly (WU-3.12). Acceptance: no workflow boots an app process
+  (`security-testing.yml:120-189`) and nightly (WU-3.12). Acceptance: no workflow boots an app process
   except through the script; the grep for inline `dev:test` in the workflow directory returns 0.
   Red: #49 with a planted inline `pnpm --filter @apps/api dev:test &` → exit 1. Dep: 4b.3. CODE ~150
   (deletions). PR E4.
