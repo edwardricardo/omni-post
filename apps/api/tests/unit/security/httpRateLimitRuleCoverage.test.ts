@@ -40,19 +40,28 @@ const GENERATED_API_TYPES = path.join(
 );
 
 /**
- * @function registeredRoutePatterns
- * @description Reads every operation's `url` from the generated API types and
- *   rewrites each OpenAPI `{name}` parameter to the `:name` form Fastify reports
- *   in `req.routeOptions.url`, which is the string the rules are matched against.
- * @returns The distinct registered route patterns, sorted.
+ * @function readUrlDeclarations
+ * @description Reads every operation's `url` from the generated API types, and
+ *   counts every line that declares a `url` in any shape, so a change in the
+ *   generator's output shows up as a parsed count below the declared one rather
+ *   than as a shorter route table that makes live rules read as dead.
+ * @returns The parsed `url` values and the number of `url` declarations.
  */
-function registeredRoutePatterns(): readonly string[] {
+function readUrlDeclarations(): { readonly parsed: readonly string[]; readonly declared: number } {
   const source = readFileSync(GENERATED_API_TYPES, "utf8");
-  const urls = [...source.matchAll(/^\s*url: "([^"]+)";$/gm)].map((match) => match[1] ?? "");
-  return [...new Set(urls.map((url) => url.replace(/\{(\w+)\}/g, ":$1")))].sort();
+  const parsed = [...source.matchAll(/^\s*url: "([^"]+)";$/gm)].map((match) => match[1] ?? "");
+  return { parsed, declared: source.match(/^\s*url\b/gm)?.length ?? 0 };
 }
 
-const ROUTES = registeredRoutePatterns();
+const URLS = readUrlDeclarations();
+
+/**
+ * Each OpenAPI `{name}` parameter rewritten to the `:name` form Fastify reports in
+ * `req.routeOptions.url`, which is the string the rules are matched against.
+ */
+const ROUTES: readonly string[] = [
+  ...new Set(URLS.parsed.map((url) => url.replace(/\{(\w+)\}/g, ":$1"))),
+].sort();
 
 function label(rule: HttpRateLimitRule): string {
   const preset = Object.entries(RateLimitConfigs).find(([, config]) => config === rule.config);
@@ -75,6 +84,7 @@ const CASES: ReadonlyArray<[string, HttpRateLimitRule]> = RULES.map((rule) => [l
 
 describe("HTTP rate-limit rules against the registered routes", () => {
   it("returns a non-empty table of route patterns from the generated API types", () => {
+    expect(URLS.parsed).toHaveLength(URLS.declared);
     expect(ROUTES.length).toBeGreaterThan(0);
     expect(ROUTES.filter((route) => !route.startsWith("/"))).toEqual([]);
   });

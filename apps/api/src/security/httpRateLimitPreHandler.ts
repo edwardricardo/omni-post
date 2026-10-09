@@ -66,6 +66,9 @@ export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
 ] as const;
 
 /** Standard route rules applied before the expensive ones (first match wins).
+ *  A `path` follows the contract stated on `EXPENSIVE_ENDPOINT_RULES`: it is a
+ *  prefix of the registered route pattern, not of the request URL, and it must
+ *  govern at least one registered route.
  *  The credential-verification endpoints carry the strict AUTH preset
  *  (5 / 15 min) to blunt brute-force:
  *   - `/auth/login`, `/auth/refresh` — admin/backend credential endpoints.
