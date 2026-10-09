@@ -1,5 +1,5 @@
 /**
- * @file analyticsPremiumRoutes.test.ts
+ * @file analyticsPremiumRoutes.live.test.ts
  * @description Integration tests for the premium-analytics endpoints wired in B4
  *              against the running API: GET /analytics/roi, GET /analytics/cross-platform,
  *              POST /ai/predict-timing. Verifies auth (401), tenancy (403 for a

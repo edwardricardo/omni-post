@@ -1,5 +1,5 @@
 /**
- * @file customerLoginMfaE2e.integration.test.ts
+ * @file customerLoginMfaE2e.live.test.ts
  * @description End-to-end integration test for the two-step customer login MFA
  *              flow, driven over REAL HTTP against a live API booted from the
  *              production composition root. Unlike the route-level unit tests

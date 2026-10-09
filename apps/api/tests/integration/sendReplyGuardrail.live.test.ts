@@ -11,7 +11,7 @@
  * The dev environment (`pnpm dev`) MUST be up — API on 3000. Tests fail
  * loud if the API is unreachable.
  *
- * @file sendReplyGuardrail.integration.test.ts
+ * @file sendReplyGuardrail.live.test.ts
  * @description Tests for the pre-action guardrail on send reply
  * @layer infrastructure
  */

@@ -34,7 +34,7 @@ const TEST_MODULES: TestModule[] = [
   { name: "Threading Canonical", path: "./threading.canonical.integration.test.ts", enabled: true },
 
   // Multi-Project Tests
-  { name: "Multi-Project Flow", path: "./multiproject.flow.test.ts", enabled: true },
+  { name: "Multi-Project Flow", path: "./multiproject.flow.live.test.ts", enabled: true },
 
   // Security & Auth Tests (restored files)
   { name: "Security", path: "./security.live.test.ts", enabled: true },
@@ -49,12 +49,12 @@ const TEST_MODULES: TestModule[] = [
   // Infrastructure Tests (restored files)
   { name: "Audit", path: "./audit.integration.test.ts", enabled: true },
   { name: "Schema Utils", path: "./schemaUtils.integration.test.ts", enabled: true },
-  { name: "Provider Registry", path: "./providerRegistry.test.ts", enabled: true },
+  { name: "Provider Registry", path: "./providerRegistry.live.test.ts", enabled: true },
 
   // Integration Tests (restored files)
   {
     name: "Universal Client Dashboard Integration",
-    path: "./universal-client-dashboard.integration.test.ts",
+    path: "./universal-client-dashboard.live.test.ts",
     enabled: true,
   },
 ];

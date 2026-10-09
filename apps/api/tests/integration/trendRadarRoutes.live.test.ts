@@ -14,7 +14,7 @@
  * loud if the API is unreachable (canon: "Never skip tests because
  * services are down — start them").
  *
- * @file trendRadarRoutes.test.ts
+ * @file trendRadarRoutes.live.test.ts
  * @description Tests for the client-facing trend radar endpoint
  * @layer infrastructure
  */

@@ -25,7 +25,7 @@
  * The dev environment (`pnpm dev`) MUST be up — API on 3000. Tests fail
  * loud if the API is unreachable.
  *
- * @file aiLocalizedRoutes.test.ts
+ * @file aiLocalizedRoutes.live.test.ts
  * @description Tests for the client-facing localized AI endpoints
  * @layer infrastructure
  */

@@ -6,7 +6,7 @@
  * NOTE: These tests require the API server to be running.
  * Run `pnpm dev:api` before running these tests.
  *
- * @file linkRoutes.test.ts
+ * @file linkRoutes.live.test.ts
  * @description Tests for Link Tracking Routes Integration
  * @layer infrastructure
  */

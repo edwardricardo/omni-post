@@ -14,7 +14,7 @@
  * The dev environment (`pnpm dev`) MUST be up — API on 3000. Tests fail
  * loud if the API is unreachable.
  *
- * @file inboxRoutes.test.ts
+ * @file inboxRoutes.live.test.ts
  * @description Tests for the client-facing inbox routes (triage data exposure)
  * @layer infrastructure
  */

@@ -348,8 +348,8 @@ fi # run_db_batches
 if run_live_api_batches; then
 
 CONCURRENCY=1 run_batch "integration:routes" \
-  tests/integration/crisisRoutes.test.ts tests/integration/linkRoutes.test.ts \
-  tests/integration/security-endpoints.test.ts
+  tests/integration/crisisRoutes.live.test.ts tests/integration/linkRoutes.live.test.ts \
+  tests/integration/security-endpoints.live.test.ts
 
 CONCURRENCY=1 run_batch "integration:flows" \
   tests/auth.integration.test.ts tests/audit.integration.test.ts tests/cache.integration.test.ts \
@@ -443,8 +443,8 @@ wait_for_api() {
 # window on a process that is not running.
 if wait_for_api; then
   CONCURRENCY=1 run_batch "production" \
-    tests/production.integration.test.ts tests/multiproject.flow.test.ts \
-    tests/providerRegistry.test.ts
+    tests/production.live.test.ts tests/multiproject.flow.live.test.ts \
+    tests/providerRegistry.live.test.ts
 else
   echo "  api-ready  /health never returned 200 in $((API_READY_MAX_ATTEMPTS * API_READY_INTERVAL_S))s  [FAIL]"
   echo "       The 'production' batch was NOT run: against a rate-limited or absent"

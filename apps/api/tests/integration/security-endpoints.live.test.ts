@@ -5,7 +5,7 @@
  * These tests validate the actual HTTP layer with live server.
  * Requires the API server to be running on localhost:3000.
  *
- * @file security-endpoints.test.ts
+ * @file security-endpoints.live.test.ts
  * @description Tests for Security Endpoints Integration
  * @layer infrastructure
  */

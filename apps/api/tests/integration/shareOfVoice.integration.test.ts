@@ -1,5 +1,5 @@
 /**
- * @file shareOfVoice.test.ts
+ * @file shareOfVoice.integration.test.ts
  * @description Integration tests for the brand-listening read side (the F1-API-1b
  *   DoD): Share of Voice computed from the normalized corpus across providers,
  *   the mention feed, and multi-tenant isolation. Runs against the real database.

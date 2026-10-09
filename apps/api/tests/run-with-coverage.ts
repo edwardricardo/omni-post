@@ -71,7 +71,7 @@ const TEST_MODULES: TestModule[] = [
   // Multi-Project Tests
   {
     name: "Multi-Project Flow",
-    path: "./multiproject.flow.test.ts",
+    path: "./multiproject.flow.live.test.ts",
     enabled: true,
     category: "core",
   },
@@ -111,7 +111,7 @@ const TEST_MODULES: TestModule[] = [
   },
   {
     name: "Provider Registry",
-    path: "./providerRegistry.test.ts",
+    path: "./providerRegistry.live.test.ts",
     enabled: true,
     category: "infrastructure",
   },
@@ -119,7 +119,7 @@ const TEST_MODULES: TestModule[] = [
   // Integration Tests
   {
     name: "Universal Client Dashboard Integration",
-    path: "./universal-client-dashboard.integration.test.ts",
+    path: "./universal-client-dashboard.live.test.ts",
     enabled: true,
     category: "integration",
   },

@@ -10,7 +10,7 @@
  * - Provider connections
  * - Error handling
  *
- * @file providerRegistry.test.ts
+ * @file providerRegistry.live.test.ts
  * @description Tests for Provider Registry System
  * @layer infrastructure
  */

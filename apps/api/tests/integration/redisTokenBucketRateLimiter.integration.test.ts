@@ -1,5 +1,5 @@
 /**
- * @file redisTokenBucketRateLimiter.test.ts
+ * @file redisTokenBucketRateLimiter.integration.test.ts
  * @description Integration test for the Redis token-bucket adapter against a
  *              real Redis. Proves the Lua script enforces atomic
  *              refill-and-consume and that two adapter instances sharing the

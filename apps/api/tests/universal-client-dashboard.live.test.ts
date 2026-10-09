@@ -10,7 +10,7 @@
  * - Provider-specific details
  * - Error handling for invalid requests
  *
- * @file universal-client-dashboard.integration.test.ts
+ * @file universal-client-dashboard.live.test.ts
  * @description Tests for Universal Client Dashboard Integration Tests
  * @layer infrastructure
  */

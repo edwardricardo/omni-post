@@ -6,7 +6,7 @@
  * NOTE: These tests require the API server to be running.
  * Run `pnpm dev:api` before running these tests.
  *
- * @file crisisRoutes.test.ts
+ * @file crisisRoutes.live.test.ts
  * @description Tests for Crisis Mode Routes Integration
  * @layer infrastructure
  */

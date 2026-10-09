@@ -1,5 +1,5 @@
 /**
- * @file analyticsStreamRoutes.test.ts
+ * @file analyticsStreamRoutes.live.test.ts
  * @description Integration tests for GET /analytics/stream (SSE) against the running
  *              API. Verifies auth (401 without a token), tenancy (403 for a project
  *              the account does not own — the fix for the old WS wrong-domain bug),

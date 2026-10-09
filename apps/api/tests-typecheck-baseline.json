@@ -81,13 +81,13 @@
     "tests/integration/scheduledReportTenantIsolation.integration.test.ts::TS2741": 1,
     "tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts::TS2769": 1,
     "tests/integration/syncEngine/syncEngine.helpers.ts::TS2345": 2,
-    "tests/integration/trendRadarRoutes.test.ts::TS2322": 3,
+    "tests/integration/trendRadarRoutes.live.test.ts::TS2322": 3,
     "tests/media.flow.integration.test.ts::TS2345": 5,
     "tests/media.flow.integration.test.ts::TS2353": 5,
     "tests/mfa.integration.test.ts::TS2379": 1,
-    "tests/multiproject.flow.test.ts::TS2769": 1,
+    "tests/multiproject.flow.live.test.ts::TS2769": 1,
     "tests/planPublication.integration.test.ts::TS18048": 7,
-    "tests/production.integration.test.ts::TS2769": 1,
+    "tests/production.live.test.ts::TS2769": 1,
     "tests/publish.flow.integration.test.ts::TS2322": 1,
     "tests/publish.flow.integration.test.ts::TS2345": 2,
     "tests/publish.flow.integration.test.ts::TS2353": 1,
@@ -535,6 +535,6 @@
     "tests/unit/webhooks/tiktokWebhookProcessor.test.ts::TS18046": 6,
     "tests/unit/webhooks/xWebhookProcessor.test.ts::TS2769": 1,
     "tests/unit/webhooks/youtubeWebhookProcessor.test.ts::TS18046": 2,
-    "tests/universal-client-dashboard.integration.test.ts::TS2379": 1
+    "tests/universal-client-dashboard.live.test.ts::TS2379": 1
   }
 }

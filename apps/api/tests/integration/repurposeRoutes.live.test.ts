@@ -13,7 +13,7 @@
  * loud if the API is unreachable (canon: "Never skip tests because
  * services are down — start them").
  *
- * @file repurposeRoutes.test.ts
+ * @file repurposeRoutes.live.test.ts
  * @description Tests for the client-facing repurpose endpoints
  * @layer infrastructure
  */

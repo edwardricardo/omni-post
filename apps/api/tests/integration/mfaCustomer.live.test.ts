@@ -1,5 +1,5 @@
 /**
- * @file mfaCustomer.integration.test.ts
+ * @file mfaCustomer.live.test.ts
  * @description Integration tests — customer MFA persistence and route correctness.
  *              Exercises the full HTTP request/response cycle for the 5 customer
  *              self-service MFA routes against a real API + Postgres, using the

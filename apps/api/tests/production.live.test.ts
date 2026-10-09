@@ -3,7 +3,7 @@
  * Tests the complete flow from account creation to content publication
  * Covers the customer-facing API surface end to end
  *
- * @file production.integration.test.ts
+ * @file production.live.test.ts
  * @description Tests for Comprehensive Production Integration Test
  * @layer infrastructure
  */

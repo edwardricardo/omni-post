@@ -1,5 +1,5 @@
 /**
- * @file mentionIngest.test.ts
+ * @file mentionIngest.integration.test.ts
  * @description Integration tests for the brand-mention listening corpus. Validates
  *   the DoD's "idempotente; menciones aterrizan normalizadas" (idempotent;
  *   mentions land normalized) against a real database: a normalized mention
