@@ -12,9 +12,10 @@
  * - Post counting
  * - Published posts filtering
  *
- * Run with: pnpm --filter @apps/api exec tsx tests/unit/ProjectRepository.test.ts
+ * Run with: pnpm --filter @apps/api exec node --conditions development --import tsx --test
+ *   tests/integration/repositories/ProjectRepository.integration.test.ts
  *
- * @file ProjectRepository.test.ts
+ * @file ProjectRepository.integration.test.ts
  * @description Tests for ProjectRepository - Basic Operations
  * @layer infrastructure
  */

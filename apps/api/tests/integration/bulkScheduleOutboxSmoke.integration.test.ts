@@ -1,5 +1,5 @@
 /**
- * @file bulkScheduleOutboxSmoke.test.ts
+ * @file bulkScheduleOutboxSmoke.integration.test.ts
  * @description Smoke e2e for the PR2 outbox path: ConfirmBulkScheduleUseCase →
  *   PrismaOutboxWriter → OutboxRelay → BulkScheduleDispatchEventHandler → stub queue.
  *

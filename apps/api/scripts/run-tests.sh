@@ -222,23 +222,23 @@ if run_db_batches; then
 # against Postgres — DB-only, so it belongs here (not a live-API batch). CONCURRENCY=1
 # keeps its whole-table runBackfill/runCleanup from racing sibling files.
 CONCURRENCY=1 run_batch "integration:repositories" \
-  tests/integration/repositories/UserRepository.test.ts \
-  tests/integration/repositories/AccountQueryRepository.test.ts \
-  tests/integration/repositories/ProjectRepository.test.ts \
-  tests/integration/repositories/PrismaPostRepository.test.ts \
-  tests/integration/repositories/AnalyticsRepository.basic.test.ts \
-  tests/integration/repositories/AnalyticsRepository.channel.test.ts \
-  tests/integration/repositories/AnalyticsRepository.timeseries.test.ts \
-  tests/integration/repositories/ConversionRepository.test.ts \
+  tests/integration/repositories/UserRepository.integration.test.ts \
+  tests/integration/repositories/AccountQueryRepository.integration.test.ts \
+  tests/integration/repositories/ProjectRepository.integration.test.ts \
+  tests/integration/repositories/PrismaPostRepository.integration.test.ts \
+  tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts \
+  tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts \
+  tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts \
+  tests/integration/repositories/ConversionRepository.integration.test.ts \
   tests/integration/backfillAdminMfaBackupCodes.integration.test.ts \
-  tests/integration/postHardDeleteCascade.test.ts
+  tests/integration/postHardDeleteCascade.integration.test.ts
 
 # Retention-floor sweep. DB-only, and deliberately its OWN batch: it holds a second
 # PrismaClient opened on a hostile session time zone, so folding it into a batch that
 # shares the singleton would make which client a failure belongs to ambiguous.
 CONCURRENCY=1 run_batch "integration:retention" \
-  tests/integration/deletionRecordRetentionFloor.test.ts \
-  tests/integration/deletionRecordDegradation.test.ts
+  tests/integration/deletionRecordRetentionFloor.integration.test.ts \
+  tests/integration/deletionRecordDegradation.integration.test.ts
 
 # Serializable hard-delete race. Its OWN batch for the same reason as the retention
 # sweep, and one more: it holds TWO PrismaClients and deliberately parks one of them
@@ -246,18 +246,18 @@ CONCURRENCY=1 run_batch "integration:retention" \
 # suite's lock wait satisfy that poll, and the interleaving the proof depends on would
 # stop being the one under test. CONCURRENCY=1 is not optional here.
 CONCURRENCY=1 run_batch "integration:hard-delete-race" \
-  tests/integration/hardDeleteSerializableRace.test.ts
+  tests/integration/hardDeleteSerializableRace.integration.test.ts
 
 CONCURRENCY=1 run_batch "integration:sync" \
-  tests/integration/syncEngine/syncEngine.init.test.ts \
-  tests/integration/syncEngine/syncEngine.sync.test.ts \
-  tests/integration/syncEngine/syncEngine.conflicts.test.ts \
-  tests/integration/syncEngine/syncEngine.monitoring.test.ts
+  tests/integration/syncEngine/syncEngine.init.integration.test.ts \
+  tests/integration/syncEngine/syncEngine.sync.integration.test.ts \
+  tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts \
+  tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts
 
 CONCURRENCY=1 run_batch "integration:outbox" \
   tests/integration/outbox/OutboxRelay.integration.test.ts \
-  tests/integration/bulkScheduleOutboxSmoke.test.ts \
-  tests/integration/bulkScheduling.test.ts
+  tests/integration/bulkScheduleOutboxSmoke.integration.test.ts \
+  tests/integration/bulkScheduling.integration.test.ts
 
 CONCURRENCY=1 run_batch "integration:consumers" \
   tests/integration/consumers/workerConnection.integration.test.ts

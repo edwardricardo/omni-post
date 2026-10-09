@@ -1,5 +1,5 @@
 /**
- * @file deletionRecordRetentionFloor.test.ts
+ * @file deletionRecordRetentionFloor.integration.test.ts
  * @description Asks the REAL database the questions the unit suite could only answer from a
  *              literal its author typed in from memory: can `computeRetainUntil` produce a
  *              `retainUntil` that the `DeletionRecord_retainUntil_floor` CHECK rejects, and

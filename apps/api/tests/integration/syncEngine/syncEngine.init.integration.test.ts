@@ -1,5 +1,5 @@
 /**
- * @file syncEngine.init.test.ts
+ * @file syncEngine.init.integration.test.ts
  * @description SyncEngine - Initialization & Sync Channel Management Tests
  *
  * Covers:

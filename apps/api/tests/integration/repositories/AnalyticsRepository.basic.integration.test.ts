@@ -1,5 +1,5 @@
 /**
- * @file AnalyticsRepository.basic.test.ts
+ * @file AnalyticsRepository.basic.integration.test.ts
  * @description Tests for AnalyticsRepository - Basic Operations
  * @layer infrastructure
  */
@@ -10,7 +10,7 @@ import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
 
 /**
  * Fixture AND subject channel: the suite proves the analytics query shape, not row security.
- * See `AccountQueryRepository.test.ts` for where the isolation proof lives.
+ * See `AccountQueryRepository.integration.test.ts` for where the isolation proof lives.
  */
 const prisma = createSeedPrismaClient();
 import {

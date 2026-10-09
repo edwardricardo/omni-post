@@ -1,5 +1,5 @@
 /**
- * @file AnalyticsRepository.timeseries.test.ts
+ * @file AnalyticsRepository.timeseries.integration.test.ts
  * @description Tests for AnalyticsRepository - getTimeSeriesData
  * @layer infrastructure
  */

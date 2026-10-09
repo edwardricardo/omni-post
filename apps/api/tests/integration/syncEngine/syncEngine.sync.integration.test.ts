@@ -1,5 +1,5 @@
 /**
- * @file syncEngine.sync.test.ts
+ * @file syncEngine.sync.integration.test.ts
  * @description SyncEngine - Real-time Synchronization & Sync Transactions Tests
  *
  * Covers:

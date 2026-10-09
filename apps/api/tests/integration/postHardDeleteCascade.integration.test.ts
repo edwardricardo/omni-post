@@ -1,5 +1,5 @@
 /**
- * @file postHardDeleteCascade.test.ts
+ * @file postHardDeleteCascade.integration.test.ts
  * @description Pins the DATABASE blast radius of `DELETE /posts/batch` against the real
  *              schema, by issuing the exact call the route makes:
  *              `post.deleteMany({ where: { id: { in: [...] } } })`

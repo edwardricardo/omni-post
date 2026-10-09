@@ -1,5 +1,5 @@
 /**
- * @file AccountQueryRepository.test.ts
+ * @file AccountQueryRepository.integration.test.ts
  * @description Integration tests for PrismaAccountQueryRepository (CQRS read
  *              side) against a real PostgreSQL database. Covers findWithProjects,
  *              findById, findByEmail (case-normalised), findManyWithProjects,

@@ -1,5 +1,5 @@
 /**
- * @file syncEngine.conflicts.test.ts
+ * @file syncEngine.conflicts.integration.test.ts
  * @description SyncEngine - Conflict Resolution & Transaction Rollback Tests
  *
  * Covers:

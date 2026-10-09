@@ -1,5 +1,5 @@
 /**
- * @file hardDeleteSerializableRace.test.ts
+ * @file hardDeleteSerializableRace.integration.test.ts
  * @description Pins the Serializable guarantee of the account hard delete against a REAL
  *              database, with two live connections, THROUGH the composition path.
  *

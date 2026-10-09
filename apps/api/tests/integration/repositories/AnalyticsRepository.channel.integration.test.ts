@@ -1,5 +1,5 @@
 /**
- * @file AnalyticsRepository.channel.test.ts
+ * @file AnalyticsRepository.channel.integration.test.ts
  * @description Tests for AnalyticsRepository - getLatestForPosts
  * @layer infrastructure
  */

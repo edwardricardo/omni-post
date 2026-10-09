@@ -1,11 +1,11 @@
 /**
- * @file bulkScheduling.test.ts
+ * @file bulkScheduling.integration.test.ts
  * @description Integration tests for the bulk-scheduling manifest against the
  *   real database: per-row manifest persistence (a bad row never aborts the
  *   batch), batch settling, the read-side status derivation, and tenant isolation.
  *
  *   End-to-end outbox path tests (confirm → relay → dispatch → queue) live in
- *   bulkScheduleOutboxSmoke.test.ts which covers the new 2-phase flow.
+ *   bulkScheduleOutboxSmoke.integration.test.ts which covers the new 2-phase flow.
  * @layer infrastructure
  */
 

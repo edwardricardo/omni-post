@@ -1,5 +1,5 @@
 /**
- * @file syncEngine.monitoring.test.ts
+ * @file syncEngine.monitoring.integration.test.ts
  * @description SyncEngine - Metrics Collection, Error Handling & Content Change Monitoring Tests
  *
  * Covers:

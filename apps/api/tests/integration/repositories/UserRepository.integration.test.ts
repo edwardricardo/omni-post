@@ -13,9 +13,10 @@
  * - Email case normalization
  * - Edge cases and concurrent operations
  *
- * Run with: pnpm --filter @apps/api exec tsx tests/unit/UserRepository.test.ts
+ * Run with: pnpm --filter @apps/api exec node --conditions development --import tsx --test
+ *   tests/integration/repositories/UserRepository.integration.test.ts
  *
- * @file UserRepository.test.ts
+ * @file UserRepository.integration.test.ts
  * @description Tests for UserRepository - Basic Operations
  * @layer infrastructure
  */

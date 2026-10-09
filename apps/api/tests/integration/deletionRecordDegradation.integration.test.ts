@@ -1,5 +1,5 @@
 /**
- * @file deletionRecordDegradation.test.ts
+ * @file deletionRecordDegradation.integration.test.ts
  * @description Asks the REAL database whether the degradation sweep actually
  *              empties the population the `deletion_record_overdue_plaintext`
  *              gauge reports. Acceptance is read from THAT GAUGE and never from

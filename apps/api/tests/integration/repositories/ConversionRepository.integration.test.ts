@@ -1,5 +1,5 @@
 /**
- * @file ConversionRepository.test.ts
+ * @file ConversionRepository.integration.test.ts
  * @description Integration tests for PrismaConversionRepository against a real
  *              PostgreSQL database. Exercises the actual INSERT (Decimal money,
  *              enum columns), the natural-key idempotency constraint (a

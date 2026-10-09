@@ -3,7 +3,7 @@
  *
  * Tests for the PrismaPostRepository implementation.
  *
- * @file PrismaPostRepository.test.ts
+ * @file PrismaPostRepository.integration.test.ts
  * @description Tests for PrismaPostRepository
  * @layer infrastructure
  */
