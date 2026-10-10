@@ -140,6 +140,7 @@
 | SB-119 | DEF-68 (`workstream/fix-ratelimit-query-key`, 40434165)                               | R2-002                                                           | `apps/api/src/security/httpRateLimitPreHandler.ts` (`resourcePath`)                                                                         | readability                  | deferred: both branches are pinned by unit cases; the split is a refactor                                                                                       |
 | SB-120 | DEF-68 (`workstream/fix-ratelimit-query-key`, 40434165)                               | R2-003                                                           | `apps/api/src/security/httpRateLimitPreHandler.ts` (no-route fallback)                                                                      | readability                  | deferred: both expressions are pinned by the unrouted case                                                                                                      |
 | SB-121 | DEF-70 (`workstream/fix-ratelimit-dead-rules`, ffaf0b7e)                              | R2-003                                                           | `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts` (`label`, `rulesShadowing`)                                                | readability                  | deferred: both helpers are pinned by the rule cases; naming them is readability only                                                                            |
+| SB-122 | secretlint hold bump (`workstream/hold-secretlint-13-0-7`, 535763b1)                  | R2-003                                                           | `scripts/testing/maturity-watchlist.json` (`reviews.maturity` note of `ignore@7.0.12`)                                                      | readability                  | deferred: splitting the note into fields changes the shape the watchlist check validates                                                                        |
 
 ## Entries — code and prose
 
@@ -751,6 +752,14 @@
 - **Suggestion:** name the `"none"` sentinel of `rulesShadowing` and extract a helper for the winning rule's label; say beside `label` that rules share preset objects by identity.
 - **Why deferred:** both helpers only build the failure message and the shadowing verdict, which the rule cases pin; the change is readability only.
 - **To implement:** a named constant and one helper, same cases green.
+
+### SB-122 — a maturity review note packs every check into one paragraph
+
+- **Source:** the native review of the secretlint hold bump (`workstream/hold-secretlint-13-0-7`, `535763b1`), finding `R2-003`.
+- **Location:** `scripts/testing/maturity-watchlist.json`, the `reviews.maturity` note of the `ignore@7.0.12` entry.
+- **Suggestion:** split the note into labelled fields (registry, OSV, upstream, reachability, local checks), so the claim behind the `clean` outcome is visible on its own.
+- **Why deferred:** the note is a free-text field that `scripts/testing/maturity-watchlist.mjs --check` validates; structured fields change that schema and every existing review, which is its own change.
+- **To implement:** a schema change in `maturity-watchlist.mjs` with its suite, then the existing notes migrated.
 
 ## Entries — tests
 
