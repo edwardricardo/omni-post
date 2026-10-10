@@ -145,6 +145,8 @@
 | SB-124 | same                                                                                  | R3-env-undefined-silently-skipped                                | `packages/test-contracts/src/lib/source-resolution.ts` (missing vite environment)                                                           | fail-closed edge             | deferred: all 92 configs register `client` and `ssr` (measured); the import floor bounds a loss                                                                 |
 | SB-125 | same                                                                                  | R3-cli-exit-code-not-asserted                                    | `packages/test-contracts/tests/source-resolution.test.ts` (CLI exit code)                                                                   | test coverage                | deferred: the exit code is `clean ? 0 : 1` over the report the cases assert directly                                                                            |
 | SB-126 | same                                                                                  | R3-stdout-non-json-parse                                         | `packages/test-contracts/tests/source-resolution.test.ts` (production spawn)                                                                | test diagnostics             | deferred: a non-JSON stdout still fails the case; only its message is less precise                                                                              |
+| SB-127 | Phase 1 U7b (`workstream/phase1-u7b-s2`, 7310de1c)                                    | R3-002                                                           | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (`curl` stub)                                                                      | test double                  | deferred: the runner makes exactly two probe shapes today, and both are pinned                                                                                  |
+| SB-128 | same                                                                                  | R3-003                                                           | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (`listedFailedEntries`)                                                            | test coupling                | deferred: the indent is the runner's own output, pinned by the cases that read it                                                                               |
 
 ## Entries — code and prose
 
@@ -1174,6 +1176,22 @@
 - **Suggestion:** guard `JSON.parse` so a stray log line fails with the child's stdout and stderr, not a `SyntaxError`.
 - **Why deferred:** a non-JSON stdout still fails the case; only the failure message is less precise.
 - **To implement:** a try/catch that rethrows with both streams.
+
+### SB-127 — the runner suite's `curl` stub answers by a loose argument match
+
+- **Source:** the native review of Phase 1 U7b R7b2 (`workstream/phase1-u7b-s2`, `7310de1c`), finding `R3-002`.
+- **Location:** `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts`, the stub `curl` written for the scratch runs.
+- **Suggestion:** match each probe by its URL, and fail on an unknown probe shape, instead of returning 200 for any argument list that contains `http_code` and a one-consumer body for everything else.
+- **Why deferred:** the runner makes exactly two probe shapes today, the readiness status code and the queue-consumer body, and both are asserted by the cases that drive them; a new probe shape arrives with its own case.
+- **To implement:** a `case` on the URL in the stub, with an `exit 97` default that a case would surface.
+
+### SB-128 — `listedFailedEntries` depends on a two-space indent
+
+- **Source:** the same review, finding `R3-003`.
+- **Location:** `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts`, `listedFailedEntries`.
+- **Suggestion:** parse the `FAILED files:` block without fixing its indent width, so an indent change fails with a clear message rather than an empty list.
+- **Why deferred:** the two-space indent is the runner's own output format, and the accounting cases compare that block with the reported files on every run, so a change to it turns them red.
+- **To implement:** accept any leading whitespace, and assert the block is non-empty whenever the run reports failures.
 
 ## Implemented
 
