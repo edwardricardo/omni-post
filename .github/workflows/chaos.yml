@@ -3,13 +3,14 @@ name: Chaos Test Suite (Saga + Outbox)
 # Runs the chaos scenarios on a nightly schedule, through the same test runner
 # CI uses, so the nightly verdict and the merge-gate verdict mean the same thing.
 #
-# Scope: the runner's DB-only tier, which owns the `chaos` batch
-# (`apps/api/scripts/run-tests.sh`). The chaos files are node:test files, so the
-# previous `vitest run tests/chaos/` collected ZERO tests — vitest's include
-# globs cover only `tests/unit/**` and `tests/eval/**` — and the job reported
-# green without ever executing a scenario. Naming the files again here would add
-# a second hand-maintained list; the runner's batch is the one source, and it is
-# also the only entry point whose gate can go red on a collapsed setup.
+# Scope: the runner's services tier (`apps/api/scripts/run-tests.sh`), which
+# collects the chaos files by their `*.integration.test.ts` suffix. They are
+# node:test files, so the previous `vitest run tests/chaos/` collected ZERO
+# tests — vitest's include globs cover only `tests/unit/**` and `tests/eval/**`
+# — and the job reported green without ever executing a scenario. Naming the
+# files again here would add a second hand-maintained list; the runner's
+# collection is the one source, and it is also the only entry point whose gate
+# can go red on a collapsed setup.
 #
 # Failure handling: if the tier fails, the job fails AND a GitHub issue is
 # opened (via the "Notify on failure" step at the bottom) so an operator picks it
@@ -102,7 +103,7 @@ jobs:
         run: pnpm --filter @infra/prisma run migrate
 
       - name: Seed roles + permissions
-        # The DB-only batches assume the seeded baseline (roles/permissions and
+        # The services tier assumes the seeded baseline (roles/permissions and
         # reference rows) the local dev database always has. The seed is
         # idempotent. seed.ts requires PLATFORM_ENCRYPTION_KEY (32 bytes,
         # base64) — the same deterministic test-only key ci-setup-test-env.sh
@@ -117,9 +118,10 @@ jobs:
       - name: Run chaos scenarios (DB-only tier)
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
-          # The DB-only tier is the slice that owns the `chaos` batch and needs
-          # no live server. Explicit DB/Redis env so run-tests.sh never falls
-          # back to sourcing the repo .env (dotenv files are not valid bash).
+          # The services tier runs the chaos files with every other collected
+          # suite and needs no live server. Explicit DB/Redis env so
+          # run-tests.sh never falls back to sourcing the repo .env (dotenv
+          # files are not valid bash).
           TIER: pr-integration
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
@@ -134,7 +136,7 @@ jobs:
           script: |
             const title = `Chaos test failure ${new Date().toISOString().slice(0,10)}`;
             const body = [
-              `The nightly DB-only integration tier, which owns the chaos batch, failed in run \`${context.runId}\`.`,
+              `The nightly services tier of run-tests.sh, which runs the chaos scenarios, failed in run \`${context.runId}\`.`,
               '',
               `Logs: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
               '',

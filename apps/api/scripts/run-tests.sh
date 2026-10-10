@@ -5,14 +5,16 @@
 # starts it, so no unit test runs twice and no Vitest verdict is folded into this
 # one. `pnpm test:all` runs the two in sequence.
 #
-# The integration and flow suites (tests/*.test.ts, tests/integration/,
-# tests/chaos/) stay on node:test because they depend on real services
-# (PostgreSQL, Redis, a running API), and they are selected here by EXPLICIT file
-# list. The batch lists below are therefore the node:test inventory, and it is a
-# HAND-MAINTAINED one with a measured hole: a suite no batch names never runs
-# (SMELL-75). It is tracked in docs/reports/roadmap-detected-smells-backlog.md
-# with its current count; treat the lists as the inventory, never as proof of
-# coverage. No test total appears here on purpose — a count in a comment rots.
+# The integration and flow suites (tests/**, outside tests/unit and tests/eval)
+# stay on node:test because they depend on real services (PostgreSQL, Redis, and
+# for the live tier a running API). Their file name says which tier runs them:
+# the services tier is COLLECTED by its suffix, every `*.integration.test.ts`
+# under tests/ (`collect integration`), so a new suite runs without anyone
+# editing this file. The live tier is still the hand-listed live-API batches at
+# the end, until it is collected by its own suffix too (WU-1.8); a
+# `*.live.test.ts` no live batch names runs nowhere, and fitness #30 counts it.
+# `--list` prints the inventory without running anything. No test total appears
+# here on purpose — a count in a comment rots.
 
 set -e
 export NODE_ENV=test
@@ -62,6 +64,13 @@ RUNNER_PATH="${BASH_SOURCE[0]}"
 # fixture; no workflow sets it.
 QUARANTINE_FILE="${QUARANTINE_FILE:-$(dirname "$RUNNER_PATH")/../../../packages/test-contracts/quarantine.json}"
 
+# Prints every `*.<suffix>.test.ts` under tests/, outside tests/unit (the unit
+# tier, collected elsewhere), one per line in byte order.
+collect() {
+  local suffix="$1"
+  find tests -path tests/unit -prune -o -type f -name "*.$suffix.test.ts" -print | LC_ALL=C sort
+}
+
 # Prints the files the live-API batches at the end of this script name, once each
 # and in their order, read from this script's own text. Until the live tier is
 # collected by its suffix (WU-1.8), those batches ARE the live tier, and they still
@@ -73,19 +82,6 @@ live_section_files() {
   awk '
     /^if run_live_api_batches; then$/ { inside = 1; opened = 1; next }
     /^fi [#] run_live_api_batches$/ { inside = 0; closed = 1; next }
-    inside && $1 !~ /^[#]/ {
-      for (i = 1; i <= NF; i++) if ($i ~ /^tests\/.*\.test\.ts$/ && !seen[$i]++) print $i
-    }
-    END { if (!opened || !closed) exit 3 }
-  ' "$RUNNER_PATH"
-}
-
-# Prints the files the DB-only batches below name, the same way: until the services
-# tier is collected by its suffix, those hand-written lists ARE the services tier.
-db_section_files() {
-  awk '
-    /^if run_services_tier; then$/ { inside = 1; opened = 1; next }
-    /^fi [#] run_services_tier$/ { inside = 0; closed = 1; next }
     inside && $1 !~ /^[#]/ {
       for (i = 1; i <= NF; i++) if ($i ~ /^tests\/.*\.test\.ts$/ && !seen[$i]++) print $i
     }
@@ -135,9 +131,10 @@ is_quarantined() {
   printf '%s\n' "$QUARANTINE" | cut -f1 | grep -Fxq -- "$1"
 }
 
-# Fills SERVICES_FILES with the services tier: every file the DB-only batches
-# name, except the ones a live-API batch also names and the quarantined ones.
-# Fails when that leaves nothing: a section that names no suite cannot be listed.
+# Fills SERVICES_FILES with the services tier: every file `collect integration`
+# prints, except the ones a live-API batch still names and the quarantined ones.
+# Fails when that leaves nothing: a collection that found no suite is a wrong
+# working directory or a moved tests/ tree, never an empty pass.
 SERVICES_FILES=()
 resolve_services_files() {
   local live file
@@ -150,17 +147,16 @@ resolve_services_files() {
       continue
     fi
     SERVICES_FILES+=("$file")
-  done < <(db_section_files)
+  done < <(collect integration)
   [ "${#SERVICES_FILES[@]}" -gt 0 ]
 }
 
-# What both modes print when the services tier comes back empty.
-NO_SERVICES_MESSAGE="run-tests.sh: the DB-only batches of $RUNNER_PATH name no suite to list or run."
+# What both modes print when the services collection comes back empty.
+NO_SERVICES_MESSAGE="run-tests.sh: collect integration found no *.integration.test.ts to run under tests/ in $(pwd); run it from apps/api."
 
 # --list prints the inventory and runs nothing: one `<kind>\t<path>` line per file
-# this runner owns — `integration` for the files the DB-only batches name, `live`
-# for the files the live-API batches name, `quarantined` for each quarantine entry
-# it applies. It
+# this runner owns — `integration` for the services tier, `live` for the files the
+# live-API batches name, `quarantined` for each quarantine entry it applies. It
 # reads only the tree, this script and the quarantine, so it sits above the
 # database refusal and needs no DATABASE_URL, and TIER does not change it. A file
 # under tests/ it does not print as `integration` or `live` is one nothing here
@@ -202,8 +198,9 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 2
 fi
 
-# The quarantine and the services tier are settled before anything starts, so a
-# quarantine that cannot be trusted ends the run without running a single suite.
+# The quarantine and the services collection are settled before anything starts,
+# so a quarantine that cannot be trusted or a collection that found nothing ends
+# the run without running a single suite.
 load_quarantine || exit 2
 if ! resolve_services_files; then
   echo "$NO_SERVICES_MESSAGE" >&2
@@ -341,11 +338,6 @@ run_batch() {
   local runner_exit=0 failed_files=0 file
 
   for file in "$@"; do
-    # A quarantined file is printed once, at the head of the DB-only batches, and
-    # run by no batch.
-    if is_quarantined "$file"; then
-      continue
-    fi
     # Reset before each call: should run_file ever run in a subshell (a pipe or
     # `$( )` around it), its verdict never arrives, and the file then fails for
     # want of one instead of passing on the previous file's.
@@ -378,142 +370,19 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 echo "── Integration tests (node:test) ──"
 
-# The services tier: the DB-only batches below, Prisma against the real DB, no live
-# API server required.
+# The services tier: every collected `*.integration.test.ts` (resolve_services_files
+# above), each in its own node:test process through run_batch, in byte order. The
+# files run one after another, so no two suites share the database at once: the suites that race one credential on
+# purpose, or park a row lock while polling for it, measure only their own
+# interleaving. The quarantined ones are printed and not run.
 if run_services_tier; then
-
-# The quarantine, printed once here; run_batch runs none of its files.
   printf '%s\n' "$QUARANTINE" | while IFS=$'\t' read -r file reason; do
     if [ -n "$file" ]; then
       printf "  QUARANTINED (not run): %s — %s\n" "$file" "$reason"
     fi
   done
-
-# Repository + data-migration integration tests (Prisma against real DB, no live API).
-# backfillAdminMfaBackupCodes drives the migration script's injected-Prisma exports
-# against Postgres — DB-only, so it belongs here (not a live-API batch). Files run
-# one at a time, so its whole-table runBackfill/runCleanup cannot race a sibling.
-run_batch "integration:repositories" \
-  tests/integration/repositories/UserRepository.integration.test.ts \
-  tests/integration/repositories/AccountQueryRepository.integration.test.ts \
-  tests/integration/repositories/ProjectRepository.integration.test.ts \
-  tests/integration/repositories/PrismaPostRepository.integration.test.ts \
-  tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts \
-  tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts \
-  tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts \
-  tests/integration/repositories/ConversionRepository.integration.test.ts \
-  tests/integration/backfillAdminMfaBackupCodes.integration.test.ts \
-  tests/integration/postHardDeleteCascade.integration.test.ts
-
-# Retention-floor sweep. DB-only, and deliberately its OWN batch: it holds a second
-# PrismaClient opened on a hostile session time zone, so folding it into a batch that
-# shares the singleton would make which client a failure belongs to ambiguous.
-run_batch "integration:retention" \
-  tests/integration/deletionRecordRetentionFloor.integration.test.ts \
-  tests/integration/deletionRecordDegradation.integration.test.ts
-
-# Serializable hard-delete race. Its OWN batch for the same reason as the retention
-# sweep, and one more: it holds TWO PrismaClients and deliberately parks one of them
-# on a row lock while polling `pg_blocking_pids`. Sharing a batch would let a sibling
-# suite's lock wait satisfy that poll, and the interleaving the proof depends on would
-# stop being the one under test. Files run one at a time, which is not optional here.
-run_batch "integration:hard-delete-race" \
-  tests/integration/hardDeleteSerializableRace.integration.test.ts
-
-run_batch "integration:sync" \
-  tests/integration/syncEngine/syncEngine.init.integration.test.ts \
-  tests/integration/syncEngine/syncEngine.sync.integration.test.ts \
-  tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts \
-  tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts
-
-run_batch "integration:outbox" \
-  tests/integration/outbox/OutboxRelay.integration.test.ts \
-  tests/integration/bulkScheduleOutboxSmoke.integration.test.ts \
-  tests/integration/bulkScheduling.integration.test.ts
-
-run_batch "integration:consumers" \
-  tests/integration/consumers/workerConnection.integration.test.ts
-
-# Chaos scenarios. They drive the saga engine against in-memory doubles, so no
-# service is required, but they are node:test files and therefore belong to a
-# batch — a suite that no batch lists is a suite that never runs.
-run_batch "chaos" \
-  tests/chaos/saga-step-retry-recovery.integration.test.ts \
-  tests/chaos/sagaWaitAmplification.integration.test.ts
-
-# Two-tenant isolation proofs for the tenant-guard rollout. Each suite seeds
-# two tenants against the real DB and drives the guarded client / in-process
-# routes (app.inject — no live server), so this is a DB-only batch. Bundled
-# here because these MERGE-BLOCKING suites were previously unlisted in any
-# batch and therefore never executed under test:all / test:integration.
-run_batch "integration:tenant-isolation" \
-  tests/integration/postDeleteOwnership.integration.test.ts \
-  tests/integration/postReadOwnership.integration.test.ts \
-  tests/integration/externalNotificationTenantIsolation.integration.test.ts \
-  tests/integration/scheduledReportTenantIsolation.integration.test.ts \
-  tests/integration/campaignTenantIsolation.integration.test.ts \
-  tests/integration/recurringPostTenantIsolation.integration.test.ts \
-  tests/integration/channelTenantIsolation.integration.test.ts \
-  tests/integration/publishWorkerTenantIsolation.integration.test.ts \
-  tests/integration/trackedLinkTenantIsolation.integration.test.ts \
-  tests/integration/generatedImageTenantIsolation.integration.test.ts \
-  tests/integration/projectMemberTenantIsolation.integration.test.ts \
-  tests/integration/preAuthIntegrationTenantIsolation.integration.test.ts \
-  tests/integration/preAuthSsoTenantIsolation.integration.test.ts \
-  tests/integration/preAuthBillingTenantIsolation.integration.test.ts \
-  tests/integration/preAuthInboundWebhookTenantIsolation.integration.test.ts \
-  tests/integration/sagaTenantIsolation.integration.test.ts \
-  tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts \
-  tests/integration/rls-tenant-isolation.integration.test.ts \
-  tests/integration/tenantGucTransactionBinding.integration.test.ts \
-  tests/integration/compositionRootTenantBinding.integration.test.ts \
-  tests/integration/tenant-composite-fk.integration.test.ts \
-  tests/integration/post-trio-tenant-isolation.integration.test.ts
-
-# Customer pre-identity auth proofs. DB-only: the suite drives the four bare
-# `/auth/customer/*` handlers over `app.inject` against the guarded client, so it
-# needs Postgres but no live server. Its OWN batch, run alone, because two of
-# its cases race the SAME reset token on purpose — one pair of genuinely concurrent
-# confirms, one sequential replay — and a sibling suite sharing the runner would
-# make which statement won ambiguous, which is the only thing those cases measure.
-run_batch "integration:customer-auth" \
-  tests/integration/customerPasswordReset.integration.test.ts
-
-# MFA backup-code claim proofs. DB-only: the suite drives the real Prisma MFA
-# adapters and the unified MfaService directly, no live server. Its OWN batch,
-# run alone, because its cases race the SAME credential on purpose — a
-# staggered pair, a simultaneous pair, and a sibling-index collision — and a
-# sibling suite sharing the runner would make which statement won ambiguous,
-# which is the only thing those cases measure.
-run_batch "integration:mfa-backup-single-use" \
-  tests/integration/mfaBackupCodeSingleUse.integration.test.ts
-
-# Admin single-use claim proofs. DB-only: the reset suite drives PasswordService
-# over the seed client and the refresh suite drives the real AuthService over real
-# adapters — no live server, and no Redis on purpose: the rotation claim is the
-# subject, so the Redis blacklist stays structurally absent. ONE batch, files
-# run alone, because every suite here races the SAME credential on purpose
-# (staggered + simultaneous pairs), and a sibling suite sharing the runner would
-# make which statement won ambiguous, which is the only thing those cases measure.
-run_batch "integration:admin-single-use-claims" \
-  tests/integration/adminPasswordResetClaim.integration.test.ts \
-  tests/integration/adminRefreshRotationClaim.integration.test.ts
-
-# Saga recovery + promotion proofs. DB-only by dependency (Postgres + Redis; the
-# crash suite also owns a real BullMQ queue and worker), so they belong to the
-# tier that also runs on pull requests — a merge-blocking gate that only ran
-# after the merge would gate nothing. The crash suite, which drives a real queue
-# round trip and walks a retry envelope, is the slow one; the compensation and
-# promotion suites are quick. The three share one batch because all
-# three boot real managers, and a boot loads and dispatches every non-terminal
-# row in the table — running them in one serialized batch is what keeps that
-# from being three suites executing each other's sagas.
-run_batch "integration:saga-recovery" \
-  tests/integration/sagaCrashRecovery.integration.test.ts \
-  tests/integration/sagaCompensationRecovery.integration.test.ts \
-  tests/integration/sagaPublishNowPromotion.integration.test.ts
-
-fi # run_services_tier
+  run_batch "integration" "${SERVICES_FILES[@]}"
+fi
 
 # Live-API batches: these fetch http://localhost:3000 (getBaseUrl) and require
 # a running API server alongside the DB/Redis services.

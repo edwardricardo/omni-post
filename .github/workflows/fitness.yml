@@ -6,7 +6,7 @@ name: Architectural Fitness Functions
 #
 # Strategy: hard-zero (each returns count = 0), with the documented ratchets that
 # CLAUDE.md names: #1 and #21 ran as ratchets during the prisma->DI remediation
-# and are hard-zero again; #30 holds a measured baseline of 20 unrun test suites;
+# and are hard-zero again; #30 holds an interim baseline of 10 unrun test files;
 # #38 carries one ratcheted sub-count for packages/adapters/db-prisma; #45 and
 # #46 hold one `pending` count per inventory, exact at its pendingBaseline. Every
 # baseline may fall and must never rise.
@@ -738,41 +738,50 @@ jobs:
             exit 1
           fi
 
-      - name: "#30 Every committed test file is reachable by a collector (ratchet)"
+      - name: "#30 Every committed test file is reachable by a collector (interim ratchet)"
         if: always()
         run: |
           set -uo pipefail
-          # RATCHET, not hard-zero — the only such check in this suite. Vitest
-          # collects apps/api/tests/unit/** and tests/eval/** from the tree via
-          # the `include` globs in apps/api/vitest.config.ts, so those are
-          # reachable by construction. Every OTHER node:test file under
-          # apps/api/tests is selected by an EXPLICIT file list in
-          # apps/api/scripts/run-tests.sh, and a suite that no `run_batch` names
-          # never executes anywhere — while still reading as coverage in the
-          # tree, in review, and in a coverage report that only counts what ran.
-          # Baseline 20, measured, tracked as SMELL-75 in
-          # docs/reports/roadmap-detected-smells-backlog.md. Wiring them is its
-          # own body of work (each needs a tier, services, and a runtime budget),
-          # so the gate gives that work a floor instead of blocking on it: the
-          # count may fall and must never rise. Mirrors CLAUDE.md #30.
-          BASELINE=20
-          for p in apps/api/tests apps/api/scripts/run-tests.sh; do
+          # INTERIM RATCHET, not hard-zero — the only such check in this suite —
+          # retired by WU-1.10 (docs/development/TESTING_REFOUNDATION.md): its
+          # test-contracts job derives reach from every collector and holds the
+          # unreached files outside the quarantine at a hard zero, and it deletes
+          # this step, its baseline and the interim wording of CLAUDE.md #30 in
+          # the same change. Vitest collects apps/api/tests/unit/** and
+          # tests/eval/** from the tree via the `include` globs in
+          # apps/api/vitest.config.ts. Every OTHER test file under apps/api/tests
+          # belongs to apps/api/scripts/run-tests.sh, whose `--list` prints what
+          # it runs, reading no database: `integration` for the services tier it
+          # collects by suffix, `live` for the files its live-API batches name,
+          # `quarantined` for each quarantine entry it keeps out. A file it prints
+          # as neither `integration` nor `live` runs nowhere while still reading
+          # as coverage. Baseline 10, measured 2026-10-10: the 10 dark
+          # *.live.test.ts suites no live batch names (SMELL-75; WU-1.8 collects
+          # the live tier by its suffix) plus 0 quarantine entries. Every
+          # quarantine entry counts, so the quarantine only grows where another
+          # unreached file leaves. The count may fall and must never rise.
+          # Mirrors CLAUDE.md #30.
+          BASELINE=10
+          for p in apps/api/tests apps/api/scripts/run-tests.sh packages/test-contracts/quarantine.json; do
             [ -e "$p" ] || { echo "::error title=Fitness #30 scope missing::'$p' does not exist, so this check would scan nothing and pass."; exit 1; }
           done
+          LISTED=$(cd apps/api && bash scripts/run-tests.sh --list) || { echo "fitness #30 scope error: run-tests.sh --list failed"; exit 1; }
+          REACHED=$(printf '%s\n' "$LISTED" | grep -v '^quarantined' | cut -f2)
+          [ -n "$REACHED" ] || { echo "fitness #30 scope error: run-tests.sh --list reached no file"; exit 1; }
           UNREACHED=$(for f in $(find apps/api/tests -name "*.test.ts" \
               -not -path "*/tests/unit/*" -not -path "*/tests/eval/*"); do
-            grep -qF "${f#apps/api/}" apps/api/scripts/run-tests.sh || echo "UNREACHED: $f"
+            printf '%s\n' "$REACHED" | grep -qxF "${f#apps/api/}" || echo "UNREACHED: $f"
           done || true)
           COUNT=$(printf "%s" "$UNREACHED" | grep -c . || true)
           COUNT=${COUNT:-0}
-          echo "Unreached suites: $COUNT (ratchet baseline $BASELINE)"
+          echo "Unreached test files: $COUNT (interim ratchet baseline $BASELINE)"
           printf "%s\n" "$UNREACHED" | head -40
           if [ "$COUNT" -gt "$BASELINE" ]; then
-            echo "::error title=Fitness #30 violation::$COUNT test suites are named by no run_batch and by no collector glob, above the ratchet baseline of $BASELINE. A suite nothing collects never runs while still reading as coverage. Name it in a run_batch in apps/api/scripts/run-tests.sh, or delete it."
+            echo "::error title=Fitness #30 violation::$COUNT test files under apps/api/tests run in no collector, above the interim ratchet baseline of $BASELINE. A file nothing runs never executes while still reading as coverage. Give it its tier suffix (run-tests.sh collects every *.integration.test.ts; a *.live.test.ts runs only once a live-API batch names it, until WU-1.8), or delete it."
             exit 1
           fi
           if [ "$COUNT" -lt "$BASELINE" ]; then
-            echo "::notice title=Fitness #30 ratchet::$COUNT unreached suites, below the baseline of $BASELINE. Lower BASELINE here and in CLAUDE.md #30 to lock the gain in."
+            echo "::notice title=Fitness #30 ratchet::$COUNT unreached test files, below the baseline of $BASELINE. Lower BASELINE here and in CLAUDE.md #30 to lock the gain in."
           fi
 
       - name: "#31 No vacuous-pass escape hatch in a test entry point (two-part hard-zero)"

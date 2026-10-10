@@ -2,6 +2,7 @@
  * @file runTestsGate.behavior.test.ts
  * @description Executable proof that `apps/api/scripts/run-tests.sh` exits non-zero
  *              whenever a file is recorded failed, gives every file its own verdict,
+ *              collects the services tier by its suffix, in byte order,
  *              keeps a quarantined file out of the run while printing it, lists its
  *              inventory without running anything, and refuses to start at all without
  *              a test database or with a quarantine it cannot trust. Its sibling
@@ -9,7 +10,7 @@
  *              the real script and reads its EXIT CODE and its output, which is the
  *              contract every "the tests pass" claim in this repository rests on.
  *
- *              A source scan alone is not enough. Piping a single `run_batch` call
+ *              A source scan alone is not enough. Piping the services `run_batch` call
  *              (`… | tee -a log`, an ordinary "keep this output" edit) puts the function
  *              in a subshell, so its `FAILED_*` and `TOTAL_*` mutations never reach the
  *              parent — the gate reverts while every static assertion stays green. That
@@ -38,10 +39,11 @@ import {
   rmSync,
   existsSync,
   readFileSync,
+  readdirSync,
   symlinkSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
+import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -49,9 +51,8 @@ const apiRoot = join(currentDir, "..", "..", "..");
 const runnerPath = join(apiRoot, "scripts", "run-tests.sh");
 
 /**
- * `pr-integration` runs the node:test batches without the live-API ones, so no
- * scenario waits on `wait_for_api`'s curl loop. It is also the tier CI runs on
- * pull requests.
+ * `pr-integration` runs the services tier without the live-API batches, so no
+ * scenario waits on a live-API probe. It is also the tier the nightly chaos job runs.
  */
 const TIER = "pr-integration";
 
@@ -69,9 +70,10 @@ const UNUSED_DATABASE_URL = "postgresql://gate-behavior@127.0.0.1:1/none";
  */
 const RECORDED_PROGRAMS = ["node", "npx", "curl"] as const;
 
-/** The file the per-file scenarios single out, in a batch that lists siblings too. */
+/** The file the per-file scenarios single out; the services tier collects it with others. */
 const TARGET_FILE = "tests/integration/repositories/UserRepository.integration.test.ts";
-const TARGET_BATCH = "integration:repositories";
+/** The row the services tier prints, and the name it is recorded failed under. */
+const SERVICES_UNIT = "integration";
 /** A path the hand-listed live-API batches name, and the batch that names it. */
 const LIVE_TARGET = "tests/integration/crisisRoutes.live.test.ts";
 const LIVE_BATCH = "integration:routes";
@@ -87,7 +89,7 @@ interface StubShape {
   exit: number;
 }
 
-/** A healthy file: what every listed path reports in the per-file scenarios. */
+/** A healthy file: what every collected path reports in the per-file scenarios. */
 const PASSING: StubShape = { tests: 1, pass: 1, fail: 0, cancel: 0, exit: 0 };
 
 /** What a scenario may change about a run besides the shape. */
@@ -186,7 +188,7 @@ afterAll(() => {
   rmSync(stubDir, { recursive: true, force: true });
 });
 
-/** Runs the real script with every listed path served by the stub. */
+/** Runs the real script with every collected or listed path served by the stub. */
 function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
   const { callLog, realTarget, quarantineFile } = options;
   const result = spawnSync("bash", [runnerPath], {
@@ -271,8 +273,26 @@ function aloneFails(file: string, batch: string, reasons: string): ReturnType<ty
   return { exitCode: 1, failedBatches: [batch], printed: [entry], listed: [entry] };
 }
 
+/** Every `*.<suffix>.test.ts` under `tests/` outside `tests/unit`, from the API root. */
+function suffixedFiles(suffix: string): string[] {
+  const found: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      const path = relative(apiRoot, full);
+      if (entry.isDirectory()) {
+        if (path !== join("tests", "unit")) walk(full);
+      } else if (entry.name.endsWith(`.${suffix}.test.ts`)) {
+        found.push(path);
+      }
+    }
+  };
+  walk(join(apiRoot, "tests"));
+  return found.sort();
+}
+
 describe("run-tests.sh exits non-zero when a file is recorded failed", () => {
-  it("runs every listed file through the stub instead of a real suite", () => {
+  it("runs every collected file through the stub instead of a real suite", () => {
     // Non-vacuity. If the stub were not on PATH the real runner would execute and
     // the scenarios below would be measuring something else entirely (or nothing,
     // with no database). More than one file is required for the accounting
@@ -280,6 +300,7 @@ describe("run-tests.sh exits non-zero when a file is recorded failed", () => {
     const run = runGate(PASSING);
 
     expect(passedFiles(run.stdout).length).toBeGreaterThan(1);
+    expect(run.stdout).toMatch(new RegExp(`^ {2}${SERVICES_UNIT} +\\d+ tests `, "m"));
     expect(run.stdout).toContain("TOTAL:");
   });
 
@@ -298,7 +319,7 @@ describe("run-tests.sh exits non-zero when a file is recorded failed", () => {
   });
 
   it("reports every file it printed as failed, losing none to a subshell", () => {
-    // The mutation this suite exists to kill: piping one `run_batch` call
+    // The mutation this suite exists to kill: piping the services `run_batch` call
     // runs the function in a subshell, so its files still PRINT their failing
     // verdicts while their appends to `FAILED_FILES` are discarded, and the run can
     // still exit 1 on another term. The accounting is what notices.
@@ -307,6 +328,7 @@ describe("run-tests.sh exits non-zero when a file is recorded failed", () => {
     const printed = printedFailedFiles(run.stdout);
     expect(printed.length).toBeGreaterThan(1);
     expect(reportedFailedFiles(run.stdout)).toEqual(printed);
+    expect(reportedFailedBatches(run.stdout)).toEqual([SERVICES_UNIT]);
   });
 
   it("exits 0 on a healthy run, so the stricter gate raises no false alarm", () => {
@@ -345,18 +367,20 @@ describe("run-tests.sh exits non-zero when a file is recorded failed", () => {
     expect({
       exitCode: run.exitCode,
       cleanFailureCounts: /TOTAL: \d+ tests, \d+ pass, 0 fail, 0 cancel/.test(run.stdout),
+      failedUnits: reportedFailedBatches(run.stdout),
       namesTheFiles: reportedFailedFiles(run.stdout).length > 1,
       saysWhy: /ERROR: \d+ test\(s\) were SKIPPED/.test(run.stdout),
     }).toEqual({
       exitCode: 1,
       cleanFailureCounts: true,
+      failedUnits: [SERVICES_UNIT],
       namesTheFiles: true,
       saysWhy: true,
     });
   });
 
   it("exits 1 when a file collects nothing at all", () => {
-    // Zero collected tests with a zero exit used to read as OK. Every listed file
+    // Zero collected tests with a zero exit used to read as OK. Every collected file
     // is a suite, so nothing collected means a suite stopped being found — an
     // emptied file, a suite-wide skip, a collection error.
     const run = runGate({ tests: 0, pass: 0, fail: 0, cancel: 0, exit: 0 });
@@ -366,8 +390,8 @@ describe("run-tests.sh exits non-zero when a file is recorded failed", () => {
   });
 });
 
-describe("run-tests.sh gives every listed file its own verdict", () => {
-  it("hands node one listed path per call and prints one verdict line per call", () => {
+describe("run-tests.sh collects the services tier by its suffix", () => {
+  it("hands node one collected path per call and prints one verdict line per call", () => {
     // Handed a whole batch at once, node reads back one summary, and no guard can
     // say which file it is about.
     const callLog = join(stubDir, "calls.log");
@@ -447,21 +471,21 @@ describe("a real node:test file gets the same verdict, end to end", () => {
 
     expect({ exitCode: run.exitCode, passed: passedFiles(run.stdout) }).toEqual({
       exitCode: 0,
-      passed: expect.arrayContaining([TARGET_FILE]),
+      passed: [TARGET_FILE],
     });
   });
 
   it("exits 1 naming an empty file, which node:test counts as one passing test", () => {
     const run = runRealTarget("export {};\n");
 
-    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, TARGET_BATCH, "zero tests"));
+    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, SERVICES_UNIT, "zero tests"));
   });
 
   it("exits 1 naming a file whose before hook throws", () => {
     const fixture = join(apiRoot, "tests", "fixtures", "run-tests-gate", "brokenHook.fixture.ts");
     const run = runRealTarget(readFileSync(fixture, "utf8"));
 
-    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, TARGET_BATCH, "2 cancelled, exit 1"));
+    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, SERVICES_UNIT, "2 cancelled, exit 1"));
   });
 
   it("exits 1 naming a file whose test calls t.skip() in a tier-driven run", () => {
@@ -469,15 +493,21 @@ describe("a real node:test file gets the same verdict, end to end", () => {
       'import { it } from "node:test";\nit("needs a service", (t) => { t.skip("absent"); });\n'
     );
 
-    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, TARGET_BATCH, "1 skipped under TIER"));
+    expect(fileVerdict(run)).toEqual(
+      aloneFails(TARGET_FILE, SERVICES_UNIT, "1 skipped under TIER")
+    );
   });
 
-  it("exits 1 naming a listed path that does not exist", () => {
-    // Beside paths that exist, node:test drops a missing one and exits 0, so a
-    // renamed suite stopped running unnoticed (SMELL-74). Alone it exits non-zero.
+  it("exits 1 before any suite starts when the collection finds no services file", () => {
+    // A tree with no `*.integration.test.ts` is a wrong working directory or a moved
+    // `tests/`, and an empty collection must never read as an empty pass.
     const run = runRealTarget(null);
 
-    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, TARGET_BATCH, "zero tests, exit 1"));
+    expect({
+      exitCode: run.exitCode,
+      saysWhy: run.stdout.includes("collect integration found no *.integration.test.ts"),
+      verdicts: passedFiles(run.stdout).length + printedFailedFiles(run.stdout).length,
+    }).toEqual({ exitCode: 1, saysWhy: true, verdicts: 0 });
   });
 
   it("exits 1 naming a path a live-API batch lists that does not exist", () => {
@@ -635,6 +665,9 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       started: run.started,
       wellFormed: lines.every((line) => /^(integration|live|quarantined)\t\S+$/.test(line)),
       eachPathOnce: [...kindOf.values()].every((listed) => listed.length === 1),
+      everyServicesFileReached: suffixedFiles("integration").filter(
+        (path) => !["integration", "live"].includes(kinds(path)[0] ?? "")
+      ),
       target: kinds(TARGET_FILE),
       liveTarget: kinds(LIVE_TARGET),
       noLiveSuiteInTheServicesTier: liveSuffixed.filter((path) => kinds(path)[0] !== "live"),
@@ -643,6 +676,7 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       started: [],
       wellFormed: true,
       eachPathOnce: true,
+      everyServicesFileReached: [],
       target: ["integration"],
       liveTarget: ["live"],
       noLiveSuiteInTheServicesTier: [],

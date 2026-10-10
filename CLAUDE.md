@@ -306,7 +306,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured baseline of 20, because its violations are unrun test suites whose wiring is a separate body of work. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **46 checks, numbered #1-#46**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured interim baseline of 10, because its violations are unrun test suites whose collection is a separate body of work; WU-1.10 retires it for a hard-zero reach check. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **46 checks, numbered #1-#46**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -708,24 +708,38 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
   apps/api/src apps/workers/src --include="*.ts" | \
   grep -vE "resolveClientIp|/tests/|\.test\." | wc -l   # expect 0
 
-# 30. Every committed test file must be reachable by a collector. RATCHET, not
-# hard-zero — the only check in this suite that is not. Vitest collects
-# `apps/api/tests/unit/**` and `tests/eval/**` from the tree via the `include`
-# globs in apps/api/vitest.config.ts, so those are reachable by construction.
-# Every OTHER node:test file under apps/api/tests is selected by an EXPLICIT
-# file list in apps/api/scripts/run-tests.sh, and a suite that no `run_batch`
-# names never executes anywhere — while still reading as coverage in the tree,
-# in review, and in a coverage report that only counts what ran.
-# Baseline: 20 unreached suites, measured, listed in
-# docs/reports/roadmap-detected-smells-backlog.md as SMELL-75. Wiring them is
-# its own body of work (each needs a tier, services, and a runtime budget), so
-# the gate gives that work a floor instead of blocking on it: the count may fall
-# and must never rise. Raise the baseline ONLY together with an entry explaining
-# which suite stopped being collected and why that was the right call.
+# 30. Every committed test file must be reachable by a collector. INTERIM
+# RATCHET, not hard-zero — the only check in this suite that is not — and
+# retired by WU-1.10 (docs/development/TESTING_REFOUNDATION.md): its
+# `test-contracts` job derives reach from every collector and holds the
+# unreached files outside the quarantine at a hard zero, and it deletes this
+# command, its baseline and this interim wording in the same change. Until
+# then: Vitest collects `apps/api/tests/unit/**` and `tests/eval/**` from the
+# tree via the `include` globs in apps/api/vitest.config.ts, so those are
+# reachable by construction. Every OTHER test file under apps/api/tests belongs
+# to apps/api/scripts/run-tests.sh, and `run-tests.sh --list` prints what it
+# runs, reading no database: `integration` for the services tier it collects by
+# suffix (every `*.integration.test.ts`), `live` for the files its hand-listed
+# live-API batches name, `quarantined` for each entry of
+# packages/test-contracts/quarantine.json it keeps out. A file it prints as
+# neither `integration` nor `live` runs nowhere — a `*.live.test.ts` no live
+# batch names, a quarantined suite, a file with no tier suffix — while still
+# reading as coverage in the tree, in review, and in a coverage report that
+# only counts what ran. A `--list` that fails or reaches nothing is a scope
+# error, never a clean zero.
+# Baseline: 10, measured 2026-10-10 — the 10 dark `*.live.test.ts` suites no
+# live batch names (SMELL-75; WU-1.8 collects the live tier by its suffix) plus
+# the 0 quarantine entries. Every quarantine entry counts, so a suite enters
+# the quarantine only where another unreached file leaves the count. The count
+# may fall and must never rise. Changing this check follows the four steps of
+# §Extending the suite below, like any other.
+LISTED=$(cd apps/api && bash scripts/run-tests.sh --list) || { echo "fitness #30 scope error: run-tests.sh --list failed"; exit 1; }
+REACHED=$(printf '%s\n' "$LISTED" | grep -v '^quarantined' | cut -f2)
+[ -n "$REACHED" ] || { echo "fitness #30 scope error: run-tests.sh --list reached no file"; exit 1; }
 for f in $(find apps/api/tests -name "*.test.ts" \
     -not -path "*/tests/unit/*" -not -path "*/tests/eval/*"); do
-  grep -qF "${f#apps/api/}" apps/api/scripts/run-tests.sh || echo "UNREACHED: $f"
-done | wc -l   # ratchet baseline: 20
+  printf '%s\n' "$REACHED" | grep -qxF "${f#apps/api/}" || echo "UNREACHED: $f"
+done | wc -l   # interim ratchet baseline: 10
 
 # 31. No vacuous-pass escape hatch in a test entry point. Two parts, hard-zero.
 # Threat: a suite that collects ZERO tests and still exits 0. The nightly chaos
@@ -1980,7 +1994,7 @@ complete rather than silently short by one:
 | Field            | Value                                                                                                                                                                              |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Suite            | `apps/api/tests/integration/rls-tenant-isolation.integration.test.ts` — `describe("pg_catalog coverage gate")`                                                                     |
-| Batch            | `integration:tenant-isolation` in `apps/api/scripts/run-tests.sh` (fitness #30's reachability rule: a suite no `run_batch` names never executes)                                   |
+| Runner           | the services tier of `apps/api/scripts/run-tests.sh`, which collects every `*.integration.test.ts` (fitness #30: a file `run-tests.sh --list` does not reach never executes)       |
 | CI job           | `Integration Tests` in `.github/workflows/ci.yml`, on every `pull_request`, against the migrated Postgres service                                                                  |
 | Passes only when | for every model in `getTenantScopedModels()`: `relrowsecurity` is true **and** ≥1 policy exists **and** (the app role does not own the table **or** `relforcerowsecurity` is true) |
 | Red demonstrated | all three partial states planted, each a real non-zero exit, restored and re-confirmed green — recorded in `docs/technical/ADR-0022-rls-enforcement-posture.md` §Coverage-gate red |
