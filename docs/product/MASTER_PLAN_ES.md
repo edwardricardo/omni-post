@@ -347,9 +347,14 @@ F3-API-1 `[M]` triage multi-tono + self-correction (🔗F0-API-2) · F3-WRK-1 `[
 §6.1 Containerización (P1, **DESPAUSADO 2026-09-25** — ver ficha [IMAGEN] abajo) · §3.1.b OpenAPI Zod ~342 rutas (P1, bloquea UI tipada) · §3.2.b provider contract tests MSW (P1) · §4.1.b saga+outbox chaos (P1) · §4.2.b observability ops + alerts (P1) · §4.2.c alertmanager + enrutado de notificaciones a Slack/correo/PagerDuty (P1; recoge los canales que `performanceMonitor.ts` y `rateLimitingDashboard.ts` sólo simulaban) · OBS-1 a OBS-4 (abajo) · §2.2.b coverage+mutation gates (P1) · §4.3 GDPR/retention (P2) · §6.2 Kubernetes (P2, 🔗§6.1; incluye decidir entornos de vista previa por PR y su limpieza: el job `cleanup-preview-environments` de `cleanup.yml:496-560` apuntaba a un clúster EKS que nunca existió) · §5.2 queue triada (DEFERRED).
 
 > **ℹ️ FICHA [IMAGEN] — las cuatro imágenes de contenedor pasan de rojas-desde-julio a verificadas (2026-09-25).**
-> **Estado honesto: aterrizó en la cadena, NO en `main`.** PR #305 mergeada en
-> `workstream/distroless-debian13-base`; #304 sigue abierta contra `main` y es la
-> que ejecutará `Container Security` sobre el resultado combinado.
+> **Estado (re-medido el 2026-10-10):** aterrizó en `main` con #304 el
+> 2026-09-25 (#305 entró antes en su cadena), y las cuatro imágenes quedaron
+> verdes. Volvieron a rojo el 2026-10-07 por CVE-2026-84782 (HIGH) en
+> `libssl3t64 3.5.7-1~deb13u2`, dentro de la base distroless fijada por digest.
+> Dependabot abrió una PR por servicio (#455 a #458), y cada una ponía en verde
+> solo su imagen. La corrección re-fija las cuatro juntas en `96df910`, que trae
+> `3.5.7-1~deb13u3` y 0 HIGH o CRITICAL según Trivy, medido en
+> `docs/deployment/base-images.md`.
 >
 > **Lo que estaba mal.** Los cuatro jobs `Container Security` llevaban rojos desde
 > 2026-07-31 y **ninguna imagen se había ejecutado jamás**: el workflow buildeaba,
