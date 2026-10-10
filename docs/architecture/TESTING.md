@@ -133,6 +133,10 @@ pnpm --filter @apps/api test
 # (http://localhost:3000 and http://localhost:3300/health/ready for a local stack).
 pnpm --filter @apps/api test:integration
 
+# Only the named suites, from apps/api, each in its own tier and with its tier's
+# guards (a live one needs the same running API, workers and URLs as above)
+bash scripts/run-tests.sh tests/auth.integration.test.ts tests/security.live.test.ts
+
 # Security & Authentication suites one file at a time, from apps/api (the same
 # files run in test:integration: auth, mfa and rbac in the services tier,
 # security in the live tier)

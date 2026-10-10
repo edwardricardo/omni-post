@@ -1,7 +1,28 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the saga naming slice (`workstream/phase1-u8-live-collector`, PR R8c, the
+**As of:** 2026-10-10, the path filters (`workstream/phase1-u8-live-collector`, PR R8d, the last of
+the stacked pull requests of WU-1.8, which it closes) let `run-tests.sh` take the paths of the
+suites to run, `bash scripts/run-tests.sh tests/a.integration.test.ts tests/b.live.test.ts` from
+`apps/api`, in place of the subset scripts WU-1.3 deleted: each runs in its own tier, in the
+collection's order, the live one behind the probe. A path the run would not execute exits 2 before
+any suite starts — a file no tier collects, a missing one, a live suite under `TIER=pr-integration`,
+a quarantined one — and so do an unknown option and `--list` with anything beside it. The testing
+and security-testing documents show the filtered command, and the saga guide's live-suite command, a
+placeholder until now, is one. Red: the filtered run fails on the previous tip's runner; with the
+path check removed 4 refusal cases go red, with the `--list`-alone check removed 1 does (both
+restored, `cmp` equal). Live (WU-1.8's acceptance, on the tip that carries all four): red (a),
+WU-1.4's `after()` removed, `TIER=full-integration TEST_ORDER=reverse bash scripts/run-tests.sh`
+over `tests/security.live.test.ts` and `tests/providerRegistry.live.test.ts` exited 1 on
+`curl: (22) The requested URL returned error: 429`, naming the file with
+`✗ env-unready-before: tests/providerRegistry.live.test.ts (last ran: tests/security.live.test.ts)`,
+while the control, the `after()` in place, exited 0 with 54 of 54; red (b), the workers killed while
+`crisisRoutes` ran, exited 1 on `curl: (7) Failed to connect to localhost port 3300`, naming
+`env-unready-before: tests/integration/linkRoutes.live.test.ts` with
+`(last ran: tests/integration/crisisRoutes.live.test.ts)` (2026-10-10, 08:01 to 08:23 UTC;
+`security.live.test.ts` restored, `sha256sum -c` OK). WU-1.8 totals R8a–R8d 390 + 394 + 48 + 127 =
+959 CODE. It moved no metric (M1 `991 + 14`, M7 `29/29`, M8 `1/92`).
+Before it, on 2026-10-10, the saga naming slice (`workstream/phase1-u8-live-collector`, PR R8c, the
 third of the stacked pull requests of WU-1.8) changed what `sagaContextInvariants.static.test.ts`
 holds about the node:test saga suites: each one carries the suffix of the tier that collects it,
 `.integration.test.ts` or `.live.test.ts`, and whether a collected suite runs or sits in the
@@ -556,7 +577,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ✅     | `R5`                          | `phase1-u5-tier-rename` · 139           | 2026-10-09 |
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
-| 1     | 1.8    | Collect the live tier by convention                                         | 🔄     | `R8a`–`R8c`                   | `phase1-u8*` · 390 + 394 + 48           | 2026-10-10 |
+| 1     | 1.8    | Collect the live tier by convention                                         | ✅     | `R8a`–`R8d`                   | `phase1-u8*` · 390 + 394 + 48 + 127     | 2026-10-10 |
 | 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b9`         | `phase1-u9*` · 1327 + 2544              | 2026-10-10 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
@@ -1712,6 +1733,12 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   tier, 34 tests, all passing on 2026-10-10.
   R8c (2026-10-10) moved the saga suites' contract from reach to naming: each carries its tier
   suffix.
+  R8d (2026-10-10) landed the path filters and closed WU-1.8: R8a–R8d count 390 + 394 + 48 + 127 =
+  959 CODE, the workflow YAML of their patches included, because the runner alone loses 235 lines of
+  hand-written batches, between-batch checks and the reader of its own text. Residual, named: the
+  live suites read their API address from `BASE_URL` (default `http://localhost:3000`,
+  `tests/testUtils.ts:14`) while the probe reads `TEST_API_URL`; CI sets the same address for both,
+  and the environment contract (E3, WU-4b.3) is where they become one variable.
 - **WU-1.9** `packages/test-contracts`: the reach engine with self-tests (not yet wired).
   `package.json` (private; `vitest`, `yaml`, `typescript` from the catalog), `vitest.config.ts` from
   the factory, `src/reach.ts`, `src/lib/{disk,vitest-collector,node-collector,playwright-collector,

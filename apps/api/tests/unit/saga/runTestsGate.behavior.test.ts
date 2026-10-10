@@ -8,7 +8,8 @@
  *              quarantined file out of the run while printing it, lists its inventory
  *              without running anything, and refuses to start at all without a test
  *              database, without the live URLs a live tier needs, or with a quarantine
- *              it cannot trust. Its sibling
+ *              it cannot trust; given paths, it runs those suites alone and refuses a
+ *              path it does not collect. Its sibling
  *              `runTestsGate.static.test.ts` reads the script's SHAPE; this one runs
  *              the real script and reads its EXIT CODE and its output, which is the
  *              contract every "the tests pass" claim in this repository rests on.
@@ -127,6 +128,8 @@ interface GateOptions {
   testOrder?: string;
   /** A probe URL the stand-in `curl` refuses from its `failFrom`-th call on; needs `callLog`. */
   failingProbe?: { url: string; failFrom: number };
+  /** The runner's arguments; none by default. */
+  args?: string[];
 }
 
 interface RunResult {
@@ -219,8 +222,8 @@ afterAll(() => {
 
 /** Runs the real script with every collected or listed path served by the stub. */
 function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
-  const { callLog, realTarget, quarantineFile, testOrder, failingProbe } = options;
-  const result = spawnSync("bash", [runnerPath], {
+  const { callLog, realTarget, quarantineFile, testOrder, failingProbe, args = [] } = options;
+  const result = spawnSync("bash", [runnerPath, ...args], {
     cwd: options.cwd ?? apiRoot,
     encoding: "utf8",
     timeout: SPAWN_TIMEOUT_MS,
@@ -565,6 +568,25 @@ describe("run-tests.sh probes the live environment before each live-tier file", 
   });
 });
 
+describe("run-tests.sh narrows a run to the paths it is given", () => {
+  it("runs only the given suites, each in its tier and in the collection's order", () => {
+    // A path names one suite to run, in place of the subset scripts that once listed
+    // a few by hand; its tier still decides how it runs, probe included.
+    const callLog = join(stubDir, "filter-calls.log");
+    rmSync(callLog, { force: true });
+    const run = runGate(PASSING, {
+      callLog,
+      tier: "full-integration",
+      args: [`./${LIVE_TARGET}`, TARGET_FILE],
+    });
+
+    expect({ exitCode: run.exitCode, called: calledPaths(callLog) }).toEqual({
+      exitCode: 0,
+      called: [TARGET_FILE, API_HEALTH, WORKERS_READY_URL, LIVE_TARGET],
+    });
+  });
+});
+
 describe("a real node:test file gets the same verdict, end to end", () => {
   /**
    * Runs the real script from a scratch directory holding `TARGET_FILE` with
@@ -820,10 +842,38 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
     }
   );
 
-  it("exits 2 on an argument it does not know, rather than ignoring it", () => {
-    const run = runRecorded({ TIER, DATABASE_URL: UNUSED_DATABASE_URL }, [TARGET_FILE]);
+  it.each([
+    ["an option it does not know", ["--verbose"], false],
+    ["--list with a path", ["--list", TARGET_FILE], false],
+    ["a test file no tier of it collects", ["tests/unit/saga/runTestsGate.static.test.ts"], false],
+    ["a path that does not exist", ["tests/integration/absent.integration.test.ts"], false],
+    ["a live suite under a TIER without the live tier", [LIVE_TARGET], false],
+    ["a quarantined suite", [TARGET_FILE], true],
+  ])("exits 2 before any suite starts on %s, rather than ignoring it", (_, args, quarantined) => {
+    // A path the run would not execute would run nothing and read as a pass.
+    const run = runRecorded(
+      {
+        TIER,
+        DATABASE_URL: UNUSED_DATABASE_URL,
+        ...(quarantined && {
+          QUARANTINE_FILE: writeQuarantine("filtered.json", [
+            {
+              path: `apps/api/${TARGET_FILE}`,
+              reason: "fixture",
+              owner: "gate",
+              since: "2026-10-10",
+            },
+          ]),
+        }),
+      },
+      args
+    );
 
-    expect({ exitCode: run.exitCode, started: run.started }).toEqual({ exitCode: 2, started: [] });
+    expect({
+      exitCode: run.exitCode,
+      started: run.started,
+      saysWhy: run.stderr.startsWith("run-tests.sh: "),
+    }).toEqual({ exitCode: 2, started: [], saysWhy: true });
   });
 
   it("lists every file it owns once, with its kind, and runs nothing, without a database", () => {
