@@ -181,12 +181,12 @@ describe("createHttpRateLimitPreHandler", () => {
       retryAfterMs: 30_000,
     });
     const handler = createHttpRateLimitPreHandler(port, {
-      defaultConfig: RateLimitConfigs.STRICT,
+      defaultConfig: RateLimitConfigs.STANDARD,
       rules: [],
     });
     const reply = fakeReply();
 
-    await handler(fakeReq("/publish/x"), reply);
+    await handler(fakeReq("/posts/p1"), reply);
 
     expect(reply.statusCode).toBe(429);
     expect(reply.headers["Retry-After"]).toBe("30");

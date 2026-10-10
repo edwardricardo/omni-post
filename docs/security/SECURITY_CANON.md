@@ -106,6 +106,14 @@ hop < N` type-checks, keeps every test green, and deliberately restores the
   and an absolute-form target, all of which reach the same handler, so a key or
   rule read from it lets each variant mint a fresh bucket or fall to the
   default rule.
+- **Every rule governs a registered route.** A rule's `path` is a prefix of the
+  route pattern (`/threads/:threadId/performance`), not of a URL, so a rule
+  named after an endpoint that does not exist, or whose every route an earlier
+  rule takes, caps nothing while it reads as protection.
+  `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts` holds
+  `STANDARD_ROUTE_RULES` and `EXPENSIVE_ENDPOINT_RULES` to the registered route
+  table (the committed OpenAPI projection of `createApp()` that the CI API-types
+  drift gate keeps current) and fails on either case.
 
 ### The two trust models
 

@@ -139,6 +139,7 @@
 | SB-118 | DEF-68 (`workstream/fix-ratelimit-query-key`, 40434165)                               | R2-001                                                           | `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts` (`!unrouted`)                                                                | test coupling                | deferred: one literal in one suite; exporting the constant widens the module                                                                                    |
 | SB-119 | DEF-68 (`workstream/fix-ratelimit-query-key`, 40434165)                               | R2-002                                                           | `apps/api/src/security/httpRateLimitPreHandler.ts` (`resourcePath`)                                                                         | readability                  | deferred: both branches are pinned by unit cases; the split is a refactor                                                                                       |
 | SB-120 | DEF-68 (`workstream/fix-ratelimit-query-key`, 40434165)                               | R2-003                                                           | `apps/api/src/security/httpRateLimitPreHandler.ts` (no-route fallback)                                                                      | readability                  | deferred: both expressions are pinned by the unrouted case                                                                                                      |
+| SB-121 | DEF-70 (`workstream/fix-ratelimit-dead-rules`, ffaf0b7e)                              | R2-003                                                           | `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts` (`label`, `rulesShadowing`)                                                | readability                  | deferred: both helpers are pinned by the rule cases; naming them is readability only                                                                            |
 
 ## Entries — code and prose
 
@@ -742,6 +743,14 @@
 - **Suggestion:** derive the rule input and the resource key from one `const route = pattern ?? UNROUTED`.
 - **Why deferred:** both expressions are pinned by the unrouted case, so a drift between them fails a test; the intermediate is readability only.
 - **To implement:** one intermediate, same cases green.
+
+### SB-121 — the coverage test's label and shadowing helpers are dense
+
+- **Source:** the native review of DEF-70 (`workstream/fix-ratelimit-dead-rules`, `ffaf0b7e`), finding `R2-003`.
+- **Location:** `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts`, `label` and `rulesShadowing`.
+- **Suggestion:** name the `"none"` sentinel of `rulesShadowing` and extract a helper for the winning rule's label; say beside `label` that rules share preset objects by identity.
+- **Why deferred:** both helpers only build the failure message and the shadowing verdict, which the rule cases pin; the change is readability only.
+- **To implement:** a named constant and one helper, same cases green.
 
 ## Entries — tests
 
