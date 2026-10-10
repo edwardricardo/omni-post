@@ -1,7 +1,8 @@
 /**
  * @file ci.ts
- * @description Builds the CI side of the reach engine's self-tests as text: a workflow, a ruleset
- *              in the shape GitHub's rulesets API returns, and a `collectors.json`.
+ * @description Builds the CI side of a planted tree for the reach engine's self-tests: a workflow,
+ *              a ruleset in the shape GitHub's rulesets API returns, and a `collectors.json`. Each
+ *              is text, written by `plantTree` at the paths the engine reads by default.
  * @layer infrastructure
  */
 import type { ExecutedByEntry } from "../../src/lib/executed-by.js";
@@ -70,3 +71,17 @@ export const UNIT_ENTRY: ExecutedByEntry = {
   jobId: UNIT_JOB.id,
   entrypoint: UNIT_JOB.run,
 };
+
+/**
+ * @param registry - The `collectors.json` text; by default vitest run by {@link UNIT_ENTRY}.
+ * @returns The CI files of a tree whose required check {@link UNIT_JOB} runs the registry.
+ */
+export function ciFiles(
+  registry: string = registryOf({ vitest: [UNIT_ENTRY] })
+): Record<string, string> {
+  return {
+    [CI_PATHS.registry]: registry,
+    [CI_PATHS.ruleset]: rulesetRequiring([UNIT_JOB.name]),
+    [CI_PATHS.workflow]: UNIT_WORKFLOW,
+  };
+}

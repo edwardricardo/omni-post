@@ -1,18 +1,22 @@
 /**
  * @file reach.test.ts
- * @description Self-tests of the reach engine's command line over planted trees: a planted R1 or
- *              R3 violation reaches the exit code and the output naming its file, a clean tree
- *              passes, every input the engine cannot read in full fails the run, `--json` prints
- *              the report, and a usage error exits 2. The rules themselves are pinned over plain
- *              values in `rules.test.ts`.
+ * @description Self-tests of the reach engine's command line over planted trees: a planted R1,
+ *              R2 or R3 violation reaches the exit code and the output naming its file or registry
+ *              entry, a clean tree passes, every input the engine cannot read in full fails the
+ *              run, `--json` prints the report, and a usage error exits 2. Every planted tree
+ *              carries a workflow, a ruleset and a `collectors.json` whose required check runs its
+ *              vitest configs. The rules themselves are pinned over plain values in
+ *              `rules.test.ts` and `executed-by.test.ts`.
  * @layer infrastructure
  */
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ok } from "@shared/types";
+import { createNodeCollector } from "../src/lib/node-collector.js";
 import { createVitestCollector } from "../src/lib/vitest-collector.js";
 import { main, type ReachSeams } from "../src/reach.js";
+import { CI_PATHS, ciFiles, registryOf, rulesetRequiring, UNIT_ENTRY } from "./fixtures/ci.js";
 import {
   configCollecting,
   plantTree,
@@ -24,14 +28,16 @@ import {
 const planted: PlantedTree[] = [];
 
 /**
- * Two packages, each collecting its one top-level test, plus whatever a test adds. `pkg-b`'s
- * includes are a parameter so a test can make it reach into `pkg-a`.
+ * Two packages, each collecting its one top-level test, plus the CI files and whatever a test
+ * adds, which may replace a CI file. `pkg-b`'s includes are a parameter so a test can make it
+ * reach into `pkg-a`.
  */
 function plant(
   extra: Readonly<Record<string, string>> = {},
   pkgBInclude: readonly string[] = ["*.test.ts"]
 ): PlantedTree {
   const tree = plantTree({
+    ...ciFiles(),
     "pkg-a/vitest.config.mjs": configCollecting(["*.test.ts"]),
     "pkg-a/one.test.ts": TEST_BODY,
     "pkg-b/vitest.config.mjs": configCollecting(pkgBInclude),
@@ -191,6 +197,22 @@ describe("reach engine", () => {
     );
   });
 
+  it("exits 1 naming the node:test runner when its listing is empty", async () => {
+    const registry = registryOf({ vitest: [UNIT_ENTRY], node: [] });
+    const tree = plant({ [CI_PATHS.registry]: registry });
+    const empty = () => ({ status: 0, signal: null, stdout: "", stderr: "" });
+
+    const result = await main(["--root", tree.root], {
+      ...seamsFor(tree),
+      collectors: [createVitestCollector({ floor: 1 }), createNodeCollector({ run: empty })],
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      "error: node:apps/api/scripts/run-tests.sh: --list printed no line"
+    );
+  });
+
   it("prints the report as JSON when asked", async () => {
     const tree = plant({ [ORPHAN]: TEST_BODY });
 
@@ -204,6 +226,74 @@ describe("reach engine", () => {
     });
   });
 
+  it("exits 1 naming a registry entry whose job the workflow does not hold (R2)", async () => {
+    const registry = registryOf({ vitest: [{ ...UNIT_ENTRY, jobId: "gone" }] });
+    const tree = plant({ [CI_PATHS.registry]: registry });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      `R2 vitest:${CI_PATHS.workflow}#gone: ${CI_PATHS.workflow} has no job "gone"`
+    );
+  });
+
+  it("exits 1 naming a job whose check the ruleset does not require (R2)", async () => {
+    const tree = plant({ [CI_PATHS.ruleset]: rulesetRequiring(["Lint"]) });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      `R2 vitest:${CI_PATHS.workflow}#unit: its check "Unit" is not a required check`
+    );
+  });
+
+  it("exits 1 naming the file of a package no registered job runs (R1)", async () => {
+    const registry = registryOf({ vitest: [{ ...UNIT_ENTRY, packages: ["pkg-a"] }] });
+    const tree = plant({ [CI_PATHS.registry]: registry });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      "R1 pkg-b/two.test.ts: unreached: collected by vitest:pkg-b/vitest.config.mjs, " +
+        "which no required check runs"
+    );
+    expect(result.output).toContain("2 collected by 2 sources, 1 of them run by a required check");
+  });
+
+  it("exits 1 when the ruleset does not exist", async () => {
+    const tree = plant();
+    const missing = path.join(tree.root, "missing.json");
+
+    const result = await main(["--root", tree.root, "--ruleset", missing], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(`error: ruleset ${missing} cannot be read: ENOENT`);
+  });
+
+  it("exits 1 when the registry does not parse", async () => {
+    const tree = plant({ [CI_PATHS.registry]: "{" });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      `error: registry ${path.join(tree.root, CI_PATHS.registry)} is not JSON`
+    );
+  });
+
+  it("reads the registry named on the command line instead of the default one", async () => {
+    const tree = plant({ [CI_PATHS.registry]: registryOf({ vitest: [] }) });
+    const registry = path.join(tree.root, "registry.json");
+    writeFileSync(registry, registryOf({ vitest: [UNIT_ENTRY] }));
+
+    const result = await main(["--root", tree.root, "--collectors", registry], seamsFor(tree));
+
+    expect(result.code).toBe(0);
+  });
+
   it.each([[["--bogus"]], [["--root"]], [["--quarantine", "--json"]], [["--toString", "x"]]])(
     "exits 2 on the usage error %j",
     async (argv) => {
@@ -211,6 +301,16 @@ describe("reach engine", () => {
 
       expect(result.code).toBe(2);
       expect(result.output).toContain("usage: reach");
+    }
+  );
+
+  it.each([[["--collectors"]], [["--ruleset", "--json"]]])(
+    "exits 2 when a registry flag has no value %j",
+    async (argv) => {
+      const result = await main(argv);
+
+      expect(result.code).toBe(2);
+      expect(result.output).toContain("[--collectors <file>] [--ruleset <file>]");
     }
   );
 });

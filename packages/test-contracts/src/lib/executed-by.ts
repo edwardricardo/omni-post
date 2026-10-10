@@ -19,12 +19,16 @@
  *              never a guess at what GitHub would display.
  * @layer infrastructure
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { parse as parseYaml } from "yaml";
 import { err, ok, type Result } from "@shared/types";
 import { asRecord, describeError, sourceLabel, type Collection } from "./registry.js";
 import { RULE, type Violation } from "./rules.js";
 
-/** Where the registry lives, repository-relative, the subject of a violation about it. */
-const REGISTRY_FILE = "packages/test-contracts/collectors.json";
+/** Where the registry and the ruleset live, repository-relative. */
+export const REGISTRY_FILE = "packages/test-contracts/collectors.json";
+export const RULESET_FILE = ".github/rulesets/main.json";
 
 /** One job that executes a collector, and the sources of the collector it runs. */
 export interface ExecutedByEntry {
@@ -343,4 +347,29 @@ export function checkExecutedBy(input: ExecutedByInput): ExecutedByVerdict {
     }
   }
   return { violations, runSources };
+}
+
+/**
+ * Reads and parses every workflow the registry names.
+ *
+ * @param root - Absolute repository root.
+ * @param registry - The registry.
+ * @returns Workflow path → its parsed document, or why it could not be read.
+ */
+export function readWorkflows(
+  root: string,
+  registry: CollectorRegistry
+): Map<string, Result<unknown, string>> {
+  const workflows = new Map<string, Result<unknown, string>>();
+  for (const entries of registry.values()) {
+    for (const { workflow } of entries) {
+      if (workflows.has(workflow)) continue;
+      try {
+        workflows.set(workflow, ok(parseYaml(readFileSync(path.join(root, workflow), "utf8"))));
+      } catch (error: unknown) {
+        workflows.set(workflow, err(describeError(error)));
+      }
+    }
+  }
+  return workflows;
 }
