@@ -186,7 +186,9 @@ function matrixCombinations(strategy: unknown): Result<Map<string, string>[], st
 }
 
 /**
- * Renders the check names a job reports, one per matrix combination.
+ * Renders the distinct check names a job reports. GitHub reports one check run per matrix
+ * combination, and combinations whose names render alike report under the same name; a required
+ * context is a name, so the distinct names are what rule R2 holds against the ruleset.
  *
  * @param jobId - The job's id.
  * @param job - The job's parsed mapping.

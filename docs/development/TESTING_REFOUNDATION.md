@@ -480,7 +480,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b6`         | `phase1-u9*` · 1327 + 1639              | 2026-10-10 |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b6`         | `phase1-u9*` · 1327 + 1661              | 2026-10-10 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |

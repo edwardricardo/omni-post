@@ -123,6 +123,14 @@ describe("check names", () => {
       },
       ["a-1", "a-2"],
     ],
+    [
+      "a matrix job whose name uses some of its keys, once per distinct name",
+      {
+        name: "Test (${{ matrix.os }})",
+        strategy: { matrix: { os: ["linux", "macos"], shard: [1, 2] } },
+      },
+      ["Test (linux)", "Test (macos)"],
+    ],
   ])("returns the names of %s", (_label, job, expected) => {
     expect(renderCheckNames("job", job)).toEqual(ok(expected));
   });
@@ -145,6 +153,11 @@ describe("check names", () => {
       "its matrix uses include",
     ],
     [
+      "a matrix with exclude",
+      { name: "T ${{ matrix.a }}", strategy: { matrix: { a: [1, 2], exclude: [{ a: 2 }] } } },
+      "its matrix uses exclude",
+    ],
+    [
       "a matrix set by an expression",
       { name: "T ${{ matrix.a }}", strategy: { matrix: "${{ fromJSON(x) }}" } },
       "its matrix is not a mapping of lists",
@@ -152,6 +165,11 @@ describe("check names", () => {
     [
       "a matrix key with an object value",
       { name: "T ${{ matrix.a }}", strategy: { matrix: { a: [{ b: 1 }] } } },
+      'its matrix key "a" is not a list of plain values',
+    ],
+    [
+      "a matrix key with an empty list",
+      { name: "T ${{ matrix.a }}", strategy: { matrix: { a: [] } } },
       'its matrix key "a" is not a list of plain values',
     ],
     [
