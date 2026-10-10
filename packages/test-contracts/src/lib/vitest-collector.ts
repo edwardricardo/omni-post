@@ -44,7 +44,7 @@ export const VITEST_CONFIG = /(^|\/)vitest\.config\.[cm]?[jt]s$/;
  * which metric M8 in `docs/development/TESTING_REFOUNDATION.md` measures, so adding or removing a
  * config does not trip it; a listing below it read the wrong directory or a partial index.
  */
-const VITEST_CONFIG_FLOOR = 80;
+export const VITEST_CONFIG_FLOOR = 80;
 
 /** The time one `vitest list` fallback may take before it is stopped and reported. */
 const CLI_TIMEOUT_MS = 120_000;
