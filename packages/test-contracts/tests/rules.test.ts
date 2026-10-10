@@ -83,6 +83,64 @@ describe("reach rules", () => {
     ]);
   });
 
+  it("returns an R1 violation naming the source of a file only an unrun source collects", () => {
+    const runSources = new Set([`vitest:${CONFIG_A}`]);
+
+    expect(evaluate(input({ runSources }))).toEqual([
+      {
+        rule: "R1",
+        file: "b.test.ts",
+        message: `unreached: collected by vitest:${CONFIG_B}, which no required check runs`,
+      },
+    ]);
+  });
+
+  it("returns an R1 violation for a file two sources collect even when one is not run", () => {
+    const collections = [
+      collected(CONFIG_A, ["a.test.ts"]),
+      collected(CONFIG_B, ["a.test.ts", "b.test.ts"]),
+    ];
+    const runSources = new Set([`vitest:${CONFIG_A}`, `vitest:${CONFIG_B}`]);
+
+    expect(evaluate(input({ collections, runSources: new Set([`vitest:${CONFIG_A}`]) }))).toEqual([
+      {
+        rule: "R1",
+        file: "a.test.ts",
+        message: `collected 2 times: vitest:${CONFIG_A}, vitest:${CONFIG_B}`,
+      },
+      {
+        rule: "R1",
+        file: "b.test.ts",
+        message: `unreached: collected by vitest:${CONFIG_B}, which no required check runs`,
+      },
+    ]);
+    expect(evaluate(input({ collections, runSources }))).toHaveLength(1);
+  });
+
+  it("returns no violation for a quarantined file only an unrun source collects", () => {
+    const runSources = new Set([`vitest:${CONFIG_A}`]);
+
+    expect(evaluate(input({ runSources, quarantine: [quarantined("b.test.ts")] }))).toEqual([]);
+  });
+
+  it("returns an R3 violation naming only the run sources of a quarantined file", () => {
+    const collections = [
+      collected(CONFIG_A, ["a.test.ts", "b.test.ts"]),
+      collected(CONFIG_B, ["b.test.ts"]),
+    ];
+    const runSources = new Set([`vitest:${CONFIG_A}`]);
+
+    expect(
+      evaluate(input({ collections, runSources, quarantine: [quarantined("b.test.ts")] }))
+    ).toEqual([
+      {
+        rule: "R3",
+        file: "b.test.ts",
+        message: `quarantined, but collected by vitest:${CONFIG_A}`,
+      },
+    ]);
+  });
+
   it("returns no violation when the only unreached file is quarantined", () => {
     expect(evaluate(input({ quarantine: [quarantined("c.test.ts")] }, "c.test.ts"))).toEqual([]);
   });
