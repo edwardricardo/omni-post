@@ -13,6 +13,7 @@ import { defineConfig } from "vitest/config";
 import { shardedThresholdOverride } from "./vitest.coverage-thresholds.js";
 import {
   RESERVED_TIER_EXCLUDES,
+  SOURCE_CONDITIONS,
   buildWorkspaceAliases,
   findMonorepoRoot,
   workspaceReporters,
@@ -32,11 +33,13 @@ export default defineConfig({
     // @providers/*, @observability/*, @monitoring/*, and the @infra/prisma
     // test-only entry — no hand-maintained duplicate.
     alias: buildWorkspaceAliases(root),
-    // Prisma 7 generated client has both client.ts (Node) and browser.ts.
-    // Force Vite to use the Node condition so it picks client.ts.
-    // See: https://github.com/prisma/prisma/issues/27627
-    conditions: ["node"],
+    // The shared factory's export conditions, named here because this config does not go
+    // through it: `node` picks Prisma 7's Node client (https://github.com/prisma/prisma/issues/27627),
+    // `development` sends an unaliased workspace package to its src/ whatever NODE_ENV says.
+    conditions: [...SOURCE_CONDITIONS],
   },
+  // Node tests resolve through the ssr environment, which ignores `resolve.conditions`.
+  ssr: { resolve: { conditions: [...SOURCE_CONDITIONS] } },
   test: {
     environment: "node",
     globals: true,

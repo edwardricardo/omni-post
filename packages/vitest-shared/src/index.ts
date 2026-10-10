@@ -154,6 +154,21 @@ export const RESERVED_TIER_EXCLUDES = [
 ] as const;
 
 /**
+ * The export conditions every config built by {@link defineWorkspaceVitestConfig} resolves with,
+ * in BOTH places vite reads them: `resolve.conditions` reaches the `client` environment (jsdom and
+ * happy-dom tests), `ssr.resolve.conditions` the `ssr` one (node tests). Measured on vitest 4.1.11
+ * and vite 8: the `ssr` environment ignores the top-level key.
+ *
+ * `development` is what sends a workspace package with no alias in `tsconfig.base.json` to its
+ * source: such a package's `exports` maps `development` to `src/` and `default` to `dist/`.
+ * vitest's own default carries only the placeholder `development|production`, which becomes
+ * `production` when `NODE_ENV=production`, and the import then resolves to `dist`, a stale build
+ * or none. Naming the condition here makes the source independent of the ambient mode.
+ * `node` keeps the Node entry of a package that ships a browser one too (Prisma 7's client).
+ */
+export const SOURCE_CONDITIONS = ["development", "node"] as const;
+
+/**
  * The reporters this workspace installs, by name: the one typed source for them. vitest's own
  * `reporters` option accepts any string, so a misspelled name there type-checks and then loads
  * nothing. Every value here must instead be one of the names vitest exports as `BuiltinReporters`,
@@ -232,10 +247,9 @@ export function defineWorkspaceVitestConfig(packageDir: string, overrides: ViteU
   const base = defineConfig({
     resolve: {
       alias: buildWorkspaceAliases(root),
-      // Prisma 7's generated client ships both Node (`client.ts`) and browser (`browser.ts`)
-      // entries; force the Node condition so the workspace alias resolves to the Node client.
-      conditions: ["node"],
+      conditions: [...SOURCE_CONDITIONS],
     },
+    ssr: { resolve: { conditions: [...SOURCE_CONDITIONS] } },
     test: {
       environment: "node",
       globals: true,
