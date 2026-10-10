@@ -147,6 +147,7 @@
 | SB-126 | same                                                                                  | R3-stdout-non-json-parse                                         | `packages/test-contracts/tests/source-resolution.test.ts` (production spawn)                                                                | test diagnostics             | deferred: a non-JSON stdout still fails the case; only its message is less precise                                                                              |
 | SB-127 | Phase 1 U7b (`workstream/phase1-u7b-s2`, 7310de1c)                                    | R3-002                                                           | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (`curl` stub)                                                                      | test double                  | deferred: the runner makes exactly two probe shapes today, and both are pinned                                                                                  |
 | SB-128 | same                                                                                  | R3-003                                                           | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (`listedFailedEntries`)                                                            | test coupling                | deferred: the indent is the runner's own output, pinned by the cases that read it                                                                               |
+| SB-129 | Phase 1 U7b (`workstream/phase1-u7b-s3`, c2605757)                                    | R3-services-tier-cwd-sensitivity                                 | `apps/api/scripts/run-tests.sh` (`collect`, relative `tests` root)                                                                          | working directory            | deferred: run from any other directory it collects nothing and exits 1 naming `apps/api`                                                                        |
 
 ## Entries — code and prose
 
@@ -1192,6 +1193,14 @@
 - **Suggestion:** parse the `FAILED files:` block without fixing its indent width, so an indent change fails with a clear message rather than an empty list.
 - **Why deferred:** the two-space indent is the runner's own output format, and the accounting cases compare that block with the reported files on every run, so a change to it turns them red.
 - **To implement:** accept any leading whitespace, and assert the block is non-empty whenever the run reports failures.
+
+### SB-129 — the services collection reads `tests` relative to the working directory
+
+- **Source:** the native review of Phase 1 U7b R7b3 (`workstream/phase1-u7b-s3`, `c2605757`), finding `R3-services-tier-cwd-sensitivity`.
+- **Location:** `apps/api/scripts/run-tests.sh`, `collect`.
+- **Suggestion:** resolve the `tests` root from the script's own location, so the collection does not depend on the caller's working directory.
+- **Why deferred:** every caller runs the script from `apps/api` (the package scripts, the CI jobs, fitness #30 through `cd apps/api`). Measured 2026-10-10 from the repository root: both `--list` and a `TIER` run exit 1 with "collect integration found no *.integration.test.ts to run under tests/ … run it from apps/api" and start nothing, so a wrong directory fails closed rather than passing empty.
+- **To implement:** `cd` to the script's package root at start, with a case that runs it from another directory.
 
 ## Implemented
 
