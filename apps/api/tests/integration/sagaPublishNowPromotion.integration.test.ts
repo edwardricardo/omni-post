@@ -28,6 +28,7 @@ import { ok } from "@shared/types";
 import { createPostPublishingSagaDefinition } from "@shared/types/saga.js";
 import {
   PublishNowPromotionHarness,
+  eventTypesOf,
   type OutboxRow,
   type PostSnapshot,
 } from "./helpers/publishNowPromotionHarness.js";
@@ -113,12 +114,20 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       TIMING,
       () => {
         assert.deepStrictEqual(
-          rows.map((row) => row.eventType),
-          ["PostPublishingStarted", "PostPublished"],
-          "both hops are recorded, in the order the state machine requires"
+          eventTypesOf(rows),
+          ["PostPublished", "PostPublishingStarted"],
+          "both hops are recorded, once each"
         );
+        const started = rows.find((row) => row.eventType === "PostPublishingStarted");
         const published = rows.find((row) => row.eventType === "PostPublished");
-        const payload = published?.payload as { providerResults?: Record<string, unknown> };
+        assert.ok(started !== undefined && published !== undefined);
+        // One transaction writes both rows and they can share a millisecond, so
+        // the order is read from their timestamps, never from their positions.
+        assert.ok(
+          started.occurredAt.getTime() <= published.occurredAt.getTime(),
+          "the started hop is not after the published one, the order the state machine requires"
+        );
+        const payload = published.payload as { providerResults?: Record<string, unknown> };
         assert.deepStrictEqual(
           Object.keys(payload.providerResults ?? {}).sort(),
           [harness.channelId, harness.secondChannelId].sort(),
@@ -224,10 +233,9 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     });
 
     it("writes no second event for the second application", TIMING, async () => {
-      const rows = await harness.outboxFor(postId);
       assert.deepStrictEqual(
-        rows.map((row) => row.eventType),
-        ["PostPublishingStarted", "PostPublished"],
+        eventTypesOf(await harness.outboxFor(postId)),
+        ["PostPublished", "PostPublishingStarted"],
         "exactly the first promotion's two rows: the retry emitted nothing"
       );
     });
@@ -261,7 +269,7 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
       afterFirstRun = await harness.postSnapshot(postId);
       assert.notStrictEqual(afterFirstRun.publishedAt, null, "P1 was recorded by the first run");
-      eventsAfterFirstRun = (await harness.outboxFor(postId)).map((row) => row.eventType);
+      eventsAfterFirstRun = eventTypesOf(await harness.outboxFor(postId));
 
       // ONLY the saga row is rewound: the post stays PUBLISHED with P1, which is
       // exactly what a redelivered completion event finds. That is what separates
@@ -306,7 +314,7 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
           "and no second save advanced the version"
         );
         assert.deepStrictEqual(
-          (await harness.outboxFor(postId)).map((row) => row.eventType),
+          eventTypesOf(await harness.outboxFor(postId)),
           eventsAfterFirstRun,
           "exactly the first run's rows: the re-entered step wrote no second PostPublished"
         );
