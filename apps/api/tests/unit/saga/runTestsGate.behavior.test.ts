@@ -796,6 +796,34 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
     }).toEqual({ exitCode: 2, started: [], namesTheQuarantine: true });
   });
 
+  it("exits 1 before any suite starts when the quarantine holds a whole tier", () => {
+    // A tier the quarantine empties would run zero files and pass, while the run's
+    // zero-test guard sees only the total, which the other tier still fills: here the
+    // services tier would run and the emptied live tier would read as clean.
+    const quarantineFile = writeQuarantine(
+      "whole-live-tier.json",
+      suffixedFiles("live").map((path) => ({
+        path: `apps/api/${path}`,
+        reason: "fixture",
+        owner: "runner gate",
+        since: "2026-10-10",
+      }))
+    );
+    const run = runRecorded({
+      TIER: "full-integration",
+      DATABASE_URL: UNUSED_DATABASE_URL,
+      TEST_API_URL: API_URL,
+      TEST_WORKERS_READY_URL: WORKERS_READY_URL,
+      QUARANTINE_FILE: quarantineFile,
+    });
+
+    expect({
+      exitCode: run.exitCode,
+      started: run.started,
+      namesTheTier: run.stderr.includes("every *.live.test.ts"),
+    }).toEqual({ exitCode: 1, started: [], namesTheTier: true });
+  });
+
   it("prints a quarantined live file with its reason and does not run it", () => {
     // The live tier reads the quarantine as the services tier does, so an entry keeps
     // one of its files out of the run and printed on every run, where the hand-written

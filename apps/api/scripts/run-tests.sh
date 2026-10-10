@@ -143,21 +143,26 @@ is_named() {
 # Fills the array named `$2` with the tier `collect $1` finds: every file it
 # prints that the quarantine does not hold and, when paths were given, that they
 # name. Fails when the collection found no file at all, which is a wrong working
-# directory or a moved tests/ tree, never an empty pass.
+# directory or a moved tests/ tree, and, on a run of the whole tier, when the
+# quarantine holds every file it found: either is an empty pass, never a run.
 select_files() {
   local suffix="$1" collected file
   local -n selected="$2"
+  selected=()
   collected=$(collect "$suffix")
   if [ -z "$collected" ]; then
     echo "run-tests.sh: collect $suffix found no *.$suffix.test.ts to run under tests/ in $(pwd); run it from apps/api." >&2
     return 1
   fi
-  selected=()
   while IFS= read -r file; do
     if ! is_quarantined "$file" && is_named "$file"; then
       selected+=("$file")
     fi
   done <<< "$collected"
+  if [ -z "$LIST_ONLY" ] && [ -z "$FILTER" ] && [ "${#selected[@]}" -eq 0 ]; then
+    echo "run-tests.sh: the quarantine holds every *.$suffix.test.ts that collect $suffix found, so the tier would pass running nothing." >&2
+    return 1
+  fi
 }
 
 # Succeeds when every path given is a suite this run executes. A quarantined one
