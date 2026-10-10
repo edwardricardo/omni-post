@@ -115,13 +115,13 @@ jobs:
           export PLATFORM_ENCRYPTION_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
           pnpm --filter @infra/prisma run seed
 
-      - name: Run chaos scenarios (DB-only tier)
+      - name: Run chaos scenarios (services tier)
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
           # The services tier runs the chaos files with every other collected
-          # suite and needs no live server. Explicit DB/Redis env so
-          # run-tests.sh never falls back to sourcing the repo .env (dotenv
-          # files are not valid bash).
+          # suite and needs no live server. Explicit DB/Redis env because
+          # run-tests.sh reads no env file: with DATABASE_URL empty it exits 2
+          # before any suite starts.
           TIER: pr-integration
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public

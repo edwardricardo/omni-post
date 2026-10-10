@@ -534,8 +534,8 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
           TIER: full-integration
-          # Explicit DB/Redis env so run-tests.sh never falls back to sourcing
-          # the repo .env (dotenv files are not valid bash).
+          # Explicit DB/Redis env because run-tests.sh reads no env file: with
+          # DATABASE_URL empty it exits 2 before any suite starts.
           NODE_ENV: test
           # The APPLICATION channel. A suite that reaches for a client without naming a channel
           # gets this one, which is the posture the tier is supposed to be proving.

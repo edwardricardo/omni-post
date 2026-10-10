@@ -6,7 +6,8 @@
  *              the final gate must act on the per-batch runner exit it already
  *              captures, the script must refuse to start without a test database
  *              rather than read an environment file, it must never start vitest,
- *              `--list` must answer above the database refusal, and the
+ *              the services tier must be collected by its suffix rather than listed
+ *              by hand, `--list` must answer above the database refusal, and the
  *              header must not carry a count that rots.
  *
  *              A runner that reports a batch FAILED and then exits zero is worse
@@ -394,11 +395,46 @@ describe("run-tests.sh is a gate that can go red", () => {
     });
   });
 
-  describe("the inventory is listed without a database, and the quarantine is shared", () => {
+  describe("the services tier is collected by its suffix, and listed without a database", () => {
+    /** Index of the code line that opens the live-API section, or -1. */
+    function liveSectionIndex(): number {
+      return codeLines.findIndex((line) => line.trim() === "if run_live_api_batches; then");
+    }
+
     /** Index of the code line that opens the `--list` answer, or -1. */
     function listBlockIndex(): number {
       return codeLines.findIndex((line) => line.trim() === 'if [ -n "$LIST_ONLY" ]; then');
     }
+
+    it("collects every *.integration.test.ts outside tests/unit, in byte order", () => {
+      // The reproduction: a suite no hand-written batch named never ran (SMELL-75),
+      // and nothing compared the tree against the lists. Found by its suffix, a new
+      // suite runs the day it lands.
+      const collectLine = codeLines.find((line) => /^\s*find tests /.test(line)) ?? "";
+
+      expect({
+        collectsTheSuffix: codeLinesContaining("collect integration").length > 0,
+        skipsTheUnitTier: collectLine.includes("-path tests/unit -prune"),
+        byteOrder: collectLine.includes("LC_ALL=C sort"),
+        reversible: codeLinesContaining('"$TEST_ORDER"').length > 0,
+      }).toEqual({
+        collectsTheSuffix: true,
+        skipsTheUnitTier: true,
+        byteOrder: true,
+        reversible: true,
+      });
+    });
+
+    it("names no services suite by hand outside the live-API section", () => {
+      // A hand-listed services suite is a second inventory beside the collection,
+      // the shape that let a suite stop running unnoticed.
+      expect(liveSectionIndex()).toBeGreaterThanOrEqual(0);
+      const listed = codeLines
+        .slice(0, liveSectionIndex())
+        .filter((line) => /tests\/[^\s"']*\.integration\.test\.ts/.test(line));
+
+      expect(listed).toEqual([]);
+    });
 
     it("answers --list above the database refusal, and exits there", () => {
       // Listing reads the tree, the script and the quarantine, never a database, so

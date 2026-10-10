@@ -800,7 +800,7 @@ jobs:
           # Part B: the node:test runner must KEEP its zero-collection guards.
           # node:test has no equivalent default: a crashed or empty run prints a
           # 0/0/0 TAP summary that parses as success, so run-tests.sh carries the
-          # check itself, once per batch and once on the total. Both terms are
+          # check itself, once per file and once on the total. Both terms are
           # pinned because deleting either restores the silent green with nothing
           # left to notice it. Mirrors CLAUDE.md #31.
           A=$(grep -rn "passWithNoTests" apps/ packages/ infra/ \
@@ -815,7 +815,7 @@ jobs:
             printf "%s\n" "$A" | head -20
           fi
           if [ "$BATCH_PIN" -lt 1 ] || [ "$TOTAL_PIN" -lt 1 ]; then
-            echo "::error title=Fitness #31 violation::apps/api/scripts/run-tests.sh lost a zero-collection guard (per-batch found=$BATCH_PIN, total found=$TOTAL_PIN, each must be >= 1). node:test reports a crashed or empty run as a 0/0/0 TAP summary that parses as success; without these terms the runner passes over tests nobody executed."
+            echo "::error title=Fitness #31 violation::apps/api/scripts/run-tests.sh lost a zero-collection guard (per-file found=$BATCH_PIN, total found=$TOTAL_PIN, each must be >= 1). node:test reports a crashed or empty run as a 0/0/0 TAP summary that parses as success; without these terms the runner passes over tests nobody executed."
           fi
           if [ "$ACOUNT" -gt 0 ] || [ "$BATCH_PIN" -lt 1 ] || [ "$TOTAL_PIN" -lt 1 ]; then
             exit 1
@@ -1461,7 +1461,7 @@ jobs:
           # guard's — that one is structural instead, because `getAmbientGucScope()` and the
           # guard read the same exported `ambientTenantContextProvider` object; at the relocated
           # sites the provider's identity is a property of the composition root instead, proven
-          # by `setupRepositories.test.ts` and `tenantGucTransactionBinding.test.ts`.
+          # by `setupRepositories.test.ts` and `tenantGucTransactionBinding.integration.test.ts`.
           # (3) A whole-file
           # seam exemption exempts future calls in that file; the exempt list is `sagaTenant.ts`
           # alone and may only shrink. (4) The FLAT `packages/adapters/db-prisma` files are in
