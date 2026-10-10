@@ -2,7 +2,7 @@
  * @file runTestsGate.behavior.test.ts
  * @description Executable proof that `apps/api/scripts/run-tests.sh` exits non-zero
  *              whenever a file is recorded failed, gives every file its own verdict,
- *              collects the services tier by its suffix, in byte order,
+ *              collects the services tier by its suffix (in byte order, or reversed),
  *              keeps a quarantined file out of the run while printing it, lists its
  *              inventory without running anything, and refuses to start at all without
  *              a test database or with a quarantine it cannot trust. Its sibling
@@ -29,7 +29,7 @@
  *              path layout.
  * @layer infrastructure
  */
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import {
   mkdtempSync,
@@ -49,6 +49,16 @@ import { fileURLToPath } from "node:url";
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const apiRoot = join(currentDir, "..", "..", "..");
 const runnerPath = join(apiRoot, "scripts", "run-tests.sh");
+
+/** The cap `spawnSync` puts on one runner or node process a case starts. */
+const SPAWN_TIMEOUT_MS = 60_000;
+
+/**
+ * Every case in this file gets two spawn caps, since no case starts more than two
+ * processes. The vitest default of 5 s is shorter than one cap, and on a loaded host
+ * it expired while the runner a case spawned was still finishing a run that passes.
+ */
+vi.setConfig({ testTimeout: 2 * SPAWN_TIMEOUT_MS });
 
 /**
  * `pr-integration` runs the services tier without the live-API batches, so no
@@ -103,6 +113,7 @@ interface GateOptions {
   tier?: string;
   /** The quarantine the run reads; defaults to the committed one. */
   quarantineFile?: string;
+  testOrder?: string;
 }
 
 interface RunResult {
@@ -190,11 +201,11 @@ afterAll(() => {
 
 /** Runs the real script with every collected or listed path served by the stub. */
 function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
-  const { callLog, realTarget, quarantineFile } = options;
+  const { callLog, realTarget, quarantineFile, testOrder } = options;
   const result = spawnSync("bash", [runnerPath], {
     cwd: options.cwd ?? apiRoot,
     encoding: "utf8",
-    timeout: 60_000,
+    timeout: SPAWN_TIMEOUT_MS,
     env: {
       ...process.env,
       PATH: `${stubDir}:${process.env.PATH ?? ""}`,
@@ -208,6 +219,7 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
       GATE_STUB_EXIT: String(shape.exit),
       ...(callLog !== undefined && { GATE_CALL_LOG: callLog }),
       ...(quarantineFile !== undefined && { QUARANTINE_FILE: quarantineFile }),
+      ...(testOrder !== undefined && { TEST_ORDER: testOrder }),
       ...(realTarget !== undefined && {
         GATE_REAL_TARGET: realTarget,
         GATE_REAL_NODE: process.execPath,
@@ -411,6 +423,27 @@ describe("run-tests.sh collects the services tier by its suffix", () => {
     expect(passedFiles(run.stdout)).toContain(TARGET_FILE);
   });
 
+  it("runs the collected files in byte order, and in reverse under TEST_ORDER=reverse", () => {
+    // Collection by convention has no author-chosen order to fall back on, so the
+    // order is a defined one, and reversing it is how a suite that only passes after
+    // another one has run shows up as a red.
+    const forwardLog = join(stubDir, "forward.log");
+    const reverseLog = join(stubDir, "reverse.log");
+    rmSync(forwardLog, { force: true });
+    rmSync(reverseLog, { force: true });
+    const forwardRun = runGate(PASSING, { callLog: forwardLog });
+    const reverseRun = runGate(PASSING, { callLog: reverseLog, testOrder: "reverse" });
+    const forward = calledPaths(forwardLog);
+    const reverse = calledPaths(reverseLog);
+
+    expect(forward.length).toBeGreaterThan(1);
+    expect({
+      exitCodes: [forwardRun.exitCode, reverseRun.exitCode],
+      forwardIsByteOrder: forward.join("\n") === [...forward].sort().join("\n"),
+      reverseIsItsMirror: reverse.join("\n") === [...forward].reverse().join("\n"),
+    }).toEqual({ exitCodes: [0, 0], forwardIsByteOrder: true, reverseIsItsMirror: true });
+  });
+
   it("prints a quarantined file with its reason and does not run it", () => {
     // A quarantined suite runs nowhere; the line it prints on every run is what
     // keeps it from being forgotten there.
@@ -566,7 +599,7 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
     const result = spawnSync("bash", [runnerPath, ...args], {
       cwd: apiRoot,
       encoding: "utf8",
-      timeout: 60_000,
+      timeout: SPAWN_TIMEOUT_MS,
       env: {
         ...inherited,
         PATH: `${recorderDir}:${process.env.PATH ?? ""}`,
@@ -731,7 +764,7 @@ describe("the runner-gate fixtures still produce the shapes they document", () =
         "tests/fixtures/run-tests-gate/cleanExitNonZero.fixture.ts",
         "tests/fixtures/run-tests-gate/brokenHook.fixture.ts",
       ],
-      { cwd: apiRoot, encoding: "utf8", timeout: 60_000 }
+      { cwd: apiRoot, encoding: "utf8", timeout: SPAWN_TIMEOUT_MS }
     );
 
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;

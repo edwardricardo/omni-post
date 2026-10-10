@@ -148,6 +148,9 @@
 | SB-127 | Phase 1 U7b (`workstream/phase1-u7b-s2`, 7310de1c)                                    | R3-002                                                           | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (`curl` stub)                                                                      | test double                  | deferred: the runner makes exactly two probe shapes today, and both are pinned                                                                                  |
 | SB-128 | same                                                                                  | R3-003                                                           | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (`listedFailedEntries`)                                                            | test coupling                | deferred: the indent is the runner's own output, pinned by the cases that read it                                                                               |
 | SB-129 | Phase 1 U7b (`workstream/phase1-u7b-s3`, c2605757)                                    | R3-services-tier-cwd-sensitivity                                 | `apps/api/scripts/run-tests.sh` (`collect`, relative `tests` root)                                                                          | working directory            | deferred: run from any other directory it collects nothing and exits 1 naming `apps/api`                                                                        |
+| SB-130 | Phase 1 U7b (`workstream/phase1-u7b-s4`, 077ff3d3)                                    | R2-001, R3-order-arg-unquoted                                    | `apps/api/scripts/run-tests.sh` (`collect`, unquoted `$order`)                                                                              | shell clarity                | deferred: `TEST_ORDER` is validated to unset, forward or reverse first; both orders are pinned                                                                  |
+| SB-131 | same                                                                                  | R2-002                                                           | `docs/development/TESTING_REFOUNDATION.md` (As-of head of R7b4)                                                                             | readability                  | deferred: every As-of head is one paragraph; a scannable format is a tracker-wide change                                                                        |
+| SB-132 | same                                                                                  | R3-reverse-assertion-depends-on-forward-sort                     | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (byte order)                                                                       | test oracle                  | deferred: 0 non-ASCII paths under `apps/api/tests`, where JS and C byte order agree                                                                             |
 
 ## Entries — code and prose
 
@@ -1201,6 +1204,30 @@
 - **Suggestion:** resolve the `tests` root from the script's own location, so the collection does not depend on the caller's working directory.
 - **Why deferred:** every caller runs the script from `apps/api` (the package scripts, the CI jobs, fitness #30 through `cd apps/api`). Measured 2026-10-10 from the repository root: both `--list` and a `TIER` run exit 1 with "collect integration found no *.integration.test.ts to run under tests/ … run it from apps/api" and start nothing, so a wrong directory fails closed rather than passing empty.
 - **To implement:** `cd` to the script's package root at start, with a case that runs it from another directory.
+
+### SB-130 — `collect` passes an unquoted, possibly empty `$order` to `sort`
+
+- **Source:** the native review of Phase 1 U7b R7b4 (`workstream/phase1-u7b-s4`, `077ff3d3`), findings `R2-001` and `R3-order-arg-unquoted`.
+- **Location:** `apps/api/scripts/run-tests.sh`, `collect`.
+- **Suggestion:** branch on the order explicitly (`sort` and `sort -r` in two arms), or build the arguments as an array, instead of relying on word splitting to drop an empty `$order`.
+- **Why deferred:** `TEST_ORDER` is validated at the top of the script to unset, `forward` or `reverse` (anything else exits 2), so `$order` is either empty or `-r`; the behaviour and static suites pin both orders.
+- **To implement:** the two-arm form, with the existing order cases unchanged.
+
+### SB-131 — R7b4's As-of head packs every fact into one paragraph
+
+- **Source:** the same review, finding `R2-002`.
+- **Location:** `docs/development/TESTING_REFOUNDATION.md`, the As-of head of R7b4.
+- **Suggestion:** a short bulleted summary per head, so a single fact can be found without re-reading the paragraph.
+- **Why deferred:** every As-of head in the tracker's chain is one paragraph, turned into "Before it, …" by the next head; a scannable format is a change to the whole chain's convention, not to one head.
+- **To implement:** decide the head format once, then apply it to the chain as its own docs change.
+
+### SB-132 — the reverse-order case compares against JavaScript's default sort
+
+- **Source:** the same review, finding `R3-reverse-assertion-depends-on-forward-sort`.
+- **Location:** `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts`, the reverse-order case.
+- **Suggestion:** compare the forward call list against an explicit byte-order sort (`Buffer.compare`), matching `LC_ALL=C sort`.
+- **Why deferred:** measured 2026-10-10, `apps/api/tests` holds 0 paths with a non-ASCII byte, and for ASCII JavaScript's default sort (UTF-16 code units) and `LC_ALL=C sort` give the same order.
+- **To implement:** a byte comparator in the case's expected order.
 
 ## Implemented
 

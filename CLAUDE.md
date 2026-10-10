@@ -758,7 +758,7 @@ grep -rn "passWithNoTests" apps/ packages/ infra/ \
 # Part B: the node:test runner must KEEP its zero-collection guards. node:test
 # has no equivalent default: a crashed or empty run prints a 0/0/0 TAP summary
 # that parses as success, so apps/api/scripts/run-tests.sh carries the check
-# itself — once per batch and once on the total. Both terms are pinned because
+# itself — once per file and once on the total. Both terms are pinned because
 # deleting either restores the silent green with nothing left to notice it.
 grep -c '\[ "\$tests" -eq 0 \]' apps/api/scripts/run-tests.sh          # expect >= 1
 grep -c '\[ "\$TOTAL_TESTS" -eq 0 \]' apps/api/scripts/run-tests.sh    # expect >= 1

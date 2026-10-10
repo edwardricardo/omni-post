@@ -1,7 +1,22 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the services collector (`workstream/phase1-u7b-s3`, PR R7b3,
+**As of:** 2026-10-10, the order and alignment slice (`workstream/phase1-u7b-s4`, PR R7b4, the last
+of the stacked pull requests that finish WU-1.7) made the collection's order reversible and aligned
+the comments earlier units left stale, which closes WU-1.7. `TEST_ORDER=reverse` runs the collected
+services tier in reverse byte order, and any value but unset, `forward` or `reverse` exits 2; on
+this tip's runner `TIER=pr-integration` ran 572 tests in 62 files reversed, in 81 s, 0 skipped or
+cancelled, against 83 s forward. The static suite now pins the collection itself: `collect` skips
+`tests/unit`, sorts with `LC_ALL=C sort` and reverses on request, and no services suite is named by
+hand outside the live-API section. The comments that still described the env-file fallback WU-1.6
+removed (`ci.yml`, `chaos.yml`) or a path WU-1.5 renamed (`.env.test.example`, the `#40` step), and
+the #31 prose that still said "once per batch", now match the runner, in the slice's workflow patch
+and in CLAUDE.md #31, and the chaos job's step is named for the services tier. The runner's
+behaviour suite gives each case two 60 s spawn caps instead of vitest's 5 s default, which had ended
+a case on a loaded host. Red: 2 runner-suite cases fail on the previous tip's runner, and with
+`--testTimeout=200` the previous suite fails 12 of 22. It moved no metric (M1 `987 + 14`, M7
+`28/28`, M8 `1/92`): it adds no test file and no gate.
+Before it, on 2026-10-10, the services collector (`workstream/phase1-u7b-s3`, PR R7b3,
 the third of the stacked pull requests that finish WU-1.7) made `apps/api/scripts/run-tests.sh`
 collect the services tier by its suffix: `collect integration` lists every `*.integration.test.ts`
 under `tests/` outside `tests/unit` in `LC_ALL=C sort` order, and each file runs through `run_file`
@@ -429,7 +444,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.4    | Move the timing needs into the tests                                        | ✅     | `R4`                          | `phase1-u4-timing-in-tests` · 314       | 2026-10-09 |
 | 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ✅     | `R5`                          | `phase1-u5-tier-rename` · 139           | 2026-10-09 |
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
-| 1     | 1.7    | Collect the services tier by convention                                     | 🔄     | `R7a` · `R7b1`–`R7b3`         | `phase1-u7*` · 381 + 386 + 247 + 383    | 2026-10-10 |
+| 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
 | 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a`                         | `phase1-u9a-reach-engine` · 1327        | 2026-10-09 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
@@ -1533,7 +1548,9 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   `bulkSchedule*` suites 10 of 10), so none entered it. The interim #30 baseline is 10, the dark live
   suites plus 0 quarantine entries: U5a's 18 is the whole live tier, and the live batches run 8 of
   those. `TIER=pr-integration` ran 572 tests in 62 files in 83 s (the base runner 541 in 52 files,
-  73 s, the same day), 0 skipped or cancelled.
+  73 s, the same day), 0 skipped or cancelled. R7b4 (2026-10-10) landed `TEST_ORDER=reverse` (572
+  tests in 62 files in 81 s reversed) and the stale-comment alignment, and closed WU-1.7: R7b counts
+  386 + 247 + 383 + 131 = 1147 CODE, the workflow YAML of its two patches included.
   **Owner decision (d), 2026-10-09 — the interim #30 is accepted, with its exit written down.**
   _Where it lives:_ the `#30` step of `fitness.yml` and the `# 30.` block of CLAUDE.md §Automated
   Compliance Checks, both rewritten by this unit, plus this paragraph. Its count is the files that

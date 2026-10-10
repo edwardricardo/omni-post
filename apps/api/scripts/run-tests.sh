@@ -46,6 +46,17 @@ case "$TIER" in
     ;;
 esac
 
+# TEST_ORDER=reverse runs the collected services tier in reverse byte order, so a
+# suite that only passes after another one has run shows up as a red.
+TEST_ORDER="${TEST_ORDER:-}"
+case "$TEST_ORDER" in
+  "" | forward | reverse) ;;
+  *)
+    echo "Unknown TEST_ORDER='$TEST_ORDER' (expected: unset, forward, reverse)" >&2
+    exit 2
+    ;;
+esac
+
 # The only argument is `--list`; anything else is refused rather than ignored, so
 # a path handed to the runner is never mistaken for a filter it does not have.
 LIST_ONLY=""
@@ -65,10 +76,14 @@ RUNNER_PATH="${BASH_SOURCE[0]}"
 QUARANTINE_FILE="${QUARANTINE_FILE:-$(dirname "$RUNNER_PATH")/../../../packages/test-contracts/quarantine.json}"
 
 # Prints every `*.<suffix>.test.ts` under tests/, outside tests/unit (the unit
-# tier, collected elsewhere), one per line in byte order.
+# tier, collected elsewhere), one per line in byte order, or in reverse byte
+# order under TEST_ORDER=reverse.
 collect() {
-  local suffix="$1"
-  find tests -path tests/unit -prune -o -type f -name "*.$suffix.test.ts" -print | LC_ALL=C sort
+  local suffix="$1" order=""
+  case "$TEST_ORDER" in
+    reverse) order="-r" ;;
+  esac
+  find tests -path tests/unit -prune -o -type f -name "*.$suffix.test.ts" -print | LC_ALL=C sort $order
 }
 
 # Prints the files the live-API batches at the end of this script name, once each
@@ -371,8 +386,9 @@ echo ""
 echo "── Integration tests (node:test) ──"
 
 # The services tier: every collected `*.integration.test.ts` (resolve_services_files
-# above), each in its own node:test process through run_batch, in byte order. The
-# files run one after another, so no two suites share the database at once: the suites that race one credential on
+# above), each in its own node:test process through run_batch, in byte order or in
+# reverse under TEST_ORDER=reverse. The files run one after another, so no two
+# suites share the database at once: the suites that race one credential on
 # purpose, or park a row lock while polling for it, measure only their own
 # interleaving. The quarantined ones are printed and not run.
 if run_services_tier; then
