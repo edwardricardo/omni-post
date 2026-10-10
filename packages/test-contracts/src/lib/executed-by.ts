@@ -1,22 +1,30 @@
 /**
  * @file executed-by.ts
- * @description The registry and the ruleset rule R2 of the reach engine reads.
+ * @description Rule R2 of the reach engine: which collector sources a required check runs.
  *              `collectors.json` maps every collector the engine runs to the CI jobs that execute
  *              it: `{ "collectors": { "<id>": { "executedBy": [entry], "note"? } } }`, each entry
- *              `{ workflow, jobId, entrypoint, packages | exclude }`, where `packages` names the
- *              directory prefixes of the sources a job runs and `exclude` the ones it does not.
- *              The ruleset is `.github/rulesets/main.json`, in the shape GitHub's rulesets API
- *              returns, and what is read from it is its required status checks. Both are refused,
- *              never read in part, when anything in them is malformed or unknown.
+ *              `{ workflow, jobId, entrypoint, packages | exclude }`. An entry holds when its
+ *              workflow holds the job, a `run` of one of the job's steps contains the entrypoint,
+ *              and every check name the job renders (one per matrix combination) is a required
+ *              status check of the committed ruleset. Its scope names the sources it runs:
+ *              `packages`, directory prefixes each of which must cover a source; `exclude`, every
+ *              source outside these prefixes; or neither, every source of the collector.
  *
- *              A job's check names are rendered only when they are predictable: a job name with any
+ *              A source no entry covers is not run by a required check: the verdict in `rules.ts`
+ *              then counts the files only it collects as unreached. A collector with an empty
+ *              `executedBy` still runs, so its own listing is held to its floors, and reaches
+ *              nothing. A check name is rendered only when it is predictable: a job name with any
  *              expression other than a matrix value, a matrix job that leaves its matrix out of
- *              its name, or a matrix with `include`, `exclude` or an expression is refused, never
- *              a guess at what GitHub would display.
+ *              its name, or a matrix with `include`, `exclude` or an expression is a violation,
+ *              never a guess at what GitHub would display.
  * @layer infrastructure
  */
 import { err, ok, type Result } from "@shared/types";
-import { asRecord, describeError } from "./registry.js";
+import { asRecord, describeError, sourceLabel, type Collection } from "./registry.js";
+import { RULE, type Violation } from "./rules.js";
+
+/** Where the registry lives, repository-relative, the subject of a violation about it. */
+const REGISTRY_FILE = "packages/test-contracts/collectors.json";
 
 /** One job that executes a collector, and the sources of the collector it runs. */
 export interface ExecutedByEntry {
@@ -33,6 +41,25 @@ export interface ExecutedByEntry {
 
 /** Collector id → the jobs that execute it. */
 export type CollectorRegistry = ReadonlyMap<string, readonly ExecutedByEntry[]>;
+
+/** Everything R2 reads. */
+export interface ExecutedByInput {
+  readonly registry: CollectorRegistry;
+  /** The required status-check contexts of the ruleset. */
+  readonly contexts: ReadonlySet<string>;
+  /** Workflow path → its parsed document, or why it could not be read. */
+  readonly workflows: ReadonlyMap<string, Result<unknown, string>>;
+  /** The ids of the collectors the engine ran. */
+  readonly collectorIds: readonly string[];
+  readonly collections: readonly Collection[];
+}
+
+/** What R2 decides. */
+export interface ExecutedByVerdict {
+  readonly violations: Violation[];
+  /** The labels of the sources an entry covers. */
+  readonly runSources: Set<string>;
+}
 
 const ENTRY_KEYS = new Set(["workflow", "jobId", "entrypoint", "packages", "exclude"]);
 const COLLECTOR_KEYS = new Set(["executedBy", "note"]);
@@ -225,4 +252,95 @@ export function renderCheckNames(
     names.add(rendered);
   }
   return ok([...names]);
+}
+
+/**
+ * @param source - A collection's source, possibly suffixed `#<project>`.
+ * @param prefix - A directory prefix.
+ * @returns Whether the source's path lies under the prefix.
+ */
+function isUnder(source: string, prefix: string): boolean {
+  const file = source.split("#")[0] ?? source;
+  const directory = prefix.replace(/\/+$/, "");
+  return file === directory || file.startsWith(`${directory}/`);
+}
+
+/**
+ * @param entry - A registry entry.
+ * @param source - A collection's source.
+ * @returns Whether the entry's scope runs the source.
+ */
+function covers(entry: ExecutedByEntry, source: string): boolean {
+  if (entry.packages !== undefined) return entry.packages.some((p) => isUnder(source, p));
+  if (entry.exclude !== undefined) return !entry.exclude.some((p) => isUnder(source, p));
+  return true;
+}
+
+/**
+ * Checks one entry's job against its workflow and the ruleset.
+ *
+ * @param entry - The entry.
+ * @param input - The workflows and the required contexts.
+ * @returns Why the entry does not hold, one message per broken condition.
+ */
+function checkEntryJob(entry: ExecutedByEntry, input: ExecutedByInput): string[] {
+  const document = input.workflows.get(entry.workflow);
+  if (document === undefined) return [`its workflow ${entry.workflow} was not read`];
+  if (!document.ok) return [`its workflow cannot be read: ${document.error}`];
+  const job = asRecord(asRecord(asRecord(document.value)?.jobs)?.[entry.jobId]);
+  if (job === null) return [`${entry.workflow} has no job "${entry.jobId}"`];
+  const messages: string[] = [];
+  const steps = Array.isArray(job.steps) ? job.steps : [];
+  const runs = steps.some((step) => {
+    const run = asRecord(step)?.run;
+    return typeof run === "string" && run.includes(entry.entrypoint);
+  });
+  if (!runs) messages.push(`no step of the job runs "${entry.entrypoint}"`);
+  const names = renderCheckNames(entry.jobId, job);
+  if (!names.ok) {
+    messages.push(`its check names cannot be rendered: ${names.error}`);
+  } else {
+    for (const name of names.value) {
+      if (!input.contexts.has(name)) messages.push(`its check "${name}" is not a required check`);
+    }
+  }
+  return messages;
+}
+
+/**
+ * Holds the registry against R2 and returns the sources a required check runs.
+ *
+ * @param input - The registry, the ruleset's contexts, the workflows and the collections.
+ * @returns Every R2 violation, in registry order, and the run sources.
+ */
+export function checkExecutedBy(input: ExecutedByInput): ExecutedByVerdict {
+  const violations: Violation[] = [];
+  const violation = (file: string, message: string): void => {
+    violations.push({ rule: RULE.R2, file, message });
+  };
+  for (const id of input.collectorIds) {
+    if (!input.registry.has(id)) violation(REGISTRY_FILE, `collector "${id}" is not registered`);
+  }
+  for (const id of input.registry.keys()) {
+    if (!input.collectorIds.includes(id)) {
+      violation(REGISTRY_FILE, `registers "${id}", which the engine does not run`);
+    }
+  }
+  const runSources = new Set<string>();
+  for (const [id, entries] of input.registry) {
+    const sources = input.collections.filter((c) => c.collector === id);
+    for (const entry of entries) {
+      const subject = `${id}:${entry.workflow}#${entry.jobId}`;
+      for (const message of checkEntryJob(entry, input)) violation(subject, message);
+      for (const prefix of entry.packages ?? []) {
+        if (!sources.some((source) => isUnder(source.source, prefix))) {
+          violation(subject, `packages "${prefix}" covers no source of ${id}`);
+        }
+      }
+      for (const source of sources) {
+        if (covers(entry, source.source)) runSources.add(sourceLabel(source));
+      }
+    }
+  }
+  return { violations, runSources };
 }

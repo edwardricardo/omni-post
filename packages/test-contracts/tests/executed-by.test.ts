@@ -1,18 +1,64 @@
 /**
  * @file executed-by.test.ts
- * @description Self-tests of the registry and the ruleset rule R2 reads, and of check-name
- *              rendering: the registry and the ruleset are refused when malformed, and check names
- *              render only when they are predictable.
+ * @description Self-tests of rule R2: the registry and the ruleset are refused when malformed,
+ *              check names render only when they are predictable, each broken condition of an
+ *              entry comes back as an R2 violation naming the entry, and an entry's scope decides
+ *              which sources count as run by a required check.
  * @layer infrastructure
  */
+import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
-import { ok } from "@shared/types";
+import { err, ok } from "@shared/types";
 import {
+  checkExecutedBy,
   parseCollectorRegistry,
   parseRequiredContexts,
   renderCheckNames,
+  type ExecutedByEntry,
+  type ExecutedByInput,
 } from "../src/lib/executed-by.js";
-import { registryOf, rulesetRequiring, UNIT_ENTRY } from "./fixtures/ci.js";
+import type { Collection } from "../src/lib/registry.js";
+import {
+  CI_PATHS,
+  registryOf,
+  rulesetRequiring,
+  UNIT_ENTRY,
+  UNIT_WORKFLOW,
+} from "./fixtures/ci.js";
+
+/** A collection of the vitest collector. */
+function vitest(source: string): Collection {
+  return { collector: "vitest", source, files: [`${source}.test.ts`] };
+}
+
+const WORKFLOW = `${UNIT_WORKFLOW}  shards:
+    name: Shard \${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        shard: [1, 2]
+    steps:
+      - run: >-
+          pnpm exec vitest run
+          --shard=\${{ matrix.shard }}/2
+`;
+
+/** An input whose one collector is vitest, over two packages, and whose workflow is parsed. */
+function input(
+  entries: readonly ExecutedByEntry[],
+  overrides: Partial<ExecutedByInput> = {}
+): ExecutedByInput {
+  return {
+    registry: new Map([["vitest", entries]]),
+    contexts: new Set(["Unit", "Shard 1", "Shard 2"]),
+    workflows: new Map([[CI_PATHS.workflow, ok(parseYaml(WORKFLOW))]]),
+    collectorIds: ["vitest"],
+    collections: [vitest("pkg-a/vitest.config.ts"), vitest("pkg-b/vitest.config.ts#unit")],
+    ...overrides,
+  };
+}
+
+const SUBJECT = `vitest:${CI_PATHS.workflow}#unit`;
 
 describe("collectors.json parsing", () => {
   it("returns every collector with its entries", () => {
@@ -186,5 +232,123 @@ describe("check names", () => {
     const rendered = renderCheckNames("job", job);
 
     expect(rendered.ok ? "" : rendered.error).toContain(expected);
+  });
+});
+
+describe("rule R2", () => {
+  it("returns no violation and every source as run when one entry covers them all", () => {
+    const verdict = checkExecutedBy(input([UNIT_ENTRY]));
+
+    expect(verdict).toEqual({
+      violations: [],
+      runSources: new Set(["vitest:pkg-a/vitest.config.ts", "vitest:pkg-b/vitest.config.ts#unit"]),
+    });
+  });
+
+  it("returns no violation for a matrix job whose every check is required", () => {
+    const shards = { ...UNIT_ENTRY, jobId: "shards", entrypoint: "pnpm exec vitest run --shard=" };
+
+    expect(checkExecutedBy(input([shards])).violations).toEqual([]);
+  });
+
+  it("returns only the sources a packages scope covers as run", () => {
+    const verdict = checkExecutedBy(input([{ ...UNIT_ENTRY, packages: ["pkg-b/"] }]));
+
+    expect([...verdict.runSources]).toEqual(["vitest:pkg-b/vitest.config.ts#unit"]);
+  });
+
+  it("returns the sources outside an exclude scope as run", () => {
+    const verdict = checkExecutedBy(input([{ ...UNIT_ENTRY, exclude: ["pkg-b"] }]));
+
+    expect([...verdict.runSources]).toEqual(["vitest:pkg-a/vitest.config.ts"]);
+  });
+
+  it.each([
+    [
+      "a job the workflow does not hold",
+      { ...UNIT_ENTRY, jobId: "gone" },
+      `vitest:${CI_PATHS.workflow}#gone`,
+      `${CI_PATHS.workflow} has no job "gone"`,
+    ],
+    [
+      "an entrypoint no step runs",
+      { ...UNIT_ENTRY, entrypoint: "pnpm exec vitest run --coverage" },
+      SUBJECT,
+      'no step of the job runs "pnpm exec vitest run --coverage"',
+    ],
+    [
+      "a packages path that covers no source",
+      { ...UNIT_ENTRY, packages: ["pkg-c"] },
+      SUBJECT,
+      'packages "pkg-c" covers no source of vitest',
+    ],
+  ])("returns an R2 violation naming the entry for %s", (_label, entry, file, message) => {
+    expect(checkExecutedBy(input([entry])).violations).toEqual([{ rule: "R2", file, message }]);
+  });
+
+  it("returns an R2 violation naming each check the ruleset does not require", () => {
+    const shards = { ...UNIT_ENTRY, jobId: "shards", entrypoint: "--shard=" };
+
+    const verdict = checkExecutedBy(input([shards], { contexts: new Set(["Unit", "Shard 1"]) }));
+
+    expect(verdict.violations).toEqual([
+      {
+        rule: "R2",
+        file: `vitest:${CI_PATHS.workflow}#shards`,
+        message: 'its check "Shard 2" is not a required check',
+      },
+    ]);
+  });
+
+  it("returns an R2 violation when the job's check names cannot be rendered", () => {
+    const workflow =
+      "jobs:\n  unit:\n    name: X ${{ inputs.a }}\n    steps:\n      - run: pnpm exec vitest run\n";
+
+    const verdict = checkExecutedBy(
+      input([UNIT_ENTRY], { workflows: new Map([[CI_PATHS.workflow, ok(parseYaml(workflow))]]) })
+    );
+
+    expect(verdict.violations).toEqual([
+      {
+        rule: "R2",
+        file: SUBJECT,
+        message:
+          "its check names cannot be rendered: its name uses an expression other than a matrix value",
+      },
+    ]);
+  });
+
+  it("returns an R2 violation when the workflow cannot be read", () => {
+    const workflows = new Map([[CI_PATHS.workflow, err("ENOENT: no such file")]]);
+
+    const verdict = checkExecutedBy(input([UNIT_ENTRY], { workflows }));
+
+    expect(verdict.violations).toEqual([
+      { rule: "R2", file: SUBJECT, message: "its workflow cannot be read: ENOENT: no such file" },
+    ]);
+  });
+
+  it("returns R2 violations for a collector the registry omits and one the engine does not run", () => {
+    const verdict = checkExecutedBy(
+      input([UNIT_ENTRY], {
+        registry: new Map([["k6", []]]),
+        collectorIds: ["vitest"],
+      })
+    );
+
+    expect(verdict.violations).toEqual([
+      { rule: "R2", file: CI_PATHS.registry, message: 'collector "vitest" is not registered' },
+      {
+        rule: "R2",
+        file: CI_PATHS.registry,
+        message: 'registers "k6", which the engine does not run',
+      },
+    ]);
+  });
+
+  it("returns no run source for a collector with an empty executedBy", () => {
+    const verdict = checkExecutedBy(input([]));
+
+    expect(verdict).toEqual({ violations: [], runSources: new Set() });
   });
 });

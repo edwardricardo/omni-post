@@ -1,20 +1,34 @@
 /**
  * @file ci.ts
- * @description Builds the CI side of the reach engine's self-tests as text: a ruleset in the shape
- *              GitHub's rulesets API returns, and a `collectors.json`.
+ * @description Builds the CI side of the reach engine's self-tests as text: a workflow, a ruleset
+ *              in the shape GitHub's rulesets API returns, and a `collectors.json`.
  * @layer infrastructure
  */
 import type { ExecutedByEntry } from "../../src/lib/executed-by.js";
 
 /** The paths the engine reads the registry, the ruleset and the workflow from. */
-const CI_PATHS = {
+export const CI_PATHS = {
   registry: "packages/test-contracts/collectors.json",
   ruleset: ".github/rulesets/main.json",
   workflow: ".github/workflows/ci.yml",
 } as const;
 
-/** The job the fixture entry names: its id, its check name and the command its step runs. */
+/** The job every planted workflow holds, its check name and the command its step runs. */
 const UNIT_JOB = { id: "unit", name: "Unit", run: "pnpm exec vitest run" } as const;
+
+/** A workflow with the one job {@link UNIT_JOB}. */
+export const UNIT_WORKFLOW = [
+  "name: CI",
+  "on: [pull_request]",
+  "jobs:",
+  `  ${UNIT_JOB.id}:`,
+  `    name: ${UNIT_JOB.name}`,
+  "    runs-on: ubuntu-latest",
+  "    steps:",
+  "      - uses: actions/checkout@v7",
+  `      - run: ${UNIT_JOB.run}`,
+  "",
+].join("\n");
 
 /**
  * @param contexts - The required status checks.
