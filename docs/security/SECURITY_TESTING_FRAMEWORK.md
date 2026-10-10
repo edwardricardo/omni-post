@@ -28,21 +28,20 @@ This document describes the security testing infrastructure for the Social Media
 
 ```
 security/
-├── config/
-│   └── security-policies.json                      # Read by no script or workflow
-├── tests/                                          # ⚠️ VACUOUS — see SMELL-83 + tests/README.md
-│   ├── README.md                                   # Why this suite must not be wired yet
-│   ├── auth-security.test.ts
-│   ├── api-security.injection.test.ts
-│   ├── api-security.validation-auth.test.ts
-│   ├── injection-tests.sql-nosql.test.ts
-│   ├── injection-tests.xss-command.test.ts
-│   ├── injection-tests.ldap-xml-template-header.test.ts
-│   ├── injection-tests.test-helpers.ts             # Shared (broken) bootstrap
-│   └── infrastructure-security.test.ts
-└── zap/
-    └── zap-config.conf                             # Not read by the ZAP job
+└── tests/                                          # ⚠️ VACUOUS — see SMELL-83 + tests/README.md
+    ├── README.md                                   # Why this suite must not be wired yet
+    ├── auth-security.test.ts
+    ├── api-security.injection.test.ts
+    ├── api-security.validation-auth.test.ts
+    ├── injection-tests.sql-nosql.test.ts
+    ├── injection-tests.xss-command.test.ts
+    ├── injection-tests.ldap-xml-template-header.test.ts
+    ├── injection-tests.test-helpers.ts             # Shared (broken) bootstrap
+    └── infrastructure-security.test.ts
 ```
+
+`security/config/security-policies.json` and `security/zap/zap-config.conf`,
+which no script or workflow read, were deleted on 2026-10-10.
 
 ## 🔧 Quick Start
 
@@ -296,31 +295,14 @@ intent for the SMELL-83 rewrite.
 
 ### Configuration
 
-ZAP is configured for comprehensive API security testing with:
-
-- **Authentication**: Automated login via JWT tokens
-- **Session Management**: Cookie-based session handling
-- **Scan Policies**: Custom policies for social media CMS threats
-- **API Scanning**: OpenAPI specification-based testing
-
-### ZAP Authentication Script
-
-```javascript
-// Automated authentication for protected endpoints
-function authenticate(helper, paramsValues, credentials) {
-  // Login with JWT token
-  // Store authentication cookies
-  // Return authenticated session
-}
-```
-
-### Custom Scan Policies
-
-- Social media specific security checks
-- Provider credential validation
-- Post content security scanning
-- Project isolation verification
-- Rate limiting validation
+The OWASP ZAP DAST job (`security-testing.yml:168`) runs
+`zaproxy/action-baseline@v0.15.0` against the API at `http://localhost:3000`
+with `cmd_options: "-a"` and `fail_action: true`, and sets nothing else: no
+rules file, no login and no custom scan policy. The key=value file
+`security/zap/zap-config.conf`, which described a login script, cookie sessions
+and custom policies, was in no format the action reads, was read by nothing, and
+was deleted on 2026-10-10. A versioned rules file that triages each alert is the
+open work of DEF-77 in `docs/product/MASTER_PLAN_ES.md` §5.11.
 
 ## 📈 Security Metrics & Reporting
 
@@ -376,17 +358,6 @@ Security tests are integrated as quality gates:
 - Dashboard updates and metrics
 
 ## 🔧 Configuration
-
-### Security Policies (`security-policies.json`)
-
-No script or workflow reads this file. It describes:
-
-- Severity thresholds and actions
-- Authentication requirements
-- Input validation rules
-- API security settings
-- Data protection policies
-- Compliance requirements
 
 ### Environment Variables
 
