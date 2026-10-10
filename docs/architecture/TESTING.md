@@ -204,6 +204,8 @@ node --conditions development --import tsx --test --test-reporter=tap \
   --test-force-exit --test-concurrency=1 --test-timeout="${TIMEOUT:-30000}" "$file"
 ```
 
+**Diagnostic output goes to stderr.** In a node:test child process, stdout is the runner's message channel: the parent reads it as serialized frames, and on Node 24.15.0 a line written right after a frame whose third byte is 0x80 or above (a leading "✓", "⚠️" or emoji) is read as the next frame's length, so the whole file is reported failed although its tests passed (DEF-83). Write diagnostics with `console.error`, never with `console.log` or `console.info`, and never put non-ASCII-leading text on stdout. Node fixed the parser in v24.20.0 ([nodejs/node#64706](https://github.com/nodejs/node/pull/64706)) and more fully in v26.11.1 ([nodejs/node#66273](https://github.com/nodejs/node/pull/66273)).
+
 #### Example API Test Pattern
 
 ```typescript

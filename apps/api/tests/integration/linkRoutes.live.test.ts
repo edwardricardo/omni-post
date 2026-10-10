@@ -45,7 +45,8 @@ describe("Link Tracking Routes Integration", () => {
   before(async () => {
     apiAvailable = await checkApiAvailable();
     if (!apiAvailable) {
-      console.log("⚠️  API server not running - link tracking integration tests will be skipped");
+      // stdout is the node:test runner's message channel; diagnostics go to stderr (DEF-83).
+      console.error("⚠️  API server not running - link tracking integration tests will be skipped");
       return;
     }
 

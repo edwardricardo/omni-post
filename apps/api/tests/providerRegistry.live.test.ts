@@ -43,7 +43,8 @@ describe("Provider Registry System", () => {
   before(async () => {
     apiAvailable = await checkApiAvailable();
     if (apiAvailable) {
-      console.log("✅ API is available - running integration tests");
+      // stdout is the node:test runner's message channel; diagnostics go to stderr (DEF-83).
+      console.error("✅ API is available - running integration tests");
     } else {
       console.warn("⚠️  API not available - integration tests will be skipped");
     }

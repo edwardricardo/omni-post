@@ -25,6 +25,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../.env.test") });
 
+// The "✓" and "🧪" progress lines below go to stderr on purpose: in a node:test child, stdout
+// is the runner's message channel, and a non-ASCII line written right after a frame is misread
+// as the next frame's length, failing a file whose tests passed (DEF-83).
+
 // Test configuration
 export const TEST_CONFIG = {
   timeout: parseInt(process.env.TEST_TIMEOUT || "10000"),
@@ -102,7 +106,7 @@ export async function setupTest(): Promise<TestContext> {
       if (!globalRepo) {
         throw new Error("Failed to create Prisma repo adapter - returned null");
       }
-      console.log("✓ Prisma repo adapter created");
+      console.error("✓ Prisma repo adapter created");
     }
 
     if (!globalQueue) {
@@ -116,7 +120,7 @@ export async function setupTest(): Promise<TestContext> {
       if (!globalQueue) {
         throw new Error("Failed to create BullMQ queue adapter - returned null");
       }
-      console.log("✓ BullMQ queue adapter created");
+      console.error("✓ BullMQ queue adapter created");
     }
 
     // Verify repo has required methods
@@ -146,7 +150,7 @@ export async function setupTest(): Promise<TestContext> {
       ),
     ]);
 
-    console.log("✓ Test setup completed - DB/Redis connections verified");
+    console.error("✓ Test setup completed - DB/Redis connections verified");
 
     const context = {
       repo: globalRepo,
@@ -161,7 +165,7 @@ export async function setupTest(): Promise<TestContext> {
       throw new Error("Context repo missing createAccount method");
     }
 
-    console.log("✓ Context validated with repo and queue");
+    console.error("✓ Context validated with repo and queue");
     return context;
   } catch (error) {
     console.error("✗ Test setup failed:", error);
@@ -178,7 +182,7 @@ export async function setupTest(): Promise<TestContext> {
 export async function teardownTest(): Promise<void> {
   try {
     // Only do light cleanup between tests - don't reset global variables
-    console.log("✓ Test cleanup completed");
+    console.error("✓ Test cleanup completed");
   } catch (error) {
     console.warn("Test cleanup warning:", error);
   }
@@ -221,7 +225,7 @@ export async function finalCleanup(): Promise<void> {
     globalRepo = null;
     globalQueue = null;
 
-    console.log("✓ Final cleanup completed");
+    console.error("✓ Final cleanup completed");
   } catch (error) {
     console.warn("Final cleanup warning:", error);
   }
@@ -235,7 +239,7 @@ export async function runTestWithSetup<T>(
   testFn: (ctx: TestContext) => Promise<T>,
   timeoutMs: number = TEST_CONFIG.timeout
 ): Promise<T> {
-  console.log(`🧪 Running test: ${testName}`);
+  console.error(`🧪 Running test: ${testName}`);
 
   let ctx: TestContext | null = null;
 
@@ -260,7 +264,7 @@ export async function runTestWithSetup<T>(
       throw new Error(`Context.repo is null for test ${testName}`);
     }
 
-    console.log(`✓ Running test ${testName} with valid context`);
+    console.error(`✓ Running test ${testName} with valid context`);
 
     // Run test with timeout
     const result = await Promise.race([
@@ -271,7 +275,7 @@ export async function runTestWithSetup<T>(
       }),
     ]);
 
-    console.log(`✓ ${testName} passed`);
+    console.error(`✓ ${testName} passed`);
     return result;
   } catch (error) {
     console.error(`✗ ${testName} failed:`, error);
