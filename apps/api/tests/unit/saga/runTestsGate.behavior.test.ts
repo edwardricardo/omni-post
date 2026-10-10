@@ -29,7 +29,7 @@
  *              path layout.
  * @layer infrastructure
  */
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import {
   mkdtempSync,
@@ -49,6 +49,16 @@ import { fileURLToPath } from "node:url";
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const apiRoot = join(currentDir, "..", "..", "..");
 const runnerPath = join(apiRoot, "scripts", "run-tests.sh");
+
+/** The cap `spawnSync` puts on one runner or node process a case starts. */
+const SPAWN_TIMEOUT_MS = 60_000;
+
+/**
+ * Every case in this file gets two spawn caps, since no case starts more than two
+ * processes. The vitest default of 5 s is shorter than one cap, and on a loaded host
+ * it expired while the runner a case spawned was still finishing a run that passes.
+ */
+vi.setConfig({ testTimeout: 2 * SPAWN_TIMEOUT_MS });
 
 /**
  * `pr-integration` runs the services tier without the live-API batches, so no
@@ -194,7 +204,7 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
   const result = spawnSync("bash", [runnerPath], {
     cwd: options.cwd ?? apiRoot,
     encoding: "utf8",
-    timeout: 60_000,
+    timeout: SPAWN_TIMEOUT_MS,
     env: {
       ...process.env,
       PATH: `${stubDir}:${process.env.PATH ?? ""}`,
@@ -566,7 +576,7 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
     const result = spawnSync("bash", [runnerPath, ...args], {
       cwd: apiRoot,
       encoding: "utf8",
-      timeout: 60_000,
+      timeout: SPAWN_TIMEOUT_MS,
       env: {
         ...inherited,
         PATH: `${recorderDir}:${process.env.PATH ?? ""}`,
@@ -731,7 +741,7 @@ describe("the runner-gate fixtures still produce the shapes they document", () =
         "tests/fixtures/run-tests-gate/cleanExitNonZero.fixture.ts",
         "tests/fixtures/run-tests-gate/brokenHook.fixture.ts",
       ],
-      { cwd: apiRoot, encoding: "utf8", timeout: 60_000 }
+      { cwd: apiRoot, encoding: "utf8", timeout: SPAWN_TIMEOUT_MS }
     );
 
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
