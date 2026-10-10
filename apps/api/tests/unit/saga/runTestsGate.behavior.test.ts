@@ -1,32 +1,31 @@
 /**
  * @file runTestsGate.behavior.test.ts
  * @description Executable proof that `apps/api/scripts/run-tests.sh` exits non-zero
- *              whenever a batch is recorded failed, gives every listed file its own
- *              verdict, keeps a quarantined file out of the run while printing it,
- *              lists its inventory without running anything, and refuses to start at
- *              all without a test database or with a quarantine it cannot trust. Its sibling
+ *              whenever a file is recorded failed, gives every file its own verdict,
+ *              keeps a quarantined file out of the run while printing it, lists its
+ *              inventory without running anything, and refuses to start at all without
+ *              a test database or with a quarantine it cannot trust. Its sibling
  *              `runTestsGate.static.test.ts` reads the script's SHAPE; this one runs
- *              the real script and reads its EXIT CODE, which is the contract every
- *              "the tests pass" claim in this repository actually rests on.
+ *              the real script and reads its EXIT CODE and its output, which is the
+ *              contract every "the tests pass" claim in this repository rests on.
  *
  *              A source scan alone is not enough. Piping a single `run_batch` call
- *              (`… | tee -a log`, an ordinary "keep this batch's output" edit) puts
- *              the function in a subshell, so its `FAILED_BATCHES` and `TOTAL_*`
- *              mutations never reach the parent — the gate reverts in full while
- *              every static assertion stays green. That is why the batch-accounting
- *              assertion below is not decoration: it compares the batches the run
- *              PRINTED as failed against the batches the run REPORTED as failed, and
- *              a lost mutation shows up as a name missing from the second list.
+ *              (`… | tee -a log`, an ordinary "keep this output" edit) puts the function
+ *              in a subshell, so its `FAILED_*` and `TOTAL_*` mutations never reach the
+ *              parent — the gate reverts while every static assertion stays green. That
+ *              is why the file-accounting assertion below is not decoration: it compares
+ *              the files the run PRINTED as failed against the files the run REPORTED as
+ *              failed, and a lost mutation shows up as a path missing from the second.
  *
  *              No real suite executes. A stub `node` is placed first on `PATH`, so
  *              every file's invocation is a few lines of `printf` and a chosen exit
- *              code: the whole script finishes in about half a second and the
- *              scenarios are exactly reproducible on any machine, with no database,
- *              no Redis and no recursion back into this runner. The stub is written
- *              here rather than committed as a script so the reproduction cannot
- *              drift away from the assertions that depend on it. The per-file reds
- *              are proven end to end, on a real node:test run of a fixture written
- *              into a scratch copy of the path layout.
+ *              code, and a stub `curl` answers the live-API probes: the scenarios are
+ *              exactly reproducible on any machine, with no database, no Redis and no
+ *              recursion back into this runner. The stubs are written here rather than
+ *              committed as scripts so the reproduction cannot drift away from the
+ *              assertions that depend on it. The per-file reds are proven end to end,
+ *              on a real node:test run of a fixture written into a scratch copy of the
+ *              path layout.
  * @layer infrastructure
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -73,8 +72,9 @@ const RECORDED_PROGRAMS = ["node", "npx", "curl"] as const;
 /** The file the per-file scenarios single out, in a batch that lists siblings too. */
 const TARGET_FILE = "tests/integration/repositories/UserRepository.integration.test.ts";
 const TARGET_BATCH = "integration:repositories";
-/** A path the hand-listed live-API batches name. */
+/** A path the hand-listed live-API batches name, and the batch that names it. */
 const LIVE_TARGET = "tests/integration/crisisRoutes.live.test.ts";
+const LIVE_BATCH = "integration:routes";
 
 /** The TAP summary a stub run reports, plus the exit code it ends on. */
 interface StubShape {
@@ -95,8 +95,10 @@ interface GateOptions {
   /** Receives, for each call, how many suite paths the stub was handed and the last one. */
   callLog?: string;
   cwd?: string;
-  /** A listed path the stub hands to the real node:test runner instead. */
+  /** A path the stub hands to the real node:test runner instead. */
   realTarget?: string;
+  /** Defaults to `TIER`. */
+  tier?: string;
   /** The quarantine the run reads; defaults to the committed one. */
   quarantineFile?: string;
 }
@@ -133,10 +135,12 @@ function writeQuarantine(name: string, entries: QuarantineFixture[]): string {
 }
 
 /**
- * Writes the stand-in runner. Each suite path the runner is
+ * Writes the stand-in runner and the stand-in `curl`. Each suite path the runner is
  * handed reports the scenario's shape, printed as the five summary lines `run_file`
  * greps for, and the call ends on the exit code the scenario is about. A call whose
- * last argument is `GATE_REAL_TARGET` goes to the real runner instead.
+ * last argument is `GATE_REAL_TARGET` goes to the real runner instead. The `curl`
+ * answers `/health` with 200 and the queue probe with one consumer, so a
+ * `full-integration` run reaches every live-API batch.
  */
 beforeAll(() => {
   stubDir = mkdtempSync(join(tmpdir(), "run-tests-gate-"));
@@ -161,6 +165,20 @@ beforeAll(() => {
     "utf8"
   );
   chmodSync(stubPath, 0o755);
+  const curlPath = join(stubDir, "curl");
+  writeFileSync(
+    curlPath,
+    [
+      "#!/usr/bin/env bash",
+      'case "$*" in',
+      "  *http_code*) printf '200' ;;",
+      "  *) printf '{\"consumers\":1}' ;;",
+      "esac",
+      "",
+    ].join("\n"),
+    "utf8"
+  );
+  chmodSync(curlPath, 0o755);
   emptyQuarantine = writeQuarantine("empty-quarantine.json", []);
 });
 
@@ -178,7 +196,7 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
     env: {
       ...process.env,
       PATH: `${stubDir}:${process.env.PATH ?? ""}`,
-      TIER,
+      TIER: options.tier ?? TIER,
       DATABASE_URL: UNUSED_DATABASE_URL,
       GATE_STUB_TESTS: String(shape.tests),
       GATE_STUB_PASS: String(shape.pass),
@@ -206,15 +224,6 @@ function calledPaths(callLog: string): string[] {
     .map((line) => line.slice(line.indexOf(" ") + 1));
 }
 
-/** Batch names the run PRINTED with a `[FAIL]` marker, in order. */
-function printedFailedBatches(stdout: string): string[] {
-  return stdout
-    .split("\n")
-    .filter((line) => line.includes("[FAIL]"))
-    .map((line) => line.trim().split(/\s+/)[0] ?? "")
-    .filter((name) => name !== "");
-}
-
 /** Batch names the run REPORTED on its `FAILED batches:` line. */
 function reportedFailedBatches(stdout: string): string[] {
   const line = stdout.split("\n").find((candidate) => candidate.startsWith("FAILED batches:"));
@@ -222,17 +231,25 @@ function reportedFailedBatches(stdout: string): string[] {
   return line.slice("FAILED batches:".length).trim().split(/\s+/).filter(Boolean);
 }
 
-/** Batch names the run printed a summary row for, failed or not. */
-function allBatchRows(stdout: string): string[] {
-  return stdout
-    .split("\n")
-    .filter((line) => /^\s{2}\S+\s+\d+ tests\s/.test(line))
-    .map((line) => line.trim().split(/\s+/)[0] ?? "");
-}
-
 /** Paths the run printed a passing verdict line for. */
 function passedFiles(stdout: string): string[] {
   return [...stdout.matchAll(/^ {4}✓ (\S+) \(\d+ tests\)$/gm)].map((match) => match[1] ?? "");
+}
+
+/** Paths the run PRINTED a failing verdict line for, in order. */
+function printedFailedFiles(stdout: string): string[] {
+  return [...stdout.matchAll(/^ {4}✗ (\S+): /gm)].map((match) => match[1] ?? "");
+}
+
+/** The `<path>: <reasons>` entries the run listed under `FAILED files:`. */
+function listedFailedEntries(stdout: string): string[] {
+  const listed = /^FAILED files:\n((?: {2}\S.*(?:\n|$))*)/m.exec(stdout)?.[1] ?? "";
+  return listed.trim().split(/\n\s*/).filter(Boolean);
+}
+
+/** Paths the run REPORTED as failed under `FAILED files:`, in order. */
+function reportedFailedFiles(stdout: string): string[] {
+  return listedFailedEntries(stdout).map((entry) => entry.slice(0, entry.indexOf(": ")));
 }
 
 /**
@@ -240,34 +257,33 @@ function passedFiles(stdout: string): string[] {
  * failing verdict line and listed again under `FAILED files:`.
  */
 function fileVerdict(run: RunResult) {
-  const listed = /^FAILED files:\n((?: {2}\S.*(?:\n|$))*)/m.exec(run.stdout)?.[1] ?? "";
   return {
     exitCode: run.exitCode,
     failedBatches: reportedFailedBatches(run.stdout),
     printed: [...run.stdout.matchAll(/^ {4}✗ (.+)$/gm)].map((match) => match[1] ?? ""),
-    listed: listed.trim().split(/\n\s*/).filter(Boolean),
+    listed: listedFailedEntries(run.stdout),
   };
 }
 
-/** `fileVerdict` of a run in which `TARGET_FILE` alone fails, for `reasons`. */
-function targetAloneFails(reasons: string): ReturnType<typeof fileVerdict> {
-  const entry = `${TARGET_FILE}: ${reasons}`;
-  return { exitCode: 1, failedBatches: [TARGET_BATCH], printed: [entry], listed: [entry] };
+/** `fileVerdict` of a run in which `file` alone fails, for `reasons`, inside `batch`. */
+function aloneFails(file: string, batch: string, reasons: string): ReturnType<typeof fileVerdict> {
+  const entry = `${file}: ${reasons}`;
+  return { exitCode: 1, failedBatches: [batch], printed: [entry], listed: [entry] };
 }
 
-describe("run-tests.sh exits non-zero when a batch is recorded failed", () => {
-  it("runs every batch through the stub instead of a real suite", () => {
+describe("run-tests.sh exits non-zero when a file is recorded failed", () => {
+  it("runs every listed file through the stub instead of a real suite", () => {
     // Non-vacuity. If the stub were not on PATH the real runner would execute and
     // the scenarios below would be measuring something else entirely (or nothing,
-    // with no database). More than one batch is required for the accounting
-    // assertion to be able to detect a single lost batch.
-    const run = runGate({ tests: 1, pass: 1, fail: 0, cancel: 0, exit: 0 });
+    // with no database). More than one file is required for the accounting
+    // assertion to be able to detect a single lost one.
+    const run = runGate(PASSING);
 
-    expect(allBatchRows(run.stdout).length).toBeGreaterThan(1);
+    expect(passedFiles(run.stdout).length).toBeGreaterThan(1);
     expect(run.stdout).toContain("TOTAL:");
   });
 
-  it("exits 1 when a batch runner exits non-zero with zero failed and zero cancelled", () => {
+  it("exits 1 when a runner exits non-zero with zero failed and zero cancelled", () => {
     // The reproduction the whole slice exists for: every test the runner collected
     // passed, so the totals are clean, and only the runner's own exit says anything
     // is wrong.
@@ -281,25 +297,23 @@ describe("run-tests.sh exits non-zero when a batch is recorded failed", () => {
     }).toEqual({ exitCode: 1, cleanTotals: true, namesTheBatches: true, saysWhy: true });
   });
 
-  it("reports every batch it printed as failed, losing none to a subshell", () => {
-    // The mutation this suite exists to kill: piping ONE `run_batch` call runs the
-    // function in a subshell, so that batch still PRINTS `[FAIL]` while its append
-    // to `FAILED_BATCHES` is discarded. With sibling batches still appending, the
-    // run keeps exiting 1 and the assertion above stays green — the accounting is
-    // what notices. Measured: with `| tee -a /dev/null` on one call, the printed
-    // set has 12 names and the reported set has 11.
+  it("reports every file it printed as failed, losing none to a subshell", () => {
+    // The mutation this suite exists to kill: piping one `run_batch` call
+    // runs the function in a subshell, so its files still PRINT their failing
+    // verdicts while their appends to `FAILED_FILES` are discarded, and the run can
+    // still exit 1 on another term. The accounting is what notices.
     const run = runGate({ tests: 1, pass: 1, fail: 0, cancel: 0, exit: 3 });
 
-    const printed = printedFailedBatches(run.stdout);
+    const printed = printedFailedFiles(run.stdout);
     expect(printed.length).toBeGreaterThan(1);
-    expect(reportedFailedBatches(run.stdout)).toEqual(printed);
+    expect(reportedFailedFiles(run.stdout)).toEqual(printed);
   });
 
   it("exits 0 on a healthy run, so the stricter gate raises no false alarm", () => {
     // A gate that cannot stay green is as useless as one that cannot go red. It is
     // also what kills a subshell around ONE `run_file` call: the verdict `run_batch`
     // resets before the call never arrives, so every file fails (measured: exit 1).
-    const run = runGate({ tests: 1, pass: 1, fail: 0, cancel: 0, exit: 0 });
+    const run = runGate(PASSING);
 
     expect({
       exitCode: run.exitCode,
@@ -321,36 +335,34 @@ describe("run-tests.sh exits non-zero when a batch is recorded failed", () => {
     }).toEqual({ exitCode: 1, cancelledMessage: true, notTheCleanCountMessage: true });
   });
 
-  it("exits 1 when a batch reports a skipped test in a tier-driven run", () => {
-    // The reproduction that was LIVE on the trunk: a batch prints
-    // `… 0 fail  0 cancel  3 skip  exit 0  [OK]`, the totals print the same three
-    // skips, and the run exits 0. Three service-dependent tests were reported
-    // green without executing. A tier run provides the services its batches name;
-    // a test that skipped for want of one is a service the tier did not provide,
-    // which is a tier failure, not a test's own business.
+  it("exits 1 when a file reports a skipped test in a tier-driven run", () => {
+    // The reproduction that was LIVE on the trunk: a run prints `… 0 fail  0 cancel
+    // 3 skip  exit 0  [OK]`, the totals print the same skips, and the run exits 0.
+    // A tier run provides the services its suites need; a test that skipped for want
+    // of one is a service the tier did not provide, which is a tier failure.
     const run = runGate({ tests: 3, pass: 2, fail: 0, cancel: 0, skip: 1, exit: 0 });
 
     expect({
       exitCode: run.exitCode,
       cleanFailureCounts: /TOTAL: \d+ tests, \d+ pass, 0 fail, 0 cancel/.test(run.stdout),
-      namesTheBatches: reportedFailedBatches(run.stdout).length > 1,
+      namesTheFiles: reportedFailedFiles(run.stdout).length > 1,
       saysWhy: /ERROR: \d+ test\(s\) were SKIPPED/.test(run.stdout),
     }).toEqual({
       exitCode: 1,
       cleanFailureCounts: true,
-      namesTheBatches: true,
+      namesTheFiles: true,
       saysWhy: true,
     });
   });
 
-  it("exits 1 when a batch collects nothing at all", () => {
-    // Zero collected tests with a zero exit used to read as OK. Every batch in the
-    // inventory names at least one suite, so nothing collected means a suite stopped
-    // being found — a renamed path, an emptied file, a suite-wide skip.
+  it("exits 1 when a file collects nothing at all", () => {
+    // Zero collected tests with a zero exit used to read as OK. Every listed file
+    // is a suite, so nothing collected means a suite stopped being found — an
+    // emptied file, a suite-wide skip, a collection error.
     const run = runGate({ tests: 0, pass: 0, fail: 0, cancel: 0, exit: 0 });
 
     expect(run.exitCode).toBe(1);
-    expect(reportedFailedBatches(run.stdout).length).toBeGreaterThan(1);
+    expect(reportedFailedFiles(run.stdout).length).toBeGreaterThan(1);
   });
 });
 
@@ -401,11 +413,14 @@ describe("a real node:test file gets the same verdict, end to end", () => {
   /**
    * Runs the real script from a scratch directory holding `TARGET_FILE` with
    * `source` as its content (no file when null) and a link to the API's
-   * `node_modules`, so `--import tsx` resolves. The stub hands that one path to
-   * the real node:test runner, so no suite under `tests/` runs. The quarantine is
-   * an empty one, so the scratch tree is all the run reads.
+   * `node_modules`, so `--import tsx` resolves. The stub hands `realTarget` (by
+   * default `TARGET_FILE`) to the real node:test runner, so no suite under `tests/`
+   * runs. The quarantine is an empty one, so the scratch tree is all the run reads.
    */
-  function runRealTarget(source: string | null): RunResult {
+  function runRealTarget(
+    source: string | null,
+    options: { realTarget?: string; tier?: string } = {}
+  ): RunResult {
     const root = mkdtempSync(join(tmpdir(), "run-tests-real-"));
     const modulesLink = join(root, "node_modules");
     try {
@@ -416,8 +431,9 @@ describe("a real node:test file gets the same verdict, end to end", () => {
       }
       return runGate(PASSING, {
         cwd: root,
-        realTarget: TARGET_FILE,
+        realTarget: options.realTarget ?? TARGET_FILE,
         quarantineFile: emptyQuarantine,
+        ...(options.tier !== undefined && { tier: options.tier }),
       });
     } finally {
       // The link leaves first, alone, so the recursive removal cannot follow it.
@@ -436,18 +452,16 @@ describe("a real node:test file gets the same verdict, end to end", () => {
   });
 
   it("exits 1 naming an empty file, which node:test counts as one passing test", () => {
-    // Its siblings in the batch pass: a batch-wide count stayed above zero and hid
-    // it, and node:test counts a file that registers nothing as one passing test.
     const run = runRealTarget("export {};\n");
 
-    expect(fileVerdict(run)).toEqual(targetAloneFails("zero tests"));
+    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, TARGET_BATCH, "zero tests"));
   });
 
   it("exits 1 naming a file whose before hook throws", () => {
     const fixture = join(apiRoot, "tests", "fixtures", "run-tests-gate", "brokenHook.fixture.ts");
     const run = runRealTarget(readFileSync(fixture, "utf8"));
 
-    expect(fileVerdict(run)).toEqual(targetAloneFails("2 cancelled, exit 1"));
+    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, TARGET_BATCH, "2 cancelled, exit 1"));
   });
 
   it("exits 1 naming a file whose test calls t.skip() in a tier-driven run", () => {
@@ -455,7 +469,7 @@ describe("a real node:test file gets the same verdict, end to end", () => {
       'import { it } from "node:test";\nit("needs a service", (t) => { t.skip("absent"); });\n'
     );
 
-    expect(fileVerdict(run)).toEqual(targetAloneFails("1 skipped under TIER"));
+    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, TARGET_BATCH, "1 skipped under TIER"));
   });
 
   it("exits 1 naming a listed path that does not exist", () => {
@@ -463,7 +477,19 @@ describe("a real node:test file gets the same verdict, end to end", () => {
     // renamed suite stopped running unnoticed (SMELL-74). Alone it exits non-zero.
     const run = runRealTarget(null);
 
-    expect(fileVerdict(run)).toEqual(targetAloneFails("zero tests, exit 1"));
+    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, TARGET_BATCH, "zero tests, exit 1"));
+  });
+
+  it("exits 1 naming a path a live-API batch lists that does not exist", () => {
+    // The live tier is still hand-listed, so a renamed live suite is still possible
+    // there. Beside paths that exist, node:test drops a missing one and exits 0
+    // (SMELL-74); alone it exits non-zero, and the live batch fails with it.
+    const run = runRealTarget('import { it } from "node:test";\nit("passes", () => {});\n', {
+      realTarget: LIVE_TARGET,
+      tier: "full-integration",
+    });
+
+    expect(fileVerdict(run)).toEqual(aloneFails(LIVE_TARGET, LIVE_BATCH, "zero tests, exit 1"));
   });
 });
 

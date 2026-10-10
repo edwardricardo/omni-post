@@ -1,7 +1,19 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the source-resolution gate (`workstream/phase1-u11-s2b`, PR R2b3, the last
+**As of:** 2026-10-10, the runner-suite slice (`workstream/phase1-u7b-services-collector`, PR R7b2,
+the second of the stacked pull requests that finish WU-1.7) moved the runner's suites off the batch
+layout and changed no runner line. `runTestsGate.behavior.test.ts` now accounts for failures by
+file: the files a run prints as failed must equal the files it lists under `FAILED files:`, so a
+`tee` pipe on one `run_batch` call turns that case red (5 cases red on the mutation, the runner
+restored with `sha256sum -c`); `aloneFails` names the batch it expects; and the missing-path proof
+also runs on a path a live-API batch lists, under `TIER=full-integration` with a stand-in `curl`
+answering the API probes. `sagaContextInvariants.static.test.ts` finds every node:test saga suite in
+`run-tests.sh --list` instead of searching the runner's text. The WU-1.7 bullet quoted the quarantine
+as a bare array; it now gives the shape `parseQuarantine` reads, `{ "entries": [...] }`. It moved no
+metric (M1 `987 + 14`, M7 `27/27`, M8 `1/92`): it adds no test file and no gate, and fitness #30
+stays at 20.
+Before it, on 2026-10-10, the source-resolution gate (`workstream/phase1-u11-s2b`, PR R2b3, the last
 of the three stacked pull requests of WU-1.2b) holds every workspace import of a vitest-collected
 test to its package's `src/`, whatever `NODE_ENV` says. `checkSourceResolution` asks each of the 92
 tracked vitest configs, through vitest's node API, which files it collects, and resolves every
@@ -400,7 +412,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.4    | Move the timing needs into the tests                                        | ✅     | `R4`                          | `phase1-u4-timing-in-tests` · 314       | 2026-10-09 |
 | 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ✅     | `R5`                          | `phase1-u5-tier-rename` · 139           | 2026-10-09 |
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
-| 1     | 1.7    | Collect the services tier by convention                                     | 🔄     | `R7a` · `R7b1`                | `phase1-u7a/b-*` · 381 + 386            | 2026-10-10 |
+| 1     | 1.7    | Collect the services tier by convention                                     | 🔄     | `R7a` · `R7b1` · `R7b2`       | `phase1-u7a/b-*` · 381 + 386 + 247      | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
 | 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a`                         | `phase1-u9a-reach-engine` · 1327        | 2026-10-09 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
@@ -1476,7 +1488,8 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   planned, 157 measured (the two behaviour cases and their recorders). PR R6.
 - **WU-1.7** Collect the services tier by convention: `collect <suffix>` (a `find` over `tests`
   excluding `tests/unit`, `LC_ALL=C sort`, reversible with `TEST_ORDER=reverse`); quarantine
-  `packages/test-contracts/quarantine.json` (`[{path, reason, owner, since}]`, read with `jq`; each
+  `packages/test-contracts/quarantine.json` (`{ "entries": [{ path, reason, owner, since }] }`, read
+  with `jq`; each
   entry printed `QUARANTINED (not run): <path> — <reason>`); `run_file` = `run_batch` (:63-157) per
   file, keeping EXACTLY `[ "$tests" -eq 0 ]` and `[ "$TOTAL_TESTS" -eq 0 ]` (#31 B intact) and every
   guard; `--list` prints `integration\t<path>` / `live\t<path>` / `quarantined\t<path>`; delete the
@@ -1492,7 +1505,9 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   #30: `tests/integration/orphan.test.ts` with no suffix → above baseline → exit 1. CODE ~290. PR R7.
   R7a (2026-10-10) landed the per-file verdict, reds (a)–(c) proven end to end. R7b1 (2026-10-10)
   landed `--list` and the quarantine over the hand-written lists; the collection by convention, the
-  interim #30 and `TEST_ORDER=reverse` follow in the next stacked pull requests.
+  interim #30 and `TEST_ORDER=reverse` follow in the next stacked pull requests. R7b2 (2026-10-10)
+  moved the runner suites off the batch layout: failures are accounted by file, and the saga reach
+  check reads `run-tests.sh --list`.
   **Owner decision (d), 2026-10-09 — the interim #30 is accepted, with its exit written down.**
   _Where it lives:_ the `#30` step of `fitness.yml` and the `# 30.` block of CLAUDE.md §Automated
   Compliance Checks, both rewritten by this unit, plus this paragraph. Its count is the files that
