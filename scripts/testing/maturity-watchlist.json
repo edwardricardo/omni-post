@@ -198,7 +198,13 @@
         "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `turbo`: 2.11.5 matures 2026-10-05T00:45Z, 2.11.7 on 2026-10-09T14:58Z",
         "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `turbo` row"
       ],
-      "reviews": {}
+      "reviews": {
+        "due": {
+          "date": "2026-10-10",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-10, one day after the due day; 2.11.7 left the 7-day buffer at 2026-10-09T14:58Z (published 2026-10-02T14:58:24Z). Done: the root package.json literal moved 2.11.4 → 2.11.7, and pnpm install moved only turbo in the lockfile (parsed with yaml.safe_load_all: turbo and its six platform binaries, seven packages and seven snapshots, 2.11.4 → 2.11.7, and the root importer). Registry: 2.11.7 is latest; only 2.11.8 canaries are newer. OSV: nothing for turbo 2.11.5, 2.11.6 or 2.11.7, nor for the six 2.11.7 platform binaries; the three vercel/turborepo repository advisories are all fixed in 2.9.14. Release notes crossed: 2.11.5 backs off remote artifact requests during outages, bundles the docs in the npm package, stabilizes pnpm per-workspace lockfile hashes, replaces clap with usage-rs in the production CLIs and signs complete on-disk artifacts after local cache writes; 2.11.6 normalizes task inputs consistently for affected detection and hashing and adds task tags; 2.11.7 passes SDKROOT through to tasks and ignores Vercel OIDC token rotation in .env.local cache inputs. None names a breaking change, and 2.11.7 still declares nothing but its six platform binaries. Proof: the size-limit job's command, pnpm exec turbo run build --filter=@apps/admin --filter=@apps/client, exits 0 with 21 of 21 tasks successful and 0 cached in 48 s, and each turbo command shape the root scripts and the workflows invoke parses under --dry-run=json with exit 0. Holds gate: with 2.11.4 installed it measured 12 below latest mature at 04:08:54Z, turbo held by its canon row, and with 2.11.4 injected it exits 1 naming turbo on a canon without that row; after the bump it exits 0 with empty stderr, 11 of 49 below latest mature, turbo at latest, and on turbo alone without the row it exits 0 live and at --instant 2026-10-14 and 2026-10-28. Nothing newer is left to pre-register, so the canon row turbo was deleted with the bump (D25) and no date entry follows. Clean."
+        }
+      }
     },
     {
       "kind": "date",

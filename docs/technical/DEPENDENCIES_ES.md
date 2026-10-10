@@ -13,7 +13,7 @@
 | Herramienta | Version | Proposito                                                |
 | ----------- | ------- | -------------------------------------------------------- |
 | pnpm        | 12.6.0  | Gestor de paquetes con soporte de workspaces             |
-| Turbo       | 2.9.16  | Orquestacion de builds en monorepo con cache inteligente |
+| Turbo       | 2.11.7  | Orquestacion de builds en monorepo con cache inteligente |
 | Node.js     | 24      | Runtime (ultima version LTS)                             |
 | TypeScript  | 6.0.3   | Lenguaje — modo estricto en toda la base de codigo       |
 

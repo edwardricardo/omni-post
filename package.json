@@ -95,7 +95,7 @@
     "secretlint": "13.0.7",
     "size-limit": "14.1.0",
     "tsx": "catalog:",
-    "turbo": "2.11.4",
+    "turbo": "2.11.7",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "zod": "catalog:"
