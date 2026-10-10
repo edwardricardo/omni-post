@@ -1,14 +1,16 @@
 /**
  * @file rules.ts
  * @description The verdict of the reach engine, as a pure function of what was read: the disk
- *              inventory, every collection, the quarantine and its base. Two rules live here:
+ *              inventory, every collection, the sources a required check runs, the quarantine
+ *              and its base. Two rules live here:
  *
- *              - R1: each file on disk or collected is collected exactly once, unless quarantined.
- *                Zero is a test nobody runs; two is a test that runs twice, or under the wrong
- *                environment, and whose green says nothing about the tier it was written for.
- *              - R3: the quarantine is honest. Every entry is a tracked file, none is collected,
- *                and when a base quarantine is given, every entry is already in it: the
- *                quarantine may only shrink.
+ *              - R1: each file on disk or collected is collected exactly once, by a source a
+ *                required check runs, unless quarantined. Zero is a test nobody runs; two is a
+ *                test that runs twice, or under the wrong environment, and whose green says
+ *                nothing about the tier it was written for.
+ *              - R3: the quarantine is honest. Every entry is a tracked file, no source a required
+ *                check runs collects it, and when a base quarantine is given, every entry is
+ *                already in it: the quarantine may only shrink.
  *
  *              R2, which decides which sources a required check runs, lives in `executed-by.ts`
  *              and shares the rule ids and the violation shape defined here. Nothing here reads a
@@ -51,6 +53,11 @@ export interface ReachInput {
   readonly quarantine: readonly QuarantineEntry[];
   /** The base quarantine, or `null` when none was given and the shrink check does not run. */
   readonly base: readonly QuarantineEntry[] | null;
+  /**
+   * The labels of the sources a required check runs. Omitted, every source counts as run: the
+   * verdict over the collections alone.
+   */
+  readonly runSources?: ReadonlySet<string>;
 }
 
 /**
@@ -96,17 +103,30 @@ export function parseQuarantine(text: string, label: string): Result<QuarantineE
 }
 
 /**
- * R1: every file on disk or collected is collected exactly once, unless quarantined.
+ * @param sources - The labels of the sources that collect a file.
+ * @param runSources - The labels of the sources a required check runs, or `undefined` for all.
+ * @returns The sources among them a required check runs.
+ */
+function runBy(sources: readonly string[], runSources?: ReadonlySet<string>): string[] {
+  return runSources === undefined ? [...sources] : sources.filter((s) => runSources.has(s));
+}
+
+/**
+ * R1: every file on disk or collected is collected exactly once, by a source a required check
+ * runs, unless quarantined. Two sources is a violation whether or not a check runs them: the
+ * file sits under two collectors' conventions at once.
  *
  * @param testShaped - The test-shaped tracked files.
  * @param reach - Collected file → the sources that collect it.
  * @param quarantined - The quarantined paths.
- * @returns One violation per file collected zero or several times.
+ * @param runSources - The labels of the sources a required check runs, or `undefined` for all.
+ * @returns One violation per file collected zero or several times, or by no run source.
  */
 function checkExactlyOnce(
   testShaped: readonly string[],
   reach: ReadonlyMap<string, readonly string[]>,
-  quarantined: ReadonlySet<string>
+  quarantined: ReadonlySet<string>,
+  runSources?: ReadonlySet<string>
 ): Violation[] {
   const files = [...new Set([...testShaped, ...reach.keys()])].sort();
   const violations: Violation[] = [];
@@ -115,6 +135,12 @@ function checkExactlyOnce(
     const sources = reach.get(file) ?? [];
     if (sources.length === 0) {
       violations.push({ rule: RULE.R1, file, message: "unreached: no collector runs it" });
+    } else if (sources.length === 1 && runBy(sources, runSources).length === 0) {
+      violations.push({
+        rule: RULE.R1,
+        file,
+        message: `unreached: collected by ${sources.join(", ")}, which no required check runs`,
+      });
     } else if (sources.length > 1) {
       violations.push({
         rule: RULE.R1,
@@ -127,12 +153,14 @@ function checkExactlyOnce(
 }
 
 /**
- * R3: every quarantine entry is tracked, none is collected, and the quarantine only shrinks.
+ * R3: every quarantine entry is tracked, no source a required check runs collects it, and the
+ * quarantine only shrinks. A file collected only by a source no required check runs belongs in
+ * the quarantine: that collection runs nowhere.
  *
  * @param entries - The quarantine under check.
  * @param base - The base quarantine, or `null` when none was given.
  * @param tracked - Every tracked file.
- * @param reach - Collected file → the sources that collect it.
+ * @param reach - Collected file → the sources a required check runs that collect it.
  * @returns One violation per broken entry.
  */
 function checkQuarantine(
@@ -177,17 +205,24 @@ function checkQuarantine(
 /**
  * Holds what was read against R1 and R3.
  *
- * @param input - The disk inventory, the collections, the quarantine and its base.
+ * @param input - The disk inventory, the collections, the run sources, the quarantine and its
+ *   base.
  * @returns Every violation, R1 first, each in file order.
  */
 export function evaluate(input: ReachInput): Violation[] {
   const reach = tallyReach(input.collections);
+  const runReach = new Map<string, string[]>();
+  for (const [file, sources] of reach) {
+    const run = runBy(sources, input.runSources);
+    if (run.length > 0) runReach.set(file, run);
+  }
   return [
     ...checkExactlyOnce(
       input.disk.testShaped,
       reach,
-      new Set(input.quarantine.map((entry) => entry.path))
+      new Set(input.quarantine.map((entry) => entry.path)),
+      input.runSources
     ),
-    ...checkQuarantine(input.quarantine, input.base, new Set(input.disk.tracked), reach),
+    ...checkQuarantine(input.quarantine, input.base, new Set(input.disk.tracked), runReach),
   ];
 }
