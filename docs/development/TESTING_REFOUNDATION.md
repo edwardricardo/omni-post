@@ -1,7 +1,22 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the inventory and quarantine slice (`workstream/phase1-u7b-services-collector`,
+**As of:** 2026-10-10, the import reader (`workstream/phase1-u11-s2a`, PR R2b2, the second of
+the stacked pull requests of WU-1.2b) added `packages/test-contracts/src/lib/source-resolution.ts`
+with the two readers the source-resolution gate is built on. `runtimeSpecifiers` reads, from the
+TypeScript AST, the specifiers a module resolves at run time: value imports and re-exports,
+`import()`, `require()` and the `vi` module calls, and never a type-only import, a comment or a
+string. `owningPackage` names the workspace package a specifier or one of its subpaths belongs to,
+never a package whose name only shares a prefix with it. The first pull request, R2b1
+(`d7ade2f3`), put `SOURCE_CONDITIONS` (`development`, `node`) on `resolve.conditions` and
+`ssr.resolve.conditions` in the shared factory and in the `apps/api` and `apps/workers` configs, so
+that a workspace import resolves to `src/` whatever `NODE_ENV` says; on vitest 4.1.11 the `ssr`
+environment ignores the top-level key, and vitest's own `development|production` becomes
+`production` under `NODE_ENV=production`. The gate that holds it is the third. Red: a reader that
+keeps type-only imports fails 1 of the new suite's 4 cases, and an owner matched by bare prefix
+fails 2. Its suite moves M1 `986 + 14` → `987 + 14`; M7 stays at `26/26` and M8 at `1/92`: it
+adds no gate.
+Before it, on 2026-10-10, the inventory and quarantine slice (`workstream/phase1-u7b-services-collector`,
 PR R7b1, the first of the stacked pull requests that finish WU-1.7) gave
 `apps/api/scripts/run-tests.sh` a `--list` mode and a quarantine, over the hand-written lists, which
 stay. `--list` prints one `integration`, `live` or `quarantined` line per file and runs nothing: the
@@ -257,7 +272,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 986 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | DEF-70   |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 987 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R2b2  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -368,7 +383,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 0     | T.4(b) | Storybook family 10.6.0 → 10.6.1, the pre-registered hold bump              | ✅     | `#447`                        | `hold-storybook-10-6-1` · 77 entries    | 2026-10-06 |
 | 1     | 1.1    | Free the `.integration` suffix; name the k6 scenarios                       | ✅     | `R1`                          | `workstream/phase1-u1-suffixes` · 14    | 2026-10-08 |
 | 1     | 1.2    | Reserve the tier suffixes inside every collector                            | ✅     | `R2`                          | `phase1-u2-reserved-suffixes` · 126     | 2026-10-08 |
-| 1     | 1.2b   | vitest resolves every workspace import to `src/`                            | ⬜     | —                             | —                                       | —          |
+| 1     | 1.2b   | vitest resolves every workspace import to `src/`                            | 🔄     | `R2b1` · `R2b2`               | `phase1-u11-*` · 63 + 149               | 2026-10-10 |
 | 1     | 1.3    | Remove double collection and the subset entrypoints                         | ✅     | `R3` · `R3b`                  | `phase1-u3-*` · 8 + 1486                | 2026-10-10 |
 | 1     | 1.4    | Move the timing needs into the tests                                        | ✅     | `R4`                          | `phase1-u4-timing-in-tests` · 314       | 2026-10-09 |
 | 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ✅     | `R5`                          | `phase1-u5-tier-rename` · 139           | 2026-10-09 |
