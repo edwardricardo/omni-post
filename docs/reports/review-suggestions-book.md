@@ -141,6 +141,10 @@
 | SB-120 | DEF-68 (`workstream/fix-ratelimit-query-key`, 40434165)                               | R2-003                                                           | `apps/api/src/security/httpRateLimitPreHandler.ts` (no-route fallback)                                                                      | readability                  | deferred: both expressions are pinned by the unrouted case                                                                                                      |
 | SB-121 | DEF-70 (`workstream/fix-ratelimit-dead-rules`, ffaf0b7e)                              | R2-003                                                           | `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts` (`label`, `rulesShadowing`)                                                | readability                  | deferred: both helpers are pinned by the rule cases; naming them is readability only                                                                            |
 | SB-122 | secretlint hold bump (`workstream/hold-secretlint-13-0-7`, 535763b1)                  | R2-003                                                           | `scripts/testing/maturity-watchlist.json` (`reviews.maturity` note of `ignore@7.0.12`)                                                      | readability                  | deferred: splitting the note into fields changes the shape the watchlist check validates                                                                        |
+| SB-123 | Phase 1 U11 (`workstream/phase1-u11-s2b`, f3d17376)                                   | R3-root-flag-missing-value                                       | `packages/test-contracts/src/source-resolution.ts` (`--root` with no value)                                                                 | CLI edge case                | deferred: a bare `--root` throws before any check and exits non-zero; it never passes                                                                           |
+| SB-124 | same                                                                                  | R3-env-undefined-silently-skipped                                | `packages/test-contracts/src/lib/source-resolution.ts` (missing vite environment)                                                           | fail-closed edge             | deferred: all 92 configs register `client` and `ssr` (measured); the import floor bounds a loss                                                                 |
+| SB-125 | same                                                                                  | R3-cli-exit-code-not-asserted                                    | `packages/test-contracts/tests/source-resolution.test.ts` (CLI exit code)                                                                   | test coverage                | deferred: the exit code is `clean ? 0 : 1` over the report the cases assert directly                                                                            |
+| SB-126 | same                                                                                  | R3-stdout-non-json-parse                                         | `packages/test-contracts/tests/source-resolution.test.ts` (production spawn)                                                                | test diagnostics             | deferred: a non-JSON stdout still fails the case; only its message is less precise                                                                              |
 
 ## Entries — code and prose
 
@@ -761,6 +765,22 @@
 - **Why deferred:** the note is a free-text field that `scripts/testing/maturity-watchlist.mjs --check` validates; structured fields change that schema and every existing review, which is its own change.
 - **To implement:** a schema change in `maturity-watchlist.mjs` with its suite, then the existing notes migrated.
 
+### SB-123 — a bare `--root` throws instead of reporting
+
+- **Source:** the native review of Phase 1 U11 R2b3 (`workstream/phase1-u11-s2b`, `f3d17376`), finding `R3-root-flag-missing-value`.
+- **Location:** `packages/test-contracts/src/source-resolution.ts`, the `--root` argument.
+- **Suggestion:** refuse `--root` with no value as a reported error, so the JSON report contract holds for that input too.
+- **Why deferred:** `realpathSync(undefined)` throws before any check runs, so the command exits non-zero; the gate can never pass on that input.
+- **To implement:** a missing-value check in the argument loop and one CLI case.
+
+### SB-124 — an import whose vite environment is missing is skipped, not counted
+
+- **Source:** the same review, finding `R3-env-undefined-silently-skipped`.
+- **Location:** `packages/test-contracts/src/lib/source-resolution.ts`, the per-import loop of `checkSourceResolution`.
+- **Suggestion:** report an import whose mapped `client` or `ssr` environment is not registered as an error, instead of skipping it before `checked` is counted.
+- **Why deferred:** measured on 2026-10-10, every one of the 92 tracked vitest configs registers both environments for each of its projects, so no import is skipped today; and the 800-import floor fails the gate if a large share ever is.
+- **To implement:** push an error naming the config and the missing environment, with a planted config that drops one.
+
 ## Entries — tests
 
 ### SB-T01 — a bare repository's `--git-common-dir` is not named `.git`
@@ -1138,6 +1158,22 @@
 - **Suggestion:** plant a missing or malformed base file and assert exit 1 with an error line naming it.
 - **Why deferred:** `--base` and `--quarantine` both go through `readQuarantine`, whose failure path the `--quarantine` cases already pin end to end.
 - **To implement:** one CLI case with a missing base path.
+
+### SB-125 — the command line's exit code is not asserted
+
+- **Source:** the same review, finding `R3-cli-exit-code-not-asserted`.
+- **Location:** `packages/test-contracts/tests/source-resolution.test.ts`.
+- **Suggestion:** run `main` over a planted violation and assert exit 1, so a reversed clean branch is caught.
+- **Why deferred:** the exit code is `clean ? 0 : 1` over the same report whose violations and floor breaches the planted cases assert directly.
+- **To implement:** one `main` case over the existing planted tree.
+
+### SB-126 — a non-JSON stdout hides the production run's real failure
+
+- **Source:** the same review, finding `R3-stdout-non-json-parse`.
+- **Location:** `packages/test-contracts/tests/source-resolution.test.ts`, the `NODE_ENV=production` child-process case.
+- **Suggestion:** guard `JSON.parse` so a stray log line fails with the child's stdout and stderr, not a `SyntaxError`.
+- **Why deferred:** a non-JSON stdout still fails the case; only the failure message is less precise.
+- **To implement:** a try/catch that rethrows with both streams.
 
 ## Implemented
 
