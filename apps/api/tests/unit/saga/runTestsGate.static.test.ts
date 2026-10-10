@@ -240,7 +240,24 @@ describe("run-tests.sh is a gate that can go red", () => {
       });
     });
 
-    it("records a failed batch on a SKIPPED test in a tier-driven run", () => {
+    it("runs each listed file in its own node process, and fails its batch with it", () => {
+      // The reproduction: handed a whole batch, node read back one summary, so a file
+      // that collected nothing hid behind its siblings' counts and a listed path that
+      // no longer existed was dropped without a word (SMELL-74).
+      const nodeLine = codeLines.find((line) => /^\s*result=\$\(node /.test(line)) ?? "";
+      const append = codeLines.findIndex((line) => line.includes(`$${FAILED_BATCHES} $name"`));
+
+      expect({
+        oneFile: nodeLine.includes('"$file"') && !nodeLine.includes('"$@"'),
+        oneAtATime: nodeLine.includes("--test-concurrency=1"),
+        batchFailsWithAFile: codeLines
+          .slice(append - 3, append)
+          .join("\n")
+          .includes("failed_files"),
+      }).toEqual({ oneFile: true, oneAtATime: true, batchFailsWithAFile: true });
+    });
+
+    it("fails the file on a SKIPPED test in a tier-driven run", () => {
       // The term the author stopped one short of. A skipped test in a tier-driven
       // run is a service the tier was supposed to provide and did not: the counts
       // stay clean, the batch prints OK, and the run reports green over tests that
@@ -260,8 +277,8 @@ describe("run-tests.sh is a gate that can go red", () => {
 
       expect({
         tierScoped: /-n\s+"\$\{TIER:-\}"/.test(codeLines[skipIndex] ?? ""),
-        recordsTheBatch: skipBlock.includes(FAILED_BATCHES),
-      }).toEqual({ tierScoped: true, recordsTheBatch: true });
+        failsTheFile: /reasons=.*skipped under TIER/.test(skipBlock),
+      }).toEqual({ tierScoped: true, failsTheFile: true });
     });
 
     it("says WHY when the gate fires on skipped tests alone", () => {

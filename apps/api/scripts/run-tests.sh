@@ -9,10 +9,9 @@
 # tests/chaos/) stay on node:test because they depend on real services
 # (PostgreSQL, Redis, a running API), and they are selected here by EXPLICIT file
 # list. The batch lists below are therefore the node:test inventory, and it is a
-# HAND-MAINTAINED one with two measured holes: a suite no batch names never runs
-# (SMELL-75), and a batch can silently stop running a path it does name
-# (SMELL-74). Both are tracked in docs/reports/roadmap-detected-smells-backlog.md
-# with their current counts; treat the lists as the inventory, never as proof of
+# HAND-MAINTAINED one with a measured hole: a suite no batch names never runs
+# (SMELL-75). It is tracked in docs/reports/roadmap-detected-smells-backlog.md
+# with its current count; treat the lists as the inventory, never as proof of
 # coverage. No test total appears here on purpose — a count in a comment rots.
 
 set -e
@@ -24,6 +23,8 @@ TOTAL_FAIL=0
 TOTAL_CANCEL=0
 TOTAL_SKIP=0
 FAILED_BATCHES=""
+# One line per failed file, "<path>: <reasons>", printed under the failed batches.
+FAILED_FILES=""
 
 # TIER selects which slice of the node:test inventory runs, so CI can split it
 # across jobs:
@@ -71,10 +72,13 @@ run_live_api_batches() {
   [ -z "$TIER" ] || [ "$TIER" = "full-integration" ]
 }
 
-run_batch() {
-  local name="$1"
-  shift
-  local concurrency="${CONCURRENCY:-4}"
+# Runs ONE suite file in its own node:test process and gives it its own verdict,
+# so every guard reads one file's summary and a red names the file. Handed a
+# whole batch at once, node read back one summary: a file that collected nothing
+# hid behind its siblings' counts, and a listed path that no longer existed was
+# dropped without a word (SMELL-74). Its verdict goes back to run_batch in FILE_*.
+run_file() {
+  local file="$1"
   # The per-test budget node:test applies to every test and hook. It is the only time
   # bound a batch has; a suite that needs longer passes `{ timeout }` to its own tests
   # and hooks, which overrides it (a `describe` option does not).
@@ -95,7 +99,9 @@ run_batch() {
   # bare workspace specifiers resolve from src against an unbuilt tree (the flag
   # is on the command, NOT NODE_OPTIONS — GitHub Actions restricts NODE_OPTIONS
   # from GITHUB_ENV). See change dev-prod-resolution-model.
-  result=$(node --conditions development --import tsx --test --test-reporter=tap --test-reporter-destination=stdout --test-force-exit --test-concurrency="$concurrency" --test-timeout="$timeout" $extra_flags "$@" 2>&1) || runner_exit=$?
+  # --test-concurrency=1: the process holds one file, and a batch's files run
+  # one after another, so no two suites ever share the database at once.
+  result=$(node --conditions development --import tsx --test --test-reporter=tap --test-reporter-destination=stdout --test-force-exit --test-concurrency=1 --test-timeout="$timeout" $extra_flags "$file" 2>&1) || runner_exit=$?
 
   local tests=$(echo "$result" | grep "^# tests " | tail -1 | awk '{print $3}')
   local pass=$(echo "$result" | grep "^# pass " | tail -1 | awk '{print $3}')
@@ -104,22 +110,28 @@ run_batch() {
   local skip=$(echo "$result" | grep "^# skipped " | tail -1 | awk '{print $3}')
   tests=${tests:-0}; pass=${pass:-0}; fail=${fail:-0}; cancel=${cancel:-0}; skip=${skip:-0}
 
+  # node:test reports a file that registers no test at all as ONE passing test
+  # named by the file's own path, so an emptied suite reads "# tests 1". Only a
+  # one-file run can tell that test from a real one.
+  if [ "$tests" -eq 1 ] && [ "$pass" -eq 1 ] && echo "$result" | grep -Fxq "ok 1 - $file"; then
+    tests=0
+    pass=0
+  fi
+
   TOTAL_TESTS=$((TOTAL_TESTS + tests))
   TOTAL_PASS=$((TOTAL_PASS + pass))
   TOTAL_FAIL=$((TOTAL_FAIL + fail))
   TOTAL_CANCEL=$((TOTAL_CANCEL + cancel))
   TOTAL_SKIP=$((TOTAL_SKIP + skip))
 
+  # Each guard adds its reason, so the verdict line names every one that fired.
+  local reasons=""
+  if [ "$fail" -gt 0 ]; then reasons="${reasons:+$reasons, }$fail failed"; fi
   # A CANCELLED test is a test that did not run, and Node reports a broken
   # `before` hook as cancelled subtests with "# fail 0" — so a batch whose whole
   # setup collapsed used to print OK. A gate that cannot go red on its own setup
   # gates nothing, which matters most for the batches called merge-blocking.
-  local status="OK"
-  if [ "$fail" -gt 0 ] || [ "$cancel" -gt 0 ] || [ "$runner_exit" -ne 0 ]; then
-    status="FAIL"
-    FAILED_BATCHES="$FAILED_BATCHES $name"
-  fi
-
+  if [ "$cancel" -gt 0 ]; then reasons="${reasons:+$reasons, }$cancel cancelled"; fi
   # A SKIPPED test is a test that did not run either, and the reason it did not
   # run in a tier-driven batch is almost always a service the tier was supposed
   # to provide. The counts stay clean, so without this term the batch prints OK
@@ -127,28 +139,28 @@ run_batch() {
   # and zero-collect terms already close, one term short. Tier-scoped like the
   # zero-collect term below: a developer trimming a batch locally is exercising
   # their own choice, not a missing service.
-  if [ -n "${TIER:-}" ] && [ "$skip" -gt 0 ] && [ "$status" = "OK" ]; then
-    status="FAIL"
-    FAILED_BATCHES="$FAILED_BATCHES $name"
-  fi
-
-  # A batch that collected NOTHING is a failure too. Every batch below names at
-  # least one suite, so zero collected means a suite stopped being found: a
+  if [ -n "${TIER:-}" ] && [ "$skip" -gt 0 ]; then reasons="${reasons:+$reasons, }$skip skipped under TIER"; fi
+  # A file that collected NOTHING is a failure too. Every path below names a
+  # suite, so zero collected means a suite stopped being found: a
   # renamed path the list still carries, an emptied file, a suite-wide skip, or a
-  # collection error --test-force-exit swallowed. The batch already dumps its
+  # collection error --test-force-exit swallowed. The file already dumps its
   # output for this case; without this it dumped and still reported OK. Scoped to
   # tier-driven runs so a developer trimming a batch list locally is not blocked.
-  if [ -n "${TIER:-}" ] && [ "$tests" -eq 0 ] && [ "$status" = "OK" ]; then
-    status="FAIL"
-    FAILED_BATCHES="$FAILED_BATCHES $name"
+  if [ -n "${TIER:-}" ] && [ "$tests" -eq 0 ]; then reasons="${reasons:+$reasons, }zero tests"; fi
+  if [ "$runner_exit" -ne 0 ]; then reasons="${reasons:+$reasons, }exit $runner_exit"; fi
+
+  FILE_EXIT=$runner_exit FILE_REASONS=$reasons
+  if [ -z "$reasons" ]; then
+    FILE_VERDICT="OK"
+    printf "    ✓ %s (%s tests)\n" "$file" "$tests"
+  else
+    FILE_VERDICT="FAIL"
+    printf "    ✗ %s: %s\n" "$file" "$reasons"
   fi
 
-  printf "  %-25s %4s tests  %4s pass  %s fail  %s cancel  %s skip  exit %s  [%s]\n" \
-    "$name" "$tests" "$pass" "$fail" "$cancel" "$skip" "$runner_exit" "$status"
-
-  # A failing (or zero-collected) batch must never be silent — dump the runner
+  # A failing (or zero-collected) file must never be silent — dump the runner
   # output so CI logs show WHY, not just the count.
-  if [ "$status" = "FAIL" ] || [ "$tests" -eq 0 ]; then
+  if [ "$FILE_VERDICT" = "FAIL" ] || [ "$tests" -eq 0 ]; then
     # Name every failure FIRST. The tail window alone cannot: when a later
     # green suite floods the last 200 lines, the failing test scrolls out and
     # the log reports "fail 1" without ever naming it — the 'production'
@@ -158,16 +170,51 @@ run_batch() {
     # a pathological block cannot flood the log. Anchored to line start:
     # a test NAME containing "not ok" (they exist in this suite) sits after
     # "ok N - " and must not trigger the printer.
-    echo "── failures in batch '$name' (every 'not ok' + its detail block) ──"
+    echo "── failures in '$file' (every 'not ok' + its detail block) ──"
     echo "$result" | awk '
       /^[[:space:]]*not ok / { printing = 1; budget = 40 }
       printing { print; budget-- }
       printing && (/^[[:space:]]*\.\.\.$/ || budget <= 0) { printing = 0 }
     '
-    echo "── output of failing batch '$name' (last 200 lines) ──"
+    echo "── output of '$file' (last 200 lines) ──"
     echo "$result" | tail -200
-    echo "── end of '$name' output ──"
+    echo "── end of '$file' output ──"
   fi
+}
+
+# Runs each file a batch lists through run_file and prints one summary row: its
+# counts are what its files added to the totals. The batch is recorded failed
+# when any of its files is.
+run_batch() {
+  local name="$1"
+  shift
+  local tests0=$TOTAL_TESTS pass0=$TOTAL_PASS fail0=$TOTAL_FAIL cancel0=$TOTAL_CANCEL skip0=$TOTAL_SKIP
+  # The first non-zero runner exit among the files; each one's is on its own line.
+  local runner_exit=0 failed_files=0 file
+
+  for file in "$@"; do
+    # Reset before each call: should run_file ever run in a subshell (a pipe or
+    # `$( )` around it), its verdict never arrives, and the file then fails for
+    # want of one instead of passing on the previous file's.
+    FILE_VERDICT="" FILE_REASONS="no verdict reached run_batch" FILE_EXIT=0
+    run_file "$file"
+    if [ "$runner_exit" -eq 0 ]; then runner_exit=$FILE_EXIT; fi
+    if [ "$FILE_VERDICT" != "OK" ]; then
+      failed_files=$((failed_files + 1))
+      FAILED_FILES="$FAILED_FILES
+  $file: $FILE_REASONS"
+    fi
+  done
+
+  local status="OK"
+  if [ "$failed_files" -gt 0 ]; then
+    status="FAIL"
+    FAILED_BATCHES="$FAILED_BATCHES $name"
+  fi
+
+  printf "  %-25s %4s tests  %4s pass  %s fail  %s cancel  %s skip  exit %s  [%s]\n" \
+    "$name" "$((TOTAL_TESTS - tests0))" "$((TOTAL_PASS - pass0))" "$((TOTAL_FAIL - fail0))" \
+    "$((TOTAL_CANCEL - cancel0))" "$((TOTAL_SKIP - skip0))" "$runner_exit" "$status"
 }
 
 echo "Running API integration tests..."
@@ -183,9 +230,9 @@ if run_db_batches; then
 
 # Repository + data-migration integration tests (Prisma against real DB, no live API).
 # backfillAdminMfaBackupCodes drives the migration script's injected-Prisma exports
-# against Postgres — DB-only, so it belongs here (not a live-API batch). CONCURRENCY=1
-# keeps its whole-table runBackfill/runCleanup from racing sibling files.
-CONCURRENCY=1 run_batch "integration:repositories" \
+# against Postgres — DB-only, so it belongs here (not a live-API batch). Files run
+# one at a time, so its whole-table runBackfill/runCleanup cannot race a sibling.
+run_batch "integration:repositories" \
   tests/integration/repositories/UserRepository.integration.test.ts \
   tests/integration/repositories/AccountQueryRepository.integration.test.ts \
   tests/integration/repositories/ProjectRepository.integration.test.ts \
@@ -200,7 +247,7 @@ CONCURRENCY=1 run_batch "integration:repositories" \
 # Retention-floor sweep. DB-only, and deliberately its OWN batch: it holds a second
 # PrismaClient opened on a hostile session time zone, so folding it into a batch that
 # shares the singleton would make which client a failure belongs to ambiguous.
-CONCURRENCY=1 run_batch "integration:retention" \
+run_batch "integration:retention" \
   tests/integration/deletionRecordRetentionFloor.integration.test.ts \
   tests/integration/deletionRecordDegradation.integration.test.ts
 
@@ -208,28 +255,28 @@ CONCURRENCY=1 run_batch "integration:retention" \
 # sweep, and one more: it holds TWO PrismaClients and deliberately parks one of them
 # on a row lock while polling `pg_blocking_pids`. Sharing a batch would let a sibling
 # suite's lock wait satisfy that poll, and the interleaving the proof depends on would
-# stop being the one under test. CONCURRENCY=1 is not optional here.
-CONCURRENCY=1 run_batch "integration:hard-delete-race" \
+# stop being the one under test. Files run one at a time, which is not optional here.
+run_batch "integration:hard-delete-race" \
   tests/integration/hardDeleteSerializableRace.integration.test.ts
 
-CONCURRENCY=1 run_batch "integration:sync" \
+run_batch "integration:sync" \
   tests/integration/syncEngine/syncEngine.init.integration.test.ts \
   tests/integration/syncEngine/syncEngine.sync.integration.test.ts \
   tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts \
   tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts
 
-CONCURRENCY=1 run_batch "integration:outbox" \
+run_batch "integration:outbox" \
   tests/integration/outbox/OutboxRelay.integration.test.ts \
   tests/integration/bulkScheduleOutboxSmoke.integration.test.ts \
   tests/integration/bulkScheduling.integration.test.ts
 
-CONCURRENCY=1 run_batch "integration:consumers" \
+run_batch "integration:consumers" \
   tests/integration/consumers/workerConnection.integration.test.ts
 
 # Chaos scenarios. They drive the saga engine against in-memory doubles, so no
 # service is required, but they are node:test files and therefore belong to a
 # batch — a suite that no batch lists is a suite that never runs.
-CONCURRENCY=1 run_batch "chaos" \
+run_batch "chaos" \
   tests/chaos/saga-step-retry-recovery.integration.test.ts \
   tests/chaos/sagaWaitAmplification.integration.test.ts
 
@@ -238,7 +285,7 @@ CONCURRENCY=1 run_batch "chaos" \
 # routes (app.inject — no live server), so this is a DB-only batch. Bundled
 # here because these MERGE-BLOCKING suites were previously unlisted in any
 # batch and therefore never executed under test:all / test:integration.
-CONCURRENCY=1 run_batch "integration:tenant-isolation" \
+run_batch "integration:tenant-isolation" \
   tests/integration/postDeleteOwnership.integration.test.ts \
   tests/integration/postReadOwnership.integration.test.ts \
   tests/integration/externalNotificationTenantIsolation.integration.test.ts \
@@ -264,30 +311,30 @@ CONCURRENCY=1 run_batch "integration:tenant-isolation" \
 
 # Customer pre-identity auth proofs. DB-only: the suite drives the four bare
 # `/auth/customer/*` handlers over `app.inject` against the guarded client, so it
-# needs Postgres but no live server. Its OWN batch at CONCURRENCY=1 because two of
+# needs Postgres but no live server. Its OWN batch, run alone, because two of
 # its cases race the SAME reset token on purpose — one pair of genuinely concurrent
 # confirms, one sequential replay — and a sibling suite sharing the runner would
 # make which statement won ambiguous, which is the only thing those cases measure.
-CONCURRENCY=1 run_batch "integration:customer-auth" \
+run_batch "integration:customer-auth" \
   tests/integration/customerPasswordReset.integration.test.ts
 
 # MFA backup-code claim proofs. DB-only: the suite drives the real Prisma MFA
-# adapters and the unified MfaService directly, no live server. Its OWN batch at
-# CONCURRENCY=1 because its cases race the SAME credential on purpose — a
+# adapters and the unified MfaService directly, no live server. Its OWN batch,
+# run alone, because its cases race the SAME credential on purpose — a
 # staggered pair, a simultaneous pair, and a sibling-index collision — and a
 # sibling suite sharing the runner would make which statement won ambiguous,
 # which is the only thing those cases measure.
-CONCURRENCY=1 run_batch "integration:mfa-backup-single-use" \
+run_batch "integration:mfa-backup-single-use" \
   tests/integration/mfaBackupCodeSingleUse.integration.test.ts
 
 # Admin single-use claim proofs. DB-only: the reset suite drives PasswordService
 # over the seed client and the refresh suite drives the real AuthService over real
 # adapters — no live server, and no Redis on purpose: the rotation claim is the
-# subject, so the Redis blacklist stays structurally absent. ONE batch at
-# CONCURRENCY=1 because every suite here races the SAME credential on purpose
+# subject, so the Redis blacklist stays structurally absent. ONE batch, files
+# run alone, because every suite here races the SAME credential on purpose
 # (staggered + simultaneous pairs), and a sibling suite sharing the runner would
 # make which statement won ambiguous, which is the only thing those cases measure.
-CONCURRENCY=1 run_batch "integration:admin-single-use-claims" \
+run_batch "integration:admin-single-use-claims" \
   tests/integration/adminPasswordResetClaim.integration.test.ts \
   tests/integration/adminRefreshRotationClaim.integration.test.ts
 
@@ -300,7 +347,7 @@ CONCURRENCY=1 run_batch "integration:admin-single-use-claims" \
 # three boot real managers, and a boot loads and dispatches every non-terminal
 # row in the table — running them in one serialized batch is what keeps that
 # from being three suites executing each other's sagas.
-CONCURRENCY=1 run_batch "integration:saga-recovery" \
+run_batch "integration:saga-recovery" \
   tests/integration/sagaCrashRecovery.integration.test.ts \
   tests/integration/sagaCompensationRecovery.integration.test.ts \
   tests/integration/sagaPublishNowPromotion.integration.test.ts
@@ -311,11 +358,11 @@ fi # run_db_batches
 # a running API server alongside the DB/Redis services.
 if run_live_api_batches; then
 
-CONCURRENCY=1 run_batch "integration:routes" \
+run_batch "integration:routes" \
   tests/integration/crisisRoutes.live.test.ts tests/integration/linkRoutes.live.test.ts \
   tests/integration/security-endpoints.live.test.ts
 
-CONCURRENCY=1 run_batch "integration:flows" \
+run_batch "integration:flows" \
   tests/auth.integration.test.ts tests/audit.integration.test.ts tests/cache.integration.test.ts \
   tests/security.live.test.ts \
   tests/integration/publishing/failedWrite.smoke.integration.test.ts
@@ -360,13 +407,13 @@ assert_publish_consumers
 # Saga customer flow against the live API. Listed here to close a blind spot:
 # this suite existed on disk but belonged to no batch, so `test:all` never ran
 # it.
-CONCURRENCY=1 run_batch "integration:saga-live" \
+run_batch "integration:saga-live" \
   tests/integration/sagaCustomerFlow.live.test.ts
 
-CONCURRENCY=1 run_batch "flow" \
+run_batch "flow" \
   tests/publish.flow.integration.test.ts tests/analytics.flow.integration.test.ts tests/media.flow.integration.test.ts tests/schedule.flow.integration.test.ts
 
-CONCURRENCY=1 run_batch "remaining" \
+run_batch "remaining" \
   tests/accountLifecycle.integration.test.ts tests/trialPeriod.integration.test.ts \
   tests/mfa.integration.test.ts tests/rbac.integration.test.ts \
   tests/threading.canonical.integration.test.ts tests/threading.planner.integration.test.ts \
@@ -406,7 +453,7 @@ wait_for_api() {
 # different repairs, and asserting the first one sends the reader to wait out a
 # window on a process that is not running.
 if wait_for_api; then
-  CONCURRENCY=1 run_batch "production" \
+  run_batch "production" \
     tests/production.live.test.ts tests/multiproject.flow.live.test.ts \
     tests/providerRegistry.live.test.ts
 else
@@ -438,9 +485,12 @@ echo "========================================"
 # defence-in-depth half. Should a future edit narrow run_batch's append condition,
 # a run with real failures must still go red on the counts alone. Do not "simplify"
 # the disjunction back to one term — the static suite pins all four for this
-# reason. The skip term is tier-scoped for the same reason run_batch's is.
+# reason. The skip term is tier-scoped for the same reason run_file's is.
 if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || { [ -n "${TIER:-}" ] && [ "$TOTAL_SKIP" -gt 0 ]; } || [ -n "$FAILED_BATCHES" ]; then
   echo "FAILED batches:$FAILED_BATCHES"
+  if [ -n "$FAILED_FILES" ]; then
+    echo "FAILED files:$FAILED_FILES"
+  fi
   if [ -n "${TIER:-}" ] && [ "$TOTAL_SKIP" -gt 0 ] && [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
     echo "ERROR: $TOTAL_SKIP test(s) were SKIPPED — a skipped test never ran, and in"
     echo "       a TIER-driven run the reason is a service the tier was supposed to"
@@ -449,14 +499,12 @@ if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || { [ -n "${TIER:-}" ] 
     echo "       column and the dumped output before concluding skips were the whole"
     echo "       story."
   elif [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
-    echo "ERROR: every test that ran reported passing, yet a batch runner exited"
-    echo "       non-zero, or a batch collected nothing. A crash after the summary,"
-    echo "       an unhandled rejection, or a single-file batch whose one path no"
-    echo "       longer exists all end this way — with nothing in the counts to show"
-    echo "       for it. In a MULTI-file batch a missing path is dropped silently"
-    echo "       instead (SMELL-74)."
-    echo "       See the dumped output for the batch named on the FAILED batches"
-    echo "       line above; its runner exit code is in the 'exit' column."
+    echo "ERROR: every test that ran reported passing, yet a file's runner exited"
+    echo "       non-zero, or a file collected nothing. A crash after the summary,"
+    echo "       an unhandled rejection, or a listed path that no longer exists all"
+    echo "       end this way — with nothing in the counts to show for it."
+    echo "       See the FAILED files lines above for each file and its reasons;"
+    echo "       its dumped output follows its verdict line."
   elif [ "$TOTAL_FAIL" -eq 0 ]; then
     echo "ERROR: $TOTAL_CANCEL test(s) were CANCELLED — a cancelled test never ran."
     echo "       Node reports a broken before/after hook this way, with '# fail 0'."
