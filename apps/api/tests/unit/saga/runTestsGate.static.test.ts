@@ -55,7 +55,7 @@ const KNOWN_COMMENT_PROSE = "The database is never guessed";
  * to find out what it assumes, and because a too-small window fails with a message
  * about the wrong thing.
  */
-const GATE_BLOCK_LINES = 22;
+const GATE_BLOCK_LINES = 27;
 const REFUSAL_BLOCK_LINES = 11;
 const COUNT_APPEND_BLOCK_LINES = 3;
 const WINDOW_SLACK = 3;

@@ -333,6 +333,10 @@ jobs:
     # role; the steps below connect with it.
     env:
       OMNIPOST_APP_DB_PASSWORD: approle123
+      # Where run-tests.sh probes the API and the workers before each live-tier file.
+      # The runner holds no default: the two start steps below serve these addresses.
+      TEST_API_URL: http://localhost:3000
+      TEST_WORKERS_READY_URL: http://localhost:3300/health/ready
 
     services:
       postgres:

@@ -6,9 +6,9 @@
  *              reported six minutes later as three per-test timeouts. These
  *              assertions pin the three properties that make the new precondition
  *              worth having: it runs BEFORE any fixture is created, its failure
- *              path FAILS rather than skips, and the batch that owns the suite
- *              re-checks the consumer immediately before running it rather than
- *              after.
+ *              path FAILS rather than skips, and the runner verifies readiness
+ *              before each live file, so a consumer that died while an earlier
+ *              file ran is named before this suite starts rather than after it.
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
@@ -25,9 +25,14 @@ const suite = readFileSync(suitePath, "utf8");
 const suiteLines = suite.split("\n");
 const runnerLines = readFileSync(runnerPath, "utf8").split("\n");
 
-/** Index of the first line containing `needle`, or -1. */
-function lineOf(lines: string[], needle: string): number {
-  return lines.findIndex((line) => line.includes(needle));
+/**
+ * The runner's lines from the first one that trims to `opening` through the next one
+ * that trims to `closing`, joined; empty when either is missing.
+ */
+function runnerBlock(opening: string, closing: string): string {
+  const start = runnerLines.findIndex((line) => line.trim() === opening);
+  const end = runnerLines.findIndex((line, index) => index > start && line.trim() === closing);
+  return start >= 0 && end > start ? runnerLines.slice(start, end + 1).join("\n") : "";
 }
 
 /**
@@ -85,17 +90,36 @@ describe("the live publish suite states its consumer dependency as a check, not 
     expect(suite).not.toMatch(/it\.skip\(|describe\.skip\(/);
   });
 
-  it("re-checks the consumer immediately before the live saga batch, not after it", () => {
-    // The between-batch re-check protects the batch that follows it. Placed near
-    // `wait_for_api` it would run AFTER the saga batch, so a worker that died
-    // during an earlier batch would still be discovered three budget burns late.
-    const helperCall = runnerLines.findIndex(
-      (line) => line.trim().startsWith("assert_publish_consumers") && !line.includes("()")
+  it("runs behind the readiness probe the runner makes before each live file", () => {
+    // The suite's own check names the cause once it starts; the runner's probe is
+    // what keeps a worker that died during an earlier live file from being found
+    // only after this suite has burned its budget. The workers' ready route counts
+    // a consumer registered on the publish queue, so it probes this precondition.
+    const probeBody = runnerBlock("probe_live() {", "}");
+    const loopBody = runnerBlock('for file in "$@"; do', "done");
+    const liveCalls = runnerLines.filter(
+      (line) =>
+        /^\s*(?:[A-Z_]+=\S+\s+)*run_batch\s+"/.test(line) &&
+        !line.includes('run_batch "integration" ')
     );
-    const sagaBatch = lineOf(runnerLines, '"integration:saga-live"');
 
-    expect(helperCall).toBeGreaterThanOrEqual(0);
-    expect(sagaBatch).toBeGreaterThanOrEqual(0);
-    expect(helperCall).toBeLessThan(sagaBatch);
+    expect(liveCalls.length).toBeGreaterThan(0);
+    expect({
+      liveSuffix: suitePath.endsWith(".live.test.ts"),
+      probesTheApi: /curl -fsS [^\n]*"\$TEST_API_URL\/health"/.test(probeBody),
+      probesTheWorkers: /curl -fsS [^\n]*"\$TEST_WORKERS_READY_URL"/.test(probeBody),
+      everyLiveCallProbes: liveCalls.every((line) =>
+        /^\s*BATCH_PROBE=probe_live run_batch /.test(line)
+      ),
+      probeBeforeEachFile:
+        /! "\$BATCH_PROBE"/.test(loopBody) &&
+        loopBody.indexOf('"$BATCH_PROBE"') < loopBody.indexOf('run_file "$file"'),
+    }).toEqual({
+      liveSuffix: true,
+      probesTheApi: true,
+      probesTheWorkers: true,
+      everyLiveCallProbes: true,
+      probeBeforeEachFile: true,
+    });
   });
 });

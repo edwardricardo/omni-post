@@ -13,8 +13,9 @@
 # editing this file. The live tier is still the hand-listed live-API batches at
 # the end, until it is collected by its own suffix too (WU-1.8); a
 # `*.live.test.ts` no live batch names runs nowhere, and fitness #30 counts it.
-# `--list` prints the inventory without running anything. No test total appears
-# here on purpose — a count in a comment rots.
+# Before each file of those batches the runner probes the API and the workers
+# (`probe_live`). `--list` prints the inventory without running anything. No test
+# total appears here on purpose — a count in a comment rots.
 
 set -e
 export NODE_ENV=test
@@ -27,6 +28,10 @@ TOTAL_SKIP=0
 FAILED_BATCHES=""
 # One line per failed file, "<path>: <reasons>", printed under the failed batches.
 FAILED_FILES=""
+# The last file run_file ran, and the record of a live-tier readiness probe that
+# failed, which names the file it stopped before and that last one.
+LAST_RAN=""
+ENV_UNREADY=""
 
 # TIER selects which slice of the node:test inventory runs, so CI can split it
 # across jobs:
@@ -35,8 +40,9 @@ FAILED_FILES=""
 #                    tier-only.
 #   pr-integration   the services tier only (no live API server needed).
 #   full-integration the services tier, then the live-API batches.
-# The services tier talks to Postgres/Redis directly; the live-API batches fetch
-# http://localhost:3000 and require a running API server.
+# The services tier talks to Postgres/Redis directly; the live-API batches need a
+# running API, which the runner probes at TEST_API_URL, and the workers that
+# answer TEST_WORKERS_READY_URL.
 TIER="${TIER:-}"
 case "$TIER" in
   "" | pr-integration | full-integration) ;;
@@ -232,6 +238,30 @@ run_live_api_batches() {
   [ -z "$TIER" ] || [ "$TIER" = "full-integration" ]
 }
 
+# The live tier reads where the API and the workers answer from its caller, as the
+# runner reads the database: CI exports both URLs. A run that reaches the live
+# tier without them stops here, instead of failing its first readiness probe after
+# the whole services tier has run.
+if run_live_api_batches && { [ -z "${TEST_API_URL:-}" ] || [ -z "${TEST_WORKERS_READY_URL:-}" ]; }; then
+  {
+    echo "run-tests.sh: TEST_API_URL or TEST_WORKERS_READY_URL is empty, so the live tier has no API or workers to probe."
+    echo "  Export both (a local stack answers at http://localhost:3000 and"
+    echo "  http://localhost:3300/health/ready), or set TIER=pr-integration to run the services tier alone."
+  } >&2
+  exit 2
+fi
+
+# Succeeds when the API answers its health route and the workers report ready,
+# which their health server does only once a consumer is registered on the publish
+# queue. One attempt each, no retry: `-f` fails on any status from 400 up, a 429
+# from a rate-limit window the previous file left closed included, so a file that
+# leaves the environment unready is the one that must restore it. `--max-time`
+# bounds a probe of a server that accepts the connection and never answers.
+probe_live() {
+  curl -fsS --max-time 10 -o /dev/null "$TEST_API_URL/health" &&
+    curl -fsS --max-time 10 -o /dev/null "$TEST_WORKERS_READY_URL"
+}
+
 # Runs ONE suite file in its own node:test process and gives it its own verdict,
 # so every guard reads one file's summary and a red names the file. Handed a
 # whole batch at once, node read back one summary: a file that collected nothing
@@ -344,20 +374,37 @@ run_file() {
 
 # Runs each file a batch lists through run_file and prints one summary row: its
 # counts are what its files added to the totals. The batch is recorded failed
-# when any of its files is.
+# when any of its files is. A caller that sets BATCH_PROBE names a readiness check
+# run before each file; the first one that fails stops the batch there.
 run_batch() {
   local name="$1"
   shift
   local tests0=$TOTAL_TESTS pass0=$TOTAL_PASS fail0=$TOTAL_FAIL cancel0=$TOTAL_CANCEL skip0=$TOTAL_SKIP
   # The first non-zero runner exit among the files; each one's is on its own line.
   local runner_exit=0 failed_files=0 file
+  # After a failed readiness probe no probed file runs, here or in a later batch.
+  if [ -n "${BATCH_PROBE:-}" ] && [ -n "$ENV_UNREADY" ]; then
+    return 0
+  fi
 
   for file in "$@"; do
+    # A failed probe names the file it stops before and the last file run: that
+    # one left the environment unready, or it went down while that one ran. The
+    # files after it would only fail for the same reason, so none of them runs.
+    if [ -n "${BATCH_PROBE:-}" ] && ! "$BATCH_PROBE"; then
+      ENV_UNREADY="env-unready-before: $file (last ran: ${LAST_RAN:-none})"
+      printf "    ✗ %s\n" "$ENV_UNREADY"
+      failed_files=$((failed_files + 1))
+      FAILED_FILES="$FAILED_FILES
+  $ENV_UNREADY"
+      break
+    fi
     # Reset before each call: should run_file ever run in a subshell (a pipe or
     # `$( )` around it), its verdict never arrives, and the file then fails for
     # want of one instead of passing on the previous file's.
     FILE_VERDICT="" FILE_REASONS="no verdict reached run_batch" FILE_EXIT=0
     run_file "$file"
+    LAST_RAN=$file
     if [ "$runner_exit" -eq 0 ]; then runner_exit=$FILE_EXIT; fi
     if [ "$FILE_VERDICT" != "OK" ]; then
       failed_files=$((failed_files + 1))
@@ -400,116 +447,39 @@ if run_services_tier; then
   run_batch "integration" "${SERVICES_FILES[@]}"
 fi
 
-# Live-API batches: these fetch http://localhost:3000 (getBaseUrl) and require
-# a running API server alongside the DB/Redis services.
+# Live-API batches: these need a running API and its workers alongside the
+# DB/Redis services. Each runs with probe_live before each of its files, so a file
+# that leaves the API or the workers unready for the next one is named by the
+# probe that follows it, rather than by the failures of every file after it.
 if run_live_api_batches; then
 
-run_batch "integration:routes" \
+BATCH_PROBE=probe_live run_batch "integration:routes" \
   tests/integration/crisisRoutes.live.test.ts tests/integration/linkRoutes.live.test.ts \
   tests/integration/security-endpoints.live.test.ts
 
-run_batch "integration:flows" \
+BATCH_PROBE=probe_live run_batch "integration:flows" \
   tests/auth.integration.test.ts tests/audit.integration.test.ts tests/cache.integration.test.ts \
   tests/security.live.test.ts \
   tests/integration/publishing/failedWrite.smoke.integration.test.ts
 
-# Early warning for the batch that follows. The saga suite carries its own
-# authoritative precondition (assertPublishConsumers in tests/testUtils.ts); this
-# runs IMMEDIATELY BEFORE that batch so a consumer that died during the ~2-3
-# minutes of live-API batches above is named here rather than three 120s budget
-# burns later. Placing it near wait_for_api below would put it AFTER the batch it
-# protects, which is no protection at all.
-#
-# An UNKNOWN answer is reported as unknown and does not redden the run: the queue
-# being unreadable is not the same fact as nothing consuming it, and a check that
-# conflates them sends the reader to restart workers that are running. Only a
-# decisive zero is treated as an outage.
-assert_publish_consumers() {
-  local body consumers
-  body=$(curl -s --max-time 5 "http://localhost:3000/health/dependency/queue" 2>/dev/null || true)
-  consumers=$(echo "$body" | grep -o '"consumers":[^,}]*' | head -1 | cut -d: -f2 | tr -d ' "')
-
-  case "$consumers" in
-    "")
-      echo "  publish-consumers          could not be read from the API — UNKNOWN, not zero"
-      echo "                             (the saga suite's own precondition reports the exact cause)"
-      ;;
-    null)
-      echo "  publish-consumers          broker cannot answer CLIENT LIST — UNKNOWN, not zero"
-      ;;
-    0)
-      echo "  publish-consumers  no process is consuming the 'publish' queue  [FAIL]"
-      echo "       Every publish case in the next batch will park until the 30-minute saga"
-      echo "       horizon and burn its full budget. Start the workers before rerunning."
-      FAILED_BATCHES="$FAILED_BATCHES publish-consumers"
-      ;;
-    *)
-      echo "  publish-consumers          $consumers attached"
-      ;;
-  esac
-}
-assert_publish_consumers
-
 # Saga customer flow against the live API. Listed here to close a blind spot:
 # this suite existed on disk but belonged to no batch, so `test:all` never ran
 # it.
-run_batch "integration:saga-live" \
+BATCH_PROBE=probe_live run_batch "integration:saga-live" \
   tests/integration/sagaCustomerFlow.live.test.ts
 
-run_batch "flow" \
+BATCH_PROBE=probe_live run_batch "flow" \
   tests/publish.flow.integration.test.ts tests/analytics.flow.integration.test.ts tests/media.flow.integration.test.ts tests/schedule.flow.integration.test.ts
 
-run_batch "remaining" \
+BATCH_PROBE=probe_live run_batch "remaining" \
   tests/accountLifecycle.integration.test.ts tests/trialPeriod.integration.test.ts \
   tests/mfa.integration.test.ts tests/rbac.integration.test.ts \
   tests/threading.canonical.integration.test.ts tests/threading.planner.integration.test.ts \
   tests/threading.xprovider.integration.test.ts tests/planPublication.integration.test.ts tests/adapters.integration.test.ts \
   tests/schemaUtils.integration.test.ts
 
-# The rate-limiting suite in `integration:flows` deliberately exhausts the
-# /health window and waits in its own `after()` for it to reopen; this check
-# confirms /health answers 200 again before the last live batch. That batch
-# asserts on real response bodies: run it against a still-limited API and every
-# assertion fails on a 429 body, which reads as a broken API rather than as a
-# window that never reopened.
-API_READY_MAX_ATTEMPTS=30
-API_READY_INTERVAL_S=2
-
-wait_for_api() {
-  local attempt=0
-  while [ "$attempt" -lt "$API_READY_MAX_ATTEMPTS" ]; do
-    local status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/health 2>/dev/null)
-    if [ "$status" = "200" ]; then
-      return 0
-    fi
-    sleep "$API_READY_INTERVAL_S"
-    attempt=$((attempt + 1))
-  done
-  return 1
-}
-
-# A precondition that warns and proceeds is not a precondition. On exhaustion the
-# batch is NOT run and the run goes red here instead: its suites would report a
-# screenful of assertion failures whose single cause is named on this line, and
-# burying that cause is how a limiter artifact gets read as an outage.
-#
-# The message names the OBSERVATION, not a root cause. A /health that never
-# answers 200 is a window that did not reopen, an API that died during the ~2-3
-# minutes of live batches above, or an API that was never reachable — three
-# different repairs, and asserting the first one sends the reader to wait out a
-# window on a process that is not running.
-if wait_for_api; then
-  run_batch "production" \
-    tests/production.live.test.ts tests/multiproject.flow.live.test.ts \
-    tests/providerRegistry.live.test.ts
-else
-  echo "  api-ready  /health never returned 200 in $((API_READY_MAX_ATTEMPTS * API_READY_INTERVAL_S))s  [FAIL]"
-  echo "       The 'production' batch was NOT run: against a rate-limited or absent"
-  echo "       API its assertions fail on responses the server never produced, and"
-  echo "       those failures would name every suite except the one thing that broke."
-  echo "       Check the API is still up before concluding the limiter is the cause."
-  FAILED_BATCHES="$FAILED_BATCHES api-ready"
-fi
+BATCH_PROBE=probe_live run_batch "production" \
+  tests/production.live.test.ts tests/multiproject.flow.live.test.ts tests/providerRegistry.live.test.ts
 
 fi # run_live_api_batches
 
@@ -520,11 +490,11 @@ printf "TOTAL: %d tests, %d pass, %d fail, %d cancel, %d skip\n" \
 echo "========================================"
 
 # FAILED_BATCHES is the source of failure truth: a batch lands there on a parsed
-# failure, on a cancellation, on a zero collection AND on a non-zero runner exit,
-# so its non-emptiness is what makes the per-batch capture reach the gate. Without
-# that term a batch could print [FAIL], dump its output, be named in the failed
-# list — and the run still exit zero, which is worse than never noticing, because
-# everything downstream believes the gate.
+# failure, on a cancellation, on a zero collection, on a non-zero runner exit AND
+# on a failed readiness probe, so its non-emptiness is what makes the per-batch
+# capture reach the gate. Without that term a batch could print [FAIL], dump its
+# output, be named in the failed list — and the run still exit zero, which is
+# worse than never noticing, because everything downstream believes the gate.
 #
 # The three count terms are therefore REDUNDANT today (every path that raises them
 # also appends a batch name), and they are kept deliberately: they are the
@@ -537,7 +507,12 @@ if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || { [ -n "${TIER:-}" ] 
   if [ -n "$FAILED_FILES" ]; then
     echo "FAILED files:$FAILED_FILES"
   fi
-  if [ -n "${TIER:-}" ] && [ "$TOTAL_SKIP" -gt 0 ] && [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
+  if [ -n "$ENV_UNREADY" ]; then
+    echo "ERROR: the live tier stopped at $ENV_UNREADY. The readiness"
+    echo "       probe failed before that file, and its curl error is printed above: the"
+    echo "       file that ran last left the API or the workers unready, or one of them"
+    echo "       went down while it ran. The live files after it did not run."
+  elif [ -n "${TIER:-}" ] && [ "$TOTAL_SKIP" -gt 0 ] && [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
     echo "ERROR: $TOTAL_SKIP test(s) were SKIPPED — a skipped test never ran, and in"
     echo "       a TIER-driven run the reason is a service the tier was supposed to"
     echo "       provide. Start the service the batch names; do not skip past it."

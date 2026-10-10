@@ -3,9 +3,11 @@
  * @description Executable proof that `apps/api/scripts/run-tests.sh` exits non-zero
  *              whenever a file is recorded failed, gives every file its own verdict,
  *              collects the services tier by its suffix (in byte order, or reversed),
- *              keeps a quarantined file out of the run while printing it, lists its
- *              inventory without running anything, and refuses to start at all without
- *              a test database or with a quarantine it cannot trust. Its sibling
+ *              probes the API and the workers before each live-tier file and stops the
+ *              live tier at the first probe that fails, keeps a quarantined file out of
+ *              the run while printing it, lists its inventory without running anything,
+ *              and refuses to start at all without a test database, without the live
+ *              URLs a live tier needs, or with a quarantine it cannot trust. Its sibling
  *              `runTestsGate.static.test.ts` reads the script's SHAPE; this one runs
  *              the real script and reads its EXIT CODE and its output, which is the
  *              contract every "the tests pass" claim in this repository rests on.
@@ -61,10 +63,19 @@ const SPAWN_TIMEOUT_MS = 60_000;
 vi.setConfig({ testTimeout: 2 * SPAWN_TIMEOUT_MS });
 
 /**
- * `pr-integration` runs the services tier without the live-API batches, so no
- * scenario waits on a live-API probe. It is also the tier the nightly chaos job runs.
+ * `pr-integration` runs the services tier without the live tier, so no scenario
+ * probes a live environment unless it says so. It is also the tier the nightly
+ * chaos job runs.
  */
 const TIER = "pr-integration";
+
+/**
+ * Where the live tier probes. The `.invalid` names resolve nowhere, and every probe
+ * goes to the stand-in `curl` anyway, so no scenario can reach a real server.
+ */
+const API_URL = "http://gate-api.invalid";
+const API_HEALTH = `${API_URL}/health`;
+const WORKERS_READY_URL = "http://gate-workers.invalid/health/ready";
 
 /**
  * Satisfies the runner's refusal to start without a test database. Nothing connects
@@ -114,6 +125,8 @@ interface GateOptions {
   /** The quarantine the run reads; defaults to the committed one. */
   quarantineFile?: string;
   testOrder?: string;
+  /** A probe URL the stand-in `curl` refuses from its `failFrom`-th call on; needs `callLog`. */
+  failingProbe?: { url: string; failFrom: number };
 }
 
 interface RunResult {
@@ -152,8 +165,10 @@ function writeQuarantine(name: string, entries: QuarantineFixture[]): string {
  * handed reports the scenario's shape, printed as the five summary lines `run_file`
  * greps for, and the call ends on the exit code the scenario is about. A call whose
  * last argument is `GATE_REAL_TARGET` goes to the real runner instead. The `curl`
- * answers `/health` with 200 and the queue probe with one consumer, so a
- * `full-integration` run reaches every live-API batch.
+ * logs each probe in the same call log, as a call handed 0 paths with the probed
+ * URL last, so the log reads the probes and the files in the order the run made
+ * them; it succeeds, except on `GATE_CURL_FAIL_URL` from its `GATE_CURL_FAIL_FROM`-th
+ * call on, where it fails the way `curl -f` fails on a 429.
  */
 beforeAll(() => {
   stubDir = mkdtempSync(join(tmpdir(), "run-tests-gate-"));
@@ -183,10 +198,13 @@ beforeAll(() => {
     curlPath,
     [
       "#!/usr/bin/env bash",
-      'case "$*" in',
-      "  *http_code*) printf '200' ;;",
-      "  *) printf '{\"consumers\":1}' ;;",
-      "esac",
+      'url="${!#}"',
+      'if [ -n "${GATE_CALL_LOG:-}" ]; then echo "0 $url" >> "$GATE_CALL_LOG"; fi',
+      'if [ "$url" = "${GATE_CURL_FAIL_URL:-}" ] &&',
+      '  [ "$(grep -cxF -- "0 $url" "$GATE_CALL_LOG")" -ge "$GATE_CURL_FAIL_FROM" ]; then',
+      '  echo "curl: (22) The requested URL returned error: 429" >&2',
+      "  exit 22",
+      "fi",
       "",
     ].join("\n"),
     "utf8"
@@ -201,7 +219,7 @@ afterAll(() => {
 
 /** Runs the real script with every collected or listed path served by the stub. */
 function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
-  const { callLog, realTarget, quarantineFile, testOrder } = options;
+  const { callLog, realTarget, quarantineFile, testOrder, failingProbe } = options;
   const result = spawnSync("bash", [runnerPath], {
     cwd: options.cwd ?? apiRoot,
     encoding: "utf8",
@@ -211,6 +229,8 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
       PATH: `${stubDir}:${process.env.PATH ?? ""}`,
       TIER: options.tier ?? TIER,
       DATABASE_URL: UNUSED_DATABASE_URL,
+      TEST_API_URL: API_URL,
+      TEST_WORKERS_READY_URL: WORKERS_READY_URL,
       GATE_STUB_TESTS: String(shape.tests),
       GATE_STUB_PASS: String(shape.pass),
       GATE_STUB_FAIL: String(shape.fail),
@@ -220,6 +240,10 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
       ...(callLog !== undefined && { GATE_CALL_LOG: callLog }),
       ...(quarantineFile !== undefined && { QUARANTINE_FILE: quarantineFile }),
       ...(testOrder !== undefined && { TEST_ORDER: testOrder }),
+      ...(failingProbe !== undefined && {
+        GATE_CURL_FAIL_URL: failingProbe.url,
+        GATE_CURL_FAIL_FROM: String(failingProbe.failFrom),
+      }),
       ...(realTarget !== undefined && {
         GATE_REAL_TARGET: realTarget,
         GATE_REAL_NODE: process.execPath,
@@ -301,6 +325,22 @@ function suffixedFiles(suffix: string): string[] {
   };
   walk(join(apiRoot, "tests"));
   return found.sort();
+}
+
+/** The paths `--list` prints under `quarantineFile`, by kind, in the order a run takes them. */
+function listed(quarantineFile: string): Map<string, string[]> {
+  const listing = spawnSync("bash", [runnerPath, "--list"], {
+    cwd: apiRoot,
+    encoding: "utf8",
+    timeout: SPAWN_TIMEOUT_MS,
+    env: { ...process.env, QUARANTINE_FILE: quarantineFile },
+  });
+  const byKind = new Map<string, string[]>();
+  for (const line of (listing.stdout ?? "").split("\n").filter(Boolean)) {
+    const [kind = "", path = ""] = line.split("\t");
+    byKind.set(kind, [...(byKind.get(kind) ?? []), path]);
+  }
+  return byKind;
 }
 
 describe("run-tests.sh exits non-zero when a file is recorded failed", () => {
@@ -466,6 +506,65 @@ describe("run-tests.sh collects the services tier by its suffix", () => {
   });
 });
 
+describe("run-tests.sh probes the live environment before each live-tier file", () => {
+  it("probes the API and then the workers before each live-tier file, after the services tier", () => {
+    // The live tier needs a running API and workers that consume the publish queue,
+    // and a file can leave either unready for the next one. Probing before each file
+    // is what names that file, instead of the failures it causes further down.
+    const callLog = join(stubDir, "live-calls.log");
+    rmSync(callLog, { force: true });
+    const inventory = listed(emptyQuarantine);
+    const live = inventory.get("live") ?? [];
+    const run = runGate(PASSING, {
+      callLog,
+      tier: "full-integration",
+      quarantineFile: emptyQuarantine,
+    });
+
+    expect(live.length).toBeGreaterThan(2);
+    expect({ exitCode: run.exitCode, called: calledPaths(callLog) }).toEqual({
+      exitCode: 0,
+      called: [
+        ...(inventory.get("integration") ?? []),
+        ...live.flatMap((file) => [API_HEALTH, WORKERS_READY_URL, file]),
+      ],
+    });
+  });
+
+  it.each([
+    ["the API stops answering its health route", API_HEALTH],
+    ["the workers stop reporting ready", WORKERS_READY_URL],
+  ])("stops the live tier when %s, naming the next file and the last one run", (_, url) => {
+    // The third probe of `url` fails: the first two live files run, the third and
+    // every one after it do not, and the record names the third and the second.
+    const callLog = join(stubDir, "unready-calls.log");
+    rmSync(callLog, { force: true });
+    const live = listed(emptyQuarantine).get("live") ?? [];
+    const run = runGate(PASSING, {
+      callLog,
+      tier: "full-integration",
+      quarantineFile: emptyQuarantine,
+      failingProbe: { url, failFrom: 3 },
+    });
+    const entry = `env-unready-before: ${live[2] ?? ""} (last ran: ${live[1] ?? ""})`;
+    const { failedBatches, ...verdict } = fileVerdict(run);
+
+    expect({
+      ...verdict,
+      oneFailedBatch: failedBatches.length === 1,
+      liveFilesRun: calledPaths(callLog).filter((path) => live.includes(path)),
+      saysWhy: run.stdout.includes("ERROR: the live tier stopped at env-unready-before:"),
+    }).toEqual({
+      exitCode: 1,
+      printed: [entry],
+      listed: [entry],
+      oneFailedBatch: true,
+      liveFilesRun: live.slice(0, 2),
+      saysWhy: true,
+    });
+  });
+});
+
 describe("a real node:test file gets the same verdict, end to end", () => {
   /**
    * Runs the real script from a scratch directory holding `TARGET_FILE` with
@@ -584,9 +683,10 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
   });
 
   /**
-   * Runs the real script with the recorders first on `PATH`. `DATABASE_URL`, `TIER`
-   * and `QUARANTINE_FILE` are removed from the inherited environment first — the
-   * vitest process holds the test database's URL — so each scenario states its own.
+   * Runs the real script with the recorders first on `PATH`. `DATABASE_URL`, `TIER`,
+   * `QUARANTINE_FILE` and the two live URLs are removed from the inherited
+   * environment first — the vitest process holds the test database's URL — so each
+   * scenario states its own.
    */
   function runRecorded(overrides: NodeJS.ProcessEnv, args: string[] = []): RefusedRun {
     rmSync(recordPath, { force: true });
@@ -594,6 +694,8 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       DATABASE_URL: _inheritedDatabaseUrl,
       TIER: _inheritedTier,
       QUARANTINE_FILE: _inheritedQuarantine,
+      TEST_API_URL: _inheritedApiUrl,
+      TEST_WORKERS_READY_URL: _inheritedWorkersUrl,
       ...inherited
     } = process.env;
     const result = spawnSync("bash", [runnerPath, ...args], {
@@ -697,6 +799,29 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       namesTheFile: run.stderr.includes(`apps/api/${LIVE_TARGET}`),
     }).toEqual({ exitCode: 2, started: [], namesTheFile: true });
   });
+
+  it.each([
+    ["full-integration", "TEST_API_URL", { TEST_WORKERS_READY_URL: WORKERS_READY_URL }],
+    ["unset", "TEST_WORKERS_READY_URL", { TEST_API_URL: API_URL }],
+  ])(
+    "exits 2 before any suite starts when TIER %s runs the live tier without %s",
+    (tier, missing, urls) => {
+      // The live tier reads where the API and the workers answer from its caller, as
+      // the runner reads the database. Without them its first probe would fail only
+      // after the whole services tier had run.
+      const run = runRecorded({
+        ...(tier !== "unset" && { TIER: tier }),
+        DATABASE_URL: UNUSED_DATABASE_URL,
+        ...urls,
+      });
+
+      expect({
+        exitCode: run.exitCode,
+        started: run.started,
+        namesTheVariable: run.stderr.includes(missing),
+      }).toEqual({ exitCode: 2, started: [], namesTheVariable: true });
+    }
+  );
 
   it("exits 2 on an argument it does not know, rather than ignoring it", () => {
     const run = runRecorded({ TIER, DATABASE_URL: UNUSED_DATABASE_URL }, [TARGET_FILE]);
