@@ -8,7 +8,8 @@
  *              that satisfies {@link Collector}: nothing here changes shape, because the merge and
  *              the tally are keyed by id and source, not by collector kind. The module also hosts
  *              the helpers the collectors share: {@link describeError}, which every collector and
- *              the disk listing use to turn a caught value into the text of a failure, and
+ *              the disk listing use to turn a caught value into the text of a failure;
+ *              {@link asRecord}, which narrows a parsed value to a plain object; and
  *              {@link trackedConfigs}, which holds a config-driven collector to its floor and
  *              resolves the real root its listed paths are made relative to.
  * @layer infrastructure
@@ -114,6 +115,16 @@ export async function runCollectors(
  */
 export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * @param value - Any parsed JSON or YAML value.
+ * @returns It as a plain object, or `null` when it is not one.
+ */
+export function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value))
+    : null;
 }
 
 /** What a config-driven collector reads before it lists anything. */
