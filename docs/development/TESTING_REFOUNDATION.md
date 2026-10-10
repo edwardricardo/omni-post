@@ -1,7 +1,15 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, R1 and R3 read the sources a required check runs (PR R9b8, WU-1.9): a file
+**As of:** 2026-10-10, the reach engine's second half closed (PR R9b9, WU-1.9): `reach` runs the
+vitest, node:test, Playwright and k6 collectors, reads `packages/test-contracts/collectors.json`,
+the workflows it names and `.github/rulesets/main.json` (flags `--collectors` and `--ruleset`), and
+reports R1, R2 and R3, still not wired into CI. The registry maps vitest to Test Suite, Package
+Tests and Frontend Tests and node:test to Integration Tests, and holds Playwright and k6 empty: no
+required check runs either. Across R9b1 to R9b9, 101 new self-tests (182 in the package) plant each
+violation, and 18 planted mutants each turn the suite red. The run over the real tree waits for the
+ruleset of WU-1.10. It moved no metric (M1 `991 + 14`, M7 `28/28`, M8 `1/92`).
+Before it, on 2026-10-10, R1 and R3 read the sources a required check runs (PR R9b8, WU-1.9): a file
 collected only by a source no required check runs is unreached, and R3 no longer counts such a
 source against a quarantine entry, so a file whose collector runs nowhere can be quarantined. Given
 no run sources, the verdict is the one over the collections alone. It moved no metric (M1
@@ -493,7 +501,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b8`         | `phase1-u9*` · 1327 + 2161              | 2026-10-10 |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b9`         | `phase1-u9*` · 1327 + 2544              | 2026-10-10 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |

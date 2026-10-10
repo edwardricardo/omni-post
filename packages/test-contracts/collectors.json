@@ -1,0 +1,50 @@
+{
+  "collectors": {
+    "vitest": {
+      "executedBy": [
+        {
+          "workflow": ".github/workflows/ci.yml",
+          "jobId": "test",
+          "entrypoint": "pnpm --filter @apps/api exec vitest run --shard=",
+          "packages": ["apps/api"]
+        },
+        {
+          "workflow": ".github/workflows/ci.yml",
+          "jobId": "test-packages",
+          "entrypoint": "pnpm exec turbo run test",
+          "exclude": ["apps/api", "apps/admin", "apps/client"]
+        },
+        {
+          "workflow": ".github/workflows/ci.yml",
+          "jobId": "test-frontend",
+          "entrypoint": "pnpm --filter @apps/admin test",
+          "packages": ["apps/admin"]
+        },
+        {
+          "workflow": ".github/workflows/ci.yml",
+          "jobId": "test-frontend",
+          "entrypoint": "pnpm --filter @apps/client exec vitest run",
+          "packages": ["apps/client"]
+        }
+      ]
+    },
+    "node": {
+      "executedBy": [
+        {
+          "workflow": ".github/workflows/ci.yml",
+          "jobId": "test-integration",
+          "entrypoint": "pnpm --filter @apps/api run test:integration"
+        }
+      ],
+      "note": "Integration Tests runs the runner with TIER=full-integration, its integration and live files. chaos.yml runs it too, on a schedule with TIER=pr-integration, which is no required check."
+    },
+    "playwright": {
+      "executedBy": [],
+      "note": "No workflow runs playwright test: the Storybook Stories job installs Chromium for vitest browser mode and runs no spec, so both portals' specs reach no required check."
+    },
+    "k6": {
+      "executedBy": [],
+      "note": "performance.yml's k6-load job runs one scenario per run, on push to main and on dispatch, with a name that is an expression of the dispatch input; it is no required check."
+    }
+  }
+}
