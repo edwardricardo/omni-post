@@ -1,7 +1,12 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the Playwright collector (PR R9b4, WU-1.9) lists each tracked
+**As of:** 2026-10-10, the readers of rule R2 (PR R9b5, WU-1.9) parse `collectors.json`, which maps
+each collector to the CI jobs that execute it (`{workflow, jobId, entrypoint, packages|exclude}`),
+and the required status checks of a ruleset in the shape GitHub's rulesets API returns. Each refuses
+its input whole when anything in it is malformed or unknown. It moved M1 `990 + 14` → `991 + 14`
+(its suite) and left M7 at `28/28` and M8 at `1/92`.
+Before it, on 2026-10-10, the Playwright collector (PR R9b4, WU-1.9) lists each tracked
 `playwright.config.*` through the Playwright CLI found in the `node_modules` above it, one source
 per config whatever its projects, and fails closed with no tracked config, a CLI it cannot find, a
 non-zero exit and a config that collects nothing. One self-test lists the admin portal's specs
@@ -353,7 +358,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 990 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R9b3  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 991 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R9b5  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -471,7 +476,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b4`         | `phase1-u9*` · 1327 + 1158              | 2026-10-10 |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b5`         | `phase1-u9*` · 1327 + 1480              | 2026-10-10 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |
