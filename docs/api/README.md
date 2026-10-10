@@ -148,18 +148,20 @@ Authorization: Bearer <jwt-token>
 
 ### Create Post
 
+There is no `POST /posts`. The publishing saga creates posts: `mode: "draft"` creates a draft and publishes nothing, and `schedule` or `publish-now` with `locale` and `body` create the post and publish it (see [Publishing](#publishing)).
+
 ```http
-POST /posts
+POST /sagas/post-publishing/start
 Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
-  "projectId": "uuid",
+  "mode": "draft",
+  "projectId": "project-uuid",
   "locale": "en",
   "title": "My Post Title",
   "body": "Full post content...",
-  "tags": ["social", "marketing"],
-  "scheduledAt": "2025-01-24T10:00:00Z"
+  "tags": ["social", "marketing"]
 }
 ```
 
@@ -199,59 +201,108 @@ Authorization: Bearer <jwt-token>
 
 ## Publishing
 
+Every publish and every schedule goes through the post-publishing saga: `POST /sagas/post-publishing/start` starts it and `GET /sagas/{sagaId}` reads its progress. Both require a customer token. The body is `StartPostPublishingSagaBodySchema` in `apps/api/src/saga/SagaIntegration.ts`, and its `mode` selects what the saga does.
+
 ### Publish Post
 
 ```http
-POST /publish/{postId}
+POST /sagas/post-publishing/start
 Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
-  "channelIds": ["x-channel-uuid"],
-  "scheduledAt": "2025-01-24T15:00:00Z"
-}
-```
-
-### Publish Thread
-
-```http
-POST /thread/{postId}/publish
-Authorization: Bearer <jwt-token>
-Content-Type: application/json
-
-{
-  "channelIds": ["x-channel-uuid"],
-  "threadSettings": {
-    "delay": 30,
-    "splitMethod": "SENTENCE"
-  }
+  "mode": "publish-now",
+  "projectId": "project-uuid",
+  "postId": "draft-post-uuid",
+  "channelIds": ["channel-uuid"]
 }
 ```
 
 ### Schedule Post
 
 ```http
-POST /schedule/{postId}
+POST /sagas/post-publishing/start
 Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
-  "channelIds": ["x-channel-uuid"],
-  "runAt": "2025-01-24T10:00:00Z"
+  "mode": "schedule",
+  "projectId": "project-uuid",
+  "postId": "draft-post-uuid",
+  "channelIds": ["channel-uuid"],
+  "scheduledAt": "2026-10-24T15:00:00Z"
 }
 ```
 
-### Cancel Scheduled Post
+**Body fields**:
+
+| Field         | Modes                                               | Rule                                                             |
+| ------------- | --------------------------------------------------- | ---------------------------------------------------------------- |
+| `mode`        | all                                                 | `draft`, `schedule` or `publish-now`                             |
+| `projectId`   | all                                                 | UUID of a project of the caller's account                        |
+| `postId`      | `schedule`, `publish-now`                           | UUID of a `DRAFT` post of that project                           |
+| `channelIds`  | `schedule`, `publish-now`                           | at least one UUID, each a channel of that project                |
+| `scheduledAt` | `schedule`                                          | ISO 8601 date-time                                               |
+| `locale`      | `draft` (required); otherwise only without `postId` | 2 to 5 characters                                                |
+| `body`        | `draft` (required); otherwise only without `postId` | 1 to 10,000 characters                                           |
+| `title`       | all, optional                                       | 1 to 256 characters                                              |
+| `tags`        | all, optional                                       | array of strings, default `[]`; read only when a post is created |
+| `mediaIds`    | all, optional                                       | array of UUIDs, default `[]`; read only when a post is created   |
+
+In `schedule` and `publish-now`, send either `postId` (publish that draft) or `locale` and `body` (create the post, then publish it), never both and never neither.
+
+**Response**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "sagaId": "saga-uuid",
+    "status": "PENDING",
+    "mode": "schedule",
+    "correlationId": "post-publish-<uuid>",
+    "startedAt": "2026-10-10T10:00:00.000Z"
+  }
+}
+```
+
+The saga runs after the response. A body that fails the schema answers 400, a project, channel or post outside the caller's account answers 404, and a `postId` whose post is not in `DRAFT` answers 400.
+
+### Get Publishing Status
 
 ```http
-POST /schedule/cancel
+GET /sagas/{sagaId}
 Authorization: Bearer <jwt-token>
+```
+
+Returns the saga's `status` (`PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `COMPENSATING` or `COMPENSATED`), `currentStep`, `progress`, `error` and one `stepResults` entry per step. Only the user who started the saga can read it; anyone else gets 404.
+
+### Threads
+
+There is no thread route and no thread setting. A post that becomes a thread goes through the same saga, and the provider adapter decides at publish time: the X adapter splits a body longer than one post into a thread. `GET /posts/{postId}` returns the post's `thread` once it has one.
+
+### Cancel or Reschedule a Scheduled Post
+
+A customer has no route for either. Admin has two, both requiring the `post:manage` permission:
+
+```http
+POST /admin/posts/{id}/cancel
+Authorization: Bearer <admin-token>
+```
+
+```http
+POST /admin/posts/{id}/reschedule
+Authorization: Bearer <admin-token>
 Content-Type: application/json
 
 {
-  "dedupeKeys": ["postId:channelId:timestamp"]
+  "scheduledAt": "2026-10-25T09:00:00Z",
+  "timezone": "UTC",
+  "updateChannels": true
 }
 ```
+
+Cancel moves a `SCHEDULED` post back to `DRAFT`, clears its `scheduledAt` and marks its queued or running publish logs as `ERR`. Reschedule sets the post to `SCHEDULED` with the new `scheduledAt`, which must be in the future; with `updateChannels` (default `true`) it writes the new time into those logs. Neither route calls the publish queue, and the publish worker does not read the post's status before it publishes (`apps/workers/src/publishHandler.ts`), so neither route stops or moves a job that is already queued.
 
 ## Analytics
 
