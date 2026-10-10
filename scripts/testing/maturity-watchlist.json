@@ -110,7 +110,13 @@
         "via": "@secretlint/walker 13.0.6, and @typescript-eslint/eslint-plugin 8.70.1 by deduplication, 0.9 days after publication"
       },
       "milestones": { "maturity": "2026-10-09", "final": "2026-10-16" },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-10",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-10, one day after the milestone, in the secretlint 13.0.7 hold bump that re-resolves the chain this entry names. Registry: 7.0.12 (2026-10-02T12:24Z) is latest; nothing newer is published. OSV: nothing for ignore 7.0.12. GitHub: kaelzhang/node-ignore has no repository advisory, and the global advisory search lists none for ignore. Upstream: no GitHub release after 7.0.8; the 7.0.12 commit (75533efa) bundles #170 and #171, which trim trailing spaces before anchoring a directory pattern, treat a lone '!' line as blank, reject a dangling escape and drop a pattern that normalizes to nothing, plus three linear-time pattern-parsing changes; since then only a Windows test (#172) landed, and no issue was opened from 2026-10-02 on. Reachability: dev-only. The lockfile, parsed with yaml.safe_load_all, resolves 7.0.12 for @secretlint/walker 13.0.7 (^7.0.10) and @typescript-eslint/eslint-plugin 8.71.0 (^7.0.5), 7.0.11 for dependency-cruiser 18.5.0, which declares it exactly, and 5.3.2 for eslint and @eslint/eslintrc; .secretlintignore holds none of the pattern shapes those fixes change (no trailing space, lone '!' or trailing backslash). Works here: pnpm secret:scan exits 0 on the tree and 1 naming AWSSecretAccessKey on a planted key, and the 133 hook tests pass, the env-template exclusion among them. Clean; the 14-day review is due 2026-10-16."
+        }
+      }
     },
     {
       "kind": "package",
