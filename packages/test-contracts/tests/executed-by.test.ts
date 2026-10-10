@@ -1,12 +1,17 @@
 /**
  * @file executed-by.test.ts
- * @description Self-tests of the registry and the ruleset rule R2 reads: each is read when well
- *              formed and refused when malformed.
+ * @description Self-tests of the registry and the ruleset rule R2 reads, and of check-name
+ *              rendering: the registry and the ruleset are refused when malformed, and check names
+ *              render only when they are predictable.
  * @layer infrastructure
  */
 import { describe, expect, it } from "vitest";
 import { ok } from "@shared/types";
-import { parseCollectorRegistry, parseRequiredContexts } from "../src/lib/executed-by.js";
+import {
+  parseCollectorRegistry,
+  parseRequiredContexts,
+  renderCheckNames,
+} from "../src/lib/executed-by.js";
 import { registryOf, rulesetRequiring, UNIT_ENTRY } from "./fixtures/ci.js";
 
 describe("collectors.json parsing", () => {
@@ -98,5 +103,70 @@ describe("ruleset parsing", () => {
     const parsed = parseRequiredContexts(text, "r.json");
 
     expect(parsed.ok ? "" : parsed.error).toContain(expected);
+  });
+});
+
+describe("check names", () => {
+  it.each([
+    ["a named job", { name: "Unit" }, ["Unit"]],
+    ["an unnamed job, by its id", {}, ["job"]],
+    [
+      "a matrix job, one name per value",
+      { name: "Test (shard ${{ matrix.shard }})", strategy: { matrix: { shard: [1, 2] } } },
+      ["Test (shard 1)", "Test (shard 2)"],
+    ],
+    [
+      "a two-key matrix, one name per combination",
+      {
+        name: "${{ matrix.os }}-${{ matrix.node }}",
+        strategy: { matrix: { os: ["a"], node: [1, 2] } },
+      },
+      ["a-1", "a-2"],
+    ],
+  ])("returns the names of %s", (_label, job, expected) => {
+    expect(renderCheckNames("job", job)).toEqual(ok(expected));
+  });
+
+  it.each([
+    ["a name that is not a string", { name: 3 }, "its name is not a string"],
+    [
+      "an unnamed matrix job",
+      { strategy: { matrix: { shard: [1] } } },
+      "a matrix job with no name",
+    ],
+    [
+      "a matrix job whose name leaves its matrix out",
+      { name: "Test", strategy: { matrix: { shard: [1, 2] } } },
+      "whose name leaves its matrix values out",
+    ],
+    [
+      "a matrix with include",
+      { name: "T ${{ matrix.a }}", strategy: { matrix: { a: [1], include: [{ a: 2 }] } } },
+      "its matrix uses include",
+    ],
+    [
+      "a matrix set by an expression",
+      { name: "T ${{ matrix.a }}", strategy: { matrix: "${{ fromJSON(x) }}" } },
+      "its matrix is not a mapping of lists",
+    ],
+    [
+      "a matrix key with an object value",
+      { name: "T ${{ matrix.a }}", strategy: { matrix: { a: [{ b: 1 }] } } },
+      'its matrix key "a" is not a list of plain values',
+    ],
+    [
+      "a name using a matrix key no matrix sets",
+      { name: "T ${{ matrix.a }}" },
+      "its name uses matrix.a, which no matrix key sets",
+    ],
+    [
+      "a name using another expression",
+      { name: "k6 (${{ github.event.inputs.scenario }})" },
+      "its name uses an expression other than a matrix value",
+    ],
+  ])("returns a failure for %s", (_label, job, expected) => {
+    const rendered = renderCheckNames("job", job);
+
+    expect(rendered.ok ? "" : rendered.error).toContain(expected);
   });
 });

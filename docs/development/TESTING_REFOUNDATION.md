@@ -1,7 +1,11 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the readers of rule R2 (PR R9b5, WU-1.9) parse `collectors.json`, which maps
+**As of:** 2026-10-10, check-name rendering (PR R9b6, WU-1.9) renders the check names a CI job
+reports, one per matrix combination, and refuses to guess: a name with an expression other than a
+matrix value, a matrix job whose name leaves its matrix out, and a matrix with `include`, `exclude`
+or an expression are errors. It moved no metric (M1 `991 + 14`, M7 `28/28`, M8 `1/92`).
+Before it, on 2026-10-10, the readers of rule R2 (PR R9b5, WU-1.9) parse `collectors.json`, which maps
 each collector to the CI jobs that execute it (`{workflow, jobId, entrypoint, packages|exclude}`),
 and the required status checks of a ruleset in the shape GitHub's rulesets API returns. Each refuses
 its input whole when anything in it is malformed or unknown. It moved M1 `990 + 14` → `991 + 14`
@@ -476,7 +480,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b5`         | `phase1-u9*` · 1327 + 1480              | 2026-10-10 |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b6`         | `phase1-u9*` · 1327 + 1639              | 2026-10-10 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |
