@@ -125,19 +125,20 @@ cp apps/client/.env.example apps/client/.env
 pnpm --filter @apps/api test
 
 # Integration and flow suites (node:test): scripts/run-tests.sh, which with TIER
-# unset runs the Vitest phase and then every node:test batch (planning, adapters,
-# media/schedule/analytics flows, threading, multi-project, account lifecycle,
-# trial period, audit, schema utils, provider registry, cache, production flows).
-# Needs PostgreSQL and Redis (pnpm db:up); the live-API batches need a running API.
+# unset runs every node:test batch (planning, adapters, media/schedule/analytics
+# flows, threading, multi-project, account lifecycle, trial period, audit, schema
+# utils, provider registry, cache, production flows). Needs PostgreSQL and Redis
+# (pnpm db:up) and the root .env.test exported; the live-API batches need a
+# running API.
 pnpm --filter @apps/api test:integration
 
-# Security & Authentication suites one file at a time (the same files run in
-# test:integration; security/scripts/security-scan.sh and vulnerability-report.ts
-# call these scripts)
-pnpm --filter @apps/api test:security             # Security validation
-pnpm --filter @apps/api test:auth                 # Authentication flows
-pnpm --filter @apps/api test:mfa                  # Multi-factor authentication
-pnpm --filter @apps/api test:rbac                 # Role-based access control
+# Security & Authentication suites one file at a time, from apps/api (the same
+# files run in test:integration: auth and security in integration:flows, mfa and
+# rbac in remaining)
+NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/security.live.test.ts    # Security validation, needs the running API
+NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/auth.integration.test.ts  # Authentication flows
+NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/mfa.integration.test.ts   # Multi-factor authentication
+NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/rbac.integration.test.ts  # Role-based access control
 ```
 
 #### Client Tests (Frontend)
