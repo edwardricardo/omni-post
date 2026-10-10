@@ -6,7 +6,7 @@
 import { configDefaults, defineConfig } from "vitest/config";
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { RESERVED_TIER_EXCLUDES } from "@packages/vitest-shared";
+import { RESERVED_TIER_EXCLUDES, SOURCE_CONDITIONS } from "@packages/vitest-shared";
 
 function findMonorepoRoot(startDir: string): string {
   let dir = path.resolve(startDir);
@@ -55,8 +55,12 @@ export default defineConfig({
       "@adapters/cache-redis": path.join(root, "packages/adapters/cache-redis/src/index.ts"),
       "@providers/shared": path.join(root, "packages/providers/shared/src/index.ts"),
     },
-    conditions: ["node"],
+    // The shared factory's export conditions, named here because this config does not go
+    // through it: `development` sends an unaliased workspace package to its src/ whatever
+    // NODE_ENV says, and node tests resolve through the ssr environment, which reads only `ssr`.
+    conditions: [...SOURCE_CONDITIONS],
   },
+  ssr: { resolve: { conditions: [...SOURCE_CONDITIONS] } },
   test: {
     environment: "node",
     globals: true,

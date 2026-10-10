@@ -9,7 +9,10 @@
  *              expected lists hold on a laptop and on a GitHub Actions runner alike. For
  *              `test.exclude` concatenation is the point: the reserved tier suffixes must survive
  *              a caller that names its own exclusions, or a package could hand a node:test,
- *              Playwright or k6 file to vitest by adding one glob.
+ *              Playwright or k6 file to vitest by adding one glob. It also pins the export
+ *              conditions the factory sets in both environments, `client` and `ssr`; whether they
+ *              send every test's workspace import to `src/` is the contract
+ *              `packages/test-contracts/tests/source-resolution.test.ts` holds over the tree.
  * @layer infrastructure
  */
 
@@ -17,6 +20,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { configDefaults } from "vitest/config";
 import {
   RESERVED_TIER_EXCLUDES,
+  SOURCE_CONDITIONS,
   defineWorkspaceVitestConfig,
   workspaceReporters,
 } from "../src/index.js";
@@ -34,6 +38,24 @@ describe("defineWorkspaceVitestConfig", () => {
         "**/*.spec.*",
         "**/*.k6.js",
       ]);
+    });
+  });
+
+  describe("export conditions", () => {
+    it("names development before node, so an unaliased package resolves to its src/", () => {
+      expect(SOURCE_CONDITIONS).toEqual(["development", "node"]);
+    });
+
+    it("sets the source conditions on the ssr environment, which node tests resolve through", () => {
+      const config = defineWorkspaceVitestConfig(import.meta.dirname);
+
+      expect(config.ssr?.resolve?.conditions).toEqual([...SOURCE_CONDITIONS]);
+    });
+
+    it("sets the source conditions on the client environment, which DOM tests resolve through", () => {
+      const config = defineWorkspaceVitestConfig(import.meta.dirname);
+
+      expect(config.resolve?.conditions).toEqual([...SOURCE_CONDITIONS]);
     });
   });
 
