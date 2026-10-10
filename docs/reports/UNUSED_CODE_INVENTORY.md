@@ -144,7 +144,7 @@ Re-run against the real locations — `packages/core/domain` plus the 295 `@laye
 
 **What they actually do.** Squawk runs `set +e` then `xargs squawk --config .squawk.toml || echo "::warning::Squawk found warnings…"`. The `|| echo` swallows every exit code — the step is incapable of failing, contradicting its own documented contract, and `audit-summary:319` reports it green.
 
-ZAP fails twice over: `fail_action: false` (`:230`) means findings can never fail the job, and `rules_file_name: ".zap/rules.tsv"` (`:228`) points at a file that **does not exist** (`ls .zap` → No such file or directory; the only other ZAP file, `security/zap/zap-config.conf`, was no rules file either, and was deleted on 2026-10-10 because nothing read it). The job fails nightly on API spin-up anyway; push/PR tiers are green only because ZAP is gated to `schedule || workflow_dispatch` (`:165`).
+ZAP fails twice over: `fail_action: false` (`:230`) means findings can never fail the job, and `rules_file_name: ".zap/rules.tsv"` (`:228`) points at a file that **does not exist** (`ls .zap` → No such file or directory; the only other ZAP file, `security/zap/zap-config.conf`, was not a rules file either, and was deleted on 2026-10-10 because nothing read it). The job fails nightly on API spin-up anyway; push/PR tiers are green only because ZAP is gated to `schedule || workflow_dispatch` (`:165`).
 
 **Who is misled.** Anyone reading the audit workflow header and concluding that a dangerous migration cannot merge. `.squawk.toml` exists and is real — the config was written, the gate was not.
 

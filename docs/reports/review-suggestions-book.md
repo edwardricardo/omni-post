@@ -151,6 +151,7 @@
 | SB-130 | Phase 1 U7b (`workstream/phase1-u7b-s4`, 077ff3d3)                                    | R2-001, R3-order-arg-unquoted                                    | `apps/api/scripts/run-tests.sh` (`collect`, unquoted `$order`)                                                                              | shell clarity                | deferred: `TEST_ORDER` is validated to unset, forward or reverse first; both orders are pinned                                                                  |
 | SB-131 | same                                                                                  | R2-002                                                           | `docs/development/TESTING_REFOUNDATION.md` (As-of head of R7b4)                                                                             | readability                  | deferred: every As-of head is one paragraph; a scannable format is a tracker-wide change                                                                        |
 | SB-132 | same                                                                                  | R3-reverse-assertion-depends-on-forward-sort                     | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (byte order)                                                                       | test oracle                  | deferred: 0 non-ASCII paths under `apps/api/tests`, where JS and C byte order agree                                                                             |
+| SB-133 | DEF-78 (`workstream/fix-def-78-dead-security-config`, 15636798)                       | R2-002                                                           | `docs/product/MASTER_PLAN_ES.md` (DEF-78 closure note)                                                                                      | readability                  | deferred: §5.11 closure notes are one paragraph each; a bulleted form changes every note                                                                        |
 
 ## Entries — code and prose
 
@@ -1228,6 +1229,14 @@
 - **Suggestion:** compare the forward call list against an explicit byte-order sort (`Buffer.compare`), matching `LC_ALL=C sort`.
 - **Why deferred:** measured 2026-10-10, `apps/api/tests` holds 0 paths with a non-ASCII byte, and for ASCII JavaScript's default sort (UTF-16 code units) and `LC_ALL=C sort` give the same order.
 - **To implement:** a byte comparator in the case's expected order.
+
+### SB-133 — DEF-78's closure note is one long paragraph
+
+- **Source:** the native review of DEF-78 (`workstream/fix-def-78-dead-security-config`, `15636798`), finding `R2-002`.
+- **Location:** `docs/product/MASTER_PLAN_ES.md`, the DEF-78 entry of §5.11.
+- **Suggestion:** split the closure into bullets: what was deleted, why the ZAP file is not a rules file, the search before and after, the documents it changed.
+- **Why deferred:** every closure note in §5.11 (DEF-37, DEF-49, DEF-63, DEF-67, DEF-68, DEF-70, DEF-72) is one paragraph appended to its entry; a bulleted form is a convention change for the whole queue, not for one entry.
+- **To implement:** decide the closure-note format once and apply it to the closed entries as one docs change.
 
 ## Implemented
 
