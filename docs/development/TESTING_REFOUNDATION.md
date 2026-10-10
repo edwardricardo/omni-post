@@ -1,7 +1,14 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the first slice of the reach engine's second half (PR R9b1, WU-1.9) added the
+**As of:** 2026-10-10, the node:test collector (PR R9b2, WU-1.9) runs
+`apps/api/scripts/run-tests.sh --list` from `apps/api` with `DATABASE_URL` and `TIER` removed from
+its environment, collects the `integration` and `live` files as one source each and leaves
+`quarantined` ones to the quarantine. It fails closed on a runner that cannot start, times out or
+exits non-zero, on a path that is not a tracked file and on a listing that collects nothing; its
+self-tests run a planted runner, never the repository's. It moved no metric (M1 `989 + 14`, M7
+`28/28`, M8 `1/92`).
+Before it, on 2026-10-10, the first slice of the reach engine's second half (PR R9b1, WU-1.9) added the
 k6 collector, which collects the tracked `*.k6.js` files as one source and fails closed when there
 are none, and the reader of the node:test runner's `--list` output, which refuses an empty listing,
 a malformed line, an unknown kind and an absolute or repeated path. The config floor and real-root
@@ -453,7 +460,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`                | `phase1-u9*` · 1327 + 327               | 2026-10-10 |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b2`         | `phase1-u9*` · 1327 + 660               | 2026-10-10 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |
