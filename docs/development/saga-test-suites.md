@@ -21,9 +21,10 @@
 
 Unit suites under `tests/unit/saga/` are collected by the Vitest phase and need
 nothing. `scripts/run-tests.sh` collects the node:test ones by their suffix, and a
-static invariant asserts that `run-tests.sh --list` reaches every node:test saga
-suite on disk, because a suite no tier runs never runs while still reading as
-coverage.
+static invariant asserts that every node:test saga suite on disk carries the suffix
+of the tier that collects it, because a suite no tier collects never runs while
+still reading as coverage; whether a collected suite runs or sits in the quarantine
+is reach, which fitness #30 measures.
 
 `sagaPublishNowPromotion` doubles the QUEUE rather than owning a real one: it reports
 every scheduled job as completed, which is what puts the saga on the total-success

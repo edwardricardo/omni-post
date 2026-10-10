@@ -14,7 +14,6 @@
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1615,26 +1614,15 @@ describe("saga engine context invariants", () => {
     });
   });
 
-  describe("every saga suite is reached by the runner", () => {
-    // A suite no collector reaches never runs under `test:all` or in CI, so it
-    // protects nothing while reading as coverage. Unit suites are collected by
-    // vitest from the whole `tests/unit` tree; the node:test suites are collected
-    // by run-tests.sh, the services tier by its suffix and the live tier by the
-    // live-API batches that name it, and `run-tests.sh --list` prints both
-    // without running anything or needing a database.
-    const runnerPath = join(apiRoot, "scripts", "run-tests.sh");
+  describe("every saga suite carries its tier suffix", () => {
+    // A node:test suite runs only when a collector recognises its name: vitest
+    // collects the `tests/unit` tree, and run-tests.sh collects every
+    // `*.integration.test.ts` as its services tier and every `*.live.test.ts` as
+    // its live tier. A saga suite outside `tests/unit` with neither suffix runs
+    // nowhere while reading as coverage. Whether a collected file then runs or sits
+    // in the quarantine is reach, which fitness #30 measures over the whole tree;
+    // this block holds the naming a saga suite needs to be collected at all.
     const testsRoot = join(apiRoot, "tests");
-    const listing = spawnSync("bash", [runnerPath, "--list"], {
-      cwd: apiRoot,
-      encoding: "utf8",
-      timeout: 60_000,
-    });
-    const reached = new Set(
-      (listing.stdout ?? "")
-        .split("\n")
-        .filter((line) => /^(integration|live)\t/.test(line))
-        .map((line) => line.slice(line.indexOf("\t") + 1))
-    );
 
     const sagaSuites = getAllTsFiles(testsRoot)
       .map((path) => relative(apiRoot, path))
@@ -1645,7 +1633,7 @@ describe("saga engine context invariants", () => {
 
     it("still finds the node:test saga suites on disk", () => {
       // Minimum + membership rather than an exact set: a NEW suite must fail
-      // the wiring assertion below, not this one.
+      // the suffix assertion below, not this one.
       expect(sagaSuites).toEqual(
         expect.arrayContaining([
           "tests/chaos/saga-step-retry-recovery.integration.test.ts",
@@ -1657,19 +1645,11 @@ describe("saga engine context invariants", () => {
       expect(sagaSuites.length).toBeGreaterThanOrEqual(4);
     });
 
-    it("lists the runner's inventory without an error", () => {
-      // Non-vacuity: a listing that failed would leave every suite below unreached
-      // for a reason that has nothing to do with the suites.
-      expect({ exitCode: listing.status, stderr: listing.stderr }).toEqual({
-        exitCode: 0,
-        stderr: "",
-      });
-      expect(reached.size).toBeGreaterThan(0);
-    });
-
-    it("reaches every one of them through run-tests.sh --list", () => {
-      const unreached = sagaSuites.filter((path) => !reached.has(path));
-      expect(unreached).toEqual([]);
+    it("names every one of them with the suffix of the tier that collects it", () => {
+      const unsuffixed = sagaSuites.filter(
+        (path) => !/\.(?:integration|live)\.test\.ts$/.test(path)
+      );
+      expect(unsuffixed).toEqual([]);
     });
   });
 
