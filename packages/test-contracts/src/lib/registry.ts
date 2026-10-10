@@ -24,6 +24,7 @@ import { err, ok, type Result } from "@shared/types";
 export const COLLECTOR_ID = {
   VITEST: "vitest",
   NODE: "node",
+  PLAYWRIGHT: "playwright",
   K6: "k6",
 } as const;
 
