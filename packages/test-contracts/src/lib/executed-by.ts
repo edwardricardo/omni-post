@@ -8,6 +8,11 @@
  *              The ruleset is `.github/rulesets/main.json`, in the shape GitHub's rulesets API
  *              returns, and what is read from it is its required status checks. Both are refused,
  *              never read in part, when anything in them is malformed or unknown.
+ *
+ *              A job's check names are rendered only when they are predictable: a job name with any
+ *              expression other than a matrix value, a matrix job that leaves its matrix out of
+ *              its name, or a matrix with `include`, `exclude` or an expression is refused, never
+ *              a guess at what GitHub would display.
  * @layer infrastructure
  */
 import { err, ok, type Result } from "@shared/types";
@@ -32,6 +37,7 @@ export type CollectorRegistry = ReadonlyMap<string, readonly ExecutedByEntry[]>;
 const ENTRY_KEYS = new Set(["workflow", "jobId", "entrypoint", "packages", "exclude"]);
 const COLLECTOR_KEYS = new Set(["executedBy", "note"]);
 const WORKFLOW_PATH = /^\.github\/workflows\/[^/]+\.ya?ml$/;
+const MATRIX_REFERENCE = /\$\{\{\s*matrix\.([A-Za-z_][\w-]*)\s*\}\}/g;
 
 /**
  * @param value - Any parsed value.
@@ -148,4 +154,75 @@ export function parseRequiredContexts(text: string, label: string): Result<Set<s
   }
   if (contexts.size === 0) return err(`ruleset ${label} requires no status check`);
   return ok(contexts);
+}
+
+/**
+ * @param strategy - A job's `strategy`, or `undefined`.
+ * @returns Every matrix combination, key → rendered value, or why it cannot be expanded.
+ */
+function matrixCombinations(strategy: unknown): Result<Map<string, string>[], string> {
+  const matrix = asRecord(strategy)?.matrix;
+  if (matrix === undefined) return ok([new Map()]);
+  const record = asRecord(matrix);
+  if (record === null) return err("its matrix is not a mapping of lists");
+  let combinations = [new Map<string, string>()];
+  for (const [key, values] of Object.entries(record)) {
+    if (key === "include" || key === "exclude") return err(`its matrix uses ${key}`);
+    const notPlain = err(`its matrix key "${key}" is not a list of plain values`);
+    if (!Array.isArray(values) || values.length === 0) return notPlain;
+    const list: unknown[] = values;
+    const rendered: string[] = [];
+    for (const value of list) {
+      const plain =
+        typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+      if (!plain) return notPlain;
+      rendered.push(String(value));
+    }
+    combinations = combinations.flatMap((combination) =>
+      rendered.map((value) => new Map([...combination, [key, value]]))
+    );
+  }
+  return ok(combinations);
+}
+
+/**
+ * Renders the distinct check names a job reports. GitHub reports one check run per matrix
+ * combination, and combinations whose names render alike report under the same name; a required
+ * context is a name, so the distinct names are what rule R2 holds against the ruleset.
+ *
+ * @param jobId - The job's id.
+ * @param job - The job's parsed mapping.
+ * @returns The names, or why they cannot be rendered without guessing.
+ */
+export function renderCheckNames(
+  jobId: string,
+  job: Record<string, unknown>
+): Result<string[], string> {
+  const combinations = matrixCombinations(job.strategy);
+  if (!combinations.ok) return combinations;
+  const isMatrix = combinations.value.some((combination) => combination.size > 0);
+  const { name } = job;
+  if (name === undefined) {
+    return isMatrix ? err("it is a matrix job with no name") : ok([jobId]);
+  }
+  if (typeof name !== "string") return err("its name is not a string");
+  const keys = [...name.matchAll(MATRIX_REFERENCE)].map((match) => match[1] ?? "");
+  if (isMatrix && keys.length === 0) {
+    return err("it is a matrix job whose name leaves its matrix values out");
+  }
+  const names = new Set<string>();
+  for (const combination of combinations.value) {
+    const absent = keys.find((key) => !combination.has(key));
+    if (absent !== undefined)
+      return err(`its name uses matrix.${absent}, which no matrix key sets`);
+    const rendered = name.replace(
+      MATRIX_REFERENCE,
+      (_whole, key: string) => combination.get(key) ?? ""
+    );
+    if (rendered.includes("${{")) {
+      return err("its name uses an expression other than a matrix value");
+    }
+    names.add(rendered);
+  }
+  return ok([...names]);
 }
