@@ -152,6 +152,20 @@
 | SB-131 | same                                                                                  | R2-002                                                           | `docs/development/TESTING_REFOUNDATION.md` (As-of head of R7b4)                                                                             | readability                  | deferred: every As-of head is one paragraph; a scannable format is a tracker-wide change                                                                        |
 | SB-132 | same                                                                                  | R3-reverse-assertion-depends-on-forward-sort                     | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (byte order)                                                                       | test oracle                  | deferred: 0 non-ASCII paths under `apps/api/tests`, where JS and C byte order agree                                                                             |
 | SB-133 | DEF-78 (`workstream/fix-def-78-dead-security-config`, 15636798)                       | R2-002                                                           | `docs/product/MASTER_PLAN_ES.md` (DEF-78 closure note)                                                                                      | readability                  | deferred: §5.11 closure notes are one paragraph each; a bulleted form changes every note                                                                        |
+| SB-134 | Phase 1 U9b (`workstream/phase1-u9b-1`, cfddf623)                                     | R3-node-collector-windows-absolute                               | `packages/test-contracts/src/lib/node-collector.ts` (absolute-path guard)                                                                   | platform scope               | deferred: --list prints paths from `find tests` on the Linux runners only                                                                                       |
+| SB-135 | same                                                                                  | R3-node-collector-parent-escape                                  | `packages/test-contracts/src/lib/node-collector.ts` (`..` segments)                                                                         | input validation             | deferred: no source of --list can print `..`; its paths come from `find tests`                                                                                  |
+| SB-136 | same                                                                                  | R3-k6-collector-root-ignored                                     | `packages/test-contracts/src/lib/k6.ts` (`context.root`)                                                                                    | contract clarity             | deferred: the tracked list it reads is built from the root by the engine                                                                                        |
+| SB-137 | Phase 1 U9b (`workstream/phase1-u9b-2`, 9763d0aa)                                     | R2-untracked-paths-pluralization; R3-002 (R9b3)                  | `packages/test-contracts/src/lib/node-collector.ts`, `packages/test-contracts/src/lib/playwright-collector.ts` (counts)                     | message wording              | deferred: "1 paths" and "1 errors" still name the count and fail closed                                                                                         |
+| SB-138 | same                                                                                  | R2-stopped-signal-null-fallthrough                               | `packages/test-contracts/src/lib/node-collector.ts` (`runFailure`)                                                                          | message wording              | deferred: spawnSync sets a signal whenever it reports no status and no error                                                                                    |
+| SB-139 | Phase 1 U9b (`workstream/phase1-u9b-3`, 81aee5ef)                                     | R3-001                                                           | `packages/test-contracts/src/lib/playwright-collector.ts` (nested specs not a list)                                                         | test coverage                | deferred: one defensive branch of the report reader, refusing like its siblings                                                                                 |
+| SB-140 | same                                                                                  | R3-003                                                           | `packages/test-contracts/src/lib/playwright-collector.ts` (absolute spec `file`)                                                            | input validation             | deferred: Playwright 1.63 writes spec files relative to rootDir, pinned by a real-CLI case                                                                      |
+| SB-141 | Phase 1 U9b (`workstream/phase1-u9b-4`, 880539a3)                                     | R4-001; R2-003                                                   | `packages/test-contracts/src/lib/playwright-collector.ts` (`listWithPlaywrightCli`)                                                         | blocking I/O                 | deferred: reach is a CLI process in CI; nothing else shares its event loop                                                                                      |
+| SB-142 | same                                                                                  | R4-002; R2-002                                                   | `packages/test-contracts/src/lib/playwright-collector.ts` (64 MiB `maxBuffer`)                                                              | naming, diagnostics          | deferred: an overflow still fails the listing closed, with node's error                                                                                         |
+| SB-143 | same                                                                                  | R2-004                                                           | `packages/test-contracts/src/lib/playwright-collector.ts` (`PlaywrightCollectorOptions`)                                                    | API surface                  | deferred: test-only options documented as such; production builds take none                                                                                     |
+| SB-144 | Phase 1 U9b (`workstream/phase1-u9b-7`, d31384d5)                                     | R3-collectorIds-O-n2                                             | `packages/test-contracts/src/lib/executed-by.ts` (registry reconciliation)                                                                  | performance                  | deferred: four collectors; the quadratic pass is over four ids                                                                                                  |
+| SB-145 | same                                                                                  | R3-isUnder-trailing-slash                                        | `packages/test-contracts/src/lib/executed-by.ts` (`isUnder`)                                                                                | input normalisation          | deferred: sources are file paths or `file#name`, never ending in a slash                                                                                        |
+| SB-146 | same                                                                                  | R3-covers-both-scopes                                            | `packages/test-contracts/src/lib/executed-by.ts` (`covers`)                                                                                 | defensive check              | deferred: the parser refuses an entry carrying both `packages` and `exclude`                                                                                    |
+| SB-147 | Phase 1 U9b (`workstream/phase1-u9b-9`, 313643f7)                                     | R2-sort-brittle-to-double-digit-rules                            | `packages/test-contracts/src/reach.ts` (violation order)                                                                                    | ordering                     | deferred: three rules, R1 to R3, where text order is rule order                                                                                                 |
 
 ## Entries — code and prose
 
@@ -1237,6 +1251,118 @@
 - **Suggestion:** split the closure into bullets: what was deleted, why the ZAP file is not a rules file, the search before and after, the documents it changed.
 - **Why deferred:** every closure note in §5.11 (DEF-37, DEF-49, DEF-63, DEF-67, DEF-68, DEF-70, DEF-72) is one paragraph appended to its entry; a bulleted form is a convention change for the whole queue, not for one entry.
 - **To implement:** decide the closure-note format once and apply it to the closed entries as one docs change.
+
+### SB-134 — the node collector's absolute-path guard is POSIX-only
+
+- **Source:** the native review of Phase 1 U9b R9b1 (`workstream/phase1-u9b-1`, `cfddf623`), finding `R3-node-collector-windows-absolute`.
+- **Location:** `packages/test-contracts/src/lib/node-collector.ts`, the `--list` line reader.
+- **Suggestion:** refuse a Windows-style absolute path too (`path.win32.isAbsolute`).
+- **Why deferred:** `run-tests.sh --list` prints repository paths from `find tests` and its own collection, and it runs only on the Linux runners and hosts the repository supports.
+- **To implement:** one extra check and a case with a drive-letter path.
+
+### SB-135 — the node collector accepts `..` segments in a listed path
+
+- **Source:** the same review, finding `R3-node-collector-parent-escape`.
+- **Location:** `packages/test-contracts/src/lib/node-collector.ts`, the `--list` line reader.
+- **Suggestion:** refuse a listed path that normalises outside the runner's package.
+- **Why deferred:** every path `--list` prints comes from `find tests` inside `apps/api`, so no source of the listing can produce `..`.
+- **To implement:** refuse any line whose normalised path starts with `../`, with a case.
+
+### SB-136 — the k6 collector never reads `context.root`
+
+- **Source:** the same review, finding `R3-k6-collector-root-ignored`.
+- **Location:** `packages/test-contracts/src/lib/k6.ts`.
+- **Suggestion:** read and validate the root the way the vitest collector does through `trackedConfigs`.
+- **Why deferred:** the collector filters the tracked file list the engine builds from that root for every collector; it has no root-relative work of its own.
+- **To implement:** pass the root through `trackedConfigs` once the k6 collector reads files.
+
+### SB-137 — two failure messages pluralise a count of one
+
+- **Source:** the native reviews of R9b2 (`9763d0aa`, finding `R2-untracked-paths-pluralization`) and R9b3 (`81aee5ef`, finding `R3-002`).
+- **Location:** `packages/test-contracts/src/lib/node-collector.ts` (untracked paths) and `packages/test-contracts/src/lib/playwright-collector.ts` (reported errors).
+- **Suggestion:** word the noun by the count, so "1 path" and "1 error".
+- **Why deferred:** both messages still state the exact count and fail closed; the Playwright one opens with the `REPORTED_ERRORS` prefix the listing reads, so its wording changes together with that constant.
+- **To implement:** a small plural helper and the cases that quote the messages.
+
+### SB-138 — a stopped run with no signal would read "stopped by null"
+
+- **Source:** the native review of R9b2 (`9763d0aa`), finding `R2-stopped-signal-null-fallthrough`.
+- **Location:** `packages/test-contracts/src/lib/node-collector.ts`, `runFailure`.
+- **Suggestion:** fall back to "produced no exit status" when both status and signal are null.
+- **Why deferred:** `spawnSync` reports a null status only when a signal ended the child, and every other no-status outcome (spawn failure, timeout) sets `error`, which is handled first.
+- **To implement:** a guard and a case with a hand-built run result.
+
+### SB-139 — the report reader's "specs not a list" branch has no case
+
+- **Source:** the native review of R9b3 (`81aee5ef`), finding `R3-001`.
+- **Location:** `packages/test-contracts/src/lib/playwright-collector.ts`, the nested suite walk.
+- **Suggestion:** a case with `specs` or `suites` set to a string or a number inside a nested suite.
+- **Why deferred:** the branch refuses like its tested siblings, and the reader fails closed either way.
+- **To implement:** one fixture per non-list shape.
+
+### SB-140 — an absolute spec `file` would bypass the `rootDir` anchor
+
+- **Source:** the same review, finding `R3-003`.
+- **Location:** `packages/test-contracts/src/lib/playwright-collector.ts`, `path.resolve(rootDir, file)`.
+- **Suggestion:** refuse a spec whose `file` is absolute.
+- **Why deferred:** Playwright 1.63.0 writes every spec `file` relative to `config.rootDir`, and the self-test that lists the admin portal through the real CLI pins that shape on every run.
+- **To implement:** an absolute-path check and a fixture.
+
+### SB-141 — the Playwright listing blocks while typed as asynchronous
+
+- **Source:** the native review of R9b4 (`880539a3`), findings `R4-001` and `R2-003`.
+- **Location:** `packages/test-contracts/src/lib/playwright-collector.ts`, `listWithPlaywrightCli`.
+- **Suggestion:** run the CLI with an asynchronous child process, or type the listing as synchronous.
+- **Why deferred:** `reach` runs as its own CLI process in CI, so a blocked event loop delays nothing else, and the 120 s cap bounds each config.
+- **To implement:** `execFile` with a promise, keeping the same failure messages.
+
+### SB-142 — the 64 MiB listing buffer is unnamed and its overflow message terse
+
+- **Source:** the same review, findings `R4-002` and `R2-002`.
+- **Location:** `packages/test-contracts/src/lib/playwright-collector.ts`, the `maxBuffer` option.
+- **Suggestion:** name the cap beside `LIST_TIMEOUT_MS` and report an overflow as "listing exceeded 64 MiB".
+- **Why deferred:** an overflow still fails the listing closed, with node's own `ERR_CHILD_PROCESS_STDIO_MAXBUFFER` message. Measured 2026-10-10, the two tracked configs list 31 KB (admin) and 649 KB (client), about 1 % of the cap.
+- **To implement:** a constant and a branch on that error code.
+
+### SB-143 — the Playwright collector's test options are part of its exported API
+
+- **Source:** the same review, finding `R2-004`.
+- **Location:** `packages/test-contracts/src/lib/playwright-collector.ts`, `PlaywrightCollectorOptions`.
+- **Suggestion:** name the options for the self-tests, or keep the test factory internal.
+- **Why deferred:** the options are documented as for the self-tests only, and `reach` builds the collector without them, so the production floor always applies.
+- **To implement:** rename to a test-overrides type, or split an internal factory.
+
+### SB-144 — registry reconciliation checks ids with a nested loop
+
+- **Source:** the native review of R9b7 (`d31384d5`), finding `R3-collectorIds-O-n2`.
+- **Location:** `packages/test-contracts/src/lib/executed-by.ts`, the registry-to-collector reconciliation.
+- **Suggestion:** build a `Set` of collector ids once.
+- **Why deferred:** the engine has four collectors, so the nested pass is over four ids and its order is already deterministic.
+- **To implement:** a `Set` lookup.
+
+### SB-145 — `isUnder` trims the prefix's trailing slash but not the source's
+
+- **Source:** the same review, finding `R3-isUnder-trailing-slash`.
+- **Location:** `packages/test-contracts/src/lib/executed-by.ts`, `isUnder`.
+- **Suggestion:** normalise both sides.
+- **Why deferred:** collection sources are file paths or `file#name`, never a path ending in a slash.
+- **To implement:** trim both, with a case.
+
+### SB-146 — `covers` does not re-check that `packages` and `exclude` exclude each other
+
+- **Source:** the same review, finding `R3-covers-both-scopes`.
+- **Location:** `packages/test-contracts/src/lib/executed-by.ts`, `covers`.
+- **Suggestion:** assert the exclusivity again where the entry is used.
+- **Why deferred:** the registry parser refuses an entry carrying both (`executed-by.ts:105`), and entries reach `covers` only through it.
+- **To implement:** an assertion and a hand-built entry in a case.
+
+### SB-147 — the violation order relies on single-digit rule names
+
+- **Source:** the native review of R9b9 (`313643f7`), finding `R2-sort-brittle-to-double-digit-rules`.
+- **Location:** `packages/test-contracts/src/reach.ts`, the merged violation sort.
+- **Suggestion:** sort by an explicit rule order, or compare rule numbers numerically.
+- **Why deferred:** there are three rules, R1 to R3, whose text order is their rule order.
+- **To implement:** a rule-order table used by the sort.
 
 ## Implemented
 
