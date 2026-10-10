@@ -1,7 +1,13 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the Playwright report reader (PR R9b3, WU-1.9) reads the JSON report of
+**As of:** 2026-10-10, the Playwright collector (PR R9b4, WU-1.9) lists each tracked
+`playwright.config.*` through the Playwright CLI found in the `node_modules` above it, one source
+per config whatever its projects, and fails closed with no tracked config, a CLI it cannot find, a
+non-zero exit and a config that collects nothing. One self-test lists the admin portal's specs
+through the real CLI, which pins the report's shape to the installed Playwright. It moved no metric
+(M1 `990 + 14`, M7 `28/28`, M8 `1/92`).
+Before it, on 2026-10-10, the Playwright report reader (PR R9b3, WU-1.9) reads the JSON report of
 `playwright test --list --reporter=json`: each spec's file, resolved against the report's
 `config.rootDir` and read once however many projects repeat it. It refuses output that is not the
 report, a report with no absolute rootDir, any load error it reports and a spec with no file. It
@@ -465,7 +471,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b3`         | `phase1-u9*` · 1327 + 824               | 2026-10-10 |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b4`         | `phase1-u9*` · 1327 + 1158              | 2026-10-10 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |
