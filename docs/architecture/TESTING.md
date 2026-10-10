@@ -18,7 +18,8 @@ Comprehensive testing strategy for the multi-channel social media CMS using a tr
 
 - **Test Runner**: Node.js native test runner (`node:test`) with `--test-force-exit`
 - **Assertions**: `node:assert/strict` for type-safe assertions
-- **Batch Runner**: `apps/api/scripts/run-tests.sh` for orchestrated batch execution
+- **Collector**: `apps/api/scripts/run-tests.sh`, which collects the services tier
+  (`*.integration.test.ts`) and the live tier (`*.live.test.ts`) by suffix
 - **Database**: Real PostgreSQL with test isolation
 - **Queue Testing**: BullMQ with Redis for background job validation
 - **Environment**: Node.js ESM with TypeScript 5.9.2, tsx 4.20.5 for transpilation
@@ -125,16 +126,16 @@ cp apps/client/.env.example apps/client/.env
 pnpm --filter @apps/api test
 
 # Integration and flow suites (node:test): scripts/run-tests.sh, which with TIER
-# unset runs every node:test batch (planning, adapters, media/schedule/analytics
-# flows, threading, multi-project, account lifecycle, trial period, audit, schema
-# utils, provider registry, cache, production flows). Needs PostgreSQL and Redis
-# (pnpm db:up) and the root .env.test exported; the live-API batches need a
-# running API.
+# unset runs both tiers: every *.integration.test.ts under tests/ (the services
+# tier), then every *.live.test.ts (the live tier). Needs PostgreSQL and Redis
+# (pnpm db:up) and the root .env.test exported; the live tier also needs the API
+# and the workers running, and TEST_API_URL and TEST_WORKERS_READY_URL exported
+# (http://localhost:3000 and http://localhost:3300/health/ready for a local stack).
 pnpm --filter @apps/api test:integration
 
 # Security & Authentication suites one file at a time, from apps/api (the same
-# files run in test:integration: auth and security in integration:flows, mfa and
-# rbac in remaining)
+# files run in test:integration: auth, mfa and rbac in the services tier,
+# security in the live tier)
 NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/security.live.test.ts    # Security validation, needs the running API
 NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/auth.integration.test.ts  # Authentication flows
 NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/mfa.integration.test.ts   # Multi-factor authentication
@@ -189,18 +190,14 @@ pnpm --filter @apps/admin run typecheck   # Admin TypeScript validation
 
 **Test Runner**: Node.js native test runner via `node --import tsx --test --test-force-exit`
 
-**Batch Runner** (`/home/edward/projects/omni-post/apps/api/scripts/run-tests.sh`)
+**Collector** (`apps/api/scripts/run-tests.sh`)
 
-The batch runner executes test files in separate Node.js processes, aggregates TAP output, and reports totals. Uses `--test-force-exit` to handle Prisma connection pool sockets.
+The collector finds the suites by their suffix — the services tier is every `*.integration.test.ts` under `tests/`, the live tier every `*.live.test.ts` — and runs each file in its own Node.js process, one after another, so every file gets its own verdict from its TAP summary. Before each live file it probes the API and the workers. Uses `--test-force-exit` to handle Prisma connection pool sockets.
 
 ```bash
-# Batch execution with configurable concurrency and timeout
-run_batch() {
-  local name="$1"
-  local concurrency="${CONCURRENCY:-4}"
-  local timeout="${TIMEOUT:-30000}"
-  # Runs: node --import tsx --test --test-force-exit --test-timeout=$timeout ...
-}
+# One node:test process per file, one file at a time
+node --conditions development --import tsx --test --test-reporter=tap \
+  --test-force-exit --test-concurrency=1 --test-timeout="${TIMEOUT:-30000}" "$file"
 ```
 
 #### Example API Test Pattern

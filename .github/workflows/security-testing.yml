@@ -17,16 +17,13 @@ name: Security Testing
 # notify (covered by GitHub native PR check status + email).
 #
 # Also removed: custom-security-tests, a second collector for files that
-# already run elsewhere. Its auth, rbac, security and mfa suites run in the
-# integration:flows and remaining batches of apps/api/scripts/run-tests.sh
-# (the Integration Tests job of ci.yml, TIER=full-integration, with a live
-# API), connected as the app role — the omnipost_app login that row-level
-# security applies to — and with rate limiting on. Its per-suite guards live
-# on there: under TIER a batch fails on any skipped or cancelled case and on
-# zero tests. What only the old job caught is a single file collecting zero
-# tests inside a batch that runs others; nothing catches that until
-# run-tests.sh gives each file its own verdict, which the testing tracker
-# (docs/development/TESTING_REFOUNDATION.md) schedules. Its two ratelimit
+# already run elsewhere. Its auth, rbac and mfa suites run in the services
+# tier of apps/api/scripts/run-tests.sh and its security suite in the live
+# tier (the Integration Tests job of ci.yml, TIER=full-integration, with a
+# live API), connected as the app role — the omnipost_app login that
+# row-level security applies to — and with rate limiting on. Its per-suite
+# guards live on there: under TIER each file gets its own verdict and fails
+# on any skipped or cancelled case and on zero tests. Its two ratelimit
 # suites live under apps/api/tests/unit and run in the vitest shards.
 
 on:

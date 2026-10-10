@@ -6,7 +6,7 @@ name: Architectural Fitness Functions
 #
 # Strategy: hard-zero (each returns count = 0), with the documented ratchets that
 # CLAUDE.md names: #1 and #21 ran as ratchets during the prisma->DI remediation
-# and are hard-zero again; #30 holds an interim baseline of 10 unrun test files;
+# and are hard-zero again; #30 holds an interim baseline of 3 quarantined files;
 # #38 carries one ratcheted sub-count for packages/adapters/db-prisma; #45 and
 # #46 hold one `pending` count per inventory, exact at its pendingBaseline. Every
 # baseline may fall and must never rise.
@@ -751,17 +751,18 @@ jobs:
           # tests/eval/** from the tree via the `include` globs in
           # apps/api/vitest.config.ts. Every OTHER test file under apps/api/tests
           # belongs to apps/api/scripts/run-tests.sh, whose `--list` prints what
-          # it runs, reading no database: `integration` for the services tier it
-          # collects by suffix, `live` for the files its live-API batches name,
+          # it runs, reading no database: `integration` for the services tier and
+          # `live` for the live tier, each collected by its suffix, and
           # `quarantined` for each quarantine entry it keeps out. A file it prints
           # as neither `integration` nor `live` runs nowhere while still reading
-          # as coverage. Baseline 10, measured 2026-10-10: the 10 dark
-          # *.live.test.ts suites no live batch names (SMELL-75; WU-1.8 collects
-          # the live tier by its suffix) plus 0 quarantine entries. Every
-          # quarantine entry counts, so the quarantine only grows where another
-          # unreached file leaves. The count may fall and must never rise.
-          # Mirrors CLAUDE.md #30.
-          BASELINE=10
+          # as coverage. Baseline 3, measured 2026-10-10: 0 files without a tier
+          # suffix plus the 3 quarantine entries, trendRadarRoutes,
+          # universal-client-dashboard and aiLocalizedRoutes (*.live.test.ts);
+          # the other 7 of SMELL-75's 10 dark live suites run in the live tier.
+          # Every quarantine entry counts, so the quarantine only grows where
+          # another unreached file leaves. The count may fall and must never
+          # rise. Mirrors CLAUDE.md #30.
+          BASELINE=3
           for p in apps/api/tests apps/api/scripts/run-tests.sh packages/test-contracts/quarantine.json; do
             [ -e "$p" ] || { echo "::error title=Fitness #30 scope missing::'$p' does not exist, so this check would scan nothing and pass."; exit 1; }
           done
@@ -777,7 +778,7 @@ jobs:
           echo "Unreached test files: $COUNT (interim ratchet baseline $BASELINE)"
           printf "%s\n" "$UNREACHED" | head -40
           if [ "$COUNT" -gt "$BASELINE" ]; then
-            echo "::error title=Fitness #30 violation::$COUNT test files under apps/api/tests run in no collector, above the interim ratchet baseline of $BASELINE. A file nothing runs never executes while still reading as coverage. Give it its tier suffix (run-tests.sh collects every *.integration.test.ts; a *.live.test.ts runs only once a live-API batch names it, until WU-1.8), or delete it."
+            echo "::error title=Fitness #30 violation::$COUNT test files under apps/api/tests run in no collector, above the interim ratchet baseline of $BASELINE. A file nothing runs never executes while still reading as coverage. Give it its tier suffix (run-tests.sh collects every *.integration.test.ts and every *.live.test.ts), or delete it."
             exit 1
           fi
           if [ "$COUNT" -lt "$BASELINE" ]; then

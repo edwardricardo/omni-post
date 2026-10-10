@@ -131,7 +131,7 @@ export function buildWorkspaceAliases(root: string): { find: string; replacement
  *
  * - `*.integration.test.*`: the node:test integration tier, `apps/api/scripts/run-tests.sh`
  *   over `apps/api/tests`.
- * - `*.live.test.*`: reserved for the live tier of that same collector, which runs with the API
+ * - `*.live.test.*`: the live tier of that same collector, which runs with the API
  *   and the workers up.
  * - `*.spec.*`: Playwright, through each portal's own config.
  * - `*.k6.js`: k6, through the performance workflow (`performance/k6/scenarios/`).

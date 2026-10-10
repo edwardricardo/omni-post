@@ -117,7 +117,7 @@ Read from `.github/workflows/{ci,production-ci,nightly,performance}.yml`; the re
 | `Full test suite (cache bypassed)`          | `nightly.yml`                        | Cron 03:00 UTC: `turbo run build --force`, then `turbo run test --force`; files an issue on failure                                                                                       | no       |
 | `Database & Memory Stress` → `k6 Load Test` | `performance.yml`                    | `pnpm perf:db`, `pnpm perf:memory`; the k6 job has `needs: db-stress`                                                                                                                     | no       |
 
-`run-tests.sh` tiers (`apps/api/scripts/run-tests.sh:39-60`): unset runs the vitest unit step plus every `node:test` batch; `pr-integration` runs the DB-only batches; `full-integration` runs the DB-only and the live-API batches. A TIER-driven run fails on any skip and on a zero-test collection. The CI run 36281151728 executed 934 `node:test` tests in that tier (R).
+`run-tests.sh` tiers (the `TIER` comment of `apps/api/scripts/run-tests.sh`): unset runs the services tier, then the live tier; `pr-integration` runs the services tier, every `*.integration.test.ts` under `tests/`; `full-integration` runs both, the live tier being every `*.live.test.ts`, with a readiness probe of the API and the workers before each live file. A TIER-driven run fails on any skip and on a zero-test collection. The CI run 36281151728 executed 934 `node:test` tests in `full-integration`, when the tiers were still hand-written batches (R).
 
 CI timings, from the plan (P): the merge critical path is about 10 minutes, `Test Suite (shard 1)` 9m11s followed by `Coverage Merge` 47s; `Integration Tests` 8m01s; the nightly job 51 minutes.
 
@@ -368,7 +368,7 @@ Each entry states the evidence and the options seen. Choosing among them is the 
 
 **Add tests to a package.** Give it a `vitest.config.ts` built with `defineWorkspaceVitestConfig` from `@packages/vitest-shared` without re-declaring the factory's defaults, and a `test` script that runs `vitest run`. A package without a `test` task is invisible to `turbo run test`, to `Package Tests` and to the nightly job; nothing reports its absence.
 
-**Wire a `node:test` suite in `apps/api`.** Add its path to a `run_batch` in `apps/api/scripts/run-tests.sh` under the tier predicate that matches the services it needs (`run-tests.sh:48-60`). Fitness #30 counts unreached files as a ratchet; when a change wires one, lower the baseline in `CLAUDE.md` and `.github/workflows/fitness.yml` in the same change.
+**Wire a `node:test` suite in `apps/api`.** Name it with the suffix of the tier that matches the services it needs, `*.integration.test.ts` for PostgreSQL and Redis or `*.live.test.ts` for a running API and its workers; `apps/api/scripts/run-tests.sh` collects it by that suffix. Fitness #30 counts unreached files as a ratchet; when a change brings one into a tier, lower the baseline in `CLAUDE.md` and `.github/workflows/fitness.yml` in the same change.
 
 **Add or change a gate.** Follow `CLAUDE.md` "Extending the suite": prove the red path with a real non-zero exit before merging.
 
