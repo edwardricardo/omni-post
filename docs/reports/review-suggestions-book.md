@@ -175,6 +175,8 @@
 | SB-154 | same                                                                                  | R4-003                                                           | `apps/api/scripts/run-tests.sh` (refusal order)                                                                                             | diagnostics                  | deferred: every pre-flight failure still exits before any suite with its own message                                                                            |
 | SB-155 | same                                                                                  | R3-list-requires-live-suffix-tree                                | `apps/api/scripts/run-tests.sh` (`--list`)                                                                                                  | scope                        | deferred: the tree holds 18 *.live.test.ts files; --list from a trimmed tree is no use                                                                          |
 | SB-156 | Phase 1 U8 (`workstream/phase1-u8-3`, a3dac768)                                       | R3-suffix-regex-missed-cases                                     | `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts` (saga files)                                                                | test scope                   | deferred: fitness #30 reads every file under apps/api/tests whatever its name                                                                                   |
+| SB-157 | Fix DEF-83 (`workstream/fix-def-83-test-stdout`, 20ccdebb)                            | R3-no-regression-assertion                                       | `docs/architecture/TESTING.md` (the stderr rule)                                                                                            | regression guard             | deferred: Master Plan DEF-83 follow-up 2, a lint rule or fitness check                                                                                          |
+| SB-158 | same                                                                                  | R3-remaining-stdout-warn (WARNING)                               | `apps/api/tests/providerRegistry.live.test.ts:49`                                                                                           | stream choice                | justified: `console.warn` writes to stderr (measured: 0 bytes on stdout, 12 on stderr)                                                                          |
 
 ## Entries — code and prose
 
@@ -1444,6 +1446,22 @@
 - **Suggestion:** widen the case to every test-shaped file outside `tests/unit`, or state its scope as saga files by path.
 - **Why deferred:** fitness #30 reads every file under `apps/api/tests` outside `unit` and `eval`, whatever its name, and fails a file no collector reaches, so a misnamed saga file is caught there.
 - **To implement:** state the scope in the case's comment, or widen its filter.
+
+### SB-157 — no automated check keeps non-ASCII text off a node:test child's stdout
+
+- **Source:** the native review of the DEF-83 fix (`workstream/fix-def-83-test-stdout`, `20ccdebb`), finding `R3-no-regression-assertion`.
+- **Location:** `docs/architecture/TESTING.md`, the stderr rule, and the suites that import `apps/api/tests/setup.ts`.
+- **Suggestion:** add a lint rule or fitness check so a non-ASCII-leading `console.log` cannot return to a file node:test runs.
+- **Why deferred:** it is DEF-83's follow-up 2 in the Master Plan, decided on 2026-10-10 with its own unit; Node 24.20.0 and later also parse the frame correctly.
+- **To implement:** the guard named in that follow-up, with its red path proved.
+
+### SB-158 — a `console.warn` with a non-ASCII prefix stays in `providerRegistry.live`
+
+- **Source:** the same review, finding `R3-remaining-stdout-warn` (WARNING).
+- **Location:** `apps/api/tests/providerRegistry.live.test.ts:49`.
+- **Suggestion:** note beside it that `console.warn` writes to stderr, so a contributor does not move it back to stdout.
+- **Why justified:** `console.warn` writes to stderr, not to the runner's channel. Measured on Node 24.15.0: 0 bytes on stdout and 12 on stderr for one `console.warn("⚠️ warn")`.
+- **To implement:** nothing in this unit; the guard of SB-157 covers a move back to stdout.
 
 ## Implemented
 
