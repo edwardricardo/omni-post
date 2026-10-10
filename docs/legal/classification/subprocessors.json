@@ -900,6 +900,10 @@
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
     },
+    "yaml": {
+      "status": "library",
+      "note": "Test tooling: the reach engine of packages/test-contracts parses the CI workflows with it, on developer machines and in CI, and the product sends no data through it."
+    },
     "zod": {
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."

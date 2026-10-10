@@ -1,7 +1,7 @@
 /**
  * @file rules.ts
  * @description The verdict of the reach engine, as a pure function of what was read: the disk
- *              inventory, every collection, the quarantine and its base. Two rules:
+ *              inventory, every collection, the quarantine and its base. Two rules live here:
  *
  *              - R1: each file on disk or collected is collected exactly once, unless quarantined.
  *                Zero is a test nobody runs; two is a test that runs twice, or under the wrong
@@ -10,8 +10,10 @@
  *                and when a base quarantine is given, every entry is already in it: the
  *                quarantine may only shrink.
  *
- *              Nothing here reads a file or starts a process, so every rule is tested over plain
- *              values; the command line in `reach.ts` does the reading.
+ *              R2, which decides which sources a required check runs, lives in `executed-by.ts`
+ *              and shares the rule ids and the violation shape defined here. Nothing here reads a
+ *              file or starts a process, so every rule is tested over plain values; the command
+ *              line in `reach.ts` does the reading.
  * @layer infrastructure
  */
 import { err, ok, type Result } from "@shared/types";
@@ -19,15 +21,16 @@ import type { DiskInventory } from "./disk.js";
 import { describeError, tallyReach, type Collection } from "./registry.js";
 
 /** The rules a violation can break. */
-const RULE = {
+export const RULE = {
   R1: "R1",
+  R2: "R2",
   R3: "R3",
 } as const;
 
 /** A rule id, derived from {@link RULE}. */
 type RuleId = (typeof RULE)[keyof typeof RULE];
 
-/** One broken rule, about one file. */
+/** One broken rule, about one file, or about one registry entry for R2. */
 export interface Violation {
   readonly rule: RuleId;
   readonly file: string;

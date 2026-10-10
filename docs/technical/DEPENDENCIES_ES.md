@@ -319,6 +319,7 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 | jsdom                     | 30.1.1  | Simulacion de entorno de navegador       |
 | @playwright/test          | 1.63.0  | Testing E2E                              |
 | @faker-js/faker           | 10.6.0  | Generacion de datos de prueba            |
+| yaml                      | 2.9.1   | Parseo de workflows del motor de alcance |
 
 ### Metricas
 
