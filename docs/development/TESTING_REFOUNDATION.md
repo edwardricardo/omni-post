@@ -1,13 +1,21 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the live collector (`workstream/phase1-u8-live-collector`, PR R8b, the second
-of the stacked pull requests of WU-1.8) made `run-tests.sh` collect the live tier by its suffix:
-`collect live` lists every `*.live.test.ts` under `tests/` outside `tests/unit`, in `LC_ALL=C sort`
-order or reversed under `TEST_ORDER=reverse`, and the files run in one `live` unit after the
-services tier, each behind the probe. The hand-written live-API batches are gone, and so is the
-runner reading its own text for them: the 18 `*.integration.test.ts` suites they named join the
-services tier, which now runs 80 files, and `--list` prints 80 `integration`, 15 `live` and 3
+**As of:** 2026-10-10, the saga naming slice (`workstream/phase1-u8-live-collector`, PR R8c, the
+third of the stacked pull requests of WU-1.8) changed what `sagaContextInvariants.static.test.ts`
+holds about the node:test saga suites: each one carries the suffix of the tier that collects it,
+`.integration.test.ts` or `.live.test.ts`, and whether a collected suite runs or sits in the
+quarantine is reach, which fitness #30 measures; the suite no longer starts `run-tests.sh --list`.
+`docs/development/saga-test-suites.md` says the same. Red: a planted
+`tests/integration/sagaPlanted.test.ts` fails the case (removed, the `fd` listing of `tests/`
+sha256-identical). It moved no metric (M1 `991 + 14`, M7 `29/29`, M8 `1/92`).
+Before it, on 2026-10-10, the live collector (`workstream/phase1-u8-live-collector`, PR R8b, the
+second of the stacked pull requests of WU-1.8) made `run-tests.sh` collect the live tier by its
+suffix: `collect live` lists every `*.live.test.ts` under `tests/` outside `tests/unit`, in
+`LC_ALL=C sort` order or reversed under `TEST_ORDER=reverse`, and the files run in one `live` unit
+after the services tier, each behind the probe. The hand-written live-API batches are gone, and so
+is the runner reading its own text for them: the 18 `*.integration.test.ts` suites they named join
+the services tier, which now runs 80 files, and `--list` prints 80 `integration`, 15 `live` and 3
 `quarantined`. The quarantine holds its first three entries, all live: `trendRadarRoutes` (F-9, the
 missing `dayKey`; owner WU-4.2), `universal-client-dashboard` (a test that skips without a client
 portal; owner WU-2.6a, which deletes it) and `aiLocalizedRoutes` (owner DEF-81, registered in
@@ -548,7 +556,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ✅     | `R5`                          | `phase1-u5-tier-rename` · 139           | 2026-10-09 |
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
-| 1     | 1.8    | Collect the live tier by convention                                         | 🔄     | `R8a` · `R8b`                 | `phase1-u8*` · 390 + 394                | 2026-10-10 |
+| 1     | 1.8    | Collect the live tier by convention                                         | 🔄     | `R8a`–`R8c`                   | `phase1-u8*` · 390 + 394 + 48           | 2026-10-10 |
 | 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`–`R9b9`         | `phase1-u9*` · 1327 + 2544              | 2026-10-10 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
@@ -1702,6 +1710,8 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   `aiLocalizedRoutes` (DEF-81, found by the live run: 2 of its 6 cases fail, cause not measured),
   and took the interim #30 to 3, the three entries; the other seven dark live suites run in the live
   tier, 34 tests, all passing on 2026-10-10.
+  R8c (2026-10-10) moved the saga suites' contract from reach to naming: each carries its tier
+  suffix.
 - **WU-1.9** `packages/test-contracts`: the reach engine with self-tests (not yet wired).
   `package.json` (private; `vitest`, `yaml`, `typescript` from the catalog), `vitest.config.ts` from
   the factory, `src/reach.ts`, `src/lib/{disk,vitest-collector,node-collector,playwright-collector,
