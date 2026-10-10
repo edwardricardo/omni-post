@@ -373,7 +373,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.4    | Move the timing needs into the tests                                        | ✅     | `R4`                          | `phase1-u4-timing-in-tests` · 314       | 2026-10-09 |
 | 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ✅     | `R5`                          | `phase1-u5-tier-rename` · 139           | 2026-10-09 |
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
-| 1     | 1.7    | Collect the services tier by convention                                     | 🔄     | `R7a` · `R7b1`                | `phase1-u7a/b-*` · 381 + 392            | 2026-10-10 |
+| 1     | 1.7    | Collect the services tier by convention                                     | 🔄     | `R7a` · `R7b1`                | `phase1-u7a/b-*` · 381 + 386            | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
 | 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a`                         | `phase1-u9a-reach-engine` · 1327        | 2026-10-09 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
