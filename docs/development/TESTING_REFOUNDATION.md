@@ -1,7 +1,14 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the order and alignment slice (`workstream/phase1-u7b-s4`, PR R7b4, the last
+**As of:** 2026-10-10, the first slice of the reach engine's second half (PR R9b1, WU-1.9) added the
+k6 collector, which collects the tracked `*.k6.js` files as one source and fails closed when there
+are none, and the reader of the node:test runner's `--list` output, which refuses an empty listing,
+a malformed line, an unknown kind and an absolute or repeated path. The config floor and real-root
+step of the vitest collector moved to `registry.ts` as `trackedConfigs`, for the Playwright
+collector to share. Nothing is wired into CI yet. It moved M1 `987 + 14` → `989 + 14` (its two
+suites) and left M7 at `28/28` and M8 at `1/92`.
+Before it, on 2026-10-10, the order and alignment slice (`workstream/phase1-u7b-s4`, PR R7b4, the last
 of the stacked pull requests that finish WU-1.7) made the collection's order reversible and aligned
 the comments earlier units left stale, which closes WU-1.7. `TEST_ORDER=reverse` runs the collected
 services tier in reverse byte order, and any value but unset, `forward` or `reverse` exits 2; on
@@ -328,7 +335,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 987 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R2b2  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 989 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R9b1  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -446,7 +453,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
-| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a`                         | `phase1-u9a-reach-engine` · 1327        | 2026-10-09 |
+| 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a` · `R9b1`                | `phase1-u9*` · 1327 + 327               | 2026-10-10 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |

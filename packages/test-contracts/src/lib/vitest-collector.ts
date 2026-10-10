@@ -16,7 +16,6 @@
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
-import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { createVitest, type Vitest } from "vitest/node";
@@ -24,6 +23,7 @@ import { err, ok, type Result } from "@shared/types";
 import {
   COLLECTOR_ID,
   describeError,
+  trackedConfigs,
   type Collection,
   type Collector,
   type CollectorContext,
@@ -259,34 +259,14 @@ export function createVitestCollector(options: VitestCollectorOptions = {}): Col
   return {
     id: COLLECTOR_ID.VITEST,
     async collect(context: CollectorContext): Promise<CollectorOutcome> {
-      const configs = context.tracked.filter((file) => VITEST_CONFIG.test(file));
-      if (configs.length < floor) {
-        return {
-          collections: [],
-          failures: [
-            {
-              collector: COLLECTOR_ID.VITEST,
-              source: "(tracked configs)",
-              message:
-                `${String(configs.length)} tracked vitest configs, below the floor of ` +
-                `${String(floor)}; the listing read less of the tree than it holds`,
-            },
-          ],
-        };
-      }
-      // vitest reports each file by its real path, so the root its paths are made relative to
-      // must be real too; otherwise a root reached through a symbolic link yields `../` paths
-      // that match no tracked file.
-      let root: string;
-      try {
-        root = realpathSync(context.root);
-      } catch (error: unknown) {
-        const message = `cannot resolve the root: ${describeError(error)}`;
-        return {
-          collections: [],
-          failures: [{ collector: COLLECTOR_ID.VITEST, source: context.root, message }],
-        };
-      }
+      const tracked = trackedConfigs(
+        COLLECTOR_ID.VITEST,
+        context,
+        { pattern: VITEST_CONFIG, label: "vitest" },
+        floor
+      );
+      if (!tracked.ok) return tracked.error;
+      const { configs, root } = tracked.value;
       const collections: Collection[] = [];
       const failures: CollectorFailure[] = [];
       for (const config of configs) {
