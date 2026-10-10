@@ -72,10 +72,29 @@ export interface PostSnapshot {
   publishedAt: Date | null;
 }
 
-/** One outbox row, reduced to what the atomicity assertions compare. */
+/**
+ * One outbox row, reduced to what the atomicity assertions compare. The rows of
+ * one transaction are written by a single `createMany` and can share an
+ * `occurredAt` millisecond, and no column of the table breaks that tie, so an
+ * assertion compares their types with `eventTypesOf` and the order of two rows
+ * through their `occurredAt` values, never through their position in the array.
+ */
 export interface OutboxRow {
   eventType: string;
   payload: unknown;
+  occurredAt: Date;
+}
+
+/**
+ * @function eventTypesOf
+ * @description The event types of a set of outbox rows, sorted, so two reads of
+ *   the same rows compare equal whatever order the database returned a tie in.
+ *   A repeated type stays repeated, so a second event of a kind still shows.
+ * @param rows - The rows to reduce.
+ * @returns Their event types, sorted.
+ */
+export function eventTypesOf(rows: readonly OutboxRow[]): string[] {
+  return rows.map((row) => row.eventType).sort();
 }
 
 /** One booted production composition, and the handles the scenarios drive. */
@@ -567,15 +586,16 @@ export class PublishNowPromotionHarness {
 
   /**
    * @method outboxFor
-   * @description Reads the outbox rows one post's transaction committed, in order.
+   * @description Reads the outbox rows one post's transactions committed, by
+   *   `occurredAt`. Rows that share a millisecond come back in no defined order.
    * @param postId - The aggregate whose rows to read.
-   * @returns The rows, reduced to event type and payload.
+   * @returns The rows, reduced to event type, payload and `occurredAt`.
    */
   async outboxFor(postId: string): Promise<OutboxRow[]> {
     return await this.base.outboxEvent.findMany({
       where: { aggregateId: postId },
       orderBy: { occurredAt: "asc" },
-      select: { eventType: true, payload: true },
+      select: { eventType: true, payload: true, occurredAt: true },
     });
   }
 
