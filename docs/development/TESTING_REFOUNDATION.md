@@ -1,7 +1,15 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-09, the runner unit (`workstream/phase1-u6-runner-collector-only`, PR R6,
+**As of:** 2026-10-10, the closure of WU-1.3 (`workstream/phase1-u3-close-security-scripts`, PR
+R3b) deleted `security/scripts/security-scan.sh` and `vulnerability-report.ts` with its renderer and
+types. No workflow ran them, and they were the last callers of the `test:auth`, `test:security`,
+`test:rbac` and `test:mfa` subset scripts, which left with them: the node:test subset grep is 0 and
+WU-1.3 is done. `docs/security/SECURITY_TESTING_FRAMEWORK.md` maps each check those scripts ran to
+the CI gate that covers it, and names the two that no gate covers (the license allowlist and the
+Dockerfile rules). Removing the last `node --test` script hid the node:test tier from knip's Node.js
+plugin, so `knip.json` now names `tests/**/*.{integration,live}.test.ts` as the `apps/api` entry.
+Before it, on 2026-10-09, the runner unit (`workstream/phase1-u6-runner-collector-only`, PR R6,
 WU-1.6) made `apps/api/scripts/run-tests.sh` the integration collector only. Its Vitest phase was
 removed (`run_vitest_phase`, the `npx vitest run` start and its summary parsing), because vitest
 collects the unit tier from the tree on its own, and `test:all` became `pnpm test && pnpm
@@ -333,7 +341,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.1    | Free the `.integration` suffix; name the k6 scenarios                       | ✅     | `R1`                          | `workstream/phase1-u1-suffixes` · 14    | 2026-10-08 |
 | 1     | 1.2    | Reserve the tier suffixes inside every collector                            | ✅     | `R2`                          | `phase1-u2-reserved-suffixes` · 126     | 2026-10-08 |
 | 1     | 1.2b   | vitest resolves every workspace import to `src/`                            | ⬜     | —                             | —                                       | —          |
-| 1     | 1.3    | Remove double collection and the subset entrypoints                         | 🔄     | `R3`                          | `phase1-u3-double-collection` · 8       | 2026-10-09 |
+| 1     | 1.3    | Remove double collection and the subset entrypoints                         | ✅     | `R3` · `R3b`                  | `phase1-u3-*` · 8 + 1486                | 2026-10-10 |
 | 1     | 1.4    | Move the timing needs into the tests                                        | ✅     | `R4`                          | `phase1-u4-timing-in-tests` · 314       | 2026-10-09 |
 | 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ✅     | `R5`                          | `phase1-u5-tier-rename` · 139           | 2026-10-09 |
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
@@ -1325,9 +1333,12 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   Acceptance: the subset-script grep returns 0; the "files with >1 collector" metric goes 10 → 0.
   CODE ~250 (deletions). PR R3. _(Absorbs WU-4.8.)_ Landed 2026-10-09: the workflow, the job, 22 of
   the 26 node:test scripts, `test:eval` and `test:ratelimit` left, and the metric went 10 → 0.
-  `test:{auth,rbac,security,mfa}` stay, so the node:test subset grep returns 4: no workflow runs them,
-  but `security/scripts/security-scan.sh` (`security:scan`) and `vulnerability-report.ts`
-  (`security:report`) call them, and their removal waits on those callers. The removed job's per-suite
+  Closed 2026-10-10 (PR R3b, the owner's option A, CODE 1486: 1485 deleted lines and the `knip.json` entry): the last four subset
+  scripts, `test:{auth,rbac,security,mfa}`, left with their two callers, `security-scan.sh` and
+  `vulnerability-report.ts` under `security/scripts` (its renderer and types module too), and the
+  two `apps/api` scripts that ran them, so the node:test subset grep (`--test` in
+  `apps/api/package.json`) returns 0. `docs/security/SECURITY_TESTING_FRAMEWORK.md` §"Where each
+  check runs" maps every check the scripts ran to its CI gate. The removed job's per-suite
   guards (zero passed, any skipped or cancelled case) live on in `run-tests.sh` per batch under `TIER`;
   a single file collecting zero tests inside a batch that runs others is caught only by the per-file
   verdicts of WU-1.7, which owns that residual.

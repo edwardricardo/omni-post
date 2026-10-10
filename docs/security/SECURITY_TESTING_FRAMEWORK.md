@@ -17,8 +17,8 @@ This document describes the security testing infrastructure for the Social Media
 >   the in-tree warning is [`security/tests/README.md`](../../security/tests/README.md).
 > - Sections 1–4 below (§"Security Test Categories") describe **intent**, not
 >   verified behaviour. Nothing in them has ever been observed to run green.
-> - The commands that DO run today are in §"Running Security Tests" — that list
->   is the live one.
+> - The checks that DO run today, and the gate that runs each one, are in
+>   §"Where each check runs" — that table is the live one.
 >
 > Do not restore the deleted scripts, and do not wire the suite into a job,
 > without reading SMELL-83 first: a naive wiring lands either a permanently-red
@@ -29,12 +29,7 @@ This document describes the security testing infrastructure for the Social Media
 ```
 security/
 ├── config/
-│   └── security-policies.json                      # Security policies and thresholds
-├── scripts/
-│   ├── security-scan.sh                            # Main security scanning script
-│   ├── vulnerability-report.ts                     # Automated vulnerability reporting
-│   ├── vulnerability-report-renderer.ts            # Report rendering
-│   └── vulnerability-report-types.ts               # Report types
+│   └── security-policies.json                      # Read by no script or workflow
 ├── tests/                                          # ⚠️ VACUOUS — see SMELL-83 + tests/README.md
 │   ├── README.md                                   # Why this suite must not be wired yet
 │   ├── auth-security.test.ts
@@ -46,65 +41,90 @@ security/
 │   ├── injection-tests.test-helpers.ts             # Shared (broken) bootstrap
 │   └── infrastructure-security.test.ts
 └── zap/
-    └── zap-config.conf                             # OWASP ZAP configuration
+    └── zap-config.conf                             # Not read by the ZAP job
 ```
 
 ## 🔧 Quick Start
 
-### Prerequisites
+### Where each check runs
+
+Every security check below runs in a CI gate. The two local scan scripts that
+repeated them, `security/scripts/security-scan.sh` and
+`security/scripts/vulnerability-report.ts`, were removed on 2026-10-10, with
+their two `apps/api` entry scripts and the four single-suite scripts they
+called (`test:auth`, `test:rbac`, `test:security`, `test:mfa`). Two checks they
+ran have no gate: see [Not covered by a gate](#not-covered-by-a-gate).
+
+"PR, main" means every pull request and every push to `main`. Gate paths are
+under `.github/workflows/`.
+
+| Check                               | CI gate: file, job › step                                                                                                                                            | Runs on                   | Run it locally                                                               |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------- |
+| ESLint                              | `ci.yml:65`, Lint and Format Check › Run ESLint                                                                                                                      | PR, main                  | `pnpm lint`                                                                  |
+| Type check                          | `ci.yml:68`, Lint and Format Check › TypeScript type check (full monorepo)                                                                                           | PR, main                  | `pnpm typecheck`                                                             |
+| Semgrep                             | `audit.yml:82`, Semgrep CE (SAST) › Run Semgrep                                                                                                                      | PR, main                  | the step's `semgrep scan` command                                            |
+| CodeQL                              | `security-testing.yml:79`, CodeQL (typescript, javascript) › Perform CodeQL analysis                                                                                 | PR, main, nightly         | —                                                                            |
+| Dependency advisories               | `ci.yml:652`, Security Audit › Run security audit; `production-ci.yml:37`, Security Audit › Audit dependencies                                                       | PR, main                  | `pnpm audit --audit-level moderate`                                          |
+| Container images (Trivy)            | `production-ci.yml:371`, Container Security › Run Trivy vulnerability scanner, for api, workers, admin and client                                                    | PR, main                  | [Container images](#container-images)                                        |
+| Security headers                    | `ci.yml:174`, Test Suite (shard N) › Run API tests (shard, blob reporter), which collects `tests/unit/securityHeaders.test.ts`; on a running API, the ZAP scan below | PR, main                  | `pnpm --filter @apps/api exec vitest run tests/unit/securityHeaders.test.ts` |
+| SQL injection and XSS               | `ci.yml:533`, Integration Tests › Run integration tests (full tier): the cases of `tests/security.live.test.ts`                                                      | PR, main                  | [The security suites](#the-security-suites)                                  |
+| OWASP ZAP baseline                  | `security-testing.yml:168`, OWASP ZAP DAST › Run OWASP ZAP baseline scan                                                                                             | nightly 03:00 UTC, manual | —                                                                            |
+| Auth, RBAC, MFA and security suites | `ci.yml:533`, Integration Tests › Run integration tests (full tier), with `TIER=full-integration`                                                                    | PR, main                  | [The security suites](#the-security-suites)                                  |
+| Secrets in committed files          | `audit.yml:158`, gitleaks (secrets) › Scan the PR's commits; `audit.yml:265`, secretlint (rule-based secrets) › Run secretlint                                       | PR                        | `pnpm secret:scan`                                                           |
+
+#### The security suites
+
+`apps/api/scripts/run-tests.sh` collects the four suites in its live-API
+batches, which run when `TIER` is unset or `full-integration`:
+`integration:flows` holds `tests/auth.integration.test.ts` and
+`tests/security.live.test.ts`, and `remaining` holds
+`tests/mfa.integration.test.ts` and `tests/rbac.integration.test.ts`. The auth,
+RBAC and MFA suites call the services against the test database; the security
+suite sends requests to the API on `http://localhost:3000`.
 
 ```bash
-# Install required tools
-npm install -g @lhci/cli
-pip install semgrep
-docker pull owasp/zap2docker-stable
+# From the repository root: Postgres and Redis up, the test environment exported
+pnpm db:up
+set -a; . ./.env.test; set +a
 
-# Optional but recommended
-brew install trivy hadolint
-```
+# Every integration batch, the four suites included. The live-API batches also
+# need the API running: pnpm --filter @apps/api dev:test
+pnpm --filter @apps/api test:integration
 
-### Running Security Tests
-
-Every command below is a script that exists. They are all workspace-scoped —
-`security:scan`, `security:report` and the `test:*` suites live in
-`apps/api/package.json`, so running them without `--filter @apps/api` from the
-repo root fails with `Command "…" not found`.
-
-```bash
-# One security suite at a time (CI runs these files in the run-tests.sh batches)
-pnpm --filter @apps/api test:auth        # tests/auth.integration.test.ts
-pnpm --filter @apps/api test:rbac        # tests/rbac.integration.test.ts
-pnpm --filter @apps/api test:security    # tests/security.live.test.ts
-pnpm --filter @apps/api test:mfa         # tests/mfa.integration.test.ts
+# One suite, from apps/api
+cd apps/api
+NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/auth.integration.test.ts
 
 # The two rate-limit unit suites run in the Vitest collector; naming their paths
 # fails loudly ("No test files found") if either file is renamed or moved
 pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts
-
-# The four node:test suites above, with every other node:test batch
-# (scripts/run-tests.sh; needs pnpm db:up)
-pnpm --filter @apps/api test:integration
-
-# Comprehensive scan (SAST + deps + container + DAST, per scan type)
-pnpm --filter @apps/api security:scan
-
-# Generate vulnerability report
-pnpm --filter @apps/api security:report
 ```
+
+#### Container images
+
+The gate builds each image from `apps/<service>/Dockerfile` at the repository
+root and fails on a CRITICAL or HIGH finding that `.trivyignore` does not list:
+
+```bash
+docker build -f apps/api/Dockerfile -t local/api:scan .
+trivy image --severity CRITICAL,HIGH --exit-code 1 --ignorefile .trivyignore local/api:scan
+```
+
+#### Not covered by a gate
+
+- **License allowlist.** `security-scan.sh` judged every installed package's
+  SPDX expression against an allowlist (MIT, Apache-2.0, BSD-2-Clause,
+  BSD-3-Clause, ISC, 0BSD). No workflow runs `pnpm licenses`, and
+  `pnpm licenses list` prints the licenses without judging them.
+- **Dockerfile rules.** `vulnerability-report.ts` flagged a stage running as
+  root, a `FROM` on `:latest` and an `ADD`. No workflow lints a Dockerfile. The
+  four Dockerfiles meet all three today: each production stage sets
+  `USER nonroot`, no `FROM` uses `:latest` and none uses `ADD`.
 
 > **Deleted, do not use:** `test:auth-security`, `test:api-security`,
 > `test:injection-security`, `test:infrastructure-security`,
 > `test:security-comprehensive`. They were the only invokers of the vacuous
 > `security/tests` suite and exited 0 without running it. See SMELL-83.
-
-### GitHub Actions Integration
-
-Security tests run automatically on:
-
-- Every push to main/develop branches
-- Pull requests
-- Daily scheduled scans (2 AM UTC)
-- Manual workflow dispatch
 
 ## 🛡️ Security Test Categories
 
@@ -231,6 +251,11 @@ intent for the SMELL-83 rewrite.
 
 ### GitHub Actions Workflows
 
+> The list below predates the current workflows and names tools that do not
+> run here: SonarQube, Snyk, Grype, a license check and a
+> `container-security.yml`. The gates that run are the table in §"Where each
+> check runs".
+
 #### 1. Security Testing (`security-testing.yml`)
 
 - **SAST (Static Application Security Testing)**
@@ -254,9 +279,11 @@ intent for the SMELL-83 rewrite.
   - Authenticated endpoint scanning
 
 - **Authentication, RBAC, input validation and MFA suites** are not a job of this
-  workflow: `tests/{auth,rbac,security,mfa}.test.ts` run in the node:test batches of
-  `apps/api/scripts/run-tests.sh` (the Integration Tests job of `ci.yml`), and the
-  rate-limit suites under `apps/api/tests/unit` run in the Vitest shards
+  workflow: `tests/auth.integration.test.ts`, `tests/rbac.integration.test.ts`,
+  `tests/security.live.test.ts` and `tests/mfa.integration.test.ts` run in the
+  node:test batches of `apps/api/scripts/run-tests.sh` (the Integration Tests job
+  of `ci.yml`), and the rate-limit suites under `apps/api/tests/unit` run in the
+  Vitest shards
 
 #### 2. Container Security (`container-security.yml`)
 
@@ -264,26 +291,6 @@ intent for the SMELL-83 rewrite.
 - Dockerfile security analysis
 - Runtime security validation
 - Policy enforcement with OPA
-
-### Security Scanning Script
-
-The `security-scan.sh` script provides comprehensive automated security testing:
-
-```bash
-# Usage examples
-./security/scripts/security-scan.sh                    # Full scan
-./security/scripts/security-scan.sh -t dast           # DAST only
-./security/scripts/security-scan.sh -s critical       # Critical issues only
-./security/scripts/security-scan.sh -v                # Verbose output
-```
-
-**Scan Types**:
-
-- `comprehensive`: All security scans (default)
-- `sast`: Static analysis only
-- `dast`: Dynamic analysis only
-- `deps`: Dependency scanning only
-- `container`: Container security only
 
 ## 🔍 OWASP ZAP Integration
 
@@ -372,7 +379,7 @@ Security tests are integrated as quality gates:
 
 ### Security Policies (`security-policies.json`)
 
-Comprehensive security configuration including:
+No script or workflow reads this file. It describes:
 
 - Severity thresholds and actions
 - Authentication requirements
@@ -419,21 +426,22 @@ pnpm db:migrate
 
 ### Individual Test Execution
 
-The suites below use `app.inject()` — they build the Fastify app in-process, so
-no separately running API server is needed.
+Run each suite from `apps/api` with the root `.env.test` exported. The auth,
+RBAC and MFA suites need the test database only; the security suite also needs
+the API running (`pnpm --filter @apps/api dev:test`).
 
 ```bash
 # Authentication
-pnpm --filter @apps/api test:auth
+NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/auth.integration.test.ts
 
 # Authorization / RBAC
-pnpm --filter @apps/api test:rbac
+NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/rbac.integration.test.ts
 
 # General security suite
-pnpm --filter @apps/api test:security
+NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/security.live.test.ts
 
 # MFA
-pnpm --filter @apps/api test:mfa
+NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/mfa.integration.test.ts
 
 # Rate limiting (the two Vitest unit suites, named by path)
 pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts
@@ -443,7 +451,7 @@ pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHand
 
 ```bash
 # Verbose output
-NODE_ENV=test DEBUG=* pnpm --filter @apps/api test:auth
+NODE_ENV=test DEBUG=* node --conditions development --import tsx --test tests/auth.integration.test.ts
 
 # Coverage report (unit suites; the script is test:unit:coverage, not test:coverage)
 pnpm --filter @apps/api test:unit:coverage

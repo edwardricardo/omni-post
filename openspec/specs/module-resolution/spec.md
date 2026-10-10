@@ -39,7 +39,7 @@ This applies to the consumers the production decision (ADR-0017's unconditional
 - **Given** `infra/prisma`'s `dist` directory is absent (unbuilt tree)
 - **And** `apps/api/src/security/tenantContext.ts` imports `@infra/prisma/extensions/tenantGuard.js` (a written `.js` specifier over `.ts` source)
 - **And** that module is loaded transitively by `tests/auth.integration.test.ts`, `tests/rbac.integration.test.ts`, and `tests/security.live.test.ts`
-- **When** the security suite runs as the source consumer (`node --import tsx --test` via the `test:auth` / `test:rbac` / `test:security` scripts)
+- **When** the security suite runs as the source consumer (the `node --import tsx --test` invocation of `apps/api/scripts/run-tests.sh`, whose `integration:flows` and `remaining` batches collect those files)
 - **Then** `@infra/prisma/extensions/tenantGuard.js` resolves through the package's `extensions` subpath to the `.ts` source in `src`
 - **And** the run reports **0 cancelled** tests (the RCA observed `tests 18 / cancelled 0`)
 - **And** a grep for `MODULE_NOT_FOUND` / `Cannot find module` over the run output returns **0** (remaining failures, if any, are HTTP/localhost-server, never module loading)
@@ -127,9 +127,9 @@ Every dev/test/CI **source** consumer that resolves an unbuilt workspace package
 specifier MUST opt into the `development` condition by passing `--conditions development`
 **directly on the invocation** — NOT via `NODE_OPTIONS` (GitHub Actions restricts
 `NODE_OPTIONS` from `GITHUB_ENV`) and NOT via tsconfig `customConditions` alone (`tsx` does
-not auto-read tsconfig `customConditions`). The covered invocations are: the Prisma seed,
-the `test:auth` / `test:rbac` / `test:security` `node:test` scripts, and the
-`node --import tsx --test` invocations in `apps/api/scripts/run-tests.sh`.
+not auto-read tsconfig `customConditions`). The covered invocations are: the Prisma seed and
+the `node --import tsx --test` invocations in `apps/api/scripts/run-tests.sh`, which collect
+the security node:test suites.
 
 #### Scenario: The seed invocation carries the flag
 
@@ -138,9 +138,9 @@ the `test:auth` / `test:rbac` / `test:security` `node:test` scripts, and the
 - **Then** the command includes `--conditions development` (e.g. `tsx --conditions development infra/prisma/seed.ts` or the `node --conditions development --import tsx` equivalent)
 - **And** the flag is on the command, not in `NODE_OPTIONS`
 
-#### Scenario: The security node:test scripts carry the flag
+#### Scenario: The node:test runner invocations carry the flag
 
-- **Given** the `test:auth`, `test:rbac`, and `test:security` scripts (and the `run-tests.sh` integration invocations)
+- **Given** the `run-tests.sh` integration invocations, which run the auth, RBAC and security suites
 - **When** they invoke `node --import tsx --test`
 - **Then** each invocation includes `--conditions development`
 - **And** the flag is on the command, not in `NODE_OPTIONS`

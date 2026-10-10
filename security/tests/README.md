@@ -78,15 +78,20 @@ everything skipped, which enlarges the false green rather than removing it.
 ## What still runs today
 
 The security coverage that actually executes in CI is a different set of
-suites, driven by `.github/workflows/security-testing.yml` and
-`security/scripts/security-scan.sh`:
+suites. The Integration Tests job of `.github/workflows/ci.yml` runs four
+node:test suites through the batches of `apps/api/scripts/run-tests.sh`, and
+the Vitest shards of the same workflow run the two rate-limit unit suites:
 
-```bash
-pnpm --filter @apps/api test:auth        # tests/auth.integration.test.ts
-pnpm --filter @apps/api test:rbac        # tests/rbac.integration.test.ts
-pnpm --filter @apps/api test:security    # tests/security.live.test.ts
-pnpm --filter @apps/api test:mfa         # tests/mfa.integration.test.ts
-pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts   # the two vitest rate-limit unit suites
+```text
+apps/api/tests/auth.integration.test.ts                      # batch integration:flows
+apps/api/tests/security.live.test.ts                         # batch integration:flows
+apps/api/tests/rbac.integration.test.ts                      # batch remaining
+apps/api/tests/mfa.integration.test.ts                       # batch remaining
+apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts # vitest
+apps/api/tests/unit/authRateLimit.test.ts                    # vitest
 ```
 
-None of them live in this directory.
+None of them live in this directory. How to run each one locally, and the gate
+behind every other security check, is in
+[`docs/security/SECURITY_TESTING_FRAMEWORK.md`](../../docs/security/SECURITY_TESTING_FRAMEWORK.md)
+§"Where each check runs".
