@@ -28,11 +28,12 @@ FAILED_FILES=""
 
 # TIER selects which slice of the node:test inventory runs, so CI can split it
 # across jobs:
-#   (unset)          local default — every batch (DB-only + live-API), without
-#                    the skip and zero-collection guards, which are tier-only.
-#   pr-integration   DB-only batches (no live API server needed).
-#   full-integration every batch (DB-only + live-API).
-# DB-only batches talk to Postgres/Redis directly; live-API batches fetch
+#   (unset)          local default — the services tier and the live-API batches,
+#                    without the skip and zero-collection guards, which are
+#                    tier-only.
+#   pr-integration   the services tier only (no live API server needed).
+#   full-integration the services tier, then the live-API batches.
+# The services tier talks to Postgres/Redis directly; the live-API batches fetch
 # http://localhost:3000 and require a running API server.
 TIER="${TIER:-}"
 case "$TIER" in
@@ -42,6 +43,145 @@ case "$TIER" in
     exit 2
     ;;
 esac
+
+# The only argument is `--list`; anything else is refused rather than ignored, so
+# a path handed to the runner is never mistaken for a filter it does not have.
+LIST_ONLY=""
+case "$*" in
+  "") ;;
+  --list) LIST_ONLY=1 ;;
+  *)
+    echo "run-tests.sh: unknown arguments '$*' (expected none, or --list)" >&2
+    exit 2
+    ;;
+esac
+
+RUNNER_PATH="${BASH_SOURCE[0]}"
+# The quarantine is shared with the reach engine of packages/test-contracts. The
+# variable exists for the runner's own behaviour suite, which points it at a
+# fixture; no workflow sets it.
+QUARANTINE_FILE="${QUARANTINE_FILE:-$(dirname "$RUNNER_PATH")/../../../packages/test-contracts/quarantine.json}"
+
+# Prints the files the live-API batches at the end of this script name, once each
+# and in their order, read from this script's own text. Until the live tier is
+# collected by its suffix (WU-1.8), those batches ARE the live tier, and they still
+# hold some `*.integration.test.ts` suites: the services tier leaves those to them,
+# so no file runs twice. Comment lines are skipped. Exits 3 when the section's
+# opening or closing line is missing, so a rewrite of it cannot turn this list
+# silently empty.
+live_section_files() {
+  awk '
+    /^if run_live_api_batches; then$/ { inside = 1; opened = 1; next }
+    /^fi [#] run_live_api_batches$/ { inside = 0; closed = 1; next }
+    inside && $1 !~ /^[#]/ {
+      for (i = 1; i <= NF; i++) if ($i ~ /^tests\/.*\.test\.ts$/ && !seen[$i]++) print $i
+    }
+    END { if (!opened || !closed) exit 3 }
+  ' "$RUNNER_PATH"
+}
+
+# Prints the files the DB-only batches below name, the same way: until the services
+# tier is collected by its suffix, those hand-written lists ARE the services tier.
+db_section_files() {
+  awk '
+    /^if run_services_tier; then$/ { inside = 1; opened = 1; next }
+    /^fi [#] run_services_tier$/ { inside = 0; closed = 1; next }
+    inside && $1 !~ /^[#]/ {
+      for (i = 1; i <= NF; i++) if ($i ~ /^tests\/.*\.test\.ts$/ && !seen[$i]++) print $i
+    }
+    END { if (!opened || !closed) exit 3 }
+  ' "$RUNNER_PATH"
+}
+
+# The quarantine: suites known not to pass yet, each with the reason, the owner
+# and the date it entered, printed on every run and run nowhere. The file serves
+# this runner and the reach engine alike, so it has the engine's shape,
+# `{ "entries": [{ "path", "reason", "owner", "since" }] }`, with paths from the
+# repository root; this runner applies the entries under apps/api/tests/ and
+# leaves the rest to their own collectors. A missing or malformed file, an entry
+# with an empty field, an entry for a file that does not exist, and an entry for a
+# file a live-API batch names (those batches read no quarantine before WU-1.8)
+# all stop the run before any suite starts: a quarantine that cannot be trusted
+# must not decide what runs. QUARANTINE holds one `<path>\t<reason>` line each.
+QUARANTINE=""
+load_quarantine() {
+  local live path reason
+  if ! jq -e '(.entries | type == "array") and all(.entries[]; [.path, .reason, .owner, .since] | all(type == "string" and length > 0))' "$QUARANTINE_FILE" >/dev/null 2>&1; then
+    echo "run-tests.sh: the quarantine '$QUARANTINE_FILE' is missing, is not JSON, or has an entry without a non-empty path, reason, owner and since." >&2
+    return 2
+  fi
+  QUARANTINE=$(jq -r '.entries[] | select(.path | startswith("apps/api/tests/")) | [(.path | ltrimstr("apps/api/")), .reason] | @tsv' "$QUARANTINE_FILE")
+  if ! live=$(live_section_files); then
+    echo "run-tests.sh: the live-API section of $RUNNER_PATH cannot be read, so the quarantine cannot be checked against it." >&2
+    return 2
+  fi
+  while IFS=$'\t' read -r path reason; do
+    if [ -z "$path" ]; then
+      continue
+    fi
+    if [ ! -f "$path" ]; then
+      echo "run-tests.sh: the quarantine names apps/api/$path, which does not exist; remove the entry." >&2
+      return 2
+    fi
+    if printf '%s\n' "$live" | grep -Fxq -- "$path"; then
+      echo "run-tests.sh: the quarantine names apps/api/$path, which a live-API batch runs; those batches read no quarantine yet." >&2
+      return 2
+    fi
+  done <<< "$QUARANTINE"
+}
+
+# Succeeds when the quarantine holds `$1`.
+is_quarantined() {
+  printf '%s\n' "$QUARANTINE" | cut -f1 | grep -Fxq -- "$1"
+}
+
+# Fills SERVICES_FILES with the services tier: every file the DB-only batches
+# name, except the ones a live-API batch also names and the quarantined ones.
+# Fails when that leaves nothing: a section that names no suite cannot be listed.
+SERVICES_FILES=()
+resolve_services_files() {
+  local live file
+  if ! live=$(live_section_files); then
+    return 1
+  fi
+  SERVICES_FILES=()
+  while IFS= read -r file; do
+    if [ -z "$file" ] || printf '%s\n' "$live" | grep -Fxq -- "$file" || is_quarantined "$file"; then
+      continue
+    fi
+    SERVICES_FILES+=("$file")
+  done < <(db_section_files)
+  [ "${#SERVICES_FILES[@]}" -gt 0 ]
+}
+
+# What both modes print when the services tier comes back empty.
+NO_SERVICES_MESSAGE="run-tests.sh: the DB-only batches of $RUNNER_PATH name no suite to list or run."
+
+# --list prints the inventory and runs nothing: one `<kind>\t<path>` line per file
+# this runner owns — `integration` for the files the DB-only batches name, `live`
+# for the files the live-API batches name, `quarantined` for each quarantine entry
+# it applies. It
+# reads only the tree, this script and the quarantine, so it sits above the
+# database refusal and needs no DATABASE_URL, and TIER does not change it. A file
+# under tests/ it does not print as `integration` or `live` is one nothing here
+# runs: fitness #30 counts those.
+if [ -n "$LIST_ONLY" ]; then
+  load_quarantine || exit 2
+  if ! resolve_services_files; then
+    echo "$NO_SERVICES_MESSAGE" >&2
+    exit 1
+  fi
+  printf 'integration\t%s\n' "${SERVICES_FILES[@]}"
+  live_section_files | while IFS= read -r file; do
+    printf 'live\t%s\n' "$file"
+  done
+  printf '%s\n' "$QUARANTINE" | while IFS=$'\t' read -r file reason; do
+    if [ -n "$file" ]; then
+      printf 'quarantined\t%s\n' "$file"
+    fi
+  done
+  exit 0
+fi
 
 # The database is never guessed. The suites write to the database and Redis they
 # reach, and some delete rows or flush keys there, while the repository root also
@@ -62,8 +202,16 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 2
 fi
 
-# Returns success when DB-only node:test batches should run for the current TIER.
-run_db_batches() {
+# The quarantine and the services tier are settled before anything starts, so a
+# quarantine that cannot be trusted ends the run without running a single suite.
+load_quarantine || exit 2
+if ! resolve_services_files; then
+  echo "$NO_SERVICES_MESSAGE" >&2
+  exit 1
+fi
+
+# Returns success when the services tier should run for the current TIER: always.
+run_services_tier() {
   [ -z "$TIER" ] || [ "$TIER" = "pr-integration" ] || [ "$TIER" = "full-integration" ]
 }
 
@@ -193,6 +341,11 @@ run_batch() {
   local runner_exit=0 failed_files=0 file
 
   for file in "$@"; do
+    # A quarantined file is printed once, at the head of the DB-only batches, and
+    # run by no batch.
+    if is_quarantined "$file"; then
+      continue
+    fi
     # Reset before each call: should run_file ever run in a subshell (a pipe or
     # `$( )` around it), its verdict never arrives, and the file then fails for
     # want of one instead of passing on the previous file's.
@@ -225,8 +378,16 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 echo "── Integration tests (node:test) ──"
 
-# DB-only batches: Prisma against the real DB, no live API server required.
-if run_db_batches; then
+# The services tier: the DB-only batches below, Prisma against the real DB, no live
+# API server required.
+if run_services_tier; then
+
+# The quarantine, printed once here; run_batch runs none of its files.
+  printf '%s\n' "$QUARANTINE" | while IFS=$'\t' read -r file reason; do
+    if [ -n "$file" ]; then
+      printf "  QUARANTINED (not run): %s — %s\n" "$file" "$reason"
+    fi
+  done
 
 # Repository + data-migration integration tests (Prisma against real DB, no live API).
 # backfillAdminMfaBackupCodes drives the migration script's injected-Prisma exports
@@ -352,7 +513,7 @@ run_batch "integration:saga-recovery" \
   tests/integration/sagaCompensationRecovery.integration.test.ts \
   tests/integration/sagaPublishNowPromotion.integration.test.ts
 
-fi # run_db_batches
+fi # run_services_tier
 
 # Live-API batches: these fetch http://localhost:3000 (getBaseUrl) and require
 # a running API server alongside the DB/Redis services.

@@ -2,7 +2,9 @@
  * @file runTestsGate.behavior.test.ts
  * @description Executable proof that `apps/api/scripts/run-tests.sh` exits non-zero
  *              whenever a batch is recorded failed, gives every listed file its own
- *              verdict, and refuses to start at all without a test database. Its sibling
+ *              verdict, keeps a quarantined file out of the run while printing it,
+ *              lists its inventory without running anything, and refuses to start at
+ *              all without a test database or with a quarantine it cannot trust. Its sibling
  *              `runTestsGate.static.test.ts` reads the script's SHAPE; this one runs
  *              the real script and reads its EXIT CODE, which is the contract every
  *              "the tests pass" claim in this repository actually rests on.
@@ -71,6 +73,8 @@ const RECORDED_PROGRAMS = ["node", "npx", "curl"] as const;
 /** The file the per-file scenarios single out, in a batch that lists siblings too. */
 const TARGET_FILE = "tests/integration/repositories/UserRepository.integration.test.ts";
 const TARGET_BATCH = "integration:repositories";
+/** A path the hand-listed live-API batches name. */
+const LIVE_TARGET = "tests/integration/crisisRoutes.live.test.ts";
 
 /** The TAP summary a stub run reports, plus the exit code it ends on. */
 interface StubShape {
@@ -86,13 +90,15 @@ interface StubShape {
 /** A healthy file: what every listed path reports in the per-file scenarios. */
 const PASSING: StubShape = { tests: 1, pass: 1, fail: 0, cancel: 0, exit: 0 };
 
-/** What a per-file scenario may change about a run besides the shape. */
+/** What a scenario may change about a run besides the shape. */
 interface GateOptions {
-  /** Receives, for each call, how many suite paths the stub was handed. */
+  /** Receives, for each call, how many suite paths the stub was handed and the last one. */
   callLog?: string;
   cwd?: string;
   /** A listed path the stub hands to the real node:test runner instead. */
   realTarget?: string;
+  /** The quarantine the run reads; defaults to the committed one. */
+  quarantineFile?: string;
 }
 
 interface RunResult {
@@ -108,13 +114,29 @@ interface RefusedRun {
   started: string[];
 }
 
+/** One quarantine entry, in the shape the runner and the reach engine share. */
+interface QuarantineFixture {
+  path: string;
+  reason: string;
+  owner: string;
+  since?: string;
+}
+
 let stubDir: string;
+let emptyQuarantine: string;
+
+/** Writes a quarantine file holding `entries` into the stub directory. */
+function writeQuarantine(name: string, entries: QuarantineFixture[]): string {
+  const path = join(stubDir, name);
+  writeFileSync(path, JSON.stringify({ entries }), "utf8");
+  return path;
+}
 
 /**
- * Writes the stand-in runner. Each suite path it is handed reports the scenario's
- * shape, and it prints their sum as the five summary lines `run_file` greps for, as
- * node:test sums a multi-file run, then ends on the exit code the scenario is about.
- * A call whose last argument is `GATE_REAL_TARGET` goes to the real runner instead.
+ * Writes the stand-in runner. Each suite path the runner is
+ * handed reports the scenario's shape, printed as the five summary lines `run_file`
+ * greps for, and the call ends on the exit code the scenario is about. A call whose
+ * last argument is `GATE_REAL_TARGET` goes to the real runner instead.
  */
 beforeAll(() => {
   stubDir = mkdtempSync(join(tmpdir(), "run-tests-gate-"));
@@ -129,7 +151,7 @@ beforeAll(() => {
       "fi",
       "files=0",
       'for arg in "$@"; do case "$arg" in *.ts) files=$((files + 1)) ;; esac; done',
-      'if [ -n "${GATE_CALL_LOG:-}" ]; then echo "$files" >> "$GATE_CALL_LOG"; fi',
+      'if [ -n "${GATE_CALL_LOG:-}" ]; then echo "$files ${!#}" >> "$GATE_CALL_LOG"; fi',
       "printf '# tests %s\\n# suites 1\\n# pass %s\\n# fail %s\\n# cancelled %s\\n# skipped %s\\n# todo 0\\n' \\",
       '  "$((files * GATE_STUB_TESTS))" "$((files * GATE_STUB_PASS))" "$((files * GATE_STUB_FAIL))" \\',
       '  "$((files * GATE_STUB_CANCEL))" "$((files * GATE_STUB_SKIP))"',
@@ -139,6 +161,7 @@ beforeAll(() => {
     "utf8"
   );
   chmodSync(stubPath, 0o755);
+  emptyQuarantine = writeQuarantine("empty-quarantine.json", []);
 });
 
 afterAll(() => {
@@ -147,7 +170,7 @@ afterAll(() => {
 
 /** Runs the real script with every listed path served by the stub. */
 function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
-  const { callLog, realTarget } = options;
+  const { callLog, realTarget, quarantineFile } = options;
   const result = spawnSync("bash", [runnerPath], {
     cwd: options.cwd ?? apiRoot,
     encoding: "utf8",
@@ -164,6 +187,7 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
       GATE_STUB_SKIP: String(shape.skip ?? 0),
       GATE_STUB_EXIT: String(shape.exit),
       ...(callLog !== undefined && { GATE_CALL_LOG: callLog }),
+      ...(quarantineFile !== undefined && { QUARANTINE_FILE: quarantineFile }),
       ...(realTarget !== undefined && {
         GATE_REAL_TARGET: realTarget,
         GATE_REAL_NODE: process.execPath,
@@ -172,6 +196,14 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
   });
 
   return { exitCode: result.status ?? -1, stdout: `${result.stdout ?? ""}${result.stderr ?? ""}` };
+}
+
+/** The suite paths the stub was handed, one per call, in call order. */
+function calledPaths(callLog: string): string[] {
+  return readFileSync(callLog, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.slice(line.indexOf(" ") + 1));
 }
 
 /** Batch names the run PRINTED with a `[FAIL]` marker, in order. */
@@ -329,7 +361,10 @@ describe("run-tests.sh gives every listed file its own verdict", () => {
     const callLog = join(stubDir, "calls.log");
     rmSync(callLog, { force: true });
     const run = runGate(PASSING, { callLog });
-    const pathsPerCall = readFileSync(callLog, "utf8").split("\n").filter(Boolean).map(Number);
+    const pathsPerCall = readFileSync(callLog, "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => Number(line.split(" ")[0]));
 
     expect(pathsPerCall.length).toBeGreaterThan(1);
     expect({
@@ -339,6 +374,27 @@ describe("run-tests.sh gives every listed file its own verdict", () => {
     expect(passedFiles(run.stdout)).toHaveLength(pathsPerCall.length);
     expect(passedFiles(run.stdout)).toContain(TARGET_FILE);
   });
+
+  it("prints a quarantined file with its reason and does not run it", () => {
+    // A quarantined suite runs nowhere; the line it prints on every run is what
+    // keeps it from being forgotten there.
+    const reason = "fixture: kept out of the run on purpose";
+    const quarantineFile = writeQuarantine("one-entry.json", [
+      { path: `apps/api/${TARGET_FILE}`, reason, owner: "runner gate", since: "2026-10-10" },
+    ]);
+    const callLog = join(stubDir, "quarantine-calls.log");
+    rmSync(callLog, { force: true });
+    const run = runGate(PASSING, { callLog, quarantineFile });
+    const called = calledPaths(callLog);
+
+    expect(called.length).toBeGreaterThan(1);
+    expect({
+      exitCode: run.exitCode,
+      printed: run.stdout.includes(`  QUARANTINED (not run): ${TARGET_FILE} — ${reason}\n`),
+      handedToNode: called.includes(TARGET_FILE),
+      verdictLine: passedFiles(run.stdout).includes(TARGET_FILE),
+    }).toEqual({ exitCode: 0, printed: true, handedToNode: false, verdictLine: false });
+  });
 });
 
 describe("a real node:test file gets the same verdict, end to end", () => {
@@ -346,7 +402,8 @@ describe("a real node:test file gets the same verdict, end to end", () => {
    * Runs the real script from a scratch directory holding `TARGET_FILE` with
    * `source` as its content (no file when null) and a link to the API's
    * `node_modules`, so `--import tsx` resolves. The stub hands that one path to
-   * the real node:test runner, so no suite under `tests/` runs.
+   * the real node:test runner, so no suite under `tests/` runs. The quarantine is
+   * an empty one, so the scratch tree is all the run reads.
    */
   function runRealTarget(source: string | null): RunResult {
     const root = mkdtempSync(join(tmpdir(), "run-tests-real-"));
@@ -357,7 +414,11 @@ describe("a real node:test file gets the same verdict, end to end", () => {
         mkdirSync(dirname(join(root, TARGET_FILE)), { recursive: true });
         writeFileSync(join(root, TARGET_FILE), source, "utf8");
       }
-      return runGate(PASSING, { cwd: root, realTarget: TARGET_FILE });
+      return runGate(PASSING, {
+        cwd: root,
+        realTarget: TARGET_FILE,
+        quarantineFile: emptyQuarantine,
+      });
     } finally {
       // The link leaves first, alone, so the recursive removal cannot follow it.
       rmSync(modulesLink, { force: true });
@@ -406,7 +467,7 @@ describe("a real node:test file gets the same verdict, end to end", () => {
   });
 });
 
-describe("run-tests.sh refuses to start without a test database", () => {
+describe("run-tests.sh refuses what it cannot trust, and lists without a database", () => {
   let recorderDir: string;
   let recordPath: string;
 
@@ -434,14 +495,19 @@ describe("run-tests.sh refuses to start without a test database", () => {
   });
 
   /**
-   * Runs the real script with the recorders first on `PATH`. `DATABASE_URL` and
-   * `TIER` are removed from the inherited environment first — the vitest process
-   * holds the test database's URL — so each scenario states both itself.
+   * Runs the real script with the recorders first on `PATH`. `DATABASE_URL`, `TIER`
+   * and `QUARANTINE_FILE` are removed from the inherited environment first — the
+   * vitest process holds the test database's URL — so each scenario states its own.
    */
-  function runWithoutDatabase(overrides: NodeJS.ProcessEnv): RefusedRun {
+  function runRecorded(overrides: NodeJS.ProcessEnv, args: string[] = []): RefusedRun {
     rmSync(recordPath, { force: true });
-    const { DATABASE_URL: _inheritedDatabaseUrl, TIER: _inheritedTier, ...inherited } = process.env;
-    const result = spawnSync("bash", [runnerPath], {
+    const {
+      DATABASE_URL: _inheritedDatabaseUrl,
+      TIER: _inheritedTier,
+      QUARANTINE_FILE: _inheritedQuarantine,
+      ...inherited
+    } = process.env;
+    const result = spawnSync("bash", [runnerPath, ...args], {
       cwd: apiRoot,
       encoding: "utf8",
       timeout: 60_000,
@@ -468,7 +534,7 @@ describe("run-tests.sh refuses to start without a test database", () => {
     // The reproduction: with no test database exported, the run reached the
     // development database instead. `full-integration` is the widest tier — it
     // also probes the live API — so a refusal that holds there holds everywhere.
-    const run = runWithoutDatabase({ TIER: "full-integration", DATABASE_URL: "" });
+    const run = runRecorded({ TIER: "full-integration", DATABASE_URL: "" });
 
     expect({
       exitCode: run.exitCode,
@@ -489,7 +555,7 @@ describe("run-tests.sh refuses to start without a test database", () => {
     // The local default path, `pnpm --filter @apps/api test:integration` from a
     // shell that exported nothing: no tier, no variable. Nothing legitimate runs
     // the suites against whatever database a file at the repository root names.
-    const run = runWithoutDatabase({});
+    const run = runRecorded({});
 
     expect({
       exitCode: run.exitCode,
@@ -497,6 +563,64 @@ describe("run-tests.sh refuses to start without a test database", () => {
       stdout: run.stdout,
       namesTheVariable: run.stderr.includes("DATABASE_URL"),
     }).toEqual({ exitCode: 2, started: [], stdout: "", namesTheVariable: true });
+  });
+
+  it("exits 2 before any suite starts on a quarantine entry without a field", () => {
+    // A quarantine decides what does NOT run, so one that cannot be read whole
+    // must stop the run instead of being applied in part.
+    const quarantineFile = writeQuarantine("no-since.json", [
+      { path: `apps/api/${TARGET_FILE}`, reason: "fixture", owner: "runner gate" },
+    ]);
+    const run = runRecorded({
+      TIER,
+      DATABASE_URL: UNUSED_DATABASE_URL,
+      QUARANTINE_FILE: quarantineFile,
+    });
+
+    expect({
+      exitCode: run.exitCode,
+      started: run.started,
+      namesTheQuarantine: run.stderr.includes(quarantineFile),
+    }).toEqual({ exitCode: 2, started: [], namesTheQuarantine: true });
+  });
+
+  it("exits 2 on an argument it does not know, rather than ignoring it", () => {
+    const run = runRecorded({ TIER, DATABASE_URL: UNUSED_DATABASE_URL }, [TARGET_FILE]);
+
+    expect({ exitCode: run.exitCode, started: run.started }).toEqual({ exitCode: 2, started: [] });
+  });
+
+  it("lists every file it owns once, with its kind, and runs nothing, without a database", () => {
+    // `--list` is what fitness #30 and the reach engine read; it touches no
+    // database, so it needs none, and it must start no suite and no probe.
+    const run = runRecorded({}, ["--list"]);
+    const lines = run.stdout.split("\n").filter(Boolean);
+    const kindOf = new Map<string, string[]>();
+    for (const line of lines) {
+      const [kind = "", path = ""] = line.split("\t");
+      kindOf.set(path, [...(kindOf.get(path) ?? []), kind]);
+    }
+    const kinds = (path: string): string[] => kindOf.get(path) ?? [];
+    const liveSuffixed = [...kindOf.keys()].filter((path) => path.endsWith(".live.test.ts"));
+
+    expect(lines.length).toBeGreaterThan(1);
+    expect({
+      exitCode: run.exitCode,
+      started: run.started,
+      wellFormed: lines.every((line) => /^(integration|live|quarantined)\t\S+$/.test(line)),
+      eachPathOnce: [...kindOf.values()].every((listed) => listed.length === 1),
+      target: kinds(TARGET_FILE),
+      liveTarget: kinds(LIVE_TARGET),
+      noLiveSuiteInTheServicesTier: liveSuffixed.filter((path) => kinds(path)[0] !== "live"),
+    }).toEqual({
+      exitCode: 0,
+      started: [],
+      wellFormed: true,
+      eachPathOnce: true,
+      target: ["integration"],
+      liveTarget: ["live"],
+      noLiveSuiteInTheServicesTier: [],
+    });
   });
 });
 

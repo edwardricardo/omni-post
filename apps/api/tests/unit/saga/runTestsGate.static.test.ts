@@ -6,7 +6,8 @@
  *              the final gate must act on the per-batch runner exit it already
  *              captures, the script must refuse to start without a test database
  *              rather than read an environment file, it must never start vitest,
- *              and the header must not carry a count that rots.
+ *              `--list` must answer above the database refusal, and the
+ *              header must not carry a count that rots.
  *
  *              A runner that reports a batch FAILED and then exits zero is worse
  *              than one that never noticed, because every downstream gate believes
@@ -390,6 +391,39 @@ describe("run-tests.sh is a gate that can go red", () => {
       // Vitest collects the unit tier from the tree on its own. A second start here
       // runs every unit test twice and folds a second verdict into this one.
       expect(codeLinesContaining("vitest")).toEqual([]);
+    });
+  });
+
+  describe("the inventory is listed without a database, and the quarantine is shared", () => {
+    /** Index of the code line that opens the `--list` answer, or -1. */
+    function listBlockIndex(): number {
+      return codeLines.findIndex((line) => line.trim() === 'if [ -n "$LIST_ONLY" ]; then');
+    }
+
+    it("answers --list above the database refusal, and exits there", () => {
+      // Listing reads the tree, the script and the quarantine, never a database, so
+      // fitness #30 can read it with no DATABASE_URL. Below the refusal it would be
+      // refused; past its own `exit 0` it would run the suites it was asked to list.
+      const start = listBlockIndex();
+      const end = codeLines.findIndex((line, index) => index > start && /^fi\b/.test(line));
+      const block = codeLines.slice(start, end + 1).join("\n");
+
+      expect({
+        found: start >= 0 && end > start,
+        aboveTheRefusal: start < refusalIndex(),
+        exitsZero: /^\s*exit 0\s*$/m.test(block),
+        runsNothing: !/\brun_(?:batch|file)\b/.test(block),
+      }).toEqual({ found: true, aboveTheRefusal: true, exitsZero: true, runsNothing: true });
+    });
+
+    it("reads the shared quarantine with jq and prints each entry it keeps out", () => {
+      // One quarantine for this runner and the reach engine; a second copy would
+      // drift from the first.
+      expect({
+        sharedFile: code.includes("packages/test-contracts/quarantine.json"),
+        readWithJq: codeLinesContaining("jq -e").length > 0,
+        printsEachEntry: code.includes('"  QUARANTINED (not run): %s — %s\\n"'),
+      }).toEqual({ sharedFile: true, readWithJq: true, printsEachEntry: true });
     });
   });
 
