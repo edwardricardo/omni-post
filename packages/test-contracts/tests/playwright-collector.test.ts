@@ -157,6 +157,30 @@ describe("Playwright collector", () => {
     );
   });
 
+  it("names the report's own error when a failed listing also writes to stderr", async () => {
+    // A config that loads but fails writes its errors into the JSON on stdout; a stderr line
+    // beside them (a warning, a stack) must not replace them in the failure message.
+    const report = JSON.stringify({
+      config: { rootDir: "/planted" },
+      errors: [{ message: "boom" }],
+      suites: [],
+    });
+    const tree = plantTree({
+      "app/playwright.config.ts": "export default {};\n",
+      "node_modules/@playwright/test/cli.js": [
+        `process.stdout.write(${JSON.stringify(report)});`,
+        'process.stderr.write("a warning\\n");',
+        "process.exit(1);",
+        "",
+      ].join("\n"),
+    });
+    planted.push(tree);
+
+    const listed = await listWithPlaywrightCli(path.join(tree.root, "app/playwright.config.ts"));
+
+    expect(listed).toEqual(err("playwright test --list exited 1: reported 1 errors: boom"));
+  });
+
   it(
     "lists the admin portal's specs through the real Playwright CLI",
     async () => {

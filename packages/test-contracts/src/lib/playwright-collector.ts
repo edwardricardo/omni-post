@@ -39,6 +39,14 @@ const PLAYWRIGHT_CONFIG_FLOOR = 1;
 const LIST_TIMEOUT_MS = 120_000;
 
 /**
+ * Opens the error of a report that loaded but carried errors of its own (a failing config, "No
+ * tests found"). A failed listing prefers that error over stderr's tail, because Playwright
+ * writes it into the JSON on stdout and leaves stderr empty; the listing tells it apart by this
+ * prefix, so the parser and the listing share it rather than repeat the word.
+ */
+const REPORTED_ERRORS = "reported";
+
+/**
  * One way to ask Playwright what a config collects.
  *
  * @param config - The config's absolute path.
@@ -106,7 +114,7 @@ export function parsePlaywrightList(stdout: string): Result<string[], string> {
   if (errors.length > 0) {
     const first = asRecord(errors[0])?.message;
     const message = typeof first === "string" ? first : "(no message)";
-    return err(`reported ${String(errors.length)} errors: ${message}`);
+    return err(`${REPORTED_ERRORS} ${String(errors.length)} errors: ${message}`);
   }
   const suites = report?.suites;
   if (!Array.isArray(suites)) return err("printed a report with no suites list");
@@ -172,7 +180,7 @@ export function listWithPlaywrightCli(
     const report = parsePlaywrightList(run.stdout);
     const tail = run.stderr.trim().split("\n").slice(-3).join(" | ");
     const detail =
-      !report.ok && (report.error.startsWith("reported") || tail === "") ? report.error : tail;
+      !report.ok && (report.error.startsWith(REPORTED_ERRORS) || tail === "") ? report.error : tail;
     return Promise.resolve(err(`playwright test --list ${ending}: ${detail}`));
   }
   const parsed = parsePlaywrightList(run.stdout);
