@@ -182,7 +182,7 @@ The story row adds no fourth framework: it is `vitest` in browser mode, with Pla
 | ----------------------- | ----------------------------------------------------------- | ------------------------------- |
 | `*.test.ts(x)`          | the package's vitest config                                 | anywhere a vitest config covers |
 | `*.integration.test.ts` | `node:test`, through `apps/api/scripts/run-tests.sh`        | `apps/api/tests/**` only        |
-| `*.live.test.ts`        | reserved for the live tier of that same collector           | `apps/api/tests/**` only        |
+| `*.live.test.ts`        | the live tier of that same collector                        | `apps/api/tests/**` only        |
 | `*.spec.ts`             | Playwright, through the `testMatch` of each portal's config | `apps/{client,admin}/**/e2e/**` |
 | `*.k6.js`               | k6, through the performance workflow                        | `performance/k6/scenarios/`     |
 

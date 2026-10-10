@@ -7,15 +7,14 @@
 #
 # The integration and flow suites (tests/**, outside tests/unit and tests/eval)
 # stay on node:test because they depend on real services (PostgreSQL, Redis, and
-# for the live tier a running API). Their file name says which tier runs them:
-# the services tier is COLLECTED by its suffix, every `*.integration.test.ts`
-# under tests/ (`collect integration`), so a new suite runs without anyone
-# editing this file. The live tier is still the hand-listed live-API batches at
-# the end, until it is collected by its own suffix too (WU-1.8); a
-# `*.live.test.ts` no live batch names runs nowhere, and fitness #30 counts it.
-# Before each file of those batches the runner probes the API and the workers
-# (`probe_live`). `--list` prints the inventory without running anything. No test
-# total appears here on purpose — a count in a comment rots.
+# for the live tier a running API and its workers). Their file name says which
+# tier runs them, and each tier is COLLECTED by its suffix, so a new suite runs
+# without anyone editing this file: the services tier is every
+# `*.integration.test.ts` under tests/ (`collect integration`), the live tier
+# every `*.live.test.ts` (`collect live`), and the runner probes the API and the
+# workers before each live file (`probe_live`). `--list` prints the inventory
+# without running anything. No test total appears here on purpose — a count in
+# a comment rots.
 
 set -e
 export NODE_ENV=test
@@ -33,14 +32,13 @@ FAILED_FILES=""
 LAST_RAN=""
 ENV_UNREADY=""
 
-# TIER selects which slice of the node:test inventory runs, so CI can split it
-# across jobs:
-#   (unset)          local default — the services tier and the live-API batches,
+# TIER selects which tiers run, so CI can split them across jobs:
+#   (unset)          local default — the services tier, then the live tier,
 #                    without the skip and zero-collection guards, which are
 #                    tier-only.
 #   pr-integration   the services tier only (no live API server needed).
-#   full-integration the services tier, then the live-API batches.
-# The services tier talks to Postgres/Redis directly; the live-API batches need a
+#   full-integration the services tier, then the live tier.
+# The services tier talks to Postgres/Redis directly; the live tier needs a
 # running API, which the runner probes at TEST_API_URL, and the workers that
 # answer TEST_WORKERS_READY_URL.
 TIER="${TIER:-}"
@@ -52,8 +50,13 @@ case "$TIER" in
     ;;
 esac
 
-# TEST_ORDER=reverse runs the collected services tier in reverse byte order, so a
-# suite that only passes after another one has run shows up as a red.
+# Returns success when the current TIER runs the live tier.
+run_live_tier() {
+  [ -z "$TIER" ] || [ "$TIER" = "full-integration" ]
+}
+
+# TEST_ORDER=reverse runs each collected tier in reverse byte order, so a suite
+# that only passes after another one has run shows up as a red.
 TEST_ORDER="${TEST_ORDER:-}"
 case "$TEST_ORDER" in
   "" | forward | reverse) ;;
@@ -92,56 +95,26 @@ collect() {
   find tests -path tests/unit -prune -o -type f -name "*.$suffix.test.ts" -print | LC_ALL=C sort $order
 }
 
-# Prints the files the live-API batches at the end of this script name, once each
-# and in their order, read from this script's own text. Until the live tier is
-# collected by its suffix (WU-1.8), those batches ARE the live tier, and they still
-# hold some `*.integration.test.ts` suites: the services tier leaves those to them,
-# so no file runs twice. Comment lines are skipped. Exits 3 when the section's
-# opening or closing line is missing, so a rewrite of it cannot turn this list
-# silently empty.
-live_section_files() {
-  awk '
-    /^if run_live_api_batches; then$/ { inside = 1; opened = 1; next }
-    /^fi [#] run_live_api_batches$/ { inside = 0; closed = 1; next }
-    inside && $1 !~ /^[#]/ {
-      for (i = 1; i <= NF; i++) if ($i ~ /^tests\/.*\.test\.ts$/ && !seen[$i]++) print $i
-    }
-    END { if (!opened || !closed) exit 3 }
-  ' "$RUNNER_PATH"
-}
-
 # The quarantine: suites known not to pass yet, each with the reason, the owner
 # and the date it entered, printed on every run and run nowhere. The file serves
 # this runner and the reach engine alike, so it has the engine's shape,
 # `{ "entries": [{ "path", "reason", "owner", "since" }] }`, with paths from the
 # repository root; this runner applies the entries under apps/api/tests/ and
 # leaves the rest to their own collectors. A missing or malformed file, an entry
-# with an empty field, an entry for a file that does not exist, and an entry for a
-# file a live-API batch names (those batches read no quarantine before WU-1.8)
-# all stop the run before any suite starts: a quarantine that cannot be trusted
-# must not decide what runs. QUARANTINE holds one `<path>\t<reason>` line each.
+# with an empty field and an entry for a file that does not exist all stop the
+# run before any suite starts: a quarantine that cannot be trusted must not decide
+# what runs. QUARANTINE holds one `<path>\t<reason>` line each.
 QUARANTINE=""
 load_quarantine() {
-  local live path reason
+  local path reason
   if ! jq -e '(.entries | type == "array") and all(.entries[]; [.path, .reason, .owner, .since] | all(type == "string" and length > 0))' "$QUARANTINE_FILE" >/dev/null 2>&1; then
     echo "run-tests.sh: the quarantine '$QUARANTINE_FILE' is missing, is not JSON, or has an entry without a non-empty path, reason, owner and since." >&2
     return 2
   fi
   QUARANTINE=$(jq -r '.entries[] | select(.path | startswith("apps/api/tests/")) | [(.path | ltrimstr("apps/api/")), .reason] | @tsv' "$QUARANTINE_FILE")
-  if ! live=$(live_section_files); then
-    echo "run-tests.sh: the live-API section of $RUNNER_PATH cannot be read, so the quarantine cannot be checked against it." >&2
-    return 2
-  fi
   while IFS=$'\t' read -r path reason; do
-    if [ -z "$path" ]; then
-      continue
-    fi
-    if [ ! -f "$path" ]; then
+    if [ -n "$path" ] && [ ! -f "$path" ]; then
       echo "run-tests.sh: the quarantine names apps/api/$path, which does not exist; remove the entry." >&2
-      return 2
-    fi
-    if printf '%s\n' "$live" | grep -Fxq -- "$path"; then
-      echo "run-tests.sh: the quarantine names apps/api/$path, which a live-API batch runs; those batches read no quarantine yet." >&2
       return 2
     fi
   done <<< "$QUARANTINE"
@@ -152,44 +125,50 @@ is_quarantined() {
   printf '%s\n' "$QUARANTINE" | cut -f1 | grep -Fxq -- "$1"
 }
 
-# Fills SERVICES_FILES with the services tier: every file `collect integration`
-# prints, except the ones a live-API batch still names and the quarantined ones.
-# Fails when that leaves nothing: a collection that found no suite is a wrong
-# working directory or a moved tests/ tree, never an empty pass.
-SERVICES_FILES=()
-resolve_services_files() {
-  local live file
-  if ! live=$(live_section_files); then
+# Fills the array named `$2` with the tier `collect $1` finds: every file it
+# prints that the quarantine does not hold. Fails when the collection found no
+# file at all, which is a wrong working directory or a moved tests/ tree, never an
+# empty pass.
+select_files() {
+  local suffix="$1" collected file
+  local -n selected="$2"
+  collected=$(collect "$suffix")
+  if [ -z "$collected" ]; then
+    echo "run-tests.sh: collect $suffix found no *.$suffix.test.ts to run under tests/ in $(pwd); run it from apps/api." >&2
     return 1
   fi
-  SERVICES_FILES=()
+  selected=()
   while IFS= read -r file; do
-    if [ -z "$file" ] || printf '%s\n' "$live" | grep -Fxq -- "$file" || is_quarantined "$file"; then
-      continue
+    if ! is_quarantined "$file"; then
+      selected+=("$file")
     fi
-    SERVICES_FILES+=("$file")
-  done < <(collect integration)
-  [ "${#SERVICES_FILES[@]}" -gt 0 ]
+  done <<< "$collected"
 }
 
-# What both modes print when the services collection comes back empty.
-NO_SERVICES_MESSAGE="run-tests.sh: collect integration found no *.integration.test.ts to run under tests/ in $(pwd); run it from apps/api."
+# The quarantine and the collection are settled before anything starts, from the
+# tree and the quarantine alone, so `--list` below needs no database, and a
+# quarantine that cannot be trusted or a collection that found nothing ends the
+# run without running a single suite. The live tier is collected wherever it
+# would run, and for `--list` whatever TIER says.
+SERVICES_FILES=()
+LIVE_FILES=()
+load_quarantine || exit 2
+select_files integration SERVICES_FILES || exit 1
+if [ -n "$LIST_ONLY" ] || run_live_tier; then
+  select_files live LIVE_FILES || exit 1
+fi
 
 # --list prints the inventory and runs nothing: one `<kind>\t<path>` line per file
-# this runner owns — `integration` for the services tier, `live` for the files the
-# live-API batches name, `quarantined` for each quarantine entry it applies. It
-# reads only the tree, this script and the quarantine, so it sits above the
-# database refusal and needs no DATABASE_URL, and TIER does not change it. A file
-# under tests/ it does not print as `integration` or `live` is one nothing here
-# runs: fitness #30 counts those.
+# this runner owns — `integration` for the services tier and `live` for the live
+# tier, from the same collection a run executes, and `quarantined` for each
+# quarantine entry it applies. It sits above the database refusal, so it needs no
+# DATABASE_URL, and TIER does not change it. A file under tests/ it does not print
+# as `integration` or `live` is one nothing here runs: fitness #30 counts those.
 if [ -n "$LIST_ONLY" ]; then
-  load_quarantine || exit 2
-  if ! resolve_services_files; then
-    echo "$NO_SERVICES_MESSAGE" >&2
-    exit 1
-  fi
-  printf 'integration\t%s\n' "${SERVICES_FILES[@]}"
-  live_section_files | while IFS= read -r file; do
+  for file in "${SERVICES_FILES[@]}"; do
+    printf 'integration\t%s\n' "$file"
+  done
+  for file in "${LIVE_FILES[@]}"; do
     printf 'live\t%s\n' "$file"
   done
   printf '%s\n' "$QUARANTINE" | while IFS=$'\t' read -r file reason; do
@@ -219,30 +198,16 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 2
 fi
 
-# The quarantine and the services collection are settled before anything starts,
-# so a quarantine that cannot be trusted or a collection that found nothing ends
-# the run without running a single suite.
-load_quarantine || exit 2
-if ! resolve_services_files; then
-  echo "$NO_SERVICES_MESSAGE" >&2
-  exit 1
-fi
-
 # Returns success when the services tier should run for the current TIER: always.
 run_services_tier() {
   [ -z "$TIER" ] || [ "$TIER" = "pr-integration" ] || [ "$TIER" = "full-integration" ]
-}
-
-# Returns success when live-API node:test batches should run for the current TIER.
-run_live_api_batches() {
-  [ -z "$TIER" ] || [ "$TIER" = "full-integration" ]
 }
 
 # The live tier reads where the API and the workers answer from its caller, as the
 # runner reads the database: CI exports both URLs. A run that reaches the live
 # tier without them stops here, instead of failing its first readiness probe after
 # the whole services tier has run.
-if run_live_api_batches && { [ -z "${TEST_API_URL:-}" ] || [ -z "${TEST_WORKERS_READY_URL:-}" ]; }; then
+if run_live_tier && { [ -z "${TEST_API_URL:-}" ] || [ -z "${TEST_WORKERS_READY_URL:-}" ]; }; then
   {
     echo "run-tests.sh: TEST_API_URL or TEST_WORKERS_READY_URL is empty, so the live tier has no API or workers to probe."
     echo "  Export both (a local stack answers at http://localhost:3000 and"
@@ -428,16 +393,16 @@ echo "Running API integration tests..."
 echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Integration tests via node:test (real DB + Redis; the live batches add an API)
+# Integration tests via node:test (real DB + Redis; the live tier adds an API)
 # ─────────────────────────────────────────────────────────────────────────────
 echo "── Integration tests (node:test) ──"
 
-# The services tier: every collected `*.integration.test.ts` (resolve_services_files
-# above), each in its own node:test process through run_batch, in byte order or in
+# The services tier: every collected `*.integration.test.ts` (select_files above),
+# each in its own node:test process through run_batch, in byte order or in
 # reverse under TEST_ORDER=reverse. The files run one after another, so no two
 # suites share the database at once: the suites that race one credential on
 # purpose, or park a row lock while polling for it, measure only their own
-# interleaving. The quarantined ones are printed and not run.
+# interleaving. The quarantined suites of both tiers are printed and not run.
 if run_services_tier; then
   printf '%s\n' "$QUARANTINE" | while IFS=$'\t' read -r file reason; do
     if [ -n "$file" ]; then
@@ -447,41 +412,13 @@ if run_services_tier; then
   run_batch "integration" "${SERVICES_FILES[@]}"
 fi
 
-# Live-API batches: these need a running API and its workers alongside the
-# DB/Redis services. Each runs with probe_live before each of its files, so a file
-# that leaves the API or the workers unready for the next one is named by the
-# probe that follows it, rather than by the failures of every file after it.
-if run_live_api_batches; then
-
-BATCH_PROBE=probe_live run_batch "integration:routes" \
-  tests/integration/crisisRoutes.live.test.ts tests/integration/linkRoutes.live.test.ts \
-  tests/integration/security-endpoints.live.test.ts
-
-BATCH_PROBE=probe_live run_batch "integration:flows" \
-  tests/auth.integration.test.ts tests/audit.integration.test.ts tests/cache.integration.test.ts \
-  tests/security.live.test.ts \
-  tests/integration/publishing/failedWrite.smoke.integration.test.ts
-
-# Saga customer flow against the live API. Listed here to close a blind spot:
-# this suite existed on disk but belonged to no batch, so `test:all` never ran
-# it.
-BATCH_PROBE=probe_live run_batch "integration:saga-live" \
-  tests/integration/sagaCustomerFlow.live.test.ts
-
-BATCH_PROBE=probe_live run_batch "flow" \
-  tests/publish.flow.integration.test.ts tests/analytics.flow.integration.test.ts tests/media.flow.integration.test.ts tests/schedule.flow.integration.test.ts
-
-BATCH_PROBE=probe_live run_batch "remaining" \
-  tests/accountLifecycle.integration.test.ts tests/trialPeriod.integration.test.ts \
-  tests/mfa.integration.test.ts tests/rbac.integration.test.ts \
-  tests/threading.canonical.integration.test.ts tests/threading.planner.integration.test.ts \
-  tests/threading.xprovider.integration.test.ts tests/planPublication.integration.test.ts tests/adapters.integration.test.ts \
-  tests/schemaUtils.integration.test.ts
-
-BATCH_PROBE=probe_live run_batch "production" \
-  tests/production.live.test.ts tests/multiproject.flow.live.test.ts tests/providerRegistry.live.test.ts
-
-fi # run_live_api_batches
+# The live tier: every collected `*.live.test.ts`, in the same order and the same
+# way, after the services tier, with probe_live before each file. A file that
+# leaves the API or the workers unready for the next one is named by the probe
+# that follows it, rather than by the failures of every file after it.
+if run_live_tier; then
+  BATCH_PROBE=probe_live run_batch "live" "${LIVE_FILES[@]}"
+fi
 
 echo ""
 echo "========================================"
@@ -522,8 +459,8 @@ if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || { [ -n "${TIER:-}" ] 
   elif [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
     echo "ERROR: every test that ran reported passing, yet a file's runner exited"
     echo "       non-zero, or a file collected nothing. A crash after the summary,"
-    echo "       an unhandled rejection, or a listed path that no longer exists all"
-    echo "       end this way — with nothing in the counts to show for it."
+    echo "       an unhandled rejection, or an emptied suite all end this way — with"
+    echo "       nothing in the counts to show for it."
     echo "       See the FAILED files lines above for each file and its reasons;"
     echo "       its dumped output follows its verdict line."
   elif [ "$TOTAL_FAIL" -eq 0 ]; then

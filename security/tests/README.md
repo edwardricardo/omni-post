@@ -79,14 +79,14 @@ everything skipped, which enlarges the false green rather than removing it.
 
 The security coverage that actually executes in CI is a different set of
 suites. The Integration Tests job of `.github/workflows/ci.yml` runs four
-node:test suites through the batches of `apps/api/scripts/run-tests.sh`, and
+node:test suites through the two tiers of `apps/api/scripts/run-tests.sh`, and
 the Vitest shards of the same workflow run the two rate-limit unit suites:
 
 ```text
-apps/api/tests/auth.integration.test.ts                      # batch integration:flows
-apps/api/tests/security.live.test.ts                         # batch integration:flows
-apps/api/tests/rbac.integration.test.ts                      # batch remaining
-apps/api/tests/mfa.integration.test.ts                       # batch remaining
+apps/api/tests/auth.integration.test.ts                      # services tier
+apps/api/tests/security.live.test.ts                         # live tier
+apps/api/tests/rbac.integration.test.ts                      # services tier
+apps/api/tests/mfa.integration.test.ts                       # services tier
 apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts # vitest
 apps/api/tests/unit/authRateLimit.test.ts                    # vitest
 ```

@@ -2,12 +2,13 @@
  * @file runTestsGate.behavior.test.ts
  * @description Executable proof that `apps/api/scripts/run-tests.sh` exits non-zero
  *              whenever a file is recorded failed, gives every file its own verdict,
- *              collects the services tier by its suffix (in byte order, or reversed),
- *              probes the API and the workers before each live-tier file and stops the
- *              live tier at the first probe that fails, keeps a quarantined file out of
- *              the run while printing it, lists its inventory without running anything,
- *              and refuses to start at all without a test database, without the live
- *              URLs a live tier needs, or with a quarantine it cannot trust. Its sibling
+ *              collects the services tier and the live tier by their suffixes (in byte
+ *              order, or reversed), probes the API and the workers before each live
+ *              file and stops the live tier at the first probe that fails, keeps a
+ *              quarantined file out of the run while printing it, lists its inventory
+ *              without running anything, and refuses to start at all without a test
+ *              database, without the live URLs a live tier needs, or with a quarantine
+ *              it cannot trust. Its sibling
  *              `runTestsGate.static.test.ts` reads the script's SHAPE; this one runs
  *              the real script and reads its EXIT CODE and its output, which is the
  *              contract every "the tests pass" claim in this repository rests on.
@@ -95,9 +96,8 @@ const RECORDED_PROGRAMS = ["node", "npx", "curl"] as const;
 const TARGET_FILE = "tests/integration/repositories/UserRepository.integration.test.ts";
 /** The row the services tier prints, and the name it is recorded failed under. */
 const SERVICES_UNIT = "integration";
-/** A path the hand-listed live-API batches name, and the batch that names it. */
+/** A path the live tier collects. */
 const LIVE_TARGET = "tests/integration/crisisRoutes.live.test.ts";
-const LIVE_BATCH = "integration:routes";
 
 /** The TAP summary a stub run reports, plus the exit code it ends on. */
 interface StubShape {
@@ -569,14 +569,11 @@ describe("a real node:test file gets the same verdict, end to end", () => {
   /**
    * Runs the real script from a scratch directory holding `TARGET_FILE` with
    * `source` as its content (no file when null) and a link to the API's
-   * `node_modules`, so `--import tsx` resolves. The stub hands `realTarget` (by
-   * default `TARGET_FILE`) to the real node:test runner, so no suite under `tests/`
-   * runs. The quarantine is an empty one, so the scratch tree is all the run reads.
+   * `node_modules`, so `--import tsx` resolves. The stub hands `TARGET_FILE` to the
+   * real node:test runner, so no suite under `tests/` runs. The quarantine is an
+   * empty one, so the scratch tree is all the run reads.
    */
-  function runRealTarget(
-    source: string | null,
-    options: { realTarget?: string; tier?: string } = {}
-  ): RunResult {
+  function runRealTarget(source: string | null, options: { tier?: string } = {}): RunResult {
     const root = mkdtempSync(join(tmpdir(), "run-tests-real-"));
     const modulesLink = join(root, "node_modules");
     try {
@@ -587,7 +584,7 @@ describe("a real node:test file gets the same verdict, end to end", () => {
       }
       return runGate(PASSING, {
         cwd: root,
-        realTarget: options.realTarget ?? TARGET_FILE,
+        realTarget: TARGET_FILE,
         quarantineFile: emptyQuarantine,
         ...(options.tier !== undefined && { tier: options.tier }),
       });
@@ -642,16 +639,18 @@ describe("a real node:test file gets the same verdict, end to end", () => {
     }).toEqual({ exitCode: 1, saysWhy: true, verdicts: 0 });
   });
 
-  it("exits 1 naming a path a live-API batch lists that does not exist", () => {
-    // The live tier is still hand-listed, so a renamed live suite is still possible
-    // there. Beside paths that exist, node:test drops a missing one and exits 0
-    // (SMELL-74); alone it exits non-zero, and the live batch fails with it.
+  it("exits 1 before any suite starts when a tier that runs the live tier finds no live file", () => {
+    // The scratch tree holds one services file and no `*.live.test.ts`: under a tier
+    // that runs the live tier, that is a moved or renamed live tree, not a pass.
     const run = runRealTarget('import { it } from "node:test";\nit("passes", () => {});\n', {
-      realTarget: LIVE_TARGET,
       tier: "full-integration",
     });
 
-    expect(fileVerdict(run)).toEqual(aloneFails(LIVE_TARGET, LIVE_BATCH, "zero tests, exit 1"));
+    expect({
+      exitCode: run.exitCode,
+      saysWhy: run.stdout.includes("collect live found no *.live.test.ts"),
+      verdicts: passedFiles(run.stdout).length + printedFailedFiles(run.stdout).length,
+    }).toEqual({ exitCode: 1, saysWhy: true, verdicts: 0 });
   });
 });
 
@@ -775,10 +774,10 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
     }).toEqual({ exitCode: 2, started: [], namesTheQuarantine: true });
   });
 
-  it("exits 2 before any suite starts on a quarantine entry a live-API batch runs", () => {
-    // The live-API batches read no quarantine, so an entry for one of their files
-    // would still run there. The runner refuses the entry instead, which is what
-    // keeps a quarantined suite out of every run until the live tier is collected.
+  it("prints a quarantined live file with its reason and does not run it", () => {
+    // The live tier reads the quarantine as the services tier does, so an entry keeps
+    // one of its files out of the run and printed on every run, where the hand-written
+    // live-API batches, which read no quarantine, had the runner refuse it instead.
     const quarantineFile = writeQuarantine("live-batch-entry.json", [
       {
         path: `apps/api/${LIVE_TARGET}`,
@@ -787,17 +786,15 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
         since: "2026-10-10",
       },
     ]);
-    const run = runRecorded({
-      TIER,
-      DATABASE_URL: UNUSED_DATABASE_URL,
-      QUARANTINE_FILE: quarantineFile,
-    });
+    const callLog = join(stubDir, "live-quarantine-calls.log");
+    rmSync(callLog, { force: true });
+    const run = runGate(PASSING, { callLog, quarantineFile, tier: "full-integration" });
 
     expect({
       exitCode: run.exitCode,
-      started: run.started,
-      namesTheFile: run.stderr.includes(`apps/api/${LIVE_TARGET}`),
-    }).toEqual({ exitCode: 2, started: [], namesTheFile: true });
+      printed: run.stdout.includes(`  QUARANTINED (not run): ${LIVE_TARGET} — fixture\n`),
+      handedToNode: calledPaths(callLog).includes(LIVE_TARGET),
+    }).toEqual({ exitCode: 0, printed: true, handedToNode: false });
   });
 
   it.each([
@@ -840,7 +837,9 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       kindOf.set(path, [...(kindOf.get(path) ?? []), kind]);
     }
     const kinds = (path: string): string[] => kindOf.get(path) ?? [];
-    const liveSuffixed = [...kindOf.keys()].filter((path) => path.endsWith(".live.test.ts"));
+    /** The files with `suffix` that `--list` prints as neither `kind` nor quarantined. */
+    const misfiled = (suffix: string, kind: string): string[] =>
+      suffixedFiles(suffix).filter((path) => ![kind, "quarantined"].includes(kinds(path)[0] ?? ""));
 
     expect(lines.length).toBeGreaterThan(1);
     expect({
@@ -848,21 +847,19 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       started: run.started,
       wellFormed: lines.every((line) => /^(integration|live|quarantined)\t\S+$/.test(line)),
       eachPathOnce: [...kindOf.values()].every((listed) => listed.length === 1),
-      everyServicesFileReached: suffixedFiles("integration").filter(
-        (path) => !["integration", "live"].includes(kinds(path)[0] ?? "")
-      ),
+      everyServicesFileListed: misfiled("integration", "integration"),
+      everyLiveFileListed: misfiled("live", "live"),
       target: kinds(TARGET_FILE),
       liveTarget: kinds(LIVE_TARGET),
-      noLiveSuiteInTheServicesTier: liveSuffixed.filter((path) => kinds(path)[0] !== "live"),
     }).toEqual({
       exitCode: 0,
       started: [],
       wellFormed: true,
       eachPathOnce: true,
-      everyServicesFileReached: [],
+      everyServicesFileListed: [],
+      everyLiveFileListed: [],
       target: ["integration"],
       liveTarget: ["live"],
-      noLiveSuiteInTheServicesTier: [],
     });
   });
 });

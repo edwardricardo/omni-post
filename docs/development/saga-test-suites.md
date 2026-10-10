@@ -10,19 +10,20 @@
 
 ## The suites and what they need
 
-| Suite                                                                      | Services                                 | Runner batch                   |
-| -------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------ |
-| `tests/integration/sagaCrashRecovery.integration.test.ts`                  | Postgres + Redis (owns its BullMQ queue) | `integration:saga-recovery`    |
-| `tests/integration/sagaPublishNowPromotion.integration.test.ts`            | Postgres + Redis (queue is a double)     | `integration:saga-recovery`    |
-| `tests/integration/sagaTenantIsolation.integration.test.ts`                | Postgres                                 | `integration:tenant-isolation` |
-| `tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts` | Postgres                                 | `integration:tenant-isolation` |
-| `tests/chaos/saga-step-retry-recovery.integration.test.ts`                 | none (in-memory doubles)                 | `chaos`                        |
-| `tests/integration/sagaCustomerFlow.live.test.ts`                          | Postgres + Redis + a LIVE API server     | `integration:saga-live`        |
+| Suite                                                                      | Services                                 | Runner tier |
+| -------------------------------------------------------------------------- | ---------------------------------------- | ----------- |
+| `tests/integration/sagaCrashRecovery.integration.test.ts`                  | Postgres + Redis (owns its BullMQ queue) | services    |
+| `tests/integration/sagaPublishNowPromotion.integration.test.ts`            | Postgres + Redis (queue is a double)     | services    |
+| `tests/integration/sagaTenantIsolation.integration.test.ts`                | Postgres                                 | services    |
+| `tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts` | Postgres                                 | services    |
+| `tests/chaos/saga-step-retry-recovery.integration.test.ts`                 | none (in-memory doubles)                 | services    |
+| `tests/integration/sagaCustomerFlow.live.test.ts`                          | Postgres + Redis + a LIVE API server     | live        |
 
 Unit suites under `tests/unit/saga/` are collected by the Vitest phase and need
-nothing. A static invariant asserts that every node:test saga suite on disk appears
-explicitly in `scripts/run-tests.sh`, because a suite that belongs to no batch never
-runs while still reading as coverage.
+nothing. `scripts/run-tests.sh` collects the node:test ones by their suffix, and a
+static invariant asserts that `run-tests.sh --list` reaches every node:test saga
+suite on disk, because a suite no tier runs never runs while still reading as
+coverage.
 
 `sagaPublishNowPromotion` doubles the QUEUE rather than owning a real one: it reports
 every scheduled job as completed, which is what puts the saga on the total-success
@@ -30,10 +31,9 @@ path without a worker, and it records each enqueue, which is what makes "the rej
 second start enqueued nothing" a direct observation. Everything else is real —
 Postgres, the real `PrismaPostRepository` with the real outbox writer, and the real
 `SagaIntegration` composition — because the property under test is the PERSISTED row
-and the outbox, and only a real row decides atomicity. It shares
-`integration:saga-recovery` with the two suites above for the reason the batch exists:
-all three boot real managers, and a boot dispatches every non-terminal row in the
-table.
+and the outbox, and only a real row decides atomicity. Like `sagaCrashRecovery`, it
+boots real managers, and a boot dispatches every non-terminal row in the table; the
+services tier runs one file at a time, so no two such suites share the table at once.
 
 ---
 
@@ -82,10 +82,14 @@ hold — which is the only version of determinism worth having in CI.
 
 ## How to extend
 
-1. **New node:test saga suite** → add it to an explicit batch in
-   `apps/api/scripts/run-tests.sh`, in the tier matching its dependencies, with a
-   timeout that fits its worst case. The static invariant fails otherwise.
-2. **New live-API suite** → put it in the `full-integration` tier and document its
-   boot requirements in the table above.
+1. **New node:test saga suite** → give it the suffix of the tier matching its
+   dependencies, `.integration.test.ts` for Postgres and Redis, and a `{ timeout }`
+   on any test or hook whose worst case outgrows the runner's default;
+   `apps/api/scripts/run-tests.sh` collects it by that suffix. The static invariant
+   fails otherwise.
+2. **New live-API suite** → the `.live.test.ts` suffix puts it in the live tier,
+   which runs under `full-integration` behind the readiness probe; document its boot
+   requirements in the table above.
 3. **A suite that needs a clean saga table** → assert the precondition and name the
-   rows, the way `sagaCrashRecovery` does. Do not rely on batch ordering.
+   rows, the way `sagaCrashRecovery` does. Do not rely on the order files run in:
+   `TEST_ORDER=reverse` reverses it.

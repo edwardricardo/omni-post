@@ -73,21 +73,24 @@ under `.github/workflows/`.
 
 #### The security suites
 
-`apps/api/scripts/run-tests.sh` collects the four suites in its live-API
-batches, which run when `TIER` is unset or `full-integration`:
-`integration:flows` holds `tests/auth.integration.test.ts` and
-`tests/security.live.test.ts`, and `remaining` holds
-`tests/mfa.integration.test.ts` and `tests/rbac.integration.test.ts`. The auth,
-RBAC and MFA suites call the services against the test database; the security
-suite sends requests to the API on `http://localhost:3000`.
+`apps/api/scripts/run-tests.sh` collects the four suites by their suffixes: its
+services tier runs `tests/auth.integration.test.ts`,
+`tests/mfa.integration.test.ts` and `tests/rbac.integration.test.ts`, and its live
+tier, which runs when `TIER` is unset or `full-integration`, runs
+`tests/security.live.test.ts`. The auth, RBAC and MFA suites call the services
+against the test database; the security suite sends requests to the API on
+`http://localhost:3000`.
 
 ```bash
 # From the repository root: Postgres and Redis up, the test environment exported
 pnpm db:up
 set -a; . ./.env.test; set +a
 
-# Every integration batch, the four suites included. The live-API batches also
-# need the API running: pnpm --filter @apps/api dev:test
+# Both tiers, the four suites included. The live tier also needs the API and the
+# workers running (pnpm --filter @apps/api dev:test, pnpm --filter @apps/workers
+# dev:test) and the addresses it probes before each live file exported:
+export TEST_API_URL=http://localhost:3000
+export TEST_WORKERS_READY_URL=http://localhost:3300/health/ready
 pnpm --filter @apps/api test:integration
 
 # One suite, from apps/api
@@ -280,7 +283,7 @@ intent for the SMELL-83 rewrite.
 - **Authentication, RBAC, input validation and MFA suites** are not a job of this
   workflow: `tests/auth.integration.test.ts`, `tests/rbac.integration.test.ts`,
   `tests/security.live.test.ts` and `tests/mfa.integration.test.ts` run in the
-  node:test batches of `apps/api/scripts/run-tests.sh` (the Integration Tests job
+  node:test tiers of `apps/api/scripts/run-tests.sh` (the Integration Tests job
   of `ci.yml`), and the rate-limit suites under `apps/api/tests/unit` run in the
   Vitest shards
 
