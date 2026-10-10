@@ -1,7 +1,23 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the per-file verdict (`workstream/phase1-u7a-unit-per-file`, PR R7a, the
+**As of:** 2026-10-10, the inventory and quarantine slice (`workstream/phase1-u7b-services-collector`,
+PR R7b1, the first of the stacked pull requests that finish WU-1.7) gave
+`apps/api/scripts/run-tests.sh` a `--list` mode and a quarantine, over the hand-written lists, which
+stay. `--list` prints one `integration`, `live` or `quarantined` line per file and runs nothing: the
+`integration` lines are the files the DB-only batches name and the `live` lines the files the
+live-API batches name, both read from the runner's own text. It is answered above the database
+refusal, so it needs no `DATABASE_URL`, and an unknown argument now exits 2 instead of being
+ignored. The quarantine, `packages/test-contracts/quarantine.json`, takes the reach engine's shape
+(`{ "entries": [{ path, reason, owner, since }] }`, paths from the repository root) because
+`parseQuarantine` in `packages/test-contracts/src/lib/rules.ts` reads that shape and one file serves
+both readers. The runner reads it with `jq`, prints each entry `QUARANTINED (not run): <path> —
+<reason>` at the head of the DB-only batches, now named the services tier (the `TIER` comment and
+the `run_services_tier` guard), and runs it in no batch; a malformed file, an empty
+field, or an entry for a missing file or a live-batch file exits 2 before any suite starts. It is
+empty. Red: the 6 new runner-suite cases fail on the base runner. It moved no metric (M1
+`986 + 14`, M7 `26/26`, M8 `1/92`): it adds no test file and no gate, and fitness #30 stays at 20.
+Before it, on 2026-10-10, the per-file verdict (`workstream/phase1-u7a-unit-per-file`, PR R7a, the
 first half of WU-1.7) made `apps/api/scripts/run-tests.sh` run each file a batch lists in its own
 `node --test --test-concurrency=1` process and give it its own verdict line. A file fails the run,
 named with its reasons on that line and again under `FAILED files:`, when it collects zero tests
@@ -357,7 +373,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.4    | Move the timing needs into the tests                                        | ✅     | `R4`                          | `phase1-u4-timing-in-tests` · 314       | 2026-10-09 |
 | 1     | 1.5    | Rename the node:test population by MEASURED tier                            | ✅     | `R5`                          | `phase1-u5-tier-rename` · 139           | 2026-10-09 |
 | 1     | 1.6    | `run-tests.sh` becomes the integration collector only                       | ✅     | `R6`                          | `phase1-u6-runner-collector-only` · 157 | 2026-10-09 |
-| 1     | 1.7    | Collect the services tier by convention                                     | 🔄     | `R7a`                         | `phase1-u7a-unit-per-file` · 381        | 2026-10-10 |
+| 1     | 1.7    | Collect the services tier by convention                                     | 🔄     | `R7a` · `R7b1`                | `phase1-u7a/b-*` · 381 + 386            | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ⬜     | —                             | —                                       | —          |
 | 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | 🔄     | `R9a`                         | `phase1-u9a-reach-engine` · 1327        | 2026-10-09 |
 | 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ⬜     | —                             | —                                       | —          |
@@ -1446,7 +1462,9 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   restore): (a) an empty `tests/integration/empty.integration.test.ts` → exit 1 for zero tests;
   (b) a `before` that throws → exit 1 for a cancel; (c) `t.skip()` → exit 1 under TIER; (d) interim
   #30: `tests/integration/orphan.test.ts` with no suffix → above baseline → exit 1. CODE ~290. PR R7.
-  R7a (2026-10-10) landed the per-file verdict, reds (a)–(c) proven end to end; R7b keeps the rest.
+  R7a (2026-10-10) landed the per-file verdict, reds (a)–(c) proven end to end. R7b1 (2026-10-10)
+  landed `--list` and the quarantine over the hand-written lists; the collection by convention, the
+  interim #30 and `TEST_ORDER=reverse` follow in the next stacked pull requests.
   **Owner decision (d), 2026-10-09 — the interim #30 is accepted, with its exit written down.**
   _Where it lives:_ the `#30` step of `fitness.yml` and the `# 30.` block of CLAUDE.md §Automated
   Compliance Checks, both rewritten by this unit, plus this paragraph. Its count is the files that
