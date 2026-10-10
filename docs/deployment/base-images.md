@@ -60,6 +60,29 @@ the bookworm distroless with it.
 So the fix was not to wait for a rebuild that had not come. Trixie's image is
 past every one of them, and past the `libc6` findings below the gate as well.
 
+### Re-pinned on 2026-10-10: openssl `3.5.7-1~deb13u3`
+
+CVE-2026-84782 (HIGH, an openssl information disclosure) reached
+`libssl3t64 3.5.7-1~deb13u2`, the version inside the digest pinned on
+2026-09-24 (`b1fc332`). It failed `Container Security` on all four services from
+2026-10-07. Dependabot opened one pull request per service that day (#455 to
+#458), each moving its own Dockerfile to `96df910`. Each turned only its own
+image green, because the other three images still carried the old digest, so
+no single one of them could pass.
+
+Measured on 2026-10-10 by reading each image's own `var/lib/dpkg/status.d`:
+
+|                       | `b1fc332` (2026-09-24)       | `96df910` (2026-10-10)           |
+| --------------------- | ---------------------------- | -------------------------------- |
+| openssl               | `libssl3t64` 3.5.7-1~deb13u2 | `libssl3t64` **3.5.7-1~deb13u3** |
+| glibc                 | `libc6` 2.41-12+deb13u4      | `libc6` 2.41-12+deb13u4          |
+| node                  | v24.21.0                     | v24.21.0                         |
+| Trivy `HIGH,CRITICAL` | 1 (CVE-2026-84782)           | 0 (debian 13.7)                  |
+
+Trivy 0.67.2 produced the last row. Only openssl moved, so one change re-pins
+the four Dockerfiles together, and the four Dependabot pull requests close as
+superseded.
+
 ---
 
 ## Why the digest pin, and why it is only half a practice
@@ -130,9 +153,16 @@ letting a silent pass read as more than it is.
 1. **Changing the base generation** → measure the candidate image's own
    `var/lib/dpkg/status.d` before proposing it, the way the table above was
    built. A tag name is not evidence of what is inside.
-2. **Re-pinning the digest** → prefer letting Dependabot open the PR. Pin by
-   hand only to move generations, and say why here.
-3. **A base CVE with no fix in the current generation** → the choice is wait,
+2. **Re-pinning the digest** → prefer letting Dependabot find the digest. Pin by
+   hand only to move generations, or to take Dependabot's digest into all four
+   services at once (item 3), and say why here.
+3. **A base re-pin reaches all four services in one change.** Dependabot opens
+   one pull request per service directory, and each stays red until the other
+   three images move too, because every image is scanned in every run. Take the
+   four digests together in one change, verify the new digest's
+   `var/lib/dpkg/status.d` and its Trivy result first, and close the Dependabot
+   pull requests as superseded.
+4. **A base CVE with no fix in the current generation** → the choice is wait,
    move generation, or accept. Accepting goes through
    `docs/security/SECURITY_CANON.md` §"Audited audit-ignores" and its projection
    in `.trivyignore`, never a silent suppression.
