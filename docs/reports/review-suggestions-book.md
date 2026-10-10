@@ -166,6 +166,15 @@
 | SB-145 | same                                                                                  | R3-isUnder-trailing-slash                                        | `packages/test-contracts/src/lib/executed-by.ts` (`isUnder`)                                                                                | input normalisation          | deferred: sources are file paths or `file#name`, never ending in a slash                                                                                        |
 | SB-146 | same                                                                                  | R3-covers-both-scopes                                            | `packages/test-contracts/src/lib/executed-by.ts` (`covers`)                                                                                 | defensive check              | deferred: the parser refuses an entry carrying both `packages` and `exclude`                                                                                    |
 | SB-147 | Phase 1 U9b (`workstream/phase1-u9b-9`, 313643f7)                                     | R2-sort-brittle-to-double-digit-rules                            | `packages/test-contracts/src/reach.ts` (violation order)                                                                                    | ordering                     | deferred: three rules, R1 to R3, where text order is rule order                                                                                                 |
+| SB-148 | Phase 1 U8 (`workstream/phase1-u8-1`, 5cb9c9b6)                                       | R4-003                                                           | `apps/api/scripts/run-tests.sh` (`probe_live` curl options)                                                                                 | fail speed                   | deferred: a dropped SYN costs 10 s once, then the tier stops; no file is probed twice                                                                           |
+| SB-149 | same                                                                                  | R3-probe-stderr-not-captured-in-ERROR                            | `apps/api/scripts/run-tests.sh` (`ERROR` summary)                                                                                           | diagnostics                  | deferred: curl's error is on the run's stderr beside the ✗ line; CI shows both                                                                                  |
+| SB-150 | same                                                                                  | R3-probe-call-log-grep-count-off-by-one                          | `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts` (`curl` stub)                                                                      | test double                  | deferred: the cases that use failFrom assert the exact files run before it                                                                                      |
+| SB-151 | same                                                                                  | R3-no-probe-timeout-coverage                                     | `apps/api/tests/unit/saga/sagaLiveSuitePrecondition.static.test.ts` (`--max-time`)                                                          | test coverage                | deferred: the bound is in the probe's one line; a hung probe stops the tier once                                                                                |
+| SB-152 | same                                                                                  | R3-static-test-only-asserts-shape-not-timeout                    | `apps/api/tests/unit/saga/sagaLiveSuitePrecondition.static.test.ts` (`-f`)                                                                  | test coverage                | deferred: the live P4 run proved a 429 stops the tier; the flag's text is unpinned                                                                              |
+| SB-153 | Phase 1 U8 (`workstream/phase1-u8-2`, f2139739)                                       | R4-002                                                           | `apps/api/scripts/run-tests.sh` (`local -n`)                                                                                                | shell portability            | deferred: CI runs ubuntu-latest and the hosts bash 5.2; bash 4.3+ is not stated                                                                                 |
+| SB-154 | same                                                                                  | R4-003                                                           | `apps/api/scripts/run-tests.sh` (refusal order)                                                                                             | diagnostics                  | deferred: every pre-flight failure still exits before any suite with its own message                                                                            |
+| SB-155 | same                                                                                  | R3-list-requires-live-suffix-tree                                | `apps/api/scripts/run-tests.sh` (`--list`)                                                                                                  | scope                        | deferred: the tree holds 18 *.live.test.ts files; --list from a trimmed tree is no use                                                                          |
+| SB-156 | Phase 1 U8 (`workstream/phase1-u8-3`, a3dac768)                                       | R3-suffix-regex-missed-cases                                     | `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts` (saga files)                                                                | test scope                   | deferred: fitness #30 reads every file under apps/api/tests whatever its name                                                                                   |
 
 ## Entries — code and prose
 
@@ -1363,6 +1372,78 @@
 - **Suggestion:** sort by an explicit rule order, or compare rule numbers numerically.
 - **Why deferred:** there are three rules, R1 to R3, whose text order is their rule order.
 - **To implement:** a rule-order table used by the sort.
+
+### SB-148 — the readiness probe has no connect timeout
+
+- **Source:** the native review of Phase 1 U8 R8a (`workstream/phase1-u8-1`, `5cb9c9b6`), finding `R4-003`.
+- **Location:** `apps/api/scripts/run-tests.sh`, `probe_live`.
+- **Suggestion:** add `--connect-timeout` beside `--max-time`, so a host that drops connections fails fast.
+- **Why deferred:** the first failed probe stops the live tier, so a silently dropping host costs one 10 s probe, never one per file.
+- **To implement:** `--connect-timeout 3`, with SB-151's case pinning it.
+
+### SB-149 — the ERROR line points at a curl error printed on another stream
+
+- **Source:** the same review, finding `R3-probe-stderr-not-captured-in-ERROR`.
+- **Location:** `apps/api/scripts/run-tests.sh`, the final `ERROR` summary.
+- **Suggestion:** capture curl's error and print it with the `env-unready-before` line.
+- **Why deferred:** curl writes its error to the run's stderr next to the `✗ env-unready-before` line, and CI and the battery show both streams; the measured live reds (P4, P5) carry it in the log.
+- **To implement:** capture `curl`'s stderr in `probe_live` and append it to `ENV_UNREADY`.
+
+### SB-150 — the curl stub counts a call before deciding whether it fails
+
+- **Source:** the same review, finding `R3-probe-call-log-grep-count-off-by-one`.
+- **Location:** `apps/api/tests/unit/saga/runTestsGate.behavior.test.ts`, the stub `curl`.
+- **Suggestion:** decide before appending to the call log, or assert the log's exact contents.
+- **Why deferred:** the cases that use `failFrom` assert exactly which files ran before the failing probe, so an off-by-one in the stub turns them red.
+- **To implement:** check the count before the append.
+
+### SB-151 — no case bounds a hung probe
+
+- **Source:** the same review, finding `R3-no-probe-timeout-coverage`.
+- **Location:** `apps/api/tests/unit/saga/sagaLiveSuitePrecondition.static.test.ts`.
+- **Suggestion:** assert that `probe_live` passes `--max-time`, and state the per-file worst case.
+- **Why deferred:** the bound is on the probe's one `curl` line, and the first failed probe stops the tier, so a hung API costs one bounded probe per tier, not one per file.
+- **To implement:** one assertion over the `probe_live` line.
+
+### SB-152 — the static suite pins the probe's URLs but not `-f`
+
+- **Source:** the same review, finding `R3-static-test-only-asserts-shape-not-timeout`.
+- **Location:** `apps/api/tests/unit/saga/sagaLiveSuitePrecondition.static.test.ts`.
+- **Suggestion:** assert that `probe_live` passes `-f`, so a 429 keeps failing the probe.
+- **Why deferred:** the behaviour suite's failing-probe cases and the live P4 red (a 429 after `security.live.test.ts` stopped the tier, 2026-10-10) prove the outcome; only the flag's text is unpinned.
+- **To implement:** one assertion over the `probe_live` line.
+
+### SB-153 — the runner needs bash 4.3 for its nameref and does not say so
+
+- **Source:** the native review of U8 R8b (`workstream/phase1-u8-2`, `f2139739`), finding `R4-002`.
+- **Location:** `apps/api/scripts/run-tests.sh`, `select_files` (`local -n`).
+- **Suggestion:** state the bash 4.3 requirement, or check the version at start and name it.
+- **Why deferred:** CI runs every job on `ubuntu-latest` (bash 5) and the repository's hosts run bash 5.2; the nameref is the script's first bash-4.3 feature.
+- **To implement:** a version check under the shebang with a message naming the requirement.
+
+### SB-154 — pre-flight errors now print before the missing-database refusal
+
+- **Source:** the same review, finding `R4-003`.
+- **Location:** `apps/api/scripts/run-tests.sh`, the order of the start-up checks.
+- **Suggestion:** list the possible pre-flight causes in the final error, or check `DATABASE_URL` first.
+- **Why deferred:** every pre-flight failure (a malformed quarantine, a moved tree, an emptied tier) still exits before any suite with its own message, so the order changes which message comes first, not whether one comes.
+- **To implement:** move the `DATABASE_URL` refusal ahead of the collection, keeping `--list` above it.
+
+### SB-155 — `--list` fails on a tree without live suites
+
+- **Source:** the same review, finding `R3-list-requires-live-suffix-tree`.
+- **Location:** `apps/api/scripts/run-tests.sh`, `--list`.
+- **Suggestion:** let `--list` print the services inventory when no `*.live.test.ts` exists.
+- **Why deferred:** the repository holds 18 `*.live.test.ts` files, and `--list` serves fitness #30 and the reach engine over this tree, never a trimmed checkout.
+- **To implement:** skip the empty-collection refusal under `--list` for the live suffix, with a case.
+
+### SB-156 — the saga suffix case reads only files whose path names a saga
+
+- **Source:** the native review of U8 R8c (`workstream/phase1-u8-3`, `a3dac768`), finding `R3-suffix-regex-missed-cases`.
+- **Location:** `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts`, the saga-suite filter.
+- **Suggestion:** widen the case to every test-shaped file outside `tests/unit`, or state its scope as saga files by path.
+- **Why deferred:** fitness #30 reads every file under `apps/api/tests` outside `unit` and `eval`, whatever its name, and fails a file no collector reaches, so a misnamed saga file is caught there.
+- **To implement:** state the scope in the case's comment, or widen its filter.
 
 ## Implemented
 

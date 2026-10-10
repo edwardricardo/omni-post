@@ -13,8 +13,8 @@
 # `*.integration.test.ts` under tests/ (`collect integration`), the live tier
 # every `*.live.test.ts` (`collect live`), and the runner probes the API and the
 # workers before each live file (`probe_live`). `--list` prints the inventory
-# without running anything. No test total appears here on purpose — a count in
-# a comment rots.
+# without running anything, and paths narrow a run to those suites. No test total
+# appears here on purpose — a count in a comment rots.
 
 set -e
 export NODE_ENV=test
@@ -66,17 +66,27 @@ case "$TEST_ORDER" in
     ;;
 esac
 
-# The only argument is `--list`; anything else is refused rather than ignored, so
-# a path handed to the runner is never mistaken for a filter it does not have.
+# The arguments are `--list` alone, or the paths, from apps/api, of the suites a
+# run is narrowed to (`bash scripts/run-tests.sh tests/a.integration.test.ts`):
+# each runs in its own tier, in the collection's order. Anything else is refused
+# rather than ignored, a path once the collection is known (check_filter below):
+# a path the run would not execute would run nothing and read as a pass.
 LIST_ONLY=""
-case "$*" in
-  "") ;;
-  --list) LIST_ONLY=1 ;;
-  *)
-    echo "run-tests.sh: unknown arguments '$*' (expected none, or --list)" >&2
+FILTER=""
+for arg in "$@"; do
+  if [ "$arg" = "--list" ]; then
+    LIST_ONLY=1
+  elif [[ "$arg" == -* ]]; then
+    echo "run-tests.sh: unknown option '$arg' (expected --list, or the paths of suites to run)" >&2
     exit 2
-    ;;
-esac
+  else
+    FILTER="$FILTER${arg#./}"$'\n'
+  fi
+done
+if [ -n "$LIST_ONLY" ] && [ "$#" -gt 1 ]; then
+  echo "run-tests.sh: --list takes no other argument" >&2
+  exit 2
+fi
 
 RUNNER_PATH="${BASH_SOURCE[0]}"
 # The quarantine is shared with the reach engine of packages/test-contracts. The
@@ -125,24 +135,53 @@ is_quarantined() {
   printf '%s\n' "$QUARANTINE" | cut -f1 | grep -Fxq -- "$1"
 }
 
+# Succeeds when no path was given, or when `$1` is one of the paths given.
+is_named() {
+  [ -z "$FILTER" ] || printf '%s' "$FILTER" | grep -Fxq -- "$1"
+}
+
 # Fills the array named `$2` with the tier `collect $1` finds: every file it
-# prints that the quarantine does not hold. Fails when the collection found no
-# file at all, which is a wrong working directory or a moved tests/ tree, never an
-# empty pass.
+# prints that the quarantine does not hold and, when paths were given, that they
+# name. Fails when the collection found no file at all, which is a wrong working
+# directory or a moved tests/ tree, and, on a run of the whole tier, when the
+# quarantine holds every file it found: either is an empty pass, never a run.
 select_files() {
   local suffix="$1" collected file
   local -n selected="$2"
+  selected=()
   collected=$(collect "$suffix")
   if [ -z "$collected" ]; then
     echo "run-tests.sh: collect $suffix found no *.$suffix.test.ts to run under tests/ in $(pwd); run it from apps/api." >&2
     return 1
   fi
-  selected=()
   while IFS= read -r file; do
-    if ! is_quarantined "$file"; then
+    if ! is_quarantined "$file" && is_named "$file"; then
       selected+=("$file")
     fi
   done <<< "$collected"
+  if [ -z "$LIST_ONLY" ] && [ -z "$FILTER" ] && [ "${#selected[@]}" -eq 0 ]; then
+    echo "run-tests.sh: the quarantine holds every *.$suffix.test.ts that collect $suffix found, so the tier would pass running nothing." >&2
+    return 1
+  fi
+}
+
+# Succeeds when every path given is a suite this run executes. A quarantined one
+# runs nowhere until its entry leaves the quarantine, and any other path is not a
+# suite of a tier this TIER runs.
+check_filter() {
+  local path selected
+  selected=$(printf '%s\n' "${SERVICES_FILES[@]}" "${LIVE_FILES[@]}")
+  while IFS= read -r path; do
+    if [ -z "$path" ] || printf '%s\n' "$selected" | grep -Fxq -- "$path"; then
+      continue
+    fi
+    if is_quarantined "$path"; then
+      echo "run-tests.sh: $path is quarantined, so it runs nowhere until its entry leaves $QUARANTINE_FILE." >&2
+    else
+      echo "run-tests.sh: $path is not a suite this run collects; give a *.integration.test.ts under tests/, from apps/api, or a *.live.test.ts under a TIER that runs the live tier." >&2
+    fi
+    return 2
+  done <<< "$FILTER"
 }
 
 # The quarantine and the collection are settled before anything starts, from the
@@ -157,6 +196,7 @@ select_files integration SERVICES_FILES || exit 1
 if [ -n "$LIST_ONLY" ] || run_live_tier; then
   select_files live LIVE_FILES || exit 1
 fi
+check_filter || exit 2
 
 # --list prints the inventory and runs nothing: one `<kind>\t<path>` line per file
 # this runner owns — `integration` for the services tier and `live` for the live

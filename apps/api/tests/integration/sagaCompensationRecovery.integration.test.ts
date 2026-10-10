@@ -31,8 +31,8 @@
  *   reason is not tidiness — each harness boots a real `SagaIntegration`, and a
  *   boot LOADS AND DISPATCHES every non-terminal row in the table, cross-tenant.
  *   A foreign row would therefore be EXECUTED by this suite, so the suite must
- *   own the table for its run: it runs alone, since the services tier runs one
- *   file at a time (`--test-concurrency=1`), must not share a database
+ *   own the table for its run: it runs alone, since run-tests.sh starts one node
+ *   process per file and waits for it, must not share a database
  *   with a concurrent job, and cleans its own fixtures on the way out.
  *
  *   Requires Postgres + Redis up (`pnpm db:up`).

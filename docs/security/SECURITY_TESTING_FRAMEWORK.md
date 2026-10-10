@@ -97,6 +97,9 @@ pnpm --filter @apps/api test:integration
 cd apps/api
 NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/auth.integration.test.ts
 
+# The same suite through the runner, with the services tier's guards
+bash scripts/run-tests.sh tests/auth.integration.test.ts
+
 # The two rate-limit unit suites run in the Vitest collector; naming their paths
 # fails loudly ("No test files found") if either file is renamed or moved
 pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts

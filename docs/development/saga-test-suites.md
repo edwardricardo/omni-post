@@ -49,8 +49,11 @@ and is not one.
 ```bash
 set -a; source .env; source .env.test; set +a
 pnpm dev:api                 # port 3001 comes from .env.test
-# in another shell
-BASE_URL=http://localhost:3001 <the INT-LONG command for sagaCustomerFlow>
+# in another shell, with the same pair exported and the workers running
+# (pnpm --filter @apps/workers dev:test), from apps/api
+BASE_URL=http://localhost:3001 TEST_API_URL=http://localhost:3001 \
+  TEST_WORKERS_READY_URL=http://localhost:3300/health/ready \
+  bash scripts/run-tests.sh tests/integration/sagaCustomerFlow.live.test.ts
 ```
 
 Kill the server and confirm the port is free afterwards. The suite's older
