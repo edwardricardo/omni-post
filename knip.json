@@ -32,6 +32,7 @@
     },
     "apps/api": {
       "project": ["src/**/*.{ts,tsx}"],
+      "entry": ["tests/**/*.{integration,live}.test.ts"],
       "ignore": ["tests/**", "src/**/*.test.ts", "reports/**", "scripts/**"],
       "ignoreDependencies": ["@fastify/websocket"]
     },
