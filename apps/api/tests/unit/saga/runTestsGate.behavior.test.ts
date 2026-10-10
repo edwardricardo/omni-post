@@ -640,6 +640,31 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
     }).toEqual({ exitCode: 2, started: [], namesTheQuarantine: true });
   });
 
+  it("exits 2 before any suite starts on a quarantine entry a live-API batch runs", () => {
+    // The live-API batches read no quarantine, so an entry for one of their files
+    // would still run there. The runner refuses the entry instead, which is what
+    // keeps a quarantined suite out of every run until the live tier is collected.
+    const quarantineFile = writeQuarantine("live-batch-entry.json", [
+      {
+        path: `apps/api/${LIVE_TARGET}`,
+        reason: "fixture",
+        owner: "runner gate",
+        since: "2026-10-10",
+      },
+    ]);
+    const run = runRecorded({
+      TIER,
+      DATABASE_URL: UNUSED_DATABASE_URL,
+      QUARANTINE_FILE: quarantineFile,
+    });
+
+    expect({
+      exitCode: run.exitCode,
+      started: run.started,
+      namesTheFile: run.stderr.includes(`apps/api/${LIVE_TARGET}`),
+    }).toEqual({ exitCode: 2, started: [], namesTheFile: true });
+  });
+
   it("exits 2 on an argument it does not know, rather than ignoring it", () => {
     const run = runRecorded({ TIER, DATABASE_URL: UNUSED_DATABASE_URL }, [TARGET_FILE]);
 
