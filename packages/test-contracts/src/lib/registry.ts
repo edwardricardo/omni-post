@@ -7,10 +7,14 @@
  *              read the merged outcome. Adding a collector is adding an id below and an object
  *              that satisfies {@link Collector}: nothing here changes shape, because the merge and
  *              the tally are keyed by id and source, not by collector kind. The module also hosts
- *              {@link describeError}, the shared helper every collector and the disk listing use
- *              to turn a caught value into the text of a failure.
+ *              the helpers the collectors share: {@link describeError}, which every collector and
+ *              the disk listing use to turn a caught value into the text of a failure, and
+ *              {@link trackedConfigs}, which holds a config-driven collector to its floor and
+ *              resolves the real root its listed paths are made relative to.
  * @layer infrastructure
  */
+import { realpathSync } from "node:fs";
+import { err, ok, type Result } from "@shared/types";
 
 /**
  * Every collector the engine knows, by id. The id prefixes each source in the tally, so two
@@ -18,6 +22,7 @@
  */
 export const COLLECTOR_ID = {
   VITEST: "vitest",
+  K6: "k6",
 } as const;
 
 /** A collector id, derived from {@link COLLECTOR_ID}. */
@@ -108,6 +113,49 @@ export async function runCollectors(
  */
 export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** What a config-driven collector reads before it lists anything. */
+interface TrackedConfigs {
+  /** The tracked configs, repository-relative. */
+  readonly configs: string[];
+  /** The real path of the repository root. */
+  readonly root: string;
+}
+
+/**
+ * Selects the tracked configs of a config-driven collector, held to its floor, and resolves the
+ * real path of the root. The tools report each file by its real path, so the root those paths
+ * are made relative to must be real too; otherwise a root reached through a symbolic link yields
+ * `../` paths that match no tracked file.
+ *
+ * @param collector - The collector, for its failures.
+ * @param context - The repository root and its tracked files.
+ * @param config - What a tracked config's name matches, and what to call it in a failure.
+ * @param floor - The fewest tracked configs the tree may hold.
+ * @returns The configs and the real root, or the outcome that reports why there are none.
+ */
+export function trackedConfigs(
+  collector: CollectorId,
+  context: CollectorContext,
+  config: { readonly pattern: RegExp; readonly label: string },
+  floor: number
+): Result<TrackedConfigs, CollectorOutcome> {
+  const fail = (source: string, message: string) =>
+    err({ collections: [], failures: [{ collector, source, message }] });
+  const configs = context.tracked.filter((file) => config.pattern.test(file));
+  if (configs.length < floor) {
+    return fail(
+      "(tracked configs)",
+      `${String(configs.length)} tracked ${config.label} configs, below the floor of ` +
+        `${String(floor)}; the listing read less of the tree than it holds`
+    );
+  }
+  try {
+    return ok({ configs, root: realpathSync(context.root) });
+  } catch (error: unknown) {
+    return fail(context.root, `cannot resolve the root: ${describeError(error)}`);
+  }
 }
 
 /**
