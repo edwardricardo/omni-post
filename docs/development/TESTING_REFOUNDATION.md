@@ -638,9 +638,9 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-10T04:04:04Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+**CURRENT, re-measured 2026-10-10T04:13:21Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
 stderr: of the 49 packages in `scripts/testing/toolchain-population.json` (48 direct, 1 named transitive,
-no declared-absent candidate left), 12 sit below latest mature and NOT ONE of them is unheld.**
+no declared-absent candidate left), 11 sit below latest mature and NOT ONE of them is unheld.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line.
@@ -756,6 +756,16 @@ and what moved it. A slice that moves the count appends its own line.
     the same day and `msw` 3.0.2 at `2026-10-10T01:31Z`. Nothing newer than 13.0.7 is published, so nothing
     is pre-registered: the canon row `secretlint` was deleted with the bump, as [D25](#decisions-log) decided
     for the Storybook family.
+26. `2026-10-10T04:13:21Z` — **11**: the hold bump took `turbo` 2.11.4 → 2.11.7, the latest mature release and
+    also `latest`, so it left the set; the same gate with 2.11.4 still installed measures **12** at `04:08:54Z`,
+    because 2.11.7 matured at `2026-10-09T14:58Z` and the canon row `turbo` held it until the bump. Since line
+    25 the population and the eleven other lagging packages are unchanged, and no held target moved. Per their
+    release notes, 2.11.5 and 2.11.6 change how task inputs hash, so every turbo cache key moves once; the
+    size-limit job's `turbo run build` exits 0 with 21 of 21 tasks run and none cached. Only 2.11.8 canaries are
+    newer, so nothing is pre-registered: the canon row `turbo` was deleted with the bump, as
+    [D25](#decisions-log) decided for the Storybook family. From 2.11.5 turbo writes a root `AGENTS.md`
+    whenever it detects an AI agent, so the root `turbo.json` sets `"agentGuidance": false`, the switch
+    its configuration reference documents: the repository keeps its documents under `docs/`.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -857,7 +867,7 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | ---------------------- | --------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `vite`                 | 8.3.3     | 8.3.2 (2026-10-01, 7.2 d); **8.3.3 installed above it**, a CVE floor taken at 2.4 d          | **no** lag today; **held** from `2026-10-15T12:07Z`, when 8.3.4 matures — canon row `vite`, PRE-REGISTERED; the 8.3.2 it scheduled is inside the advisories' range                                 | 8.3.3 (CVE-floor row `vite`), over the buffer; `postcss` moves to 8.5.29 with 8.3.4         |
 | `@vitejs/plugin-react` | 5.1.4     | 6.1.1 (2026-08-28, 30.6 d). **v5 ceiling 5.2.0 (2026-03-12)**, published 11 min before 6.0.0 | **held** — canon row `@vitejs/plugin-react`; the catalog comment beside that entry only explains why the package exists                                                                            | —                                                                                           |
-| `turbo`                | 2.11.4    | **2.11.4 (2026-09-24, 9.3 d) — latest mature** since 2026-10-04 (slice `0.14`)               | **no** lag today; **held** from `2026-10-05T00:45Z`, when 2.11.5 matures — canon row `turbo`, PRE-REGISTERED by slice `0.14`; scheduled to the latest mature 2.11.x, a root `package.json` literal | —                                                                                           |
+| `turbo`                | 2.11.7    | **2.11.7 (2026-10-02, 7.6 d) — latest mature**, and `latest`                                 | **no** — no lag; the canon row `turbo` was deleted with this bump; 2.11.5 and 2.11.6 change how task inputs hash, per their notes, so cache keys move once; the size-limit build exits 0, uncached | —                                                                                           |
 | `webpack`              | 5.111.1   | n/a — not a direct dependency since 2026-10-06 (slice `0.22`)                                | **no** — no population entry: the admin Storybook was its one declarer; it stays only as the peer of `@sentry/webpack-plugin@5.3.0` under `@sentry/nextjs`, and next builds with its own copy      | `browserslist` 4.28.7 (CVE-floor row `browserslist`) — range-scoped, in webpack's own chain |
 | `cross-env`            | 10.1.0    | **10.1.0 (2025-09-29, 369.5 d) — latest mature** since 2026-10-04 (slice `0.14`)             | **no** — no lag; deleted with the six-tool canon row, which named it                                                                                                                               | —                                                                                           |
 | `jiti`                 | 2.7.0     | **2.7.0 (2026-05-05, 151.3 d) — latest mature** since 2026-10-04 (slice `0.14`)              | **no** — no lag; deleted with the six-tool canon row, which named it; a root `package.json` literal, and eslint loads `eslint.config.ts` through it                                                | —                                                                                           |
