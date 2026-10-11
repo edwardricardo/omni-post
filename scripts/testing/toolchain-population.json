@@ -88,6 +88,9 @@
       "name": "eslint"
     },
     {
+      "name": "eslint-plugin-jsdoc"
+    },
+    {
       "name": "eslint-plugin-jsx-a11y"
     },
     {

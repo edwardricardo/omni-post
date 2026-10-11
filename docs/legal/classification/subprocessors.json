@@ -551,6 +551,10 @@
       "status": "library",
       "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
     },
+    "eslint-plugin-jsdoc": {
+      "status": "library",
+      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
     "eslint-plugin-jsx-a11y": {
       "status": "library",
       "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
