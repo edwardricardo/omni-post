@@ -64,6 +64,10 @@ COPY apps/admin ./apps/admin
 # backend provider's adapters at all. Fixing that is app code, not image code.
 RUN pnpm --filter @apps/admin^... build
 
+# A browser DSN is public and the client bundle inlines it at build time; SENTRY_DSN stays runtime.
+ARG NEXT_PUBLIC_SENTRY_DSN=""
+ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
+
 # NEXT_BUILD_FLAGS lets CI fall back to the webpack builder (`--webpack`) if the
 # Turbopack standalone build hits the open monorepo root/distDirRoot bug (#86438).
 ARG NEXT_BUILD_FLAGS=""

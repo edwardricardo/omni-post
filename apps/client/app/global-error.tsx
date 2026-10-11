@@ -3,28 +3,35 @@
 /**
  * @file global-error.tsx
  * @description Next.js global error boundary rendering a fallback UI with a retry action
- *              when the root layout crashes. Uses `unstable_retry` (Next 16.2+ canonical —
- *              re-fetches data on retry, vs `reset` which only re-renders the boundary).
+ *              when the root layout crashes. It reports the error to Sentry and to the
+ *              console logger, and retries with `retry` (stable since Next 16.3, which no
+ *              longer passes `unstable_retry`; it re-fetches, where `reset` only re-renders).
  * @component GlobalError
  * @layer infrastructure
  */
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { ConsoleLoggerAdapter } from "@observability/browser-logger";
 
 // global-error replaces the entire <html> tree when the root layout crashes,
 // so it runs outside any React Context — we can't use useLogger. Instantiate
-// the console adapter directly; swap to an APM adapter here if a root-level
-// reporting channel becomes available.
+// the console adapter directly; Sentry receives the same error below.
 const globalErrorLogger = new ConsoleLoggerAdapter("client.global-error");
 
-export default function GlobalError({
-  error,
-  unstable_retry,
-}: {
+interface GlobalErrorProps {
+  /** The error the root layout threw; `digest` identifies it in the server logs. */
   error: Error & { digest?: string };
-  unstable_retry: () => void;
-}) {
+  /** Re-fetches and re-renders the root layout (Next 16.3+; `reset` re-renders only). */
+  retry: () => void;
+}
+
+/**
+ * Fallback document for a crash in the root layout. It shows the error message in development
+ * and a generic message with the error ID otherwise, and offers a retry.
+ */
+export default function GlobalError({ error, retry }: GlobalErrorProps) {
   useEffect(() => {
+    Sentry.captureException(error);
     globalErrorLogger.error("Global error (root layout crash)", error, {
       ...(error.digest !== undefined && { digest: error.digest }),
     });
@@ -45,7 +52,7 @@ export default function GlobalError({
             <p className="text-sm text-gray-500 mb-4">Error ID: {error.digest}</p>
           )}
           <button
-            onClick={() => unstable_retry()}
+            onClick={() => retry()}
             className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600"
           >
             Try again
