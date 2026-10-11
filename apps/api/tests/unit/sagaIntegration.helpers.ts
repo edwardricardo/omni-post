@@ -101,6 +101,12 @@ export interface MockPrisma {
 // Factory functions
 // ---------------------------------------------------------------------------
 
+/**
+ * @description An in-memory Prisma double for the saga rows the engine reads and writes, built on
+ *   the compare-and-swap model every saga double shares; its transaction runs the callback against
+ *   the same double.
+ * @returns A fresh double with an empty store.
+ */
 export function createMockPrisma(): MockPrisma {
   const store = new Map<string, any>();
 
@@ -145,6 +151,11 @@ export function createMockPrisma(): MockPrisma {
   return mock;
 }
 
+/**
+ * @description A Fastify double that records each `get` and `post` handler under `METHOD:path`, so
+ *   a test can call a route handler directly without an HTTP layer.
+ * @returns A fresh double with no routes registered.
+ */
 export function createMockFastify(): MockFastifyInstance {
   const registeredRoutes = new Map<string, (req: any, reply: any) => any>();
   const resolveHandler = (
@@ -171,6 +182,12 @@ export function createMockFastify(): MockFastifyInstance {
   };
 }
 
+/**
+ * @description An event-service double that records every published or transactionally appended
+ *   event in `publishedEvents`, so a test can assert what the integration emitted; broadcasting
+ *   does nothing.
+ * @returns A fresh double with no recorded events.
+ */
 export function createMockEventService(): MockEventService {
   const publishedEvents: EventStoreEvent[] = [];
   return {
@@ -188,6 +205,11 @@ export function createMockEventService(): MockEventService {
   };
 }
 
+/**
+ * @description A CQRS bus double that records every executed command and answers each with
+ *   success, echoing the command's aggregate id at version 1.
+ * @returns A fresh double with no recorded commands.
+ */
 export function createMockCQRSBus(): MockCQRSBus {
   const executedCommands: Command[] = [];
   return {
@@ -199,6 +221,11 @@ export function createMockCQRSBus(): MockCQRSBus {
   };
 }
 
+/**
+ * @description An in-memory Redis double for the engine's hot cache: `setex` stores without
+ *   expiring, `keys` matches by prefix, and `ping` always answers `PONG`.
+ * @returns A fresh double with an empty store.
+ */
 export function createMockRedis(): MockRedis {
   const storage = new Map<string, string>();
   return {
@@ -215,9 +242,10 @@ export function createMockRedis(): MockRedis {
 }
 
 /**
- * Build a subscriber-mode Redis double. `setupEventHandling()` calls
+ * @description Build a subscriber-mode Redis double. `setupEventHandling()` calls
  * `connect()`, `on()`, then `subscribe(channel)` on the INJECTED connection —
  * recording these lets tests prove the injected subscriber is the one used.
+ * @returns A double whose every method is a `vi.fn` spy.
  */
 export function createMockSubscriber(): MockSubscriber {
   return {
@@ -229,6 +257,11 @@ export function createMockSubscriber(): MockSubscriber {
   };
 }
 
+/**
+ * @description A `QueuePort` double that records every enqueued job in `enqueuedJobs`, giving a
+ *   job that carries no id a `mock-job-<n>` one, and reports a connected, healthy queue.
+ * @returns A fresh double with no enqueued jobs.
+ */
 export function createMockQueue(): MockQueue {
   const enqueuedJobs: QueueJob[] = [];
   let jobCounter = 0;
@@ -336,9 +369,10 @@ function createMockChannelRepo() {
 }
 
 /**
- * Build a fully initialized SagaIntegration with isolated mocks.
+ * @description Build a fully initialized SagaIntegration with isolated mocks.
  * Returns the integration instance AND the registered-routes map so callers
  * can invoke handlers directly without going through a real HTTP layer.
+ * @returns The initialized integration, its registered routes, and the doubles a test asserts on.
  */
 export async function buildIntegration(): Promise<{
   integration: SagaIntegration;
@@ -382,6 +416,14 @@ export async function buildIntegration(): Promise<{
   };
 }
 
+/**
+ * @description Builds a request for the `POST /sagas/post-publishing/start` handler: a body shaped
+ *   by `mode` (a draft names no channels, a schedule adds `scheduledAt` an hour ahead) from a
+ *   customer user with the OWNER role in the test account.
+ * @param overrides - The fields to change from the defaults: publish-now mode, the test project
+ *   and the first test channel.
+ * @returns The request object the handler reads.
+ */
 export function makeStartRequest(
   overrides: Partial<{
     body: string;

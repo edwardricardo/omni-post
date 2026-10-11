@@ -185,6 +185,22 @@
 | SB-164 | DEF-82 C4 (`workstream/fix-def-82-saga-terminal`, 0776c818)                           | R4-001 (WARNING)                                                 | `.github/workflows/ci.yml` (`!cancelled()` on the API, workers and live steps)                                                              | evidence after failure       | justified: parity with `e1dc24f0` run-tests.sh:446-459, which ran the live tier after a failed one                                                              |
 | SB-165 | same                                                                                  | R3-001 (WARNING)                                                 | `.github/workflows/ci.yml` (services-tier step env)                                                                                         | env symmetry                 | justified: job env sets both URLs (ci.yml:338-339); a live path under pr-integration exits 2                                                                    |
 | SB-166 | same                                                                                  | R4-002                                                           | `apps/api/scripts/run-tests.sh` (path-filter refusal)                                                                                       | error wording                | deferred: the refusal already names which tier collects each suffix                                                                                             |
+| SB-167 | JSDoc gate A (`workstream/jsdoc-gate`, 913b821a)                                      | R2-001                                                           | `eslint.jsdoc.config.ts` (`EXPORTED_METHODS`, `METHOD_FUNCTIONS`)                                                                           | naming                       | deferred: two context lists named by what they select; renaming changes no rule                                                                                 |
+| SB-168 | same                                                                                  | R2-002                                                           | `eslint.jsdoc.config.ts` (`notVoid` helper)                                                                                                 | readability                  | deferred: a one-call helper; inlining it changes no selector                                                                                                    |
+| SB-169 | same                                                                                  | R2-003                                                           | `apps/api/tests/unit/scripts/jsdocRules.test.ts` (the two ESLint instances)                                                                 | naming                       | deferred: test-local names; the cases read the same                                                                                                             |
+| SB-170 | same                                                                                  | R2-004                                                           | `apps/api/tests/unit/scripts/jsdocRules.test.ts` (`block(name, extra)`)                                                                     | dead parameter               | deferred: no call passes `extra`; dropping it changes no fixture                                                                                                |
+| SB-171 | same                                                                                  | R3-config-plugin-registration-not-asserted                       | `eslint.jsdoc.config.ts` (plugin registrations, unused-directive reporting)                                                                 | test scope                   | deferred: a dropped registration fails `pnpm check:jsdoc` on the first touched file with a directive                                                            |
+| SB-172 | JSDoc gate A (`workstream/jsdoc-gate`, 913b821a)                                      | R3-001                                                           | `apps/api/tests/unit/scripts/jsdocRules.test.ts` (the `pnpm lint` case)                                                                     | test coupling                | deferred: pinning the discovered config IS the claim; a jsdoc key there must fail it                                                                            |
+| SB-173 | same                                                                                  | R3-002                                                           | `apps/api/tests/unit/scripts/jsdocRules.test.ts` (plugin message strings)                                                                   | test fragility               | deferred: the messages are the observable; a wording change lands with the hold bump                                                                            |
+| SB-174 | JSDoc gate B (`workstream/jsdoc-gate`, 2f01d599)                                      | R3-003                                                           | `scripts/testing/jsdoc-touched-gate.mjs` (result-count refusal)                                                                             | test scope                   | deferred: reachable only through an ESLint invariant breach; defensive by design                                                                                |
+| SB-175 | JSDoc gate C (`workstream/jsdoc-gate`, 9be4cecc)                                      | R3-missing-script-asset (WARNING), R3-fetch-retry-opaque         | `package.json`, `.github/workflows/fitness.yml` (the wired script)                                                                          | stacked candidate            | justified: the script lands in commit B and the config in A of the same stack                                                                                   |
+| SB-176 | same                                                                                  | R3-battery-step-count-coupling                                   | `scripts/testing/battery.sh` (`PLANNED_STEPS`, step order)                                                                                  | step order                   | deferred: `battery-state.mjs` reads steps by name; the count is the guard, not the position                                                                     |
+| SB-177 | same                                                                                  | R3-pr-only-check-gap                                             | `.github/workflows/fitness.yml` (#47 on `pull_request` only)                                                                                | push path                    | justified: a push has no base; lint-staged and the battery cover every commit, and main takes no direct push                                                    |
+| SB-178 | JSDoc gate C (`workstream/jsdoc-gate`, a38327b7)                                      | R3-lint-staged-js-jsx-scope (WARNING)                            | `package.json` (the lint-staged entry)                                                                                                      | pipeline glob                | justified: a staged `.js` is "none in scope: a clean pass", exit 0; the shared entry keeps the gate after the fixers                                            |
+| SB-179 | same                                                                                  | R3-fitness47-exit-code-conflation                                | `.github/workflows/fitness.yml` (#47 step)                                                                                                  | error signal                 | deferred: the gate's own lines name the class; a second `::error` title needs an owner token                                                                    |
+| SB-180 | same                                                                                  | R2-001                                                           | `CLAUDE.md` (#47 block)                                                                                                                     | duplication                  | deferred: every fitness block restates its threat and scope; the config and the script are the source                                                           |
+| SB-181 | same                                                                                  | R2-002                                                           | `docs/development/TESTING_REFOUNDATION.md` (Gates row)                                                                                      | cell structure               | deferred: a table cell; bold labels per proof are a formatting choice                                                                                           |
+| SB-182 | same                                                                                  | R2-003                                                           | `docs/product/MASTER_PLAN_ES.md` (N-CI-5)                                                                                                   | bullet structure             | deferred: the plan's bullets are prose; the counts repeat in N-CI-6                                                                                             |
 
 ## Entries — code and prose
 
@@ -884,6 +900,134 @@
 - **Suggestion:** distinguish "this file exists but this TIER does not collect it" from "this path is unknown" in the message.
 - **Why deferred:** the refusal is already exit 2, before any suite runs, and its message names which tier collects each suffix (`*.integration.test.ts` under the services tier, `*.live.test.ts` under a TIER that runs the live tier). The suggestion changes wording only.
 - **To implement:** a message branch on the file's existence, with a case in `runTestsGate.behavior.test.ts`.
+
+### SB-167 — the two method context lists are named alike
+
+- **Source:** the native review of the JSDoc gate's first commit (`workstream/jsdoc-gate`, `913b821a`), finding `R2-001`.
+- **Location:** `eslint.jsdoc.config.ts`, `EXPORTED_METHODS` and `METHOD_FUNCTIONS`.
+- **Suggestion:** name each list after the rule it drives (the MethodDefinition that must carry a block, the inner function whose block is validated), so a quick read tells them apart.
+- **Why deferred:** both lists are named by the node they select, the header above them says which rule reads which, and a rename changes no rule.
+- **To implement:** rename to, for example, `BLOCK_REQUIRED_METHODS` and `VALIDATED_METHOD_FUNCTIONS`, and update the header.
+
+### SB-168 — `notVoid` is a helper with one caller
+
+- **Source:** the same review, finding `R2-002`.
+- **Location:** `eslint.jsdoc.config.ts`, the `notVoid` helper inside `jsdocRules`.
+- **Suggestion:** inline its single use in the `jsdoc/require-returns` configuration, so the reader sees which selectors are void-filtered without tracing an indirection.
+- **Why deferred:** the helper documents the filter by name and changes no selector; inlining it is a readability choice.
+- **To implement:** inline the one `${selector}:not(${returnsVoid()})` string, keeping the abstract-method entry unfiltered.
+
+### SB-169 — the two ESLint instances in the rules suite are named by case
+
+- **Source:** the same review, finding `R2-003`.
+- **Location:** `apps/api/tests/unit/scripts/jsdocRules.test.ts`, the module-scoped `eslint` and the local `discovered`.
+- **Suggestion:** name each instance after the config it runs (`jsdocGate`, `defaultLint`).
+- **Why deferred:** test-local names; every case reads the same with either naming.
+- **To implement:** the two renames, and the first case's two `calculateConfigForFile` calls follow.
+
+### SB-170 — `block(name, extra)` takes a parameter no call passes
+
+- **Source:** the same review, finding `R2-004`.
+- **Location:** `apps/api/tests/unit/scripts/jsdocRules.test.ts`, the `block` fixture helper of the third case.
+- **Suggestion:** drop `extra`, or use it in at least one case.
+- **Why deferred:** no fixture changes either way; the parameter is dead at every call site and misleads only the reader of that one case.
+- **To implement:** drop the parameter and its default.
+
+### SB-171 — the plugin registrations and the unused-directive setting are not asserted
+
+- **Source:** the same review, finding `R3-config-plugin-registration-not-asserted`.
+- **Location:** `eslint.jsdoc.config.ts`, the six plugins registered with no rules and `reportUnusedDisableDirectives` off.
+- **Suggestion:** a case with fixtures carrying `eslint-disable` directives of the main config's rules, so a dropped registration or re-enabled directive reporting fails here rather than in CI.
+- **Why deferred:** a dropped registration is not silent: the first touched file carrying such a directive fails `pnpm check:jsdoc` with "Definition for rule … was not found", in lint-staged, the battery and fitness #47 alike. The case adds an earlier signal, not a missing one.
+- **To implement:** one fixture per registered plugin, each carrying a directive for one of its rules, asserted clean.
+
+### SB-172 — the `pnpm lint` case reads the repository's discovered config
+
+- **Source:** the native review of the JSDoc gate's first commit (`workstream/jsdoc-gate`, `913b821a`), finding `R3-001`.
+- **Location:** `apps/api/tests/unit/scripts/jsdocRules.test.ts`, the case "stays out of `pnpm lint`".
+- **Suggestion:** pin the invariant without reading the repository's `eslint.config.*`, which sits outside the candidate.
+- **Why deferred:** reading the discovered config is the claim itself: the case exists to fail the day `eslint.config.ts` registers any `jsdoc/*` key, which is exactly the coupling the reviewer names.
+- **To implement:** nothing, unless the main config is ever split in a way that makes `calculateConfigForFile` ambiguous.
+
+### SB-173 — the rules suite asserts the plugin's message strings
+
+- **Source:** the same review, finding `R3-002`.
+- **Location:** `apps/api/tests/unit/scripts/jsdocRules.test.ts`, every expectation on a message.
+- **Suggestion:** assert on rule ids rather than human-readable messages, so a wording change in the 65.2.x hold bump does not fail the suite.
+- **Why deferred:** the messages are what a developer reads at the commit prompt, so they are the observable worth pinning; a wording change arrives with a hold bump, whose unit updates the suite with the version, as every bump does.
+- **To implement:** assert `ruleId` beside the message, if the bumps ever make the messages churn.
+
+### SB-174 — the result-count refusal has no test
+
+- **Source:** the native review of the JSDoc gate's second commit (`workstream/jsdoc-gate`, `2f01d599`), finding `R3-003`.
+- **Location:** `scripts/testing/jsdoc-touched-gate.mjs`, the refusal when ESLint returns a different number of results than files passed.
+- **Suggestion:** exercise the branch.
+- **Why deferred:** the branch is reachable only when ESLint breaks its own contract, which no external input produces; the reviewer calls it a transparency gap, not a reliability hole.
+- **To implement:** a double of the ESLint class returning a short array, if the script ever grows a seam for one.
+
+### SB-175 — the wiring commit does not carry the script it wires
+
+- **Source:** the native review of the JSDoc gate's third commit (`workstream/jsdoc-gate`, `9be4cecc`), findings `R3-missing-script-asset` (WARNING) and `R3-fetch-retry-opaque`.
+- **Location:** `package.json` (the lint-staged entry) and `.github/workflows/fitness.yml` (the #47 step).
+- **Suggestion:** land the script, the config and the suites in the same candidate as the wiring.
+- **Why justified:** the candidate is the third commit of a four-commit stack reviewed one commit at a time; `eslint.jsdoc.config.ts` and the rules suite land in the first (`913b821a`), the script and its suite in the second (`2f01d599`), and the wiring depends on them by construction. The retry and deepen behaviour the step describes is the script's, pinned by `jsdocTouchedGate.test.ts` in that second commit.
+- **To implement:** nothing; the stack lands in order.
+
+### SB-176 — the battery step is inserted mid-list
+
+- **Source:** the same review, finding `R3-battery-step-count-coupling`.
+- **Location:** `scripts/testing/battery.sh`, step `jsdoc` between `stories-gate` and `legal`, `PLANNED_STEPS` 25 → 26.
+- **Suggestion:** append new steps at the end, so tooling that depends on the position of rows in `steps.tsv` is not disturbed.
+- **Why deferred:** `battery-state.mjs` reads steps by name and compares the count with `PLANNED_STEPS`; nothing reads a row by position, and the step was proven alone with `--expected-steps 1`.
+- **To implement:** nothing, unless a positional reader of `steps.tsv` ever appears.
+
+### SB-177 — fitness #47 runs on pull requests only
+
+- **Source:** the same review, finding `R3-pr-only-check-gap`.
+- **Location:** `.github/workflows/fitness.yml`, the #47 step's `pull_request` condition.
+- **Suggestion:** a backstop for a violation that reaches `main` through a non-pull-request path.
+- **Why justified:** a push run has no base to diff against, which is the reason #37 has the same condition; every commit already runs the gate in lint-staged, every certified tip runs it in the battery, and `main` accepts no direct push (classic protection with 19 required contexts).
+- **To implement:** nothing while branch protection stands.
+
+### SB-178 — the lint-staged entry hands staged `.js` and `.jsx` files to the gate
+
+- **Source:** the native review of the JSDoc gate's wiring commit (`workstream/jsdoc-gate`, `a38327b7`), finding `R3-lint-staged-js-jsx-scope` (WARNING).
+- **Location:** `package.json`, the `*.{ts,tsx,js,jsx}` lint-staged entry that runs the gate after `eslint --fix` and `prettier --write`.
+- **Suggestion:** a separate `*.{ts,tsx}` entry, so the pre-commit scope matches the documented `.ts`/`.tsx` scope.
+- **Why justified:** measured on `packages/eslint-plugin-testing/src/index.js` and `rules/no-unowned-handle-unref.js`: the gate reports "0 touched in-scope files in the named files (1 changed, none in scope): a clean pass" and exits 0, because files mode filters every name through the config's own scope; the exit-2 class the finding supposes is the scope probe, not a named file. The shared entry is deliberate: lint-staged runs different globs concurrently, and a separate entry would let the gate read a `.ts` file while `eslint --fix` or `prettier --write` of the first entry rewrites it; inside one entry the tasks run in order. The cost is one node start on a commit that stages only `.js`/`.jsx` files.
+- **To implement:** a `*.{ts,tsx}` entry, if lint-staged ever runs globs in order (`--concurrent false` in `.husky/pre-commit` would do it today, for every pipeline).
+
+### SB-179 — the #47 step emits one `::error` for a violation and for a base or scope failure
+
+- **Source:** the same review, finding `R3-fitness47-exit-code-conflation`.
+- **Location:** `.github/workflows/fitness.yml`, the #47 step's `if ! pnpm check:jsdoc` branch.
+- **Suggestion:** branch on the exit code, so a violation (1) and a base or scope failure (2) get distinct annotations.
+- **Why deferred:** the gate's own lines above the annotation name the class in both cases (`file:line rule message` for a violation; "base ref … did not resolve" or "the config no longer reaches …" for a refusal), and the annotation's body names both; a second title changes only the headline. The workflow is an owner-token path, so the change rides with the next edit of that file.
+- **To implement:** capture `$?`, and emit `title=Fitness #47 scope error` for exit 2.
+
+### SB-180 — the #47 block restates the rules the config and the standards already hold
+
+- **Source:** the same review, finding `R2-001`.
+- **Location:** `CLAUDE.md`, the #47 block.
+- **Suggestion:** point at `CODING_STANDARDS.md` and `TESTING_REFOUNDATION.md` instead of repeating the rules, the scope and the counts.
+- **Why deferred:** every block of §Automated Compliance Checks states its own threat, scope, where it runs and residual limits, so a reader of the inventory never leaves it; the rules themselves live once, in `eslint.jsdoc.config.ts`, and the suites pin them. The counts are dated measurements, which the reconciliation (N-CI-6) will restate anyway.
+- **To implement:** nothing, unless the canon section adopts cross-references for every block.
+
+### SB-181 — the Gates row for the JSDoc gate is one paragraph
+
+- **Source:** the same review, finding `R2-002`.
+- **Location:** `docs/development/TESTING_REFOUNDATION.md`, the Gates row.
+- **Suggestion:** bold labels per proof (reds, greens, mutants, residuals), as some neighbouring rows do.
+- **Why deferred:** a formatting choice inside a table cell; the proofs are all present and dated.
+- **To implement:** the bold labels, in the next edit of that row.
+
+### SB-182 — the N-CI-5 bullet is one paragraph
+
+- **Source:** the same review, finding `R2-003`.
+- **Location:** `docs/product/MASTER_PLAN_ES.md`, the N-CI-5 bullet.
+- **Suggestion:** labelled lines for the measurement, the decision, the wiring and the renumbering.
+- **Why deferred:** the plan's bullets are prose by convention, and the counts N-CI-6 depends on are repeated in N-CI-6 itself.
+- **To implement:** the labelled lines, in the next edit of that bullet.
 
 ## Entries — tests
 

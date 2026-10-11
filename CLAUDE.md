@@ -306,7 +306,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 alone runs on `pull_request` only: its subject is the PR's delta against its base, which a push run does not have — its step skips cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured interim baseline of 3, because its violations are quarantined test suites whose repair is a separate body of work; WU-1.10 retires it for a hard-zero reach check. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **46 checks, numbered #1-#46**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured interim baseline of 3, because its violations are quarantined test suites whose repair is a separate body of work; WU-1.10 retires it for a hard-zero reach check. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **47 checks, numbered #1-#47**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -1981,6 +1981,52 @@ pnpm check:legal   # expect exit 0, and one `is current` line per page:
 pnpm check:support   # expect exit 0, and one `is current` line per page:
 #   support-docs index: docs/support/README.md is current
 #   support-docs non-features: docs/support/NON_FEATURES.md is current
+
+# 47. Every source file a pull request adds or modifies carries the canon's method-level JSDoc.
+# Threat: CODING_STANDARDS §Documentation requires `@method`, `@description`, `@param` and
+# `@returns` on every public method, and nothing enforced it. #9 holds the file header only, and
+# `pnpm lint` loads no jsdoc rule: measured over the tree on 2026-10-10, 35% of the public methods
+# carried no JSDoc at all and 31% carried the canon's tag form.
+# WHAT IT RUNS: `pnpm check:jsdoc`, which is `node scripts/testing/jsdoc-touched-gate.mjs`, with
+# the rules in `eslint.jsdoc.config.ts` (eslint-plugin-jsdoc). The rules are pinned by
+# apps/api/tests/unit/scripts/jsdocRules.test.ts, the gate's mechanics by jsdocTouchedGate.test.ts
+# beside it. An exported function carries a block with
+# a non-empty `@description`, one `@param` per parameter, and `@returns` unless it returns nothing,
+# read from its body or from a `void` or `Promise<void>` annotation. A public method of an exported
+# class carries the same block plus `@method`. A React component (a PascalCase or default-exported
+# function holding JSX, in a `.tsx` of apps/admin, apps/client or packages/ui) carries a
+# description only, in the block's body or in `@description`, and no `@param` or `@returns`,
+# because the canon documents props on the interface. Every tag must be one that JSDoc itself
+# defines (`@method` and `@function` among them) or one of the canon's own three: `@layer`,
+# `@component` and `@hook`; any other tag name is a violation.
+# SCOPE: the `.ts` and `.tsx` files under apps/ and packages/ that the pull request adds or modifies
+# against its base (a rename counts as an addition), the WHOLE file and not only its edited lines.
+# Tests, specs, stories, declaration files, dist, .next and infra/prisma/generated are out. The
+# scope is the config's own (its ignores and `files`); the script restates no glob.
+# NO BASELINE, NO SUPPRESSIONS FILE: a file no change touches is never read, so the backlog falls
+# as the plans touch files, and `pnpm check:jsdoc --all` lists what is left for the reconciliation
+# at the end of the current plan. Measured 2026-10-11 on main a5da2a84: 1028 of 2134 in-scope
+# files hold 9648 violations. An eslint-disable directive does not exempt a file: a jsdoc message
+# it suppressed counts as a violation.
+# WHERE IT RUNS, and why: in the dependency-consistency job of fitness.yml, beside #45 and #46,
+# because ESLint and its plugins need the installed tree; on `pull_request` only, like #37, because
+# its subject is the pull request's delta against its base, which a push run does not have. The
+# same script runs in lint-staged on the staged files and as the battery step `jsdoc` against the
+# merge base with origin/main. `pnpm lint` does not load these rules: ESLint discovers only
+# `eslint.config.*`.
+# FAIL-CLOSED, exit 2: a base that does not resolve after 3 bounded fetch attempts, a merge base
+# that cannot be found (a shallow clone is deepened with the same attempts), a config whose scope no
+# longer reaches apps/api/src/index.ts, or `--all` finding no in-scope file. A pull request that
+# touches no in-scope file is a clean pass, and its line says so.
+# RESIDUAL LIMITS, stated rather than implied: (1) "exported" is syntactic: a function or class
+# exported by a separate `export { name }` or `export default name`, a class expression, a
+# component wrapped in `forwardRef` or `memo`, an arrow-function class property and an accessor
+# need no block; (2) the plugin's tag rules match their context without ancestors, so `@method`
+# reaches every documented public method, in an exported class or not; (3) a component is
+# recognised by its name and its JSX, not by its type; (4) the gate proves the tags are present and
+# non-empty, never that they are right.
+JSDOC_BASE_REF="${FITNESS_BASE_REF:-origin/main}" pnpm check:jsdoc   # expect exit 0 and one line:
+#   jsdoc-touched-gate: <N> touched in-scope files in <base> (merge base <sha>): zero violations
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One

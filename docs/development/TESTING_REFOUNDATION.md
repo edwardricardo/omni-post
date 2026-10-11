@@ -1,7 +1,19 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-10, the path filters (`workstream/phase1-u8-live-collector`, PR R8d, the last of
+**As of:** 2026-10-11, the JSDoc gate (`workstream/jsdoc-gate`, `CODING_STANDARDS.md` §Documentation)
+holds every `.ts` and `.tsx` source file under `apps/` and `packages/` that a change adds or modifies to
+the canon's method-level JSDoc, across the whole file: `pnpm check:jsdoc`
+(`scripts/testing/jsdoc-touched-gate.mjs`, with `eslint-plugin-jsdoc` 65.1.0 in the dedicated
+`eslint.jsdoc.config.ts`, which `pnpm lint` does not load) runs in lint-staged on the staged files, as
+the new battery step `jsdoc` against the merge base with `origin/main` (`PLANNED_STEPS` 25 → 26) and,
+once its step lands, as fitness #47 in CI. A file no change touches is never read; the reconciliation
+for the end of the plan, `pnpm check:jsdoc --all`, measured 1028 of 2134 in-scope files holding 9648
+violations. Its two suites, `jsdocRules.test.ts` for the rules and `jsdocTouchedGate.test.ts` for the
+gate, and its gate row moved M1 `991 + 14` → `993 + 14` and
+M7 `29/29` → `30/30`. Pending fitness reservations renumbered after #47 landed out of the reserved
+order: WU-3.9/3.10 → #48, WU-3.13 → #49, WU-4b.7 → #50 (D24 unchanged).
+Before it, on 2026-10-10, the path filters (`workstream/phase1-u8-live-collector`, PR R8d, the last of
 the stacked pull requests of WU-1.8, which it closes) let `run-tests.sh` take the paths of the
 suites to run, `bash scripts/run-tests.sh tests/a.integration.test.ts tests/b.live.test.ts` from
 `apps/api`, in place of the subset scripts WU-1.3 deleted: each runs in its own tier, in the
@@ -451,7 +463,9 @@ request of DEF-29, the `Channel.credentials` envelope the workers could not decr
 repository's decrypt-input suite (M1 `970 + 8` → `972 + 8`), and `PR dc-4a` is group (a) of
 dead-code unit DC-4 on `workstream/dc-4-dead-security-modules`, which deleted the unreached
 `enhancedValidator` and `credentialManager` with their four test files (M1 `972 + 8` → `968 + 8`)
-and added the fitness #11 gate row (M7 `18/18` → `19/19`, after PR C's story-runner row). A `PR` followed by a
+and added the fitness #11 gate row (M7 `18/18` → `19/19`, after PR C's story-runner row). `PR jsdoc` is the JSDoc gate on
+`workstream/jsdoc-gate`, which added its two suites and its gate row (M1 `991 + 14` → `993 + 14`, M7
+`29/29` → `30/30`). A `PR` followed by a
 letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
 [§Plan (fixed)](#plan-fixed)'s own label for the pull request that
 closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
@@ -466,7 +480,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
 | M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 23 · 0                | 0 · 0         | `metrics.mjs --m5` (`test-contracts reach --json`, WU-1.9; absent at baseline)          | PR R3    |
 | M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —        |
-| M7  | Gates new/modified, red proven                                    | 0/0                   | 29/29                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR R7b3  |
+| M7  | Gates new/modified, red proven                                    | 0/0                   | 30/30                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR jsdoc |
 | M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/92 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR R9a   |
 | M9  | TIER runs: skipped / cancelled · runtime `t.skip` sites           | 0/0 · 114             | 0/0 · 114             | 0/0 · 0       | `metrics.mjs --m9` (pasted: TIER run summary; sites by WU-1.13 AST scan)                | —        |
 | M10 | E2E specs in CI, required? · last verdict                         | 0 · no                | 0 · no                | ≥6 · yes      | `metrics.mjs --m10` (run id, once WU-6.E8 lands the job)                                | —        |
@@ -625,18 +639,18 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 3     | 3.7(a) | OSV-Scanner finding classes — first done 2026-09-28, rebased 2026-10-02     | ✅     | `P.5`                         | `refound/3-osv-measure` · 6 = 6 · 4 = 4 | 2026-10-02 |
 | 3     | 3.7(b) | OSV-Scanner: real gate, or removed                                          | ⬜     | —                             | —                                       | —          |
 | 3     | 3.8    | A skipped vitest test fails CI                                              | ⬜     | —                             | —                                       | —          |
-| 3     | 3.9    | #47 verdict composition, static rules                                       | ⬜     | —                             | —                                       | —          |
-| 3     | 3.10   | #47 operational rules and drift read from GitHub                            | ⬜     | —                             | —                                       | —          |
+| 3     | 3.9    | #48 verdict composition, static rules                                       | ⬜     | —                             | —                                       | —          |
+| 3     | 3.10   | #48 operational rules and drift read from GitHub                            | ⬜     | —                             | —                                       | —          |
 | 3     | 3.11   | The merge-gate composition, versioned                                       | ⬜     | —                             | —                                       | —          |
 | 3     | 3.12   | Nightly rebuilt; one alarm per workflow; chaos folded in                    | ⬜     | —                             | —                                       | —          |
-| 3     | 3.13   | Script entrypoints cannot swallow errors (#48)                              | ⬜     | —                             | —                                       | —          |
+| 3     | 3.13   | Script entrypoints cannot swallow errors (#49)                              | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.1   | `test-env.sh env <hermetic\|services>`                                      | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.2   | `test-env.sh db [--reset]`                                                  | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.3   | `up \| serve \| down \| liveness \| logs \| run`                            | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.4   | Adoption in performance, ZAP and nightly                                    | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.5   | A test-env loader that fails closed                                         | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.6   | Playwright `webServer` from the script, both apps                           | ⬜     | —                             | —                                       | —          |
-| 4b    | 4b.7   | One environment identity (#49)                                              | ⬜     | —                             | —                                       | —          |
+| 4b    | 4b.7   | One environment identity (#50)                                              | ⬜     | —                             | —                                       | —          |
 | 4b    | 4b.8   | The api shards run hermetic                                                 | ⬜     | —                             | —                                       | —          |
 | 4     | 4.1a   | Availability is a precondition, never a skip — live suites                  | ⬜     | —                             | —                                       | —          |
 | 4     | 4.1b   | Availability is a precondition, never a skip — the rest                     | ⬜     | —                             | —                                       | —          |
@@ -752,6 +766,7 @@ exact command, the observed non-zero exit, and the byte-exact restore evidence.
 | Source resolution (WU-1.2b, R2b3): each workspace import of a collected test resolves to its `src/`, under any `NODE_ENV`          | Suite `tests/source-resolution.test.ts` in `packages/test-contracts`, run by CI `Package Tests` (`ci.yml`) via `turbo run test`; `SOURCE_CONDITIONS` in the configs    | **Reds on the real configs, each planted file restored byte-exact (`sha256sum -c` OK)** (2026-10-10). (1) The two app configs as they were before R2b1, `NODE_ENV=production`: `node --conditions development --import tsx src/source-resolution.ts` from `packages/test-contracts` exits 1 with 32 violations, each resolving to nothing because `dist` is absent: `apps/api` imports `@observability/background-scheduler` (17) and `@packages/api-common` (1), `apps/workers` the 11 `@providers/*`, `@adapters/db-prisma` (2) and `@observability/background-scheduler` (1). With `SOURCE_CONDITIONS` in both app configs it exits 0; with `SOURCE_CONDITIONS = ["node"]` planted it exits 1 with the same 32. A scratch script resolving those 32 through the real configs under `NODE_ENV=production` reports 0 of 32 in `src/` on the earlier configs and 32 of 32 on the new ones. (2) The factory as it was before R2b1: `pnpm --filter @packages/vitest-shared test` exits 1, 3 failed and 16 passed. (3) The three `@shared` paths deleted from `tsconfig.base.json` (`@shared/types` is the one aliased package whose `exports` has no `development` key): the suite exits 1, `Failed to resolve entry for package "@shared/types"`; every other alias deletion stays on `src/` through the condition, which is correct. (4) The planted-tree case that aliases `@x/pkg` to `dist/index.js` returns one violation naming the config, the file, the package and `pkg/dist/index.js`. **Green**: 92 configs and 850 workspace imports, 0 violations under `NODE_ENV=test` and `production`; the test-contracts suite 81 of 81; `vitest list --filesOnly` byte-identical in the four apps (api 606, workers 17, admin 16, client 44).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | `R2b3` (`workstream/phase1-u11-s2b`)                           |
 | Interim reach (fitness #30, WU-1.7 R7b3, owner decision (d)): every test file under `apps/api/tests` runs in a collector           | CI step `#30` in the `fitness` job of `fitness.yml` → `run-tests.sh --list` (`::error` paired to `exit 1`); retired by WU-1.10                                         | **Head, on the COMPLETE step** (2026-10-10): the `run:` body of the `#30` step in the slice's `fitness.yml` patch, run from the repository root under `bash --noprofile --norc -eo pipefail` (the shell GitHub Actions gives a `run:` step), with `apps/api/tests/integration/orphan.test.ts` planted, a node:test file with no tier suffix: `Unreached test files: 11 (interim ratchet baseline 10)`, the orphan named, the `::error` printed, exit 1; with it removed (the `fd` listing of `apps/api/tests` sha256-identical to before) it prints 10 and exits 0. A `quarantine.json` entry without `since` makes `--list` exit 2 and the step exit 1 on its scope error, and a valid entry for `mentionIngest.integration.test.ts` takes the count to 11 and exit 1 (both restored, `sha256sum -c` OK). **Base**: the grep form read 20 and 21 with the orphan, but by searching the runner's text, so any line of `run-tests.sh` naming a path counted it as run. **The runner**: 9 cases of the runner suites fail on the previous tip's runner (restored, `sha256sum -c` OK); a `tee` pipe on the services `run_batch` call turns 12 behaviour cases red, the file accounting among them. **Green**: `tests/unit/saga` 251 of 251; on the runner this stack ends with, `TIER=pr-integration` 572 tests in 62 files, 0 failed, cancelled or skipped, in 83 s (the base runner 541 in 73 s, the same day). **R8b** (2026-10-10): the baseline falls 10 → 3 with the live collector, the 3 being the quarantine entries; on the COMPLETE step of the slice's `fitness.yml` patch, run under `bash --noprofile --norc -eo pipefail`, the tree prints `Unreached test files: 3 (interim ratchet baseline 3)` and exits 0; a planted `apps/api/tests/integration/orphan.test.ts` prints 4, the `::error`, and exits 1; a fourth quarantine entry (`mentionIngest.integration.test.ts`) prints 4 and exits 1; both restored (listing identical; `sha256sum -c` OK on the quarantine).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `R7b3` (`workstream/phase1-u7b-services-collector`)            |
 | Live-tier readiness probe (WU-1.8, R8a): the API and the workers are probed before each live file; a failure exits 1, naming it    | `probe_live` and `BATCH_PROBE` in `run_batch` of `apps/api/scripts/run-tests.sh`, reached by CI `Integration Tests` (`ci.yml`, URLs from the job env)                  | **Head, on the COMPLETE command** (2026-10-10): `cd apps/api && TIER=full-integration bash scripts/run-tests.sh` with a `node` stub that passes every file and a `curl` stub that refuses the third probe of one URL: refusing `$TEST_API_URL/health`, and separately `$TEST_WORKERS_READY_URL`, each exits 1 with `✗ env-unready-before: <third live file> (last ran: <second>)` on its verdict line and under `FAILED files:`, the files after it not handed to node, and the ERROR line `the live tier stopped at env-unready-before:`; a healthy run probes the API then the workers before every live file, after the services tier, and exits 0. Either URL empty under a TIER that reaches the live tier exits 2 before any suite starts. **Base**: the 7 cases fail on the previous tip's runner. **Mutation**: a `tee` pipe on the first live batch call turns 3 cases red, both probe cases among them (restored, `cmp` equal). **Live** (on the tip that carries R8a–R8d, 2026-10-10, 08:01 to 08:23 UTC): red (a), WU-1.4's `after()` removed, `TIER=full-integration TEST_ORDER=reverse` over `tests/security.live.test.ts` and `tests/providerRegistry.live.test.ts` exits 1 on `curl: (22) The requested URL returned error: 429` with `✗ env-unready-before: tests/providerRegistry.live.test.ts (last ran: tests/security.live.test.ts)`, and the control with the `after()` exits 0, 54 of 54; red (b), the workers killed while `crisisRoutes` runs, exits 1 on `curl: (7) Failed to connect to localhost port 3300` with `✗ env-unready-before: tests/integration/linkRoutes.live.test.ts (last ran: tests/integration/crisisRoutes.live.test.ts)`; the planted file restored, `sha256sum -c` OK                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `R8a` (`workstream/phase1-u8-live-collector`)                  |
+| JSDoc on touched files (fitness #47): every source file a change adds or modifies carries the canon's method-level JSDoc           | Battery step `jsdoc` → `pnpm check:jsdoc` (`scripts/testing/jsdoc-touched-gate.mjs`), and lint-staged; and its CI twin, fitness #47 (`pull_request` only)              | **Reds and greens on the COMPLETE command** (2026-10-11): an undocumented `export function plantedUndocumented` appended to `apps/api/src/lib/errors/errorPlugin.ts`, a file with no violation, then `node scripts/testing/jsdoc-touched-gate.mjs apps/api/src/lib/errors/errorPlugin.ts`, the command lint-staged runs → exit 1: `apps/api/src/lib/errors/errorPlugin.ts:35 jsdoc/require-jsdoc Missing JSDoc comment.`; the same function with `@description`, `@param` and `@returns` → exit 0; restored, `sha256sum -c` OK. On the branch, `pnpm check:jsdoc` → exit 0, `0 touched in-scope files in origin/main (merge base a5da2a84) (0 changed, none in scope): a clean pass`, while `pnpm check:jsdoc --all` → exit 1, `1028 of 2134 in-scope files in the tree violate (9648 violations)`: the untouched backlog is not read. **lint-staged 17.6.0** with this branch's config, in a scratch clone with the plant staged → exit 1, `✖ node scripts/testing/jsdoc-touched-gate.mjs` naming line 35; with the documented function staged → exit 0; `--staged` on the same index → exit 1. **In the battery**: `step jsdoc pnpm check:jsdoc` after `stories-gate`, `PLANNED_STEPS` 25 → 26; run alone through the script's own `step` function and `battery-state.mjs` with `--expected-steps 1` → `jsdoc exit=0` and `BATTERY GREEN` (a red battery needs a committed plant; `jsdocTouchedGate.test.ts` pins the base mode on its own repositories). Mutants: `--no-renames` dropped, suppressed messages ignored and `--staged` reading the working tree are each killed by `jsdocTouchedGate.test.ts`; `checkDestructured: false` dropped and `require-tags` off are each killed by `jsdocRules.test.ts`; `--diff-filter=AMR` is equivalent under `--no-renames`; each restored, `sha256sum -c` OK. **Residual**: "exported" is syntactic (`export { name }`, a class expression or a `forwardRef` component need no block), `@method` reaches every documented public method in any class, and the CI step's own red is shown with the step                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `workstream/jsdoc-gate`                                        |
 
 `metrics.mjs --m7` counts the data rows of this table: total rows, and rows whose `Red proof` cell is
 filled. **A script in the tree is not a gate until a workflow runs it** — the same rule fitness #30
@@ -2309,7 +2324,7 @@ the pull request and in the tracker.
   main); delete :170 (the `needs`); rename the workflow to "Container Images". **Edward's admin step
   before merging**: remove "Test and Build" from the required list (otherwise the pull request waits
   forever for a check that does not exist). Acceptance: `required_status_checks` without "Test and
-  Build"; "Security Audit" only from `ci.yml:627`. Red: rule V1 of #47 with a duplicated
+  Build"; "Security Audit" only from `ci.yml:627`. Red: rule V1 of #48 with a duplicated
   `name: Security Audit` → exit 1. CODE ~−140. PR V5.
 - **WU-3.6** gitleaks scans the pull request's commits: `audit.yml:144-152` →
   `gitleaks git --config .gitleaks.toml --log-opts="${BASE}..${HEAD}" --no-banner --redact --verbose |
@@ -2333,8 +2348,8 @@ tee log` with `set -o pipefail`; fail-closed if "N commits scanned" is under 1 (
   reconstruction). Precondition: demolition removes the 43 todos. Red:
   `it("x", (ctx) => ctx.skip())` in `packages/core/posts` → `CI=true pnpm --filter @core/posts test`
   exits non-zero naming the test. Dep: WU-3.2, Phase 2. CODE ~60. PR V8.
-- **WU-3.9** #47 verdict composition, static rules (Test Contracts):
-  `packages/test-contracts/src/verdict.ts` plus self-tests plus a #47 block in `CLAUDE.md`; it parses
+- **WU-3.9** #48 verdict composition, static rules (Test Contracts):
+  `packages/test-contracts/src/verdict.ts` plus self-tests plus a #48 block in `CLAUDE.md`; it parses
   every workflow with `yaml` and reads `.github/rulesets/main.json`. V1: each required context is
   produced by exactly one job of a workflow that runs on `pull_request` to main (expanding
   `${{ matrix.* }}`; 0 = the pull request waits forever; more than 1 = two jobs answer for one
@@ -2347,7 +2362,7 @@ tee log` with `set -o pipefail`; fail-closed if "N commits scanned" is under 1 (
   delete the Integration Tests job → V1; `if: github.event_name == 'push'` on `test-packages` → V2;
   remove `!cancelled()` from Coverage Merge → V3; `paths:` on `ci.yml`'s `pull_request` → V7.
   Dep: WU-1.10, 3.4, 3.5. CODE ~330. PR V9.
-- **WU-3.10** #47 operational rules and drift read from GitHub: V4 no step of a required job has
+- **WU-3.10** #48 operational rules and drift read from GitHub: V4 no step of a required job has
   `continue-on-error: true` unless its name ends in "(never gates)"; V5 no `|| true` on a line that
   invokes a gate tool
   (`vitest|node --test|playwright|k6|osv-scanner|gitleaks|pnpm audit|semgrep|squawk|turbo run|run-tests.sh`);
@@ -2366,7 +2381,7 @@ tee log` with `set -o pipefail`; fail-closed if "N commits scanned" is under 1 (
   (shard 1|2) (named reporters) · Coverage Merge (`!cancelled()`, certifying) · **OpenAPI Drift
   (new)** · Package Tests and Frontend Tests (with coverage from Phase 5) · Integration Tests · Build
   Check · Code Quality · Security Audit (one emitter) · Fitness Functions · **Test Contracts (new:
-  #30, #32, #36, #37, #47, #49)** · CodeQL (one `javascript-typescript` context) · gitleaks (fixed) ·
+  #30, #32, #36, #37, #48, #50)** · CodeQL (one `javascript-typescript` context) · gitleaks (fixed) ·
   secretlint · dependency-cruiser · Squawk · OSV-Scanner (per WU-3.7) · **Test and Build: removed** ·
   Semgrep CE, size-limit, Dependency Consistency, Container Security ×4, lychee · E2E and k6
   (Phase 6): required once they exist and block. Acceptance: V6 green on main; the count and strict
@@ -2384,15 +2399,15 @@ tee log` with `set -o pipefail`; fail-closed if "N commits scanned" is under 1 (
   of a real test; 0 or 1 open issue. Red: dispatch on a scratch branch with a planted broken
   integration test → an issue is created; dispatch again → one comment, not a second issue; without
   the plant → the issue is closed. Dep: WU-4b.3, 1.8. CODE ~90 (net ~−60). PR V12.
-- **WU-3.13** Script entrypoints cannot swallow errors (#48) plus performance verdicts (conditional on
-  the k6/perf decision of Phase 6): #48 is a hard-zero grep in the dependency-free job —
+- **WU-3.13** Script entrypoints cannot swallow errors (#49) plus performance verdicts (conditional on
+  the k6/perf decision of Phase 6): #49 is a hard-zero grep in the dependency-free job —
   `git ls-files '*.ts' '*.mts' '*.js' | xargs rg -n '\.catch\(\s*console\.(error|log|warn)\s*\)'`
   (today 5: `postgres-stress.test.ts:621`, `generate-reports.ts:712`, `baseline-capture.ts:453`,
   `memory-leak-detector.ts:641`, `regression-detector.ts:451`); k6 (if kept):
   `performance.yml:221` `-e BASE_URL=$TEST_API_URL`; each scenario throws without `__ENV.BASE_URL`;
   mount `performance/` and `--out json=/perf/reports/k6/${SCENARIO}-results.json`; upload
   `performance/reports/`; `generate-reports.ts` exits 1 with no results; pin by digest (:207-208);
-  remove `needs: db-stress` (:117). Red: a planted `.catch(console.error)` → #48 exits 1; `k6 run`
+  remove `needs: db-stress` (:117). Red: a planted `.catch(console.error)` → #49 exits 1; `k6 run`
   without `BASE_URL` → exits non-zero; a report over an empty directory → exit 1. Dep: Phase 6,
   WU-4b.3. CODE ~60. PR V13.
 
@@ -2424,7 +2439,7 @@ is up (test ports = dev + 10; the script rejects an already-bound port).
   `ci-setup-test-env.sh` (`ci.yml:146,379,744`, nightly, chaos, performance ×2, ZAP). Acceptance: jobs
   green; the grep for the old script returns 0. Red: (a) a missing input → exit non-zero naming the
   key; (b) under hermetic, a planted package test that connects with `pg` fails in under 5 s with
-  `ECONNREFUSED 127.0.0.1:1`; (c) remove a key from the example → #49 exits 1. CODE ~220. PR E1.
+  `ECONNREFUSED 127.0.0.1:1`; (c) remove a key from the example → #50 exits 1. CODE ~220. PR E1.
 - **WU-4b.2** `test-env.sh db [--reset]`: preflight (reaches and authenticates owner and app role —
   `db-up.sh`'s method; `server_version_num` major 16; `vector` in `pg_available_extensions`; the name
   is `omnipost_test` or it rejects); a contamination check (rows in `_prisma_migrations` with no
@@ -2459,7 +2474,7 @@ is up (test ports = dev + 10; the script rejects an already-bound port).
 - **WU-4b.4** Adoption in performance (`performance.yml:64-111`, :146-252), ZAP
   (`security-testing.yml:120-189`) and nightly (WU-3.12). Acceptance: no workflow boots an app process
   except through the script; the grep for inline `dev:test` in the workflow directory returns 0.
-  Red: #49 with a planted inline `pnpm --filter @apps/api dev:test &` → exit 1. Dep: 4b.3. CODE ~150
+  Red: #50 with a planted inline `pnpm --filter @apps/api dev:test &` → exit 1. Dep: 4b.3. CODE ~150
   (deletions). PR E4.
 - **WU-4b.5** A test-env loader that fails closed: `packages/vitest-shared/src/loadTestEnv.ts` (root
   through `findMonorepoRoot`, loads the test env file, THROWS if it is missing with "run
@@ -2476,7 +2491,7 @@ is up (test ports = dev + 10; the script rejects an already-bound port).
   always (the `!isCI` branch goes); `baseURL` reads `TEST_CLIENT_URL`/`TEST_ADMIN_URL`, not the
   overloaded `BASE_URL`. Acceptance: `playwright test --list` unchanged. Red: with the API's env
   broken, `playwright test` fails in `webServer` before any test. Dep: 4b.3. CODE ~60. PR E6.
-- **WU-4b.7** One environment identity (#49, Test Contracts):
+- **WU-4b.7** One environment identity (#50, Test Contracts):
   `packages/test-contracts/src/identity.ts` — every `services.postgres` uses
   `pgvector/pgvector:pg16`, `POSTGRES_DB=omnipost_test`, `POSTGRES_USER=postgres`; every
   `services.redis` is `redis:7-alpine`; every `postgresql://` literal in the workflow directory is the
@@ -2984,9 +2999,9 @@ of roadmap §4.1.b/c, and the settings route-contract gap.
 4. **Demolition**: 2.4 (lint) → 2.5 (listing and Edward's approval) → 2.0 (coverage scenario) →
    2.6a/2.6b/2.7 in parallel → 2.8.1 … 2.8.7 (serially inside api because of the coverage floor) →
    2.9, 2.10. Unblocks R13 (#32 AST) and V8 (skip gate). 8.1a lands with 2.4.
-5. **Verdict**: V4 → V5 (Edward removes "Test and Build" from required) → V9 (#47) → V11 (ruleset;
+5. **Verdict**: V4 → V5 (Edward removes "Test and Build" from required) → V9 (#48) → V11 (ruleset;
    Edward) → V10 (drift) → V7b.
-6. **Environment**: E4, E5, E6 → E7 (#49) → E8 (hermetic shards; needs V3).
+6. **Environment**: E4, E5, E6 → E7 (#50) → E8 (hermetic shards; needs V3).
 7. **Tooling**: S.1 after 2.5 → S.2–S.6 → S.7, S.8; each migration after its package's demolition
    slice.
 8. **Integration**: 4.1a/b → 4.2, 4.3 → 4.4 (F-6; needs E3) → 4.5 → 4.6 → 4.7 → 4.9; V12 (nightly)

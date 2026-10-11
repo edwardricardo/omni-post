@@ -36,7 +36,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=25
+PLANNED_STEPS=26
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -167,6 +167,9 @@ step duplicates pnpm check:duplicates
 # without a sibling story must equal its committed baseline, so a new component
 # without a story fails it and so does a baseline left above the tree.
 step stories-gate pnpm check:stories
+# The JSDoc gate (fitness #47 in CI): every in-scope file this branch adds or modifies against
+# its merge base with origin/main ends with zero violations of eslint.jsdoc.config.ts.
+step jsdoc pnpm check:jsdoc
 # Fitness #45: every legal inventory page is current and every row classified.
 step legal pnpm check:legal
 # Every support page current, every doc on the template, every tree candidate classified.

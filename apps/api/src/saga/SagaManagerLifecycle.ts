@@ -209,6 +209,13 @@ export class SagaManagerLifecycle implements SagaManager {
   // Initialization
   // ---------------------------------------------------------------------------
 
+  /**
+   * @method initialize
+   * @description Boots the engine: loads the in-flight sagas from PostgreSQL, starts the timeout,
+   *   metrics and retry-recovery checkers, and runs one resume pass over what it loaded. A failed
+   *   load or resume pass is logged and counted rather than thrown, so a process that cannot
+   *   recover still serves.
+   */
   async initialize(): Promise<void> {
     // Ensure the event service is ready before saga recovery.
     // This call is idempotent (guards on an internal isInitialized flag).
@@ -779,6 +786,12 @@ export class SagaManagerLifecycle implements SagaManager {
   // Registration
   // ---------------------------------------------------------------------------
 
+  /**
+   * @method registerSaga
+   * @description Makes a saga definition startable by its id; a second definition with the same
+   *   id is refused with a conflict instead of silently replacing the first.
+   * @param definition - The saga definition to register.
+   */
   registerSaga(definition: SagaDefinition): void {
     if (this.definitions.has(definition.id)) {
       throw AppError.conflict(`Saga definition '${definition.id}' is already registered`);
@@ -792,6 +805,16 @@ export class SagaManagerLifecycle implements SagaManager {
   // Start Saga
   // ---------------------------------------------------------------------------
 
+  /**
+   * @method startSaga
+   * @description Creates a PENDING saga, persists it together with its started event, and
+   *   dispatches its execution detached. Before anything is written it refuses an unregistered
+   *   definition, and a context with no owning account or with two different ones.
+   * @param definitionId - The registered saga definition to run.
+   * @param contextData - The caller's context: owning account, acting user, correlation id and
+   *   metadata.
+   * @returns The new saga instance, in its PENDING state.
+   */
   async startSaga(definitionId: string, contextData: Partial<SagaContext>): Promise<SagaInstance> {
     const definition = this.definitions.get(definitionId);
     if (!definition) {
@@ -877,6 +900,14 @@ export class SagaManagerLifecycle implements SagaManager {
   // Continue & Compensate
   // ---------------------------------------------------------------------------
 
+  /**
+   * @method continueSaga
+   * @description The operator's resume of a RUNNING or PENDING saga: confirms its owning account
+   *   still resolves, releases any parked window it held, and dispatches its execution detached. A
+   *   saga it cannot scope is refused with a conflict, so the operator is never told it resumed.
+   * @param sagaId - The saga to resume.
+   * @returns The saga instance as it stood when the execution was dispatched.
+   */
   async continueSaga(sagaId: string): Promise<SagaInstance> {
     const instance = await this.getSaga(sagaId);
     if (!instance) {
@@ -921,6 +952,15 @@ export class SagaManagerLifecycle implements SagaManager {
     return instance;
   }
 
+  /**
+   * @method compensateSaga
+   * @description The operator's rollback of a FAILED or COMPENSATING saga: takes the same durable
+   *   compensation transition the automatic path takes, under the saga's own account, then resumes
+   *   the compensation walk detached. It refuses a saga this process is already advancing, and one
+   *   whose owning account does not resolve.
+   * @param sagaId - The saga to compensate.
+   * @returns The saga instance after the compensation transition, before the walk runs.
+   */
   async compensateSaga(sagaId: string): Promise<SagaInstance> {
     const instance = await this.getSaga(sagaId);
     if (!instance) {
@@ -987,6 +1027,13 @@ export class SagaManagerLifecycle implements SagaManager {
   // Retrieval
   // ---------------------------------------------------------------------------
 
+  /**
+   * @method getSaga
+   * @description Returns the saga from this process's in-memory set when it holds one, and
+   *   otherwise loads it through the engine's read-through cache (Redis, then PostgreSQL).
+   * @param sagaId - The saga to look up.
+   * @returns The saga instance, or `null` when it is not found or its row could not be read.
+   */
   async getSaga(sagaId: string): Promise<SagaInstance | null> {
     const memoryInstance = this.activeInstances.get(sagaId);
     if (memoryInstance) {
@@ -1058,6 +1105,12 @@ export class SagaManagerLifecycle implements SagaManager {
   // Metrics & Health
   // ---------------------------------------------------------------------------
 
+  /**
+   * @method getMetrics
+   * @description Snapshots the engine's counters with the ids of the registered saga definitions,
+   *   for the admin monitoring routes.
+   * @returns A copy of the counters plus the registered definition ids.
+   */
   getMetrics(): SagaMetrics & { definitions: string[] } {
     return {
       ...this.metrics,
@@ -1065,6 +1118,13 @@ export class SagaManagerLifecycle implements SagaManager {
     };
   }
 
+  /**
+   * @method healthCheck
+   * @description Probes PostgreSQL and Redis: `unhealthy` when either fails, and `degraded` when
+   *   both answer but the boot load failed, because that process is reachable yet does not know
+   *   which sagas were in flight.
+   * @returns The status, with the registered definition and in-memory instance counts.
+   */
   async healthCheck(): Promise<SagaHealthReport> {
     try {
       await this.config.prisma.$queryRaw`SELECT 1`;
@@ -1109,6 +1169,13 @@ export class SagaManagerLifecycle implements SagaManager {
   // Shutdown
   // ---------------------------------------------------------------------------
 
+  /**
+   * @method shutdown
+   * @description Hands every RUNNING saga back as PENDING under its own account, so the next
+   *   process resumes it, then unregisters the gauge providers and clears the in-memory
+   *   state. A saga that cannot be handed off is logged and skipped, never allowed to stop the
+   *   shutdown.
+   */
   async shutdown(): Promise<void> {
     logger.info("Shutting down Saga Manager");
 
