@@ -35,7 +35,8 @@ function recordResult(test: string, passed: boolean, message: string, duration?:
   results.push({ test, passed, message, duration });
   const status = passed ? "PASS" : "FAIL";
   const durationStr = duration ? ` (${duration}ms)` : "";
-  console.log(`${status}: ${test}${durationStr} - ${message}`);
+  // stdout is the node:test runner's message channel; diagnostics go to stderr (DEF-83).
+  console.error(`${status}: ${test}${durationStr} - ${message}`);
 }
 
 describe("Universal Client Dashboard Integration Tests", () => {
@@ -62,7 +63,7 @@ describe("Universal Client Dashboard Integration Tests", () => {
     }
 
     if (apiAvailable && clientAvailable) {
-      console.log("Both API and Client services are running");
+      console.error("Both API and Client services are running");
     }
   });
 
@@ -292,42 +293,42 @@ describe("Universal Client Dashboard Integration Tests", () => {
         results.filter((r) => r.duration).reduce((sum, r) => sum + (r.duration || 0), 0) /
         results.filter((r) => r.duration).length;
 
-      console.log("\nUniversal Client Dashboard Integration Test Summary");
-      console.log("===================================");
-      console.log(`Total Tests: ${totalTests}`);
-      console.log(`Passed: ${passedTests}`);
-      console.log(`Failed: ${failedTests}`);
-      console.log(`Success Rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`);
-      console.log(`Average Response Time: ${avgDuration.toFixed(1)}ms`);
+      console.error("\nUniversal Client Dashboard Integration Test Summary");
+      console.error("===================================");
+      console.error(`Total Tests: ${totalTests}`);
+      console.error(`Passed: ${passedTests}`);
+      console.error(`Failed: ${failedTests}`);
+      console.error(`Success Rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`);
+      console.error(`Average Response Time: ${avgDuration.toFixed(1)}ms`);
 
       if (failedTests > 0) {
-        console.log("\nFailed Tests:");
+        console.error("\nFailed Tests:");
         results
           .filter((r) => !r.passed)
           .forEach((result) => {
-            console.log(`  - ${result.test}: ${result.message}`);
+            console.error(`  - ${result.test}: ${result.message}`);
           });
       }
 
       const allPassed = failedTests === 0;
-      console.log(
+      console.error(
         allPassed
           ? "\nAll integration tests passed! Universal Client Dashboard is fully functional."
           : "\nSome integration tests failed."
       );
 
       if (allPassed) {
-        console.log("\nFeatures Verified:");
-        console.log("   Provider Registry System with 9 providers");
-        console.log(
+        console.error("\nFeatures Verified:");
+        console.error("   Provider Registry System with 9 providers");
+        console.error(
           "   Dynamic Provider Discovery (9 active: x, instagram, facebook, youtube, tiktok, linkedin, snapchat, telegram, pinterest)"
         );
-        console.log("   Provider Capability Filtering (threading, etc.)");
-        console.log("   Real-time Health Monitoring");
-        console.log("   Next.js Client Dashboard UI");
-        console.log("   Provider Cards with Loading States");
-        console.log("   Error Handling for Invalid Requests");
-        console.log("   Client-Server Integration");
+        console.error("   Provider Capability Filtering (threading, etc.)");
+        console.error("   Real-time Health Monitoring");
+        console.error("   Next.js Client Dashboard UI");
+        console.error("   Provider Cards with Loading States");
+        console.error("   Error Handling for Invalid Requests");
+        console.error("   Client-Server Integration");
       }
 
       assert.strictEqual(failedTests, 0, "All tests should pass");
