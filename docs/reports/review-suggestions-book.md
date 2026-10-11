@@ -180,6 +180,11 @@
 | SB-159 | Turbopack dev (`workstream/dev-turbopack`, bb5b6f2e)                                  | R3-001                                                           | `apps/admin/next.config.mjs`, `apps/client/next.config.mjs` (`agentRules`)                                                                  | regression guard             | deferred: DEF-88's proposed gate on stray `.md` files under `apps/` and `packages/`                                                                             |
 | SB-160 | same                                                                                  | R3-002                                                           | `apps/admin/package.json`, `apps/client/package.json` (`dev`)                                                                               | dev memory                   | deferred: no dev-memory gate exists; measured one-off on 2026-10-10                                                                                             |
 | SB-161 | same                                                                                  | R3-003                                                           | `docs/product/MASTER_PLAN_ES.md` (DEF-86)                                                                                                   | observability                | deferred: DEF-86 (high priority), whose next step measures a Turbopack production build                                                                         |
+| SB-162 | DEF-82 C1 (`workstream/fix-def-82-saga-terminal`, dfbe4530)                           | R3-create-after-missing-is-not-atomic-with-the-existence-check   | `apps/api/src/saga/SagaManagerExecution.ts` (`persistSagaInstance`, create path)                                                            | concurrency                  | deferred: SMELL-73 (row claims); a first-start collision raises P2002, it overwrites nothing                                                                    |
+| SB-163 | same                                                                                  | R3-walk-defensive-transition-refuses-failed-rows                 | `apps/api/src/saga/SagaManagerExecution.ts` (`walkCompensation` entry)                                                                      | contract guard               | deferred: a direct walk on FAILED ends in a typed 409, logged and counted                                                                                       |
+| SB-164 | DEF-82 C4 (`workstream/fix-def-82-saga-terminal`, 0776c818)                           | R4-001 (WARNING)                                                 | `.github/workflows/ci.yml` (`!cancelled()` on the API, workers and live steps)                                                              | evidence after failure       | justified: parity with `e1dc24f0` run-tests.sh:446-459, which ran the live tier after a failed one                                                              |
+| SB-165 | same                                                                                  | R3-001 (WARNING)                                                 | `.github/workflows/ci.yml` (services-tier step env)                                                                                         | env symmetry                 | justified: job env sets both URLs (ci.yml:338-339); a live path under pr-integration exits 2                                                                    |
+| SB-166 | same                                                                                  | R4-002                                                           | `apps/api/scripts/run-tests.sh` (path-filter refusal)                                                                                       | error wording                | deferred: the refusal already names which tier collects each suffix                                                                                             |
 
 ## Entries — code and prose
 
@@ -839,6 +844,46 @@
 - **Suggestion:** add a production-build boot check or a Sentry-init test.
 - **Why deferred:** it is DEF-86, registered with high priority in this same unit; its next step measures whether Sentry initializes in a Turbopack production build, which already ran on Turbopack before this change.
 - **To implement:** DEF-86.
+
+### SB-162 — a first-time create can lose a race as P2002 instead of the typed refusal
+
+- **Source:** the native review of DEF-82's first commit (`workstream/fix-def-82-saga-terminal`, `dfbe4530`), finding `R3-create-after-missing-is-not-atomic-with-the-existence-check`.
+- **Location:** `apps/api/src/saga/SagaManagerExecution.ts`, the create path of `persistSagaInstance`.
+- **Suggestion:** make the missing-row branch atomic (a conditional insert re-checked by a read), so a concurrent create of the same id surfaces as `SagaRowTerminalError` rather than Prisma's P2002.
+- **Why deferred:** the branch runs only on a saga's first write, and saga ids are chosen by the engine that starts the saga, so two engines creating one id at once is the multi-replica case SMELL-73 owns (row claims). Losing that race raises P2002, which fails the pass through the generic path and overwrites nothing; the defect DEF-82 fixes, a terminal row being overwritten, cannot happen through it.
+- **To implement:** with SMELL-73's row claims, which serialise the first write as well.
+
+### SB-163 — the walk's entry does not refuse a FAILED saga by itself
+
+- **Source:** the same review, finding `R3-walk-defensive-transition-refuses-failed-rows`.
+- **Location:** `apps/api/src/saga/SagaManagerExecution.ts`, the defensive transition at the entry of `walkCompensation`.
+- **Suggestion:** add a guard that refuses a FAILED entry explicitly, so the walk's contract (only `beginCompensation` reopens FAILED) is observable at the walk itself.
+- **Why deferred:** the walk's only callers reach it through `beginCompensation`, which reopens FAILED explicitly, or with a COMPENSATING row; a direct walk on FAILED now ends in the typed 409 refusal, which the walk logs and counts like its own terminal branch. No row is overwritten, and no caller does this today.
+- **To implement:** a guard and a unit case, if a second caller of the walk is ever added.
+
+### SB-164 — the live tier runs after a failed services tier
+
+- **Source:** the native review of DEF-82's fourth commit (`workstream/fix-def-82-saga-terminal`, `0776c818`), finding `R4-001` (WARNING).
+- **Location:** `.github/workflows/ci.yml`, `if: ${{ !cancelled() }}` on the API start, the workers start and the live-tier step.
+- **Suggestion:** gate those steps on `success()`, so a services failure that left bad database or Redis state does not produce live-tier evidence on top of it.
+- **Why justified:** it keeps the behaviour the job had before this change. Measured on `e1dc24f0`, `run-tests.sh` ran the services batches and then the live batches in one run (lines 446-459), aggregating failures and exiting at the end, so a services failure was always followed by the live tier against the same database. Each tier now has its own step and verdict, so the cause stays first in the log, and the job fails either way.
+- **To implement:** nothing, unless contaminated live-tier evidence is ever observed after a services failure.
+
+### SB-165 — the services-tier step carries no live-tier URLs of its own
+
+- **Source:** the same review, finding `R3-001` (WARNING).
+- **Location:** `.github/workflows/ci.yml`, the env of the new services-tier step.
+- **Suggestion:** state the asymmetry with the live-tier step, or give the services step the same URLs.
+- **Why justified:** the reviewer marks it as not a defect, and both premises are measured otherwise. The job-level `env` sets `TEST_API_URL` and `TEST_WORKERS_READY_URL` for every step (`ci.yml:338-339`), and `run-tests.sh` refuses a `*.live.test.ts` path under `TIER=pr-integration` with exit 2 before any probe runs.
+- **To implement:** nothing.
+
+### SB-166 — the path-filter refusal under the live tier could name the tier more directly
+
+- **Source:** the same review, finding `R4-002`.
+- **Location:** `apps/api/scripts/run-tests.sh`, the path-filter refusal.
+- **Suggestion:** distinguish "this file exists but this TIER does not collect it" from "this path is unknown" in the message.
+- **Why deferred:** the refusal is already exit 2, before any suite runs, and its message names which tier collects each suffix (`*.integration.test.ts` under the services tier, `*.live.test.ts` under a TIER that runs the live tier). The suggestion changes wording only.
+- **To implement:** a message branch on the file's existence, with a case in `runTestsGate.behavior.test.ts`.
 
 ## Entries — tests
 
