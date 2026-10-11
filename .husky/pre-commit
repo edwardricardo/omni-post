@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Pre-commit hook — defense-in-depth for secrets + lint + format.
+# Pre-commit hook — defense-in-depth for secrets + lint + format + JSDoc.
 #
 # Order matters:
 #   1. gitleaks scans STAGED diff before any other tool runs (catches secrets
 #      before they enter local git history). Graceful skip when binary is not
 #      installed — CI still hard-fails so dev onboarding is not blocked.
-#   2. lint-staged runs the file-glob pipelines: eslint --fix, prettier
-#      --write, secretlint over staged files.
+#   2. lint-staged runs the file-glob pipelines over the staged files: eslint
+#      --fix, prettier --write, then the JSDoc gate
+#      (scripts/testing/jsdoc-touched-gate.mjs, which checks each in-scope
+#      .ts/.tsx file whole against eslint.jsdoc.config.ts), and secretlint.
 
 set -e
 
@@ -19,9 +21,9 @@ case ":$PATH:" in
   *) export PATH="$HOME/.local/bin:$PATH" ;;
 esac
 
-# lint-staged (eslint --fix + prettier over the staged set) exceeds Node's
-# default old-space heap on memory-capped dev environments (LXC). Raise it
-# here unless the caller already set NODE_OPTIONS.
+# lint-staged (eslint --fix, prettier and the JSDoc gate over the staged set)
+# exceeds Node's default old-space heap on memory-capped dev environments
+# (LXC). Raise it here unless the caller already set NODE_OPTIONS.
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=6144}"
 
 if command -v gitleaks >/dev/null 2>&1; then

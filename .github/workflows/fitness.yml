@@ -1975,3 +1975,23 @@ jobs:
             echo "::error title=Fitness #46 violation::A support document breaks the template, a generated support page is stale, or a tree candidate is unclassified. Run pnpm support:index, classify every new candidate in docs/support/classification/non-features.json (documented with its doc, non-feature with its reason, or pending within the baseline), and commit the regenerated pages with the change that moved them. The support-docs lines above name each problem with its generator."
             exit 1
           fi
+
+      - name: "#47 Every touched source file carries the canon's method-level JSDoc (pull_request only)"
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        env:
+          FITNESS_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Mirrors CLAUDE.md #47. scripts/testing/jsdoc-touched-gate.mjs lints, with
+          # eslint.jsdoc.config.ts, every .ts/.tsx source file under apps/ and packages/ that this
+          # pull request adds or modifies against its base (the merge base of the base sha and HEAD),
+          # the whole file; a file the pull request does not touch is never read. A violation exits
+          # 1; a base or scope it cannot resolve exits 2. pull_request only, like #37: a push run has
+          # no base. Same job as #45 and #46 because ESLint needs the installed tree. The checkout is
+          # shallow, so the script fetches the base and deepens the clone itself, with bounded
+          # retries. Pinned by apps/api/tests/unit/scripts/jsdocRules.test.ts (the rules) and
+          # jsdocTouchedGate.test.ts (the gate).
+          set -euo pipefail
+          if ! JSDOC_BASE_REF="${FITNESS_BASE_REF:-origin/main}" pnpm check:jsdoc; then
+            echo "::error title=Fitness #47 violation::A source file this pull request adds or modifies breaks the method-level JSDoc rules of CODING_STANDARDS §Documentation, or the gate could not resolve its base. The jsdoc-touched-gate lines above name each file:line, rule and message. Document the whole file (an eslint-disable directive does not exempt it) and run pnpm check:jsdoc locally."
+            exit 1
+          fi

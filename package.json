@@ -105,7 +105,8 @@
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
       "eslint --fix",
-      "prettier --write"
+      "prettier --write",
+      "node scripts/testing/jsdoc-touched-gate.mjs"
     ],
     "*.{json,md,yaml,yml}": [
       "prettier --write"

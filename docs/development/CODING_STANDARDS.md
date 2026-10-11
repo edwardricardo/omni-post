@@ -347,6 +347,8 @@ Every public class method gets:
  */
 ```
 
+**Enforced on every file a change touches.** `pnpm check:jsdoc` (`scripts/testing/jsdoc-touched-gate.mjs`, with its rules in `eslint.jsdoc.config.ts`) holds each `.ts` and `.tsx` source file under `apps/` and `packages/` that a change adds or modifies to zero violations, across the whole file and not only the edited lines. A public method of an exported class gets the block above. An exported function gets the same block without `@method`. `@returns` is left out when the function returns nothing. A React component in `apps/admin`, `apps/client` or `packages/ui` needs a description only, in its body or in `@description`, because its props are documented on the props interface. Tests, specs, stories, declaration files and generated code are out of scope. It runs in lint-staged on the staged files, as the battery step `jsdoc` against the merge base with `origin/main`, and in CI as fitness #47 against the pull request's base. An `eslint-disable` directive does not exempt a file. A file no change touches is not checked, and `pnpm lint` does not load these rules. At the end of the current plan, a reconciliation, `pnpm check:jsdoc --all`, lists every file still in violation with its count.
+
 ### @layer Standard Values
 
 **Use exactly these three values — no variations, no new values. The rule applies to every `.ts` and `.tsx` file in `apps/` and `packages/`, including tests, frontend components, hooks, pages, UI primitives, config files, and barrel exports. No exceptions.**
@@ -471,4 +473,4 @@ Adding or amending coding rules:
 
 Companion fitness checks live in `CLAUDE.md §Automated Compliance Checks`:
 
-- `#3` no `any` in domain/app/infra · `#4` no raw throws in domain/app · `#5` no `@ts-ignore` · `#8` no sprint/phase refs · `#9` @file header coverage · `#10` valid @layer values · `#12` @component on React components.
+- `#3` no `any` in domain/app/infra · `#4` no raw throws in domain/app · `#5` no `@ts-ignore` · `#8` no sprint/phase refs · `#9` @file header coverage · `#10` valid @layer values · `#12` @component on React components · `#47` method-level JSDoc on every touched file (`pnpm check:jsdoc`).
