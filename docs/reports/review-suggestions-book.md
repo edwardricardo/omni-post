@@ -177,6 +177,9 @@
 | SB-156 | Phase 1 U8 (`workstream/phase1-u8-3`, a3dac768)                                       | R3-suffix-regex-missed-cases                                     | `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts` (saga files)                                                                | test scope                   | deferred: fitness #30 reads every file under apps/api/tests whatever its name                                                                                   |
 | SB-157 | Fix DEF-83 (`workstream/fix-def-83-test-stdout`, 20ccdebb)                            | R3-no-regression-assertion                                       | `docs/architecture/TESTING.md` (the stderr rule)                                                                                            | regression guard             | deferred: Master Plan DEF-83 follow-up 2, a lint rule or fitness check                                                                                          |
 | SB-158 | same                                                                                  | R3-remaining-stdout-warn (WARNING)                               | `apps/api/tests/providerRegistry.live.test.ts:49`                                                                                           | stream choice                | justified: `console.warn` writes to stderr (measured: 0 bytes on stdout, 12 on stderr)                                                                          |
+| SB-159 | Turbopack dev (`workstream/dev-turbopack`, bb5b6f2e)                                  | R3-001                                                           | `apps/admin/next.config.mjs`, `apps/client/next.config.mjs` (`agentRules`)                                                                  | regression guard             | deferred: DEF-88's proposed gate on stray `.md` files under `apps/` and `packages/`                                                                             |
+| SB-160 | same                                                                                  | R3-002                                                           | `apps/admin/package.json`, `apps/client/package.json` (`dev`)                                                                               | dev memory                   | deferred: no dev-memory gate exists; measured one-off on 2026-10-10                                                                                             |
+| SB-161 | same                                                                                  | R3-003                                                           | `docs/product/MASTER_PLAN_ES.md` (DEF-86)                                                                                                   | observability                | deferred: DEF-86 (high priority), whose next step measures a Turbopack production build                                                                         |
 
 ## Entries — code and prose
 
@@ -812,6 +815,30 @@
 - **Suggestion:** report an import whose mapped `client` or `ssr` environment is not registered as an error, instead of skipping it before `checked` is counted.
 - **Why deferred:** measured on 2026-10-10, every one of the 92 tracked vitest configs registers both environments for each of its projects, so no import is skipped today; and the 800-import floor fails the gate if a large share ever is.
 - **To implement:** push an error naming the config and the missing environment, with a planted config that drops one.
+
+### SB-159 — nothing automated proves `agentRules: false` keeps agent files out of the apps
+
+- **Source:** the native review of the Turbopack dev unit (`workstream/dev-turbopack`, `bb5b6f2e`), finding `R3-001`.
+- **Location:** `apps/admin/next.config.mjs` and `apps/client/next.config.mjs`, the `agentRules` key.
+- **Suggestion:** add a check that fails if `AGENTS.md` or `CLAUDE.md` reappear under an app after `next dev`.
+- **Why deferred:** the effect was proven by hand on two scratch apps identical but for the flag (`true` wrote both files, `false` wrote none), and Next validates the key in `config-schema.js`. A gate on stray `.md` files under `apps/` and `packages/` is DEF-88's proposed fix, which covers this case and more.
+- **To implement:** DEF-88's gate, with its red proved.
+
+### SB-160 — no check catches a return of Turbopack's dev memory to the June profile
+
+- **Source:** the same review, finding `R3-002`.
+- **Location:** `apps/admin/package.json` and `apps/client/package.json`, the `dev` scripts.
+- **Suggestion:** add a dev-boot probe or an RSS check, so a regression to the 2026-06-19 out-of-memory profile is caught.
+- **Why deferred:** no gate measures dev-server memory today, with either bundler; `next dev` runs in no CI job or battery step. The measurement of 2026-10-10 (admin 985 MiB, client 1149 MiB on the first page, on an 18 GB box) is recorded in SMELL-52 and the Master Plan.
+- **To implement:** a dev-boot probe, if dev memory becomes a recurring problem again.
+
+### SB-161 — the Sentry initialization of a Turbopack build is not asserted
+
+- **Source:** the same review, finding `R3-003`.
+- **Location:** `docs/product/MASTER_PLAN_ES.md`, DEF-86.
+- **Suggestion:** add a production-build boot check or a Sentry-init test.
+- **Why deferred:** it is DEF-86, registered with high priority in this same unit; its next step measures whether Sentry initializes in a Turbopack production build, which already ran on Turbopack before this change.
+- **To implement:** DEF-86.
 
 ## Entries — tests
 
