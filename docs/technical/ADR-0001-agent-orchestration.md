@@ -140,6 +140,27 @@ an answer.
 
 The section records what changed for support; it is not marketing copy.
 
+## Deployment impact
+
+Every ADR states what the decision changes for the people who deploy the platform, in this
+position, after Support impact. Write one line per row of `docs/deployment/DEPLOYMENT_CHECKLIST.md`
+the decision adds, changes or removes, in this fixed form:
+
+`docs/deployment/DEPLOYMENT_CHECKLIST.md — added|updated|removed: <row>`
+
+When the decision changes nothing an operator configures or verifies, write
+`none — <one-line reason>`; silence is not an answer.
+
+- **Repository configuration**: which GitHub variables or secrets a workflow starts or stops
+  reading.
+- **Runtime configuration**: which variables an env schema or a Dockerfile `ARG` adds, removes or
+  makes required.
+- **External services**: which accounts, keys, webhooks or OAuth redirect URIs an operator creates
+  or changes.
+- **Post-deployment checks**: which verification is added, changed or retired.
+
+The section records what changed for deployment; it is not a runbook.
+
 ## Revisit if
 
 If LangGraph's engine-state model fights the `Result` contract or TypeScript

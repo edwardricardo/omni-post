@@ -13,3 +13,7 @@
 ## Support impact
 
 <One line per support document whose `paths` this change touches, `docs/support/<feature>.md — updated: <sections> → verified <sha>`, or `none for <feature> — <reason>`.>
+
+## Deployment impact
+
+<One line per deployment requirement this change adds, changes or removes (a variable or secret a workflow reads, a runtime variable, an external account, a post-deployment check), `docs/deployment/DEPLOYMENT_CHECKLIST.md — added|updated|removed: <row>`, or `none — <reason>`.>
