@@ -38,6 +38,7 @@ import { deserializeSagaInstanceRow } from "../../../src/saga/sagaInstanceRow.js
 import {
   createMockEventService,
   createMockPrisma,
+  interceptRowWrites,
   createMockRedis,
   type MockEventService,
   type MockPrismaClient,
@@ -124,7 +125,7 @@ interface OutcomeHarness {
   step: ScriptedRetryableStep;
   row: (sagaId: string) => Promise<StoredRow | null>;
   /**
-   * Makes upserts that would write `status` throw, after letting `spare` of
+   * Makes row writes that would write `status` throw, after letting `spare` of
    * them through — a pass writes its own RUNNING before it re-arms, so the
    * re-arm is only reachable by sparing the first.
    */
@@ -166,17 +167,12 @@ function createOutcomeHarness(options: {
   // sixty times per saga.
   let failWritesOfStatus: string | undefined;
   let writesToSpare = 0;
-  const realUpsert = prisma.sagaInstance.upsert.bind(prisma.sagaInstance);
-  prisma.sagaInstance.upsert = async (args: {
-    where: { id: string };
-    create?: { status?: string };
-  }): Promise<unknown> => {
-    if (failWritesOfStatus !== undefined && args.create?.status === failWritesOfStatus) {
+  interceptRowWrites(prisma.sagaInstance, (data) => {
+    if (failWritesOfStatus !== undefined && data.status === failWritesOfStatus) {
       if (writesToSpare > 0) writesToSpare--;
       else throw new Error("the database refused the write");
     }
-    return await realUpsert(args);
-  };
+  });
 
   const definition = defineSaga({
     id: DEFINITION_ID,

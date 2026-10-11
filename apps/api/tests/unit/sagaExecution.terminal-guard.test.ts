@@ -14,6 +14,7 @@ import {
   createSimpleSagaDefinition,
   SuccessfulStep,
   FailingStep,
+  sagaRowWrites,
 } from "./sagaManager.test-helpers.js";
 import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 
@@ -21,7 +22,9 @@ const scheduler = new NoopBackgroundTaskScheduler();
 
 /**
  * Extended mock Prisma that includes sagaInstance model methods
- * needed by persistSagaInstance, loadActiveSagas, and loadSagaInstance.
+ * needed by persistSagaInstance, loadActiveSagas, and loadSagaInstance. The
+ * writes are the shared compare-and-swap model, so this double refuses a write
+ * over a terminal row exactly as the database does.
  */
 function createMockPrismaWithSagaInstance() {
   const store = new Map<string, Record<string, unknown>>();
@@ -33,19 +36,15 @@ function createMockPrismaWithSagaInstance() {
       $executeRaw: async () => 1,
       $transaction: async <T>(fn: (innerTx: Tx) => Promise<T>) => fn(tx),
       sagaInstance: {
-        upsert: async (args: {
-          where: { id: string };
-          create: Record<string, unknown>;
-          update: Record<string, unknown>;
-        }) => {
-          const existing = store.get(args.where.id);
-          if (existing) {
-            const updated = { ...existing, ...args.update };
-            store.set(args.where.id, updated);
-            return updated;
-          }
-          store.set(args.where.id, args.create);
-          return args.create;
+        ...sagaRowWrites(store),
+        // The boot load counts the rows it pages, and the COMPENSATING ones apart; without
+        // this every boot here ended in a caught load failure.
+        count: async (args?: { where?: { status?: string | { in?: string[] } } }) => {
+          const status = args?.where?.status;
+          const wanted = typeof status === "string" ? [status] : status?.in;
+          return Array.from(store.values()).filter(
+            (row) => wanted === undefined || wanted.includes(String(row.status))
+          ).length;
         },
         findMany: async () => {
           return Array.from(store.values());

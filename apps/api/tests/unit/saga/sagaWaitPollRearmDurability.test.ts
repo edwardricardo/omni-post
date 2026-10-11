@@ -35,6 +35,7 @@ import { logger } from "../../../src/lib/logger.js";
 import {
   createMockEventService,
   createMockPrisma,
+  interceptRowWrites,
   createMockRedis,
   type MockPrismaClient,
 } from "../sagaManager.test-helpers.js";
@@ -121,12 +122,8 @@ function createRearmHarness(): RearmHarness {
 
   let armingWritesToRefuse = 0;
   let armingWritesToSpare = 0;
-  const realUpsert = prisma.sagaInstance.upsert.bind(prisma.sagaInstance);
-  prisma.sagaInstance.upsert = async (args: {
-    where: { id: string };
-    create?: { nextRetryAt?: Date };
-  }): Promise<unknown> => {
-    if (armingWritesToRefuse > 0 && args.create?.nextRetryAt instanceof Date) {
+  interceptRowWrites(prisma.sagaInstance, (data) => {
+    if (armingWritesToRefuse > 0 && data.nextRetryAt instanceof Date) {
       if (armingWritesToSpare > 0) {
         armingWritesToSpare--;
       } else {
@@ -134,8 +131,7 @@ function createRearmHarness(): RearmHarness {
         throw new Error("the database refused the write");
       }
     }
-    return await realUpsert(args);
-  };
+  });
 
   const definition: SagaDefinition = defineSaga({
     id: DEFINITION_ID,

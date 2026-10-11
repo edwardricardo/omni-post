@@ -39,7 +39,7 @@ import {
 } from "../metrics/sagaRecoveryMetrics.js";
 import { captureError } from "../observability/sentryInit.js";
 import { logger } from "../lib/logger.js";
-import { AppError } from "../lib/errors/AppError.js";
+import { AppError, ConflictError } from "../lib/errors/AppError.js";
 
 /** The three states the saga canon accepts as an ending. */
 const TERMINAL_SAGA_STATUSES: ReadonlyArray<SagaInstance["status"]> = [
@@ -47,6 +47,27 @@ const TERMINAL_SAGA_STATUSES: ReadonlyArray<SagaInstance["status"]> = [
   "FAILED",
   "COMPENSATED",
 ];
+
+/**
+ * A saga state write the database refused, because the row holds a status the write may not
+ * replace: an ending another advancer reached first.
+ *
+ * Its own class so a caller can tell it from a write that FAILED. Nothing is wrong with the
+ * database, the copy that tried to write is simply stale, and the only correct answer is to stop.
+ * A conflict, because that is what the operator door returns when it loses the same race.
+ */
+class SagaRowTerminalError extends ConflictError {
+  constructor(
+    readonly sagaId: string,
+    readonly persistedStatus: string
+  ) {
+    super(
+      `Saga '${sagaId}' holds ${persistedStatus}, which this write may not replace: another ` +
+        "advancer ended it first",
+      { sagaId, persistedStatus }
+    );
+  }
+}
 
 /**
  * How long a step that has NOT finished waits before the engine asks it again.
@@ -696,7 +717,7 @@ export class SagaExecutionEngine {
    *   holds, so the extra attempt is spent only where the loss is durable.
    *
    *   Repeating the write is safe rather than merely tolerable: the re-arm
-   *   carries no events, so the second attempt is the same idempotent upsert
+   *   carries no events, so the second attempt is the same idempotent write
    *   and not a second append. It is deliberately immediate and bounded to one
    *   — it exists for the write-scoped failures (a serialization conflict with
    *   the HTTP layer, a momentarily exhausted pool), and a database that is
@@ -800,10 +821,31 @@ export class SagaExecutionEngine {
    *   checker-owned branch, so no reader can convert a compensation into a
    *   forward retry. Runs inside the saga's rehydrated tenant scope, which the
    *   caller has already bound.
+   *
+   *   It is also the ONE transition that leaves an ending, and only from FAILED: the operator
+   *   door hands it a FAILED saga to roll back, and that is the only caller whose copy says so.
+   *   The forward path hands it a RUNNING one, so it can never reopen anything, and the walk's
+   *   defensive transition goes through {@link enterCompensation} with no reopening at all.
    * @param instance - The saga entering compensation.
    * @param error - The failure that triggered it, when there is one.
    */
   async beginCompensation(instance: SagaInstance, error?: string): Promise<void> {
+    await this.enterCompensation(instance, error, instance.status === "FAILED");
+  }
+
+  /**
+   * The compensation transition itself.
+   *
+   * @param instance - The saga entering compensation.
+   * @param error - The failure that triggered it, when there is one.
+   * @param reopensFailed - Whether the write may replace a FAILED row. Every other ending stays
+   *   refused either way.
+   */
+  private async enterCompensation(
+    instance: SagaInstance,
+    error: string | undefined,
+    reopensFailed: boolean
+  ): Promise<void> {
     instance.status = "COMPENSATING";
     if (error !== undefined) {
       instance.error = error;
@@ -827,7 +869,11 @@ export class SagaExecutionEngine {
       }
     );
 
-    await this.persistSagaInstance(instance, [compensationStartedEvent]);
+    await this.persistSagaInstance(
+      instance,
+      [compensationStartedEvent],
+      reopensFailed ? "FAILED" : undefined
+    );
   }
 
   /**
@@ -1061,7 +1107,7 @@ export class SagaExecutionEngine {
     // walk never starts from a row whose persisted status still says the saga
     // is moving forward, whichever door it came through.
     if (instance.status !== "COMPENSATING") {
-      await this.beginCompensation(instance);
+      await this.enterCompensation(instance, undefined, false);
     }
 
     const eligible: {
@@ -1414,65 +1460,71 @@ export class SagaExecutionEngine {
    * @param accountId - The owning account, resolved by the caller. Not nullable:
    *   a saga with no resolvable account is refused before a transaction opens.
    * @param events - Durable events committing with the state.
+   * @param reopens - The one ending this write may replace, when the caller is the transition
+   *   that leaves it.
+   * @returns `null` once the row is written, or the status that refused the write.
    */
   private async writeSagaState(
     tx: SagaTransactionClient,
     instance: SagaInstance,
     accountId: string,
-    events: EventStoreEvent[]
-  ): Promise<void> {
-    const contextJson = JSON.parse(JSON.stringify(instance.context));
-    const stepResultsJson = JSON.parse(JSON.stringify(instance.stepResults));
-    const compensationResultsJson = JSON.parse(JSON.stringify(instance.compensationResults));
+    events: EventStoreEvent[],
+    reopens?: "FAILED"
+  ): Promise<string | null> {
+    const columns = {
+      definitionId: instance.definitionId,
+      status: instance.status,
+      currentStep: instance.currentStep,
+      context: JSON.parse(JSON.stringify(instance.context)),
+      stepResults: JSON.parse(JSON.stringify(instance.stepResults)),
+      compensationResults: JSON.parse(JSON.stringify(instance.compensationResults)),
+      retryCount: instance.retryCount,
+      startedAt: instance.startedAt,
+      ...(instance.error !== undefined && { error: instance.error }),
+      accountId,
+      ...(instance.completedAt && { completedAt: instance.completedAt }),
+    };
 
-    // The update path explicitly null-clears nextRetryAt when the in-memory
-    // value is undefined, so a successful step (or saga completion) wipes the
-    // pending retry marker instead of leaving the checker to claim it again.
-    await tx.sagaInstance.upsert({
-      where: { id: instance.id },
-      create: {
-        id: instance.id,
-        definitionId: instance.definitionId,
-        status: instance.status,
-        currentStep: instance.currentStep,
-        context: contextJson,
-        stepResults: stepResultsJson,
-        compensationResults: compensationResultsJson,
-        retryCount: instance.retryCount,
-        startedAt: instance.startedAt,
-        ...(instance.error !== undefined && { error: instance.error }),
-        accountId,
-        ...(instance.completedAt && { completedAt: instance.completedAt }),
-        ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt }),
-      },
-      update: {
-        definitionId: instance.definitionId,
-        status: instance.status,
-        currentStep: instance.currentStep,
-        context: contextJson,
-        stepResults: stepResultsJson,
-        compensationResults: compensationResultsJson,
-        retryCount: instance.retryCount,
-        startedAt: instance.startedAt,
-        ...(instance.error !== undefined && { error: instance.error }),
-        accountId,
-        ...(instance.completedAt && { completedAt: instance.completedAt }),
-        nextRetryAt: instance.nextRetryAt ?? null,
-      },
+    // A compare-and-swap, not an upsert. The status filter is re-evaluated against the row as
+    // it stands when the update takes its lock, so a copy that went stale while its step ran
+    // matches nothing once another advancer has written an ending, and the count is the
+    // verdict. The update null-clears nextRetryAt when the copy carries none, so a successful
+    // step (or the saga's completion) wipes the pending retry marker instead of leaving the
+    // checker to claim it again.
+    const refusing = TERMINAL_SAGA_STATUSES.filter((status) => status !== reopens);
+    const { count } = await tx.sagaInstance.updateMany({
+      where: { id: instance.id, status: { notIn: [...refusing] } },
+      data: { ...columns, nextRetryAt: instance.nextRetryAt ?? null },
     });
+    if (count === 0) {
+      const existing = await tx.sagaInstance.findUnique({
+        where: { id: instance.id },
+        select: { status: true },
+      });
+      if (existing !== null) return existing.status;
+      await tx.sagaInstance.create({
+        data: {
+          id: instance.id,
+          ...columns,
+          ...(instance.nextRetryAt && { nextRetryAt: instance.nextRetryAt }),
+        },
+      });
+    }
 
     for (const event of events) {
       // eventService is guaranteed present during saga execution (only
       // reachable after initialize(), which requires a full config).
       await this.config.eventService!.appendEventInTx(tx, event);
     }
+    return null;
   }
 
   /**
    * Dual-write persistence: PostgreSQL (durable) + Redis (hot cache).
    *
    * Strategy:
-   *  - PostgreSQL is the **source of truth** via Prisma `upsert`.
+   *  - PostgreSQL is the **source of truth**, written by a compare-and-swap that
+   *    never replaces a terminal row; a new saga's row is created.
    *  - Redis is a **best-effort hot cache** via `setex` with 24h TTL.
    *  - Both writes run in parallel (`Promise.allSettled`).
    *  - A Redis failure is logged as a warning but does NOT reject the promise,
@@ -1485,11 +1537,18 @@ export class SagaExecutionEngine {
    *
    * @param instance - The saga instance to persist
    * @param events - Durable events committing in the same transaction.
+   * @param reopens - The one ending the write may replace; see {@link beginCompensation}.
    * @throws AppError conflict when the persisted account contradicts the saga
    *   context, and AppError internal when no owning account resolves at all —
    *   both before any transaction opens, so a refused persist writes nothing.
+   * @throws SagaRowTerminalError when the row already holds an ending: nothing is
+   *   written, no event is appended and nothing is cached or broadcast.
    */
-  async persistSagaInstance(instance: SagaInstance, events: EventStoreEvent[] = []): Promise<void> {
+  async persistSagaInstance(
+    instance: SagaInstance,
+    events: EventStoreEvent[] = [],
+    reopens?: "FAILED"
+  ): Promise<void> {
     const key = `saga:${instance.id}`;
     const serialized = JSON.stringify({
       ...instance,
@@ -1530,19 +1589,23 @@ export class SagaExecutionEngine {
     const accountId = resolution.accountId;
 
     // Atomicity gate: saga state + durable event log commit together. Without
-    // the wrapping transaction, a Postgres lag between sagaInstance.upsert
+    // the wrapping transaction, a Postgres lag between the saga row write
     // and eventStore.append could leave the saga advanced but its audit
     // event missing — OWASP A09 (Logging Failures) gap. The transaction also
     // binds the account scope as its first statement, so the row-level policies
     // govern the same rows the Prisma guard narrowed.
+    let refusedBy: string | null;
     try {
-      await runSagaTenantTransaction(this.config.prisma, accountId, (tx) =>
-        this.writeSagaState(tx, instance, accountId, events)
+      refusedBy = await runSagaTenantTransaction(this.config.prisma, accountId, (tx) =>
+        this.writeSagaState(tx, instance, accountId, events, reopens)
       );
     } catch (err: unknown) {
       captureError(err, { sagaId: instance.id, operation: "persistSagaInstance" });
       logger.error({ err, sagaId: instance.id }, "Failed to persist saga to PostgreSQL");
       throw err;
+    }
+    if (refusedBy !== null) {
+      throw new SagaRowTerminalError(instance.id, refusedBy);
     }
 
     // Best-effort post-commit work — Redis cache + pub/sub broadcast. Failures

@@ -18,6 +18,7 @@ import type { QueuePort, QueueJob, QueueHealth } from "@ports/core";
 import type { Result } from "@shared/types";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
+import { sagaRowWrites, type SagaRowWrites } from "./sagaManager.test-helpers.js";
 
 export const TEST_CUSTOMER_ID = "11111111-1111-4111-8111-111111111111";
 export const TEST_ACCOUNT_ID = "22222222-2222-4222-8222-222222222222";
@@ -88,8 +89,7 @@ export interface MockPrisma {
   $queryRaw: (query: any) => Promise<any>;
   $executeRaw: (query: any) => Promise<any>;
   $transaction: <T>(fn: (tx: MockPrisma) => Promise<T>) => Promise<T>;
-  sagaInstance: {
-    upsert: (args: any) => Promise<any>;
+  sagaInstance: SagaRowWrites & {
     /** The boot load counts before it pages, so it can report what it deferred. */
     count: (args?: any) => Promise<number>;
     findMany: (args?: any) => Promise<any[]>;
@@ -123,11 +123,9 @@ export function createMockPrisma(): MockPrisma {
     $executeRaw: async () => 1,
     $transaction: async <T>(fn: (tx: MockPrisma) => Promise<T>) => fn(mock),
     sagaInstance: {
-      upsert: async (args: any) => {
-        const data = args.create ?? args.update;
-        store.set(args.where.id, data);
-        return data;
-      },
+      // The engine's compare-and-swap and its create of a new row, modelled once for every
+      // saga double.
+      ...sagaRowWrites(store),
       // The boot load counts twice inside its ONE read boundary: the rows it
       // is about to page, and the COMPENSATING rows it deliberately never
       // loads. Routed by the predicate so the two cannot be confused.
