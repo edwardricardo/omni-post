@@ -456,7 +456,7 @@ function delegateReachedFromSystemBoundary(sources: SagaSource[], delegateName: 
  */
 const SANCTIONED_SYSTEM_WRITE = {
   label: "src/saga/sagaTenant.ts",
-  what: "sagaInstance.update",
+  what: "sagaInstance.updateMany",
 } as const;
 
 /**
@@ -603,7 +603,7 @@ const KNOWN_ENGINE_OPERATIONS = [
   // transaction as the transition. It is the one anchor a restart loop cannot
   // reset, which is what bounds a walk that keeps failing across restarts.
   "src/saga/SagaManagerLifecycle.ts::storedEvent.findFirst",
-  "src/saga/sagaTenant.ts::sagaInstance.update",
+  "src/saga/sagaTenant.ts::sagaInstance.updateMany",
 ].sort();
 
 /** Builds a scannable source from inline code, for the classifier's own controls. */

@@ -108,7 +108,11 @@ interface TransactionSpy {
   config: SagaSystemTerminationConfig;
 }
 
-function createTransactionSpy(): TransactionSpy {
+/**
+ * Builds the transaction double. `rowEnded` makes the conditional terminal write match nothing,
+ * which is what the database answers once another advancer has ended the row.
+ */
+function createTransactionSpy(options: { rowEnded?: boolean } = {}): TransactionSpy {
   const effects: string[] = [];
   const events: EventStoreEvent[] = [];
   const releasedSagaIds: string[] = [];
@@ -121,6 +125,10 @@ function createTransactionSpy(): TransactionSpy {
       update: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
         effects.push(`update:${args.where.id}:${String(args.data.status)}`);
         return args;
+      },
+      updateMany: async (args: { where: { id: string }; data: Record<string, unknown> }) => {
+        effects.push(`updateMany:${args.where.id}:${String(args.data.status)}`);
+        return { count: options.rowEnded === true ? 0 : 1 };
       },
     },
   };
@@ -463,12 +471,13 @@ describe("saga tenant module", () => {
       const spy = createTransactionSpy();
       const instance = makeInstance(makeContext(), { id: "saga-orphan", status: "RUNNING" });
 
-      await failSagaAsSystem(spy.config, instance, "unresolvable-account");
+      const written = await failSagaAsSystem(spy.config, instance, "unresolvable-account");
 
+      expect(written).toBe(true);
       expect(spy.effects).toEqual([
         "tx:open",
         `guc:${SYSTEM_SCOPE}`,
-        "update:saga-orphan:FAILED",
+        "updateMany:saga-orphan:FAILED",
         "event:saga.failed",
         "tx:commit",
       ]);
@@ -476,6 +485,29 @@ describe("saga tenant module", () => {
       expect(instance.error).toContain("unresolvable-account");
       expect(instance.completedAt).toBeInstanceOf(Date);
       expect(errorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a row that already ended as it is, with no audit event and no lock release", async () => {
+      // The caller read the row moments before, and another advancer can end it in between: the
+      // write is conditional, so the ending that advancer wrote stands.
+      const spy = createTransactionSpy({ rowEnded: true });
+      const instance = makeInstance(makeContext(), { id: "saga-ended", status: "RUNNING" });
+      const before = await durationObservations("FAILED");
+
+      const written = await failSagaAsSystem(spy.config, instance, "unresolvable-account");
+
+      expect(written).toBe(false);
+      expect(spy.effects).toEqual([
+        "tx:open",
+        `guc:${SYSTEM_SCOPE}`,
+        "updateMany:saga-ended:FAILED",
+        "tx:commit",
+      ]);
+      expect(spy.events).toEqual([]);
+      expect(spy.releasedSagaIds).toEqual([]);
+      expect(await durationObservations("FAILED")).toBe(before);
+      expect(errorSpy).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledTimes(1);
     });
 
     it("names the saga, the definition and the skip reason on the audit event", async () => {
@@ -510,7 +542,7 @@ describe("saga tenant module", () => {
 
       await failSagaAsSystem(spy.config, instance, "tenant-mismatch");
 
-      expect(spy.effects).toContain("update:saga-mismatch:FAILED");
+      expect(spy.effects).toContain("updateMany:saga-mismatch:FAILED");
       expect(instance.error).toContain("tenant-mismatch");
       expect(spy.events[0]?.data).toMatchObject({ reason: "tenant-mismatch" });
     });
@@ -565,7 +597,7 @@ describe("saga tenant module", () => {
       expect(spy.effects).toEqual([
         "tx:open",
         `guc:${SYSTEM_SCOPE}`,
-        "update:saga-nolock:FAILED",
+        "updateMany:saga-nolock:FAILED",
         "event:saga.failed",
         "tx:commit",
       ]);

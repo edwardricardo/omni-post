@@ -330,17 +330,20 @@ export type SagaSystemTerminationConfig = Pick<
  *   legitimate saga is not blocked behind a dead one until the lock TTL expires.
  *
  *   The write stays narrow by construction: three bounded operations — one
- *   `update` by primary key, one event append, one lock release — both layers
- *   bound to the system scope, and NO dispatch inside the boundary.
+ *   conditional update by primary key, one event append, one lock release —
+ *   both layers bound to the system scope, and NO dispatch inside the boundary.
+ *   The update only matches a row that has not ended, so a row another advancer
+ *   ended after the caller read it is left as it is, with no event appended.
  * @param config - The engine's client and its durable-event / lock collaborators.
  * @param instance - The saga to terminalize; its in-memory state is updated too.
  * @param reason - Why the tenant could not be resolved.
+ * @returns True once the row is FAILED, false when it already held an ending.
  */
 export async function failSagaAsSystem(
   config: SagaSystemTerminationConfig,
   instance: SagaInstance,
   reason: SagaTenantSkipReason
-): Promise<void> {
+): Promise<boolean> {
   const completedAt = new Date();
   const executionTime = completedAt.getTime() - instance.startedAt.getTime();
   const message = `Saga terminalized without a resolvable tenant: ${reason}`;
@@ -373,9 +376,9 @@ export async function failSagaAsSystem(
     }
   );
 
-  await runSagaSystemTransaction(config.prisma, async (tx) => {
-    await tx.sagaInstance.update({
-      where: { id: instance.id },
+  const written = await runSagaSystemTransaction(config.prisma, async (tx) => {
+    const { count } = await tx.sagaInstance.updateMany({
+      where: { id: instance.id, status: { notIn: ["COMPLETED", "FAILED", "COMPENSATED"] } },
       data: {
         status: "FAILED",
         completedAt,
@@ -383,6 +386,7 @@ export async function failSagaAsSystem(
         nextRetryAt: null,
       },
     });
+    if (count === 0) return false;
     // eventService is guaranteed present wherever this runs. The reachability is
     // wider than one loop — every dispatcher can arrive here, because the horizon
     // check that leads to this write is asked by whoever is about to advance a
@@ -393,7 +397,17 @@ export async function failSagaAsSystem(
     // ANOMALOUS transition skip its audit event silently while the ordinary one
     // throws.
     await config.eventService!.appendEventInTx(tx, sagaFailedEvent);
+    return true;
   });
+
+  if (!written) {
+    logger.warn(
+      { sagaId: instance.id, definitionId: instance.definitionId, reason },
+      "Left a saga unterminalized: its row already holds an ending or no longer exists, and a " +
+        "terminal row is never overwritten"
+    );
+    return false;
+  }
 
   // After the commit, exactly like the ordinary terminal path: a lifetime is
   // observed only for a row that really ended. This ending is the anomalous one,
@@ -420,4 +434,5 @@ export async function failSagaAsSystem(
     },
     "Terminalized a saga whose owning account could not be resolved"
   );
+  return true;
 }
