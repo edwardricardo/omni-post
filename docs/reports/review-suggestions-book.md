@@ -201,6 +201,8 @@
 | SB-180 | same                                                                                  | R2-001                                                           | `CLAUDE.md` (#47 block)                                                                                                                     | duplication                  | deferred: every fitness block restates its threat and scope; the config and the script are the source                                                           |
 | SB-181 | same                                                                                  | R2-002                                                           | `docs/development/TESTING_REFOUNDATION.md` (Gates row)                                                                                      | cell structure               | deferred: a table cell; bold labels per proof are a formatting choice                                                                                           |
 | SB-182 | same                                                                                  | R2-003                                                           | `docs/product/MASTER_PLAN_ES.md` (N-CI-5)                                                                                                   | bullet structure             | deferred: the plan's bullets are prose; the counts repeat in N-CI-6                                                                                             |
+| SB-183 | stdout guard (`workstream/stdout-ascii-guard-v2`, 0ca6d2ca)                           | R3-alias-flow-insensitivity                                      | `packages/eslint-plugin-testing/src/rules/no-stdout-in-node-test.js:193-198` (`kindOf`)                                                     | alias precision              | deferred: the tree's only aliases are four `const` bindings, each written once and never called; a flow-sensitive tracker is a later refinement                 |
+| SB-184 | same                                                                                  | R3-glob-extension-scope                                          | `eslint.config.ts:290` (the rule's `apps/api/tests/**/*.ts` binding)                                                                        | file glob                    | deferred: `run-tests.sh` collects only `.ts` suites, and no other script extension exists under `apps/api/tests`                                                |
 
 ## Entries — code and prose
 
@@ -1028,6 +1030,22 @@
 - **Suggestion:** labelled lines for the measurement, the decision, the wiring and the renumbering.
 - **Why deferred:** the plan's bullets are prose by convention, and the counts N-CI-6 depends on are repeated in N-CI-6 itself.
 - **To implement:** the labelled lines, in the next edit of that bullet.
+
+### SB-183 — the stdout rule's alias tracker is flow-insensitive
+
+- **Source:** the native review of the stdout guard's rule commit (`workstream/stdout-ascii-guard-v2`, `0ca6d2ca`), finding `R3-alias-flow-insensitivity`.
+- **Location:** `packages/eslint-plugin-testing/src/rules/no-stdout-in-node-test.js:193-198`, the loop in `kindOf` over every write to an alias binding.
+- **Suggestion:** follow an alias by control flow, so a binding counts as a stdout writer only at the calls its writer-valued writes can reach.
+- **Why deferred:** a binding that holds a writer at any point counts at every call, so the error falls on the safe side: a `let` that holds `console.log` and later `console.error` is still reported, and the fix it asks for, writing to stderr, is right either way. The rule's header defines an alias as "a binding written from a writer", which covers this, though it does not name flow-insensitivity. Measured 2026-10-11: the only aliases in the rule's scope are four `const _originalConsoleLog = console.log` bindings in the syncEngine suites, each written once and never called, so no binding with a mixed history exists.
+- **To implement:** a flow-sensitive tracker over ESLint's code-path analysis, or the header naming the behaviour, whichever a first false positive asks for.
+
+### SB-184 — the stdout rule's binding reads only `.ts` files
+
+- **Source:** the same review, finding `R3-glob-extension-scope`.
+- **Location:** `eslint.config.ts:290`, the `apps/api/tests/**/*.ts` binding of `testing/no-stdout-in-node-test`.
+- **Suggestion:** widen the glob to `.tsx`, `.mts` and `.cts`, so a node:test file with another extension is checked too.
+- **Why deferred:** `apps/api/scripts/run-tests.sh` collects only `*.integration.test.ts` and `*.live.test.ts` (`find … -name "*.$suffix.test.ts"`), so no file with another extension can be a node:test suite today; measured 2026-10-11, no `.tsx`, `.mts`, `.cts`, `.js`, `.mjs` or `.cjs` file exists under `apps/api/tests` to be imported by one either.
+- **To implement:** widen the glob in the change that teaches the collector another extension, or that adds the first helper with one.
 
 ## Entries — tests
 
