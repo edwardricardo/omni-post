@@ -316,7 +316,7 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 | @testing-library/react    | 16.3.3  | Testing de componentes                   |
 | @testing-library/dom      | 10.4.2  | Utilidades DOM                           |
 | @testing-library/jest-dom | 7.0.1   | Matchers personalizados                  |
-| jsdom                     | 30.1.1  | Simulacion de entorno de navegador       |
+| jsdom                     | 30.1.2  | Simulacion de entorno de navegador       |
 | @playwright/test          | 1.63.0  | Testing E2E                              |
 | @faker-js/faker           | 10.6.0  | Generacion de datos de prueba            |
 | yaml                      | 2.9.1   | Parseo de workflows del motor de alcance |
