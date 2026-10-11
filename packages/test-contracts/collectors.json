@@ -36,7 +36,7 @@
           "entrypoint": "pnpm --filter @apps/api run test:integration"
         }
       ],
-      "note": "Integration Tests runs the runner with TIER=full-integration, its integration and live files. chaos.yml runs it too, on a schedule with TIER=pr-integration, which is no required check."
+      "note": "Integration Tests runs the runner twice: with TIER=pr-integration, its integration files, before it starts the API and the workers, and with TIER=live-integration, its live files, after them. chaos.yml runs it too, on a schedule with TIER=pr-integration, which is no required check."
     },
     "playwright": {
       "executedBy": [],

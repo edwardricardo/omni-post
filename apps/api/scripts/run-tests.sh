@@ -32,27 +32,36 @@ FAILED_FILES=""
 LAST_RAN=""
 ENV_UNREADY=""
 
-# TIER selects which tiers run, so CI can split them across jobs:
+# TIER selects which tiers run, so CI can split them across steps:
 #   (unset)          local default — the services tier, then the live tier,
 #                    without the skip and zero-collection guards, which are
 #                    tier-only.
 #   pr-integration   the services tier only (no live API server needed).
-#   full-integration the services tier, then the live tier.
-# The services tier talks to Postgres/Redis directly; the live tier needs a
-# running API, which the runner probes at TEST_API_URL, and the workers that
-# answer TEST_WORKERS_READY_URL.
+#   live-integration the live tier only, against an API and workers already
+#                    running.
+# CI runs pr-integration BEFORE it starts the API and the workers, and
+# live-integration after: a running API advances every tenant's sagas from its
+# own retry scan, so a services suite that shares the database with one races a
+# second engine it never booted. The services tier talks to Postgres/Redis
+# directly; the live tier needs a running API, which the runner probes at
+# TEST_API_URL, and the workers that answer TEST_WORKERS_READY_URL.
 TIER="${TIER:-}"
 case "$TIER" in
-  "" | pr-integration | full-integration) ;;
+  "" | pr-integration | live-integration) ;;
   *)
-    echo "Unknown TIER='$TIER' (expected: unset, pr-integration, full-integration)" >&2
+    echo "Unknown TIER='$TIER' (expected: unset, pr-integration, live-integration)" >&2
     exit 2
     ;;
 esac
 
+# Returns success when the current TIER runs the services tier.
+run_services_tier() {
+  [ -z "$TIER" ] || [ "$TIER" = "pr-integration" ]
+}
+
 # Returns success when the current TIER runs the live tier.
 run_live_tier() {
-  [ -z "$TIER" ] || [ "$TIER" = "full-integration" ]
+  [ -z "$TIER" ] || [ "$TIER" = "live-integration" ]
 }
 
 # TEST_ORDER=reverse runs each collected tier in reverse byte order, so a suite
@@ -178,7 +187,7 @@ check_filter() {
     if is_quarantined "$path"; then
       echo "run-tests.sh: $path is quarantined, so it runs nowhere until its entry leaves $QUARANTINE_FILE." >&2
     else
-      echo "run-tests.sh: $path is not a suite this run collects; give a *.integration.test.ts under tests/, from apps/api, or a *.live.test.ts under a TIER that runs the live tier." >&2
+      echo "run-tests.sh: $path is not a suite this run collects; give, from apps/api, a *.integration.test.ts under a TIER that runs the services tier or a *.live.test.ts under a TIER that runs the live tier." >&2
     fi
     return 2
   done <<< "$FILTER"
@@ -187,12 +196,14 @@ check_filter() {
 # The quarantine and the collection are settled before anything starts, from the
 # tree and the quarantine alone, so `--list` below needs no database, and a
 # quarantine that cannot be trusted or a collection that found nothing ends the
-# run without running a single suite. The live tier is collected wherever it
-# would run, and for `--list` whatever TIER says.
+# run without running a single suite. Each tier is collected wherever it would
+# run, and for `--list` whatever TIER says.
 SERVICES_FILES=()
 LIVE_FILES=()
 load_quarantine || exit 2
-select_files integration SERVICES_FILES || exit 1
+if [ -n "$LIST_ONLY" ] || run_services_tier; then
+  select_files integration SERVICES_FILES || exit 1
+fi
 if [ -n "$LIST_ONLY" ] || run_live_tier; then
   select_files live LIVE_FILES || exit 1
 fi
@@ -237,11 +248,6 @@ if [ -z "${DATABASE_URL:-}" ]; then
   } >&2
   exit 2
 fi
-
-# Returns success when the services tier should run for the current TIER: always.
-run_services_tier() {
-  [ -z "$TIER" ] || [ "$TIER" = "pr-integration" ] || [ "$TIER" = "full-integration" ]
-}
 
 # The live tier reads where the API and the workers answer from its caller, as the
 # runner reads the database: CI exports both URLs. A run that reaches the live
@@ -437,18 +443,21 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 echo "── Integration tests (node:test) ──"
 
+# The quarantined suites of both tiers are printed on every run, whichever tier
+# it runs, and run nowhere.
+printf '%s\n' "$QUARANTINE" | while IFS=$'\t' read -r file reason; do
+  if [ -n "$file" ]; then
+    printf "  QUARANTINED (not run): %s — %s\n" "$file" "$reason"
+  fi
+done
+
 # The services tier: every collected `*.integration.test.ts` (select_files above),
 # each in its own node:test process through run_batch, in byte order or in
 # reverse under TEST_ORDER=reverse. The files run one after another, so no two
 # suites share the database at once: the suites that race one credential on
 # purpose, or park a row lock while polling for it, measure only their own
-# interleaving. The quarantined suites of both tiers are printed and not run.
+# interleaving.
 if run_services_tier; then
-  printf '%s\n' "$QUARANTINE" | while IFS=$'\t' read -r file reason; do
-    if [ -n "$file" ]; then
-      printf "  QUARANTINED (not run): %s — %s\n" "$file" "$reason"
-    fi
-  done
   run_batch "integration" "${SERVICES_FILES[@]}"
 fi
 

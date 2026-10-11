@@ -513,16 +513,13 @@ describe("run-tests.sh probes the live environment before each live-tier file", 
   it("probes the API and then the workers before each live-tier file, after the services tier", () => {
     // The live tier needs a running API and workers that consume the publish queue,
     // and a file can leave either unready for the next one. Probing before each file
-    // is what names that file, instead of the failures it causes further down.
+    // is what names that file, instead of the failures it causes further down. TIER
+    // unset is the local default, which runs both tiers in one invocation.
     const callLog = join(stubDir, "live-calls.log");
     rmSync(callLog, { force: true });
     const inventory = listed(emptyQuarantine);
     const live = inventory.get("live") ?? [];
-    const run = runGate(PASSING, {
-      callLog,
-      tier: "full-integration",
-      quarantineFile: emptyQuarantine,
-    });
+    const run = runGate(PASSING, { callLog, tier: "", quarantineFile: emptyQuarantine });
 
     expect(live.length).toBeGreaterThan(2);
     expect({ exitCode: run.exitCode, called: calledPaths(callLog) }).toEqual({
@@ -531,6 +528,26 @@ describe("run-tests.sh probes the live environment before each live-tier file", 
         ...(inventory.get("integration") ?? []),
         ...live.flatMap((file) => [API_HEALTH, WORKERS_READY_URL, file]),
       ],
+    });
+  });
+
+  it("runs the live tier alone under live-integration, with no services file", () => {
+    // CI runs the services tier before it starts the API and the workers, and this
+    // tier after: a running API advances every tenant's sagas in the background, so
+    // no services suite may share the database with one.
+    const callLog = join(stubDir, "live-only-calls.log");
+    rmSync(callLog, { force: true });
+    const live = listed(emptyQuarantine).get("live") ?? [];
+    const run = runGate(PASSING, {
+      callLog,
+      tier: "live-integration",
+      quarantineFile: emptyQuarantine,
+    });
+
+    expect(live.length).toBeGreaterThan(2);
+    expect({ exitCode: run.exitCode, called: calledPaths(callLog) }).toEqual({
+      exitCode: 0,
+      called: live.flatMap((file) => [API_HEALTH, WORKERS_READY_URL, file]),
     });
   });
 
@@ -545,7 +562,7 @@ describe("run-tests.sh probes the live environment before each live-tier file", 
     const live = listed(emptyQuarantine).get("live") ?? [];
     const run = runGate(PASSING, {
       callLog,
-      tier: "full-integration",
+      tier: "live-integration",
       quarantineFile: emptyQuarantine,
       failingProbe: { url, failFrom: 3 },
     });
@@ -576,7 +593,7 @@ describe("run-tests.sh narrows a run to the paths it is given", () => {
     rmSync(callLog, { force: true });
     const run = runGate(PASSING, {
       callLog,
-      tier: "full-integration",
+      tier: "",
       args: [`./${LIVE_TARGET}`, TARGET_FILE],
     });
 
@@ -665,7 +682,7 @@ describe("a real node:test file gets the same verdict, end to end", () => {
     // The scratch tree holds one services file and no `*.live.test.ts`: under a tier
     // that runs the live tier, that is a moved or renamed live tree, not a pass.
     const run = runRealTarget('import { it } from "node:test";\nit("passes", () => {});\n', {
-      tier: "full-integration",
+      tier: "live-integration",
     });
 
     expect({
@@ -744,9 +761,9 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
 
   it("exits 2 under a TIER when DATABASE_URL is empty, before any suite starts", () => {
     // The reproduction: with no test database exported, the run reached the
-    // development database instead. `full-integration` is the widest tier — it
-    // also probes the live API — so a refusal that holds there holds everywhere.
-    const run = runRecorded({ TIER: "full-integration", DATABASE_URL: "" });
+    // development database instead. `live-integration` reaches past the database to
+    // a running API, and the refusal is one unconditional branch for every tier.
+    const run = runRecorded({ TIER: "live-integration", DATABASE_URL: "" });
 
     expect({
       exitCode: run.exitCode,
@@ -810,7 +827,6 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       }))
     );
     const run = runRecorded({
-      TIER: "full-integration",
       DATABASE_URL: UNUSED_DATABASE_URL,
       TEST_API_URL: API_URL,
       TEST_WORKERS_READY_URL: WORKERS_READY_URL,
@@ -838,7 +854,7 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
     ]);
     const callLog = join(stubDir, "live-quarantine-calls.log");
     rmSync(callLog, { force: true });
-    const run = runGate(PASSING, { callLog, quarantineFile, tier: "full-integration" });
+    const run = runGate(PASSING, { callLog, quarantineFile, tier: "live-integration" });
 
     expect({
       exitCode: run.exitCode,
@@ -848,7 +864,7 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
   });
 
   it.each([
-    ["full-integration", "TEST_API_URL", { TEST_WORKERS_READY_URL: WORKERS_READY_URL }],
+    ["live-integration", "TEST_API_URL", { TEST_WORKERS_READY_URL: WORKERS_READY_URL }],
     ["unset", "TEST_WORKERS_READY_URL", { TEST_API_URL: API_URL }],
   ])(
     "exits 2 before any suite starts when TIER %s runs the live tier without %s",
@@ -903,6 +919,43 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       saysWhy: run.stderr.startsWith("run-tests.sh: "),
     }).toEqual({ exitCode: 2, started: [], saysWhy: true });
   });
+
+  it("exits 2 before any suite starts on a services suite under a TIER without the services tier", () => {
+    // Under live-integration the services tier does not run, so a services path given
+    // to it would run nothing and read as a pass.
+    const run = runRecorded(
+      {
+        TIER: "live-integration",
+        DATABASE_URL: UNUSED_DATABASE_URL,
+        TEST_API_URL: API_URL,
+        TEST_WORKERS_READY_URL: WORKERS_READY_URL,
+      },
+      [TARGET_FILE]
+    );
+
+    expect({
+      exitCode: run.exitCode,
+      started: run.started,
+      saysWhy: run.stderr.startsWith("run-tests.sh: "),
+    }).toEqual({ exitCode: 2, started: [], saysWhy: true });
+  });
+
+  it.each(["full-integration", "integration"])(
+    "exits 2 before any suite starts on TIER=%s, a tier it does not know, naming the ones it does",
+    (tier) => {
+      // full-integration ran both tiers in one invocation after the API had started,
+      // which put the services tier beside the API's background work. It is refused
+      // by name now rather than quietly running the services tier there again.
+      const run = runRecorded({ TIER: tier, DATABASE_URL: UNUSED_DATABASE_URL });
+
+      expect({
+        exitCode: run.exitCode,
+        started: run.started,
+        namesTheTiers:
+          run.stderr.includes("pr-integration") && run.stderr.includes("live-integration"),
+      }).toEqual({ exitCode: 2, started: [], namesTheTiers: true });
+    }
+  );
 
   it("lists every file it owns once, with its kind, and runs nothing, without a database", () => {
     // `--list` is what fitness #30 and the reach engine read; it touches no
