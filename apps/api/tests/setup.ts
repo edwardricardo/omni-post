@@ -1,6 +1,8 @@
 /**
  * @file setup.ts
- * @description Test setup for setup
+ * @description Shared setup of the `*.flow.integration.test.ts` suites, which run under node:test:
+ *   one repository adapter and one `publish` queue adapter per process, per-test and final
+ *   teardown, and timeout helpers. Its progress lines go to stderr, never stdout (DEF-83).
  * @layer infrastructure
  */
 import dotenv from "dotenv";
@@ -25,7 +27,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../.env.test") });
 
-// The "✓" and "🧪" progress lines below go to stderr on purpose: in a node:test child, stdout
+// Every progress line below goes to stderr on purpose: in a node:test child, stdout
 // is the runner's message channel, and a non-ASCII line written right after a frame is misread
 // as the next frame's length, failing a file whose tests passed (DEF-83).
 
@@ -95,13 +97,20 @@ async function _ensureTestData(repo: ReturnType<typeof createPrismaRepoAdapter>)
 }
 
 /**
- * Initialize test environment with proper connection management
+ * @description Returns the adapters the flow suites share, creating them on the first call of the
+ *   process: a Prisma repository adapter over the seed client, and a BullMQ adapter for the
+ *   `publish` queue on a Redis connection created here. Every call then waits, for at most
+ *   `TEST_CONFIG.dbTimeout`, on the queue's `health()` and a one-row `listLogs` read. Both return
+ *   a `Result` that is not inspected, so only a rejection or the timeout fails the setup. On a
+ *   failure both adapters are dropped without being closed, so the next call creates new ones,
+ *   and the error is rethrown.
+ * @returns The shared repository and queue adapters.
  */
 export async function setupTest(): Promise<TestContext> {
   try {
     // Create adapters if they don't exist
     if (!globalRepo) {
-      console.log("Creating Prisma repo adapter...");
+      console.error("Creating Prisma repo adapter...");
       globalRepo = createPrismaRepoAdapter({ prisma });
       if (!globalRepo) {
         throw new Error("Failed to create Prisma repo adapter - returned null");
@@ -110,7 +119,7 @@ export async function setupTest(): Promise<TestContext> {
     }
 
     if (!globalQueue) {
-      console.log("Creating BullMQ queue adapter...");
+      console.error("Creating BullMQ queue adapter...");
       // The adapter no longer self-constructs a connection (composition-root-
       // owned in production); the test owns and injects the socket.
       globalQueue = createBullMQQueueAdapter({
@@ -129,7 +138,7 @@ export async function setupTest(): Promise<TestContext> {
     }
 
     // Test connections with timeout
-    console.log("Testing connections...");
+    console.error("Testing connections...");
     const healthCheckPromise = Promise.all([
       globalQueue.health(),
       // Simple repo test without complex operations
@@ -177,7 +186,8 @@ export async function setupTest(): Promise<TestContext> {
 }
 
 /**
- * Cleanup test environment - final cleanup only
+ * @description Per-test teardown, which releases nothing: the shared adapters stay open for the
+ *   next test, and the call only logs to stderr. `finalCleanup` is the one that closes them.
  */
 export async function teardownTest(): Promise<void> {
   try {
@@ -189,7 +199,10 @@ export async function teardownTest(): Promise<void> {
 }
 
 /**
- * Final cleanup - only call this at the end of the entire test suite
+ * @description Closes the shared adapters; call it once, at the end of the whole suite. It calls
+ *   `close()` on the queue adapter and on the repository adapter when they exist, waits for both
+ *   or for 2 s, whichever comes first, and then drops them, so a later `setupTest` creates new
+ *   ones. A failed close is logged as a warning and never thrown.
  */
 export async function finalCleanup(): Promise<void> {
   try {
@@ -232,7 +245,15 @@ export async function finalCleanup(): Promise<void> {
 }
 
 /**
- * Run test with automatic setup/teardown and timeout protection
+ * @description Runs one test against the shared adapters: `setupTest` within half of
+ *   `timeoutMs`, then `testFn` within all of it, logging each step to stderr, and `teardownTest`
+ *   afterwards whatever the outcome; a teardown failure is logged as a warning, never thrown.
+ * @param testName - Names the test in the progress lines and in the timeout errors.
+ * @param testFn - The test body, called with the shared context.
+ * @param timeoutMs - The time limit of the test body, in milliseconds; the setup gets half of it.
+ *   Defaults to `TEST_CONFIG.timeout`.
+ * @returns What `testFn` resolves to. Rejects with the setup or test timeout, or with the error
+ *   `setupTest` or `testFn` raised.
  */
 export async function runTestWithSetup<T>(
   testName: string,
@@ -291,8 +312,11 @@ export async function runTestWithSetup<T>(
 }
 
 /**
- * Returns an afterEach callback that cleans up posts, projects, and accounts
- * created during a flow test, then calls teardownTest().
+ * @description Builds the `afterEach` callback of a flow suite. When `getCtx` returns a context,
+ *   the callback deletes every recorded post, then every project, then every account through the
+ *   repository adapter, ignoring a deletion that throws or returns an error, empties the three
+ *   lists, and calls `teardownTest`. With no context it does nothing and leaves the lists as
+ *   they are.
  *
  * Usage:
  * ```ts
@@ -301,6 +325,11 @@ export async function runTestWithSetup<T>(
  *   createdPosts, createdProjects, createdAccounts,
  * ));
  * ```
+ * @param getCtx - Reads the suite's current context; `undefined` before its setup ran.
+ * @param createdPosts - Ids of the posts the test created; the callback empties it.
+ * @param createdProjects - Ids of the projects the test created; the callback empties it.
+ * @param createdAccounts - Ids of the accounts the test created; the callback empties it.
+ * @returns The callback to pass to `afterEach`.
  */
 export function makeFlowCleanup(
   getCtx: () => TestContext | undefined,
@@ -345,7 +374,9 @@ export function makeFlowCleanup(
 }
 
 /**
- * Sleep utility for tests
+ * @description Resolves after `ms` milliseconds. Its timer is unref'd, so a pending sleep does
+ *   not keep the process alive.
+ * @param ms - How long to wait, in milliseconds.
  */
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -355,7 +386,14 @@ export function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Test timeout wrapper
+ * @description Races `promise` against a timer. The timer is unref'd and never cleared, and
+ *   `promise` is not cancelled when the time runs out: it keeps running, unobserved.
+ * @param promise - The work to wait for.
+ * @param timeoutMs - How long to wait, in milliseconds.
+ * @param errorMessage - The message of the error the timeout rejects with. Defaults to
+ *   "Operation timeout".
+ * @returns A promise that settles as `promise` does, or rejects with `errorMessage` once
+ *   `timeoutMs` has passed.
  */
 export function withTimeout<T>(
   promise: Promise<T>,

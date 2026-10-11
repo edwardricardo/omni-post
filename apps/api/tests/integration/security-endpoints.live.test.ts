@@ -37,7 +37,8 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
   before(async () => {
     apiAvailable = await checkApiAvailable();
     if (!apiAvailable) {
-      console.log("API server not running - security endpoint tests will be skipped");
+      // stdout is the node:test runner's message channel; diagnostics go to stderr (DEF-83).
+      console.error("API server not running - security endpoint tests will be skipped");
     }
   });
 

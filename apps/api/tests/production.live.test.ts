@@ -165,8 +165,9 @@ describe("Comprehensive Production Integration Test", () => {
   before(async () => {
     testData = generateTestData();
     bootstrapToken = bearer("prod-integration-bootstrap");
-    console.log("Starting Comprehensive Production Integration Test");
-    console.log("=".repeat(60));
+    // stdout is the node:test runner's message channel; diagnostics go to stderr (DEF-83).
+    console.error("Starting Comprehensive Production Integration Test");
+    console.error("=".repeat(60));
 
     apiAvailable = await checkApiAvailable();
     if (!apiAvailable) {
@@ -206,8 +207,8 @@ describe("Comprehensive Production Integration Test", () => {
   describe("Account Management", () => {
     it("should create account successfully", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 1: Account Management");
-      console.log("-".repeat(40));
+      console.error("\nPHASE 1: Account Management");
+      console.error("-".repeat(40));
 
       const accountResponse = await apiCall(
         "POST",
@@ -220,7 +221,7 @@ describe("Comprehensive Production Integration Test", () => {
       accountId = accountResponse.data.data.id;
       accountToken = bearer(accountId);
       assert.ok(accountId, `Account ID received: ${accountId}`);
-      console.log(`Account created successfully: ${accountId}`);
+      console.error(`Account created successfully: ${accountId}`);
     });
 
     it("should verify account details", async (t) => {
@@ -267,7 +268,7 @@ describe("Comprehensive Production Integration Test", () => {
         testData.account.name,
         "Account name matches"
       );
-      console.log("Account details verified");
+      console.error("Account details verified");
     });
 
     it("should list all accounts", async (t) => {
@@ -282,15 +283,15 @@ describe("Comprehensive Production Integration Test", () => {
       assert.ok(Array.isArray(listAccountsResponse.data.data), "Accounts list is an array");
       const foundAccount = listAccountsResponse.data.data.find((acc: any) => acc.id === accountId);
       assert.ok(foundAccount, "Created account found in list");
-      console.log("Account found in list");
+      console.error("Account found in list");
     });
   });
 
   describe("Project Management", () => {
     it("should create project", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 2: Project Management");
-      console.log("-".repeat(40));
+      console.error("\nPHASE 2: Project Management");
+      console.error("-".repeat(40));
 
       const projectResponse = await apiCall(
         "POST",
@@ -301,7 +302,7 @@ describe("Comprehensive Production Integration Test", () => {
       assert.equal(projectResponse.status, 200, "Project created successfully");
       projectId = projectResponse.data.data.id;
       assert.ok(projectId, `Project ID received: ${projectId}`);
-      console.log(`Project created successfully: ${projectId}`);
+      console.error(`Project created successfully: ${projectId}`);
     });
 
     it("should verify project details", async (t) => {
@@ -323,7 +324,7 @@ describe("Comprehensive Production Integration Test", () => {
         accountId,
         "Project linked to correct account"
       );
-      console.log("Project details verified");
+      console.error("Project details verified");
     });
 
     it("should list projects by account", async (t) => {
@@ -340,15 +341,15 @@ describe("Comprehensive Production Integration Test", () => {
         (proj: any) => proj.id === projectId
       );
       assert.ok(foundProject, "Created project found in account's project list");
-      console.log("Project found in account's project list");
+      console.error("Project found in account's project list");
     });
   });
 
   describe("Channel Configuration", () => {
     it("should create X channel", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 3: Channel Configuration");
-      console.log("-".repeat(40));
+      console.error("\nPHASE 3: Channel Configuration");
+      console.error("-".repeat(40));
 
       const xChannelResponse = await apiCall(
         "POST",
@@ -363,7 +364,7 @@ describe("Comprehensive Production Integration Test", () => {
       const xChannelId = xChannelResponse.data.data.id;
       channelIds.push(xChannelId);
       assert.ok(xChannelId, `X channel ID received: ${xChannelId}`);
-      console.log(`X channel created: ${xChannelId}`);
+      console.error(`X channel created: ${xChannelId}`);
     });
 
     it("should create Instagram channel", async (t) => {
@@ -381,7 +382,7 @@ describe("Comprehensive Production Integration Test", () => {
       const igChannelId = igChannelResponse.data.data.id;
       channelIds.push(igChannelId);
       assert.ok(igChannelId, `Instagram channel ID received: ${igChannelId}`);
-      console.log(`Instagram channel created: ${igChannelId}`);
+      console.error(`Instagram channel created: ${igChannelId}`);
     });
 
     it("should list channels by project", async (t) => {
@@ -394,15 +395,15 @@ describe("Comprehensive Production Integration Test", () => {
       );
       assert.equal(listChannelsResponse.status, 200, "Channels listed by project successfully");
       assert.equal(listChannelsResponse.data.data.length, 2, "Both channels found in project");
-      console.log("Both channels found in project");
+      console.error("Both channels found in project");
     });
   });
 
   describe("Content Creation & Publishing", () => {
     it("should create post", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 4: Content Creation & Publishing");
-      console.log("-".repeat(40));
+      console.error("\nPHASE 4: Content Creation & Publishing");
+      console.error("-".repeat(40));
 
       // Customer post creation flows through the post-publishing saga
       // (mode="draft"). The saga runs asynchronously and returns a sagaId,
@@ -439,7 +440,7 @@ describe("Comprehensive Production Integration Test", () => {
       assert.ok(Array.isArray(posts) && posts.length > 0, "Project should have at least one post");
       postId = posts[0].id;
       assert.ok(postId, `Post ID received: ${postId}`);
-      console.log(`Post created successfully: ${postId}`);
+      console.error(`Post created successfully: ${postId}`);
     });
 
     it("should simulate media upload", async (t) => {
@@ -478,7 +479,7 @@ describe("Comprehensive Production Integration Test", () => {
 
       const sagaStatus = await pollSagaTerminal(sagaId, accountToken);
       assert.equal(sagaStatus, "COMPLETED", `Schedule saga should complete (got ${sagaStatus})`);
-      console.log("Post scheduled successfully");
+      console.error("Post scheduled successfully");
     });
 
     it("should get post details with schedule", async (t) => {
@@ -491,15 +492,15 @@ describe("Comprehensive Production Integration Test", () => {
       );
       assert.equal(getPostResponse.status, 200, "Post retrieved with details");
       assert.ok(getPostResponse.data.data.body, "Post has content body");
-      console.log("Post details retrieved");
+      console.error("Post details retrieved");
     });
   });
 
   describe("Analytics & Monitoring", () => {
     it("should get project analytics", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 5: Analytics & Monitoring");
-      console.log("-".repeat(40));
+      console.error("\nPHASE 5: Analytics & Monitoring");
+      console.error("-".repeat(40));
 
       const analyticsResponse = await apiCall(
         "GET",
@@ -508,7 +509,7 @@ describe("Comprehensive Production Integration Test", () => {
         authHeaders(accountToken)
       );
       assert.equal(analyticsResponse.status, 200, "Analytics retrieved for project");
-      console.log("Analytics retrieved for project");
+      console.error("Analytics retrieved for project");
     });
 
     it("should get publishing history", async (t) => {
@@ -521,15 +522,15 @@ describe("Comprehensive Production Integration Test", () => {
       );
       assert.equal(publishLogsResponse.status, 200, "Publish logs retrieved");
       assert.ok(Array.isArray(publishLogsResponse.data.data), "Publish logs is an array");
-      console.log("Publish logs retrieved");
+      console.error("Publish logs retrieved");
     });
   });
 
   describe("Client Interface Verification", () => {
     it("should verify client interface features", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 6: Client Interface Verification");
-      console.log("-".repeat(40));
+      console.error("\nPHASE 6: Client Interface Verification");
+      console.error("-".repeat(40));
 
       // Verify the API health endpoint exposes expected fields for client consumption
       const healthResponse = await apiCall("GET", "/health");
@@ -541,8 +542,8 @@ describe("Comprehensive Production Integration Test", () => {
   describe("Background Workers & Queues", () => {
     it("should check worker metrics", async (t) => {
       if (skipIfWorkerUnavailable(t)) return;
-      console.log("\nPHASE 7: Background Workers & Queues");
-      console.log("-".repeat(40));
+      console.error("\nPHASE 7: Background Workers & Queues");
+      console.error("-".repeat(40));
 
       const metricsResponse = await fetch(`${WORKERS_METRICS}/metrics`);
       assert.equal(metricsResponse.status, 200, "Worker metrics endpoint accessible");
@@ -555,15 +556,15 @@ describe("Comprehensive Production Integration Test", () => {
         metricsText.includes("nodejs_gc_duration_seconds"),
         "Worker metrics contain GC data"
       );
-      console.log("Workers are processing jobs and exposing metrics");
+      console.error("Workers are processing jobs and exposing metrics");
     });
   });
 
   describe("Error Handling & Edge Cases", () => {
     it("should test duplicate account email", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 8: Error Handling & Edge Cases");
-      console.log("-".repeat(40));
+      console.error("\nPHASE 8: Error Handling & Edge Cases");
+      console.error("-".repeat(40));
 
       const duplicateResponse = await apiCall(
         "POST",
@@ -577,7 +578,7 @@ describe("Comprehensive Production Integration Test", () => {
         "EMAIL_TAKEN",
         "Correct error message for duplicate"
       );
-      console.log("Duplicate email rejected correctly");
+      console.error("Duplicate email rejected correctly");
     });
 
     it("should test invalid account ID", async (t) => {
@@ -589,7 +590,7 @@ describe("Comprehensive Production Integration Test", () => {
         authHeaders(accountToken)
       );
       assert.equal(invalidAccountResponse.status, 400, "Invalid UUID rejected with 400 status");
-      console.log("Invalid UUID rejected correctly");
+      console.error("Invalid UUID rejected correctly");
     });
 
     it("should verify quota enforcement", async (t) => {
@@ -620,8 +621,8 @@ describe("Comprehensive Production Integration Test", () => {
   describe("Cleanup", () => {
     it("should delete post", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      console.log("\nPHASE 9: Cleanup");
-      console.log("-".repeat(40));
+      console.error("\nPHASE 9: Cleanup");
+      console.error("-".repeat(40));
 
       const deletePostResponse = await apiCall(
         "DELETE",
@@ -638,9 +639,9 @@ describe("Comprehensive Production Integration Test", () => {
         `Post delete returned expected status (got ${deletePostResponse.status})`
       );
       if (deletePostResponse.status === 403) {
-        console.log("Post delete correctly rejected (SCHEDULED status is not deletable)");
+        console.error("Post delete correctly rejected (SCHEDULED status is not deletable)");
       } else {
-        console.log("Post deleted successfully");
+        console.error("Post deleted successfully");
       }
     });
 
@@ -654,7 +655,7 @@ describe("Comprehensive Production Integration Test", () => {
           authHeaders(accountToken)
         );
         assert.equal(deleteChannelResponse.status, 200, `Channel ${channelId} deleted`);
-        console.log(`Channel ${channelId} deleted`);
+        console.error(`Channel ${channelId} deleted`);
       }
     });
 
@@ -667,7 +668,7 @@ describe("Comprehensive Production Integration Test", () => {
         authHeaders(accountToken)
       );
       assert.equal(deleteProjectResponse.status, 200, "Project deleted successfully");
-      console.log("Project deleted successfully");
+      console.error("Project deleted successfully");
     });
 
     it("should delete account with cascade", async (t) => {
@@ -679,7 +680,7 @@ describe("Comprehensive Production Integration Test", () => {
         authHeaders(accountToken)
       );
       assert.equal(deleteAccountResponse.status, 200, "Account deleted with cascade");
-      console.log("Account deleted with cascade");
+      console.error("Account deleted with cascade");
     });
   });
 
@@ -689,9 +690,9 @@ describe("Comprehensive Production Integration Test", () => {
       const healthResponse = await apiCall("GET", "/health");
       assert.equal(healthResponse.status, 200, "Health endpoint should return 200");
       assert.ok(healthResponse.data.status, "Health response should have status");
-      console.log("\n" + "=".repeat(60));
-      console.log("ALL PRODUCTION INTEGRATION TESTS PASSED!");
-      console.log("=".repeat(60));
+      console.error("\n" + "=".repeat(60));
+      console.error("ALL PRODUCTION INTEGRATION TESTS PASSED!");
+      console.error("=".repeat(60));
     });
   });
 });
