@@ -344,16 +344,18 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 
 ## Code Quality
 
-| Tool                | Version | Purpose                                                     |
-| ------------------- | ------- | ----------------------------------------------------------- |
-| eslint              | 9.39.5  | Static analysis (flat config, v9)                           |
-| eslint-plugin-jsdoc | 65.1.0  | JSDoc rules for the touched-files gate (`pnpm check:jsdoc`) |
-| prettier            | 3.9.9   | Code formatting                                             |
-| husky               | 9.1.7   | Git hooks                                                   |
-| lint-staged         | 17.6.0  | Pre-commit staged file linting                              |
-| knip                | 6.39.0  | Dead code detection                                         |
-| dependency-cruiser  | 18.5.0  | Architecture rules and circular dependency detection        |
-| jscpd               | 5.4.0   | Copy-paste detection                                        |
+| Tool                             | Version | Purpose                                                                                                       |
+| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
+| eslint                           | 9.39.5  | Static analysis (flat config, v9)                                                                             |
+| eslint-plugin-jsdoc              | 65.1.0  | JSDoc rules for the touched-files gate (`pnpm check:jsdoc`)                                                   |
+| @typescript-eslint/parser        | 8.71.1  | TypeScript parser for ESLint; 8.71.1 taken a day before maturity on Edward's instruction (maturity watchlist) |
+| @typescript-eslint/eslint-plugin | 8.71.1  | TypeScript lint rules; moves with the parser, taken early with it (same watchlist entry)                      |
+| prettier                         | 3.9.9   | Code formatting                                                                                               |
+| husky                            | 9.1.7   | Git hooks                                                                                                     |
+| lint-staged                      | 17.6.0  | Pre-commit staged file linting                                                                                |
+| knip                             | 6.39.0  | Dead code detection                                                                                           |
+| dependency-cruiser               | 18.5.0  | Architecture rules and circular dependency detection                                                          |
+| jscpd                            | 5.4.0   | Copy-paste detection                                                                                          |
 
 ### Standards
 

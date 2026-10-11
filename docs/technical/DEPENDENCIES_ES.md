@@ -344,16 +344,18 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 
 ## Calidad de Codigo
 
-| Herramienta         | Version | Proposito                                                      |
-| ------------------- | ------- | -------------------------------------------------------------- |
-| eslint              | 9.39.5  | Analisis estatico (flat config, v9)                            |
-| eslint-plugin-jsdoc | 65.1.0  | Reglas JSDoc del gate de archivos tocados (`pnpm check:jsdoc`) |
-| prettier            | 3.9.9   | Formateo de codigo                                             |
-| husky               | 9.1.7   | Git hooks                                                      |
-| lint-staged         | 17.6.0  | Linting de archivos staged pre-commit                          |
-| knip                | 6.39.0  | Deteccion de codigo muerto                                     |
-| dependency-cruiser  | 18.5.0  | Reglas de arquitectura y deteccion de dependencias circulares  |
-| jscpd               | 5.4.0   | Deteccion de codigo duplicado                                  |
+| Herramienta                      | Version | Proposito                                                                                                                 |
+| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------- |
+| eslint                           | 9.39.5  | Analisis estatico (flat config, v9)                                                                                       |
+| eslint-plugin-jsdoc              | 65.1.0  | Reglas JSDoc del gate de archivos tocados (`pnpm check:jsdoc`)                                                            |
+| @typescript-eslint/parser        | 8.71.1  | Parser de TypeScript para ESLint; 8.71.1 adoptada un dia antes de su madurez por instruccion de Edward (lista de madurez) |
+| @typescript-eslint/eslint-plugin | 8.71.1  | Reglas de lint para TypeScript; se mueve con el parser y se adopto antes de tiempo como este (misma entrada de la lista)  |
+| prettier                         | 3.9.9   | Formateo de codigo                                                                                                        |
+| husky                            | 9.1.7   | Git hooks                                                                                                                 |
+| lint-staged                      | 17.6.0  | Linting de archivos staged pre-commit                                                                                     |
+| knip                             | 6.39.0  | Deteccion de codigo muerto                                                                                                |
+| dependency-cruiser               | 18.5.0  | Reglas de arquitectura y deteccion de dependencias circulares                                                             |
+| jscpd                            | 5.4.0   | Deteccion de codigo duplicado                                                                                             |
 
 ### Estandares
 

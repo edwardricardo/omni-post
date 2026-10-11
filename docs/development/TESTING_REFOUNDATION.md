@@ -880,7 +880,7 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-11T09:39:34Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+**CURRENT, re-measured 2026-10-11T19:01:28Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
 stderr: of the 50 packages in `scripts/testing/toolchain-population.json` (49 direct, 1 named transitive,
 no declared-absent candidate left), 11 sit below latest mature and NOT ONE of them is unheld.**
 
@@ -1047,6 +1047,38 @@ and what moved it. A slice that moves the count appends its own line.
     `2026-10-12T17:08Z` and `17:09Z`, then `isomorphic-dompurify` 4.5.0 at `2026-10-13T09:29Z`: with
     `--instant` the gate exits 0 at `2026-10-12T17:07:00Z`, 1 at `17:10:00Z` on the pair, and 1 at
     `2026-10-13T09:30:00Z` on all three.
+28. `2026-10-11T19:01:28Z` — **11**: the hold bump took the `@typescript-eslint` pair 8.71.0 → 8.71.1 — the
+    parser's catalog entry and the plugin's root `package.json` literal — about 22 hours BEFORE its maturity at
+    `2026-10-12T17:08Z` (parser) and `17:09Z` (plugin), on Edward's instruction of 2026-10-11: a deviation from
+    the 7-day buffer, tracked in `scripts/testing/maturity-watchlist.json` as 8.71.0 was on 2026-10-05, taken so
+    that the instant line 27 names does not turn every pull request and `main` red the way 30.1.2 did. The count
+    does not move: on 8.71.0 both packages read `at or above latest mature`, on 8.71.1 `at latest`, and with
+    `--instant` the gate now exits 0 at `2026-10-12T17:10:00Z`, where line 27 measured 1 on the pair. 8.71.1 is
+    `latest`; only 8.71.2 alphas are newer. OSV lists nothing for any of the ten family packages at 8.71.0, at
+    8.71.1 or at any version, and GitHub's global and repository advisories list none. Their dependency, peer
+    and engines ranges equal 8.71.0's apart from the family version, so the `typescript` peer
+    `>=4.8.4 <6.1.0` still keeps TypeScript 7 out (canon row `typescript`) and the `eslint` peer still admits
+    `^10.0.0` (canon row `eslint`); both rows now cite 8.71.1. The `v8.71.1` release notes list nine fixes,
+    none a security fix; two reach the rules this repository enables: `no-unused-vars` reports a value used
+    only as a type in a partially exported merged declaration (#12892), and the project service throttles its
+    cleanup when opening files (#12934). Upstream #12980 (closed 2026-10-07, fixed by #12989 for the next
+    release) is a false positive #12892 introduced when `no-unused-vars` runs without the typescript-eslint
+    parser; here the rule runs only on `*.ts` and `*.tsx` through that parser, and `pnpm lint --max-warnings 0`
+    exits 0 on 8.71.1, as do `pnpm typecheck:configs` and the 107 tests of `@packages/eslint-plugin-testing`,
+    whose RuleTester parses TypeScript. In the lockfile, parsed with `yaml.safe_load_all`, the ten family
+    packages swap 8.71.0 → 8.71.1 and nothing else moves: resolved once with pnpm's minimum release age at
+    10080 minutes, excluding the `vite` and `handlebars` CVE floors and the ten family packages, then
+    deduplicated: the update alone left seven 8.71.0 family packages behind for `eslint-plugin-jsdoc` 65.1.0
+    (`utils ^8.70.1`), `@es-joy/jsdoccomment` 0.98.0 (`types ^8.70.0`) and `@vitest/eslint-plugin` 1.6.27
+    (`utils` and `scope-manager` `^8.58.0`), and `pnpm dedupe` moved all three onto 8.71.1, which every one of
+    those ranges admits. Since line 27 the
+    population and the eleven lagging packages are unchanged, and no held target moved. Nothing but 8.71.2
+    alphas is newer, so nothing is pre-registered and no canon row is written. The next instants the live gate
+    names are `isomorphic-dompurify` 4.5.0 at `2026-10-13T09:29Z` (with `--instant` the gate exits 0 at
+    `09:28:00Z` and 1 at `09:30:00Z` on it alone), then `playwright` and `@playwright/test` 1.64.0 at
+    `2026-10-14T20:42Z` / `20:44Z`, `size-limit` and its preset 14.2.0 at `21:53Z` / `21:54Z` the same day,
+    `jscpd` 5.4.1 at `2026-10-16T11:42Z` and `prettier` 3.9.10 at `2026-10-17T08:35Z`; at
+    `2026-10-20T00:00:00Z` the gate names all seven as undocumented lags.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -1135,8 +1167,8 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | ---------------------------------- | --------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
 | `eslint`                           | 9.39.5    | 10.11.0 (2026-09-18, 9.1 d). **v9 ceiling 9.39.5 = installed**, the line's final release | **held** — canon row `eslint`, rewritten 2026-09-27; the 9.36.0 → 9.39.5 gap that row did not cover is closed by the bump                                                      | —         |
 | `@eslint/js`                       | 9.39.5    | 10.0.1 (2026-02-06, 233.0 d). **v9 ceiling 9.39.5 = installed**                          | **held** — canon row `@eslint/js`, written 2026-09-27; a root `package.json` literal, not a catalog entry                                                                      | —         |
-| `@typescript-eslint/parser`        | 8.71.0    | **8.71.0 (2026-09-28)** — latest stable; **latest mature** from `2026-10-05T17:09Z`      | **no** — no lag; taken 2026-10-05, a few hours before maturity, on Edward's instruction, tracked in `scripts/testing/maturity-watchlist.json`; its canon row was DELETED       | —         |
-| `@typescript-eslint/eslint-plugin` | 8.71.0    | **8.71.0 (2026-09-28)** — latest stable; **latest mature** from `2026-10-05T17:13Z`      | **no** — no lag; moved with the parser (its peer `^8.71.0`): same watchlist entry, same deleted canon row; its `typescript` peer `>=4.8.4 <6.1.0` still keeps TypeScript 7 out | —         |
+| `@typescript-eslint/parser`        | 8.71.1    | **8.71.1 (2026-10-05)** — latest stable; **latest mature** from `2026-10-12T17:08Z`      | **no** — no lag; taken 2026-10-11, about 22 hours before maturity, on Edward's instruction, tracked in `scripts/testing/maturity-watchlist.json`; no canon row                 | —         |
+| `@typescript-eslint/eslint-plugin` | 8.71.1    | **8.71.1 (2026-10-05)** — latest stable; **latest mature** from `2026-10-12T17:09Z`      | **no** — no lag; moved with the parser (its peer `^8.71.1`) and taken early with it: same watchlist entry; its `typescript` peer `>=4.8.4 <6.1.0` still keeps TypeScript 7 out | —         |
 | `eslint-plugin-react`              | 7.37.5    | 7.37.5 (2025-04-03) — no lag, and no newer release exists                                | n/a. Its peer `eslint: … \|\| ^9.7` is half the reason eslint stays on 9                                                                                                       | —         |
 | `eslint-plugin-jsx-a11y`           | 6.10.2    | 6.10.2 (2024-10-26) — no lag, and no newer release exists                                | n/a. Its peer `eslint: … \|\| ^9` is the other half                                                                                                                            | —         |
 | `eslint-plugin-boundaries`         | removed   | 7.2.0 (2026-08-09) — no longer measured: removed from the tree                           | n/a — **removed** in `PR v-c` (2026-10-05), dependency-cruiser's rules in its place (SMELL-183 closed); 7.1.0 → 7.2.0 by slice `0.21` on 2026-10-02 (SMELL-66)                 | —         |
@@ -1225,10 +1257,11 @@ from a published manifest or from this tree, not inferred.
      7.x override was deleted as inert; `tough-cookie` is range-scoped to `<4.1.3`, so jsdom 30 and msw
      take 6.0.2 while `request`'s chain keeps the floor.
 2. **`typescript` 6.0.3 → 7.0.2 — HOLD; there is no Phase 0 slice for it, and that is correct.**
-   `@typescript-eslint/parser@8.71.0` and `@typescript-eslint/eslint-plugin@8.71.0` — installed since
-   2026-10-05, taken a few hours before their `17:09Z` / `17:13Z` maturity on Edward's instruction and
-   tracked in `scripts/testing/maturity-watchlist.json` — still peer `typescript: ">=4.8.4 <6.1.0"`,
-   byte-identical to 8.70.0's and 8.70.1's, and so do the 8.71.1 alphas. TypeScript 7 is therefore not
+   `@typescript-eslint/parser@8.71.1` and `@typescript-eslint/eslint-plugin@8.71.1` — installed since
+   2026-10-11, taken about 22 hours before their `2026-10-12T17:08Z` / `17:09Z` maturity on Edward's
+   instruction and tracked in `scripts/testing/maturity-watchlist.json`, as 8.71.0 was on 2026-10-05 — still
+   peer `typescript: ">=4.8.4 <6.1.0"`, byte-identical to 8.70.0's, 8.70.1's and 8.71.0's, and so do the
+   8.71.2 alphas. TypeScript 7 is therefore not
    takeable today at any `@typescript-eslint` version, so the hold row is the deliverable, not a bump. Its
    remove-when is observable: `@typescript-eslint` publishes a peer range admitting 7.
 3. **`@vitejs/plugin-react` 5.1.4 → 6.1.1 — its own decision, and NOT slice
