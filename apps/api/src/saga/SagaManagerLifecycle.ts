@@ -1742,11 +1742,11 @@ export class SagaManagerLifecycle implements SagaManager {
     // to distrust: the audit event carries duration and step tallies, and taking
     // those from a stale in-memory instance would record the transition against
     // state the database no longer holds.
-    await failSagaAsSystem(this.config, fresh, reason);
+    const failed = await failSagaAsSystem(this.config, fresh, reason);
 
     this.stopTracking(sagaId);
     this.parkedAt.delete(sagaId);
-    this.metrics.sagasFailed++;
+    if (failed) this.metrics.sagasFailed++;
   }
 
   /**

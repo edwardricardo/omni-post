@@ -32,6 +32,7 @@ import type { SagaExecutionEngine } from "../../../src/saga/SagaManagerExecution
 import {
   createMockEventService,
   createMockPrisma,
+  endRowAtNextWrite,
   interceptRowWrites,
   createMockRedis,
   type MockEventService,
@@ -754,6 +755,29 @@ describe("a concurrent walk cannot regress the durable record", () => {
     await harness.engine.resumeCompensationWalk(sagaId);
 
     expect((await harness.row(sagaId))?.status).toBe("FAILED");
+  });
+
+  it("stops, counted, when the row ends between the walk's last read and its final write", async () => {
+    const harness = createWalkHarness({ compensableCount: 3, failingIndex: 2 });
+    const sagaId = "saga-terminal-at-write";
+    await harness.seed({
+      id: sagaId,
+      status: "COMPENSATING",
+      currentStep: 2,
+      stepResults: [
+        { outcome: "succeeded", compensationData: { stepId: "step-0" } },
+        { outcome: "succeeded", compensationData: { stepId: "step-1" } },
+        { outcome: "failed", error: "step step-2 failed" },
+      ],
+    });
+    // The horizon ends the row after the walk re-read it and before it settles it.
+    endRowAtNextWrite(harness.prisma, "FAILED", (data) => data.status === "COMPENSATED");
+    const failuresBefore = await compensationFailureCount();
+
+    await harness.engine.resumeCompensationWalk(sagaId);
+
+    expect((await harness.row(sagaId))?.status).toBe("FAILED");
+    expect(await compensationFailureCount()).toBe(failuresBefore + 1);
   });
 });
 

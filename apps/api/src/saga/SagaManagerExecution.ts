@@ -24,6 +24,7 @@ import {
   runAsSagaTenant,
   runSagaTenantTransaction,
   withSagaSystemRead,
+  type SagaWorkOutcome,
 } from "./sagaTenant.js";
 import {
   countStepOutcomes,
@@ -241,6 +242,26 @@ export class SagaExecutionEngine {
     }
   }
 
+  /**
+   * Stops this process's work on a saga whose row already holds an ending.
+   *
+   * The copy this process holds is stale by definition, so it stops being tracked: the timeout
+   * checker would otherwise try to fail a saga that already ended. One warning and no failure
+   * count, because nothing failed — another advancer reached the row first, and the row needs no
+   * repair.
+   *
+   * @param sagaId - The saga this process lost.
+   * @param persistedStatus - The status the row holds.
+   */
+  private yieldToTerminalRow(sagaId: string, persistedStatus: string): void {
+    this.lifecycle.stopTracking(sagaId);
+    logger.warn(
+      { sagaId, persistedStatus },
+      "Stopped advancing a saga whose row already holds an ending: another advancer reached it " +
+        "first, and a terminal row is never overwritten"
+    );
+  }
+
   // ---------------------------------------------------------------------------
   // Async Entry Points
   // ---------------------------------------------------------------------------
@@ -455,11 +476,22 @@ export class SagaExecutionEngine {
     // a path that has no request context to inherit. A saga whose tenant cannot
     // be resolved is left untouched here and terminalized by the timeout
     // checker — advancing it unscoped is the one thing this must never do.
-    const outcome = await runAsSagaTenant(
-      instance,
-      () => this.runSagaSteps(instance, definition),
-      this.lifecycle.metrics
-    );
+    //
+    // The entry check above is a read, and a step can run for as long as its provider takes: a
+    // second advancer can end the saga in between. Every write inside therefore refuses a
+    // terminal row on its own, and a refusal ends this pass here.
+    let outcome: SagaWorkOutcome<void>;
+    try {
+      outcome = await runAsSagaTenant(
+        instance,
+        () => this.runSagaSteps(instance, definition),
+        this.lifecycle.metrics
+      );
+    } catch (error) {
+      if (!(error instanceof SagaRowTerminalError)) throw error;
+      this.yieldToTerminalRow(error.sagaId, error.persistedStatus);
+      return false;
+    }
 
     if (!outcome.ran) {
       logger.warn(
@@ -656,6 +688,8 @@ export class SagaExecutionEngine {
             try {
               await this.beginCompensation(instance, errMsg);
             } catch (error) {
+              // A row that already ended has nothing to roll back from this copy.
+              if (error instanceof SagaRowTerminalError) throw error;
               recordSagaRecoveryFailure("compensation");
               logger.error(
                 { err: error, sagaId, currentStep: instance.currentStep },
@@ -689,6 +723,8 @@ export class SagaExecutionEngine {
 
       await this.completeSaga(instance);
     } catch (error) {
+      // Failing the saga would be one more write over the ending another advancer reached.
+      if (error instanceof SagaRowTerminalError) throw error;
       logger.error({ err: error, sagaId }, "Saga execution error");
       await this.failSaga(instance, error instanceof Error ? error.message : "Unknown error");
     }
@@ -736,6 +772,8 @@ export class SagaExecutionEngine {
       await this.persistSagaInstance(instance);
       return undefined;
     } catch (error) {
+      // A refused write is not a re-arm that failed: a second attempt meets the same ending.
+      if (error instanceof SagaRowTerminalError) throw error;
       if (!withoutDurableSchedule) {
         return { error };
       }
@@ -980,11 +1018,26 @@ export class SagaExecutionEngine {
       return;
     }
 
-    const outcome = await runAsSagaTenant(
-      instance,
-      () => this.runCompensationWalk(instance, definition),
-      this.lifecycle.metrics
-    );
+    let outcome: SagaWorkOutcome<void>;
+    try {
+      outcome = await runAsSagaTenant(
+        instance,
+        () => this.runCompensationWalk(instance, definition),
+        this.lifecycle.metrics
+      );
+    } catch (error) {
+      if (!(error instanceof SagaRowTerminalError)) throw error;
+      // The ending `syncWalkRecord` reports when it READS a terminal row, met at the write
+      // instead: the row ended between the two, and the rollback did not finish.
+      recordSagaRecoveryFailure("compensation");
+      this.lifecycle.stopTracking(sagaId);
+      logger.error(
+        { sagaId, persistedStatus: error.persistedStatus },
+        "Saga compensation stopped: the row reached a terminal state before this walk could " +
+          "record its progress, and a walk never writes over a terminal row"
+      );
+      return;
+    }
 
     if (!outcome.ran) {
       recordSagaRecoveryFailure("compensation");
@@ -1396,6 +1449,13 @@ export class SagaExecutionEngine {
       else instance.completedAt = previous.completedAt;
       if (previous.error === undefined) delete instance.error;
       else instance.error = previous.error;
+      // A row that already ended needs no failure from this copy. Answered here rather than by
+      // every caller, because the timeout checker is one: a throw would count a check failure
+      // for a saga that ended, and the restored copy would be re-failed on every tick.
+      if (persistError instanceof SagaRowTerminalError) {
+        this.yieldToTerminalRow(persistError.sagaId, persistError.persistedStatus);
+        return;
+      }
       throw persistError;
     }
 

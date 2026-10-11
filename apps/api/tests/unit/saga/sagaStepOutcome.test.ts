@@ -16,7 +16,7 @@
  *              what it PERSISTS after each outcome is the whole subject.
  * @layer infrastructure
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import client from "prom-client";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { ok, err } from "@shared/types";
@@ -35,9 +35,11 @@ import { SagaManagerImpl } from "../../../src/saga/SagaManager.js";
 import type { SagaManagerLifecycle } from "../../../src/saga/SagaManagerLifecycle.js";
 import type { SagaExecutionEngine } from "../../../src/saga/SagaManagerExecution.js";
 import { deserializeSagaInstanceRow } from "../../../src/saga/sagaInstanceRow.js";
+import { logger } from "../../../src/lib/logger.js";
 import {
   createMockEventService,
   createMockPrisma,
+  endRowAtNextWrite,
   interceptRowWrites,
   createMockRedis,
   type MockEventService,
@@ -1155,5 +1157,117 @@ describe("the operator re-drive answers on what is really happening", () => {
       async () => (await harness.row(sagaId))?.status === "COMPENSATED",
       "the handed-off walk to settle the row"
     );
+  });
+});
+
+describe("a write that loses its row to another advancer ends the pass cleanly", () => {
+  // Each case ends the row in the window between the engine's last read and one of its
+  // writes, the race a second replica produces, and checks the pass stops at that write.
+  // Every wait is on an outcome — the race happened and the engine released the saga —
+  // never on a fixed delay.
+  let warns: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    warns = vi.spyOn(logger, "warn").mockImplementation(() => logger);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** The warnings that name `sagaId` as lost to the row's `ending`. */
+  function refusals(sagaId: string, ending: string): unknown[] {
+    return warns.mock.calls.filter((call: unknown[]) => {
+      const [fields] = call as [{ sagaId?: unknown; persistedStatus?: unknown }];
+      return fields.sagaId === sagaId && fields.persistedStatus === ending;
+    });
+  }
+
+  /** Starts a probe saga and waits until its first pass has reached `reached` and let go. */
+  async function startAndAwaitPass(
+    harness: OutcomeHarness,
+    reached: () => boolean
+  ): Promise<string> {
+    const { id } = await harness.manager.startSaga(DEFINITION_ID, {
+      accountId: ACCOUNT_ID,
+      metadata: { accountId: ACCOUNT_ID },
+    });
+    await until(
+      async () => reached() && !harness.engine.isAdvancerInFlight(id),
+      "the first pass to reach its outcome and release the saga"
+    );
+    return id;
+  }
+
+  it("stops at the step's own write: one warning, no failure written, nothing tracked", async () => {
+    const errors = vi.spyOn(logger, "error").mockImplementation(() => logger);
+    const harness = createOutcomeHarness({
+      script: async () => ({ outcome: "succeeded", data: {} }),
+    });
+    const raced = endRowAtNextWrite(harness.prisma, "COMPLETED", (data) => data.currentStep === 3);
+
+    const sagaId = await startAndAwaitPass(harness, raced);
+
+    expect((await harness.row(sagaId))?.status).toBe("COMPLETED");
+    expect(errors).not.toHaveBeenCalled();
+    expect(harness.lifecycle.activeInstances.has(sagaId)).toBe(false);
+    expect(refusals(sagaId, "COMPLETED")).toHaveLength(1);
+  });
+
+  it("does not let the timeout checker fail a stale copy of a row that ended", async () => {
+    const harness = createOutcomeHarness({
+      script: async () => ({ outcome: "waiting", reason: "still going" }),
+    });
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
+    await harness.lifecycle.initialize();
+    const tracked = harness.lifecycle.activeInstances.get(sagaId);
+    expect(tracked).toBeDefined();
+    tracked!.startedAt = new Date(Date.now() - (SAGA_TIMEOUT_MS + 60_000));
+    endRowAtNextWrite(harness.prisma, "COMPLETED", (data) => data.status === "FAILED");
+
+    await harness.scheduler.triggerTask("saga-timeout-checker", { swallowErrors: false });
+
+    expect((await harness.row(sagaId))?.status).toBe("COMPLETED");
+    expect(harness.lifecycle.metrics.timeoutCheckFailures).toBe(0);
+    expect(harness.lifecycle.activeInstances.has(sagaId)).toBe(false);
+    expect(refusals(sagaId, "COMPLETED")).toHaveLength(1);
+  });
+
+  it("dispatches no rollback when the compensation transition meets an ending", async () => {
+    const harness = createCompensableOutcomeHarness(async () => ({
+      outcome: "failed",
+      error: "the pre-pivot step failed",
+    }));
+    const raced = endRowAtNextWrite(
+      harness.prisma,
+      "FAILED",
+      (data) => data.status === "COMPENSATING"
+    );
+    const failuresBefore = await failureCount("compensation");
+
+    const sagaId = await startAndAwaitPass(harness, raced);
+
+    expect((await harness.row(sagaId))?.status).toBe("FAILED");
+    expect(await failureCount("compensation")).toBe(failuresBefore);
+    expect(harness.compensated?.attempts).toBe(0);
+    expect(refusals(sagaId, "FAILED")).toHaveLength(1);
+  });
+
+  it("neither retries nor reports as a failed re-arm a poll re-arm that meets an ending", async () => {
+    const harness = createOutcomeHarness({
+      script: async () => ({ outcome: "waiting", reason: "still going" }),
+    });
+    const raced = endRowAtNextWrite(
+      harness.prisma,
+      "COMPLETED",
+      (data) => data.nextRetryAt instanceof Date
+    );
+    const failuresBefore = await failureCount("wait-poll");
+
+    const sagaId = await startAndAwaitPass(harness, raced);
+
+    expect((await harness.row(sagaId))?.status).toBe("COMPLETED");
+    expect(await failureCount("wait-poll")).toBe(failuresBefore);
+    expect(refusals(sagaId, "COMPLETED")).toHaveLength(1);
   });
 });

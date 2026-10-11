@@ -79,24 +79,50 @@ export function sagaRowWrites(
  * @function interceptRowWrites
  * @description Runs `inspect` on the data of every saga-row write before the double
  *   applies it, the conditional update and the create alike, so a test can refuse a
- *   chosen write by throwing from `inspect`, as a database that refuses it would.
+ *   chosen write by throwing from `inspect`, as a database that refuses it would, or
+ *   let another advancer act on the row first by awaiting inside it.
  * @param writes - The `sagaInstance` double whose writes are intercepted, in place.
- * @param inspect - Called with each write's data; a throw refuses that write.
+ * @param inspect - Called with each write's data and row id; a throw refuses that write.
  */
 export function interceptRowWrites(
   writes: SagaRowWrites,
-  inspect: (data: StoredSagaRow) => void
+  inspect: (data: StoredSagaRow, id: string) => void | Promise<void>
 ): void {
   const update = writes.updateMany.bind(writes);
   const create = writes.create.bind(writes);
   writes.updateMany = async (args) => {
-    inspect(args.data);
+    await inspect(args.data, args.where.id);
     return await update(args);
   };
   writes.create = async (args) => {
-    inspect(args.data);
+    await inspect(args.data, args.data.id);
     return await create(args);
   };
+}
+
+/**
+ * @function endRowAtNextWrite
+ * @description Another advancer ends the saga's row in the window between the engine's
+ *   last read and its next write: right before the first write `selects` picks, the
+ *   stored row takes `ending`. That window is the one only the compare-and-swap closes.
+ * @param prisma - The double whose row is ended.
+ * @param ending - The terminal status the other advancer writes.
+ * @param selects - Picks the write that loses the race, by the data it would write.
+ * @returns Whether the race has happened, so a test waits on it rather than on time.
+ */
+export function endRowAtNextWrite(
+  prisma: MockPrismaClient,
+  ending: string,
+  selects: (data: StoredSagaRow) => boolean
+): () => boolean {
+  let armed = true;
+  interceptRowWrites(prisma.sagaInstance, async (data, id) => {
+    if (!armed || !selects(data)) return;
+    armed = false;
+    const stored = (await prisma.sagaInstance.findUnique({ where: { id } })) as StoredSagaRow;
+    stored.status = ending;
+  });
+  return () => !armed;
 }
 
 export interface MockPrismaClient {
