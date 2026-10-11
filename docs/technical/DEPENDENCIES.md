@@ -316,7 +316,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @testing-library/react    | 16.3.3  | Component testing                    |
 | @testing-library/dom      | 10.4.2  | DOM utilities                        |
 | @testing-library/jest-dom | 7.0.1   | Custom matchers                      |
-| jsdom                     | 30.1.1  | Browser environment simulation       |
+| jsdom                     | 30.1.2  | Browser environment simulation       |
 | @playwright/test          | 1.63.0  | E2E testing                          |
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
 | yaml                      | 2.9.1   | Workflow parsing in the reach engine |

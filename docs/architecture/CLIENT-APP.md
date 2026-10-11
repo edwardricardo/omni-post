@@ -42,7 +42,7 @@ The Universal Client Dashboard is a modern React 19.2.7 application built with N
 - **React Testing Library**: 16.3.3 for component testing
 - **Jest DOM**: 7.0.1 for DOM testing utilities
 - **Playwright**: 1.63.0 for end-to-end testing
-- **JSDOM**: 30.1.1 for DOM simulation
+- **JSDOM**: 30.1.2 for DOM simulation
 - **Storybook**: 10.6.1 on `@storybook/nextjs-vite` for component documentation; its stories run as vitest browser tests in headless Chromium (`test:stories`)
 
 ### Development Tools

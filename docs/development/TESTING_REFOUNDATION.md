@@ -860,8 +860,8 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-10T04:13:21Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
-stderr: of the 49 packages in `scripts/testing/toolchain-population.json` (48 direct, 1 named transitive,
+**CURRENT, re-measured 2026-10-11T09:39:34Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+stderr: of the 50 packages in `scripts/testing/toolchain-population.json` (49 direct, 1 named transitive,
 no declared-absent candidate left), 11 sit below latest mature and NOT ONE of them is unheld.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
@@ -988,6 +988,45 @@ and what moved it. A slice that moves the count appends its own line.
     [D25](#decisions-log) decided for the Storybook family. From 2.11.5 turbo writes a root `AGENTS.md`
     whenever it detects an AI agent, so the root `turbo.json` sets `"agentGuidance": false`, the switch
     its configuration reference documents: the repository keeps its documents under `docs/`.
+27. `2026-10-11T09:39:34Z` — **11**: the hold bump took `jsdom` 30.1.1 → 30.1.2, the latest mature release and
+    also `latest`, so it left the set; the same gate with 30.1.1 injected through `--installed` and
+    `--outdated` measures **12** at `09:40:16Z` and exits 1 with `jsdom` as `lag: UNDOCUMENTED`, because
+    30.1.2 (published `2026-10-04T09:15:00Z`) matured at `2026-10-11T09:15Z` and no canon row named it. That
+    is the red the holds step of the `Dependency Consistency` job in `fitness.yml` gave `main`'s push run of
+    `f73a8768`, the merge of #547, at `09:16:11Z`, and pull request #549 at `09:18:35Z`, where #547's own run
+    had passed at `09:02:53Z`. #470's body, measured 2026-10-07, had announced the instant — "`jsdom` 30.1.2
+    (matures 2026-10-11T09:15Z)", one of the four packages it said would turn the gate red before 2026-10-13
+    with no row — and this bump answers it. OSV lists nothing for 30.1.2. Its release notes (the `v30.1.2`
+    GitHub release; the repository root holds no `Changelog.md`) list fixes only, none a security fix: Unicode
+    18.0.0 in internationalized domain names; smaller CSS property definitions; the slowdown building large
+    DOM trees that v30.1.0 introduced; empty inherited CSS custom properties; stale `getComputedStyle()`
+    results after stylesheet edits, and its throw for elements without inline style; selector matching after
+    form-control state and focus changes; `element.focus()` on elements hidden by `display` or excluded by
+    slot assignment; a window retained by stylesheet parsing after `window.close()`; `MutationObserver` memory
+    growth; stale `select.selectedOptions`; negative CSS sizing values, a v30.1.0 regression; and nested
+    `color-mix()`. They reach two surfaces here: the vitest `jsdom` environment of `apps/admin`,
+    `apps/client`, `packages/query-client` and `packages/observability/browser-logger`, and the production
+    sanitizer `apps/api > isomorphic-dompurify@4.4.0 > jsdom`, which parses markup into a DOM tree and so
+    meets the tree-building fix; no note names HTML parsing or serialization. In the lockfile, parsed with
+    `yaml.safe_load_all`, the bump moves jsdom's own subtree and nothing else, each move explained by a range
+    30.1.2 raised: `data-urls` 7.0.0 → 8.0.0 (`^8.0.0`; its one release note is a `^22.14.0 || >=24.0.0` Node
+    floor), `whatwg-url` 17.1.2 → 17.2.0 (`^17.2.0`, which needs `tr46 ^7.0.0`: 6.0.0 → 7.0.0, Unicode
+    18.0.0), with `whatwg-url` 16.0.1 gone together with `data-urls` 7, `@exodus/bytes` 1.15.1 → 1.16.0
+    (`^1.16.0`; `html-encoding-sniffer` 7.0.0, whose `^1.15.1` admits it, moved with it),
+    `@asamuzakjp/dom-selector` 9.2.1 → 9.2.4, `@csstools/css-syntax-patches-for-csstree` 1.1.14 → 1.1.15, and
+    `@asamuzakjp/css-color` 7.0.1 → 7.1.3, which takes `@csstools/css-calc` 3.4.3, `css-color-parser` 4.2.6
+    and `css-parser-algorithms` 4.0.2. Natural resolution took `@asamuzakjp/css-color` 7.1.5, published
+    `2026-10-11T05:57Z`, 3.7 hours earlier, so the lockfile was resolved once with pnpm's minimum release age
+    at 10080 minutes, excluding the `vite` and `handlebars` CVE floors taken inside the buffer on purpose, and
+    then deduplicated: 7.1.3 is the newest release of `^7.1.3` outside the buffer, and every version the bump
+    adds is past it, so the maturity watchlist gains no entry. Since line 26 the population rose 49 → 50:
+    `eslint-plugin-jsdoc` joined at 65.1.0 (#546), its latest mature release, with a PRE-REGISTERED canon row
+    for 65.2.0. The eleven lagging packages are unchanged and no held target moved. Nothing newer than 30.1.2
+    is published, so nothing is pre-registered and no canon row is written. The next two instants the live
+    gate names are `@typescript-eslint/parser` and `@typescript-eslint/eslint-plugin` 8.71.1 at
+    `2026-10-12T17:08Z` and `17:09Z`, then `isomorphic-dompurify` 4.5.0 at `2026-10-13T09:29Z`: with
+    `--instant` the gate exits 0 at `2026-10-12T17:07:00Z`, 1 at `17:10:00Z` on the pair, and 1 at
+    `2026-10-13T09:30:00Z` on all three.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -1054,7 +1093,7 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | `playwright` / `playwright-core`    | 1.63.0                  | **1.63.0 (2026-09-04)**                                                                                                                           | **no** — no lag; `@playwright/test` 1.63.0 pins `playwright` at its own exact version, so both moved with the runner. Since 2026-10-05 `apps/client` also declares `playwright` through the catalog, atomic with `@playwright/test` (one value, so the pair cannot drift), as the required peer of `@vitest/browser-playwright`, so the population lists it with no absence; `playwright-core` stays transitive | —                                                                                   |
 | `@axe-core/playwright`              | 4.13.0                  | **4.13.0 (2026-08-11, 51.7 d) — latest mature** since 2026-10-02 (slice `0.7`), at `2026-10-02T09:27Z`                                            | **no** — no lag; deleted with the canon row `@playwright/test`, which named it too                                                                                                                                                                                                                                                                                                                              | —                                                                                   |
 | `msw`                               | 2.15.0                  | 3.0.0 (2026-09-28) — mature since `2026-10-05T15:45Z`; `latest` 3.0.1 matures `2026-10-07T12:39Z`                                                 | **held** since `2026-10-05T15:45Z` — canon row `msw`: slice `0.22` chose vitest browser mode (`@storybook/addon-vitest` + `@vitest/browser 4.1.11`); `@vitest/mocker 4.1.11` peers `msw ^2.4.9` and browser-mode module interception loads `msw/browser`, so msw 3 waits for a `@vitest/mocker` whose peer admits 3.x — re-read on the day                                                                      | —                                                                                   |
-| `jsdom`                             | 30.1.1                  | **30.1.1 (2026-09-22, 10.8 d) — latest mature** since 2026-10-02 (slice `0.12`), at `2026-10-02T20:22Z`                                           | **no** — no lag; the canon row `jsdom`, which carried all three crossings, was DELETED by slice `0.12`                                                                                                                                                                                                                                                                                                          | `undici` override deleted (no 7.x left); `tough-cookie` scoped to `<4.1.3`          |
+| `jsdom`                             | 30.1.2                  | **30.1.2 (2026-10-04, 7.0 d) — latest mature**, and `latest`, since 2026-10-11 (hold bump), at `2026-10-11T09:39Z`                                | **no** — no lag and no row: 30.1.2 matured at `2026-10-11T09:15Z` with none, so the gate went red on `main` and #549 from `09:16Z` until the hold bump; the canon row `jsdom`, which carried all three crossings, was DELETED by slice `0.12`                                                                                                                                                                   | `undici` 8.11.2, `tough-cookie` 6.0.2 — natural resolution; both overrides deleted  |
 | `isomorphic-dompurify` (PRODUCTION) | 4.4.0                   | **4.4.0 (2026-09-25, 7.1 d) — latest mature** since 2026-10-02 (slice `0.12`), at `2026-10-02T20:22Z`                                             | **no** — no lag; deleted with the canon row `jsdom`, which named it                                                                                                                                                                                                                                                                                                                                             | `dompurify` 3.4.16 (CVE-floor row `dompurify`) — met by 4.4.0's `dompurify ^3.4.12` |
 | `@testing-library/react`            | 16.3.3                  | **16.3.3 (2026-08-27, 35.7 d) — latest mature** since 2026-10-02 (slice `0.9`), at `2026-10-02T09:39Z`                                            | **no** — no lag; the canon row `@testing-library/dom`, which named all four, was DELETED by slice `0.9`                                                                                                                                                                                                                                                                                                         | —                                                                                   |
 | `@testing-library/dom`              | 10.4.2                  | **10.4.2 (2026-09-13, 18.6 d) — latest mature** since 2026-10-02 (slice `0.9`), at `2026-10-02T09:39Z`                                            | **no** — no lag; deleted with that same canon row, the one it was named first in                                                                                                                                                                                                                                                                                                                                | —                                                                                   |
