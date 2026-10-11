@@ -40,7 +40,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, before, after } from "node:test";
+import { describe, it, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -191,6 +191,8 @@ interface Harness {
   fastify: FastifyInstance;
   subscriber: Redis;
   journal: StepJournal;
+  /** Set once the integration's own shutdown ran, so it never runs twice. */
+  shutDown: boolean;
 }
 
 describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
@@ -254,11 +256,25 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
       fastify,
       subscriber,
       journal,
+      shutDown: false,
     };
     harnesses.push(harness);
 
     await integration.initialize();
     return harness;
+  }
+
+  /**
+   * Shuts every harness booted so far down through the integration's own shutdown, once: each
+   * leaves `saga:events`, so a harness from a finished scenario cannot answer the next one's events.
+   */
+  async function shutdownHarnesses(): Promise<void> {
+    for (const harness of harnesses) {
+      if (harness.shutDown) continue;
+      harness.shutDown = true;
+      await harness.integration.shutdown();
+      await harness.fastify.close().catch(() => undefined);
+    }
   }
 
   async function sagaSnapshot(sagaId: string): Promise<SagaSnapshot> {
@@ -426,10 +442,14 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
     );
   }, TIMING);
 
+  // Each scenario's harnesses end with the scenario that booted them.
+  afterEach(shutdownHarnesses, TIMING);
+
   after(async () => {
+    // The backstop for a scenario whose own teardown never ran.
+    await shutdownHarnesses().catch(() => undefined);
     for (const harness of harnesses) {
       harness.subscriber.disconnect();
-      await harness.fastify.close().catch(() => undefined);
     }
 
     await queueAdapter?.close().catch(() => undefined);

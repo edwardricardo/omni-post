@@ -260,6 +260,53 @@ interface Harness {
   scheduler: NoopBackgroundTaskScheduler;
   fastify: FastifyInstance;
   subscriber: Redis;
+  /** Set once the integration's own shutdown ran, so it never runs twice. */
+  shutDown: boolean;
+}
+
+/** What a scenario may swap in a harness: the repository its RereadCheck reads through. */
+interface HarnessOverrides {
+  postRepository?: PrismaPostRepository;
+}
+
+/**
+ * A one-shot pause on a repository read. Two saga engines are ordered with it rather than with a
+ * sleep: the read the gate holds is a point the first engine provably reached, and the release is
+ * a point the test chooses.
+ */
+interface ReadGate {
+  /** Holds the next read that arrives, and only that one. */
+  arm(): void;
+  /** Whether the held read has arrived. */
+  hasReached(): boolean;
+  /** Lets the held read through. Safe to call more than once. */
+  release(): void;
+  /** Runs `read`, waiting at the gate first when it is armed. */
+  pass<T>(read: () => Promise<T>): Promise<T>;
+}
+
+function createReadGate(): ReadGate {
+  let armed = false;
+  let reached = false;
+  let open: () => void = () => undefined;
+  const released = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  return {
+    arm: () => {
+      armed = true;
+    },
+    hasReached: () => reached,
+    release: () => open(),
+    pass: async <T>(read: () => Promise<T>): Promise<T> => {
+      if (armed) {
+        armed = false;
+        reached = true;
+        await released;
+      }
+      return await read();
+    },
+  };
 }
 
 describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
@@ -355,7 +402,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
    * definitions relative to `sagaManager.initialize()` — is production's own
    * decision, and it is exactly what these scenarios exercise.
    */
-  function buildHarness(label: string): Harness {
+  function buildHarness(label: string, overrides: HarnessOverrides = {}): Harness {
     const scheduler = new NoopBackgroundTaskScheduler();
     const fastify = Fastify({ logger: false });
     // lazyConnect: the integration calls `.connect()` on this socket itself,
@@ -389,7 +436,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       scheduler,
       projectRepository,
       channelRepository,
-      postRepository,
+      postRepository: overrides.postRepository ?? postRepository,
     });
 
     const manager = integration.getSagaManager();
@@ -401,21 +448,44 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       scheduler,
       fastify,
       subscriber,
+      shutDown: false,
     };
     harnesses.push(harness);
     return harness;
   }
 
   /** Builds a composition and boots it exactly as the API bootstrap boots it. */
-  async function bootHarness(label: string): Promise<{
+  async function bootHarness(
+    label: string,
+    overrides: HarnessOverrides = {}
+  ): Promise<{
     harness: Harness;
     logLines: Record<string, unknown>[];
   }> {
-    const harness = buildHarness(label);
+    const harness = buildHarness(label, overrides);
     const logLines = await captureLogs(async () => {
       await harness.integration.initialize();
     });
     return { harness, logLines };
+  }
+
+  /**
+   * Shuts one harness down through the integration's own shutdown, once: it leaves `saga:events`
+   * and hands off what it still tracks, exactly as a deployed process does on SIGTERM. A harness
+   * left running stays subscribed, and answers events for sagas the next scenario owns.
+   */
+  async function shutdownHarness(harness: Harness): Promise<void> {
+    if (harness.shutDown) return;
+    harness.shutDown = true;
+    await harness.integration.shutdown();
+    await harness.fastify.close().catch(() => undefined);
+  }
+
+  /** Shuts down every harness the finished scenario booted. */
+  async function shutdownScenarioHarnesses(): Promise<void> {
+    for (const harness of harnesses) {
+      await shutdownHarness(harness);
+    }
   }
 
   /** The boot summary this pass emitted, which is the pass's operator-facing output. */
@@ -837,9 +907,10 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   }, TIMING);
 
   after(async () => {
+    // The backstop for a scenario whose own teardown never ran.
     for (const harness of harnesses) {
+      await shutdownHarness(harness).catch(() => undefined);
       harness.subscriber.disconnect();
-      await harness.fastify.close().catch(() => undefined);
     }
 
     await worker?.close().catch(() => undefined);
@@ -896,6 +967,8 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   }, TIMING);
 
   describe("a boot in the production composition order", () => {
+    after(shutdownScenarioHarnesses, TIMING);
+
     let parkedSagaId: string;
     let parkedPostId: string;
     let parkedDedupeKey: string;
@@ -1094,6 +1167,8 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   });
 
   describe("the parked saga, resumed deliberately by an operator", () => {
+    after(shutdownScenarioHarnesses, TIMING);
+
     let sagaId: string;
     let postId: string;
     let dedupeKey: string;
@@ -1203,6 +1278,8 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   });
 
   describe("a parked row and its operator window", () => {
+    after(shutdownScenarioHarnesses, TIMING);
+
     let sagaId: string;
     let restarted: Harness;
 
@@ -1312,6 +1389,8 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   });
 
   describe("an inherited pivot-step retry claimed by the retry checker", () => {
+    after(shutdownScenarioHarnesses, TIMING);
+
     let sagaId: string;
     let postId: string;
     let dedupeKey: string;
@@ -1421,6 +1500,8 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   });
 
   describe("an inherited pivot-step retry whose post is still DRAFT", () => {
+    after(shutdownScenarioHarnesses, TIMING);
+
     let sagaId: string;
     let postId: string;
     let dedupeKey: string;
@@ -1534,7 +1615,164 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     });
   });
 
+  describe("a stale engine that loses the pivot to a second engine", () => {
+    let sagaId: string;
+    let postId: string;
+    let jobIdsBefore: string[];
+    let processedBefore: number;
+    let eventsBeforeRelease: number;
+    let winnerTerminal: SagaSnapshot;
+    let terminal: SagaSnapshot;
+    let releaseLogLines: Record<string, unknown>[] = [];
+    const gate = createReadGate();
+
+    before(async () => {
+      // Two engines advance ONE row, with no row claim between them: the overlap a deploy or a
+      // second replica produces. The state is the draft-retry scenario's, because there the
+      // first engine's reread PASSES on entry and only a second engine can make it fail.
+      const { harness: crashed } = await bootHarness("stale-engine-crashed");
+      const interrupted = await seedPivotInterruptedSaga(crashed, "staleengine");
+      sagaId = interrupted.sagaId;
+      postId = interrupted.postId;
+      await base.post.update({
+        where: { id: postId },
+        data: { status: "DRAFT", publishedAt: null },
+      });
+      await base.sagaInstance.update({
+        where: { id: sagaId },
+        data: {
+          status: "RUNNING",
+          currentStep: PIVOT_STEP_INDEX,
+          nextRetryAt: new Date(Date.now() - 1_000),
+          retryCount: MAX_RETRIES,
+        },
+      });
+      await redis.del(`saga:${sagaId}`);
+
+      processedBefore = processedCountFor(postId, deliveringChannelId);
+      jobIdsBefore = (await jobsForTarget(postId, deliveringChannelId)).map((job) =>
+        String(job.id)
+      );
+
+      // Engine A reads the post through a gated repository, so its pivot stops INSIDE the
+      // RereadCheck, after its entry checks passed against a RUNNING row.
+      const gatedPostRepository = new PrismaPostRepository(
+        guarded,
+        undefined,
+        ambientTenantContextProvider
+      );
+      const readPost = gatedPostRepository.findById.bind(gatedPostRepository);
+      gatedPostRepository.findById = (id) => gate.pass(() => readPost(id));
+      const { harness: stale } = await bootHarness("stale-engine", {
+        postRepository: gatedPostRepository,
+      });
+      gate.arm();
+      await stale.scheduler.triggerTask(RETRY_RECOVERY_TASK_ID, { swallowErrors: false });
+      await pollUntil(
+        async () => (gate.hasReached() ? true : null),
+        () => `engine A to reach the RereadCheck of ${sagaId}`
+      );
+
+      // Engine B finishes the saga while A waits: the pivot passes on the DRAFT post, the queue
+      // absorbs the re-enqueue, and the promotion publishes the post.
+      const { harness: winner } = await bootHarness("stale-engine-winner");
+      winnerTerminal = await driveToTerminal(
+        sagaId,
+        winner.scheduler,
+        `engine B to finish ${sagaId} while engine A waits inside its reread`
+      );
+      eventsBeforeRelease = await base.storedEvent.count({
+        where: { streamId: sagaStreamId(sagaId) },
+      });
+
+      // A resumes on a row that already ended: its reread now sees PUBLISHED.
+      releaseLogLines = await captureLogs(async () => {
+        gate.release();
+        await pollUntil(
+          async () => (stale.lifecycle.executionEngine.isAdvancerInFlight(sagaId) ? null : true),
+          () => `engine A to let go of ${sagaId}`
+        );
+      });
+      terminal = await sagaSnapshot(sagaId);
+    }, TIMING);
+
+    after(async () => {
+      // A scenario that failed before the release must not leave engine A parked on the gate.
+      gate.release();
+      await shutdownScenarioHarnesses();
+    }, TIMING);
+
+    it("lets the second engine finish the saga (the premise)", TIMING, async () => {
+      assert.strictEqual(
+        winnerTerminal.status,
+        "COMPLETED",
+        `engine B must complete the saga or the race proves nothing (error=${String(winnerTerminal.error)})`
+      );
+      assert.strictEqual(
+        (await postSnapshot(postId)).status,
+        "PUBLISHED",
+        "and its promotion must have published the post"
+      );
+    });
+
+    it(
+      "keeps the saga COMPLETED: the stale engine's late failure never overwrites a terminal row",
+      TIMING,
+      async () => {
+        assert.strictEqual(
+          terminal.status,
+          "COMPLETED",
+          `a terminal saga never re-executes, whichever engine reaches it (error=${String(terminal.error)})`
+        );
+        assert.strictEqual(terminal.error, null, "and the row carries no failure");
+        assert.strictEqual(
+          terminal.currentStep,
+          LAST_STEP_INDEX + 1,
+          "and it still records every step as walked"
+        );
+        assert.strictEqual(
+          await base.storedEvent.count({ where: { streamId: sagaStreamId(sagaId) } }),
+          eventsBeforeRelease,
+          "and engine A appended no event to the saga's stream: a refused write emits nothing"
+        );
+        assert.strictEqual(
+          await sagaFailedEventCount(sagaId),
+          0,
+          "least of all a saga.failed for a saga that published"
+        );
+      }
+    );
+
+    it("leaves the queue's jobs and the post as the winning engine left them", TIMING, async () => {
+      assert.deepStrictEqual(
+        (await jobsForTarget(postId, deliveringChannelId)).map((job) => String(job.id)),
+        jobIdsBefore,
+        "the queue holds exactly the jobs it held before either engine ran"
+      );
+      assert.strictEqual(
+        processedCountFor(postId, deliveringChannelId),
+        processedBefore,
+        "no worker published a second time"
+      );
+      assert.strictEqual((await postSnapshot(postId)).status, "PUBLISHED");
+    });
+
+    it("stops the stale engine with one warning naming the status it lost to", TIMING, async () => {
+      const refusals = releaseLogLines.filter(
+        (line) => line.sagaId === sagaId && line.level === "warn"
+      );
+      assert.strictEqual(refusals.length, 1, "exactly one warning, not one per write it skipped");
+      assert.strictEqual(
+        refusals[0]?.persistedStatus,
+        "COMPLETED",
+        "naming the terminal status the row already holds"
+      );
+    });
+  });
+
   describe("terminal rows and the pivot boundary at restart", () => {
+    after(shutdownScenarioHarnesses, TIMING);
+
     it(
       "leaves a saga that was already terminal untouched when a manager boots",
       TIMING,
@@ -1663,6 +1901,8 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   });
 
   describe("a retry-pending saga handed off by a graceful shutdown", () => {
+    after(shutdownScenarioHarnesses, TIMING);
+
     let sagaId: string;
     let restarted: Harness;
 
@@ -1684,7 +1924,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         () => `${sagaId} to schedule a retry before the drain`
       );
 
-      await draining.integration.shutdown();
+      await shutdownHarness(draining);
 
       const booted = await bootHarness("handoff-restarted");
       restarted = booted.harness;
