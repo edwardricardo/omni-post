@@ -203,6 +203,14 @@
 | SB-182 | same                                                                                  | R2-003                                                           | `docs/product/MASTER_PLAN_ES.md` (N-CI-5)                                                                                                   | bullet structure             | deferred: the plan's bullets are prose; the counts repeat in N-CI-6                                                                                             |
 | SB-183 | stdout guard (`workstream/stdout-ascii-guard-v2`, 0ca6d2ca)                           | R3-alias-flow-insensitivity                                      | `packages/eslint-plugin-testing/src/rules/no-stdout-in-node-test.js:193-198` (`kindOf`)                                                     | alias precision              | deferred: the tree's only aliases are four `const` bindings, each written once and never called; a flow-sensitive tracker is a later refinement                 |
 | SB-184 | same                                                                                  | R3-glob-extension-scope                                          | `eslint.config.ts:290` (the rule's `apps/api/tests/**/*.ts` binding)                                                                        | file glob                    | deferred: `run-tests.sh` collects only `.ts` suites, and no other script extension exists under `apps/api/tests`                                                |
+| SB-185 | JSDoc gate A, rebuilt (`workstream/jsdoc-gate-1-rules`, a327c3b8)                     | R3-001 (WARNING)                                                 | `apps/api/tests/unit/scripts/jsdocRules.test.ts` (the `pnpm lint` case)                                                                     | test coupling                | justified: the coupling IS the pin (SB-172); a jsdoc key in the main config must fail it                                                                        |
+| SB-186 | same                                                                                  | R3-002                                                           | `apps/api/tests/unit/scripts/jsdocRules.test.ts` (`findingsFor`)                                                                            | test hardening               | deferred: every fixture yields a result today; an assertion on the count is a hardening                                                                         |
+| SB-187 | same                                                                                  | R2-001                                                           | `eslint.jsdoc.config.ts` (conditional spread on `components`)                                                                               | readability                  | deferred: `...(x ? {…} : {})` carries the same rule; no behaviour change                                                                                        |
+| SB-188 | same                                                                                  | R2-002                                                           | `eslint.jsdoc.config.ts` (`NOT_COMPONENTS` selectors)                                                                                       | readability                  | deferred: a comment per clause naming the component shape it excludes                                                                                           |
+| SB-189 | same                                                                                  | R2-003                                                           | `eslint.jsdoc.config.ts` (`returnsVoid(prefix)`)                                                                                            | readability                  | deferred: two named helpers or a docstring example per prefix                                                                                                   |
+| SB-190 | same                                                                                  | R3-003                                                           | `eslint.jsdoc.config.ts` (the `ignores` for tests, specs, stories)                                                                          | test scope                   | deferred: the decided scope; a case pinning that an ignored path lints clean                                                                                    |
+| SB-191 | JSDoc gate C, rebuilt (`workstream/jsdoc-gate`, 785c6e80)                             | R3-fitness-base-ref-fallback (WARNING)                           | `.github/workflows/fitness.yml` (#47: `${FITNESS_BASE_REF:-origin/main}`)                                                                   | dead fallback                | justified: the same line is the LOCAL form of the check (CLAUDE.md block), as #37's is; CI always sets the base                                                 |
+| SB-192 | same                                                                                  | R3-lint-staged-jsdoc-chdir (WARNING)                             | `package.json` (the lint-staged entry) → files mode of the gate                                                                             | pre-commit vs CI             | justified by measurement: files mode lints exactly the named files, root-resolved; a real pre-commit refused a plant                                            |
 
 ## Entries — code and prose
 
@@ -1046,6 +1054,70 @@
 - **Suggestion:** widen the glob to `.tsx`, `.mts` and `.cts`, so a node:test file with another extension is checked too.
 - **Why deferred:** `apps/api/scripts/run-tests.sh` collects only `*.integration.test.ts` and `*.live.test.ts` (`find … -name "*.$suffix.test.ts"`), so no file with another extension can be a node:test suite today; measured 2026-10-11, no `.tsx`, `.mts`, `.cts`, `.js`, `.mjs` or `.cjs` file exists under `apps/api/tests` to be imported by one either.
 - **To implement:** widen the glob in the change that teaches the collector another extension, or that adds the first helper with one.
+
+### SB-185 — the `pnpm lint` case still reads the repository's discovered config
+
+- **Source:** the native review of the rebuilt JSDoc gate commit A (`workstream/jsdoc-gate-1-rules`, `a327c3b8`), finding `R3-001` (WARNING).
+- **Location:** `apps/api/tests/unit/scripts/jsdocRules.test.ts`, the case "stays out of `pnpm lint`".
+- **Suggestion:** isolate the case from `eslint.config.*`, so an unrelated change that adds a jsdoc rule there does not fail it.
+- **Why justified:** the same coupling SB-172 records, raised one level: that failure is the case's purpose. The gate's design is that `pnpm lint` never loads the jsdoc rules, so the existing debt turns no lint run red; the day the main config gains a `jsdoc/*` key, this case must fail, and it reads the discovered config because that is the only way to know.
+- **To implement:** nothing; the case is the pin.
+
+### SB-186 — `findingsFor` does not assert that ESLint returned one result
+
+- **Source:** the same review, finding `R3-002`.
+- **Location:** `apps/api/tests/unit/scripts/jsdocRules.test.ts`, `findingsFor`.
+- **Suggestion:** assert `results.length === 1` before reading `messages`, so a fixture path the config ignores fails the case instead of passing with an empty list.
+- **Why deferred:** every fixture path lies under `apps/` or `packages/` outside the ignores, and every case asserts specific findings today (the flips of round 4 went red on each), so no case passes quietly; the assertion is a hardening against a future fixture under an ignored path.
+- **To implement:** the one assertion, in the next edit of the suite.
+
+### SB-187 — the conditional spread on `components`
+
+- **Source:** the same review, finding `R2-001`.
+- **Location:** `eslint.jsdoc.config.ts:142`, `...(components && { … })`.
+- **Suggestion:** `...(components ? { … } : {})` or a mutable `rules` object, so the reader need not recall that spreading `false` is a no-op.
+- **Why deferred:** the two spellings produce the same config; readability only.
+- **To implement:** the ternary, in the next edit of the config.
+
+### SB-188 — the `NOT_COMPONENTS` selectors are hard to audit
+
+- **Source:** the same review, finding `R2-002`.
+- **Location:** `eslint.jsdoc.config.ts:76-86`.
+- **Suggestion:** a comment per clause naming the component shape it excludes.
+- **Why deferred:** the selectors are pinned by the rules suite's component cases (round 4's three flips went red on them); the comments change no rule.
+- **To implement:** the four comments.
+
+### SB-189 — `returnsVoid(prefix)` hides its two call shapes
+
+- **Source:** the same review, finding `R2-003`.
+- **Location:** `eslint.jsdoc.config.ts:51-54`, and its `value.` call at line 109.
+- **Suggestion:** two named helpers or a docstring example per prefix.
+- **Why deferred:** readability only; the abstract-method case of the suite pins the `value.` shape.
+- **To implement:** two helpers, in the next edit of the config.
+
+### SB-190 — the ignores for tests, specs and stories are not pinned by a case
+
+- **Source:** the same review, finding `R3-003`.
+- **Location:** `eslint.jsdoc.config.ts:135-150`, the `ignores`.
+- **Suggestion:** a case asserting that a `*.test.ts`, `*.spec.ts` or `*.stories.tsx` path lints clean under the config.
+- **Why deferred:** the scope is the decided one (CODING_STANDARDS §Documentation's method-level rule targets source; tests are out by design), and the gate suite already pins that an out-of-scope path is a clean pass; a config-level case adds an earlier signal.
+- **To implement:** one `lintText` case per ignored suffix, asserting no findings.
+
+### SB-191 — the #47 step's `origin/main` fallback cannot fire in CI
+
+- **Source:** the native review of the rebuilt JSDoc gate wiring commit (`workstream/jsdoc-gate`, `785c6e80`), finding `R3-fitness-base-ref-fallback` (WARNING).
+- **Location:** `.github/workflows/fitness.yml`, the #47 step: `JSDOC_BASE_REF="${FITNESS_BASE_REF:-origin/main}" pnpm check:jsdoc`.
+- **Suggestion:** drop the `:-origin/main` fallback, which the `pull_request`-only step and the always-set base sha make unreachable.
+- **Why justified:** the line is deliberately the same command the CLAUDE.md #47 block gives for a LOCAL run, where `FITNESS_BASE_REF` is unset and `origin/main` is the base; #37 carries the identical `${FITNESS_BASE_REF:-origin/main}` for the same reason. In CI the base sha is always set and used; nothing is misleading once the two forms are read as one command.
+- **To implement:** nothing; the block and the step stay byte-identical on purpose.
+
+### SB-192 — whether lint-staged's files reach the gate as its scope
+
+- **Source:** the same review, finding `R3-lint-staged-jsdoc-chdir` (WARNING, inferential: the script is in commit B, not in this candidate).
+- **Location:** `package.json`, the lint-staged entry that appends the staged files to `node scripts/testing/jsdoc-touched-gate.mjs`.
+- **Suggestion:** confirm that the script treats the appended paths as the authoritative scope and runs from the repository root, so the pre-commit verdict matches CI's.
+- **Why justified:** measured, not inferred. Files mode lints exactly the named files, resolved against the repository root (commit B, `jsdocTouchedGate.test.ts` pins it, with a case refusing a path outside the root); a planted undocumented export run through that mode exits 1 naming the file, lint-staged in a scratch clone exits 1 on the same plant, and a real `git commit` on a detached HEAD at the wiring commit was refused by husky with the rule's line (`errorPlugin.ts:35 jsdoc/require-jsdoc`). CI's #47 runs the default (merge-base) mode over the same config, so the two verdicts share the rules and differ only in how the file list is obtained.
+- **To implement:** nothing.
 
 ## Entries — tests
 
