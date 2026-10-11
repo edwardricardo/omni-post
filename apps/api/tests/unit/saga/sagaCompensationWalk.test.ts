@@ -32,6 +32,7 @@ import type { SagaExecutionEngine } from "../../../src/saga/SagaManagerExecution
 import {
   createMockEventService,
   createMockPrisma,
+  interceptRowWrites,
   createMockRedis,
   type MockEventService,
   type MockPrismaClient,
@@ -164,7 +165,7 @@ interface WalkHarness {
   seed: (row: Partial<StoredRow> & { id: string }) => Promise<void>;
   /** Moves a row's `updatedAt` back, so a stalled walk can be observed. */
   age: (sagaId: string, updatedAt: Date) => Promise<void>;
-  /** Makes the next upsert that writes `status` throw, once. */
+  /** Makes the next row write that writes `status` throw, once. */
   failNextWriteOf: (status: string, error: string) => void;
   /** Records when this saga's compensation was born, as the durable event does. */
   seedCompensationStarted: (sagaId: string, at: Date) => Promise<void>;
@@ -214,18 +215,13 @@ function createWalkHarness(options: {
   // interactive transaction against the pool the HTTP layer shares, and the
   // storm this slice can produce is exactly when it will not get one.
   let failWriteOfStatus: { status: string; error: string } | undefined;
-  const realUpsert = prisma.sagaInstance.upsert.bind(prisma.sagaInstance);
-  prisma.sagaInstance.upsert = async (args: {
-    where: { id: string };
-    create?: { status?: string };
-  }): Promise<unknown> => {
-    if (failWriteOfStatus && args.create?.status === failWriteOfStatus.status) {
+  interceptRowWrites(prisma.sagaInstance, (data) => {
+    if (failWriteOfStatus && data.status === failWriteOfStatus.status) {
       const message = failWriteOfStatus.error;
       failWriteOfStatus = undefined;
       throw new Error(message);
     }
-    return await realUpsert(args);
-  };
+  });
 
   const readRow = async (sagaId: string): Promise<StoredRow | null> =>
     (await prisma.sagaInstance.findUnique({ where: { id: sagaId } })) as StoredRow | null;

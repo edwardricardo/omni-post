@@ -570,7 +570,12 @@ const KNOWN_ENGINE_OPERATIONS = [
   "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
   "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
   "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
-  "src/saga/SagaManagerExecution.ts::sagaInstance.upsert",
+  // The state write is a compare-and-swap: an update that matches only a row
+  // that has not ended, then — when it matched nothing — the read that tells a
+  // terminal row (refused) from a missing one (created).
+  "src/saga/SagaManagerExecution.ts::sagaInstance.updateMany",
+  "src/saga/SagaManagerExecution.ts::sagaInstance.findUnique",
+  "src/saga/SagaManagerExecution.ts::sagaInstance.create",
   // The boot load's page AND its two counts — how many rows it had to defer, and
   // what the COMPENSATING level is. All three sit inside the ONE declared read
   // boundary, so the figures and the page describe the same snapshot. The
@@ -1427,10 +1432,15 @@ describe("saga engine context invariants", () => {
       // COMPENSATING, so no walk ever begins from a row whose persisted status
       // still says the saga is moving forward.
       expect(execution.sanitized).toMatch(/await this\.beginCompensation\(instance, errMsg\)/);
-      expect(execution.sanitized).toMatch(/await this\.beginCompensation\(instance\)/);
+      expect(execution.sanitized).toMatch(
+        /await this\.enterCompensation\(instance, undefined, false\)/
+      );
       expect(lifecycle.sanitized).toMatch(/this\.executionEngine\.beginCompensation\(instance\)/);
 
-      const transition = bodyWithLiterals(execution, "async beginCompensation(");
+      // The public door and the walk's defensive transition share ONE body.
+      const door = bodyWithLiterals(execution, "async beginCompensation(");
+      expect(door).toContain("await this.enterCompensation(");
+      const transition = bodyWithLiterals(execution, "private async enterCompensation(");
       expect(transition).toContain('instance.status = "COMPENSATING"');
       expect(transition).toContain("delete instance.nextRetryAt");
       expect(transition).toContain("await this.persistSagaInstance(");
@@ -1859,9 +1869,10 @@ describe("saga engine context invariants", () => {
       // lifting the single-replica constraint that saga crash recovery owns.
       // The docblock the guard carries, which is where its scope is stated: the
       // class body up to and including the field it documents.
+      const engineAt = execution.original.indexOf("export class SagaExecutionEngine");
       const guardDoc = execution.original.slice(
-        execution.original.indexOf("export class SagaExecutionEngine"),
-        execution.original.indexOf("constructor(")
+        engineAt,
+        execution.original.indexOf("constructor(", engineAt)
       );
       expect(guardDoc).toMatch(/in-process|this process/i);
       expect(guardDoc).not.toMatch(/across processes|cross-process guarantee|every replica/i);

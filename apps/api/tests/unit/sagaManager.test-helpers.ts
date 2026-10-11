@@ -16,11 +16,94 @@ import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler
  */
 export const TEST_ACCOUNT_ID = "acc-11111111-1111-4111-8111-111111111111";
 
+/** A saga row as the doubles store it: whatever the engine wrote, keyed by column. */
+export type StoredSagaRow = Record<string, unknown>;
+
+/** The engine's conditional update: one row by id, and only while its status is allowed. */
+export interface SagaRowUpdateArgs {
+  where: { id: string; status?: { notIn?: string[] } };
+  data: StoredSagaRow;
+}
+
+/** The engine's create of a new saga's row. */
+export interface SagaRowCreateArgs {
+  data: StoredSagaRow & { id: string };
+}
+
+/** The two saga-row writes the engine issues, as a `sagaInstance` double exposes them. */
+export interface SagaRowWrites {
+  updateMany: (args: SagaRowUpdateArgs) => Promise<{ count: number }>;
+  create: (args: SagaRowCreateArgs) => Promise<StoredSagaRow>;
+}
+
+/**
+ * @function sagaRowWrites
+ * @description The engine's two row writes, modelled as Postgres answers them. The
+ *   state write is a compare-and-swap: the update lands only on a row whose status is
+ *   outside the `notIn` it names, the count is the verdict, and the columns it omits
+ *   keep their values. A create on an id that already exists fails the way the primary
+ *   key makes it fail, with Prisma's `P2002`. One model shared by every saga double, so
+ *   no double can answer the compare-and-swap differently from another.
+ * @param store - The double's rows, keyed by saga id.
+ * @param stampUpdatedAt - Whether the double applies `@updatedAt` on every write.
+ * @returns The `updateMany` and `create` members of a `sagaInstance` double.
+ */
+export function sagaRowWrites(
+  store: Map<string, StoredSagaRow>,
+  stampUpdatedAt = false
+): SagaRowWrites {
+  const stamped = (row: StoredSagaRow): StoredSagaRow =>
+    stampUpdatedAt ? { ...row, updatedAt: new Date() } : row;
+  return {
+    updateMany: async (args) => {
+      const row = store.get(args.where.id);
+      const refused = args.where.status?.notIn ?? [];
+      if (row === undefined || refused.includes(String(row.status))) return { count: 0 };
+      store.set(args.where.id, stamped({ ...row, ...args.data }));
+      return { count: 1 };
+    },
+    create: async (args) => {
+      if (store.has(args.data.id)) {
+        throw Object.assign(new Error("Unique constraint failed on the fields: (`id`)"), {
+          code: "P2002",
+        });
+      }
+      const row = stamped({ ...args.data });
+      store.set(args.data.id, row);
+      return row;
+    },
+  };
+}
+
+/**
+ * @function interceptRowWrites
+ * @description Runs `inspect` on the data of every saga-row write before the double
+ *   applies it, the conditional update and the create alike, so a test can refuse a
+ *   chosen write by throwing from `inspect`, as a database that refuses it would.
+ * @param writes - The `sagaInstance` double whose writes are intercepted, in place.
+ * @param inspect - Called with each write's data; a throw refuses that write.
+ */
+export function interceptRowWrites(
+  writes: SagaRowWrites,
+  inspect: (data: StoredSagaRow) => void
+): void {
+  const update = writes.updateMany.bind(writes);
+  const create = writes.create.bind(writes);
+  writes.updateMany = async (args) => {
+    inspect(args.data);
+    return await update(args);
+  };
+  writes.create = async (args) => {
+    inspect(args.data);
+    return await create(args);
+  };
+}
+
 export interface MockPrismaClient {
   $queryRaw: (query: any) => Promise<any>;
   $executeRaw: (query: any) => Promise<any>;
   $transaction: <T>(fn: (tx: MockPrismaClient) => Promise<T>) => Promise<T>;
-  sagaInstance: {
+  sagaInstance: SagaRowWrites & {
     upsert: (args: any) => Promise<any>;
     /** The boot load counts before it pages, so it can report what it deferred. */
     count: (args?: any) => Promise<number>;
@@ -76,11 +159,13 @@ export function createMockPrisma(): MockPrismaClient {
     $executeRaw: async () => 1,
     $transaction: async <T>(fn: (tx: MockPrismaClient) => Promise<T>) => fn(mock),
     sagaInstance: {
+      // `@updatedAt` is applied by the database on every write, so the double
+      // applies it too: the COMPENSATING liveness horizon is measured from
+      // this column, and a double that froze it would make a stalled walk and
+      // a live one indistinguishable.
+      ...sagaRowWrites(store, true),
+      // Kept for the suites that SEED a row through it; the engine no longer upserts.
       upsert: async (args: any) => {
-        // `@updatedAt` is applied by the database on every write, so the double
-        // applies it too: the COMPENSATING liveness horizon is measured from
-        // this column, and a double that froze it would make a stalled walk and
-        // a live one indistinguishable.
         const data = { ...(args.create ?? args.update), updatedAt: new Date() };
         store.set(args.where.id, data);
         return data;
