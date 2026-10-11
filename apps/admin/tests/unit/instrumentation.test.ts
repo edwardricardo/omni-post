@@ -25,7 +25,8 @@ import GlobalError from "../../app/global-error";
 const SERVER_DSN = "https://server@o0.ingest.invalid/0";
 const PUBLIC_DSN = "https://public@o0.ingest.invalid/0";
 
-const { sentry, env, logger } = vi.hoisted(() => ({
+const { sentry, env, logger, logError } = vi.hoisted(() => ({
+  logError: vi.fn(),
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
   sentry: {
     init: vi.fn(),
@@ -38,7 +39,12 @@ const { sentry, env, logger } = vi.hoisted(() => ({
 
 vi.mock("@sentry/nextjs", () => sentry);
 vi.mock("../../lib/env", () => ({ env }));
-vi.mock("@observability/browser-logger", () => ({ useLogger: () => logger }));
+vi.mock("@observability/browser-logger", () => ({
+  ConsoleLoggerAdapter: class {
+    error = logError;
+  },
+  useLogger: () => logger,
+}));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 
 /**
@@ -187,7 +193,7 @@ describe("admin app/global-error.tsx", () => {
     vi.clearAllMocks();
   });
 
-  it("reports the root-layout crash to Sentry once and offers a retry that re-fetches", async () => {
+  it("reports the root-layout crash to Sentry and the console once and offers a retry", async () => {
     const error = Object.assign(new Error("root layout crashed"), { digest: "digest-001" });
     const retry = vi.fn();
 
@@ -195,7 +201,11 @@ describe("admin app/global-error.tsx", () => {
 
     expect(sentry.captureException).toHaveBeenCalledTimes(1);
     expect(sentry.captureException).toHaveBeenCalledWith(error);
-    expect(screen.getByRole("heading", { name: "Something went wrong" })).toBeInTheDocument();
+    expect(logError).toHaveBeenCalledTimes(1);
+    expect(logError).toHaveBeenCalledWith("Global error (root layout crash)", error, {
+      digest: "digest-001",
+    });
+    expect(screen.getByRole("heading", { name: "Something went wrong!" })).toBeInTheDocument();
     expect(screen.getByText("Error ID: digest-001")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledTimes(1);
