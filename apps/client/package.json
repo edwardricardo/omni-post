@@ -38,6 +38,7 @@
     "@git-diff-view/react": "0.1.4",
     "@monaco-editor/react": "4.6.0",
     "@observability/browser-logger": "workspace:*",
+    "@observability/sentry-next": "workspace:*",
     "@packages/api-errors": "workspace:*",
     "@packages/i18n": "workspace:*",
     "@packages/query-client": "workspace:*",

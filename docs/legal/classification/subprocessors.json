@@ -290,7 +290,7 @@
       "envToggle": "`NEXT_PUBLIC_SENTRY_DSN`",
       "dataSent": "error events with stack traces, browser and request context, and a sample of performance traces",
       "productionPath": "yes",
-      "note": "Each portal's `sentry.client.config.ts` and `sentry.server.config.ts`; `withSentryConfig` wraps each `next.config.mjs`."
+      "note": "Each portal's `instrumentation.ts` (server) and `instrumentation-client.ts` (browser), and its `app/global-error.tsx`; `withSentryConfig` wraps each `next.config.mjs`."
     },
     "@sentry/node": {
       "status": "service",

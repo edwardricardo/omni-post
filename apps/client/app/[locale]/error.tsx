@@ -3,8 +3,9 @@
  * @description Next.js global error boundary for the client app. Uses the
  *              browser logger port to report uncaught errors from the render
  *              tree so the sink can be swapped (console → APM) centrally.
- *              Recovery uses `unstable_retry` (Next 16.2+ canonical — re-fetches
- *              data on retry, vs `reset` which only re-renders the boundary).
+ *              Recovery uses `retry` (stable since Next 16.3, which no longer
+ *              passes `unstable_retry`; it re-fetches data, where `reset` only
+ *              re-renders the boundary).
  * @component LocaleError
  * @layer infrastructure
  */
@@ -14,13 +15,18 @@ import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useLogger } from "@observability/browser-logger";
 
-export default function Error({
-  error,
-  unstable_retry,
-}: {
+interface ErrorPageProps {
+  /** The error the page threw; `digest` identifies it in the server logs. */
   error: Error & { digest?: string };
-  unstable_retry: () => void;
-}) {
+  /** Re-fetches and re-renders the failed segment (Next 16.3+; `reset` re-renders only). */
+  retry: () => void;
+}
+
+/**
+ * Error page of a locale segment: logs the error, shows a generic message (the real one in
+ * development) with its error ID outside development, and offers a retry.
+ */
+export default function Error({ error, retry }: ErrorPageProps) {
   const t = useTranslations("errors");
   const logger = useLogger("client.error-page");
 
@@ -48,7 +54,7 @@ export default function Error({
         </p>
       )}
       <button
-        onClick={() => unstable_retry()}
+        onClick={() => retry()}
         className="px-4 py-2 bg-blue-500 text-white rounded-sm hover:bg-blue-600"
       >
         {t("boundary.tryAgain")}

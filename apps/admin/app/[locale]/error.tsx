@@ -1,8 +1,9 @@
 /**
  * @file error.tsx
  * @description Next.js root error boundary component that displays a user-friendly error message
- * with an error ID (digest) and a retry button to attempt recovery. Uses `unstable_retry`
- * (Next 16.2+ canonical recovery — re-fetches data on retry, vs `reset` which only re-renders).
+ * with an error ID (digest) and a retry button to attempt recovery. Uses `retry` (stable since
+ * Next 16.3, which no longer passes `unstable_retry`; it re-fetches data, where `reset` only
+ * re-renders).
  * Routes caught errors through the BrowserLoggerPort for structured reporting.
  * @component Error
  * @layer infrastructure
@@ -14,13 +15,18 @@ import { useTranslations } from "next-intl";
 import { useLogger } from "@observability/browser-logger";
 import { ActionButton } from "@/components/ui/ActionButton";
 
-export default function Error({
-  error,
-  unstable_retry,
-}: {
+interface ErrorPageProps {
+  /** The error the page threw; `digest` identifies it in the server logs. */
   error: Error & { digest?: string };
-  unstable_retry: () => void;
-}) {
+  /** Re-fetches and re-renders the failed segment (Next 16.3+; `reset` re-renders only). */
+  retry: () => void;
+}
+
+/**
+ * Error page of a locale segment: logs the error, shows a generic message (the real one in
+ * development) with its error ID, and offers a retry.
+ */
+export default function Error({ error, retry }: ErrorPageProps) {
   const t = useTranslations("errorPage");
   const tc = useTranslations("common");
   const logger = useLogger("admin.error-page");
@@ -53,7 +59,7 @@ export default function Error({
             {tc("errorId", { id: error.digest ?? "unknown" })}
           </p>
         )}
-        <ActionButton variant="primary" size="lg" onClick={unstable_retry}>
+        <ActionButton variant="primary" size="lg" onClick={retry}>
           {t("tryAgain")}
         </ActionButton>
       </div>
