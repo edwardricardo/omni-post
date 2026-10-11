@@ -110,6 +110,18 @@ describe("createServerInstrumentation", () => {
     expect(sentry.init).not.toHaveBeenCalled();
   });
 
+  it("neither loads the env module nor initializes Sentry when NEXT_RUNTIME is unset", async () => {
+    vi.stubEnv("NEXT_RUNTIME", undefined);
+    const loadEnv = loadEnvOf({ SENTRY_DSN: SERVER_DSN, NODE_ENV: "production" });
+    const { register } = createServerInstrumentation({ loadEnv });
+
+    await register();
+
+    expect(process.env.NEXT_RUNTIME).toBeUndefined();
+    expect(loadEnv).not.toHaveBeenCalled();
+    expect(sentry.init).not.toHaveBeenCalled();
+  });
+
   it("reports the errors Next catches on the server through Sentry's request-error hook", () => {
     const { onRequestError } = createServerInstrumentation({
       loadEnv: loadEnvOf({ NODE_ENV: "production" }),

@@ -33,12 +33,16 @@ const PORTAL_MESSAGES: Readonly<Record<GlobalErrorPortal, string>> = {
   client: "Something went wrong. Please try again or contact support.",
 };
 
-/** Props of the fallback document. */
-export interface GlobalErrorDocumentProps {
+/** The props Next passes a portal's `app/global-error.tsx`. */
+export interface GlobalErrorProps {
   /** The error the root layout threw; `digest` identifies it in the server logs. */
   error: Error & { digest?: string };
   /** Re-fetches and re-renders the root layout (Next 16.3+; `reset` re-renders only). */
   retry: () => void;
+}
+
+/** Props of the fallback document: Next's props plus the portal that renders it. */
+export interface GlobalErrorDocumentProps extends GlobalErrorProps {
   /** The portal whose root layout crashed; it selects the sentence and tags the console entry. */
   portal: GlobalErrorPortal;
 }

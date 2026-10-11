@@ -20,7 +20,8 @@
  *   flags are true, 1 when any is false, and 2 when it cannot measure: a usage error, no standalone
  *   build, a server that does not become ready, no answer from the server process, or a
  *   `@sentry/core` of another version than the one the server loaded. The server is stopped by its
- *   PID on every path.
+ *   PID on every path, and once it has run, its last output lines follow on stderr whatever the
+ *   verdict, so a run after a dependency bump can be read from the CI log.
  * @layer infrastructure
  */
 import { spawn } from "node:child_process";
@@ -36,10 +37,20 @@ const ROOT = path.resolve(path.dirname(SCRIPT), "../..");
 const PORTALS = ["admin", "client"];
 /** A syntactically valid DSN on the reserved `.invalid` domain, which never resolves. */
 const DUMMY_DSN = "https://public@o0.ingest.invalid/0";
+/** A whole probe of a local admin build takes about 0.6 s; a minute absorbs a loaded CI runner. */
 const READY_TIMEOUT_MS = 60_000;
+/** Adds at most a quarter second to a ready server without flooding one that is still booting. */
 const POLL_INTERVAL_MS = 250;
+/**
+ * One health request may take four polling intervals (1 s): a server that accepted the connection
+ * but answers slowly is asked again rather than waited on until the whole deadline.
+ */
+const HEALTH_REQUEST_TIMEOUT_MS = POLL_INTERVAL_MS * 4;
+/** The answer is an in-process read sent over IPC in milliseconds; silence past 5 s is no answer. */
 const ANSWER_TIMEOUT_MS = 5_000;
+/** The grace between SIGTERM and SIGKILL; a standalone Next server exits well within it. */
 const STOP_TIMEOUT_MS = 5_000;
+/** Enough for a stack trace or Next's boot lines, short enough to read in a CI log. */
 const OUTPUT_TAIL_LINES = 40;
 const QUESTION = "sentry-init-probe:state";
 const CHILD_FLAG = "SENTRY_INIT_PROBE_CHILD";
@@ -163,7 +174,7 @@ function freePort() {
 function healthStatus(port) {
   return new Promise((resolve) => {
     const request = http.get(
-      { host: "127.0.0.1", port, path: "/api/health", timeout: POLL_INTERVAL_MS * 4 },
+      { host: "127.0.0.1", port, path: "/api/health", timeout: HEALTH_REQUEST_TIMEOUT_MS },
       (response) => {
         response.resume();
         resolve(response.statusCode ?? null);
@@ -243,6 +254,32 @@ async function stop(child) {
 }
 
 /**
+ * @description Keeps the last lines of a growing text, with one element to spare for the line
+ *   still being written, so the kept text never grows past the tail it is read for.
+ * @param {string} text - The text so far.
+ * @param {number} count - How many complete lines to keep.
+ * @returns {string} The text's last `count` lines, plus any unfinished one.
+ */
+function lastLines(text, count) {
+  const lines = text.split("\n");
+  return lines.length > count + 1 ? lines.slice(-(count + 1)).join("\n") : text;
+}
+
+/**
+ * @description Writes the server's last output lines to stderr under a label, after the verdict,
+ *   so a pass, a failure and a refusal can each be read against what the server printed. Writes
+ *   nothing when the server printed nothing.
+ * @param {string} tail - The kept tail of the server's stdout and stderr.
+ */
+function writeServerTail(tail) {
+  const lines = tail.replace(/\s+$/, "").split("\n").slice(-OUTPUT_TAIL_LINES);
+  if (lines.join("").trim() === "") return;
+  process.stderr.write(
+    `sentry-init-probe: server output, last ${lines.length} lines:\n${lines.join("\n")}\n`
+  );
+}
+
+/**
  * @description Boots the portal's standalone server, asks it for Sentry's state and judges it.
  * @param {string[]} argv - The arguments after the script path.
  * @returns {Promise<0 | 1 | 2>} The exit code.
@@ -286,11 +323,10 @@ export async function main(argv) {
     },
     stdio: ["ignore", "pipe", "pipe", "ipc"],
   });
-  /** @type {string[]} */
-  const output = [];
+  // One text for both streams, so a line split across two chunks is kept whole.
+  let tail = "";
   const keep = (/** @type {Buffer} */ chunk) => {
-    output.push(...chunk.toString("utf8").split("\n"));
-    output.splice(0, Math.max(0, output.length - OUTPUT_TAIL_LINES));
+    tail = lastLines(tail + chunk.toString("utf8"), OUTPUT_TAIL_LINES);
   };
   child.stdout?.on("data", keep);
   child.stderr?.on("data", keep);
@@ -301,9 +337,7 @@ export async function main(argv) {
   try {
     const notReady = await waitUntilReady(port, () => exited);
     if (notReady !== null) {
-      process.stderr.write(
-        `sentry-init-probe: ${notReady}. Last server output:\n${output.join("\n")}\n`
-      );
+      process.stderr.write(`sentry-init-probe: ${notReady}.\n`);
       return 2;
     }
     const answer = await ask(child);
@@ -316,6 +350,9 @@ export async function main(argv) {
     return state.isInitialized && state.hasClient && state.hasDsn && state.enabled ? 0 : 1;
   } finally {
     await stop(child);
+    // On every exit once the server ran, after the verdict: a passing run after a dependency bump
+    // is as worth reading in a CI log as a failing one.
+    writeServerTail(tail);
   }
 }
 

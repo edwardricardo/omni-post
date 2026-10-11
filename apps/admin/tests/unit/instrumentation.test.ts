@@ -5,21 +5,23 @@
  *              browser, and `app/global-error.tsx` for a crash in the root layout. The init
  *              used to live in the config files of Sentry's older convention, which a
  *              Turbopack production build never loads, so Sentry stayed uninitialized in
- *              production on both sides while every suite was green (DEF-86). These tests hold the contract each file owes to Next: what
- *              `register()` does on each runtime, which DSN each side reads, when the SDK
- *              is enabled, which Sentry hooks the files export, and that the global error
- *              boundary reports its error and retries. The locale error page's retry is
- *              pinned here too: Next 16.3 passes `retry` and no longer `unstable_retry`.
- *              The files delegate to `@observability/sentry-next`, whose own suites pin its
- *              logic; these cases run through it, with the portal's env and portal name.
- *              What a unit test cannot see, whether the BUILD wires the files in, is
- *              `scripts/testing/sentry-init-probe.mjs`'s job, run against a standalone build.
+ *              production on both sides while every suite was green (DEF-86).
+ *
+ *              These tests hold the contract each file owes to Next: what `register()` does
+ *              on each runtime, which DSN each side reads, when the SDK is enabled, which
+ *              Sentry hooks the files export, and that the global error boundary reports its
+ *              error, on the `admin.global-error` console channel, and retries. The locale
+ *              error page's retry is pinned here too: Next 16.3 passes `retry` and no longer
+ *              `unstable_retry`. The files delegate to `@observability/sentry-next`, whose own
+ *              suites pin its logic; these cases run through it, with the portal's env and
+ *              portal name. What a unit test cannot see, whether the BUILD wires the files in,
+ *              is `scripts/testing/sentry-init-probe.mjs`'s job, run against a standalone build.
  * @layer infrastructure
  */
 import { createElement } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import LocaleError from "../../app/[locale]/error";
 import GlobalError from "../../app/global-error";
@@ -27,8 +29,16 @@ import GlobalError from "../../app/global-error";
 const SERVER_DSN = "https://server@o0.ingest.invalid/0";
 const PUBLIC_DSN = "https://public@o0.ingest.invalid/0";
 
-const { sentry, env, logger, logError } = vi.hoisted(() => ({
-  logError: vi.fn(),
+/** A console adapter double: the channel it was built for, and a spy per level. */
+interface ConsoleAdapterDouble {
+  readonly channel: string;
+  readonly error: Mock;
+  readonly warn: Mock;
+  readonly info: Mock;
+  readonly debug: Mock;
+}
+
+const { sentry, env, logger, consoleAdapters } = vi.hoisted(() => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
   sentry: {
     init: vi.fn(),
@@ -37,13 +47,23 @@ const { sentry, env, logger, logError } = vi.hoisted(() => ({
     captureRouterTransitionStart: vi.fn(),
   },
   env: {} as Record<string, string | undefined>,
+  consoleAdapters: [] as ConsoleAdapterDouble[],
 }));
 
 vi.mock("@sentry/nextjs", () => sentry);
 vi.mock("../../lib/env", () => ({ env }));
+// Every adapter the code under test builds is kept with the channel it was built for, so a case
+// can read which channel an entry was written on.
 vi.mock("@observability/browser-logger", () => ({
-  ConsoleLoggerAdapter: class {
-    error = logError;
+  ConsoleLoggerAdapter: class implements ConsoleAdapterDouble {
+    readonly error = vi.fn();
+    readonly warn = vi.fn();
+    readonly info = vi.fn();
+    readonly debug = vi.fn();
+
+    constructor(readonly channel: string) {
+      consoleAdapters.push(this);
+    }
   },
   useLogger: () => logger,
 }));
@@ -57,6 +77,17 @@ vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 function setEnv(values: Record<string, string>): void {
   for (const key of Object.keys(env)) delete env[key];
   Object.assign(env, values);
+}
+
+/**
+ * @description Every `error` entry written on the console adapters built for one channel.
+ * @param channel - The channel the adapters were constructed with.
+ * @returns The arguments of each entry, in order.
+ */
+function errorsOn(channel: string): unknown[][] {
+  return consoleAdapters
+    .filter((adapter) => adapter.channel === channel)
+    .flatMap((adapter) => adapter.error.mock.calls);
 }
 
 describe("admin instrumentation.ts", () => {
@@ -119,7 +150,10 @@ describe("admin instrumentation.ts", () => {
     );
   });
 
-  it.each(["edge", ""])("initializes nothing when Next's runtime is %j", async (runtime) => {
+  it.each([
+    ["Edge", "edge"],
+    ["unset", undefined],
+  ] as const)("initializes nothing when NEXT_RUNTIME is %s", async (_label, runtime) => {
     vi.stubEnv("NEXT_RUNTIME", runtime);
     setEnv({ SENTRY_DSN: SERVER_DSN, NODE_ENV: "production" });
     const { register } = await import("../../instrumentation");
@@ -195,7 +229,7 @@ describe("admin app/global-error.tsx", () => {
     vi.clearAllMocks();
   });
 
-  it("reports the root-layout crash to Sentry and the console once and offers a retry", async () => {
+  it("reports the root-layout crash to Sentry and on the admin console channel once and offers a retry", async () => {
     const error = Object.assign(new Error("root layout crashed"), { digest: "digest-001" });
     const retry = vi.fn();
 
@@ -203,11 +237,10 @@ describe("admin app/global-error.tsx", () => {
 
     expect(sentry.captureException).toHaveBeenCalledTimes(1);
     expect(sentry.captureException).toHaveBeenCalledWith(error);
-    expect(logError).toHaveBeenCalledTimes(1);
-    expect(logError).toHaveBeenCalledWith("Global error (root layout crash)", error, {
-      portal: "admin",
-      digest: "digest-001",
-    });
+    expect(errorsOn("admin.global-error")).toEqual([
+      ["Global error (root layout crash)", error, { portal: "admin", digest: "digest-001" }],
+    ]);
+    expect(errorsOn("client.global-error")).toEqual([]);
     expect(screen.getByRole("heading", { name: "Something went wrong!" })).toBeInTheDocument();
     expect(screen.getByText("Error ID: digest-001")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));

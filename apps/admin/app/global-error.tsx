@@ -11,13 +11,13 @@
  */
 import {
   GlobalErrorDocument,
-  type GlobalErrorDocumentProps,
+  type GlobalErrorProps,
 } from "@observability/sentry-next/global-error";
 
 /**
  * Fallback document for a crash in the admin portal's root layout, with the admin dashboard's
  * own sentence under the heading.
  */
-export default function GlobalError({ error, retry }: Omit<GlobalErrorDocumentProps, "portal">) {
+export default function GlobalError({ error, retry }: GlobalErrorProps) {
   return <GlobalErrorDocument error={error} retry={retry} portal="admin" />;
 }

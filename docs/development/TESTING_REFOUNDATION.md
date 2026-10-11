@@ -469,7 +469,7 @@ and added the fitness #11 gate row (M7 `18/18` → `19/19`, after PR C's story-r
 deleted the bundle analyzer with its suite (M1 `994 + 14` → `993 + 14`). `PR def86` is DEF-86 on
 `workstream/fix-def-86-sentry-instrumentation`, which added the two portals' instrumentation suites
 (M1 `993 + 14` → `995 + 14`) and the three suites of the shared `@observability/sentry-next`
-package (M1 `995 + 14` → `998 + 14`). A `PR` followed by a
+package (M1 `995 + 14` → `998 + 14`, M8 `1/92` → `1/93` for its vitest config). A `PR` followed by a
 letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
 [§Plan (fixed)](#plan-fixed)'s own label for the pull request that
 closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
@@ -485,7 +485,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 | M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 23 · 0                | 0 · 0         | `metrics.mjs --m5` (`test-contracts reach --json`, WU-1.9; absent at baseline)          | PR R3    |
 | M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —        |
 | M7  | Gates new/modified, red proven                                    | 0/0                   | 31/31                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | DEF-83   |
-| M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/92 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR R9a   |
+| M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/93 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR R9a   |
 | M9  | TIER runs: skipped / cancelled · runtime `t.skip` sites           | 0/0 · 114             | 0/0 · 114             | 0/0 · 0       | `metrics.mjs --m9` (pasted: TIER run summary; sites by WU-1.13 AST scan)                | —        |
 | M10 | E2E specs in CI, required? · last verdict                         | 0 · no                | 0 · no                | ≥6 · yes      | `metrics.mjs --m10` (run id, once WU-6.E8 lands the job)                                | —        |
 | M11 | k6 runs in CI · last verdict                                      | 0                     | 0                     | every PR      | `metrics.mjs --m11` (run id, once WU-6.K4 lands the job)                                | —        |

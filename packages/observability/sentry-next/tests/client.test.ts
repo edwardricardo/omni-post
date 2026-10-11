@@ -61,6 +61,14 @@ describe("initBrowserSentry", () => {
       expect.objectContaining({ environment: "test", enabled: false })
     );
   });
+
+  it("keeps Sentry disabled, reporting development, with neither a DSN nor an inlined NODE_ENV", () => {
+    initBrowserSentry({ dsn: undefined, nodeEnv: undefined });
+
+    expect(sentry.init).toHaveBeenCalledWith(
+      expect.objectContaining({ dsn: undefined, environment: "development", enabled: false })
+    );
+  });
 });
 
 describe("onRouterTransitionStart", () => {
