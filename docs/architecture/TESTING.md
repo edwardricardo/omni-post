@@ -133,6 +133,11 @@ pnpm --filter @apps/api test
 # (http://localhost:3000 and http://localhost:3300/health/ready for a local stack).
 pnpm --filter @apps/api test:integration
 
+# The two halves CI runs apart, from apps/api: the services tier before the API
+# and the workers start, the live tier once they answer
+TIER=pr-integration bash scripts/run-tests.sh
+TIER=live-integration bash scripts/run-tests.sh
+
 # Only the named suites, from apps/api, each in its own tier and with its tier's
 # guards (a live one needs the same running API, workers and URLs as above)
 bash scripts/run-tests.sh tests/auth.integration.test.ts tests/security.live.test.ts
@@ -197,6 +202,8 @@ pnpm --filter @apps/admin run typecheck   # Admin TypeScript validation
 **Collector** (`apps/api/scripts/run-tests.sh`)
 
 The collector finds the suites by their suffix — the services tier is every `*.integration.test.ts` under `tests/`, the live tier every `*.live.test.ts` — and runs each file in its own Node.js process, one after another, so every file gets its own verdict from its TAP summary. Before each live file it probes the API and the workers. Uses `--test-force-exit` to handle Prisma connection pool sockets.
+
+**Tiers, and the order CI runs them in.** `TIER` picks what one run executes: unset runs both tiers (the local default, without the tier-only skip and zero-collection guards), `pr-integration` runs the services tier alone and `live-integration` the live tier alone. The `Integration Tests` job of `ci.yml` runs `pr-integration` before it starts the API and the workers, and `live-integration` after them. The order matters: a running API advances every tenant's sagas from its own retry scan, so a services suite that shares the database with one races a saga engine it never booted (DEF-82). The battery's `tier` step runs `pr-integration` with no API running.
 
 ```bash
 # One node:test process per file, one file at a time

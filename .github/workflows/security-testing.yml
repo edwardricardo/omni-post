@@ -19,7 +19,7 @@ name: Security Testing
 # Also removed: custom-security-tests, a second collector for files that
 # already run elsewhere. Its auth, rbac and mfa suites run in the services
 # tier of apps/api/scripts/run-tests.sh and its security suite in the live
-# tier (the Integration Tests job of ci.yml, TIER=full-integration, with a
+# tier (the Integration Tests job of ci.yml, TIER=live-integration, with a
 # live API), connected as the app role — the omnipost_app login that
 # row-level security applies to — and with rate limiting on. Its per-suite
 # guards live on there: under TIER each file gets its own verdict and fails

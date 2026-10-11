@@ -436,6 +436,27 @@ jobs:
           export PLATFORM_ENCRYPTION_KEY="$(head -c 32 /dev/zero | tr '\0' 'c' | base64 | tr -d '\n')"
           pnpm --filter @infra/prisma run seed
 
+      # The services tier runs BEFORE the API and the workers start. A running API
+      # advances every tenant's sagas from its own retry scan, so a services suite
+      # that shared the database with one raced a saga engine it never booted
+      # (DEF-82). The live tier runs after them, in its own step below. The steps
+      # after this one run even when it fails (`!cancelled()`), so a services
+      # failure still leaves the live tier's evidence.
+      - name: Run integration tests (services tier)
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          TIER: pr-integration
+          # Explicit DB/Redis env because run-tests.sh reads no env file: with
+          # DATABASE_URL empty it exits 2 before any suite starts.
+          NODE_ENV: test
+          # The APPLICATION channel, and the OWNER for fixtures, for the reasons the
+          # live-tier step below states.
+          DATABASE_URL: postgresql://omnipost_app:${{ env.OMNIPOST_APP_DB_PASSWORD }}@localhost:5432/omnipostdb?schema=public
+          MIGRATE_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb?schema=public
+          SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
+          REDIS_URL: redis://localhost:6379
+        run: pnpm --filter @apps/api run test:integration
+
       # Both events run the SAME tier. Pull requests used to run a DB-only tier
       # that boots no server and executes no live publish batch, so a change to
       # the saga engine was approved by evidence that structurally could not see
@@ -451,6 +472,7 @@ jobs:
       #
       # The API listens on port 3000 (process env wins over .env.test's PORT).
       - name: Start API in background
+        if: ${{ !cancelled() }}
         env:
           NODE_ENV: test
           PORT: "3000"
@@ -459,7 +481,7 @@ jobs:
           DATABASE_URL: postgresql://omnipost_app:${{ env.OMNIPOST_APP_DB_PASSWORD }}@localhost:5432/omnipostdb?schema=public
           SHADOW_DATABASE_URL: postgresql://postgres:password123@localhost:5432/omnipostdb_shadow?schema=public
           REDIS_URL: redis://localhost:6379
-          # The full tier includes rate-limiting tests (Advanced Rate Limiting in
+          # The live tier includes rate-limiting tests (Advanced Rate Limiting in
           # integration:flows) that assert the limiter actually blocks; the
           # synthesized .env.test disables it for unit ergonomics, so the API
           # boot re-enables it (process env wins over the dotenv file).
@@ -495,6 +517,7 @@ jobs:
       # per-test budget. The workers must share this job's Redis with the API,
       # which is why they boot here rather than in a job of their own.
       - name: Start workers in background
+        if: ${{ !cancelled() }}
         env:
           NODE_ENV: test
           # The workers connect as the application role, exactly as the API does: they run the
@@ -534,10 +557,11 @@ jobs:
             exit 1
           fi
 
-      - name: Run integration tests (full tier)
+      - name: Run integration tests (live tier)
+        if: ${{ !cancelled() }}
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
-          TIER: full-integration
+          TIER: live-integration
           # Explicit DB/Redis env because run-tests.sh reads no env file: with
           # DATABASE_URL empty it exits 2 before any suite starts.
           NODE_ENV: test
