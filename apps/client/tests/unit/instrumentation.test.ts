@@ -10,6 +10,8 @@
  *              is enabled, which Sentry hooks the files export, and that the global error
  *              boundary reports its error and retries. The locale error page's retry is
  *              pinned here too: Next 16.3 passes `retry` and no longer `unstable_retry`.
+ *              The files delegate to `@observability/sentry-next`, whose own suites pin its
+ *              logic; these cases run through it, with the portal's env and portal name.
  *              What a unit test cannot see, whether the BUILD wires the files in, is
  *              `scripts/testing/sentry-init-probe.mjs`'s job, run against a standalone build.
  * @layer infrastructure
@@ -201,6 +203,7 @@ describe("client app/global-error.tsx", () => {
     expect(sentry.captureException).toHaveBeenCalledTimes(1);
     expect(sentry.captureException).toHaveBeenCalledWith(error);
     expect(logError).toHaveBeenCalledWith("Global error (root layout crash)", error, {
+      portal: "client",
       digest: "digest-001",
     });
     expect(screen.getByRole("heading", { name: "Something went wrong!" })).toBeInTheDocument();
