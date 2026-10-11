@@ -162,6 +162,13 @@ export interface MockEventService {
   publishedEvents: EventStoreEvent[];
 }
 
+/**
+ * @function createMockPrisma
+ * @description An in-memory Prisma double for the saga rows and stored events the engine reads
+ *   and writes. Its transaction runs the callback against the same double, and its row writes
+ *   stamp `updatedAt` as the database does.
+ * @returns A fresh double with empty stores.
+ */
 export function createMockPrisma(): MockPrismaClient {
   const store = new Map<string, any>();
   const storedEvents: any[] = [];
@@ -226,6 +233,12 @@ export function createMockPrisma(): MockPrismaClient {
   return mock;
 }
 
+/**
+ * @function createMockRedis
+ * @description An in-memory Redis double for the engine's hot cache: `setex` stores without
+ *   expiring, `keys` matches by prefix, and `ping` always answers `PONG`.
+ * @returns A fresh double with an empty store.
+ */
 export function createMockRedis(): MockRedis {
   const storage = new Map<string, string>();
 
@@ -244,6 +257,13 @@ export function createMockRedis(): MockRedis {
   };
 }
 
+/**
+ * @function createMockEventService
+ * @description An event-service double that records every published or transactionally appended
+ *   event in `publishedEvents`, so a test can assert what the engine emitted; broadcasting does
+ *   nothing.
+ * @returns A fresh double with no recorded events.
+ */
 export function createMockEventService(): MockEventService {
   const publishedEvents: EventStoreEvent[] = [];
 
@@ -262,6 +282,15 @@ export function createMockEventService(): MockEventService {
   };
 }
 
+/**
+ * @function createSagaManager
+ * @description Builds a real `SagaManagerImpl` over the given doubles, with metrics enabled and a
+ *   no-op scheduler, so no background checker runs unless a test triggers it.
+ * @param mockPrisma - The Prisma double the engine persists to.
+ * @param mockRedis - The Redis double it uses as its hot cache.
+ * @param mockEventService - The event-service double that records its events.
+ * @returns The saga manager under test, not yet initialized.
+ */
 export function createSagaManager(
   mockPrisma: MockPrismaClient,
   mockRedis: MockRedis,
@@ -280,6 +309,14 @@ export class SuccessfulStep implements SagaStep {
   readonly id = "successful-step";
   readonly name = "Successful Step";
 
+  /**
+   * @method execute
+   * @description Records its run in `context.stepData` and succeeds, returning compensation data
+   *   that names the step.
+   * @param context - The saga context the step records its run in.
+   * @param data - Extra fields merged into the result data.
+   * @returns A succeeded result.
+   */
   async execute(context: SagaContext, data?: any): Promise<SagaStepResult> {
     context.stepData[this.id] = { executed: true, timestamp: new Date() };
     return {
@@ -289,6 +326,13 @@ export class SuccessfulStep implements SagaStep {
     };
   }
 
+  /**
+   * @method compensate
+   * @description Marks the step compensated in `context.stepData` and succeeds.
+   * @param context - The saga context the compensation is recorded in.
+   * @param _compensationData - The data `execute` returned; unused.
+   * @returns A succeeded result.
+   */
   async compensate(context: SagaContext, _compensationData?: any): Promise<SagaStepResult> {
     context.stepData[`${this.id}-compensated`] = true;
     return { outcome: "succeeded", data: { compensated: true } };
@@ -299,6 +343,14 @@ export class FailingStep implements SagaStep {
   readonly id = "failing-step";
   readonly name = "Failing Step";
 
+  /**
+   * @method execute
+   * @description Fails on every run without recording anything, to drive the engine's step
+   *   failure path.
+   * @param _context - Unused.
+   * @param _data - Unused.
+   * @returns A failed result.
+   */
   async execute(_context: SagaContext, _data?: any): Promise<SagaStepResult> {
     return {
       outcome: "failed",
@@ -313,6 +365,14 @@ export class DelayedStep implements SagaStep {
 
   constructor(private delayMs: number = 100) {}
 
+  /**
+   * @method execute
+   * @description Waits `delayMs` before recording its run and succeeding, so the saga stays inside
+   *   this step for that long.
+   * @param context - The saga context the step records its run in.
+   * @param _data - Unused.
+   * @returns A succeeded result.
+   */
   async execute(context: SagaContext, _data?: any): Promise<SagaStepResult> {
     await new Promise((resolve) => setTimeout(resolve, this.delayMs));
     context.stepData[this.id] = { executed: true };
@@ -324,11 +384,25 @@ export class CompensationFailingStep implements SagaStep {
   readonly id = "compensation-failing-step";
   readonly name = "Compensation Failing Step";
 
+  /**
+   * @method execute
+   * @description Records its run and succeeds with compensation data; only its compensation fails.
+   * @param context - The saga context the step records its run in.
+   * @param _data - Unused.
+   * @returns A succeeded result carrying compensation data.
+   */
   async execute(context: SagaContext, _data?: any): Promise<SagaStepResult> {
     context.stepData[this.id] = { executed: true };
     return { outcome: "succeeded", compensationData: { stepId: this.id } };
   }
 
+  /**
+   * @method compensate
+   * @description Fails on every call, to drive the engine's compensation failure path.
+   * @param _context - Unused.
+   * @param _compensationData - Unused.
+   * @returns A failed result.
+   */
   async compensate(_context: SagaContext, _compensationData?: any): Promise<SagaStepResult> {
     return {
       outcome: "failed",
@@ -337,6 +411,11 @@ export class CompensationFailingStep implements SagaStep {
   }
 }
 
+/**
+ * @function createSimpleSagaDefinition
+ * @description The smallest definition that runs to completion: one step that always succeeds.
+ * @returns The `simple-test-saga` definition.
+ */
 export function createSimpleSagaDefinition(): SagaDefinition {
   return {
     id: "simple-test-saga",
@@ -346,6 +425,11 @@ export function createSimpleSagaDefinition(): SagaDefinition {
   };
 }
 
+/**
+ * @function createMultiStepSagaDefinition
+ * @description Three steps that all succeed, the middle one after a delay.
+ * @returns The `multi-step-test-saga` definition.
+ */
 export function createMultiStepSagaDefinition(): SagaDefinition {
   return {
     id: "multi-step-test-saga",
@@ -355,6 +439,11 @@ export function createMultiStepSagaDefinition(): SagaDefinition {
   };
 }
 
+/**
+ * @function createFailingSagaDefinition
+ * @description Two steps: one that succeeds, then one that always fails.
+ * @returns The `failing-test-saga` definition.
+ */
 export function createFailingSagaDefinition(): SagaDefinition {
   return {
     id: "failing-test-saga",

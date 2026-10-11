@@ -271,6 +271,15 @@ export class SagaExecutionEngine {
   // Async Entry Points
   // ---------------------------------------------------------------------------
 
+  /**
+   * @method executeSagaAsync
+   * @description The detached form of {@link executeSaga}: schedules the pass with `setImmediate`
+   *   and logs a failure instead of propagating it, so the start, operator, event and scan
+   *   dispatchers never wait on the saga's run or fail with it.
+   * @param sagaId - The saga to advance.
+   * @param trigger - Where the dispatch came from; only an `event` may coalesce into a pass that
+   *   is already running.
+   */
   executeSagaAsync(sagaId: string, trigger: SagaDispatchTrigger = "scan"): void {
     setImmediate(async () => {
       try {
@@ -329,6 +338,8 @@ export class SagaExecutionEngine {
    *   would overwrite it with `RUNNING` and re-run the failed step over
    *   partially-undone state.
    * @param sagaId - The saga to advance.
+   * @param trigger - Where the dispatch came from; while a forward pass already holds the saga, an
+   *   `event` is coalesced into its trailing pass and any other trigger is dropped.
    */
   async executeSaga(sagaId: string, trigger: SagaDispatchTrigger = "scan"): Promise<void> {
     const holder = this.inFlight.get(sagaId);
@@ -1591,13 +1602,15 @@ export class SagaExecutionEngine {
   }
 
   /**
-   * Dual-write persistence: PostgreSQL (durable) + Redis (hot cache).
+   * @method persistSagaInstance
+   * @description Dual-write persistence: PostgreSQL (durable) + Redis (hot cache).
    *
    * Strategy:
    *  - PostgreSQL is the **source of truth**, written by a compare-and-swap that
    *    never replaces a terminal row; a new saga's row is created.
    *  - Redis is a **best-effort hot cache** via `setex` with 24h TTL.
-   *  - Both writes run in parallel (`Promise.allSettled`).
+   *  - The Redis write and the event broadcasts start only after the PostgreSQL
+   *    transaction committed, and nothing waits for them.
    *  - A Redis failure is logged as a warning but does NOT reject the promise,
    *    because the durable Postgres write is what guarantees saga recovery
    *    after a crash or Redis restart.
@@ -1704,7 +1717,8 @@ export class SagaExecutionEngine {
   }
 
   /**
-   * Read-through cache: Redis first, fallback to PostgreSQL.
+   * @method loadSagaInstance
+   * @description Read-through cache: Redis first, fallback to PostgreSQL.
    *
    * Strategy:
    *  - **Fast path**: try Redis `GET`. If found, deserialize and return.
@@ -1713,7 +1727,8 @@ export class SagaExecutionEngine {
    *    (fire-and-forget `setex`) so the next read is fast.
    *
    * @param sagaId - The saga instance ID to load
-   * @returns The deserialized SagaInstance, or null if not found anywhere
+   * @returns The deserialized SagaInstance, or null when no row exists or the PostgreSQL
+   *   read failed (counted in `instanceLoadFailures`)
    */
   async loadSagaInstance(sagaId: string): Promise<SagaInstance | null> {
     const key = `saga:${sagaId}`;
