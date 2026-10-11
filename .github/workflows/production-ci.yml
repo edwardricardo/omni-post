@@ -178,6 +178,17 @@ jobs:
         service: [api, workers, admin, client]
       fail-fast: false
 
+    env:
+      # The portals inline their browser Sentry DSN at `next build` (DEF-86): it
+      # comes from the repository variable NEXT_PUBLIC_SENTRY_DSN — a public DSN,
+      # not a secret — and only the two portal Dockerfiles declare the ARG, so the
+      # api and workers builds receive none (an unconsumed build-arg would only
+      # warn, but a warning nobody reads is noise). Unset, the ARG default "" keeps
+      # the browser SDK disabled, exactly as before. The server DSN stays a runtime
+      # variable. Computed once here so the scanned build and the push below pass
+      # the same argument.
+      SENTRY_DSN_BUILD_ARG: ${{ (matrix.service == 'admin' || matrix.service == 'client') && format('NEXT_PUBLIC_SENTRY_DSN={0}', vars.NEXT_PUBLIC_SENTRY_DSN) || '' }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -215,6 +226,7 @@ jobs:
             ${{ steps.meta.outputs.tags }}
             local/${{ matrix.service }}:scan
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ env.SENTRY_DSN_BUILD_ARG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           load: true
@@ -475,5 +487,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # The same build-args as the scanned build above, so the pushed image
+          # is the one that was scanned and measured (and hits the same cache).
+          build-args: ${{ env.SENTRY_DSN_BUILD_ARG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
