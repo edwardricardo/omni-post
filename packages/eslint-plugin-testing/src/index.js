@@ -6,12 +6,16 @@
  *   `eslint.config.ts` and importable by node as is.
  * @layer infrastructure
  */
+import noStdoutInNodeTest from "./rules/no-stdout-in-node-test.js";
 import noUnownedHandleUnref from "./rules/no-unowned-handle-unref.js";
 
 /** @type {import("eslint").ESLint.Plugin} */
 const plugin = {
   meta: { name: "@packages/eslint-plugin-testing" },
-  rules: { "no-unowned-handle-unref": noUnownedHandleUnref },
+  rules: {
+    "no-stdout-in-node-test": noStdoutInNodeTest,
+    "no-unowned-handle-unref": noUnownedHandleUnref,
+  },
 };
 
 export default plugin;

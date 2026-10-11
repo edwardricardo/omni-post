@@ -280,6 +280,27 @@ export default defineConfig([
     plugins: { testing: testingPlugin },
     rules: { "testing/no-unowned-handle-unref": "error" },
   },
+  // Code that runs in a node:test child process writes nothing to stdout: stdout is the runner's
+  // message channel, and text written right after a frame is read as the next frame's length,
+  // which fails a file whose tests passed whenever the text's third byte is non-ASCII, a property
+  // of the text at run time. Everything under apps/api/tests outside unit/ and eval/ is
+  // node:test's: the integration and live tiers apps/api/scripts/run-tests.sh collects, and the
+  // helpers they import. unit/ and eval/ are Vitest's.
+  {
+    files: ["apps/api/tests/**/*.ts"],
+    ignores: [
+      "apps/api/tests/unit/**",
+      "apps/api/tests/eval/**",
+      // run.ts, run-with-coverage.ts and setup/verifyServices.ts have no importer and no runner
+      // collects them. Testing Refoundation deletes them, and these three entries with them; the
+      // list may only shrink.
+      "apps/api/tests/run.ts",
+      "apps/api/tests/run-with-coverage.ts",
+      "apps/api/tests/setup/verifyServices.ts",
+    ],
+    plugins: { testing: testingPlugin },
+    rules: { "testing/no-stdout-in-node-test": "error" },
+  },
   // Disable stylistic rules that conflict with Prettier. Must be last to override all preceding.
   prettierConfig,
   // K6 performance test files
