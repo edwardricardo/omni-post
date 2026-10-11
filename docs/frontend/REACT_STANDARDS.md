@@ -16,6 +16,9 @@
 | TypeScript, `Result`, naming, the test framework per domain, JSDoc and `@component`             | [CODING_STANDARDS.md](../development/CODING_STANDARDS.md)   |
 | Component architecture, Server and Client Components, TanStack Query, state, performance, ARIA  | [frontend-standards.md](../standards/frontend-standards.md) |
 | A story per component: the requirement, the pass criterion, the flow before hand-over, the gate | this page                                                   |
+| The installed Next.js: its version-matched guide, read before writing Next.js code              | `apps/<app>/node_modules/next/dist/docs/` (see below)       |
+
+**Next.js itself.** The installed Next.js (16.x) has breaking changes against older versions: APIs, conventions and file layout may differ from what you know. Before writing Next.js code, read the guide the package ships for its own version, at `apps/<app>/node_modules/next/dist/docs/`; it resolves per app, because the repository root has no `node_modules/next`. The note lives here because `next dev` would otherwise write it as `AGENTS.md` and `CLAUDE.md` into each app (Next's `agentRules`), which CLAUDE.md §Documentation Policy forbids: both portals set `agentRules: false`, as `turbo.json` sets `agentGuidance: false`.
 
 ## A story per component
 
