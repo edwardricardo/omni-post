@@ -49,6 +49,11 @@ const TERMINAL_SAGA_STATUSES: ReadonlyArray<SagaInstance["status"]> = [
   "COMPENSATED",
 ];
 
+/** Whether a persisted status is one of the three endings. */
+function isTerminalStatus(status: string): boolean {
+  return TERMINAL_SAGA_STATUSES.some((terminal) => terminal === status);
+}
+
 /**
  * A saga state write the database refused, because the row holds a status the write may not
  * replace: an ending another advancer reached first.
@@ -439,6 +444,12 @@ export class SagaExecutionEngine {
         "Refused to advance a saga whose persisted status could not be read: the compensation " +
           "guard decides on the durable row, and an unreadable one is not a safe RUNNING"
       );
+      return false;
+    }
+    // The canon's re-execution guard, on the DURABLE row for the same reason: the copy above
+    // can say RUNNING about a saga another advancer already ended.
+    if (persistedStatus !== null && isTerminalStatus(persistedStatus)) {
+      this.yieldToTerminalRow(sagaId, persistedStatus);
       return false;
     }
     if (persistedStatus === "COMPENSATING") {
@@ -988,7 +999,7 @@ export class SagaExecutionEngine {
       );
       return;
     }
-    if (TERMINAL_SAGA_STATUSES.includes(persistedStatus as SagaInstance["status"])) {
+    if (isTerminalStatus(persistedStatus)) {
       recordSagaRecoveryFailure("compensation");
       logger.error(
         { sagaId, status: persistedStatus },

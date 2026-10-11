@@ -13,7 +13,7 @@
  *              every scenario here vacuous.
  * @layer infrastructure
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import client from "prom-client";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
@@ -29,6 +29,7 @@ import {
 import { SagaManagerImpl } from "../../../src/saga/SagaManager.js";
 import type { SagaManagerLifecycle } from "../../../src/saga/SagaManagerLifecycle.js";
 import type { SagaExecutionEngine } from "../../../src/saga/SagaManagerExecution.js";
+import { logger } from "../../../src/lib/logger.js";
 import {
   createMockEventService,
   createMockPrisma,
@@ -612,6 +613,39 @@ describe("forward execution and the walk never both own a row", () => {
     expect(harness.steps[1]!.executeAttempts).toBe(0);
     expect(harness.pivot.executeAttempts).toBe(0);
     expect(await compensationFailureCount()).toBe(before + 1);
+  });
+
+  it("refuses, before it writes anything, a saga whose PERSISTED status already ended", async () => {
+    // Another advancer ended the row while this process still tracks it as RUNNING. The
+    // pass must stop on the durable status, not begin and lose its first write.
+    const harness = createWalkHarness({ compensableCount: 2, failingIndex: 1 });
+    const sagaId = "saga-ended-elsewhere";
+    await harness.seed({ id: sagaId, status: "COMPLETED", currentStep: 1 });
+    const tracked = await harness.engine.loadSagaInstance(sagaId);
+    expect(tracked).not.toBeNull();
+    tracked!.status = "RUNNING";
+    harness.lifecycle.activeInstances.set(sagaId, tracked!);
+    let writes = 0;
+    interceptRowWrites(harness.prisma.sagaInstance, () => {
+      writes += 1;
+    });
+    const warns = vi.spyOn(logger, "warn").mockImplementation(() => logger);
+
+    try {
+      await harness.engine.executeSaga(sagaId);
+
+      expect(writes).toBe(0);
+      expect(harness.steps[1]!.executeAttempts).toBe(0);
+      expect((await harness.row(sagaId))?.status).toBe("COMPLETED");
+      expect(harness.lifecycle.activeInstances.has(sagaId)).toBe(false);
+      const refusals = warns.mock.calls.filter((call: unknown[]) => {
+        const [fields] = call as [{ sagaId?: unknown; persistedStatus?: unknown }];
+        return fields.sagaId === sagaId && fields.persistedStatus === "COMPLETED";
+      });
+      expect(refusals).toHaveLength(1);
+    } finally {
+      warns.mockRestore();
+    }
   });
 });
 

@@ -35,6 +35,10 @@ Postgres, the real `PrismaPostRepository` with the real outbox writer, and the r
 and the outbox, and only a real row decides atomicity. Like `sagaCrashRecovery`, it
 boots real managers, and a boot dispatches every non-terminal row in the table; the
 services tier runs one file at a time, so no two such suites share the table at once.
+CI also runs the services tier before it starts the API: a running API's retry scan
+advances every tenant's due rows, a second engine none of these suites booted (DEF-82).
+The two recovery suites shut each scenario's managers down when it ends, for the
+same reason.
 
 ---
 
@@ -92,8 +96,8 @@ hold — which is the only version of determinism worth having in CI.
    `apps/api/scripts/run-tests.sh` collects it by that suffix. The static invariant
    fails otherwise.
 2. **New live-API suite** → the `.live.test.ts` suffix puts it in the live tier,
-   which runs under `full-integration` behind the readiness probe; document its boot
-   requirements in the table above.
+   which runs under `live-integration` (and with `TIER` unset) behind the readiness
+   probe; document its boot requirements in the table above.
 3. **A suite that needs a clean saga table** → assert the precondition and name the
    rows, the way `sagaCrashRecovery` does. Do not rely on the order files run in:
    `TEST_ORDER=reverse` reverses it.
