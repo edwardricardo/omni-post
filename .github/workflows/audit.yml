@@ -713,6 +713,23 @@ jobs:
         run: pnpm exec turbo run build --filter=@apps/admin --filter=@apps/client
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+          # A browser DSN is inlined at build time, so the probe below can only
+          # see Sentry initialize if the build had one. A dummy, documented as
+          # such in scripts/testing/sentry-init-probe.mjs: nothing is ever sent.
+          NEXT_PUBLIC_SENTRY_DSN: "https://public@o0.ingest.invalid/0"
+      # DEF-86: under Turbopack, Sentry initialized in neither portal while every
+      # suite stayed green, because the SDK's config files were never loaded. The
+      # probe boots each portal's standalone build and reads `@sentry/core`
+      # `isInitialized()` / `getClient()`: exit 0 only when initialized with a DSN
+      # and enabled, 1 when the server answers but Sentry is not initialized, 2
+      # when it cannot measure. It writes the server's output tail to stderr.
+      # One step per portal, the second running even after an admin failure, so
+      # one run shows both verdicts instead of hiding the client's behind admin's.
+      - name: Sentry initializes in the admin production build (DEF-86 probe)
+        run: node scripts/testing/sentry-init-probe.mjs admin
+      - name: Sentry initializes in the client production build (DEF-86 probe)
+        if: ${{ !cancelled() }}
+        run: node scripts/testing/sentry-init-probe.mjs client
       - name: Run size-limit (fail on threshold exceed)
         run: pnpm exec size-limit
       - name: Capture size-limit JSON for artifact
