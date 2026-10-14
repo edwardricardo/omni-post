@@ -330,6 +330,31 @@
       },
       "milestones": { "maturity": "2026-10-12", "final": "2026-10-19" },
       "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "@typescript-eslint/parser",
+      "version": "8.71.1",
+      "published": "2026-10-05T17:08:12.507Z",
+      "members": [
+        "@typescript-eslint/eslint-plugin@8.71.1",
+        "@typescript-eslint/project-service@8.71.1",
+        "@typescript-eslint/scope-manager@8.71.1",
+        "@typescript-eslint/tsconfig-utils@8.71.1",
+        "@typescript-eslint/type-utils@8.71.1",
+        "@typescript-eslint/types@8.71.1",
+        "@typescript-eslint/typescript-estree@8.71.1",
+        "@typescript-eslint/utils@8.71.1",
+        "@typescript-eslint/visitor-keys@8.71.1"
+      ],
+      "entered": {
+        "date": "2026-10-11",
+        "commit": "23b926bc",
+        "pr": 557,
+        "via": "the catalog entry of @typescript-eslint/parser and the root literal of @typescript-eslint/eslint-plugin, 6.1 days after publication and about 22 hours before the 2026-10-12T17:08Z maturity (17:09Z for the plugin), on Edward's instruction of 2026-10-11, so the holds gate would not go red on every pull request and on main at that instant; #557 owed this entry once it had a pull request number, and it was recorded on 2026-10-14"
+      },
+      "milestones": { "maturity": "2026-10-12", "final": "2026-10-19" },
+      "reviews": {}
     }
   ]
 }

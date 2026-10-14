@@ -33,6 +33,15 @@ establishes the canonical production build model that emits those artifacts so
 the images can build, and so the paused hardening tail
 (Trivy/pins/mirror/hadolint/promote) can resume on top of building images.
 
+**UPDATE (2026-10-14):** the hardening change is no longer paused, and no longer
+lives on a branch. Its 38 commits landed on `main`, re-applied on 2026-06-19
+(`cdc63663^..8a393b91`, all 38 patch-equivalent to the branch by `git cherry`);
+the three named above are `cdc63663`, `084b356e` and `6a1152aa` there. The SHAs
+cited above predate a rebase of that branch, and no ref reaches them any more:
+its remote branch was deleted when #89 closed on 2026-10-11. What its tail owes
+(Container Security as a required check, a retry or mirror for the Docker Hub
+pull) is tracked in `docs/architecture/NORMALIZATION_ROADMAP.md` §6.1.
+
 Three properties make a naive "just bundle everything" approach wrong here:
 
 1. **It is a Node server, not a browser bundle.** Bundling a Node server's
