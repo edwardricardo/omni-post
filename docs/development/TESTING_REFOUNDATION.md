@@ -980,9 +980,9 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-11T19:01:28Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
+**CURRENT, re-measured 2026-10-14T18:27:49Z by `node scripts/testing/holds-gate.mjs`, exit 0 with EMPTY
 stderr: of the 50 packages in `scripts/testing/toolchain-population.json` (49 direct, 1 named transitive,
-no declared-absent candidate left), 11 sit below latest mature and NOT ONE of them is unheld.**
+no declared-absent candidate left), 12 sit below latest mature and NOT ONE of them is unheld.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line.
@@ -1232,6 +1232,29 @@ and what moved it. A slice that moves the count appends its own line.
     `@testing-library/user-event` 14.6.8 at `2026-10-20T06:41Z` and `turbo` 2.11.8 at `2026-10-20T18:09Z`; at
     `2026-10-20T18:08:00Z` the gate names twelve undocumented lags and at `18:10:00Z` thirteen, `turbo` the
     last, four fewer than line 29 measured because the two pairs are held.
+31. `2026-10-14T18:27:49Z` — **12**: the hold bump took `knip` 6.39.0 → 6.40.0, the latest mature release, so
+    it left the set; the same gate with 6.39.0 still installed measures **13** at `18:17:14Z`, because 6.40.0
+    matured at `2026-10-13T16:07Z` (line 29) and the canon row `knip` held it until the bump. OSV lists
+    nothing for 6.39.0, 6.40.0 or 6.41.0. 6.40.0 declares the dependency, peer and engines ranges of 6.39.0,
+    key for key; its release notes add the Jasmine and osls plugins, exclude test files from package entries
+    in production mode, resolve null package exports, workspace exports with fallback arrays and Serverless
+    file variables, and fix the Commitlint, Capacitor, simple-git-hooks, PostCSS, Playwright, Vitest, Rsbuild,
+    oxlint and Jest plugins, none a security fix. In the lockfile, parsed with `yaml.safe_load_all`, one
+    package and one snapshot swap `knip@6.39.0` → `@6.40.0` with identical dependencies, the root importer
+    moves with them, and nothing else moves: resolved with pnpm's minimum release age at 10080 minutes and no
+    exclude, `pnpm dedupe --check` exits 0 and the deprecated subdependencies stay 26. The scan's JSON report
+    on 6.40.0 is identical to 6.39.0's, 308 keys, so `knip-baseline.json` is unchanged and
+    `node scripts/knip-ratchet.mjs` exits 0 with 0 regressions. Since line 30 the population is unchanged at
+    50 and one lag joined: `eslint-plugin-jsdoc` 65.2.0 matured at `2026-10-14T08:22Z` under its
+    pre-registered row, hence 13 before the bump. 6.41.0 is `latest` (published `2026-10-09T07:57:03Z`), so
+    the canon row `knip` is now the PRE-REGISTERED hold until it matures at `2026-10-16T07:57Z`, and the
+    watchlist date entry `hold-knip-6.41.0` schedules that bump. On `knip` alone (`--population`), without the
+    row the gate exits 0 at `2026-10-16T07:57:02Z` and 1 at `07:57:04Z`; with it, 0 at both and at
+    `07:58:00Z`; on the full population it exits 0 at `07:56:00Z` and `07:58:00Z`, and without the row 1 at
+    `07:58:00Z`, naming only `knip`. 6.41.0 drops `fdir` and needs `unbash ^5.0.0`, `oxc-parser ^0.153.0`,
+    `formatly ^0.11.4`, `zod ^4.6.5` and `smol-toml ^1.9.0`, so that bump moves lockfile copies its own unit
+    measures. The other instants line 30 names are unchanged: with `--instant` the gate names the same twelve
+    undocumented lags at `2026-10-20T18:08:00Z` and thirteen at `18:10:00Z`.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -1356,7 +1379,7 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 
 | dep                                            | installed | latest mature (published)                                      | documented hold (yes/no — where)                                       | CVE floor                                                                       |
 | ---------------------------------------------- | --------- | -------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `knip`                                         | 6.39.0    | 6.39.0 — **no lag** until 6.40.0 matures, `2026-10-13T16:07Z`  | **held** after `2026-10-13T16:07Z` — canon row `knip`, scheduled       | `smol-toml` 1.9.0 by natural resolution; its override deleted with the bump     |
+| `knip`                                         | 6.40.0    | 6.40.0 — **no lag** until 6.41.0 matures, `2026-10-16T07:57Z`  | **held** after `2026-10-16T07:57Z` — canon row `knip`, scheduled       | `smol-toml` 1.9.0 by natural resolution; its override deleted with the bump     |
 | `jscpd`                                        | 5.4.0     | **5.4.0 (2026-09-30, 7.0 d) — latest mature**, and `latest`    | **no** — no lag; its canon row deleted with the bump                   | —                                                                               |
 | `dependency-cruiser`                           | 18.5.0    | **18.5.0 (2026-09-30, 7.0 d) — latest mature**, and `latest`   | **no** — no lag; its canon row deleted with the bump                   | —                                                                               |
 | `secretlint`                                   | 13.0.7    | **13.0.7 (2026-10-03, 7.1 d) — latest mature**, and `latest`   | **no** — no lag; the canon row `secretlint` was deleted with this bump | —                                                                               |
