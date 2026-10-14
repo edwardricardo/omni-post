@@ -12,7 +12,9 @@
  *   confident-looking number: it degrades into a class that says why.
  *
  *   Deterministic: no timestamps, no clock, no ordering that depends on the filesystem. Read-only:
- *   the git calls are plumbing (`rev-parse`, `ls-files`) and nothing is written anywhere.
+ *   the git calls are plumbing (`rev-parse`, `ls-files`), the reach engine behind M5 only lists
+ *   what each collector runs, and nothing is written anywhere. Only the selected metrics are
+ *   computed, so `--m8` alone does not pay for the reach engine's run.
  *
  *   Usage: `node scripts/testing/metrics.mjs --all [--offline]`
  *          `node scripts/testing/metrics.mjs --m8`
@@ -30,6 +32,9 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 }).trim();
 
 const TRACKER = path.join(REPO_ROOT, "docs", "development", "TESTING_REFOUNDATION.md");
+
+/** The quarantine fitness #30 passes to the reach engine, and the one `run-tests.sh` reads. */
+const QUARANTINE = path.join(REPO_ROOT, "packages", "test-contracts", "quarantine.json");
 
 /**
  * A basename that names a test by convention, `.k6.js` being a tier of its own. It is deliberately
@@ -182,6 +187,105 @@ function m1() {
   };
 }
 
+/**
+ * @typedef {object} ReachViolation
+ * @property {string} rule
+ * @property {string} message
+ */
+
+/**
+ * @typedef {object} ReachReport
+ * @property {ReachViolation[]} violations
+ * @property {string[]} errors
+ */
+
+/**
+ * Runs the reach engine with the command fitness #30 runs, plus `--json`. The engine exits 1 on a
+ * violation and still prints its report, so that exit is read rather than treated as no report.
+ *
+ * @returns {ReachReport | string} The report, or why there is none.
+ */
+function reachReport() {
+  /** @type {string} */
+  let stdout;
+  try {
+    stdout = execFileSync(
+      "pnpm",
+      [
+        "--silent",
+        "--filter",
+        "@packages/test-contracts",
+        "reach",
+        "--quarantine",
+        "quarantine.json",
+        "--json",
+      ],
+      {
+        encoding: "utf8",
+        cwd: REPO_ROOT,
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ["ignore", "pipe", "pipe"],
+      }
+    );
+  } catch (error) {
+    const failed = typeof error === "object" && error !== null ? error : {};
+    const status = "status" in failed ? failed.status : null;
+    const output = "stdout" in failed ? failed.stdout : null;
+    if (status !== 1 || typeof output !== "string") {
+      return `test-contracts reach exited ${String(status)} with no report`;
+    }
+    stdout = output;
+  }
+  try {
+    /** @type {{ violations?: unknown, errors?: unknown }} */
+    const parsed = JSON.parse(stdout);
+    if (!Array.isArray(parsed.violations) || !Array.isArray(parsed.errors)) {
+      return "test-contracts reach printed a report with no violations or errors list";
+    }
+    return { violations: parsed.violations, errors: parsed.errors };
+  } catch {
+    return "test-contracts reach printed no JSON report";
+  }
+}
+
+/**
+ * M5: the orphan test files, which no required check runs (every quarantine entry, plus every file
+ * the reach engine reports unreached outside the quarantine), and the files collected more than
+ * once. Both read R1's messages, `unreached: …` and `collected <n> times: …` (`rules.ts`). A
+ * quarantine entry that is untracked or collected breaks R3 and fails fitness #30 itself, so the
+ * orphan count does not correct for it.
+ *
+ * @returns {Metric}
+ */
+function m5() {
+  if (!existsSync(QUARANTINE)) {
+    return { id: "M5", value: UNKNOWN, source: absent("packages/test-contracts/quarantine.json") };
+  }
+  const report = reachReport();
+  if (typeof report === "string")
+    return { id: "M5", value: UNKNOWN, source: `unavailable: ${report}` };
+  if (report.errors.length > 0) {
+    return {
+      id: "M5",
+      value: UNKNOWN,
+      source: `unavailable: test-contracts reach could not read an input: ${String(report.errors[0])}`,
+    };
+  }
+  /** @type {{ entries?: unknown }} */
+  const quarantine = JSON.parse(readFileSync(QUARANTINE, "utf8"));
+  const quarantined = Array.isArray(quarantine.entries) ? quarantine.entries.length : 0;
+  const r1 = report.violations.filter((violation) => violation.rule === "R1");
+  const unreached = r1.filter((violation) => violation.message.startsWith("unreached")).length;
+  const twice = r1.filter((violation) => violation.message.startsWith("collected ")).length;
+  return {
+    id: "M5",
+    value: `${quarantined + unreached} · ${twice}`,
+    source:
+      `derived: test-contracts reach --json, ${unreached} unreached outside the quarantine ` +
+      `and ${quarantined} quarantined`,
+  };
+}
+
 /** @returns {Metric} */
 function m7() {
   if (!existsSync(TRACKER)) {
@@ -306,34 +410,48 @@ function pasted(id, where) {
 }
 
 /**
- * @param {boolean} offline
- * @returns {Metric[]}
+ * @typedef {object} MetricEntry
+ * @property {string} id
+ * @property {() => Metric} compute
  */
-function allMetrics(offline) {
+
+/**
+ * Every metric, in the tracker's order, each computed only when it is selected.
+ *
+ * @param {boolean} offline
+ * @returns {MetricEntry[]}
+ */
+function metricTable(offline) {
   return [
-    m1(),
-    pasted("M2", "the local vitest run summary and the integration tier summary"),
-    fromSuppressions("M3"),
-    fromArtefact("M4", "ledger.json"),
+    { id: "M1", compute: m1 },
     {
-      id: "M5",
-      value: UNKNOWN,
-      source: absent("the reach engine of packages/test-contracts"),
+      id: "M2",
+      compute: () => pasted("M2", "the local vitest run summary and the integration tier summary"),
     },
-    fromArtefact("M6", "ledger.json"),
-    m7(),
-    m8(),
-    pasted("M9", "the integration tier run summary, plus the syntax-tree skip scan"),
-    pasted("M10", "the named CI run of the end-to-end job"),
-    pasted("M11", "the named CI run of the load job"),
-    fromArtefact("M12", "mutation-floors.json"),
-    fromSuppressions("M13"),
-    fromArtefact("M14", "ledger.json"),
-    m15(offline),
+    { id: "M3", compute: () => fromSuppressions("M3") },
+    { id: "M4", compute: () => fromArtefact("M4", "ledger.json") },
+    { id: "M5", compute: m5 },
+    { id: "M6", compute: () => fromArtefact("M6", "ledger.json") },
+    { id: "M7", compute: m7 },
+    { id: "M8", compute: m8 },
+    {
+      id: "M9",
+      compute: () =>
+        pasted("M9", "the integration tier run summary, plus the syntax-tree skip scan"),
+    },
+    { id: "M10", compute: () => pasted("M10", "the named CI run of the end-to-end job") },
+    { id: "M11", compute: () => pasted("M11", "the named CI run of the load job") },
+    { id: "M12", compute: () => fromArtefact("M12", "mutation-floors.json") },
+    { id: "M13", compute: () => fromSuppressions("M13") },
+    { id: "M14", compute: () => fromArtefact("M14", "ledger.json") },
+    { id: "M15", compute: () => m15(offline) },
     {
       id: "M16",
-      value: UNKNOWN,
-      source: absent("a per-package coverage-final.json report"),
+      compute: () => ({
+        id: "M16",
+        value: UNKNOWN,
+        source: absent("a per-package coverage-final.json report"),
+      }),
     },
   ];
 }
@@ -345,16 +463,16 @@ function allMetrics(offline) {
 function main(argv) {
   const offline = argv.includes("--offline");
   const selectors = argv.filter((arg) => arg !== "--offline");
-  const metrics = allMetrics(offline);
-  const known = new Set(metrics.map((metric) => metric.id.toLowerCase()));
+  const table = metricTable(offline);
+  const known = new Set(table.map((entry) => entry.id.toLowerCase()));
 
-  /** @type {Metric[]} */
+  /** @type {MetricEntry[]} */
   let selected;
   if (selectors.length === 1 && selectors[0] === "--all") {
-    selected = metrics;
+    selected = table;
   } else if (selectors.length > 0 && selectors.every((arg) => known.has(arg.replace(/^--/, "")))) {
     const wanted = new Set(selectors.map((arg) => arg.replace(/^--/, "")));
-    selected = metrics.filter((metric) => wanted.has(metric.id.toLowerCase()));
+    selected = table.filter((entry) => wanted.has(entry.id.toLowerCase()));
   } else {
     process.stderr.write(
       `usage: node scripts/testing/metrics.mjs --all|--m<n> [--offline]\n` +
@@ -363,7 +481,8 @@ function main(argv) {
     return 1;
   }
 
-  for (const metric of selected) {
+  for (const entry of selected) {
+    const metric = entry.compute();
     process.stdout.write(`${metric.id}\t${metric.value}\t${metric.source}\n`);
   }
   return 0;

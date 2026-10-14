@@ -16,12 +16,16 @@
  *   touches Postgres, Redis or a booted process. The repository root is RESOLVED with
  *   `git rev-parse --show-toplevel` rather than counted with `../..`, so the suite is correct from
  *   a copied or relocated working directory.
+ *
+ *   M5 runs the reach engine of `packages/test-contracts`, which asks every collector what it runs
+ *   and takes seconds, so the suite runs `--all` once and every case reads that one output; only
+ *   the single-metric case runs `--m5` again, under the same budget.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
@@ -35,7 +39,14 @@ const TRACKER = path.join(REPO_ROOT, "docs", "development", "TESTING_REFOUNDATIO
  * tracker's Now column byte for byte. Everything else names a run, an absent artefact, or the
  * network, and says so in its own source field.
  */
-const DERIVED_IDS = ["M1", "M7", "M8"] as const;
+const DERIVED_IDS = ["M1", "M5", "M7", "M8"] as const;
+
+/**
+ * The budget of one run that includes M5. The reach engine took about 3 s on an idle machine on
+ * 2026-10-14; the battery runs this suite beside other steps, so the budget is generous rather
+ * than measured to the edge.
+ */
+const REACH_BUDGET_MS = 60_000;
 
 interface MetricLine {
   readonly id: string;
@@ -74,22 +85,26 @@ const readTrackerNow = (): Map<string, string> => {
 };
 
 describe("testing re-foundation metrics script", () => {
+  let allRows: MetricLine[] = [];
+
+  beforeAll(() => {
+    allRows = parseMetricLines(runMetrics(["--all", "--offline"]));
+  }, REACH_BUDGET_MS);
+
   describe("the whole table", () => {
     it("prints every metric the tracker declares, in order, exactly once", () => {
       // The expected set is READ from the tracker rather than listed here. A third hand-written
       // copy of the metric ids would be one more thing to drift, and this workstream exists in
       // part because hand-written lists of what should run kept disagreeing with what ran.
       const declared = [...readTrackerNow().keys()];
-      const printed = parseMetricLines(runMetrics(["--all", "--offline"])).map((row) => row.id);
+      const printed = allRows.map((row) => row.id);
 
       expect(declared.length).toBeGreaterThan(0);
       expect(printed).toEqual(declared);
     });
 
     it("names a source class and a reason for every metric it cannot derive", () => {
-      const rows = parseMetricLines(runMetrics(["--all", "--offline"]));
-
-      const malformed = rows.filter(
+      const malformed = allRows.filter(
         (row) => !/^(derived|pasted|network|unavailable): \S/.test(row.source)
       );
 
@@ -97,9 +112,9 @@ describe("testing re-foundation metrics script", () => {
     });
 
     it("derives exactly the metrics the tracker says are derived from the tree", () => {
-      const rows = parseMetricLines(runMetrics(["--all", "--offline"]));
-
-      const derived = rows.filter((row) => row.source.startsWith("derived:")).map((row) => row.id);
+      const derived = allRows
+        .filter((row) => row.source.startsWith("derived:"))
+        .map((row) => row.id);
 
       expect(derived).toEqual([...DERIVED_IDS]);
     });
@@ -108,9 +123,7 @@ describe("testing re-foundation metrics script", () => {
   describe("the now column", () => {
     it("reproduces every derived value of the Now column byte for byte", () => {
       const now = readTrackerNow();
-      const rows = parseMetricLines(runMetrics(["--all", "--offline"])).filter((row) =>
-        row.source.startsWith("derived:")
-      );
+      const rows = allRows.filter((row) => row.source.startsWith("derived:"));
 
       const derivedPairs = rows.map((row) => `${row.id}=${row.value}`);
       const trackerPairs = rows.map((row) => `${row.id}=${now.get(row.id) ?? "<missing row>"}`);
@@ -120,16 +133,18 @@ describe("testing re-foundation metrics script", () => {
   });
 
   describe("a single metric", () => {
-    it("prints the same line alone as it does inside the whole table", () => {
-      const all = parseMetricLines(runMetrics(["--all", "--offline"]));
+    it(
+      "prints the same line alone as it does inside the whole table",
+      { timeout: REACH_BUDGET_MS },
+      () => {
+        for (const id of DERIVED_IDS) {
+          const alone = parseMetricLines(runMetrics([`--${id.toLowerCase()}`, "--offline"]));
+          const inTable = allRows.filter((row) => row.id === id);
 
-      for (const id of DERIVED_IDS) {
-        const alone = parseMetricLines(runMetrics([`--${id.toLowerCase()}`, "--offline"]));
-        const inTable = all.filter((row) => row.id === id);
-
-        expect(alone).toEqual(inTable);
+          expect(alone).toEqual(inTable);
+        }
       }
-    });
+    );
 
     it("exits non-zero on an unknown flag rather than printing nothing", () => {
       expect(() => runMetrics(["--m99", "--offline"])).toThrow();

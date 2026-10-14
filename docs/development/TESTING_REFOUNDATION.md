@@ -1,8 +1,14 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-14, fitness #30 is derived (`workstream/refound-1-test-contracts-job`, PR R10,
-WU-1.10): the new `test-contracts` job of `fitness.yml` (check `Test Contracts`) runs
+**As of:** 2026-10-14, M5 is derived (`workstream/refound-1-metrics-m5`, PR R10b, stacked on PR R10):
+`metrics.mjs --m5` runs fitness #30's command with `--json` and reads the quarantine, so its orphans
+are the quarantine's entries plus every file the engine reports unreached outside it, and its second
+figure is the files reported collected more than once. The script now computes only the metrics it
+is asked for, so `--m8` alone no longer pays for the engine's run, and the pin suite runs `--all`
+once. It moved M5 `23 · 0` → `29 · 0`.
+Before it, on 2026-10-14, fitness #30 became derived (`workstream/refound-1-test-contracts-job`, PR
+R10, WU-1.10): the new `test-contracts` job of `fitness.yml` (check `Test Contracts`) runs
 `pnpm --filter @packages/test-contracts reach --quarantine quarantine.json`, and every test-shaped
 tracked file must be collected exactly once by a source a required check runs, or be quarantined
 with a reason, an owner and a `since` date. The interim ratchet of owner decision (d) and its
@@ -494,7 +500,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
-| M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 23 · 0                | 0 · 0         | `metrics.mjs --m5` (`test-contracts reach --json`, WU-1.9; absent at baseline)          | PR R3    |
+| M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 29 · 0                | 0 · 0         | `metrics.mjs --m5` (derived: `test-contracts reach --json` plus the quarantine)         | PR R10b  |
 | M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —        |
 | M7  | Gates new/modified, red proven                                    | 0/0                   | 32/32                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR R10   |
 | M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/93 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR R9a   |
@@ -507,9 +513,11 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 | M15 | Open nightly alarms · Postgres identities in workflows            | 31 · 4                | 31 · 4                | ≤1 · 1        | `metrics.mjs --m15` (network: `gh issue list`; identities by WU-4b.7)                   | —        |
 | M16 | Packages at target floor / total · uncovered functions (sum)      | per 6.N0              | per 6.N0              | all / all · ↓ | `metrics.mjs --m16` (`coverage-final.json`; absent at baseline)                         | —        |
 
-**How the baselines were obtained.** M1, M7 and M8 are derived from the tree and reproduced
+**How the baselines were obtained.** M1, M5, M7 and M8 are derived from the tree and reproduced
 byte-for-byte by `scripts/testing/metrics.mjs`, pinned by
-`apps/api/tests/unit/scripts/testingMetrics.test.ts`. M15's first half was measured with
+`apps/api/tests/unit/scripts/testingMetrics.test.ts`. M5 is derived since PR R10b: its orphans are the
+quarantine's entries plus every file the reach engine reports unreached outside it, and its second
+figure is the files the engine reports collected more than once. M15's first half was measured with
 `gh issue list --label nightly-failure --state open` (31); its second half was measured by counting
 the distinct `(image, POSTGRES_DB)` pairs across `services.postgres` in `.github/workflows/` (4) and
 becomes derivable when WU-4b.7 lands `test-contracts identity --json`. M2, M9, M10, M11 and M12 come
@@ -609,7 +617,7 @@ to Node 26's LTS on 2026-10-28, stays a dated maintenance unit outside the close
 | 1     | 1.7    | Collect the services tier by convention                                     | ✅     | `R7a` · `R7b1`–`R7b4`         | `phase1-u7*` · 381 + 1147               | 2026-10-10 |
 | 1     | 1.8    | Collect the live tier by convention                                         | ✅     | `R8a`–`R8d`                   | `phase1-u8*` · 390 + 394 + 48 + 127     | 2026-10-10 |
 | 1     | 1.9    | `packages/test-contracts` — the reach engine with self-tests                | ✅     | `R9a` · `R9b1`–`R9b9`         | `phase1-u9*` · 1327 + 2544              | 2026-10-14 |
-| 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ✅     | `R10`                         | `refound-1-test-contracts-job` · 322    | 2026-10-14 |
+| 1     | 1.10   | Wire the new #30, retire the grep ratchet                                   | ✅     | `R10` · `R10b`                | `refound-1-*` · 322 + 232               | 2026-10-14 |
 | 1     | 1.11   | Script contract (reach part C) and #31 A widened                            | ⬜     | —                             | —                                       | —          |
 | 1     | 1.12   | #36 over resolved configs, in all 86                                        | ⬜     | —                             | —                                       | —          |
 | 1     | 1.13   | #32 over the syntax tree, in every test-shaped file                         | ⬜     | —                             | —                                       | —          |
@@ -1939,6 +1947,11 @@ false })` plus `globTestSpecifications()`, falling back to `vitest list --filesO
   waited for this ruleset. CODE 322, over the ~90 planned: the quarantine's 26 new entries are 156 of
   it (data the spec asks for), the ruleset 44 and `fitness.yml` 122 (the new job, the deleted step
   and the header).
+  R10b (2026-10-14, `workstream/refound-1-metrics-m5`, stacked on R10) makes M5 derivable:
+  `metrics.mjs --m5` runs the `#30` step's command with `--json` and reads the quarantine, and the
+  script computes only the selected metrics, so `--m8` alone no longer runs the engine; the pin suite
+  runs `--all` once, in `beforeAll`, under a 60 s budget. It moves M5 `23 · 0` → `29 · 0`. CODE 232:
+  `metrics.mjs` 175 and its pin 57, split from R10 to keep each under the 400 budget.
 - **WU-1.11** Script contract (reach part C) plus #31 A widened: `reach.ts` part C — every package
   with a vitest config has `scripts.test === "vitest run"` (Phase 5 extends it to `test:coverage`);
   `apps/client/package.json:11` `"vitest"` → `"vitest run"` (F-16); `ci.yml:773` →
