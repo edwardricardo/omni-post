@@ -694,14 +694,15 @@ describe("a real node:test file gets the same verdict, end to end", () => {
       'import { it } from "node:test";\nit("fails", () => { throw new Error("planted failure"); });\n'
     );
 
-    // The column is where tsx's transform puts the call, so only the line is pinned.
-    const header = new RegExp(
-      `^failed: fails \\(${TARGET_FILE.replace(/\./g, "\\.")}:2:\\d+\\)\\n  testCodeFailure: planted failure$`,
-      "m"
-    );
+    // The column is where tsx's transform puts the call, so only the line is pinned:
+    // the header line is found by its literal prefix and its column checked apart,
+    // with no regex built from the file name (CodeQL js/incomplete-sanitization).
+    const headerPrefix = `failed: fails (${TARGET_FILE}:2:`;
+    const headerLine = run.stdout.split("\n").find((line) => line.startsWith(headerPrefix));
 
     expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, SERVICES_UNIT, "1 failed, exit 1"));
-    expect(run.stdout).toMatch(header);
+    expect(headerLine).toMatch(/:\d+\)$/);
+    expect(run.stdout).toContain(`${headerLine}\n  testCodeFailure: planted failure`);
   });
 
   it("exits 1 naming a file that throws while it loads", () => {
