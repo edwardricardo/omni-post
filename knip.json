@@ -9,6 +9,7 @@
         "scripts/testing/metrics.mjs",
         "scripts/testing/battery-state.mjs",
         "scripts/testing/sentry-init-probe.mjs",
+        "scripts/testing/node-summary-reporter.mjs",
         "scripts/legal/lib/inventory.mjs",
         "scripts/legal/lib/source-scan.mjs",
         "scripts/legal/personal-data.mjs",

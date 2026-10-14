@@ -1,7 +1,18 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-14, the script contract holds and the quarantine may only shrink
+**As of:** 2026-10-14, the node:test summary reporter exists, with its suite
+(`workstream/refound-1-node-reporter`, PR R16a, the first half of WU-1.16).
+`scripts/testing/node-summary-reporter.mjs` reads Node's documented `TestsStream` events and prints
+each failure with its detail and one anchored line,
+`@@SUMMARY tests=N pass=N fail=N cancelled=N skipped=N todo=N`, taken from the cumulative
+`test:summary` event and cross-checked against its own tally of the test events (design decision
+DD-7: no Node release ships the JSON reporter this plan once named); the suite,
+`apps/api/tests/unit/scripts/nodeSummaryReporter.test.ts`, runs the real runner over eight fixture
+files and feeds six synthetic streams. Nothing reads the reporter yet: the collector switches to it
+in PR R16b. It moved M1 `998 + 14` → `999 + 14` and left M5, M7 and M8 where they were.
+
+Before it, on 2026-10-14, the script contract holds and the quarantine may only shrink
 (`workstream/refound-1-script-contract`, PR R11, WU-1.11). The reach engine's part C, rule C1, reads
 the `package.json` beside each of the 93 tracked vitest configs and fails unless its `test` script is
 exactly `vitest run`; `apps/client`, the one package on watch-mode `vitest`, moved to `vitest run`,
@@ -508,7 +519,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 998 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR def86 |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 999 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R16a  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
