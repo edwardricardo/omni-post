@@ -1,18 +1,20 @@
 /**
  * @file reach.test.ts
  * @description Self-tests of the reach engine's command line over planted trees: a planted R1,
- *              R2 or R3 violation reaches the exit code and the output naming its file or registry
- *              entry, a clean tree passes, every input the engine cannot read in full fails the
- *              run, `--json` prints the report, and a usage error exits 2. Every planted tree
- *              carries a workflow, a ruleset and a `collectors.json` whose required check runs its
- *              vitest configs. The rules themselves are pinned over plain values in
- *              `rules.test.ts` and `executed-by.test.ts`.
+ *              R2, R3 or C1 violation reaches the exit code and the output naming its file or
+ *              registry entry, a clean tree passes, every input the engine cannot read in full
+ *              fails the run, `--json` prints the report, and a usage error exits 2. Every planted
+ *              tree carries a workflow, a ruleset and a `collectors.json` whose required check runs
+ *              its vitest configs, and a `package.json` beside each config whose `test` script is
+ *              `vitest run`. R1, R2 and R3 are pinned over plain values in `rules.test.ts` and
+ *              `executed-by.test.ts`; C1 is pinned here, over the manifests it reads.
  * @layer infrastructure
  */
-import { writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ok } from "@shared/types";
+import { err, ok } from "@shared/types";
 import { createNodeCollector } from "../src/lib/node-collector.js";
 import { createVitestCollector } from "../src/lib/vitest-collector.js";
 import { main, type ReachSeams } from "../src/reach.js";
@@ -28,22 +30,38 @@ import {
 const planted: PlantedTree[] = [];
 
 /**
- * Two packages, each collecting its one top-level test, plus the CI files and whatever a test
- * adds, which may replace a CI file. `pkg-b`'s includes are a parameter so a test can make it
- * reach into `pkg-a`.
+ * @param test - The `test` script, or `undefined` for a manifest with no scripts.
+ * @returns A package manifest declaring it.
+ */
+function manifestWith(test?: string): string {
+  return JSON.stringify(test === undefined ? { name: "planted" } : { scripts: { test } });
+}
+
+/**
+ * Two packages, each collecting its one top-level test with a `test` script of `vitest run`, plus
+ * the CI files and whatever a test adds, which may replace a CI file or a manifest; a `null`
+ * leaves that file out of the tree, on disk and in its tracked list alike. `pkg-b`'s includes are
+ * a parameter so a test can make it reach into `pkg-a`.
  */
 function plant(
-  extra: Readonly<Record<string, string>> = {},
+  extra: Readonly<Record<string, string | null>> = {},
   pkgBInclude: readonly string[] = ["*.test.ts"]
 ): PlantedTree {
-  const tree = plantTree({
+  const contents: Record<string, string | null> = {
     ...ciFiles(),
+    "pkg-a/package.json": manifestWith("vitest run"),
     "pkg-a/vitest.config.mjs": configCollecting(["*.test.ts"]),
     "pkg-a/one.test.ts": TEST_BODY,
+    "pkg-b/package.json": manifestWith("vitest run"),
     "pkg-b/vitest.config.mjs": configCollecting(pkgBInclude),
     "pkg-b/two.test.ts": TEST_BODY,
     ...extra,
-  });
+  };
+  const tree = plantTree(
+    Object.fromEntries(
+      Object.entries(contents).filter((entry): entry is [string, string] => entry[1] !== null)
+    )
+  );
   planted.push(tree);
   return tree;
 }
@@ -53,6 +71,7 @@ function seamsFor(tree: PlantedTree): ReachSeams {
   return {
     listFiles: () => ok([...tree.tracked]),
     diskFloor: 1,
+    packageFloor: 1,
     collectors: [createVitestCollector({ floor: 1 })],
   };
 }
@@ -79,6 +98,7 @@ describe("reach engine", () => {
 
     expect(result.code).toBe(0);
     expect(result.output).toMatch(/^reach: PASS\n/);
+    expect(result.output).toContain("2 vitest packages held to the script contract; 0 violations");
   });
 
   it("exits 1 naming a test-shaped file no collector runs (R1)", async () => {
@@ -152,6 +172,36 @@ describe("reach engine", () => {
     expect(result.output).toContain("quarantine shrink check ran");
   });
 
+  it("exits 1 naming a base quarantine that cannot be read, and says the check did not run", async () => {
+    const tree = plant({ [ORPHAN]: TEST_BODY });
+    const quarantine = writeQuarantine(tree, "quarantine.json", [ORPHAN]);
+    const missing = path.join(tree.root, "missing-base.json");
+
+    const result = await main(
+      ["--root", tree.root, "--quarantine", quarantine, "--base", missing],
+      seamsFor(tree)
+    );
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(`error: base quarantine ${missing} cannot be read: ENOENT`);
+    expect(result.output).toContain("quarantine shrink check not run: base unreadable\n");
+  });
+
+  it("exits 1 naming a base quarantine that does not parse", async () => {
+    const tree = plant();
+    const base = path.join(tree.root, "base.json");
+    writeFileSync(base, "{");
+    const quarantine = writeQuarantine(tree, "quarantine.json", []);
+
+    const result = await main(
+      ["--root", tree.root, "--quarantine", quarantine, "--base", base],
+      seamsFor(tree)
+    );
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(`error: base quarantine ${base} is not JSON`);
+  });
+
   it("exits 1 when the quarantine does not parse", async () => {
     const tree = plant();
     const quarantine = path.join(tree.root, "quarantine.json");
@@ -181,6 +231,48 @@ describe("reach engine", () => {
 
     expect(result.code).toBe(1);
     expect(result.output).toContain("disk: 2 test-shaped tracked files, below the floor of 800");
+  });
+
+  it("says the shrink check did not run when the disk listing fails with a base given", async () => {
+    const tree = plant();
+    const quarantine = writeQuarantine(tree, "quarantine.json", []);
+    const base = writeQuarantine(tree, "base.json", []);
+
+    const result = await main(["--root", tree.root, "--quarantine", quarantine, "--base", base], {
+      ...seamsFor(tree),
+      listFiles: () => err({ message: "git ls-files failed: planted" }),
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("error: git ls-files failed: planted");
+    expect(result.output).toContain("quarantine shrink check not run: disk listing failed\n");
+  });
+
+  it("exits 1 at C1's production package floor, with no other error or violation", async () => {
+    const tree = plant();
+    const { packageFloor: _packageFloor, ...seams } = seamsFor(tree);
+
+    const result = await main(["--root", tree.root], seams);
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      "error: C1 saw 2 vitest packages, below the floor of 80; " +
+        "the listing read less of the tree than it holds"
+    );
+    expect(result.output).toContain("0 violations; 1 errors");
+  });
+
+  it("exits 1 naming an empty C1 scope, a tracked set with no vitest config", async () => {
+    const tree = plant();
+    const withoutConfigs = tree.tracked.filter((file) => !file.endsWith("/vitest.config.mjs"));
+
+    const result = await main(["--root", tree.root], {
+      ...seamsFor(tree),
+      listFiles: () => ok(withoutConfigs),
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("error: C1 saw 0 vitest packages, below the floor of 1");
   });
 
   it("exits 1 at the production vitest config floor", async () => {
@@ -284,6 +376,83 @@ describe("reach engine", () => {
     );
   });
 
+  it.each([
+    ["a bare vitest, which watches under a terminal", manifestWith("vitest"), '"test" is "vitest"'],
+    [
+      "any other command",
+      manifestWith("vitest run --coverage"),
+      '"test" is "vitest run --coverage"',
+    ],
+    ["no test script", manifestWith(), 'declares no "test" script'],
+  ])(
+    "exits 1 naming the manifest of a package whose test script is %s (C1)",
+    async (_label, manifest, expected) => {
+      const tree = plant({ "pkg-a/package.json": manifest });
+
+      const result = await main(["--root", tree.root], seamsFor(tree));
+
+      expect(result.code).toBe(1);
+      expect(result.output).toContain(`C1 pkg-a/package.json: ${expected}`);
+    }
+  );
+
+  it("exits 1 naming the manifest a vitest config's directory has neither on disk nor tracked (C1)", async () => {
+    const tree = plant({ "pkg-b/package.json": null });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      "C1 pkg-b/package.json: missing: no package script runs the tracked vitest config " +
+        "pkg-b/vitest.config.mjs"
+    );
+  });
+
+  it("exits 1 naming a manifest that is on disk but not tracked (C1)", async () => {
+    const tree = plant();
+    const untracked = tree.tracked.filter((file) => file !== "pkg-b/package.json");
+
+    const result = await main(["--root", tree.root], {
+      ...seamsFor(tree),
+      listFiles: () => ok(untracked),
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      "C1 pkg-b/package.json: missing: no package script runs the tracked vitest config " +
+        "pkg-b/vitest.config.mjs"
+    );
+  });
+
+  it("prints R1 violations before C1 ones", async () => {
+    const tree = plant({ [ORPHAN]: TEST_BODY, "pkg-b/package.json": manifestWith("vitest") });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.output.indexOf(`R1 ${ORPHAN}`)).toBeLessThan(
+      result.output.indexOf("C1 pkg-b/package.json")
+    );
+  });
+
+  it("exits 1 when a manifest does not parse", async () => {
+    const tree = plant({ "pkg-a/package.json": "{" });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("error: manifest pkg-a/package.json is not JSON");
+  });
+
+  it("exits 1 when a tracked manifest cannot be read", async () => {
+    const tree = plant();
+    rmSync(path.join(tree.root, "pkg-a/package.json"));
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("error: manifest pkg-a/package.json cannot be read: ENOENT");
+  });
+
   it("reads the registry named on the command line instead of the default one", async () => {
     const tree = plant({ [CI_PATHS.registry]: registryOf({ vitest: [] }) });
     const registry = path.join(tree.root, "registry.json");
@@ -303,6 +472,14 @@ describe("reach engine", () => {
       expect(result.output).toContain("usage: reach");
     }
   );
+
+  it("exits 2 when --base is given without --quarantine, naming both flags", async () => {
+    const result = await main(["--base", path.join(tmpdir(), "base.json")]);
+
+    expect(result.code).toBe(2);
+    expect(result.output).toContain("reach: --base needs --quarantine: the shrink-only check");
+    expect(result.output).toContain("[--quarantine <file> [--base <file>]]");
+  });
 
   it.each([[["--collectors"]], [["--ruleset", "--json"]]])(
     "exits 2 when a registry flag has no value %j",

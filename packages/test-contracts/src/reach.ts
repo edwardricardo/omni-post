@@ -7,15 +7,23 @@
  *              `collectors.json`, the workflows it names and the ruleset's required checks to
  *              decide which sources a required check runs (R2, `lib/executed-by.ts`), reads the
  *              quarantine files it is given, and hands all of it to the pure verdict in
- *              `lib/rules.ts` (R1 and R3).
+ *              `lib/rules.ts` (R1 and R3). It also reads the `package.json` of every package that
+ *              keeps a tracked vitest config and holds its `test` script to `vitest run`, the
+ *              script contract (C1, `lib/script-contract.ts`).
  *
- *              Every failure to read an input — the disk below its floor, a collector below its
- *              floor or unable to list a source, a registry, ruleset or quarantine that is missing
- *              or does not parse — is an error, and an error fails the run: a verdict over an input
- *              the engine did not read is not a verdict. Usage: `pnpm --filter
- *              @packages/test-contracts reach [--root <dir>] [--quarantine <file>] [--base <file>]
- *              [--collectors <file>] [--ruleset <file>] [--json]`. Exit 0 clean, 1 on any
- *              violation or error, 2 on a usage error.
+ *              `--quarantine` names the quarantine under check; `--base` names the quarantine of
+ *              the commit it is compared against, and R3 then refuses any entry the base does not
+ *              hold, so the quarantine may only shrink. `--base` without `--quarantine` is a usage
+ *              error: the comparison would run over no quarantine and report that it ran. Every
+ *              failure to read an input — the disk below its floor, a collector below its floor or
+ *              unable to list a source, C1 below the same floor, a registry, ruleset, manifest,
+ *              quarantine or base quarantine that is missing or does not parse — is an error, and
+ *              an error fails the run: a verdict over an input the engine did not read is not a
+ *              verdict. Usage: `pnpm --filter @packages/test-contracts reach [--root <dir>]
+ *              [--quarantine <file> [--base <file>]] [--collectors <file>] [--ruleset <file>]
+ *              [--json]`. Every path resolves against the
+ *              working directory, which `pnpm --filter` sets to the package's directory. Exit 0
+ *              clean, 1 on any violation or error, 2 on a usage error.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -43,8 +51,23 @@ import {
   type Collection,
   type Collector,
 } from "./lib/registry.js";
-import { evaluate, parseQuarantine, type QuarantineEntry, type Violation } from "./lib/rules.js";
+import {
+  evaluate,
+  parseQuarantine,
+  RULE,
+  type QuarantineEntry,
+  type Violation,
+} from "./lib/rules.js";
+import { checkScriptContract } from "./lib/script-contract.js";
 import { createVitestCollector } from "./lib/vitest-collector.js";
+
+/** Whether R3's shrink-only clause ran, and why not when it did not. */
+type ShrinkCheck =
+  | "ran"
+  | "not run: no --base given"
+  | "not run: base unreadable"
+  | "not run: quarantine unreadable"
+  | "not run: disk listing failed";
 
 /** The outcome of one run. */
 interface ReachReport {
@@ -53,12 +76,16 @@ interface ReachReport {
   readonly testShaped: number;
   /** Collecting sources, labelled `<collector>:<source>`, with the count each collects. */
   readonly sources: readonly SourceCount[];
+  /** Packages that keep a tracked vitest config, each held to the script contract (C1). */
+  readonly packages: number;
   readonly violations: readonly Violation[];
   /** Inputs the engine could not read in full; any one fails the run. */
   readonly errors: readonly string[];
-  /** Whether a base quarantine was read, so the shrink-only check ran. */
-  readonly baseChecked: boolean;
+  readonly shrinkCheck: ShrinkCheck;
 }
+
+/** Each rule's place in a report: the order {@link RULE} declares. */
+const RULE_ORDER: readonly string[] = Object.values(RULE);
 
 /** One collecting source, how many files it collects, and whether a required check runs it. */
 interface SourceCount {
@@ -79,11 +106,13 @@ interface ReachOptions {
 
 /**
  * What the self-tests replace: the file listing (a planted tree is not a git repository), the
- * disk floor (a planted tree holds a handful of tests) and the collectors. The CLI passes none.
+ * disk floor and C1's package floor (a planted tree holds a handful of tests and packages) and
+ * the collectors. The CLI passes none.
  */
 export interface ReachSeams {
   readonly listFiles?: (root: string) => Result<string[], DiskFailure>;
   readonly diskFloor?: number;
+  readonly packageFloor?: number;
   readonly collectors?: readonly Collector[];
 }
 
@@ -115,20 +144,59 @@ function readInput(kind: string, file: string, errors: string[]): string | null 
 }
 
 /**
- * Reads a quarantine file when one was named.
+ * Reads a quarantine file.
  *
- * @param file - The file, or `undefined` when none was named.
+ * @param kind - Which quarantine it is, `quarantine` or `base quarantine`, for its failures.
+ * @param file - The file.
  * @param errors - Where a read or parse failure is recorded.
- * @returns The entries, `[]` when no file was named, or `null` when the file could not be read.
+ * @returns The entries, or `null` when the file could not be read or parsed.
  */
-function readQuarantine(file: string | undefined, errors: string[]): QuarantineEntry[] | null {
-  if (file === undefined) return [];
-  const text = readInput("quarantine", file, errors);
+function readQuarantine(kind: string, file: string, errors: string[]): QuarantineEntry[] | null {
+  const text = readInput(kind, file, errors);
   if (text === null) return null;
-  const parsed = parseQuarantine(text, file);
+  const parsed = parseQuarantine(text, file, kind);
   if (parsed.ok) return parsed.value;
   errors.push(parsed.error);
   return null;
+}
+
+/**
+ * @param root - Absolute repository root.
+ * @returns A reader of repository-relative files that reports a failure instead of throwing.
+ */
+function readerUnder(root: string): (file: string) => Result<string, string> {
+  return (file) => {
+    try {
+      return ok(readFileSync(path.join(root, file), "utf8"));
+    } catch (error: unknown) {
+      return err(describeError(error));
+    }
+  };
+}
+
+/** What R3's shrink-only clause needs before it can compare: which inputs were named and read. */
+interface ShrinkInputs {
+  /** Whether `--base` named a base quarantine. */
+  readonly baseNamed: boolean;
+  /** Whether the disk listing held; when it did not, the run stopped before reading anything. */
+  readonly diskListed: boolean;
+  readonly baseRead: boolean;
+  readonly quarantineRead: boolean;
+}
+
+/**
+ * The one place that decides the summary's shrink-check status, for a run that stopped at the
+ * disk listing and for one that read everything alike.
+ *
+ * @param inputs - Which inputs were named and read.
+ * @returns Whether R3's shrink-only clause compared the two quarantines, and why not when it did not.
+ */
+function shrinkCheckOf(inputs: ShrinkInputs): ShrinkCheck {
+  if (!inputs.baseNamed) return "not run: no --base given";
+  if (!inputs.diskListed) return "not run: disk listing failed";
+  if (!inputs.baseRead) return "not run: base unreadable";
+  if (!inputs.quarantineRead) return "not run: quarantine unreadable";
+  return "ran";
 }
 
 /**
@@ -180,14 +248,26 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
       ok: false,
       testShaped: 0,
       sources: [],
+      packages: 0,
       violations: [],
       errors: [inventory.error.message],
-      baseChecked: false,
+      shrinkCheck: shrinkCheckOf({
+        baseNamed: options.basePath !== undefined,
+        diskListed: false,
+        baseRead: false,
+        quarantineRead: false,
+      }),
     };
   }
   const errors: string[] = [];
-  const quarantine = readQuarantine(options.quarantinePath, errors);
-  const base = options.basePath === undefined ? null : readQuarantine(options.basePath, errors);
+  const quarantine =
+    options.quarantinePath === undefined
+      ? []
+      : readQuarantine("quarantine", options.quarantinePath, errors);
+  const base =
+    options.basePath === undefined
+      ? null
+      : readQuarantine("base quarantine", options.basePath, errors);
   const collectors = seams.collectors ?? defaultCollectors();
   const outcome = await runCollectors(collectors, {
     root: options.root,
@@ -197,6 +277,12 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
     errors.push(`${sourceLabel(failure)}: ${failure.message}`);
   }
   const executedBy = readExecutedBy(options, collectors, outcome.collections, errors);
+  const scripts = checkScriptContract(
+    inventory.value.tracked,
+    readerUnder(options.root),
+    seams.packageFloor
+  );
+  errors.push(...scripts.errors);
   const evaluated = evaluate({
     disk: inventory.value,
     collections: outcome.collections,
@@ -204,9 +290,9 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
     base,
     ...(executedBy !== null && { runSources: executedBy.runSources }),
   });
-  // R2 sits between R1 and R3 in the output; the sort is stable, so each rule keeps its order.
-  const violations = [...evaluated, ...(executedBy?.violations ?? [])].sort((a, b) =>
-    a.rule.localeCompare(b.rule)
+  // The sort is stable, so each rule's violations keep the file order their check gave them.
+  const violations = [...evaluated, ...(executedBy?.violations ?? []), ...scripts.violations].sort(
+    (a, b) => RULE_ORDER.indexOf(a.rule) - RULE_ORDER.indexOf(b.rule)
   );
   return {
     ok: errors.length === 0 && violations.length === 0,
@@ -216,9 +302,15 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
       files: collection.files.length,
       run: executedBy?.runSources.has(sourceLabel(collection)) ?? false,
     })),
+    packages: scripts.packages,
     violations,
     errors,
-    baseChecked: base !== null,
+    shrinkCheck: shrinkCheckOf({
+      baseNamed: options.basePath !== undefined,
+      diskListed: true,
+      baseRead: base !== null,
+      quarantineRead: quarantine !== null,
+    }),
   };
 }
 
@@ -241,8 +333,9 @@ function formatReport(report: ReachReport): string {
     `summary: ${String(report.testShaped)} test-shaped tracked files; ` +
       `${String(collected)} collected by ${String(report.sources.length)} sources, ` +
       `${String(run)} of them run by a required check; ` +
+      `${String(report.packages)} vitest packages held to the script contract; ` +
       `${String(report.violations.length)} violations; ${String(report.errors.length)} errors; ` +
-      `quarantine shrink check ${report.baseChecked ? "ran" : "not run: no --base given"}`
+      `quarantine shrink check ${report.shrinkCheck}`
   );
   return `${lines.join("\n")}\n`;
 }
@@ -268,7 +361,7 @@ const VALUE_FLAGS = {
 
 /** The usage line every usage error prints. */
 const USAGE =
-  "usage: reach [--root <dir>] [--quarantine <file>] [--base <file>] " +
+  "usage: reach [--root <dir>] [--quarantine <file> [--base <file>]] " +
   "[--collectors <file>] [--ruleset <file>] [--json]\n";
 
 /**
@@ -299,6 +392,12 @@ function parseArguments(argv: readonly string[]): Result<CliArguments, string> {
     values[VALUE_FLAGS[flag]] = path.resolve(value);
     index += 1;
   }
+  if (values.base !== undefined && values.quarantine === undefined) {
+    return err(
+      "--base needs --quarantine: the shrink-only check compares the quarantine under check " +
+        "with the base, and without --quarantine there is none to compare"
+    );
+  }
   return ok({ ...values, json });
 }
 
@@ -322,8 +421,7 @@ interface CliResult {
 }
 
 /**
- * The command line, as a function: parse, run, render, decide the exit code.
- *
+ * @description The command line, as a function: parse, run, render, decide the exit code.
  * @param argv - The arguments after the script path.
  * @param seams - Replacements for the self-tests; the CLI passes none.
  * @returns The text to print and the exit code.

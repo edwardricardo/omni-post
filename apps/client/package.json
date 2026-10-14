@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start -p 3200",
     "lint": "eslint .",
-    "test": "vitest",
+    "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:stories": "vitest run --config vitest.stories.config.ts",

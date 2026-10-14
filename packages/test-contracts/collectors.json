@@ -23,7 +23,7 @@
         {
           "workflow": ".github/workflows/ci.yml",
           "jobId": "test-frontend",
-          "entrypoint": "pnpm --filter @apps/client exec vitest run",
+          "entrypoint": "pnpm --filter @apps/client test",
           "packages": ["apps/client"]
         }
       ]
