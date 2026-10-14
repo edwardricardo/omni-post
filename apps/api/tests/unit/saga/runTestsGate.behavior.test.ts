@@ -255,6 +255,10 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
       GATE_STUB_CANCEL: String(shape.cancel),
       GATE_STUB_SKIP: String(shape.skip ?? 0),
       GATE_STUB_EXIT: String(shape.exit),
+      // The stub prints the summary line unless the shape says `summary: false`.
+      // Its script tests `[ "$GATE_STUB_SUMMARY" = 1 ]`, so "1" and "0" are the
+      // pair it reads: an unset or misspelled variable prints no summary, and the
+      // case goes red on `no @@SUMMARY line` rather than green.
       GATE_STUB_SUMMARY: shape.summary === false ? "0" : "1",
       ...(callLog !== undefined && { GATE_CALL_LOG: callLog }),
       ...(quarantineFile !== undefined && { QUARANTINE_FILE: quarantineFile }),

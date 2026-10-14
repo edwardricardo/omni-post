@@ -318,7 +318,10 @@ run_file() {
   # pattern matches it. A run with none — the reporter did not load, or the
   # process died before the end of its run — has no counts to read, and fails
   # below instead of reading as zero.
-  local tests=0 pass=0 fail=0 cancel=0 skip=0 summary summary_read=""
+  local tests=0 pass=0 fail=0 cancel=0 skip=0
+  # summary_read is the one signal that tells a missing summary from a legitimate
+  # zero: it is set only when the whole pattern matched the line.
+  local summary summary_read=""
   summary=$(printf '%s\n' "$result" | grep '^@@SUMMARY ' | tail -1)
   if [[ "$summary" =~ $SUMMARY_LINE ]]; then
     tests=${BASH_REMATCH[1]} pass=${BASH_REMATCH[2]} fail=${BASH_REMATCH[3]}
@@ -374,11 +377,13 @@ run_file() {
     # green suite floods the last 200 lines, the failing test scrolls out and
     # the log reports "fail 1" without ever naming it — the 'production'
     # batch produced two consecutive red CI runs whose logs never said which
-    # test failed. The reporter prefixes every line it relays (what a suite
-    # printed, and each diagnostic) with '# ', so the lines without it are its
-    # own account — each failing test or suite with its error, its cause and
-    # its first stack frames, bounded per failure; each skip and todo; the
-    # summary — and whatever node itself wrote to stderr.
+    # test failed. The reporter prefixes EVERY line it relays (each line a
+    # suite printed to stdout or stderr, and each diagnostic) with '# ', so
+    # nothing a suite printed reaches this section. What `grep -v` keeps is the
+    # reporter's own account — each failing test or suite with its error, its
+    # cause and its first stack frames, bounded per failure; each skip and
+    # todo; the summary — and whatever node itself wrote to stderr outside the
+    # test events, such as a warning at startup.
     echo "── failures in '$file' (each failing test or suite with its detail, each skip, the summary) ──"
     printf '%s\n' "$result" | grep -v '^# ' || true
     echo "── output of '$file' (last 200 lines) ──"
