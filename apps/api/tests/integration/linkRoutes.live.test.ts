@@ -390,16 +390,24 @@ describe("Link Tracking Routes Integration", () => {
       await fetch(`${API_URL}/r/${shortCode}`, { redirect: "manual" });
       await fetch(`${API_URL}/r/${shortCode}`, { redirect: "manual" });
 
-      // Wait a bit for async click recording
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // The click is recorded AFTER the redirect is answered: the use case fires
+      // `recordClick` without awaiting it, so the count is eventually consistent
+      // and a fixed wait races that write (DEF-27: 2 of 3 clicks read on CI twice
+      // in one night). Poll the stats until the three clicks arrive or the
+      // deadline passes, then assert the exact count.
+      const deadline = Date.now() + 5_000;
+      let totalClicks = 0;
+      for (;;) {
+        const statsResponse = await fetch(`${API_URL}/links/${linkId}/stats`, {
+          headers: { Authorization: authHeader },
+        });
+        const statsBody = await statsResponse.json();
+        totalClicks = statsBody.data.totalClicks;
+        if (totalClicks >= 3 || Date.now() >= deadline) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
 
-      // Check click count
-      const statsResponse = await fetch(`${API_URL}/links/${linkId}/stats`, {
-        headers: { Authorization: authHeader },
-      });
-      const statsBody = await statsResponse.json();
-
-      assert.equal(statsBody.data.totalClicks, 3);
+      assert.equal(totalClicks, 3);
     });
   });
 });
