@@ -1932,11 +1932,12 @@ jobs:
           # (outside the quarantine, a file collected zero times, twice, or only by a source no
           # required check runs), R2 (a collectors.json entry whose job, entrypoint or check name
           # does not hold), R3 (a quarantine entry that is untracked, collected, or absent from the
-          # base commit's quarantine) and C1 (a package with a vitest config whose `test` script is
-          # not `vitest run`), and on any input it cannot read in full. Pinned by
-          # packages/test-contracts/tests/, which Package Tests runs. The quarantine path resolves
-          # against the package directory, where `pnpm --filter` runs the script, so the base
-          # quarantine is handed in by an absolute path.
+          # base commit's quarantine), C1 (a package with a vitest config whose `test` script is
+          # not `vitest run`) and C2 (a vitest config whose resolved `exclude`, of its root config or
+          # of one of its projects, lacks an entry of RESERVED_TIER_EXCLUDES), and on any input it
+          # cannot read in full. Pinned by packages/test-contracts/tests/, which Package Tests runs.
+          # The quarantine path resolves against the package directory, where `pnpm --filter` runs
+          # the script, so the base quarantine is handed in by an absolute path.
           # The base fails closed in two ways, each with its own error: a base ref that names no
           # commit, and a base commit that holds no quarantine.json. A push whose commit has no
           # parent has no HEAD~1, so it fails at the first by construction.
@@ -1952,7 +1953,7 @@ jobs:
             exit 1
           fi
           if ! pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base "$BASE_QUARANTINE"; then
-            echo "::error title=Fitness #30 violation::A test file runs in no collector, in two, or only in one no required check runs; a collectors.json entry does not hold; a quarantine entry is untracked, collected, or new against the base; a package's test script is not vitest run; or the engine could not read one of its inputs. The R1, R2, R3, C1 and error lines above name each file. Give the file its tier suffix or its collector, set the package's test script to vitest run, or delete the file: the quarantine no longer grows."
+            echo "::error title=Fitness #30 violation::A test file runs in no collector, in two, or only in one no required check runs; a collectors.json entry does not hold; a quarantine entry is untracked, collected, or new against the base; a package's test script is not vitest run; a vitest config's resolved exclude lacks a reserved tier pattern; or the engine could not read one of its inputs. The R1, R2, R3, C1, C2 and error lines above name each file. Give the file its tier suffix or its collector, set the package's test script to vitest run, spread RESERVED_TIER_EXCLUDES into the config's exclude, or delete the file: the quarantine no longer grows."
             exit 1
           fi
 
