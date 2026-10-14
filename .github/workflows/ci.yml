@@ -748,9 +748,8 @@ jobs:
   # ── Monorepo package tests (providers, adapters, core, observability) ──
   # Deterministic turbo run over every package with a `test` script, excluding the
   # apps covered elsewhere: @apps/api (Test Suite shards) and @apps/admin/@apps/client
-  # (Frontend Tests). @apps/client is excluded by necessity — its `test` script is
-  # watch-mode vitest, which would hang the job. These are Tier 0 unit tests:
-  # cache-redis uses a FakeRedis, db-prisma tests are unit/DI — no live DB or Redis.
+  # (Frontend Tests). These are Tier 0 unit tests: cache-redis uses a FakeRedis,
+  # db-prisma tests are unit/DI — no live DB or Redis.
   test-packages:
     name: Package Tests
     runs-on: ubuntu-latest
@@ -813,7 +812,7 @@ jobs:
         run: pnpm --filter @apps/admin test
 
       - name: Run Client unit tests (vitest)
-        run: pnpm --filter @apps/client exec vitest run
+        run: pnpm --filter @apps/client test
 
   # ── Tier 0: Storybook stories as vitest browser tests (headless Chromium) ──
   # Every client story renders in a real browser through @storybook/addon-vitest:

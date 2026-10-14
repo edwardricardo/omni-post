@@ -6,11 +6,12 @@ name: Architectural Fitness Functions
 #
 # Strategy: hard-zero (each returns count = 0), with the documented ratchets that
 # CLAUDE.md names: #1 and #21 ran as ratchets during the prisma->DI remediation
-# and are hard-zero again, and so is #30, derived by the reach engine with its
-# quarantine named file by file; #38 carries one ratcheted sub-count for
+# and are hard-zero again; #38 carries one ratcheted sub-count for
 # packages/adapters/db-prisma; #45 and #46 hold one `pending` count per
 # inventory, exact at its pendingBaseline. Every baseline may fall and must
-# never rise.
+# never rise. #30 is hard-zero as well: the reach engine derives it, its
+# quarantine names every file it holds, and that quarantine may only shrink
+# against the base commit's.
 #
 # A check whose scope path does not exist is WORSE than no check: `grep -r` on
 # an absent directory exits 2, prints nothing, and `| wc -l` renders that as 0 —
@@ -751,25 +752,41 @@ jobs:
           # workflow against node:test files vitest's `include` globs never
           # covered, collected nothing, and reported green over scenarios it
           # never executed.
-          # Part A: no `passWithNoTests` anywhere. Vitest defaults it to false —
-          # zero collected is exit 1 — so every occurrence is an explicit opt-OUT
-          # of the one default that notices an empty run, and it keeps reporting
-          # green forever once a rename or an `include` change breaks collection.
+          # Part A: vitest's pass-with-no-tests flag appears in no tracked JSON,
+          # TypeScript or workflow file of the repository, whichever directory it
+          # sits in. Vitest defaults it to false — zero collected is exit 1 — so
+          # every occurrence is an explicit opt-OUT of the one default that
+          # notices an empty run, and it keeps reporting green forever once a
+          # rename or an `include` change breaks collection. This step is itself
+          # a tracked .yml file: the pattern carries a bracket class so it does
+          # not match its own text, and the flag's name is spelled out nowhere
+          # else in it. Fail-closed: a git grep that errors, or a scope below
+          # 2500 files, read less of the tree than it holds.
           # Part B: the node:test runner must KEEP its zero-collection guards.
           # node:test has no equivalent default: a crashed or empty run prints a
           # 0/0/0 TAP summary that parses as success, so run-tests.sh carries the
           # check itself, once per file and once on the total. Both terms are
           # pinned because deleting either restores the silent green with nothing
           # left to notice it. Mirrors CLAUDE.md #31.
-          A=$(grep -rn "passWithNoTests" apps/ packages/ infra/ \
-                --include="package.json" --include="*.ts" --include="*.json" | \
-                grep -vE "node_modules|/dist/" || true)
+          # GitHub runs this body under `bash -e`: each status is captured with `||`, so
+          # git grep's exit 1, which means "no match", is read rather than ending the step.
+          SCOPE=$(git ls-files -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l) || SCOPE=0
+          if [ "$SCOPE" -lt 2500 ]; then
+            echo "::error title=Fitness #31 scope error::git ls-files found $SCOPE JSON, TypeScript and workflow files against a floor of 2500 — the checkout is missing or partial, and Part A would report a clean zero over files it never read."
+            exit 1
+          fi
+          ASTATUS=0
+          A=$(git grep -nE 'pass[W]ithNoTests' -- '*.json' '*.ts' '*.mts' '*.yml') || ASTATUS=$?
+          if [ "$ASTATUS" -gt 1 ]; then
+            echo "::error title=Fitness #31 scope error::git grep exited $ASTATUS over the Part A scope — it could not read the files it was given, so a zero would be a blind one."
+            exit 1
+          fi
           ACOUNT=$(printf "%s" "$A" | grep -c . || true); ACOUNT=${ACOUNT:-0}
           BATCH_PIN=$(grep -c '\[ "\$tests" -eq 0 \]' apps/api/scripts/run-tests.sh || true)
           TOTAL_PIN=$(grep -c '\[ "\$TOTAL_TESTS" -eq 0 \]' apps/api/scripts/run-tests.sh || true)
           BATCH_PIN=${BATCH_PIN:-0}; TOTAL_PIN=${TOTAL_PIN:-0}
           if [ "$ACOUNT" -gt 0 ]; then
-            echo "::error title=Fitness #31 violation::$ACOUNT test entry point(s) declare passWithNoTests — that opts out of the only default that fails an empty run, so the suite reports green the day collection breaks"
+            echo "::error title=Fitness #31 violation::$ACOUNT line(s) of tracked files set vitest's pass-with-no-tests flag — that opts out of the only default that fails an empty run, so the suite reports green the day collection breaks"
             printf "%s\n" "$A" | head -20
           fi
           if [ "$BATCH_PIN" -lt 1 ] || [ "$TOTAL_PIN" -lt 1 ]; then
@@ -1971,8 +1988,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          # Full history, so a pull request's base quarantine is readable once the shrink-only
-          # check is wired; `git ls-files` itself needs only the checked-out commit.
+          # Full history, so the `#30` step can read the base commit's quarantine for R3's
+          # shrink-only clause; `git ls-files` itself needs only the checked-out commit.
           fetch-depth: 0
 
       - name: Setup pnpm
@@ -1989,6 +2006,10 @@ jobs:
 
       - name: "#30 Every test file has exactly one collector run by a required check"
         if: always()
+        env:
+          # The commit the quarantine may only shrink against: a pull request's base, or on a push
+          # the commit before it.
+          FITNESS_BASE_REF: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
         run: |
           # Mirrors CLAUDE.md #30. packages/test-contracts/src/reach.ts lists every test-shaped
           # tracked file, asks the four collectors (vitest, node:test through run-tests.sh --list,
@@ -1996,12 +2017,20 @@ jobs:
           # .github/rulesets/main.json to decide which sources a required check runs. It fails on R1
           # (outside the quarantine, a file collected zero times, twice, or only by a source no
           # required check runs), R2 (a collectors.json entry whose job, entrypoint or check name
-          # does not hold) and R3 (a quarantine entry that is untracked or collected), and on any
-          # input it cannot read in full. Pinned by packages/test-contracts/tests/, which Package
-          # Tests runs. The quarantine path resolves against the package directory, where
-          # `pnpm --filter` runs the script.
+          # does not hold), R3 (a quarantine entry that is untracked, collected, or absent from the
+          # base commit's quarantine) and C1 (a package with a vitest config whose `test` script is
+          # not `vitest run`), and on any input it cannot read in full. Pinned by
+          # packages/test-contracts/tests/, which Package Tests runs. The quarantine path resolves
+          # against the package directory, where `pnpm --filter` runs the script, so the base
+          # quarantine is handed in by an absolute path. A base commit without the file fails closed.
           set -euo pipefail
-          if ! pnpm --filter @packages/test-contracts reach --quarantine quarantine.json; then
-            echo "::error title=Fitness #30 violation::A test file runs in no collector, in two, or only in one no required check runs; a collectors.json entry does not hold; a quarantine entry is untracked or collected; or the engine could not read one of its inputs. The R1, R2, R3 and error lines above name each file. Give the file its tier suffix or its collector, quarantine it with a reason, an owner and a since date, or delete it."
+          BASE_REF="${FITNESS_BASE_REF:-origin/main}"
+          BASE_QUARANTINE="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/base-quarantine.json"
+          if ! git show "$BASE_REF:packages/test-contracts/quarantine.json" > "$BASE_QUARANTINE"; then
+            echo "::error title=Fitness #30 violation::The base commit $BASE_REF holds no readable packages/test-contracts/quarantine.json, so the quarantine cannot be held to shrink-only. The git line above names the cause."
+            exit 1
+          fi
+          if ! pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base "$BASE_QUARANTINE"; then
+            echo "::error title=Fitness #30 violation::A test file runs in no collector, in two, or only in one no required check runs; a collectors.json entry does not hold; a quarantine entry is untracked, collected, or new against the base; a package's test script is not vitest run; or the engine could not read one of its inputs. The R1, R2, R3, C1 and error lines above name each file. Give the file its tier suffix or its collector, set the package's test script to vitest run, or delete the file: the quarantine no longer grows."
             exit 1
           fi

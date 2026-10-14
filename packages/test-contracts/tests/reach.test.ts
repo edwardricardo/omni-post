@@ -1,15 +1,16 @@
 /**
  * @file reach.test.ts
  * @description Self-tests of the reach engine's command line over planted trees: a planted R1,
- *              R2 or R3 violation reaches the exit code and the output naming its file or registry
- *              entry, a clean tree passes, every input the engine cannot read in full fails the
- *              run, `--json` prints the report, and a usage error exits 2. Every planted tree
- *              carries a workflow, a ruleset and a `collectors.json` whose required check runs its
- *              vitest configs. The rules themselves are pinned over plain values in
- *              `rules.test.ts` and `executed-by.test.ts`.
+ *              R2, R3 or C1 violation reaches the exit code and the output naming its file or
+ *              registry entry, a clean tree passes, every input the engine cannot read in full
+ *              fails the run, `--json` prints the report, and a usage error exits 2. Every planted
+ *              tree carries a workflow, a ruleset and a `collectors.json` whose required check runs
+ *              its vitest configs, and a `package.json` beside each config whose `test` script is
+ *              `vitest run`. R1, R2 and R3 are pinned over plain values in `rules.test.ts` and
+ *              `executed-by.test.ts`; C1 is pinned here, over the manifests it reads.
  * @layer infrastructure
  */
-import { writeFileSync } from "node:fs";
+import { rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ok } from "@shared/types";
@@ -28,9 +29,17 @@ import {
 const planted: PlantedTree[] = [];
 
 /**
- * Two packages, each collecting its one top-level test, plus the CI files and whatever a test
- * adds, which may replace a CI file. `pkg-b`'s includes are a parameter so a test can make it
- * reach into `pkg-a`.
+ * @param test - The `test` script, or `undefined` for a manifest with no scripts.
+ * @returns A package manifest declaring it.
+ */
+function manifestWith(test?: string): string {
+  return JSON.stringify(test === undefined ? { name: "planted" } : { scripts: { test } });
+}
+
+/**
+ * Two packages, each collecting its one top-level test with a `test` script of `vitest run`, plus
+ * the CI files and whatever a test adds, which may replace a CI file or a manifest. `pkg-b`'s
+ * includes are a parameter so a test can make it reach into `pkg-a`.
  */
 function plant(
   extra: Readonly<Record<string, string>> = {},
@@ -38,8 +47,10 @@ function plant(
 ): PlantedTree {
   const tree = plantTree({
     ...ciFiles(),
+    "pkg-a/package.json": manifestWith("vitest run"),
     "pkg-a/vitest.config.mjs": configCollecting(["*.test.ts"]),
     "pkg-a/one.test.ts": TEST_BODY,
+    "pkg-b/package.json": manifestWith("vitest run"),
     "pkg-b/vitest.config.mjs": configCollecting(pkgBInclude),
     "pkg-b/two.test.ts": TEST_BODY,
     ...extra,
@@ -79,6 +90,7 @@ describe("reach engine", () => {
 
     expect(result.code).toBe(0);
     expect(result.output).toMatch(/^reach: PASS\n/);
+    expect(result.output).toContain("2 vitest packages held to the script contract; 0 violations");
   });
 
   it("exits 1 naming a test-shaped file no collector runs (R1)", async () => {
@@ -150,6 +162,32 @@ describe("reach engine", () => {
 
     expect(result.code).toBe(0);
     expect(result.output).toContain("quarantine shrink check ran");
+  });
+
+  it("exits 1 naming a base quarantine that cannot be read, and says the check did not run", async () => {
+    const tree = plant({ [ORPHAN]: TEST_BODY });
+    const quarantine = writeQuarantine(tree, "quarantine.json", [ORPHAN]);
+    const missing = path.join(tree.root, "missing-base.json");
+
+    const result = await main(
+      ["--root", tree.root, "--quarantine", quarantine, "--base", missing],
+      seamsFor(tree)
+    );
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(`error: base quarantine ${missing} cannot be read: ENOENT`);
+    expect(result.output).toContain("quarantine shrink check not run: base unreadable\n");
+  });
+
+  it("exits 1 naming a base quarantine that does not parse", async () => {
+    const tree = plant();
+    const base = path.join(tree.root, "base.json");
+    writeFileSync(base, "{");
+
+    const result = await main(["--root", tree.root, "--base", base], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(`error: base quarantine ${base} is not JSON`);
   });
 
   it("exits 1 when the quarantine does not parse", async () => {
@@ -282,6 +320,71 @@ describe("reach engine", () => {
     expect(result.output).toContain(
       `error: registry ${path.join(tree.root, CI_PATHS.registry)} is not JSON`
     );
+  });
+
+  it.each([
+    ["a bare vitest, which watches under a terminal", manifestWith("vitest"), '"test" is "vitest"'],
+    [
+      "any other command",
+      manifestWith("vitest run --coverage"),
+      '"test" is "vitest run --coverage"',
+    ],
+    ["no test script", manifestWith(), 'declares no "test" script'],
+  ])(
+    "exits 1 naming the manifest of a package whose test script is %s (C1)",
+    async (_label, manifest, expected) => {
+      const tree = plant({ "pkg-a/package.json": manifest });
+
+      const result = await main(["--root", tree.root], seamsFor(tree));
+
+      expect(result.code).toBe(1);
+      expect(result.output).toContain(`C1 pkg-a/package.json: ${expected}`);
+    }
+  );
+
+  it("exits 1 naming the missing manifest of a directory with a vitest config (C1)", async () => {
+    const tree = plant();
+    const untracked = tree.tracked.filter((file) => file !== "pkg-b/package.json");
+
+    const result = await main(["--root", tree.root], {
+      ...seamsFor(tree),
+      listFiles: () => ok(untracked),
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      "C1 pkg-b/package.json: missing: no package script runs the tracked vitest config " +
+        "pkg-b/vitest.config.mjs"
+    );
+  });
+
+  it("prints R1 violations before C1 ones", async () => {
+    const tree = plant({ [ORPHAN]: TEST_BODY, "pkg-b/package.json": manifestWith("vitest") });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.output.indexOf(`R1 ${ORPHAN}`)).toBeLessThan(
+      result.output.indexOf("C1 pkg-b/package.json")
+    );
+  });
+
+  it("exits 1 when a manifest does not parse", async () => {
+    const tree = plant({ "pkg-a/package.json": "{" });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("error: manifest pkg-a/package.json is not JSON");
+  });
+
+  it("exits 1 when a tracked manifest cannot be read", async () => {
+    const tree = plant();
+    rmSync(path.join(tree.root, "pkg-a/package.json"));
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("error: manifest pkg-a/package.json cannot be read: ENOENT");
   });
 
   it("reads the registry named on the command line instead of the default one", async () => {

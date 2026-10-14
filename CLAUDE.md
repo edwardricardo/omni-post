@@ -308,7 +308,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **47 checks, numbered #1-#47**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **47 checks, numbered #1-#47**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -717,7 +717,8 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # for. A collector whose CI job is not a required check gates nothing. Measured at the baseline
 # commit of docs/development/TESTING_REFOUNDATION.md (metric M5): 23 orphan test files and at least
 # 10 collected twice.
-# WHAT IT RUNS: `pnpm --filter @packages/test-contracts reach --quarantine quarantine.json`, the
+# WHAT IT RUNS: the base commit's quarantine read with `git show` into a file, then
+# `pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base <that file>`, the
 # reach engine packages/test-contracts/src/reach.ts, pinned by its own suites under
 # packages/test-contracts/tests/, which Package Tests runs. The disk is `git ls-files` filtered to
 # test-shaped names: `.test.` or `.spec.` before a JavaScript or TypeScript extension, or `.k6.js`,
@@ -730,36 +731,53 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 #       required check runs.
 #   R2: each collectors.json entry names a job that exists, a `run` of one of its steps contains
 #       the entry's entrypoint, and every check name the job renders is a required check.
-#   R3: each quarantine entry is a tracked file that no source a required check runs collects.
+#   R3: each quarantine entry is a tracked file that no source a required check runs collects, and
+#       the base commit's quarantine already holds it: the quarantine may only shrink.
+#   C1: each directory that holds a tracked `vitest.config.*` has a tracked package.json whose
+#       `scripts.test` is exactly `vitest run`. A bare `vitest` watches whenever a terminal is
+#       attached, so the same script ends in CI and never ends in a developer's shell; with one
+#       script everywhere, `pnpm --filter <package> test` is one run in both.
+# THE BASE: a pull request's base commit (`github.event.pull_request.base.sha`), on a push the
+# commit before it (`HEAD~1`), handed in as FITNESS_BASE_REF; a local run without it compares
+# against origin/main. The checkout fetches full history so either commit is readable.
 # THE QUARANTINE: packages/test-contracts/quarantine.json, `{ "entries": [{ "path", "reason",
 # "owner", "since" }] }`, every field non-empty: why the file runs nowhere, the work unit that ends
 # that, and the day it entered. run-tests.sh reads the same file and keeps its apps/api/tests entries
 # out of every tier. On 2026-10-14 it holds the 29 test-shaped files no required check runs: 9
 # Playwright specs, 6 k6 scenarios, 7 security/tests suites, the 3 dark live suites, 2 admin fetch
-# scripts, postgres-stress.test.ts and the provider template's sandbox test.
+# scripts, postgres-stress.test.ts and the provider template's sandbox test. An entry leaves in the
+# pull request that gives its file a collector; none enters, because R3 refuses it against the base.
 # WHERE IT RUNS, and why: the `test-contracts` job of fitness.yml (check `Test Contracts`, 6-minute
 # timeout), not the Fitness Functions job: the collectors load every vitest and Playwright config,
 # so they need the installed tree, which the Fitness Functions job never installs.
 # FAIL-CLOSED, exit 1: an input the engine cannot read in full is an error, never an empty answer:
 # fewer than 800 test-shaped tracked files, fewer than 80 vitest configs, no Playwright config, a
 # vitest or Playwright config or the node:test listing that collects no file, no tracked `*.k6.js`,
-# a listing that fails, and a collectors.json, ruleset or quarantine that is missing or does not
-# parse; a workflow collectors.json names that cannot be read breaks R2. A usage error exits 2.
-# RESIDUAL LIMITS, stated rather than implied: (1) the shrink-only clause of R3 (`--base <file>`:
-# every quarantine entry is already in the base's quarantine) exists in the engine and is not
-# wired, so a pull request can still ADD an entry, and review is its only guard until the step
-# passes the base quarantine; (2) .github/rulesets/main.json is a hand-kept mirror of the classic
-# branch protection, which CI cannot read, so nothing compares the two by machine and a change to a
-# required check edits the mirror in the same pull request; (3) test-shaped is a name: a test under
-# another name (a `.disabled` or `.old` tail, a helper) is invisible to the disk side; (4) R2 proves
-# a required job runs the collector's entrypoint, not that the run executes every file the source
-# collects; (5) a source covered by a collectors.json entry that breaks R2 still counts as run in
-# the summary and in R1; the run fails on R2 all the same, so the verdict holds and only the count
-# reads high.
-pnpm --filter @packages/test-contracts reach --quarantine quarantine.json   # expect exit 0 and:
+# a listing that fails, and a collectors.json, ruleset, package manifest, quarantine or base
+# quarantine that is missing or does not parse; a base commit that holds no quarantine.json stops
+# the step before the engine runs; a workflow collectors.json names that cannot be read breaks R2.
+# A usage error exits 2.
+# RESIDUAL LIMITS, stated rather than implied: (1) on a push the base is `HEAD~1`, so a push of
+# several commits holds only its last commit to shrink-only, and an entry added by an earlier one
+# passes; (2) a pull request whose base branch predates quarantine.json fails closed until it
+# rebases, because its base has no quarantine to compare against; (3) .github/rulesets/main.json is
+# a hand-kept mirror of the classic branch protection, which CI cannot read, so nothing compares
+# the two by machine and a change to a required check edits the mirror in the same pull request;
+# (4) test-shaped is a name: a test under another name (a `.disabled` or `.old` tail, a helper) is
+# invisible to the disk side; (5) R2 proves a required job runs the collector's entrypoint, not that
+# the run executes every file the source collects; (6) a source covered by a collectors.json entry
+# that breaks R2 still counts as run in the summary and in R1; the run fails on R2 all the same, so
+# the verdict holds and only the count reads high; (7) C1 reads `scripts.test` alone: the configs
+# themselves are not read, so a package config that sets a key the shared vitest factory owns
+# (reporters, coverage provider, reporter, directory or include, aliases) passes.
+BASE_REF="${FITNESS_BASE_REF:-origin/main}"
+BASE_QUARANTINE="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/base-quarantine.json"
+git show "$BASE_REF:packages/test-contracts/quarantine.json" > "$BASE_QUARANTINE"   # expect exit 0
+pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base "$BASE_QUARANTINE"   # expect exit 0 and:
 #   reach: PASS
 #   summary: <N> test-shaped tracked files; <C> collected by <S> sources, <R> of them run by a
-#   required check; 0 violations; 0 errors; quarantine shrink check not run: no --base given
+#   required check; <P> vitest packages held to the script contract; 0 violations; 0 errors;
+#   quarantine shrink check ran
 
 # 31. No vacuous-pass escape hatch in a test entry point. Two parts, hard-zero.
 # Threat: a suite that collects ZERO tests and still exits 0. The nightly chaos
@@ -767,13 +785,23 @@ pnpm --filter @packages/test-contracts reach --quarantine quarantine.json   # ex
 # node:test files vitest's `include` globs never covered, collected nothing, and
 # reported green over scenarios it never executed.
 #
-# Part A: no `passWithNoTests` anywhere. Vitest defaults it to false — zero
-# collected is exit 1 — so every occurrence is an explicit opt-OUT of the one
-# default that notices an empty run, and it keeps reporting green forever once a
-# rename or an `include` change breaks collection.
-grep -rn "passWithNoTests" apps/ packages/ infra/ \
-  --include="package.json" --include="*.ts" --include="*.json" | \
-  grep -vE "node_modules|/dist/" | wc -l   # expect 0
+# Part A: no `passWithNoTests` in any tracked `*.json`, `*.ts`, `*.mts` or `*.yml`
+# file of the repository, whichever directory it sits in: package manifests,
+# vitest configs, scripts and the workflows that invoke vitest alike. Vitest
+# defaults it to false — zero collected is exit 1 — so every occurrence is an
+# explicit opt-OUT of the one default that notices an empty run, and it keeps
+# reporting green forever once a rename or an `include` change breaks collection.
+# The pattern is `pass[W]ithNoTests`: the workflow step is itself a tracked
+# `.yml` file, and the bracket class keeps its own text from matching. The scope
+# is held to a floor of 2500 files and a `git grep` exit above 1 fails the step,
+# so a missing checkout cannot read as a clean zero.
+# Out of scope, stated: `*.yaml`, `*.js`, `*.mjs` and `*.cjs`. Measured on
+# 2026-10-14: none holds the flag, the 4 `.yaml` files are the lockfile, the
+# workspace manifest and two tool configs, and all 93 tracked vitest configs are
+# `.ts`; a vitest config or script written in one of those extensions would
+# escape this part.
+git ls-files -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l   # expect >= 2500 (3113 on 2026-10-14)
+git grep -nE 'pass[W]ithNoTests' -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l   # expect 0
 #
 # Part B: the node:test runner must KEEP its zero-collection guards. node:test
 # has no equivalent default: a crashed or empty run prints a 0/0/0 TAP summary

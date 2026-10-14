@@ -12,21 +12,23 @@
  *                check runs collects it, and when a base quarantine is given, every entry is
  *                already in it: the quarantine may only shrink.
  *
- *              R2, which decides which sources a required check runs, lives in `executed-by.ts`
- *              and shares the rule ids and the violation shape defined here. Nothing here reads a
- *              file or starts a process, so every rule is tested over plain values; the command
- *              line in `reach.ts` does the reading.
+ *              R2, which decides which sources a required check runs, lives in `executed-by.ts`,
+ *              and C1, the script contract of every package with a vitest config, in
+ *              `script-contract.ts`; both share the rule ids and the violation shape defined here.
+ *              Nothing here reads a file or starts a process, so every rule is tested over plain
+ *              values; the command line in `reach.ts` does the reading.
  * @layer infrastructure
  */
 import { err, ok, type Result } from "@shared/types";
 import type { DiskInventory } from "./disk.js";
 import { describeError, tallyReach, type Collection } from "./registry.js";
 
-/** The rules a violation can break. */
+/** The rules a violation can break, in the order a report prints them. */
 export const RULE = {
   R1: "R1",
   R2: "R2",
   R3: "R3",
+  C1: "C1",
 } as const;
 
 /** A rule id, derived from {@link RULE}. */
@@ -74,27 +76,31 @@ function isQuarantineEntry(value: unknown): value is QuarantineEntry {
 }
 
 /**
- * Parses a quarantine: `{ "entries": [{ "path", "reason", "owner" }] }`.
- *
+ * @description Parses a quarantine: `{ "entries": [{ "path", "reason", "owner" }] }`.
  * @param text - The quarantine's JSON text.
  * @param label - What to call it in a failure, usually its path.
+ * @param kind - Which quarantine it is, so a failure of the base never reads as one of the head.
  * @returns The entries, or why the text cannot be trusted.
  */
-export function parseQuarantine(text: string, label: string): Result<QuarantineEntry[], string> {
+export function parseQuarantine(
+  text: string,
+  label: string,
+  kind = "quarantine"
+): Result<QuarantineEntry[], string> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
   } catch (error: unknown) {
-    return err(`quarantine ${label} is not JSON: ${describeError(error)}`);
+    return err(`${kind} ${label} is not JSON: ${describeError(error)}`);
   }
   const entries: unknown =
     typeof parsed === "object" && parsed !== null && "entries" in parsed ? parsed.entries : null;
-  if (!Array.isArray(entries)) return err(`quarantine ${label} has no "entries" array`);
+  if (!Array.isArray(entries)) return err(`${kind} ${label} has no "entries" array`);
   const valid: QuarantineEntry[] = [];
   for (const [index, entry] of entries.entries()) {
     if (!isQuarantineEntry(entry)) {
       return err(
-        `quarantine ${label} entry ${String(index)} needs a non-empty path, reason and owner`
+        `${kind} ${label} entry ${String(index)} needs a non-empty path, reason and owner`
       );
     }
     valid.push(entry);
@@ -203,8 +209,7 @@ function checkQuarantine(
 }
 
 /**
- * Holds what was read against R1 and R3.
- *
+ * @description Holds what was read against R1 and R3.
  * @param input - The disk inventory, the collections, the run sources, the quarantine and its
  *   base.
  * @returns Every violation, R1 first, each in file order.
