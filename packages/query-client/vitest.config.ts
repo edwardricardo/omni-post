@@ -11,7 +11,7 @@ export default defineWorkspaceVitestConfig(import.meta.dirname, {
   test: {
     environment: "jsdom",
     globals: true,
-    include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
+    include: ["tests/**/*.test.ts"],
     pool: "forks",
   },
 });

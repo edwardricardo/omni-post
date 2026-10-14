@@ -29,8 +29,8 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { err, ok, type Result } from "@shared/types";
+import { runIfInvoked, type CliResult } from "./lib/cli.js";
 import { DISK_FLOOR, inventoryFromFiles, listTrackedFiles, type DiskFailure } from "./lib/disk.js";
 import {
   checkExecutedBy,
@@ -414,12 +414,6 @@ function repositoryRoot(): Result<string, string> {
   }
 }
 
-/** What one CLI run prints and how it exits. */
-interface CliResult {
-  readonly code: number;
-  readonly output: string;
-}
-
 /**
  * @description The command line, as a function: parse, run, render, decide the exit code.
  * @param argv - The arguments after the script path.
@@ -447,11 +441,4 @@ export async function main(argv: readonly string[], seams: ReachSeams = {}): Pro
   };
 }
 
-const invokedAsScript =
-  process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-
-if (invokedAsScript) {
-  const result = await main(process.argv.slice(2));
-  process.stdout.write(result.output);
-  process.exitCode = result.code;
-}
+await runIfInvoked(import.meta.url, main);
