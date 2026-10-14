@@ -1052,8 +1052,8 @@ importers:
         specifier: 2.3.0
         version: 2.3.0
       isomorphic-dompurify:
-        specifier: 4.4.0
-        version: 4.4.0
+        specifier: 4.5.0
+        version: 4.5.0
       jsonwebtoken:
         specifier: 9.0.2
         version: 9.0.2
@@ -11052,8 +11052,8 @@ packages:
   iso-datestring-validator@2.2.2:
     resolution: {integrity: sha512-yLEMkBbLZTlVQqOnQ4FiMujR6T4DEcCb1xizmvXS+OxuhwcbtynoosRzdMA69zZCShCNAbi+gJ71FxZBBXx1SA==}
 
-  isomorphic-dompurify@4.4.0:
-    resolution: {integrity: sha512-8F6m5CqcxtY3TLBOKibiPMmSIDa6bMAiiLKZ0ksQad1liA8ZtOnBhjoLFGkBB3noVwj5NeCR9p8vD3uXuudF+Q==}
+  isomorphic-dompurify@4.5.0:
+    resolution: {integrity: sha512-5bUPydvGp1pJx27Cff7ScHsgJkETjliiSqpQjPZHMBO6hgqZem38qsXF4TkUYu83yBlbb3rYhypgoo6mMvz48w==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
   istanbul-lib-coverage@3.2.2:
@@ -20982,7 +20982,7 @@ snapshots:
 
   iso-datestring-validator@2.2.2: {}
 
-  isomorphic-dompurify@4.4.0:
+  isomorphic-dompurify@4.5.0:
     dependencies:
       dompurify: 3.4.16
       jsdom: 30.1.2

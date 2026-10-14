@@ -162,7 +162,7 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 | -------------------- | -------- | --------------------------------------------------------- |
 | zod                  | 4.4.3    | Validacion de esquemas — nativo en TypeScript, componible |
 | validator            | 13.15.35 | Utilidades de validacion de strings                       |
-| isomorphic-dompurify | 4.4.0    | Sanitizacion de HTML                                      |
+| isomorphic-dompurify | 4.5.0    | Sanitizacion de HTML                                      |
 
 ### Observabilidad
 

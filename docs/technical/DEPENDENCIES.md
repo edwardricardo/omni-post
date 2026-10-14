@@ -162,7 +162,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 | -------------------- | -------- | ------------------------------------------------- |
 | zod                  | 4.4.3    | Schema validation — TypeScript-native, composable |
 | validator            | 13.15.35 | String validation utilities                       |
-| isomorphic-dompurify | 4.4.0    | HTML sanitization                                 |
+| isomorphic-dompurify | 4.5.0    | HTML sanitization                                 |
 
 ### Observability
 
