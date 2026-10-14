@@ -29,7 +29,10 @@
         "pr": 305,
         "via": "the root packageManager field, 2.4 days after publication"
       },
-      "milestones": { "maturity": "2026-09-29", "final": "2026-10-06" },
+      "milestones": {
+        "maturity": "2026-09-29",
+        "final": "2026-10-06"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-05",
@@ -58,7 +61,10 @@
         "pr": 305,
         "via": "packages/providers/youtube, replacing the googleapis monolith, 1.1 days after publication"
       },
-      "milestones": { "maturity": "2026-10-01", "final": "2026-10-08" },
+      "milestones": {
+        "maturity": "2026-10-01",
+        "final": "2026-10-08"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-05",
@@ -94,7 +100,10 @@
         "pr": 325,
         "via": "the catalog CVE floor, a deliberate deviation from the buffer approved on 2026-10-01, 0.4 days after publication"
       },
-      "milestones": { "maturity": "2026-10-07", "final": "2026-10-14" },
+      "milestones": {
+        "maturity": "2026-10-07",
+        "final": "2026-10-14"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-07",
@@ -119,7 +128,10 @@
         "pr": 377,
         "via": "@secretlint/walker 13.0.6, and @typescript-eslint/eslint-plugin 8.70.1 by deduplication, 0.9 days after publication"
       },
-      "milestones": { "maturity": "2026-10-09", "final": "2026-10-16" },
+      "milestones": {
+        "maturity": "2026-10-09",
+        "final": "2026-10-16"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-10",
@@ -150,7 +162,10 @@
         "pr": 487,
         "via": "the catalog CVE floor, 2.4 days after publication and about 4.5 days before the 2026-10-13T04:10Z maturity: the latest mature 8.3.2 is inside the range >=8.3.0 <=8.3.2 of GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg and GHSA-9jrq-w75r-8gcw (vitejs/vite repository advisories of 2026-10-06, not yet in OSV or the GitHub global database), and 8.3.3 is the minimal patched version; dev-only, the devDependencies of apps/admin and apps/client"
       },
-      "milestones": { "maturity": "2026-10-13", "final": "2026-10-20" },
+      "milestones": {
+        "maturity": "2026-10-13",
+        "final": "2026-10-20"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-14",
@@ -170,7 +185,10 @@
         "pr": 492,
         "via": "the catalog CVE floor, 2.9 days after publication and about 4.1 days before the 2026-10-12T22:37Z maturity: 4.7.9 is inside the range >=4.0.0 <=4.7.9 of GHSA-8r5x-fm3f-whwj and GHSA-p8wg-vrv2-v86f (critical) and GHSA-xw65-4hp5-5hc7 (moderate), published to the GitHub global database on 2026-10-08T17:52Z, and 4.7.10 is the minimal patched version and latest; production, packages/shared BaseTemplateEngine under the API's tenant template compile route and the client preview"
       },
-      "milestones": { "maturity": "2026-10-12", "final": "2026-10-19" },
+      "milestones": {
+        "maturity": "2026-10-12",
+        "final": "2026-10-19"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-14",
@@ -201,7 +219,10 @@
         "pr": 557,
         "via": "the catalog entry of @typescript-eslint/parser and the root literal of @typescript-eslint/eslint-plugin, 6.1 days after publication and about 22 hours before the 2026-10-12T17:08Z maturity (17:09Z for the plugin), on Edward's instruction of 2026-10-11, so the holds gate would not go red on every pull request and on main at that instant; #557 owed this entry once it had a pull request number, and it was recorded on 2026-10-14"
       },
-      "milestones": { "maturity": "2026-10-12", "final": "2026-10-19" },
+      "milestones": {
+        "maturity": "2026-10-12",
+        "final": "2026-10-19"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-14",
@@ -224,6 +245,34 @@
       "milestones": {
         "maturity": "2026-10-20",
         "final": "2026-10-27"
+      },
+      "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "next",
+      "version": "16.4.1",
+      "published": "2026-10-14T17:43:55.246Z",
+      "members": [
+        "@next/env@16.4.1",
+        "@next/swc-darwin-arm64@16.4.1",
+        "@next/swc-darwin-x64@16.4.1",
+        "@next/swc-linux-arm64-gnu@16.4.1",
+        "@next/swc-linux-arm64-musl@16.4.1",
+        "@next/swc-linux-x64-gnu@16.4.1",
+        "@next/swc-linux-x64-musl@16.4.1",
+        "@next/swc-win32-arm64-msvc@16.4.1",
+        "@next/swc-win32-x64-msvc@16.4.1"
+      ],
+      "entered": {
+        "date": "2026-10-14",
+        "commit": "PENDING",
+        "pr": 0,
+        "via": "the catalog CVE floor, about 2.4 hours after publication and 7 days before the 2026-10-21T17:43Z maturity: 16.3.8 is inside the ranges of GHSA-673q-mjm6-r5xr and GHSA-2464-fhr4-w9xw (critical) and GHSA-p3m5-59mp-jv5r (high), vercel/next.js repository advisories published 2026-10-14 between 17:46Z and 17:47Z and not yet in OSV or the GitHub global database, and 16.4.1 is the minimal patched version and latest; production, the dependencies of apps/admin and apps/client, the high reachable through their Server Actions (apps/admin/app/actions/auth.ts, apps/client/app/actions/auth.ts)"
+      },
+      "milestones": {
+        "maturity": "2026-10-21",
+        "final": "2026-10-28"
       },
       "reviews": {}
     }

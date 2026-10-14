@@ -192,7 +192,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 | Package    | Version | Purpose                                         |
 | ---------- | ------- | ----------------------------------------------- |
-| next       | 16.3.8  | React framework (App Router, server components) |
+| next       | 16.4.1  | React framework (App Router, server components) |
 | react      | 19.2.7  | UI library                                      |
 | react-dom  | 19.2.7  | DOM rendering                                   |
 | typescript | 6.0.3   | Language                                        |
@@ -245,7 +245,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 ## Frontend — Owner Portal (apps/admin)
 
-Same core stack as apps/client (Next.js 16.3.8, React 19.2.7, Tailwind, Recharts). 13 pages focused on platform administration: accounts, subscriptions, pricing, security, compliance, audit logs, webhooks, executive dashboard.
+Same core stack as apps/client (Next.js 16.4.1, React 19.2.7, Tailwind, Recharts). 13 pages focused on platform administration: accounts, subscriptions, pricing, security, compliance, audit logs, webhooks, executive dashboard.
 
 ---
 

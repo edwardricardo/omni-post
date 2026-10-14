@@ -192,7 +192,7 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 | Paquete    | Version | Proposito                                       |
 | ---------- | ------- | ----------------------------------------------- |
-| next       | 16.3.8  | Framework React (App Router, server components) |
+| next       | 16.4.1  | Framework React (App Router, server components) |
 | react      | 19.2.7  | Biblioteca de UI                                |
 | react-dom  | 19.2.7  | Renderizado DOM                                 |
 | typescript | 6.0.3   | Lenguaje                                        |
@@ -245,7 +245,7 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 ## Frontend — Portal de Administracion (apps/admin)
 
-Mismo stack base que apps/client (Next.js 16.3.8, React 19.2.7, Tailwind, Recharts). 13 paginas enfocadas en la administracion de la plataforma: cuentas, suscripciones, precios, seguridad, cumplimiento, logs de auditoria, webhooks, dashboard ejecutivo.
+Mismo stack base que apps/client (Next.js 16.4.1, React 19.2.7, Tailwind, Recharts). 13 paginas enfocadas en la administracion de la plataforma: cuentas, suscripciones, precios, seguridad, cumplimiento, logs de auditoria, webhooks, dashboard ejecutivo.
 
 ---
 
