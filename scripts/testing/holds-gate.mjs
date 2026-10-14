@@ -1,14 +1,27 @@
 // @ts-check
 /**
  * @file holds-gate.mjs
- * @description Refuses an UNDOCUMENTED toolchain lag. For every direct testing dependency in
- *   `scripts/testing/toolchain-population.json`, it compares the installed version against the
- *   latest MATURE published version (stable, and at least 7 days old — ADR-0018's buffer) and
- *   requires a row naming that package in `docs/security/SECURITY_CANON.md`
- *   §"Build-tool version holds & dated-debt overrides". A lag with no row exits 1.
+ * @description Refuses an UNDOCUMENTED toolchain lag that has outlived its budget. For every direct
+ *   testing dependency in `scripts/testing/toolchain-population.json`, it compares the installed
+ *   version against the latest MATURE published version (stable, and at least 7 days old —
+ *   ADR-0018's buffer). A lag needs no row for 30 days, the staleness budget of ADR-0036, because
+ *   the weekly dependency window takes it inside that time. Past the budget it needs a row naming
+ *   the package in `docs/security/SECURITY_CANON.md` §"Build-tool version holds & dated-debt
+ *   overrides", and a lag past the budget with no row exits 1.
  *
  *   The comparator is "latest mature", never `latest`: the newest release is frequently younger
  *   than the buffer, and pulling it converts the buffer into decoration.
+ *
+ *   The budget counts from the maturity instant of the OLDEST stable release above the installed
+ *   version, so a lag turns red 37 days after that release was published, to the second (30 days
+ *   of maturity after the 7 of the buffer). Counting from the newest release would restart the
+ *   clock on every release, and a package that ships weekly would never reach it. A lag inside the
+ *   budget prints `lag: within budget (<n> d of 30)` and is not looked up in the table.
+ *
+ *   A row whose cells say `scheduled` or `pre-registered`, in any case, is refused. ADR-0036
+ *   retired the scheduled row: nothing reads the date written in its text, so it exempted its
+ *   package for as long as it stood. Rows stay for real holds only — a peer range that blocks the
+ *   move, a measured breakage, or a recorded decision.
  *
  *   FAIL-CLOSED, deliberately, in every direction a silent pass could hide a lag: zero parsed hold
  *   rows, an unreadable table, a population package that is not installed and declares no absence,
@@ -23,12 +36,18 @@
  *   rather than being ignored, because an ignored flag would silently read the live tree in a suite
  *   that must not reach it.
  *
- *   TWO RESIDUALS, stated rather than discovered later. (1) The population is DIRECT dependencies:
- *   `pnpm ls --depth 0` cannot see a transitive, so `playwright` and `playwright-core` carry
- *   `absence: "transitive"` and are documented rather than gated. (2) It does NOT check that the
+ *   RESIDUALS, stated rather than discovered later. (1) The population is DIRECT dependencies:
+ *   `pnpm ls --depth 0` cannot see a transitive, so `playwright-core` carries
+ *   `absence: "transitive"` and is documented rather than gated. (2) It does NOT check that the
  *   installed version sits at or below a hold's own ceiling, because the `Hold / floor` column
  *   carries BOTH ceilings (holds) and minimums (CVE floors) and several cells are prose; reading one
- *   as the other would fail the wrong trees. That check needs a typed column first.
+ *   as the other would fail the wrong trees. That check needs a typed column first. (3) The
+ *   population is the testing and quality TOOLCHAIN. Production direct dependencies are not
+ *   measured here: they move by CVE floor and by deliberate units (ADR-0036), and this gate claims
+ *   nothing about their freshness. (4) Inside the budget a lag is not looked up in the table, so a
+ *   real hold and a lag the next window takes read the same until the budget runs out. (5) The
+ *   retired words are matched as whole words; a scheduled row phrased without them passes, and
+ *   review is what reads it.
  *
  *   Usage: `node scripts/testing/holds-gate.mjs`
  * @layer infrastructure
@@ -38,7 +57,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const UNKNOWN = "—";
-const MATURITY_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MATURITY_MS = 7 * DAY_MS;
+const BUDGET_DAYS = 30;
+const BUDGET_MS = BUDGET_DAYS * DAY_MS;
+const RETIRED_SCHEDULE_WORDS = /\b(?:pre-registered|scheduled)\b/i;
 const HOLDS_HEADING = "### Build-tool version holds & dated-debt overrides";
 const RECOGNISED_ABSENCE = new Set(["candidate", "transitive"]);
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
@@ -83,8 +106,9 @@ function repoRoot() {
  * @typedef {object} HoldsTable
  * @property {HoldRow[]} rows Rows whose shape agreed with the header; a ragged row is refused, not
  *   guessed, so it can never cover a lag through a cell the parser mis-read.
- * @property {string[]} refusals Structural complaints about the table itself, each already a
- *   complete sentence naming what was read and why it cannot be trusted.
+ * @property {string[]} refusals Complaints about the table itself or one of its rows, each already a
+ *   complete sentence naming what was read and why it cannot be trusted: a header or row shape the
+ *   parser cannot read, or a row that still describes a scheduled hold.
  */
 
 /**
@@ -153,6 +177,10 @@ function splitCells(line) {
  * with an empty remove-when passed because the reason answered in its place. A name that is absent is
  * loud; a position that moved is not.
  *
+ * A row any of whose cells says `scheduled` or `pre-registered` is refused and never exempts its
+ * package: the budget replaced the scheduled row (ADR-0036), and a refusal here is louder than a row
+ * that silently outlives the day written in it.
+ *
  * @param {string} markdown
  * @returns {HoldsTable}
  */
@@ -212,6 +240,13 @@ function parseHolds(markdown) {
     }
     if (isSeparator) continue;
     const packages = cells[packageAt] ?? "";
+    if (cells.some((cell) => RETIRED_SCHEDULE_WORDS.test(cell))) {
+      refusals.push(
+        `row ${packages} is a scheduled hold (PRE-REGISTERED/Scheduled); the budget replaced ` +
+          `scheduled rows (ADR-0036)`
+      );
+      continue;
+    }
     const tokens = [...packages.matchAll(/`([^`]+)`/g)].map((hit) => hit[1] ?? "");
     rows.push({
       packages,
@@ -318,6 +353,33 @@ function latestMature(times, boundary) {
     if (best === null || compareVersions(version, best) > 0) best = version;
   }
   return best;
+}
+
+/**
+ * The publish instant of the OLDEST stable release above `installed` that is mature at the
+ * boundary — the release whose maturity starts the budget. Ordering by publish time rather than by
+ * version is the point: a backport published later than a higher release does not restart the
+ * clock, and neither does a newer release.
+ *
+ * @param {Record<string, unknown>} times
+ * @param {string} installed
+ * @param {number} boundary
+ * @returns {number | null} Epoch milliseconds, or null when no unmet release is mature yet.
+ */
+function oldestUnmetPublish(times, installed, boundary) {
+  /** @type {number | null} */
+  let oldest = null;
+  for (const [version, published] of Object.entries(times)) {
+    if (version === "created" || version === "modified") continue;
+    if (typeof published !== "string") continue;
+    const parsed = parseVersion(version);
+    if (parsed === null || !parsed.stable) continue;
+    if (compareVersions(version, installed) <= 0) continue;
+    const at = Date.parse(published);
+    if (Number.isNaN(at) || at > boundary) continue;
+    if (oldest === null || at < oldest) oldest = at;
+  }
+  return oldest;
 }
 
 /**
@@ -476,13 +538,37 @@ function evaluate(options) {
       continue;
     }
 
+    // Past the budget exactly when some unmet release was already mature `BUDGET_MS` ago, i.e. it
+    // was published on or before `boundary - BUDGET_MS`.
+    const overdue = latestMature(times, boundary - BUDGET_MS);
+    if (overdue === null || compareVersions(installed, overdue) >= 0) {
+      const oldest = oldestUnmetPublish(times, installed, boundary);
+      if (oldest === null) {
+        // Unreachable while the two helpers agree: the target is itself a stable release above
+        // `installed`, published on or before the boundary, and a target whose publish time does not
+        // parse is counted overdue by `latestMature` too, so it never lands here. The guard turns a
+        // later change to either helper into a refusal instead of a day count nobody computed.
+        violations.push(
+          `${name} is below its target ${target}, but no release above ${installed} could be ` +
+            `dated, so the days it has spent in the budget cannot be counted.`
+        );
+        continue;
+      }
+      const days = Math.floor((instant - (oldest + MATURITY_MS)) / DAY_MS);
+      lines.push(
+        `${name}\t${installed}\t${target}\tlag: within budget (${String(days)} d of ${String(BUDGET_DAYS)})`
+      );
+      continue;
+    }
+
     const row = holds.find((hold) =>
       hold.patterns.some((token) => tokenToPattern(token).test(name))
     );
     if (row === undefined) {
       violations.push(
-        `${name} is installed at ${installed}, below its latest-mature target ${target}, with no ` +
-          `hold row naming it in ${canonPath} §"${HOLDS_HEADING.replace(/^#+\s*/, "")}".`
+        `${name} is installed at ${installed}, below its latest-mature target ${target}, and ` +
+          `${overdue} has been mature for ${String(BUDGET_DAYS)} days or more with no hold row ` +
+          `naming ${name} in ${canonPath} §"${HOLDS_HEADING.replace(/^#+\s*/, "")}".`
       );
       lines.push(`${name}\t${installed}\t${target}\tlag: UNDOCUMENTED`);
       continue;
@@ -521,9 +607,14 @@ function main(argv) {
   }
 
   for (const line of result.lines) process.stdout.write(`${line}\n`);
-  const lags = result.lines.filter((line) => line.includes("\tlag: ")).length;
+  /** @param {string} marker */
+  const count = (marker) => result.lines.filter((line) => line.includes(marker)).length;
   process.stdout.write(
-    `\n${String(result.lines.length)} population packages measured, ${String(lags)} below latest mature\n`
+    `\n${String(result.lines.length)} population packages measured, ` +
+      `${String(count("\tlag: "))} below latest mature ` +
+      `(${String(count("\tlag: within budget"))} within budget, ` +
+      `${String(count("\tlag: held by "))} held, ` +
+      `${String(count("\tlag: UNDOCUMENTED"))} undocumented)\n`
   );
   for (const violation of result.violations) {
     process.stderr.write(`holds-gate: ${violation}\n`);

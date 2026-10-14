@@ -1,8 +1,11 @@
 /**
  * @file holdsGate.test.ts
  * @description Pins `scripts/testing/holds-gate.mjs`, the gate that refuses an undocumented
- *   toolchain lag: a direct testing dependency sitting below its latest-mature version with no row
- *   in `docs/security/SECURITY_CANON.md` §"Build-tool version holds & dated-debt overrides".
+ *   toolchain lag past its budget: a direct testing dependency sitting below a release that has been
+ *   mature for 30 days or more, with no row in `docs/security/SECURITY_CANON.md` §"Build-tool version
+ *   holds & dated-debt overrides". A younger lag is reported and never red (ADR-0036), so the
+ *   budget's two sides and the second it turns are driven here with an injected instant, as is the
+ *   refusal of a row that still describes itself as a scheduled hold.
  *
  *   Every input of the gate is injected from a fixture here — the installed set, the outdated
  *   document, the registry publish times, the measurement instant, the holds table and the
@@ -39,7 +42,11 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 
 const GATE_SCRIPT = path.join(REPO_ROOT, "scripts", "testing", "holds-gate.mjs");
 
-/** The instant every fixture measures against; the maturity boundary is 2026-09-20T00:00:00Z. */
+/**
+ * The instant every fixture measures against unless it names its own. The maturity boundary is
+ * 2026-09-20T00:00:00Z, and the budget boundary 2026-08-21T00:00:00Z: a release published on or
+ * before it has been mature for 30 days or more, so a lag behind it needs a row.
+ */
 const INSTANT = "2026-09-27T00:00:00Z";
 
 const HOLDS_HEADING = "### Build-tool version holds & dated-debt overrides";
@@ -79,6 +86,8 @@ interface Fixture {
   readonly canonOverride?: string;
   /** Runs against the fixture directory after it is written, to remove an input. */
   readonly mutate?: (dir: string) => void;
+  /** Replaces `INSTANT`, for the cases whose subject is the second the budget runs out. */
+  readonly instant?: string;
 }
 
 interface GateResult {
@@ -193,7 +202,7 @@ const runGate = (fixture: Fixture): GateResult => {
       "--canon",
       inFixture("canon.md"),
       "--instant",
-      INSTANT,
+      fixture.instant ?? INSTANT,
     ],
     { encoding: "utf8" }
   );
@@ -214,14 +223,22 @@ const WIDGET_HOLD: HoldRow = {
   removeWhen: "upstream publishes a 2.x that keeps the callable default export",
 };
 
-/** `widget` 2.0.0 published a fortnight before the instant: mature, so 1.0.0 is a lag. */
+/**
+ * `widget` 2.0.0 published 57 days before the instant, so mature for 50: 1.0.0 is a lag past the
+ * 30-day budget, and only a row can make it legal.
+ */
 const WIDGET_MATURE_LAG: Fixture["published"] = {
   widget: {
     created: "2024-01-01T00:00:00Z",
     "1.0.0": "2026-01-01T00:00:00Z",
-    "2.0.0": "2026-09-13T00:00:00Z",
+    "2.0.0": "2026-08-01T00:00:00Z",
   },
 };
+
+/** `widget` 1.0.0 → 2.0.0, with 2.0.0 published at the given instant. */
+const widgetPublishedAt = (published: string): Fixture["published"] => ({
+  widget: { "1.0.0": "2026-01-01T00:00:00Z", "2.0.0": published },
+});
 
 describe("testing toolchain holds gate", () => {
   describe("a lag with no documented hold", () => {
@@ -241,7 +258,7 @@ describe("testing toolchain holds gate", () => {
   });
 
   describe("a lag that is documented", () => {
-    it("exits 0 when a hold row names the lagging package", () => {
+    it("exits 0 reporting the row when a hold row names a lag past the budget", () => {
       const result = runGate({
         installed: { widget: "1.0.0" },
         published: WIDGET_MATURE_LAG,
@@ -251,13 +268,14 @@ describe("testing toolchain holds gate", () => {
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
+      expect(result.stdout).toContain("widget\t1.0.0\t2.0.0\tlag: held by `widget`");
     });
 
     it("exits 0 when a family hold row names the package by glob", () => {
       const result = runGate({
         installed: { "@widget/addon": "1.0.0" },
         published: {
-          "@widget/addon": { "1.0.0": "2026-01-01T00:00:00Z", "2.0.0": "2026-09-13T00:00:00Z" },
+          "@widget/addon": { "1.0.0": "2026-01-01T00:00:00Z", "2.0.0": "2026-08-01T00:00:00Z" },
         },
         population: [{ name: "@widget/addon" }],
         holds: [
@@ -272,6 +290,7 @@ describe("testing toolchain holds gate", () => {
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
+      expect(result.stdout).toContain("lag: held by `widget` (+ `@widget/*` family)");
     });
 
     it("exits 0 when a hold row outlives the lag it was written for", () => {
@@ -325,6 +344,183 @@ describe("testing toolchain holds gate", () => {
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
+    });
+  });
+
+  describe("the 30-day staleness budget", () => {
+    it("exits 1 naming the package when an unheld lag has been mature for 31 days", () => {
+      // Published 38 days before the instant, so mature for 31: one day past the budget.
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: widgetPublishedAt("2026-08-20T00:00:00Z"),
+        population: [{ name: "widget" }],
+        holds: [UNRELATED_HOLD],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("widget");
+      expect(result.stderr).toContain("2.0.0");
+      expect(result.stdout).toContain("widget\t1.0.0\t2.0.0\tlag: UNDOCUMENTED");
+    });
+
+    it("exits 0 reporting the days used when an unheld lag has been mature for 29 days", () => {
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: widgetPublishedAt("2026-08-22T00:00:00Z"),
+        population: [{ name: "widget" }],
+        holds: [UNRELATED_HOLD],
+      });
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("widget\t1.0.0\t2.0.0\tlag: within budget (29 d of 30)");
+    });
+
+    it("exits 0 one second before the budget runs out", () => {
+      // 2.0.0 matured at 2026-08-28T00:00:00Z, so its 30 days end at 2026-09-27T00:00:00Z.
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: widgetPublishedAt("2026-08-21T00:00:00Z"),
+        population: [{ name: "widget" }],
+        holds: [UNRELATED_HOLD],
+        instant: "2026-09-26T23:59:59Z",
+      });
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("lag: within budget (29 d of 30)");
+    });
+
+    it("exits 1 one second after the budget runs out", () => {
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: widgetPublishedAt("2026-08-21T00:00:00Z"),
+        population: [{ name: "widget" }],
+        holds: [UNRELATED_HOLD],
+        instant: "2026-09-27T00:00:01Z",
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("widget");
+      expect(result.stdout).toContain("lag: UNDOCUMENTED");
+    });
+
+    it("exits 1 when the oldest unmet release is past the budget although the newest is not", () => {
+      // 1.1.0 has been mature for 50 days and 2.0.0, the latest mature, for 5. A clock started by
+      // the newest release would restart on every release, and a package that ships weekly would
+      // never reach the budget.
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: {
+          widget: {
+            "1.0.0": "2026-01-01T00:00:00Z",
+            "1.1.0": "2026-08-01T00:00:00Z",
+            "2.0.0": "2026-09-15T00:00:00Z",
+          },
+        },
+        population: [{ name: "widget" }],
+        holds: [UNRELATED_HOLD],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("1.1.0");
+      expect(result.stdout).toContain("widget\t1.0.0\t2.0.0\tlag: UNDOCUMENTED");
+    });
+
+    it("counts the days from the oldest unmet release, not the newest", () => {
+      // 1.1.0 has been mature for 26 days and 2.0.0 for 5: the line reports 26.
+      const result = runGate({
+        installed: { widget: "1.0.0" },
+        published: {
+          widget: {
+            "1.0.0": "2026-01-01T00:00:00Z",
+            "1.1.0": "2026-08-25T00:00:00Z",
+            "2.0.0": "2026-09-15T00:00:00Z",
+          },
+        },
+        population: [{ name: "widget" }],
+        holds: [UNRELATED_HOLD],
+      });
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("widget\t1.0.0\t2.0.0\tlag: within budget (26 d of 30)");
+    });
+
+    it("splits the summary's lag count into within budget, held and undocumented", () => {
+      const result = runGate({
+        installed: { widget: "1.0.0", gadget: "1.0.0", gizmo: "1.0.0", sprocket: "1.0.0" },
+        published: {
+          ...WIDGET_MATURE_LAG,
+          gadget: { "1.0.0": "2026-01-01T00:00:00Z", "2.0.0": "2026-09-01T00:00:00Z" },
+          gizmo: { "1.0.0": "2026-01-01T00:00:00Z", "2.0.0": "2026-08-01T00:00:00Z" },
+          sprocket: { "1.0.0": "2026-01-01T00:00:00Z" },
+        },
+        population: [
+          { name: "widget" },
+          { name: "gadget" },
+          { name: "gizmo" },
+          { name: "sprocket" },
+        ],
+        holds: [WIDGET_HOLD],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(
+        "4 population packages measured, 3 below latest mature " +
+          "(1 within budget, 1 held, 1 undocumented)"
+      );
+    });
+  });
+
+  describe("a row that still describes a scheduled hold", () => {
+    it("exits 1 naming a row whose cells say Scheduled, with no lag at all", () => {
+      // The budget replaced scheduled rows. A row that reads as one would exempt its package from
+      // the budget for good, because nothing reads the date in its text.
+      const result = runGate({
+        installed: { widget: "2.0.0" },
+        published: WIDGET_MATURE_LAG,
+        population: [{ name: "widget" }],
+        holds: [
+          UNRELATED_HOLD,
+          { ...WIDGET_HOLD, hold: "`2.0.0`; Scheduled, not blocked: 3.0.0 matures on 2026-10-01" },
+        ],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("row `widget` is a scheduled hold");
+      expect(result.stderr).toContain("ADR-0036");
+    });
+
+    it("exits 1 on the retired words in any case and in any column", () => {
+      const result = runGate({
+        installed: { widget: "2.0.0" },
+        published: WIDGET_MATURE_LAG,
+        population: [{ name: "widget" }],
+        holds: [],
+        table: {
+          header: ["Package", "Hold / floor", "Where", "Reason", "Remove-when"],
+          rows: [
+            [
+              "`unrelated`",
+              "`3.0.0` override",
+              "`overrides`",
+              "measured",
+              "every consumer resolves `>=3.0.0` unaided",
+            ],
+            [
+              "`widget`",
+              "`2.0.0`",
+              "catalog (`pnpm-workspace.yaml`)",
+              "pre-registered on 2026-09-27 for the day 3.0.0 matures",
+              "3.0.0 matures",
+            ],
+          ],
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("row `widget` is a scheduled hold");
     });
   });
 
