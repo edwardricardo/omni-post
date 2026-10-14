@@ -19,12 +19,13 @@ build artifact for any deployable.
 A paused sibling change, `containerization-image-hardening`, already committed
 the container foundation on branch `workstream/containerization-image-hardening`:
 
-- `5024a8f5` collapsed `apps/api/Dockerfile` into a self-contained production
-  layout.
-- `2889986e` fixed `prisma generate` to run in a CLI-present stage and stopped
-  swallowing install failures (validated on CI).
-- `63982a3e` wired container-security scanning on PRs with a deterministic
-  single-image Trivy ref.
+- `5024a8f5` (re-applied on `main` as `cdc63663`) collapsed `apps/api/Dockerfile`
+  into a self-contained production layout.
+- `2889986e` (re-applied on `main` as `084b356e`) fixed `prisma generate` to run
+  in a CLI-present stage and stopped swallowing install failures (validated on
+  CI).
+- `63982a3e` (re-applied on `main` as `6a1152aa`) wired container-security
+  scanning on PRs with a deterministic single-image Trivy ref.
 
 Those Dockerfiles define runtime stages that expect compiled JS artifacts
 (`dist/index.js`, `dist/bootstrap.js`, Next.js standalone output) that **do not
@@ -32,6 +33,15 @@ exist yet** because there is no build toolchain producing them. This ADR
 establishes the canonical production build model that emits those artifacts so
 the images can build, and so the paused hardening tail
 (Trivy/pins/mirror/hadolint/promote) can resume on top of building images.
+
+**UPDATE (2026-10-14):** the hardening change is no longer paused, and no longer
+lives on a branch. Its 38 commits landed on `main`, re-applied on 2026-06-19
+(`cdc63663^..8a393b91`, all 38 patch-equivalent to the branch by `git cherry`);
+the three named above are `cdc63663`, `084b356e` and `6a1152aa` there. The SHAs
+cited above predate a rebase of that branch, and no ref reaches them any more:
+its remote branch was deleted when #89 closed on 2026-10-11. What its tail owes
+(Container Security as a required check, a retry or mirror for the Docker Hub
+pull) is tracked in `docs/architecture/NORMALIZATION_ROADMAP.md` §6.1.
 
 Three properties make a naive "just bundle everything" approach wrong here:
 

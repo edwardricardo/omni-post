@@ -6,6 +6,11 @@
 > **Base of record:** `main @ 1aa3f553`. **Owner:** Platform engineering.
 > **Cross-refs:** `MASTER_PLAN_ES.md §1` (Nivelación N-SEC-\*), `NORMALIZATION_ROADMAP.md`
 > (changelog 2026-07-21), `SECURITY_CANON.md §Audited audit-ignores`.
+> **Note (2026-10-14):** #89 had already landed when this report was written: its 38 commits
+> were re-applied on `main` on 2026-06-19 (`cdc63663^..8a393b91`, patch-equivalent by
+> `git cherry`). The PR and its remote branch were closed and deleted on 2026-10-11, and its
+> docker bumps #98-101 were closed on 2026-08-05. The mentions of #89 as paused below are
+> kept as written.
 
 ## Executive summary
 
