@@ -308,7 +308,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check but one — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 is the only wholly-ratcheted check**, at a measured interim baseline of 3, because its violations are quarantined test suites whose repair is a separate body of work; WU-1.10 retires it for a hard-zero reach check. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **47 checks, numbered #1-#47**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **47 checks, numbered #1-#47**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -710,40 +710,56 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
   apps/api/src apps/workers/src --include="*.ts" | \
   grep -vE "resolveClientIp|/tests/|\.test\." | wc -l   # expect 0
 
-# 30. Every committed test file must be reachable by a collector. INTERIM
-# RATCHET, not hard-zero — the only check in this suite that is not — and
-# retired by WU-1.10 (docs/development/TESTING_REFOUNDATION.md): its
-# `test-contracts` job derives reach from every collector and holds the
-# unreached files outside the quarantine at a hard zero, and it deletes this
-# command, its baseline and this interim wording in the same change. Until
-# then: Vitest collects `apps/api/tests/unit/**` and `tests/eval/**` from the
-# tree via the `include` globs in apps/api/vitest.config.ts, so those are
-# reachable by construction. Every OTHER test file under apps/api/tests belongs
-# to apps/api/scripts/run-tests.sh, and `run-tests.sh --list` prints what it
-# runs, reading no database: `integration` for the services tier it collects by
-# suffix (every `*.integration.test.ts`), `live` for the live tier it collects
-# by suffix (every `*.live.test.ts`), `quarantined` for each entry of
-# packages/test-contracts/quarantine.json it keeps out. A file it prints as
-# neither `integration` nor `live` runs nowhere — a quarantined suite, a file
-# with no tier suffix — while still reading as coverage in the tree, in
-# review, and in a coverage report that only counts what ran. A `--list` that
-# fails or reaches nothing is a scope error, never a clean zero.
-# Baseline: 3, measured 2026-10-10 — 0 files without a tier suffix plus the 3
-# quarantine entries, `trendRadarRoutes.live.test.ts`,
-# `universal-client-dashboard.live.test.ts` and
-# `aiLocalizedRoutes.live.test.ts`; of the 10 dark `*.live.test.ts` suites of
-# SMELL-75 the other 7 run, since the live tier is collected by its suffix.
-# Every quarantine entry counts, so a suite enters the quarantine only where
-# another unreached file leaves the count. The count may fall and must never
-# rise. Changing this check follows the four steps of §Extending the suite
-# below, like any other.
-LISTED=$(cd apps/api && bash scripts/run-tests.sh --list) || { echo "fitness #30 scope error: run-tests.sh --list failed"; exit 1; }
-REACHED=$(printf '%s\n' "$LISTED" | grep -v '^quarantined' | cut -f2)
-[ -n "$REACHED" ] || { echo "fitness #30 scope error: run-tests.sh --list reached no file"; exit 1; }
-for f in $(find apps/api/tests -name "*.test.ts" \
-    -not -path "*/tests/unit/*" -not -path "*/tests/eval/*"); do
-  printf '%s\n' "$REACHED" | grep -qxF "${f#apps/api/}" || echo "UNREACHED: $f"
-done | wc -l   # interim ratchet baseline: 3
+# 30. Every test file has exactly one collector run by a required check, or is quarantined.
+# Threat: a test file no collector runs never executes, while it still reads as coverage in the
+# tree, in review and in a coverage report that counts only what ran. A file two collectors run
+# executes twice, under two environments, and its green says nothing about the tier it was written
+# for. A collector whose CI job is not a required check gates nothing. Measured at the baseline
+# commit of docs/development/TESTING_REFOUNDATION.md (metric M5): 23 orphan test files and at least
+# 10 collected twice.
+# WHAT IT RUNS: `pnpm --filter @packages/test-contracts reach --quarantine quarantine.json`, the
+# reach engine packages/test-contracts/src/reach.ts, pinned by its own suites under
+# packages/test-contracts/tests/, which Package Tests runs. The disk is `git ls-files` filtered to
+# test-shaped names: `.test.` or `.spec.` before a JavaScript or TypeScript extension, or `.k6.js`,
+# at the end of the name. Four collectors say
+# what they run: vitest asks every tracked `vitest.config.*` for its files; node:test is
+# `apps/api/scripts/run-tests.sh --list`; Playwright is `playwright test --list` per tracked config;
+# k6 is every tracked `*.k6.js`. packages/test-contracts/collectors.json maps each collector to the
+# CI jobs that run it, and .github/rulesets/main.json lists the required checks.
+#   R1: outside the quarantine, each test-shaped file is collected exactly once, by a source a
+#       required check runs.
+#   R2: each collectors.json entry names a job that exists, a `run` of one of its steps contains
+#       the entry's entrypoint, and every check name the job renders is a required check.
+#   R3: each quarantine entry is a tracked file that no source a required check runs collects.
+# THE QUARANTINE: packages/test-contracts/quarantine.json, `{ "entries": [{ "path", "reason",
+# "owner", "since" }] }`, every field non-empty: why the file runs nowhere, the work unit that ends
+# that, and the day it entered. run-tests.sh reads the same file and keeps its apps/api/tests entries
+# out of every tier. On 2026-10-14 it holds the 29 test-shaped files no required check runs: 9
+# Playwright specs, 6 k6 scenarios, 7 security/tests suites, the 3 dark live suites, 2 admin fetch
+# scripts, postgres-stress.test.ts and the provider template's sandbox test.
+# WHERE IT RUNS, and why: the `test-contracts` job of fitness.yml (check `Test Contracts`, 6-minute
+# timeout), not the Fitness Functions job: the collectors load every vitest and Playwright config,
+# so they need the installed tree, which the Fitness Functions job never installs.
+# FAIL-CLOSED, exit 1: an input the engine cannot read in full is an error, never an empty answer:
+# fewer than 800 test-shaped tracked files, fewer than 80 vitest configs, no Playwright config, a
+# vitest or Playwright config or the node:test listing that collects no file, no tracked `*.k6.js`,
+# a listing that fails, and a collectors.json, ruleset or quarantine that is missing or does not
+# parse; a workflow collectors.json names that cannot be read breaks R2. A usage error exits 2.
+# RESIDUAL LIMITS, stated rather than implied: (1) the shrink-only clause of R3 (`--base <file>`:
+# every quarantine entry is already in the base's quarantine) exists in the engine and is not
+# wired, so a pull request can still ADD an entry, and review is its only guard until the step
+# passes the base quarantine; (2) .github/rulesets/main.json is a hand-kept mirror of the classic
+# branch protection, which CI cannot read, so nothing compares the two by machine and a change to a
+# required check edits the mirror in the same pull request; (3) test-shaped is a name: a test under
+# another name (a `.disabled` or `.old` tail, a helper) is invisible to the disk side; (4) R2 proves
+# a required job runs the collector's entrypoint, not that the run executes every file the source
+# collects; (5) a source covered by a collectors.json entry that breaks R2 still counts as run in
+# the summary and in R1; the run fails on R2 all the same, so the verdict holds and only the count
+# reads high.
+pnpm --filter @packages/test-contracts reach --quarantine quarantine.json   # expect exit 0 and:
+#   reach: PASS
+#   summary: <N> test-shaped tracked files; <C> collected by <S> sources, <R> of them run by a
+#   required check; 0 violations; 0 errors; quarantine shrink check not run: no --base given
 
 # 31. No vacuous-pass escape hatch in a test entry point. Two parts, hard-zero.
 # Threat: a suite that collects ZERO tests and still exits 0. The nightly chaos
@@ -2057,11 +2073,11 @@ A generic "RLS not covered" would send the reader toward the wrong fix.
 **Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
-2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode).
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #47) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
 3. Prove the red path — mandatory for every NEW or MODIFIED check or CI gate, fitness or otherwise: plant the violation, run the gate, and observe a REAL failure (non-zero exit / `core.setFailed`; an `::error` annotation alone leaves the job green and proves nothing), then restore the tree byte-exact (verify with `cmp` or a checksum) and re-confirm the count is 0. A gate whose red path was never demonstrated does not merge.
 4. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a backlog entry rather than locking in non-zero noise.
 
-The regex in this file IS the regex in CI — keep them in sync.
+The regex in this file IS the regex in CI, and a script-backed check's command here IS its command in CI — keep them in sync.
 
 ---
 
