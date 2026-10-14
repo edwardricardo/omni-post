@@ -1,13 +1,15 @@
 /**
  * @file reach.test.ts
  * @description Self-tests of the reach engine's command line over planted trees: a planted R1,
- *              R2, R3 or C1 violation reaches the exit code and the output naming its file or
+ *              R2, R3, C1 or C2 violation reaches the exit code and the output naming its file or
  *              registry entry, a clean tree passes, every input the engine cannot read in full
  *              fails the run, `--json` prints the report, and a usage error exits 2. Every planted
  *              tree carries a workflow, a ruleset and a `collectors.json` whose required check runs
- *              its vitest configs, and a `package.json` beside each config whose `test` script is
- *              `vitest run`. R1, R2 and R3 are pinned over plain values in `rules.test.ts` and
- *              `executed-by.test.ts`; C1 is pinned here, over the manifests it reads.
+ *              its vitest configs, a `package.json` beside each config whose `test` script is
+ *              `vitest run`, and configs that exclude the reserved tier patterns. R1, R2 and R3 are
+ *              pinned over plain values in `rules.test.ts` and `executed-by.test.ts`, and C2 in
+ *              `exclude-contract.test.ts`; C1 is pinned here, over the manifests it reads, and C2's
+ *              output, its summary count and its order after C1.
  * @layer infrastructure
  */
 import { rmSync, writeFileSync } from "node:fs";
@@ -15,6 +17,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { err, ok } from "@shared/types";
+import { createK6Collector } from "../src/lib/k6.js";
 import { createNodeCollector } from "../src/lib/node-collector.js";
 import { createVitestCollector } from "../src/lib/vitest-collector.js";
 import { main, type ReachSeams } from "../src/reach.js";
@@ -98,7 +101,10 @@ describe("reach engine", () => {
 
     expect(result.code).toBe(0);
     expect(result.output).toMatch(/^reach: PASS\n/);
-    expect(result.output).toContain("2 vitest packages held to the script contract; 0 violations");
+    expect(result.output).toContain(
+      "2 vitest packages held to the script contract; " +
+        "2 vitest configs held to the exclude contract; 0 violations"
+    );
   });
 
   it("exits 1 naming a test-shaped file no collector runs (R1)", async () => {
@@ -248,7 +254,7 @@ describe("reach engine", () => {
     expect(result.output).toContain("quarantine shrink check not run: disk listing failed\n");
   });
 
-  it("exits 1 at C1's production package floor, with no other error or violation", async () => {
+  it("exits 1 at the production floor C1 and C2 share, with no other error or violation", async () => {
     const tree = plant();
     const { packageFloor: _packageFloor, ...seams } = seamsFor(tree);
 
@@ -257,9 +263,11 @@ describe("reach engine", () => {
     expect(result.code).toBe(1);
     expect(result.output).toContain(
       "error: C1 saw 2 vitest packages, below the floor of 80; " +
-        "the listing read less of the tree than it holds"
+        "the listing read less of the tree than it holds\n" +
+        "error: C2 saw 2 vitest configs, below the floor of 80; " +
+        "the listing read less of the tree than it holds\n"
     );
-    expect(result.output).toContain("0 violations; 1 errors");
+    expect(result.output).toContain("0 violations; 2 errors");
   });
 
   it("exits 1 naming an empty C1 scope, a tracked set with no vitest config", async () => {
@@ -422,6 +430,65 @@ describe("reach engine", () => {
       "C1 pkg-b/package.json: missing: no package script runs the tracked vitest config " +
         "pkg-b/vitest.config.mjs"
     );
+  });
+
+  it("exits 1 naming a config whose resolved exclude lacks reserved patterns, and which ones (C2)", async () => {
+    const tree = plant({ "pkg-a/vitest.config.mjs": configCollecting(["*.test.ts"], []) });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      'C2 pkg-a/vitest.config.mjs: resolved exclude lacks "**/*.integration.test.*", ' +
+        '"**/*.live.test.*", "**/*.spec.*", "**/*.k6.js" of RESERVED_TIER_EXCLUDES, ' +
+        "so vitest can collect a file another tier's runner owns\n"
+    );
+    expect(result.output).toContain("2 vitest configs held to the exclude contract; 1 violations");
+  });
+
+  it("exits 1 with a C2 error for every config when no vitest collector resolved them", async () => {
+    const tree = plant();
+
+    const result = await main(["--root", tree.root], {
+      ...seamsFor(tree),
+      collectors: [createK6Collector()],
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      "error: C2 pkg-a/vitest.config.mjs: the vitest collector resolved no config for it, " +
+        "so its exclude was not read\n" +
+        "error: C2 pkg-b/vitest.config.mjs: the vitest collector resolved no config for it, " +
+        "so its exclude was not read\n"
+    );
+  });
+
+  it("prints C2 violations after C1 ones", async () => {
+    const tree = plant({
+      "pkg-a/vitest.config.mjs": configCollecting(["*.test.ts"], []),
+      "pkg-b/package.json": manifestWith("vitest"),
+    });
+
+    const result = await main(["--root", tree.root], seamsFor(tree));
+
+    expect(result.output.indexOf("C1 pkg-b/package.json")).toBeGreaterThan(-1);
+    expect(result.output.indexOf("C1 pkg-b/package.json")).toBeLessThan(
+      result.output.indexOf("C2 pkg-a/vitest.config.mjs")
+    );
+  });
+
+  it("prints a C2 violation and the config count in the JSON report", async () => {
+    const tree = plant({ "pkg-b/vitest.config.mjs": configCollecting(["*.test.ts"], []) });
+
+    const result = await main(["--root", tree.root, "--json"], seamsFor(tree));
+
+    expect(JSON.parse(result.output)).toMatchObject({
+      ok: false,
+      packages: 2,
+      configs: 2,
+      violations: [{ rule: "C2", file: "pkg-b/vitest.config.mjs" }],
+      errors: [],
+    });
   });
 
   it("prints R1 violations before C1 ones", async () => {

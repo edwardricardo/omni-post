@@ -12,9 +12,11 @@
  *                check runs collects it, and when a base quarantine is given, every entry is
  *                already in it: the quarantine may only shrink.
  *
- *              R2, which decides which sources a required check runs, lives in `executed-by.ts`,
- *              and C1, the script contract of every package with a vitest config, in
- *              `script-contract.ts`; both share the rule ids and the violation shape defined here.
+ *              R2, which decides which sources a required check runs, lives in `executed-by.ts`;
+ *              C1, the script contract of every package with a vitest config, in
+ *              `script-contract.ts`; and C2, the exclude contract of every vitest config, in
+ *              `exclude-contract.ts`. All three share the rule ids and the violation shape defined
+ *              here.
  *              Nothing here reads a file or starts a process, so every rule is tested over plain
  *              values; the command line in `reach.ts` does the reading.
  * @layer infrastructure
@@ -29,12 +31,16 @@ export const RULE = {
   R2: "R2",
   R3: "R3",
   C1: "C1",
+  C2: "C2",
 } as const;
 
 /** A rule id, derived from {@link RULE}. */
 type RuleId = (typeof RULE)[keyof typeof RULE];
 
-/** One broken rule, about one file, or about one registry entry for R2. */
+/**
+ * One broken rule, about one file, about one registry entry for R2, or about one config or one of
+ * its projects (`<config>#<project>`) for C2.
+ */
 export interface Violation {
   readonly rule: RuleId;
   readonly file: string;

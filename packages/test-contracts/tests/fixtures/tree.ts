@@ -12,6 +12,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { RESERVED_TIER_EXCLUDES } from "@packages/vitest-shared";
 
 /**
  * A planted tree: its root and the repository-relative files written into it, named `tracked`
@@ -26,16 +27,25 @@ export interface PlantedTree {
 export const TEST_BODY = 'import { test } from "vitest";\ntest("planted", () => {});\n';
 
 /**
+ * @description Writes the source of a plain vitest config, one a planted tree can load with no
+ *   `node_modules`.
  * @param include - The `include` globs of the config, relative to its directory.
+ * @param exclude - The `exclude` globs; by default the reserved tier patterns, the list rule C2
+ *   holds every config to, written out as a hand-written config spreads them.
  * @returns The source of a vitest config that collects exactly those globs.
  */
-export function configCollecting(include: readonly string[]): string {
-  return `export default { test: { include: ${JSON.stringify(include)} } };\n`;
+export function configCollecting(
+  include: readonly string[],
+  exclude: readonly string[] = RESERVED_TIER_EXCLUDES
+): string {
+  return (
+    `export default { test: { include: ${JSON.stringify(include)}, ` +
+    `exclude: ${JSON.stringify(exclude)} } };\n`
+  );
 }
 
 /**
- * Writes a tree of files under a fresh directory of `os.tmpdir()`.
- *
+ * @description Writes a tree of files under a fresh directory of `os.tmpdir()`.
  * @param contents - Repository-relative path → file content.
  * @returns The tree's root and its files, sorted.
  */
@@ -50,8 +60,7 @@ export function plantTree(contents: Readonly<Record<string, string>>): PlantedTr
 }
 
 /**
- * Deletes a planted tree.
- *
+ * @description Deletes a planted tree.
  * @param tree - The tree to delete.
  */
 export function removeTree(tree: PlantedTree): void {
