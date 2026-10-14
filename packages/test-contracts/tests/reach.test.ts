@@ -11,6 +11,7 @@
  * @layer infrastructure
  */
 import { rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { err, ok } from "@shared/types";
@@ -70,6 +71,7 @@ function seamsFor(tree: PlantedTree): ReachSeams {
   return {
     listFiles: () => ok([...tree.tracked]),
     diskFloor: 1,
+    packageFloor: 1,
     collectors: [createVitestCollector({ floor: 1 })],
   };
 }
@@ -189,8 +191,12 @@ describe("reach engine", () => {
     const tree = plant();
     const base = path.join(tree.root, "base.json");
     writeFileSync(base, "{");
+    const quarantine = writeQuarantine(tree, "quarantine.json", []);
 
-    const result = await main(["--root", tree.root, "--base", base], seamsFor(tree));
+    const result = await main(
+      ["--root", tree.root, "--quarantine", quarantine, "--base", base],
+      seamsFor(tree)
+    );
 
     expect(result.code).toBe(1);
     expect(result.output).toContain(`error: base quarantine ${base} is not JSON`);
@@ -229,9 +235,10 @@ describe("reach engine", () => {
 
   it("says the shrink check did not run when the disk listing fails with a base given", async () => {
     const tree = plant();
+    const quarantine = writeQuarantine(tree, "quarantine.json", []);
     const base = writeQuarantine(tree, "base.json", []);
 
-    const result = await main(["--root", tree.root, "--base", base], {
+    const result = await main(["--root", tree.root, "--quarantine", quarantine, "--base", base], {
       ...seamsFor(tree),
       listFiles: () => err({ message: "git ls-files failed: planted" }),
     });
@@ -239,6 +246,33 @@ describe("reach engine", () => {
     expect(result.code).toBe(1);
     expect(result.output).toContain("error: git ls-files failed: planted");
     expect(result.output).toContain("quarantine shrink check not run: disk listing failed\n");
+  });
+
+  it("exits 1 at C1's production package floor, with no other error or violation", async () => {
+    const tree = plant();
+    const { packageFloor: _packageFloor, ...seams } = seamsFor(tree);
+
+    const result = await main(["--root", tree.root], seams);
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      "error: C1 saw 2 vitest packages, below the floor of 80; " +
+        "the listing read less of the tree than it holds"
+    );
+    expect(result.output).toContain("0 violations; 1 errors");
+  });
+
+  it("exits 1 naming an empty C1 scope, a tracked set with no vitest config", async () => {
+    const tree = plant();
+    const withoutConfigs = tree.tracked.filter((file) => !file.endsWith("/vitest.config.mjs"));
+
+    const result = await main(["--root", tree.root], {
+      ...seamsFor(tree),
+      listFiles: () => ok(withoutConfigs),
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("error: C1 saw 0 vitest packages, below the floor of 1");
   });
 
   it("exits 1 at the production vitest config floor", async () => {
@@ -438,6 +472,14 @@ describe("reach engine", () => {
       expect(result.output).toContain("usage: reach");
     }
   );
+
+  it("exits 2 when --base is given without --quarantine, naming both flags", async () => {
+    const result = await main(["--base", path.join(tmpdir(), "base.json")]);
+
+    expect(result.code).toBe(2);
+    expect(result.output).toContain("reach: --base needs --quarantine: the shrink-only check");
+    expect(result.output).toContain("[--quarantine <file> [--base <file>]]");
+  });
 
   it.each([[["--collectors"]], [["--ruleset", "--json"]]])(
     "exits 2 when a registry flag has no value %j",

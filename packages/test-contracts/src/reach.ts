@@ -13,13 +13,15 @@
  *
  *              `--quarantine` names the quarantine under check; `--base` names the quarantine of
  *              the commit it is compared against, and R3 then refuses any entry the base does not
- *              hold, so the quarantine may only shrink. Every failure to read an input — the disk
- *              below its floor, a collector below its floor or unable to list a source, a
- *              registry, ruleset, manifest, quarantine or base quarantine that is missing or does
- *              not parse — is an error, and an error fails the run: a verdict over an input the
- *              engine did not read is not a verdict. Usage: `pnpm --filter
- *              @packages/test-contracts reach [--root <dir>] [--quarantine <file>] [--base <file>]
- *              [--collectors <file>] [--ruleset <file>] [--json]`. Every path resolves against the
+ *              hold, so the quarantine may only shrink. `--base` without `--quarantine` is a usage
+ *              error: the comparison would run over no quarantine and report that it ran. Every
+ *              failure to read an input — the disk below its floor, a collector below its floor or
+ *              unable to list a source, C1 below the same floor, a registry, ruleset, manifest,
+ *              quarantine or base quarantine that is missing or does not parse — is an error, and
+ *              an error fails the run: a verdict over an input the engine did not read is not a
+ *              verdict. Usage: `pnpm --filter @packages/test-contracts reach [--root <dir>]
+ *              [--quarantine <file> [--base <file>]] [--collectors <file>] [--ruleset <file>]
+ *              [--json]`. Every path resolves against the
  *              working directory, which `pnpm --filter` sets to the package's directory. Exit 0
  *              clean, 1 on any violation or error, 2 on a usage error.
  * @layer infrastructure
@@ -104,11 +106,13 @@ interface ReachOptions {
 
 /**
  * What the self-tests replace: the file listing (a planted tree is not a git repository), the
- * disk floor (a planted tree holds a handful of tests) and the collectors. The CLI passes none.
+ * disk floor and C1's package floor (a planted tree holds a handful of tests and packages) and
+ * the collectors. The CLI passes none.
  */
 export interface ReachSeams {
   readonly listFiles?: (root: string) => Result<string[], DiskFailure>;
   readonly diskFloor?: number;
+  readonly packageFloor?: number;
   readonly collectors?: readonly Collector[];
 }
 
@@ -273,7 +277,11 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
     errors.push(`${sourceLabel(failure)}: ${failure.message}`);
   }
   const executedBy = readExecutedBy(options, collectors, outcome.collections, errors);
-  const scripts = checkScriptContract(inventory.value.tracked, readerUnder(options.root));
+  const scripts = checkScriptContract(
+    inventory.value.tracked,
+    readerUnder(options.root),
+    seams.packageFloor
+  );
   errors.push(...scripts.errors);
   const evaluated = evaluate({
     disk: inventory.value,
@@ -353,7 +361,7 @@ const VALUE_FLAGS = {
 
 /** The usage line every usage error prints. */
 const USAGE =
-  "usage: reach [--root <dir>] [--quarantine <file>] [--base <file>] " +
+  "usage: reach [--root <dir>] [--quarantine <file> [--base <file>]] " +
   "[--collectors <file>] [--ruleset <file>] [--json]\n";
 
 /**
@@ -383,6 +391,12 @@ function parseArguments(argv: readonly string[]): Result<CliArguments, string> {
     if (value === undefined || value.startsWith("--")) return err(`${flag} needs a value`);
     values[VALUE_FLAGS[flag]] = path.resolve(value);
     index += 1;
+  }
+  if (values.base !== undefined && values.quarantine === undefined) {
+    return err(
+      "--base needs --quarantine: the shrink-only check compares the quarantine under check " +
+        "with the base, and without --quarantine there is none to compare"
+    );
   }
   return ok({ ...values, json });
 }
