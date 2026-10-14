@@ -954,110 +954,47 @@ COUNT=$(printf "%b" "$VIOLATIONS" | grep -c . || true)
 COUNT=${COUNT:-0}
 echo "$COUNT"   # expect 0
 
-# 36. Every POSITIVE scope glob in a coverage config MUST match at least one
-# existing file. Closes the CLASS "dead scope = infallible gate", third
-# occurrence: fitness #2/#3/#4 grepped relocated directories, and the per-glob
-# coverage thresholds kept "gating" `src/domain/**` + `src/application/**` after
-# both layers moved to packages/core. Scope: the `include` arrays (test.include +
-# coverage.include) of apps/api/vitest.config.ts — the coverage scope globs live
-# THERE since the threshold-literal rework retired the glob keys
-# vitest.coverage-thresholds.ts used to hold. POSITIVE globs only, deliberately:
-# a negation (`!...`) matching zero files is inert PROTECTION — harmless fat — and
-# flagging it would push authors to delete real exclusions to get green; a positive
-# glob matching zero files is a gate reporting green over code it never touched.
-#
-# FAIL-CLOSED. Extracting zero globs is not a clean scan, it is a blind one: an
-# earlier form of this check printed nothing and exited 0 over 26 live globs it
-# never read, after a key was renamed — and an array assembled at runtime or
-# inherited by object spread reads identically from the outside. The scanned
-# config must yield at least one glob or the check fails.
-#
-# Residual limits, stated honestly. (1) Textual extraction, not a JS parser: a
-# runtime-assembled or spread-inherited array is still unreadable to it — but it
-# fails closed instead of passing silently. (2) Comments inside the scanned arrays
-# are dropped, line AND block, so a glob named INSIDE a comment is neither
-# extracted nor reported — documenting a scope removal in the array is safe. (3)
-# Bracket counting skips string literals, so a picomatch class (`src/api[Vv]2/**`)
-# neither ends the array early nor runs past it into the next key. Needs
-# node >= 22 (fs.glob); the CI job pins node 24. Hard-zero.
-set -uo pipefail
-VIOLATIONS=$(node --input-type=module <<'EOF'
-import { readFileSync } from "node:fs";
-import { glob } from "node:fs/promises";
-
-const cwd = "apps/api";
-// Subject: the test.include + coverage.include arrays of apps/api/vitest.config.ts.
-const scanned = [["vitest.config.ts", "include"]];
-// Walk to the array's closing bracket while IGNORING brackets that live inside
-// string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)
-// are legitimate glob syntax, and counting them either ends the array early —
-// every glob after it goes unchecked — or runs past its end and pulls values out
-// of the next key. Comment bytes are dropped with the brackets they contain, so
-// a glob named inside a comment is neither extracted nor reported.
-const sliceArray = (source, from) => {
-  let i = from;
-  let depth = 1;
-  let body = "";
-  while (i < source.length) {
-    const c = source[i];
-    if (c === '"' || c === "'" || c === "`") {
-      let j = i + 1;
-      while (j < source.length && source[j] !== c) j += source[j] === "\\" ? 2 : 1;
-      body += source.slice(i, j + 1);
-      i = j + 1;
-      continue;
-    }
-    if (c === "/" && source[i + 1] === "/") {
-      const nl = source.indexOf("\n", i);
-      i = nl === -1 ? source.length : nl;
-      continue;
-    }
-    if (c === "/" && source[i + 1] === "*") {
-      const end = source.indexOf("*/", i + 2);
-      i = end === -1 ? source.length : end + 2;
-      continue;
-    }
-    if (c === "[") depth += 1;
-    if (c === "]" && --depth === 0) return { body, end: i + 1 };
-    i += 1;
-  }
-  return null;
-};
-const extract = (source, key) => {
-  const found = [];
-  const re = new RegExp(`\\b${key}\\s*:\\s*\\[`, "g");
-  while (re.exec(source) !== null) {
-    const slice = sliceArray(source, re.lastIndex);
-    if (slice === null) return null;
-    for (const q of slice.body.matchAll(/"([^"]*)"|'([^']*)'/g)) found.push(q[1] ?? q[2]);
-    re.lastIndex = slice.end;
-  }
-  return found;
-};
-const dead = [];
-for (const [file, key] of scanned) {
-  const patterns = extract(readFileSync(`${cwd}/${file}`, "utf8"), key);
-  if (patterns === null) {
-    console.error(`fitness #36 scope error: unbalanced '${key}' array in ${cwd}/${file} — the extraction cannot see where the scope ends, failing closed`);
-    process.exit(1);
-  }
-  if (patterns.length === 0) {
-    console.error(`fitness #36 scope error: zero '${key}' globs extracted from ${cwd}/${file} — the key was renamed, or the array is assembled at runtime or inherited by spread. Either way the gate would report green over a scope it never read, so it fails closed. Give the config a literal '${key}' array.`);
-    process.exit(1);
-  }
-  for (const pattern of patterns) {
-    if (pattern.startsWith("!")) continue;
-    let live = false;
-    for await (const _ of glob(pattern, { cwd })) { live = true; break; }
-    if (!live) dead.push(`${cwd}/${file}: dead positive glob "${pattern}"`);
-  }
-}
-console.log(dead.join("\n"));
-EOF
-) || { echo "fitness #36: expansion crashed or scope is invalid — failing closed (needs node >= 22 for fs.glob)"; exit 1; }
-COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
-COUNT=${COUNT:-0}
-echo "$COUNT"   # expect 0
+# 36. Every POSITIVE scope glob of every vitest config matches at least one tracked file.
+# Threat: a scope glob that matches nothing is a gate reporting green over code it never read: a
+# `test.include` glob that collects no file, or a `coverage.include` glob whose floor is measured
+# over no file. It is the CLASS "dead scope = infallible gate", whose third occurrence created this
+# check: fitness #2/#3/#4 grepped relocated directories, and the per-glob coverage thresholds kept
+# "gating" `src/domain/**` + `src/application/**` after both layers moved to packages/core. Its
+# first form read the include arrays of apps/api/vitest.config.ts alone, as text, so the other
+# configs went unread: resolving them all found `tests/**/*.test.tsx` in
+# packages/query-client/vitest.config.ts, matching no file, and the glob was deleted.
+# WHAT IT RUNS: `pnpm --filter @packages/test-contracts scopes`, packages/test-contracts/src/scopes.ts,
+# pinned by tests/scopes.test.ts beside the reach engine's suites, which Package Tests runs. It lists
+# the tracked files with `git ls-files` and resolves every tracked `vitest.config.*` with vitest's
+# own config loader (`createVitest`, through `withVitest`, the vitest collector's resolution), so it
+# reads the globs a run applies: the shared factory's merge, `projects` and vitest's defaults
+# included. Two scopes: the `test.include` of every project, relative to the project's directory,
+# and the root config's `coverage.include`, relative to its root, wherever a config sets one. Each
+# positive glob must match at least one tracked file, and each scope must hold at least one positive
+# glob (rule S1).
+# POSITIVE globs only, deliberately: a negation matching zero files is inert PROTECTION — harmless
+# fat — and flagging it would push authors to delete real exclusions to get green. A glob is a
+# negation the way tinyglobby, vitest's globber, reads one: a leading `!` not followed by `(`.
+# WHERE IT RUNS, and why: the `test-contracts` job of fitness.yml (check `Test Contracts`), beside
+# #30, not the Fitness Functions job: resolving a config loads it and everything it imports, so the
+# check needs the installed tree, which the Fitness Functions job never installs.
+# FAIL-CLOSED, exit 1: fewer than 80 tracked vitest configs (`VITEST_CONFIG_FLOOR`, the vitest
+# collector's own floor), a config vitest cannot resolve (named with its error, never a silent
+# zero), a scope with no positive glob, and a file listing that fails. A usage error exits 2.
+# RESIDUAL LIMITS, stated rather than implied: (1) `coverage.include` is read only where a config
+# sets one, apps/api alone today, until coverage is measured in every package (WU-5.1); (2) no
+# Playwright project is read, so one that collects no spec stays unseen until the E2E reconstruction
+# brings Playwright projects here; (3) resolution runs vitest's config loader, so a config with side
+# effects at import runs them; (4) matching is Node's `path.matchesGlob` over the tracked files,
+# which agrees with vitest's picomatch on the forms the tree uses (`**`, braces, extglobs, classes)
+# and is the stricter of the two on dot-named segments: its wildcards skip them, so a glob whose only
+# files sit under a dot-named directory reached by a wildcard reads as dead, a false red and never a
+# false green; (5) a glob whose every file an `exclude` removes still passes: the check proves the
+# scope names files, not that a run keeps them, which is #30's part.
+pnpm --filter @packages/test-contracts scopes   # expect exit 0 and:
+#   scopes: PASS
+#   summary: <R> of <C> tracked vitest configs resolved; <G> positive scope globs checked;
+#   0 violations; 0 errors
 
 # 37. Coverage threshold floors never descend vs the PR base. The four literal
 # thresholds in apps/api/vitest.config.ts (lines/functions/branches/statements)
@@ -1317,7 +1254,7 @@ echo "$COUNT"   # expect 0
 #     FLAGGED deliberate-candidates — billing webhooks, gateway switches and
 #     realtime broadcasts may legitimately resolve a deleted row. Owner
 #     decision pending; each gets the filter or the marker when adjudicated.
-# RESIDUAL LIMITS, stated honestly (the #36 precedent):
+# RESIDUAL LIMITS, stated honestly (the form every check of this suite follows):
 #   (1) a where built by a distant builder or variable is invisible — that
 #   limit IS the builder-file exceptions above, made explicit; (2) soft-delete
 #   does NOT cascade, and the grep only sees that `deletedAt` appears
@@ -1409,7 +1346,7 @@ echo "$DBCOUNT"  # ratchet — held at DBPRISMA_BASELINE above (SMELL-87); may f
 # inserted ABOVE the grid inside that doc section would be read as the denylist
 # (keep that section prose-only above the grid); (2) the denylist proves
 # DOCUMENTATION, not correctness — a model wrongly denylisted passes here and
-# is caught in review of the .md diff, exactly like #36's quarantine; (3)
+# is caught in review of the .md diff, exactly like a #30 quarantine reason; (3)
 # enrollment proves the guard KNOWS the model, not that RLS or every read path
 # is right. Hard-zero.
 set -uo pipefail
@@ -1592,7 +1529,7 @@ echo "$BCOUNT"   # expect 0
 #                                `{ refreshTokenHash }` is matched too, so a rotation
 #                                is never exempt by syntax
 # STRUCTURAL, not line-windowed: each `.update(` / `.updateMany(` / `.upsert(` call's argument is sliced
-# to its balanced close (the #36 string/comment-aware slicer); the `data:` literal (`update:` for upsert)
+# to its balanced close (this step's own string- and comment-aware slicer); the `data:` literal (`update:` for upsert)
 # is tested for a marker, whose column must then appear as a key in that SAME call's `where:` literal. A
 # `select:` cannot satisfy the gate — a line window could not tell the two apart.
 # NAMED EXCEPTION, exactly one, held to exactly ONE site so a second write in that file fails closed:
@@ -1657,7 +1594,7 @@ const EXCEPTION = {
   column: "refreshTokenHash",
 };
 // Slice from `open` at `from` to its balanced `close`, dropping comment bytes and
-// skipping brackets inside string/template literals (the #36 slicer, generalised).
+// skipping brackets inside string/template literals (this step's own slicer).
 const sliceBalanced = (src, from, open, close) => {
   let depth = 0;
   let i = from;
@@ -1771,9 +1708,10 @@ echo "$COUNT"   # expect 0
 # is the failure mode the floor exists to prevent. `manifests()` backs both.
 # FAIL-CLOSED on both sides. If the exception stops declaring ANY lifecycle
 # script, the check exits 1 rather than quietly exempting whatever is re-created
-# at that path — the #36 quarantine rule. And if fewer than 90 manifests are
-# found the workspace layout moved and the gate would report a clean zero over
-# packages it never opened, so that exits 1 too.
+# at that path — the rule #30's quarantine holds too, where an entry whose file
+# is gone fails. And if fewer than 90 manifests are found the workspace layout
+# moved and the gate would report a clean zero over packages it never opened, so
+# that exits 1 too.
 # RESIDUAL LIMIT, stated rather than implied: this proves no manifest DECLARES
 # such a script. It does not prove a dependency's install script is unnecessary —
 # that is `allowBuilds` in pnpm-workspace.yaml, a different list with a different
