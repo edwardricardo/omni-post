@@ -14,6 +14,12 @@
  *              config that collects no file at all. Either means the collector read less than the
  *              tree runs. {@link withVitest}, which opens and closes the instance, is shared with
  *              the scope check (`lib/scopes.ts`), so the two resolve a config the same way.
+ *
+ *              The instance that lists a config's files has resolved the whole config, so the
+ *              collector also keeps what it resolved of each config's `exclude`, the root config's
+ *              and each project's, for the exclude contract (rule C2, `lib/exclude-contract.ts`):
+ *              that rule reads the very resolution whose files R1 judged. A config the CLI
+ *              fallback listed has no resolution to keep, since `vitest list` prints files only.
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -57,13 +63,34 @@ interface CollectedSpec {
 }
 
 /**
+ * What the node API resolved of one config's `exclude`: the root config's list, and the list of
+ * each project other than the root one. A config that declares no projects has none here, because
+ * its one project is the root config itself, whose list `root` already holds.
+ */
+export interface ResolvedExcludes {
+  readonly root: readonly string[];
+  /** Each project's name, as vitest resolved it, and its `exclude`. */
+  readonly projects: readonly { readonly name: string; readonly exclude: readonly string[] }[];
+}
+
+/**
+ * One listing of a config: the files it collects, and its resolved `exclude` when the listing
+ * resolved the config.
+ */
+interface ConfigListing {
+  readonly specs: readonly CollectedSpec[];
+  /** `null` when the listing resolved no config: the CLI fallback reads files, never a config. */
+  readonly excludes: ResolvedExcludes | null;
+}
+
+/**
  * One way to ask vitest what a config collects.
  *
  * @param root - The config's directory, the root vitest runs it from.
  * @param config - The config's absolute path.
- * @returns The collected files, or the reason the listing failed.
+ * @returns The collected files with the resolved excludes, or the reason the listing failed.
  */
-type VitestListing = (root: string, config: string) => Promise<Result<CollectedSpec[], string>>;
+type VitestListing = (root: string, config: string) => Promise<Result<ConfigListing, string>>;
 
 /** The primary listing and its fallback. */
 export interface VitestStrategies {
@@ -114,17 +141,39 @@ export async function withVitest<T>(
 }
 
 /**
- * Lists a config's files through the vitest node API. A failed listing falls back to the CLI,
- * which starts from a clean process.
+ * Reads the resolved `exclude` of an open instance: the root config's, and each project's other
+ * than the root project, whose config is the root config itself. Measured on vitest 4.1.11: a
+ * config that declares no projects resolves to one root project sharing the root config, and an
+ * inline project that does not set `extends: true` resolves vitest's default `exclude` rather than
+ * the root's, so each project's list is read on its own.
+ *
+ * @param vitest - The open instance.
+ * @returns Copies of the lists, which outlive the instance.
+ */
+function excludesOf(vitest: Vitest): ResolvedExcludes {
+  return {
+    root: [...vitest.config.exclude],
+    projects: vitest.projects
+      .filter((project) => !project.isRootProject())
+      .map((project) => ({ name: project.name, exclude: [...project.config.exclude] })),
+  };
+}
+
+/**
+ * Lists a config's files through the vitest node API, with what it resolved of the config's
+ * `exclude`. A failed listing falls back to the CLI, which starts from a clean process.
  *
  * @param root - The config's directory.
  * @param config - The config's absolute path.
- * @returns The collected files, or the error vitest raised.
+ * @returns The collected files and the resolved excludes, or the error vitest raised.
  */
 const listWithNodeApi: VitestListing = (root, config) =>
   withVitest(root, config, async (vitest) => {
     const specs = await vitest.globTestSpecifications();
-    return specs.map((spec) => ({ file: spec.moduleId, project: spec.project.name }));
+    return {
+      specs: specs.map((spec) => ({ file: spec.moduleId, project: spec.project.name })),
+      excludes: excludesOf(vitest),
+    };
   });
 
 /** The entry point the `vitest` binary runs, resolved from this package's own dependency. */
@@ -188,13 +237,14 @@ function parseListOutput(stdout: string): Result<CollectedSpec[], string> {
  * @param root - The config's directory.
  * @param config - The config's absolute path.
  * @param timeoutMs - How long the command may run before it is stopped; the self-tests shorten it.
- * @returns The collected files, or why the command or its output failed.
+ * @returns The collected files with `excludes: null`, since the command prints no config, or why
+ *   the command or its output failed.
  */
 export async function listWithCli(
   root: string,
   config: string,
   timeoutMs: number = CLI_TIMEOUT_MS
-): Promise<Result<CollectedSpec[], string>> {
+): Promise<Result<ConfigListing, string>> {
   const run = spawnSync(
     process.execPath,
     [vitestCliPath(), "list", "--filesOnly", "--json", "--config", config, "--root", root],
@@ -212,7 +262,8 @@ export async function listWithCli(
     const tail = run.stderr.trim().split("\n").slice(-3).join(" | ");
     return err(`vitest list ${ending}: ${tail}`);
   }
-  return parseListOutput(run.stdout);
+  const listed = parseListOutput(run.stdout);
+  return listed.ok ? ok({ specs: listed.value, excludes: null }) : listed;
 }
 
 /**
@@ -221,13 +272,13 @@ export async function listWithCli(
  * @param root - Absolute repository root.
  * @param config - Repository-relative config path.
  * @param strategies - The primary listing and its fallback.
- * @returns The collected files, or both failures.
+ * @returns The listing that held, or both failures.
  */
 async function listConfig(
   root: string,
   config: string,
   strategies: VitestStrategies
-): Promise<Result<CollectedSpec[], string>> {
+): Promise<Result<ConfigListing, string>> {
   const absolute = path.join(root, config);
   const directory = path.dirname(absolute);
   const primary = await strategies.programmatic(directory, absolute);
@@ -268,18 +319,32 @@ function toCollections(
     .sort((a, b) => a.source.localeCompare(b.source));
 }
 
+/** The vitest collector, which also keeps what it resolved of each config's `exclude`. */
+export interface VitestCollector extends Collector {
+  /**
+   * @method resolvedExcludes
+   * @description What the last `collect` resolved of the `exclude` of each config it listed.
+   * @returns Repository-relative config path → its resolved excludes, or `null` for a config the
+   *   CLI fallback listed. A config no listing held is absent, as is every config when `collect`
+   *   has not run or stopped at the floor.
+   */
+  resolvedExcludes(): ReadonlyMap<string, ResolvedExcludes | null>;
+}
+
 /**
  * @description Builds the vitest collector.
  *
  * @param options - A smaller floor or replacement listings, for the self-tests only.
  * @returns The collector.
  */
-export function createVitestCollector(options: VitestCollectorOptions = {}): Collector {
+export function createVitestCollector(options: VitestCollectorOptions = {}): VitestCollector {
   const floor = options.floor ?? VITEST_CONFIG_FLOOR;
   const strategies = options.strategies ?? { programmatic: listWithNodeApi, cli: listWithCli };
+  const resolved = new Map<string, ResolvedExcludes | null>();
   return {
     id: COLLECTOR_ID.VITEST,
     async collect(context: CollectorContext): Promise<CollectorOutcome> {
+      resolved.clear();
       const tracked = trackedConfigs(
         COLLECTOR_ID.VITEST,
         context,
@@ -296,7 +361,8 @@ export function createVitestCollector(options: VitestCollectorOptions = {}): Col
           failures.push({ collector: COLLECTOR_ID.VITEST, source: config, message: listed.error });
           continue;
         }
-        if (listed.value.length === 0) {
+        resolved.set(config, listed.value.excludes);
+        if (listed.value.specs.length === 0) {
           failures.push({
             collector: COLLECTOR_ID.VITEST,
             source: config,
@@ -304,9 +370,24 @@ export function createVitestCollector(options: VitestCollectorOptions = {}): Col
           });
           continue;
         }
-        collections.push(...toCollections(root, config, listed.value));
+        collections.push(...toCollections(root, config, listed.value.specs));
       }
       return { collections, failures };
     },
+    resolvedExcludes: () => new Map(resolved),
   };
+}
+
+/**
+ * @description Tells the vitest collector apart among the collectors a run was given, so the
+ *   engine reads what that collector resolved instead of resolving every config a second time.
+ * @param collector - Any collector.
+ * @returns Whether it is the vitest collector and keeps the excludes it resolved.
+ */
+export function isVitestCollector(collector: Collector): collector is VitestCollector {
+  return (
+    collector.id === COLLECTOR_ID.VITEST &&
+    "resolvedExcludes" in collector &&
+    typeof collector.resolvedExcludes === "function"
+  );
 }

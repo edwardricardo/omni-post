@@ -723,7 +723,8 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # packages/test-contracts/tests/, which Package Tests runs. The disk is `git ls-files` filtered to
 # test-shaped names: `.test.` or `.spec.` before a JavaScript or TypeScript extension, or `.k6.js`,
 # at the end of the name. Four collectors say
-# what they run: vitest asks every tracked `vitest.config.*` for its files; node:test is
+# what they run: vitest asks every tracked `vitest.config.*` for its files through the node API and
+# keeps what that same resolution holds of the config's `exclude`, which C2 reads; node:test is
 # `apps/api/scripts/run-tests.sh --list`; Playwright is `playwright test --list` per tracked config;
 # k6 is every tracked `*.k6.js`. packages/test-contracts/collectors.json maps each collector to the
 # CI jobs that run it, and .github/rulesets/main.json lists the required checks.
@@ -737,6 +738,14 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 #       `scripts.test` is exactly `vitest run`. A bare `vitest` watches whenever a terminal is
 #       attached, so the same script ends in CI and never ends in a developer's shell; with one
 #       script everywhere, `pnpm --filter <package> test` is one run in both.
+#   C2: the resolved `exclude` of each tracked `vitest.config.*`, of its root config and of every
+#       project it declares, contains every entry of RESERVED_TIER_EXCLUDES, compared as written.
+#       It reads the collector's own resolution, never the config's text, so the factory's merge
+#       and vitest's defaults count; a project is held on its own, because an inline project
+#       without `extends: true` resolves vitest's default `exclude`, not its root's. The four
+#       hand-written app configs (api, workers, admin, client) spread the list by hand, and a
+#       config that drops it collects a reserved-suffix file R1 sees only once its own tier
+#       collects it too.
 # THE BASE: a pull request's base commit (`github.event.pull_request.base.sha`), on a push the
 # commit before it (`HEAD~1`), handed in as FITNESS_BASE_REF; a local run without it compares
 # against origin/main. The checkout fetches full history so either commit is readable.
@@ -751,9 +760,11 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # timeout), not the Fitness Functions job: the collectors load every vitest and Playwright config,
 # so they need the installed tree, which the Fitness Functions job never installs.
 # FAIL-CLOSED, exit 1: an input the engine cannot read in full is an error, never an empty answer:
-# fewer than 800 test-shaped tracked files, fewer than 80 vitest configs, no Playwright config, a
-# vitest or Playwright config or the node:test listing that collects no file, no tracked `*.k6.js`,
-# a listing that fails, and a collectors.json, ruleset, package manifest, quarantine or base
+# fewer than 800 test-shaped tracked files, fewer than 80 vitest configs (the collector, C1 and C2
+# each hold that floor), no Playwright config, a vitest or Playwright config or the node:test
+# listing that collects no file, no tracked `*.k6.js`, a listing that fails, a vitest config whose
+# `exclude` C2 never read (one only the CLI fallback lists, which resolves no config, or one no
+# listing reaches), and a collectors.json, ruleset, package manifest, quarantine or base
 # quarantine that is missing or does not parse; a workflow collectors.json names that cannot be
 # read breaks R2. Two cases stop the step before the engine runs, each with its own `::error`: a
 # base ref that does not resolve to a commit (a push whose commit has no parent has no `HEAD~1`,
@@ -769,9 +780,11 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # invisible to the disk side; (5) R2 proves a required job runs the collector's entrypoint, not that
 # the run executes every file the source collects; (6) a source covered by a collectors.json entry
 # that breaks R2 still counts as run in the summary and in R1; the run fails on R2 all the same, so
-# the verdict holds and only the count reads high; (7) C1 reads `scripts.test` alone: the configs
-# themselves are not read, so a package config that sets a key the shared vitest factory owns
-# (reporters, coverage provider, reporter, directory or include, aliases) passes.
+# the verdict holds and only the count reads high; (7) the static Part C clause that was to refuse a
+# factory-owned key in either `mergeConfig` argument was retired on 2026-10-14, because the factory
+# returns `mergeConfig(base, overrides)`, vite concatenates arrays and 0 of the 93 configs call
+# `mergeConfig`, so no argument can drop the reserved excludes; the gap was the four hand-written
+# configs, which C2 holds.
 BASE_REF="${FITNESS_BASE_REF:-origin/main}"
 BASE_QUARANTINE="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/base-quarantine.json"
 BASE_COMMIT=$(git rev-parse --verify --quiet "$BASE_REF^{commit}")   # expect exit 0: the ref names a commit
@@ -779,8 +792,8 @@ git show "$BASE_COMMIT:packages/test-contracts/quarantine.json" > "$BASE_QUARANT
 pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base "$BASE_QUARANTINE"   # expect exit 0 and:
 #   reach: PASS
 #   summary: <N> test-shaped tracked files; <C> collected by <S> sources, <R> of them run by a
-#   required check; <P> vitest packages held to the script contract; 0 violations; 0 errors;
-#   quarantine shrink check ran
+#   required check; <P> vitest packages held to the script contract; <K> vitest configs held to
+#   the exclude contract; 0 violations; 0 errors; quarantine shrink check ran
 
 # 31. No vacuous-pass escape hatch in a test entry point. Two parts, hard-zero.
 # Threat: a suite that collects ZERO tests and still exits 0. The nightly chaos

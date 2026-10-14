@@ -9,15 +9,19 @@
  *              quarantine files it is given, and hands all of it to the pure verdict in
  *              `lib/rules.ts` (R1 and R3). It also reads the `package.json` of every package that
  *              keeps a tracked vitest config and holds its `test` script to `vitest run`, the
- *              script contract (C1, `lib/script-contract.ts`).
+ *              script contract (C1, `lib/script-contract.ts`), and holds the `exclude` the vitest
+ *              collector resolved for every tracked vitest config, its root config's and each
+ *              project's, to every pattern of `RESERVED_TIER_EXCLUDES`, the exclude contract (C2,
+ *              `lib/exclude-contract.ts`).
  *
  *              `--quarantine` names the quarantine under check; `--base` names the quarantine of
  *              the commit it is compared against, and R3 then refuses any entry the base does not
  *              hold, so the quarantine may only shrink. `--base` without `--quarantine` is a usage
  *              error: the comparison would run over no quarantine and report that it ran. Every
  *              failure to read an input — the disk below its floor, a collector below its floor or
- *              unable to list a source, C1 below the same floor, a registry, ruleset, manifest,
- *              quarantine or base quarantine that is missing or does not parse — is an error, and
+ *              unable to list a source, C1 or C2 below the same floor, a config whose exclude the
+ *              collector did not resolve, a registry, ruleset, manifest, quarantine or base
+ *              quarantine that is missing or does not parse — is an error, and
  *              an error fails the run: a verdict over an input the engine did not read is not a
  *              verdict. Usage: `pnpm --filter @packages/test-contracts reach [--root <dir>]
  *              [--quarantine <file> [--base <file>]] [--collectors <file>] [--ruleset <file>]
@@ -32,6 +36,7 @@ import path from "node:path";
 import { err, ok, type Result } from "@shared/types";
 import { runIfInvoked, type CliResult } from "./lib/cli.js";
 import { DISK_FLOOR, inventoryFromFiles, listTrackedFiles, type DiskFailure } from "./lib/disk.js";
+import { checkExcludeContract } from "./lib/exclude-contract.js";
 import {
   checkExecutedBy,
   parseCollectorRegistry,
@@ -59,7 +64,7 @@ import {
   type Violation,
 } from "./lib/rules.js";
 import { checkScriptContract } from "./lib/script-contract.js";
-import { createVitestCollector } from "./lib/vitest-collector.js";
+import { createVitestCollector, isVitestCollector } from "./lib/vitest-collector.js";
 
 /** Whether R3's shrink-only clause ran, and why not when it did not. */
 type ShrinkCheck =
@@ -78,6 +83,8 @@ interface ReachReport {
   readonly sources: readonly SourceCount[];
   /** Packages that keep a tracked vitest config, each held to the script contract (C1). */
   readonly packages: number;
+  /** Tracked vitest configs, each held to the exclude contract (C2). */
+  readonly configs: number;
   readonly violations: readonly Violation[];
   /** Inputs the engine could not read in full; any one fails the run. */
   readonly errors: readonly string[];
@@ -106,8 +113,8 @@ interface ReachOptions {
 
 /**
  * What the self-tests replace: the file listing (a planted tree is not a git repository), the
- * disk floor and C1's package floor (a planted tree holds a handful of tests and packages) and
- * the collectors. The CLI passes none.
+ * disk floor and the floor C1 and C2 share (a planted tree holds a handful of tests and packages)
+ * and the collectors. The CLI passes none.
  */
 export interface ReachSeams {
   readonly listFiles?: (root: string) => Result<string[], DiskFailure>;
@@ -249,6 +256,7 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
       testShaped: 0,
       sources: [],
       packages: 0,
+      configs: 0,
       violations: [],
       errors: [inventory.error.message],
       shrinkCheck: shrinkCheckOf({
@@ -283,6 +291,14 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
     seams.packageFloor
   );
   errors.push(...scripts.errors);
+  // C2 reads what the vitest collector resolved while it listed, never a second resolution; a run
+  // given no vitest collector has resolved nothing, and every config is then an error.
+  const excludes = checkExcludeContract(
+    inventory.value.tracked,
+    collectors.find(isVitestCollector)?.resolvedExcludes() ?? new Map(),
+    seams.packageFloor
+  );
+  errors.push(...excludes.errors);
   const evaluated = evaluate({
     disk: inventory.value,
     collections: outcome.collections,
@@ -291,9 +307,12 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
     ...(executedBy !== null && { runSources: executedBy.runSources }),
   });
   // The sort is stable, so each rule's violations keep the file order their check gave them.
-  const violations = [...evaluated, ...(executedBy?.violations ?? []), ...scripts.violations].sort(
-    (a, b) => RULE_ORDER.indexOf(a.rule) - RULE_ORDER.indexOf(b.rule)
-  );
+  const violations = [
+    ...evaluated,
+    ...(executedBy?.violations ?? []),
+    ...scripts.violations,
+    ...excludes.violations,
+  ].sort((a, b) => RULE_ORDER.indexOf(a.rule) - RULE_ORDER.indexOf(b.rule));
   return {
     ok: errors.length === 0 && violations.length === 0,
     testShaped: inventory.value.testShaped.length,
@@ -303,6 +322,7 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
       run: executedBy?.runSources.has(sourceLabel(collection)) ?? false,
     })),
     packages: scripts.packages,
+    configs: excludes.configs,
     violations,
     errors,
     shrinkCheck: shrinkCheckOf({
@@ -334,6 +354,7 @@ function formatReport(report: ReachReport): string {
       `${String(collected)} collected by ${String(report.sources.length)} sources, ` +
       `${String(run)} of them run by a required check; ` +
       `${String(report.packages)} vitest packages held to the script contract; ` +
+      `${String(report.configs)} vitest configs held to the exclude contract; ` +
       `${String(report.violations.length)} violations; ${String(report.errors.length)} errors; ` +
       `quarantine shrink check ${report.shrinkCheck}`
   );
