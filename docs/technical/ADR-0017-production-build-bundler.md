@@ -19,12 +19,13 @@ build artifact for any deployable.
 A paused sibling change, `containerization-image-hardening`, already committed
 the container foundation on branch `workstream/containerization-image-hardening`:
 
-- `5024a8f5` collapsed `apps/api/Dockerfile` into a self-contained production
-  layout.
-- `2889986e` fixed `prisma generate` to run in a CLI-present stage and stopped
-  swallowing install failures (validated on CI).
-- `63982a3e` wired container-security scanning on PRs with a deterministic
-  single-image Trivy ref.
+- `5024a8f5` (re-applied on `main` as `cdc63663`) collapsed `apps/api/Dockerfile`
+  into a self-contained production layout.
+- `2889986e` (re-applied on `main` as `084b356e`) fixed `prisma generate` to run
+  in a CLI-present stage and stopped swallowing install failures (validated on
+  CI).
+- `63982a3e` (re-applied on `main` as `6a1152aa`) wired container-security
+  scanning on PRs with a deterministic single-image Trivy ref.
 
 Those Dockerfiles define runtime stages that expect compiled JS artifacts
 (`dist/index.js`, `dist/bootstrap.js`, Next.js standalone output) that **do not
