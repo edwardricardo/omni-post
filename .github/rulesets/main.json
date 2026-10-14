@@ -1,0 +1,44 @@
+{
+  "name": "main",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/main"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "required_status_checks": [
+          { "context": "Lint and Format Check", "integration_id": 15368 },
+          { "context": "Test Suite (shard 1)", "integration_id": 15368 },
+          { "context": "Test Suite (shard 2)", "integration_id": 15368 },
+          { "context": "Coverage Merge", "integration_id": 15368 },
+          { "context": "Package Tests", "integration_id": 15368 },
+          { "context": "Integration Tests", "integration_id": 15368 },
+          { "context": "Frontend Tests", "integration_id": 15368 },
+          { "context": "Build Check", "integration_id": 15368 },
+          { "context": "Test and Build", "integration_id": 15368 },
+          { "context": "Fitness Functions (CLAUDE.md greps)", "integration_id": 15368 },
+          { "context": "Security Audit", "integration_id": 15368 },
+          { "context": "CodeQL (javascript)", "integration_id": 15368 },
+          { "context": "CodeQL (typescript)", "integration_id": 15368 },
+          { "context": "gitleaks (secrets)", "integration_id": 15368 },
+          { "context": "secretlint (rule-based secrets)", "integration_id": 15368 },
+          { "context": "OSV-Scanner (deps)", "integration_id": 15368 },
+          { "context": "dependency-cruiser (hexagonal)", "integration_id": 15368 },
+          { "context": "Squawk (Prisma migrations)", "integration_id": 15368 },
+          { "context": "Code Quality (knip + jscpd)", "integration_id": 15368 },
+          { "context": "Test Contracts", "integration_id": 15368 }
+        ]
+      }
+    }
+  ]
+}

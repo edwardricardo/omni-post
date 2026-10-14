@@ -17,6 +17,162 @@
       "reason": "2 of its 6 cases fail against the live stack: a glossary term and a style-guide rule created for `es` (201) are missing from `GET /ai/glossary?locale=es` and `GET /ai/style-guide?locale=es`; cause not measured yet",
       "owner": "DEF-81",
       "since": "2026-10-10"
+    },
+    {
+      "path": "apps/admin/tests/e2e/a11y.spec.ts",
+      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "owner": "WU-6.E8",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/admin/tests/e2e/auth.spec.ts",
+      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "owner": "WU-6.E8",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/admin/tests/e2e/content-flow.spec.ts",
+      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "owner": "WU-6.E8",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/admin/tests/e2e/smoke.spec.ts",
+      "reason": "a Playwright spec collected by apps/admin/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "owner": "WU-6.E8",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/client/tests/e2e/tests/a11y.spec.ts",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "owner": "WU-6.E8",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/client/tests/e2e/tests/analytics.spec.ts",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "owner": "WU-6.E8",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/client/tests/e2e/tests/auth.spec.ts",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "owner": "WU-6.E8",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/client/tests/e2e/tests/publishing.spec.ts",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "owner": "WU-6.E8",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/client/tests/e2e/tests/visual.spec.ts",
+      "reason": "a Playwright spec collected by apps/client/tests/e2e/config/playwright.config.ts; no required check runs playwright test (the Storybook Stories job installs Chromium for vitest browser mode and runs no spec), so it runs nowhere until the E2E job exists",
+      "owner": "WU-6.E8",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "security/tests/api-security.injection.test.ts",
+      "reason": "no vitest config, runner or workflow collects security/tests (SMELL-83); decision D12 folds its useful cases into the live tier (WU-6.S1) and deletes the suite",
+      "owner": "WU-6.S2",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "security/tests/api-security.validation-auth.test.ts",
+      "reason": "no vitest config, runner or workflow collects security/tests (SMELL-83); decision D12 folds its useful cases into the live tier (WU-6.S1) and deletes the suite",
+      "owner": "WU-6.S2",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "security/tests/auth-security.test.ts",
+      "reason": "no vitest config, runner or workflow collects security/tests (SMELL-83); decision D12 folds its useful cases into the live tier (WU-6.S1) and deletes the suite",
+      "owner": "WU-6.S2",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "security/tests/infrastructure-security.test.ts",
+      "reason": "no vitest config, runner or workflow collects security/tests (SMELL-83); decision D12 folds its useful cases into the live tier (WU-6.S1) and deletes the suite",
+      "owner": "WU-6.S2",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "security/tests/injection-tests.ldap-xml-template-header.test.ts",
+      "reason": "no vitest config, runner or workflow collects security/tests (SMELL-83); decision D12 folds its useful cases into the live tier (WU-6.S1) and deletes the suite",
+      "owner": "WU-6.S2",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "security/tests/injection-tests.sql-nosql.test.ts",
+      "reason": "no vitest config, runner or workflow collects security/tests (SMELL-83); decision D12 folds its useful cases into the live tier (WU-6.S1) and deletes the suite",
+      "owner": "WU-6.S2",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "security/tests/injection-tests.xss-command.test.ts",
+      "reason": "no vitest config, runner or workflow collects security/tests (SMELL-83); decision D12 folds its useful cases into the live tier (WU-6.S1) and deletes the suite",
+      "owner": "WU-6.S2",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "performance/database/postgres-stress.test.ts",
+      "reason": "a tsx script behind perf:db that no runner collects: 624 lines, no assertion, always exits 0; decision D10 retires it",
+      "owner": "WU-6.P2",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/admin/tests/apiClient.smoke.test.ts",
+      "reason": "a fetch script against a running API with no test case, excluded from apps/admin/vitest.config.ts, so no runner collects it; deleted together with its exclude",
+      "owner": "WU-2.6a",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "apps/admin/tests/posts.flow.test.ts",
+      "reason": "a fetch script against a running API with no test case, excluded from apps/admin/vitest.config.ts, so no runner collects it; deleted together with its exclude",
+      "owner": "WU-2.6a",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "packages/providers/_template/tests/integration/sandbox.template.test.ts",
+      "reason": "the provider template sandbox example; packages/providers/_template has no vitest config, so no runner collects it; deleted, while the fate of the template package stays in SMELL-132",
+      "owner": "WU-2.6a",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "performance/k6/scenarios/analytics-dashboard.k6.js",
+      "reason": "one of the six fiction k6 scenarios: performance.yml k6-load runs one scenario per run, on push to main and on dispatch, which is no required check; decision D11 replaces them with one real scenario that becomes a merge gate",
+      "owner": "WU-6.K1",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "performance/k6/scenarios/api-performance.k6.js",
+      "reason": "one of the six fiction k6 scenarios: performance.yml k6-load runs one scenario per run, on push to main and on dispatch, which is no required check; decision D11 replaces them with one real scenario that becomes a merge gate",
+      "owner": "WU-6.K1",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "performance/k6/scenarios/auth-flow.k6.js",
+      "reason": "one of the six fiction k6 scenarios: performance.yml k6-load runs one scenario per run, on push to main and on dispatch, which is no required check; decision D11 replaces them with one real scenario that becomes a merge gate",
+      "owner": "WU-6.K1",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "performance/k6/scenarios/posting-workflow.k6.js",
+      "reason": "one of the six fiction k6 scenarios: performance.yml k6-load runs one scenario per run, on push to main and on dispatch, which is no required check; decision D11 replaces them with one real scenario that becomes a merge gate",
+      "owner": "WU-6.K1",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "performance/k6/scenarios/provider-integration.k6.js",
+      "reason": "one of the six fiction k6 scenarios: performance.yml k6-load runs one scenario per run, on push to main and on dispatch, which is no required check; decision D11 replaces them with one real scenario that becomes a merge gate",
+      "owner": "WU-6.K1",
+      "since": "2026-10-14"
+    },
+    {
+      "path": "performance/k6/scenarios/user-journey.k6.js",
+      "reason": "one of the six fiction k6 scenarios: performance.yml k6-load runs one scenario per run, on push to main and on dispatch, which is no required check; decision D11 replaces them with one real scenario that becomes a merge gate",
+      "owner": "WU-6.K1",
+      "since": "2026-10-14"
     }
   ]
 }

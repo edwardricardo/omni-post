@@ -6,10 +6,11 @@ name: Architectural Fitness Functions
 #
 # Strategy: hard-zero (each returns count = 0), with the documented ratchets that
 # CLAUDE.md names: #1 and #21 ran as ratchets during the prisma->DI remediation
-# and are hard-zero again; #30 holds an interim baseline of 3 quarantined files;
-# #38 carries one ratcheted sub-count for packages/adapters/db-prisma; #45 and
-# #46 hold one `pending` count per inventory, exact at its pendingBaseline. Every
-# baseline may fall and must never rise.
+# and are hard-zero again, and so is #30, derived by the reach engine with its
+# quarantine named file by file; #38 carries one ratcheted sub-count for
+# packages/adapters/db-prisma; #45 and #46 hold one `pending` count per
+# inventory, exact at its pendingBaseline. Every baseline may fall and must
+# never rise.
 #
 # A check whose scope path does not exist is WORSE than no check: `grep -r` on
 # an absent directory exits 2, prints nothing, and `| wc -l` renders that as 0 —
@@ -24,11 +25,14 @@ name: Architectural Fitness Functions
 # hard-zero is the correct mode for invariants in a clean codebase; ratchets
 # are only correct when a non-zero baseline cannot be eliminated immediately.
 #
-# Design: single job + one named step per check with `if: always()` so a
-# violation in one step does NOT mask later violations — every PR sees every check.
-# One exception: #37 gates the delta against the PR base, which only exists on
-# pull_request events — its `if` adds that event condition and the step is
-# skipped (visibly, not silently green) on push runs.
+# Design: one named step per check with `if: always()` so a violation in one
+# step does NOT mask later violations — every PR sees every check. The greps run
+# in the `fitness` job, which installs nothing; a check that needs the installed
+# tree runs in a job that installs it: #45 to #47 in `dependency-consistency`,
+# #30 in `test-contracts`. Two exceptions to `if: always()` alone: #37 and #47
+# gate the delta against the PR base, which only exists on pull_request events —
+# their `if` adds that event condition and the step is skipped (visibly, not
+# silently green) on push runs.
 # Annotations are aggregated to one `::error` per check (bypasses the
 # 10-errors-per-step / 50-per-job silent cap of GitHub Actions).
 
@@ -736,53 +740,6 @@ jobs:
             echo "::error title=Fitness #29 violation::$COUNT raw client-IP header read(s) outside resolveClientIp — route every IP-keyed decision through the canonical resolver"
             printf "%s\n" "$V" | head -20
             exit 1
-          fi
-
-      - name: "#30 Every committed test file is reachable by a collector (interim ratchet)"
-        if: always()
-        run: |
-          set -uo pipefail
-          # INTERIM RATCHET, not hard-zero — the only such check in this suite —
-          # retired by WU-1.10 (docs/development/TESTING_REFOUNDATION.md): its
-          # test-contracts job derives reach from every collector and holds the
-          # unreached files outside the quarantine at a hard zero, and it deletes
-          # this step, its baseline and the interim wording of CLAUDE.md #30 in
-          # the same change. Vitest collects apps/api/tests/unit/** and
-          # tests/eval/** from the tree via the `include` globs in
-          # apps/api/vitest.config.ts. Every OTHER test file under apps/api/tests
-          # belongs to apps/api/scripts/run-tests.sh, whose `--list` prints what
-          # it runs, reading no database: `integration` for the services tier and
-          # `live` for the live tier, each collected by its suffix, and
-          # `quarantined` for each quarantine entry it keeps out. A file it prints
-          # as neither `integration` nor `live` runs nowhere while still reading
-          # as coverage. Baseline 3, measured 2026-10-10: 0 files without a tier
-          # suffix plus the 3 quarantine entries, trendRadarRoutes,
-          # universal-client-dashboard and aiLocalizedRoutes (*.live.test.ts);
-          # the other 7 of SMELL-75's 10 dark live suites run in the live tier.
-          # Every quarantine entry counts, so the quarantine only grows where
-          # another unreached file leaves. The count may fall and must never
-          # rise. Mirrors CLAUDE.md #30.
-          BASELINE=3
-          for p in apps/api/tests apps/api/scripts/run-tests.sh packages/test-contracts/quarantine.json; do
-            [ -e "$p" ] || { echo "::error title=Fitness #30 scope missing::'$p' does not exist, so this check would scan nothing and pass."; exit 1; }
-          done
-          LISTED=$(cd apps/api && bash scripts/run-tests.sh --list) || { echo "fitness #30 scope error: run-tests.sh --list failed"; exit 1; }
-          REACHED=$(printf '%s\n' "$LISTED" | grep -v '^quarantined' | cut -f2)
-          [ -n "$REACHED" ] || { echo "fitness #30 scope error: run-tests.sh --list reached no file"; exit 1; }
-          UNREACHED=$(for f in $(find apps/api/tests -name "*.test.ts" \
-              -not -path "*/tests/unit/*" -not -path "*/tests/eval/*"); do
-            printf '%s\n' "$REACHED" | grep -qxF "${f#apps/api/}" || echo "UNREACHED: $f"
-          done || true)
-          COUNT=$(printf "%s" "$UNREACHED" | grep -c . || true)
-          COUNT=${COUNT:-0}
-          echo "Unreached test files: $COUNT (interim ratchet baseline $BASELINE)"
-          printf "%s\n" "$UNREACHED" | head -40
-          if [ "$COUNT" -gt "$BASELINE" ]; then
-            echo "::error title=Fitness #30 violation::$COUNT test files under apps/api/tests run in no collector, above the interim ratchet baseline of $BASELINE. A file nothing runs never executes while still reading as coverage. Give it its tier suffix (run-tests.sh collects every *.integration.test.ts and every *.live.test.ts), or delete it."
-            exit 1
-          fi
-          if [ "$COUNT" -lt "$BASELINE" ]; then
-            echo "::notice title=Fitness #30 ratchet::$COUNT unreached test files, below the baseline of $BASELINE. Lower BASELINE here and in CLAUDE.md #30 to lock the gain in."
           fi
 
       - name: "#31 No vacuous-pass escape hatch in a test entry point (two-part hard-zero)"
@@ -1993,5 +1950,58 @@ jobs:
           set -euo pipefail
           if ! JSDOC_BASE_REF="${FITNESS_BASE_REF:-origin/main}" pnpm check:jsdoc; then
             echo "::error title=Fitness #47 violation::A source file this pull request adds or modifies breaks the method-level JSDoc rules of CODING_STANDARDS §Documentation, or the gate could not resolve its base. The jsdoc-touched-gate lines above name each file:line, rule and message. Document the whole file (an eslint-disable directive does not exempt it) and run pnpm check:jsdoc locally."
+            exit 1
+          fi
+
+  test-contracts:
+    name: Test Contracts
+    runs-on: ubuntu-latest
+    # The reach engine lists every collector in about 3 s on a developer machine; the rest of the
+    # budget is checkout and install.
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    env:
+      # The canonical hermetic URL of the test environment contract: nothing listens on
+      # 127.0.0.1:1, so a step that tried to reach a database would fail at once instead of
+      # finding one. pnpm install runs Prisma's postinstall, `prisma generate`, whose config reads
+      # this variable and connects to nothing.
+      DATABASE_URL: postgresql://hermetic:hermetic@127.0.0.1:1/hermetic?schema=public
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          # Full history, so a pull request's base quarantine is readable once the shrink-only
+          # check is wired; `git ls-files` itself needs only the checked-out commit.
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: "#30 Every test file has exactly one collector run by a required check"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #30. packages/test-contracts/src/reach.ts lists every test-shaped
+          # tracked file, asks the four collectors (vitest, node:test through run-tests.sh --list,
+          # Playwright, k6) what each one runs, and reads collectors.json, the workflows it names and
+          # .github/rulesets/main.json to decide which sources a required check runs. It fails on R1
+          # (outside the quarantine, a file collected zero times, twice, or only by a source no
+          # required check runs), R2 (a collectors.json entry whose job, entrypoint or check name
+          # does not hold) and R3 (a quarantine entry that is untracked or collected), and on any
+          # input it cannot read in full. Pinned by packages/test-contracts/tests/, which Package
+          # Tests runs. The quarantine path resolves against the package directory, where
+          # `pnpm --filter` runs the script.
+          set -euo pipefail
+          if ! pnpm --filter @packages/test-contracts reach --quarantine quarantine.json; then
+            echo "::error title=Fitness #30 violation::A test file runs in no collector, in two, or only in one no required check runs; a collectors.json entry does not hold; a quarantine entry is untracked or collected; or the engine could not read one of its inputs. The R1, R2, R3 and error lines above name each file. Give the file its tier suffix or its collector, quarantine it with a reason, an owner and a since date, or delete it."
             exit 1
           fi
