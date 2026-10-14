@@ -220,7 +220,13 @@
         "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `knip`: 6.40.0 matures 2026-10-13T16:07Z",
         "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `knip` row"
       ],
-      "reviews": {}
+      "reviews": {
+        "due": {
+          "date": "2026-10-14",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-14, one day after the due day, inside the check's 3-day grace; the reminder opened #561 at 2026-10-13T19:45Z. 6.40.0 left the 7-day buffer at 2026-10-13T16:07Z (published 2026-10-06T16:07:13Z). Done: the root package.json literal moved 6.39.0 → 6.40.0, and pnpm install, resolved with a 7-day minimum release age and no exclude, moved only knip in the lockfile (parsed with yaml.safe_load_all: one package, one snapshot with identical dependencies, the root importer); pnpm dedupe --check exits 0, and the deprecated subdependencies stay 26. Registry, read 2026-10-14T18:16Z: 6.41.0 is latest, published 2026-10-09T07:57:03Z, and nothing newer is published. OSV: nothing for 6.39.0, 6.40.0 or 6.41.0; 6.40.0 declares the dependency, peer and engines ranges of 6.39.0 key for key. Release notes of 6.40.0: Jasmine and osls plugins, test files excluded from package entries in production mode, null package exports, workspace exports with fallback arrays and Serverless file variables resolved, and fixes to the Commitlint, Capacitor, simple-git-hooks, PostCSS, Playwright, Vitest, Rsbuild, oxlint and Jest plugins; nothing on security. Ledger: the knip 6.40.0 JSON report is identical to 6.39.0's, the same 308 findings, knip-baseline.json is unchanged, and node scripts/knip-ratchet.mjs exits 0 with 0 regressions. The holds gate exits 0 with empty stderr at 18:27:49Z, 12 of 50 below latest mature, knip at latest mature; with 6.39.0 still installed it measured 13 at 18:17:14Z, knip held by its canon row. 6.41.0 matures 2026-10-16T07:57Z: the canon row knip pre-registers it (on knip alone without that row the gate exits 0 at --instant 2026-10-16T07:57:02Z and 1 at 07:57:04Z; with it, 0 at both), and the date entry hold-knip-6.41.0 schedules that bump. Clean."
+        }
+      }
     },
     {
       "kind": "date",
@@ -230,6 +236,17 @@
       "refs": [
         "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `vite`: 8.3.4 matures 2026-10-15T12:07Z; it declares postcss ^8.5.29, so the postcss catalog (8.5.28) moves with it",
         "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `vite` row"
+      ],
+      "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "hold-knip-6.41.0",
+      "title": "Pre-registered hold due: knip 6.41.0 is mature, move the root pin from 6.40.0",
+      "due": "2026-10-16",
+      "refs": [
+        "docs/security/SECURITY_CANON.md, §\"Build-tool version holds\", row `knip`: 6.41.0 matures 2026-10-16T07:57Z; it drops fdir and needs unbash ^5.0.0, oxc-parser ^0.153.0, formatly ^0.11.4, zod ^4.6.5 and smol-toml ^1.9.0, so more than knip moves in the lockfile",
+        "docs/development/TESTING_REFOUNDATION.md, §Toolchain lag, the `knip` row"
       ],
       "reviews": {}
     },
