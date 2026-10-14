@@ -762,12 +762,17 @@ jobs:
           # not match its own text, and the flag's name is spelled out nowhere
           # else in it. Fail-closed: a git grep that errors, or a scope below
           # 2500 files, read less of the tree than it holds.
-          # Part B: the node:test runner must KEEP its zero-collection guards.
-          # node:test has no equivalent default: a crashed or empty run prints a
-          # 0/0/0 TAP summary that parses as success, so run-tests.sh carries the
-          # check itself, once per file and once on the total. Both terms are
-          # pinned because deleting either restores the silent green with nothing
-          # left to notice it. Mirrors CLAUDE.md #31.
+          # Part B: the node:test runner must KEEP its zero-collection guards and
+          # read its counts from the summary reporter. node:test has no equivalent
+          # default: it counts a file that registers no test as one passing test,
+          # and counts read from a formatted report parse as zero the day its text
+          # changes, so run-tests.sh takes each file's counts from the one anchored
+          # line of scripts/testing/node-summary-reporter.mjs, which reads Node's
+          # test events, and carries the zero check itself, once per file and once
+          # on the total. Both zero terms are pinned because deleting either
+          # restores the silent green with nothing left to notice it; the reporter
+          # assignment is pinned, and the TAP reporter must be gone. Mirrors
+          # CLAUDE.md #31.
           # GitHub runs this body under `bash -e`: each status is captured with `||`, so
           # git grep's exit 1, which means "no match", is read rather than ending the step.
           SCOPE=$(git ls-files -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l) || SCOPE=0
@@ -785,14 +790,20 @@ jobs:
           BATCH_PIN=$(grep -c '\[ "\$tests" -eq 0 \]' apps/api/scripts/run-tests.sh || true)
           TOTAL_PIN=$(grep -c '\[ "\$TOTAL_TESTS" -eq 0 \]' apps/api/scripts/run-tests.sh || true)
           BATCH_PIN=${BATCH_PIN:-0}; TOTAL_PIN=${TOTAL_PIN:-0}
+          REPORTER_PIN=$(grep -c '^SUMMARY_REPORTER=.*/scripts/testing/node-summary-reporter\.mjs"$' apps/api/scripts/run-tests.sh || true)
+          TAP_PIN=$(grep -c -- '--test-reporter=tap' apps/api/scripts/run-tests.sh || true)
+          REPORTER_PIN=${REPORTER_PIN:-0}; TAP_PIN=${TAP_PIN:-0}
           if [ "$ACOUNT" -gt 0 ]; then
             echo "::error title=Fitness #31 violation::$ACOUNT line(s) of tracked files set vitest's pass-with-no-tests flag — that opts out of the only default that fails an empty run, so the suite reports green the day collection breaks"
             printf "%s\n" "$A" | head -20
           fi
           if [ "$BATCH_PIN" -lt 1 ] || [ "$TOTAL_PIN" -lt 1 ]; then
-            echo "::error title=Fitness #31 violation::apps/api/scripts/run-tests.sh lost a zero-collection guard (per-file found=$BATCH_PIN, total found=$TOTAL_PIN, each must be >= 1). node:test reports a crashed or empty run as a 0/0/0 TAP summary that parses as success; without these terms the runner passes over tests nobody executed."
+            echo "::error title=Fitness #31 violation::apps/api/scripts/run-tests.sh lost a zero-collection guard (per-file found=$BATCH_PIN, total found=$TOTAL_PIN, each must be >= 1). node:test counts a file that registers no test as one passing test; without these terms the runner passes over tests nobody executed."
           fi
-          if [ "$ACOUNT" -gt 0 ] || [ "$BATCH_PIN" -lt 1 ] || [ "$TOTAL_PIN" -lt 1 ]; then
+          if [ "$REPORTER_PIN" -lt 1 ] || [ "$TAP_PIN" -gt 0 ]; then
+            echo "::error title=Fitness #31 violation::apps/api/scripts/run-tests.sh no longer reads its counts from scripts/testing/node-summary-reporter.mjs (reporter assignment found=$REPORTER_PIN, must be >= 1; --test-reporter=tap found=$TAP_PIN, must be 0). Counts read from a formatted report parse as zero the day its text changes, and only the reporter leaves the stand-in pass of an empty file uncounted."
+          fi
+          if [ "$ACOUNT" -gt 0 ] || [ "$BATCH_PIN" -lt 1 ] || [ "$TOTAL_PIN" -lt 1 ] || [ "$REPORTER_PIN" -lt 1 ] || [ "$TAP_PIN" -gt 0 ]; then
             exit 1
           fi
 

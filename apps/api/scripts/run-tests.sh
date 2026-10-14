@@ -103,6 +103,13 @@ RUNNER_PATH="${BASH_SOURCE[0]}"
 # fixture; no workflow sets it.
 QUARANTINE_FILE="${QUARANTINE_FILE:-$(dirname "$RUNNER_PATH")/../../../packages/test-contracts/quarantine.json}"
 
+# The node:test reporter run_file reads its verdict from, handed to node as an
+# absolute path: node takes a value with no leading `./` or `/` for a package
+# name, and the runner may be called from any directory.
+SUMMARY_REPORTER="$(CDPATH='' cd -- "$(dirname "$RUNNER_PATH")/../../.." && pwd)/scripts/testing/node-summary-reporter.mjs"
+# The one line of the reporter's output run_file reads, matched whole.
+SUMMARY_LINE='^@@SUMMARY tests=([0-9]+) pass=([0-9]+) fail=([0-9]+) cancelled=([0-9]+) skipped=([0-9]+) todo=([0-9]+)$'
+
 # Prints every `*.<suffix>.test.ts` under tests/, outside tests/unit (the unit
 # tier, collected elsewhere), one per line in byte order, or in reverse byte
 # order under TEST_ORDER=reverse.
@@ -289,34 +296,34 @@ run_file() {
 
   local result
   # The runner's own exit code is CAPTURED, not discarded. A batch can end
-  # non-zero while reporting "# fail 0" — a crash after the summary, an
+  # non-zero while reporting no failure — a crash after the summary, an
   # unhandled rejection, a failed hook whose subtests are cancelled — and a gate
   # that reads only the counts calls all of those green.
   local runner_exit=0
-  # Pin the TAP reporter: the summary parser below greps "# tests N" (TAP
-  # format). Node's default reporter is version/TTY-dependent (spec emits
-  # "ℹ tests N"), which silently parses as 0 tests.
+  # The summary reporter (scripts/testing/node-summary-reporter.mjs) reads the
+  # documented test events and prints one anchored line of counts, after every
+  # failure with its detail. Node declares its own reporters' text unstable and
+  # ships no JSON reporter, so no formatted report is parsed here. The reporter
+  # also leaves out the one passing test node:test reports, named by the file's
+  # path, for a file that registers no test, so an emptied suite counts zero.
   # --conditions development: opt into the `development`->src export branch so
   # bare workspace specifiers resolve from src against an unbuilt tree (the flag
   # is on the command, NOT NODE_OPTIONS — GitHub Actions restricts NODE_OPTIONS
   # from GITHUB_ENV). See change dev-prod-resolution-model.
   # --test-concurrency=1: the process holds one file, and a batch's files run
   # one after another, so no two suites ever share the database at once.
-  result=$(node --conditions development --import tsx --test --test-reporter=tap --test-reporter-destination=stdout --test-force-exit --test-concurrency=1 --test-timeout="$timeout" $extra_flags "$file" 2>&1) || runner_exit=$?
+  result=$(node --conditions development --import tsx --test --test-reporter="$SUMMARY_REPORTER" --test-reporter-destination=stdout --test-force-exit --test-concurrency=1 --test-timeout="$timeout" $extra_flags "$file" 2>&1) || runner_exit=$?
 
-  local tests=$(echo "$result" | grep "^# tests " | tail -1 | awk '{print $3}')
-  local pass=$(echo "$result" | grep "^# pass " | tail -1 | awk '{print $3}')
-  local fail=$(echo "$result" | grep "^# fail " | tail -1 | awk '{print $3}')
-  local cancel=$(echo "$result" | grep "^# cancelled " | tail -1 | awk '{print $3}')
-  local skip=$(echo "$result" | grep "^# skipped " | tail -1 | awk '{print $3}')
-  tests=${tests:-0}; pass=${pass:-0}; fail=${fail:-0}; cancel=${cancel:-0}; skip=${skip:-0}
-
-  # node:test reports a file that registers no test at all as ONE passing test
-  # named by the file's own path, so an emptied suite reads "# tests 1". Only a
-  # one-file run can tell that test from a real one.
-  if [ "$tests" -eq 1 ] && [ "$pass" -eq 1 ] && echo "$result" | grep -Fxq "ok 1 - $file"; then
-    tests=0
-    pass=0
+  # The counts are read from the last @@SUMMARY line, and only when the whole
+  # pattern matches it. A run with none — the reporter did not load, or the
+  # process died before the end of its run — has no counts to read, and fails
+  # below instead of reading as zero.
+  local tests=0 pass=0 fail=0 cancel=0 skip=0 summary summary_read=""
+  summary=$(printf '%s\n' "$result" | grep '^@@SUMMARY ' | tail -1)
+  if [[ "$summary" =~ $SUMMARY_LINE ]]; then
+    tests=${BASH_REMATCH[1]} pass=${BASH_REMATCH[2]} fail=${BASH_REMATCH[3]}
+    cancel=${BASH_REMATCH[4]} skip=${BASH_REMATCH[5]}
+    summary_read=1
   fi
 
   TOTAL_TESTS=$((TOTAL_TESTS + tests))
@@ -327,9 +334,10 @@ run_file() {
 
   # Each guard adds its reason, so the verdict line names every one that fired.
   local reasons=""
+  if [ -z "$summary_read" ]; then reasons="no @@SUMMARY line"; fi
   if [ "$fail" -gt 0 ]; then reasons="${reasons:+$reasons, }$fail failed"; fi
   # A CANCELLED test is a test that did not run, and Node reports a broken
-  # `before` hook as cancelled subtests with "# fail 0" — so a batch whose whole
+  # `before` hook as cancelled subtests with no failure — so a batch whose whole
   # setup collapsed used to print OK. A gate that cannot go red on its own setup
   # gates nothing, which matters most for the batches called merge-blocking.
   if [ "$cancel" -gt 0 ]; then reasons="${reasons:+$reasons, }$cancel cancelled"; fi
@@ -366,19 +374,15 @@ run_file() {
     # green suite floods the last 200 lines, the failing test scrolls out and
     # the log reports "fail 1" without ever naming it — the 'production'
     # batch produced two consecutive red CI runs whose logs never said which
-    # test failed. Each top-level or nested 'not ok' line is printed with its
-    # TAP YAML detail block (up to its closing '...'), bounded per failure so
-    # a pathological block cannot flood the log. Anchored to line start:
-    # a test NAME containing "not ok" (they exist in this suite) sits after
-    # "ok N - " and must not trigger the printer.
-    echo "── failures in '$file' (every 'not ok' + its detail block) ──"
-    echo "$result" | awk '
-      /^[[:space:]]*not ok / { printing = 1; budget = 40 }
-      printing { print; budget-- }
-      printing && (/^[[:space:]]*\.\.\.$/ || budget <= 0) { printing = 0 }
-    '
+    # test failed. The reporter prefixes every line it relays (what a suite
+    # printed, and each diagnostic) with '# ', so the lines without it are its
+    # own account — each failing test or suite with its error, its cause and
+    # its first stack frames, bounded per failure; each skip and todo; the
+    # summary — and whatever node itself wrote to stderr.
+    echo "── failures in '$file' (each failing test or suite with its detail, each skip, the summary) ──"
+    printf '%s\n' "$result" | grep -v '^# ' || true
     echo "── output of '$file' (last 200 lines) ──"
-    echo "$result" | tail -200
+    printf '%s\n' "$result" | tail -200
     echo "── end of '$file' output ──"
   fi
 }
@@ -507,21 +511,21 @@ if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || { [ -n "${TIER:-}" ] 
     echo "       story."
   elif [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
     echo "ERROR: every test that ran reported passing, yet a file's runner exited"
-    echo "       non-zero, or a file collected nothing. A crash after the summary,"
-    echo "       an unhandled rejection, or an emptied suite all end this way — with"
-    echo "       nothing in the counts to show for it."
+    echo "       non-zero, a file collected nothing, or its run printed no summary."
+    echo "       A crash, an unhandled rejection or an emptied suite all end this"
+    echo "       way, with nothing in the counts to show for it."
     echo "       See the FAILED files lines above for each file and its reasons;"
     echo "       its dumped output follows its verdict line."
   elif [ "$TOTAL_FAIL" -eq 0 ]; then
     echo "ERROR: $TOTAL_CANCEL test(s) were CANCELLED — a cancelled test never ran."
-    echo "       Node reports a broken before/after hook this way, with '# fail 0'."
+    echo "       Node reports a broken before/after hook this way, with no failed test."
   fi
   exit 1
 fi
 
-# A crashed node:test process yields a 0/0/0 summary that would otherwise pass
-# silently. In CI tiers this script is a load-bearing gate, so zero collected
-# tests is a failure, never a green.
+# A tier whose files counted zero tests between them ran nothing, and would
+# otherwise pass silently. In CI tiers this script is a load-bearing gate, so zero
+# collected tests is a failure, never a green.
 if [ -n "${TIER:-}" ] && [ "$TOTAL_TESTS" -eq 0 ]; then
   echo "ERROR: TIER=$TIER collected 0 tests — refusing to pass a vacuous run."
   exit 1
