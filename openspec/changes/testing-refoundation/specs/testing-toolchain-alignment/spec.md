@@ -49,20 +49,21 @@ across a multi-week change.
 
 ### Requirement: A lag older than the 30-day budget carries a documented hold; a younger lag is reported
 
-> **AMENDED 2026-10-14 by [ADR-0036](../../../../../docs/technical/ADR-0036-dependency-update-cadence.md).**
-> This requirement read "every lag below latest mature carries a documented hold, and a gate proves
-> it". Every maturity instant then became a unit, and a row written ahead of an instant exempted its
-> package for as long as it stood. Non-security bumps now wait for a weekly window, and a lag needs a
-> row only past a 30-day budget.
-
 A testing dependency that stays below its latest-mature target is reported, and needs no row, while
 the OLDEST stable release above its installed version has been mature for less than **30 days**
-(37 days after that release was published). Past that budget it MUST have a hold row in the canon
-holds table carrying a measured reason, the date, and a **remove-when** condition that can actually
-fire. A CI step MUST compare the holds table against the measured lag set and fail when a lag past
-the budget has no row, and MUST refuse a row whose text describes a scheduled hold (the words
-`scheduled` or `pre-registered`). The step MUST fail closed: zero parsed holds rows, or an
-unreadable table, exits 1 rather than reporting a clean zero.
+(that is, less than 37 days after its publication, because a release matures 7 days after it is
+published). Past that budget it MUST have a hold row in the canon holds table carrying a measured
+reason, the date, and a **remove-when** condition that can actually fire. A CI step MUST compare the
+holds table against the measured lag set and fail when a lag past the budget has no row, and MUST
+refuse a row whose text describes a scheduled hold (the words `scheduled` or `pre-registered`). The
+step MUST fail closed: zero parsed holds rows, or an unreadable table, exits 1 rather than reporting
+a clean zero.
+
+> **Amended 2026-10-14 ([ADR-0036](../../../../../docs/technical/ADR-0036-dependency-update-cadence.md)):**
+> previously read "every lag below latest mature carries a documented hold, and a gate proves it".
+> Every maturity instant then became a unit, and a row written ahead of an instant exempted its
+> package for as long as it stood. Non-security bumps now wait for a weekly window, and a lag needs a
+> row only past a 30-day budget.
 
 #### Scenario: Red — a lag past the budget with no hold row exits 1 [static]
 

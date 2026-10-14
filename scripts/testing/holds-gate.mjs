@@ -240,10 +240,14 @@ function parseHolds(markdown) {
     }
     if (isSeparator) continue;
     const packages = cells[packageAt] ?? "";
-    if (cells.some((cell) => RETIRED_SCHEDULE_WORDS.test(cell))) {
+    // The word is reported as the row spells it, so the author can find it in the table.
+    const retired = cells
+      .map((cell) => RETIRED_SCHEDULE_WORDS.exec(cell)?.[0])
+      .find((word) => word !== undefined);
+    if (retired !== undefined) {
       refusals.push(
-        `row ${packages} is a scheduled hold (PRE-REGISTERED/Scheduled); the budget replaced ` +
-          `scheduled rows (ADR-0036)`
+        `row ${packages} says "${retired}": the words \`scheduled\` and \`pre-registered\`, in any ` +
+          `case, describe a retired scheduled hold; the budget replaced scheduled rows (ADR-0036)`
       );
       continue;
     }
@@ -538,16 +542,19 @@ function evaluate(options) {
       continue;
     }
 
-    // Past the budget exactly when some unmet release was already mature `BUDGET_MS` ago, i.e. it
-    // was published on or before `boundary - BUDGET_MS`.
-    const overdue = latestMature(times, boundary - BUDGET_MS);
-    if (overdue === null || compareVersions(installed, overdue) >= 0) {
+    // The budget floor is the newest stable release that has been mature for 30 days or more, i.e.
+    // published on or before `boundary - BUDGET_MS`. Installed at or above the floor (or with no
+    // floor yet), every unmet release is younger than the budget: within budget, no row needed.
+    // Installed below it, the floor itself has outlived the budget: past budget, and the row lookup
+    // below decides.
+    const budgetFloor = latestMature(times, boundary - BUDGET_MS);
+    if (budgetFloor === null || compareVersions(installed, budgetFloor) >= 0) {
       const oldest = oldestUnmetPublish(times, installed, boundary);
       if (oldest === null) {
         // Unreachable while the two helpers agree: the target is itself a stable release above
         // `installed`, published on or before the boundary, and a target whose publish time does not
-        // parse is counted overdue by `latestMature` too, so it never lands here. The guard turns a
-        // later change to either helper into a refusal instead of a day count nobody computed.
+        // parse is taken as the budget floor by `latestMature` too, so it never lands here. The guard
+        // turns a later change to either helper into a refusal instead of a day count nobody computed.
         violations.push(
           `${name} is below its target ${target}, but no release above ${installed} could be ` +
             `dated, so the days it has spent in the budget cannot be counted.`
@@ -567,7 +574,7 @@ function evaluate(options) {
     if (row === undefined) {
       violations.push(
         `${name} is installed at ${installed}, below its latest-mature target ${target}, and ` +
-          `${overdue} has been mature for ${String(BUDGET_DAYS)} days or more with no hold row ` +
+          `${budgetFloor} has been mature for ${String(BUDGET_DAYS)} days or more with no hold row ` +
           `naming ${name} in ${canonPath} §"${HOLDS_HEADING.replace(/^#+\s*/, "")}".`
       );
       lines.push(`${name}\t${installed}\t${target}\tlag: UNDOCUMENTED`);

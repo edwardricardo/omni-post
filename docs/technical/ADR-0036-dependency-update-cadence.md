@@ -18,7 +18,8 @@
 Measured in the week to 2026-10-14 (tracker §Toolchain lag, holds log lines 21–31):
 
 1. **The gate goes red on the day a release matures.** `scripts/testing/holds-gate.mjs` compares
-   each of the 50 toolchain packages of `scripts/testing/toolchain-population.json` with its latest
+   each package of the **toolchain population** — the 50 packages listed in
+   `scripts/testing/toolchain-population.json`, the set the holds gate measures — with its latest
    release past the 7-day buffer, and exits 1 on any lag no row of `SECURITY_CANON.md`
    §"Build-tool version holds" names. The only ways to stay green were a bump on the day of the
    instant or a row written before it.
@@ -59,14 +60,17 @@ The owner's four points (2026-10-14):
 
 The design choices, stated so the owner can override any of them:
 
-- **The budget counts from the maturity instant of the OLDEST unmet stable release**, so a lag turns
-  red 37 days after that release was published. The gate prints a lag inside it as
+- **The budget counts from the maturity instant of the OLDEST unmet stable release**: a lag turns
+  red 30 days after that release matured, that is 37 days after publication, because a release
+  matures 7 days after it is published. The gate prints a lag inside it as
   `lag: within budget (<n> d of 30)` and does not look it up in the table.
 - **The gate refuses a row whose cells say `scheduled` or `pre-registered`**, in any case, as whole
-  words (`holds-gate: row <package> is a scheduled hold …`). The six scheduled rows were deleted in
-  the same change, because each lag was inside the budget.
-- **The scope is the toolchain population.** Production direct dependencies move by CVE floors and by
-  deliberate units; the gate measures none of them, and claims nothing about their freshness.
+  words, naming the word as the row spells it
+  (`holds-gate: row <package> says "<word>": the words … describe a retired scheduled hold …`).
+  The six scheduled rows were deleted in the same change, because each lag was inside the budget.
+- **The scope is the toolchain population** (Context item 1). Production direct dependencies move by
+  CVE floors and by deliberate units; the gate measures none of them, and claims nothing about
+  their freshness.
 - **The watchlist keeps its package entries** for versions taken inside the buffer, with their 7-
   and 14-day reviews; its `date` kind stays for contract milestones (Node 26 on 2026-10-28).
 - **A follow-up unit** adds the weekly digest (one issue per window: lags with their days in budget,
@@ -107,13 +111,16 @@ The design choices, stated so the owner can override any of them:
 
 ## Consequences
 
-- A toolchain package may lag up to 37 days after a release is published (30 after it matures)
-  with no row; a lag past that needs a row with a measured reason, or the gate exits 1.
+- A toolchain package may lag for up to 30 days after a release matures (37 after it is published,
+  the 7-day buffer included) with no row; a lag past that needs a row with a measured reason, or
+  the gate exits 1.
 - Fewer certifications: bumps arrive once a week, by family. A red on the holds gate now means a
   lag past the budget, a refused row, or an input the gate could not read.
-- Inside the budget, a real hold and a lag the next window takes read the same (`within budget`);
-  the summary splits them only past it (`… below latest mature (W within budget, H held, U
-undocumented)`).
+- Inside the budget, a real hold and a lag the next window takes read the same (`within budget`).
+  The summary line counts the lags three ways — W, the lags within budget; H, the lags past the
+  budget held by a real row; U, the lags past the budget that no row names, each one a red — and
+  prints them as:
+  `N population packages measured, M below latest mature (W within budget, H held, U undocumented)`.
 - `SECURITY_CANON.md` §"Build-tool version holds" lost its six scheduled rows. One row,
   `@vitejs/plugin-react`, stands only because its lag was already past the budget when the budget
   landed (5.2.0 mature since 2026-03-19); it leaves with the move the first window takes.

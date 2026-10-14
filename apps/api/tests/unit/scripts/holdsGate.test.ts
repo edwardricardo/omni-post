@@ -488,7 +488,10 @@ describe("testing toolchain holds gate", () => {
       });
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("row `widget` is a scheduled hold");
+      expect(result.stderr).toContain('row `widget` says "Scheduled"');
+      expect(result.stderr).toContain(
+        "the words `scheduled` and `pre-registered`, in any case, describe a retired scheduled hold"
+      );
       expect(result.stderr).toContain("ADR-0036");
     });
 
@@ -520,7 +523,7 @@ describe("testing toolchain holds gate", () => {
       });
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("row `widget` is a scheduled hold");
+      expect(result.stderr).toContain('row `widget` says "pre-registered"');
     });
   });
 
