@@ -2022,12 +2022,19 @@ jobs:
           # not `vitest run`), and on any input it cannot read in full. Pinned by
           # packages/test-contracts/tests/, which Package Tests runs. The quarantine path resolves
           # against the package directory, where `pnpm --filter` runs the script, so the base
-          # quarantine is handed in by an absolute path. A base commit without the file fails closed.
+          # quarantine is handed in by an absolute path.
+          # The base fails closed in two ways, each with its own error: a base ref that names no
+          # commit, and a base commit that holds no quarantine.json. A push whose commit has no
+          # parent has no HEAD~1, so it fails at the first by construction.
           set -euo pipefail
           BASE_REF="${FITNESS_BASE_REF:-origin/main}"
           BASE_QUARANTINE="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/base-quarantine.json"
-          if ! git show "$BASE_REF:packages/test-contracts/quarantine.json" > "$BASE_QUARANTINE"; then
-            echo "::error title=Fitness #30 violation::The base commit $BASE_REF holds no readable packages/test-contracts/quarantine.json, so the quarantine cannot be held to shrink-only. The git line above names the cause."
+          if ! BASE_COMMIT=$(git rev-parse --verify --quiet "$BASE_REF^{commit}"); then
+            echo "::error title=Fitness #30 violation::The base ref $BASE_REF does not resolve to a commit, so there is no base quarantine to hold the quarantine to shrink-only. On a push the base is HEAD~1, which a commit with no parent does not have."
+            exit 1
+          fi
+          if ! git show "$BASE_COMMIT:packages/test-contracts/quarantine.json" > "$BASE_QUARANTINE"; then
+            echo "::error title=Fitness #30 violation::The base commit $BASE_REF ($BASE_COMMIT) holds no readable packages/test-contracts/quarantine.json, so the quarantine cannot be held to shrink-only. The git line above names the cause."
             exit 1
           fi
           if ! pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base "$BASE_QUARANTINE"; then

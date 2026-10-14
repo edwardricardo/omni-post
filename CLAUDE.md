@@ -754,9 +754,11 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # fewer than 800 test-shaped tracked files, fewer than 80 vitest configs, no Playwright config, a
 # vitest or Playwright config or the node:test listing that collects no file, no tracked `*.k6.js`,
 # a listing that fails, and a collectors.json, ruleset, package manifest, quarantine or base
-# quarantine that is missing or does not parse; a base commit that holds no quarantine.json stops
-# the step before the engine runs; a workflow collectors.json names that cannot be read breaks R2.
-# A usage error exits 2.
+# quarantine that is missing or does not parse; a workflow collectors.json names that cannot be
+# read breaks R2. Two cases stop the step before the engine runs, each with its own `::error`: a
+# base ref that does not resolve to a commit (a push whose commit has no parent has no `HEAD~1`,
+# so it fails here by construction), and a base commit that holds no quarantine.json. A usage
+# error exits 2.
 # RESIDUAL LIMITS, stated rather than implied: (1) on a push the base is `HEAD~1`, so a push of
 # several commits holds only its last commit to shrink-only, and an entry added by an earlier one
 # passes; (2) a pull request whose base branch predates quarantine.json fails closed until it
@@ -772,7 +774,8 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # (reporters, coverage provider, reporter, directory or include, aliases) passes.
 BASE_REF="${FITNESS_BASE_REF:-origin/main}"
 BASE_QUARANTINE="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/base-quarantine.json"
-git show "$BASE_REF:packages/test-contracts/quarantine.json" > "$BASE_QUARANTINE"   # expect exit 0
+BASE_COMMIT=$(git rev-parse --verify --quiet "$BASE_REF^{commit}")   # expect exit 0: the ref names a commit
+git show "$BASE_COMMIT:packages/test-contracts/quarantine.json" > "$BASE_QUARANTINE"   # expect exit 0
 pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base "$BASE_QUARANTINE"   # expect exit 0 and:
 #   reach: PASS
 #   summary: <N> test-shaped tracked files; <C> collected by <S> sources, <R> of them run by a

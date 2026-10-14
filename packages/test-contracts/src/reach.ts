@@ -170,20 +170,28 @@ function readerUnder(root: string): (file: string) => Result<string, string> {
   };
 }
 
+/** What R3's shrink-only clause needs before it can compare: which inputs were named and read. */
+interface ShrinkInputs {
+  /** Whether `--base` named a base quarantine. */
+  readonly baseNamed: boolean;
+  /** Whether the disk listing held; when it did not, the run stopped before reading anything. */
+  readonly diskListed: boolean;
+  readonly baseRead: boolean;
+  readonly quarantineRead: boolean;
+}
+
 /**
- * @param options - Whether a base quarantine was named.
- * @param quarantine - The quarantine under check as read, `null` when it could not be.
- * @param base - The base quarantine as read, `null` when none was named or it could not be read.
- * @returns Whether R3's shrink-only clause compared the two, and why not when it did not.
+ * The one place that decides the summary's shrink-check status, for a run that stopped at the
+ * disk listing and for one that read everything alike.
+ *
+ * @param inputs - Which inputs were named and read.
+ * @returns Whether R3's shrink-only clause compared the two quarantines, and why not when it did not.
  */
-function shrinkCheckOf(
-  options: ReachOptions,
-  quarantine: readonly QuarantineEntry[] | null,
-  base: readonly QuarantineEntry[] | null
-): ShrinkCheck {
-  if (options.basePath === undefined) return "not run: no --base given";
-  if (base === null) return "not run: base unreadable";
-  if (quarantine === null) return "not run: quarantine unreadable";
+function shrinkCheckOf(inputs: ShrinkInputs): ShrinkCheck {
+  if (!inputs.baseNamed) return "not run: no --base given";
+  if (!inputs.diskListed) return "not run: disk listing failed";
+  if (!inputs.baseRead) return "not run: base unreadable";
+  if (!inputs.quarantineRead) return "not run: quarantine unreadable";
   return "ran";
 }
 
@@ -239,10 +247,12 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
       packages: 0,
       violations: [],
       errors: [inventory.error.message],
-      shrinkCheck:
-        options.basePath === undefined
-          ? "not run: no --base given"
-          : "not run: disk listing failed",
+      shrinkCheck: shrinkCheckOf({
+        baseNamed: options.basePath !== undefined,
+        diskListed: false,
+        baseRead: false,
+        quarantineRead: false,
+      }),
     };
   }
   const errors: string[] = [];
@@ -287,7 +297,12 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
     packages: scripts.packages,
     violations,
     errors,
-    shrinkCheck: shrinkCheckOf(options, quarantine, base),
+    shrinkCheck: shrinkCheckOf({
+      baseNamed: options.basePath !== undefined,
+      diskListed: true,
+      baseRead: base !== null,
+      quarantineRead: quarantine !== null,
+    }),
   };
 }
 
