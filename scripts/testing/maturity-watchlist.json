@@ -246,45 +246,6 @@
     },
     {
       "kind": "package",
-      "name": "@typescript-eslint/parser",
-      "version": "8.71.0",
-      "published": "2026-09-28T17:09:20.244Z",
-      "members": [
-        "@typescript-eslint/eslint-plugin@8.71.0",
-        "@typescript-eslint/project-service@8.71.0",
-        "@typescript-eslint/scope-manager@8.71.0",
-        "@typescript-eslint/tsconfig-utils@8.71.0",
-        "@typescript-eslint/type-utils@8.71.0",
-        "@typescript-eslint/types@8.71.0",
-        "@typescript-eslint/typescript-estree@8.71.0",
-        "@typescript-eslint/utils@8.71.0",
-        "@typescript-eslint/visitor-keys@8.71.0"
-      ],
-      "entered": {
-        "date": "2026-10-05",
-        "commit": "53e6cc0c",
-        "pr": 421,
-        "via": "the catalog entry of @typescript-eslint/parser and the root literal of @typescript-eslint/eslint-plugin, 6.9 days after publication and 2.9 hours before the 17:09Z maturity, on Edward's instruction of 2026-10-05 (the pre-registered hold row scheduled this move for maturity)"
-      },
-      "milestones": { "maturity": "2026-10-05", "final": "2026-10-12" },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-05",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-05, the milestone day, researched from 17:56Z, after the 7-day buffer had closed for all ten packages (8.71.0 published 2026-09-28 between 17:09Z and 17:13Z). Registry: 8.71.0 is no longer latest: 8.71.1, after fifteen alphas, is latest for all ten since 2026-10-05T17:08Z to 17:09Z; it keeps the typescript >=4.8.4 <6.1.0 and eslint peers, its plugin peers @typescript-eslint/parser ^8.71.1, and it matures 2026-10-12T17:08Z to 17:09Z, the final milestone's day. OSV, which carries the GitHub database: nothing for any of the ten at 8.71.0, at 8.71.1 or at any version; GitHub's global advisories and the repository's security advisories list none. Release notes: 8.71.0 adds no-unsafe-enum-assignment (#12732) and fixes switch-exhaustiveness-check, unbound-method, no-unnecessary-type-assertion and no-misused-promises; nothing on security, and none of the five is enabled here: eslint.config.ts configures no-unused-vars, no-explicit-any and no-floating-promises and spreads no typescript-eslint preset. 8.71.1's nine fixes carry nothing on security; two reach this configuration: no-unused-vars now reports a value used only as a type when a same-named type is exported (#12892, closing #10658 of 2025-01-15: a false negative, not a regression of 8.71.0), and the project service throttles its cleanup when opening files (#12934). Upstream issues: five opened since 2026-09-28, the search and the issues API agreeing; three name no-unsafe-enum-assignment (#12951 and #12956 closed, #12966 open), #12947 asks for a no-shadow option, and #12940 (no-unnecessary-type-parameters, fixed in 8.71.1 by #12941) was opened hours before 8.71.0; none names the parser, the project service or a rule enabled here. Reachability, the lockfile parsed with yaml.safe_load_all and walked uncut: no production dependency of the 99 importers reaches any of the ten; they come only through the devDependencies of the root and of packages/eslint-plugin-testing. Works here: PR #421 recorded pnpm lint --max-warnings 0 (no cache) and pnpm exec tsc -b --force exit 0 on 8.71.0, @packages/eslint-plugin-testing, whose RuleTester parses TypeScript, 67/67, and the battery on its tip dbbfeeb6 green (15:06Z to 15:27Z, 21 steps exit 0). The holds gate, re-run at 17:59Z, exits 0 with both packages at or above latest mature (target 8.71.0, 8.71.1 being inside the buffer); evaluated at --instant 2026-10-12T17:11Z it names both as an undocumented lag against 8.71.1, so the move to 8.71.1, or a pre-registered hold row, is owed by 2026-10-12T17:08Z. Clean; the 14-day review is due 2026-10-12."
-        },
-        "final": {
-          "date": "2026-10-11",
-          "early": {
-            "reason": "Recorded on 2026-10-11, one day before the 2026-10-12 milestone, in the hold bump that takes the pair from 8.71.0 to 8.71.1 on Edward's instruction of 2026-10-11, about 22 hours before 8.71.1's own maturity: all ten 8.71.0 packages leave the tree in that change, so no later day can review them installed. The registry and OSV were re-checked at 2026-10-11T19:05Z, as this record was written."
-          },
-          "outcome": "clean",
-          "note": "Researched 2026-10-11 from 18:18Z, a day before the milestone, and recorded the same day as an early review. Registry: 8.71.1 (published 2026-10-05 between 17:08Z and 17:09Z) is latest for all ten, and only 8.71.2 alphas are newer (canary 8.71.2-alpha.4, 2026-10-11T08:09Z, keeping the typescript >=4.8.4 <6.1.0 and eslint peers). OSV, which carries the GitHub database: nothing for any of the ten at 8.71.0, at 8.71.1 or at any version; GitHub's global advisories and the repository's security advisories list none. Upstream issues: twelve opened from 2026-10-05, the search API listing them all. #12980 (closed 2026-10-07, fixed by #12989 for the next release) is a regression 8.71.1's #12892 introduced: no-unused-vars reports a false positive when it runs without the typescript-eslint parser, which never happens here, since eslint.config.ts applies @typescript-eslint/no-unused-vars only to *.ts and *.tsx through that parser. #12979 is a related report on Vue files with eslint-plugin-vue 9, closed as not planned. #12975 (no-unused-vars args after-used, reported on 8.70.0) and #12972 (no-unnecessary-type-parameters) are closed; #12993 (no-unnecessary-type-parameters suggestion) and #13004 (type-utils, symbol-keyed and private properties) are open and name no rule enabled here; the rest are project-service performance proposals (#12981 to #12984) and repository chores (#13002, #13007). None names an 8.71.0 defect reaching this configuration. Reachability, the lockfile parsed with yaml.safe_load_all and walked uncut after the bump: no production dependency of the 101 importers reaches any of the ten; no 8.71.0 copy is left, and the ten resolve 8.71.1, one copy each, shared by eslint-plugin-jsdoc 65.1.0, @es-joy/jsdoccomment 0.98.0 and @vitest/eslint-plugin 1.6.27 after deduplication. Works here on 8.71.1: pnpm lint --max-warnings 0 (no cache) and pnpm typecheck:configs exit 0, and @packages/eslint-plugin-testing, whose RuleTester parses TypeScript, passes 107/107. Clean; 8.71.1 gets its own entry, its maturity review due 2026-10-12 and its 14-day review 2026-10-19."
-        }
-      }
-    },
-    {
-      "kind": "package",
       "name": "source-map-js",
       "version": "1.2.2",
       "published": "2026-09-30T14:08:09.382Z",
@@ -315,7 +276,13 @@
         "via": "the catalog CVE floor, 2.4 days after publication and about 4.5 days before the 2026-10-13T04:10Z maturity: the latest mature 8.3.2 is inside the range >=8.3.0 <=8.3.2 of GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg and GHSA-9jrq-w75r-8gcw (vitejs/vite repository advisories of 2026-10-06, not yet in OSV or the GitHub global database), and 8.3.3 is the minimal patched version; dev-only, the devDependencies of apps/admin and apps/client"
       },
       "milestones": { "maturity": "2026-10-13", "final": "2026-10-20" },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-14",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-14, one day after the 2026-10-13 milestone, inside the check's 3-day grace; the reminder opened #562 at 2026-10-13T19:45Z. 8.3.3 left the 7-day buffer at 2026-10-13T04:10Z (published 2026-10-06T04:10:19Z). Registry, read 2026-10-14T18:07Z: 8.3.4 is latest (2026-10-08T12:07:04Z) and matures 2026-10-15T12:07Z; nothing newer is published on any line (8.2.4, 8.1.6, 7.3.7 and 6.4.4, the backports of 2026-10-06, are the newest of theirs). 8.3.4 keeps 8.3.3's peers, optional dependencies and engines and raises two dependency ranges, postcss ^8.5.28 to ^8.5.29 and rolldown ~1.2.11 to ~1.2.12. The lockfile, parsed with yaml.safe_load_all, holds one vite, 8.3.3, one postcss, 8.5.28, and rolldown 1.2.12 with its bindings, so only postcss must move with 8.3.4: 8.5.29 (2026-10-05T09:28Z) is mature, and 8.5.30, latest since 2026-10-12T20:38Z, matures 2026-10-19T20:38Z. OSV, at 18:07Z: nothing for vite 8.3.2, 8.3.3 or 8.3.4. The three vitejs/vite repository advisories this floor closes, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg and GHSA-9jrq-w75r-8gcw, still answer 404 on OSV and on GitHub's global endpoint and still carry no CVE id, so pnpm audit still cannot see them; the repository lists them unchanged since 2026-10-06T14:15Z, fixed in 8.3.3, with nothing newer, and no global advisory affects vite@8.3.3 or 8.3.4. Release notes of 8.3.4 (2026-10-08): one feature (import.meta.hot.acceptExports in bundled dev), sixteen bug fixes, a performance change and a refactor; none names an advisory. One fixes a regression of 8.3.3: #23689 stops a transformIndexHtml call with a query-bearing root URL from adding the filesystem root to the watcher (#23679, introduced by 8.3.3's #23653, the GHSA-9jrq-w75r-8gcw fix). It needs that URL shape and an inline style, and neither caller here passes one: @vitest/browser 4.1.11 calls it with /@fs/ and the tester file path, @storybook/builder-vite 10.6.1 with /iframe.html. Upstream issues: besides #23679 (closed 2026-10-08), four more name 8.3.3, a Yarn nodeLinker pnpm cache (#23666), a dev client rewriting server-rendered CSS (#23696), a Svelte dependency scan (#23669) and a Windows watch path (#23670, a duplicate), all closed, and two older issues match the string only; no issue opened since 2026-10-06 carries the regression label, and none of the ten that name 8.3.4 does. Reachability: dev-only; no production dependency of any importer reaches vite (canon CVE-floor row vite). Works here, on the installed 8.3.3 (apps/admin and apps/client): main b5773184's CI run 38593155624 (push, 2026-10-14T15:52Z) passed Storybook Stories, pnpm --filter @apps/client test:stories in Chromium (9 files, 68 tests), Frontend Tests (the admin's 129 and the client's 556 vitest tests), both API test shards and Package Tests. The holds gate on vite alone exits 0 now and at --instant 2026-10-15T12:08Z, where the lag against 8.3.4 is held by the canon row vite; the move to 8.3.4, with postcss 8.5.29, is the date entry hold-vite-8.3.4, due 2026-10-15. Clean; the 14-day review is due 2026-10-20."
+        }
+      }
     },
     {
       "kind": "package",
@@ -329,7 +296,13 @@
         "via": "the catalog CVE floor, 2.9 days after publication and about 4.1 days before the 2026-10-12T22:37Z maturity: 4.7.9 is inside the range >=4.0.0 <=4.7.9 of GHSA-8r5x-fm3f-whwj and GHSA-p8wg-vrv2-v86f (critical) and GHSA-xw65-4hp5-5hc7 (moderate), published to the GitHub global database on 2026-10-08T17:52Z, and 4.7.10 is the minimal patched version and latest; production, packages/shared BaseTemplateEngine under the API's tenant template compile route and the client preview"
       },
       "milestones": { "maturity": "2026-10-12", "final": "2026-10-19" },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-14",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-14, two days after the 2026-10-12 milestone, inside the check's 3-day grace; the reminder opened #560 at 2026-10-12T00:14Z and the review was taken up late. 4.7.10 left the 7-day buffer at 2026-10-12T22:37Z (published 2026-10-05T22:37:37Z). Registry, read 2026-10-14T17:57Z: 4.7.10 is latest, legacy is 3.0.8, and nothing newer is published (the document was last modified at 4.7.10's own publication). OSV, the same instant: nothing for 4.7.10; 4.7.9 carries the three advisories this floor closes. One of them changed after the floor was taken: GHSA-p8wg-vrv2-v86f now reads >=3.0.0 <=4.7.9 (the repository advisory updated 2026-10-09T20:56Z, GitHub's global record 2026-10-12T14:33Z, OSV 14:45Z), while the other two keep >=4.0.0; the fix is still 4.7.10, and the lockfile, parsed with yaml.safe_load_all, holds one copy, 4.7.10, consumed only by packages/shared, so no 3.x copy is reached. The canon CVE-floor row handlebars said all three start at 4.0.0 and is corrected in this change. GitHub: no global advisory affects handlebars@4.7.10, and the repository's newest advisories are those three, published there 2026-10-05. Upstream: v4.7.10 (2026-10-05T23:07Z) is the newest release, and the 4.x branch has no commit after its tag (45ce1525). Nothing opened since is an issue: the five entries are pull requests, #2185 the 4.7.10 security work merged into 4.x, and four against master, the 5.x line: #2186 ports those fixes there, #2187 sets @first for sparse arrays with leading holes, #2188 keeps the first character of CLI template names when --root ends in a separator, and #2189 calls function partials from another realm or with a null prototype; a search for 4.7.10 finds nothing. None reports a regression in 4.7.10, and none reaches this code: template contexts are JSON, which has no sparse arrays, no partial is registered, and no script runs the handlebars CLI. The 4.7.10 compatibility notes (#each iterating a Map, Set or generator lazily, partials only from strings or functions) reach nothing for the same reasons. Works here, on the installed 4.7.10: the four files that compile templates pass, apps/api tests/unit/ServerTemplateEngine.test.ts and templateEngine.test.ts 40 of 40 (17:58:35Z), and apps/client lib/templates/__tests__/ClientTemplateEngine.test.ts and templateEngine.test.ts 75 of 75 (17:58:41Z); main b5773184's CI run 38593155624 (push, 2026-10-14T15:52Z) passed both API test shards and, in Frontend Tests, the same client template files. Clean; the 14-day review is due 2026-10-19."
+        }
+      }
     },
     {
       "kind": "package",
@@ -354,7 +327,13 @@
         "via": "the catalog entry of @typescript-eslint/parser and the root literal of @typescript-eslint/eslint-plugin, 6.1 days after publication and about 22 hours before the 2026-10-12T17:08Z maturity (17:09Z for the plugin), on Edward's instruction of 2026-10-11, so the holds gate would not go red on every pull request and on main at that instant; #557 owed this entry once it had a pull request number, and it was recorded on 2026-10-14"
       },
       "milestones": { "maturity": "2026-10-12", "final": "2026-10-19" },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-14",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-14, two days after the 2026-10-12 milestone, inside the check's 3-day grace: the entry was recorded only on 2026-10-14 (18dfbd12), so the reminder first saw it that day and opened #575 at 17:47Z. 8.71.1 left the 7-day buffer between 2026-10-12T17:08Z and 17:10Z (the ten published 2026-10-05 between 17:08:04Z and 17:09:59Z). Registry, read 2026-10-14T17:58Z: 8.71.1 is no longer latest: 8.71.2 is latest for all ten, published 2026-10-12 between 17:08:00Z and 17:11:57Z, and the canary is 8.71.3-alpha.4 (2026-10-13T13:36Z). 8.71.2 keeps every dependency, peer and engines range of 8.71.1 but its own version: typescript >=4.8.4 <6.1.0, so TypeScript 7 stays held (canon row typescript; the canary keeps the same peer), eslint ^8.57.0 || ^9.0.0 || ^10.0.0, node ^18.18.0 || ^20.9.0 || >=21.1.0. OSV, which carries the GitHub database, at 17:59Z: nothing for any of the ten at 8.71.1, at 8.71.2 or at any version; GitHub's global advisories and the repository's security advisories list none. Release notes of 8.71.2 (2026-10-12): six fixes, nothing on security: no-unused-vars without the typescript-eslint parser (#12989, the fix of #12980, the 8.71.1 regression the 8.71.0 final review found unreachable here), no-unused-vars type-only references under args after-used (#12977, closing #12975), two no-unnecessary-type-parameters fixes (#12974, #12995), prefer-optional-chain (#12805) and type-utils TypeOrValueSpecifier matching (#12948). One reaches this configuration: eslint.config.ts runs @typescript-eslint/no-unused-vars as a warning with the default args after-used and pnpm lint allows no warning, so #12977 can report a parameter 8.71.1 left silent; that is a false negative fixed, for the move to measure, not a defect of 8.71.1. Upstream issues: fifteen opened from 2026-10-05, the search API listing them all, and the eight that name 8.71.1 are among them. The three opened after the 8.71.0 final review are #13012 (prefer-readonly-parameter-types allow option, open), #13013 (typescript-estree to reject abstract export class, closed 2026-10-13) and #13023 (await-thenable false negatives, open): none is a regression, and none names a rule enabled here. #12993 closed 2026-10-12 with #12995; #13002, a request for TypeScript 7 support, was closed as a duplicate, and the TypeScript 7 issue #10940 is open. #12980 remains the only regression reported against 8.71.1. Reachability, the lockfile parsed with yaml.safe_load_all and walked uncut: no production dependency of the 101 importers reaches any of the ten; one copy each, 8.71.1, from the root devDependencies, the devDependencies of packages/eslint-plugin-testing, eslint-plugin-jsdoc 65.1.0, @es-joy/jsdoccomment 0.98.0 and @vitest/eslint-plugin 1.6.27. Works here: main b5773184's CI run 38593155624 (push, 2026-10-14T15:52Z) passed Run ESLint, pnpm lint (eslint . --ext .ts,.tsx --max-warnings 0), and the full monorepo type check, and its Package Tests ran @packages/eslint-plugin-testing, whose RuleTester parses TypeScript, past the turbo cache: 107 of 107. The holds gate on the pair alone with --instant exits 0 at 2026-10-19T17:09:51Z and 1 at 17:09:53Z, naming @typescript-eslint/eslint-plugin against 8.71.2 (both packages at 17:12:30Z), so the move to 8.71.2, or a pre-registered hold row, is owed by 2026-10-19T17:09Z, the final milestone's day. Clean; the 14-day review is due 2026-10-19."
+        }
+      }
     }
   ]
 }
