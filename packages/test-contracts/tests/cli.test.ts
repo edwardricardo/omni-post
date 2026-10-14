@@ -18,6 +18,7 @@ describe("runIfInvoked", () => {
   const savedExitCode = process.exitCode;
 
   beforeEach(() => {
+    process.exitCode = savedExitCode;
     vi.restoreAllMocks();
   });
 

@@ -137,6 +137,32 @@ describe("scope contract", () => {
       expect(verdict).toEqual({ globs: 1, violations: [] });
     });
 
+    it("folds a `./` segment and an interior `..` the way tinyglobby does, so the same files match", () => {
+      // Each glob's tinyglobby match over the same files was measured on 2026-10-14 (vitest
+      // 4.1.11's tinyglobby 0.2.17): the files named here, and no file for the last glob.
+      const tracked = [
+        "pkg/a/b/x.test.ts",
+        "pkg/bar/y.test.ts",
+        "pkg/c/z.test.ts",
+        "shared/w.test.ts",
+      ];
+      const globs = [
+        "a/./b/*.test.ts",
+        "nothere/../bar/*.test.ts",
+        "a/b/../../c/*.test.ts",
+        "../shared/v/../*.test.ts",
+        "a//b/*.test.ts",
+        "bar/../a/*.test.ts",
+      ];
+
+      const verdict = checkScopes(ROOT, [scopeOf(globs)], tracked);
+
+      expect(verdict.globs).toBe(6);
+      expect(verdict.violations.map((violation) => violation.message)).toEqual([
+        'dead positive glob "bar/../a/*.test.ts" in test.include: it matches no tracked file',
+      ]);
+    });
+
     it("does not let `**` climb out of the scope's directory", () => {
       const verdict = checkScopes(ROOT, [scopeOf(["**/*.test.ts"])], ["shared/b.test.ts"]);
 
@@ -267,7 +293,10 @@ describe("scope contract", () => {
     );
 
     it("exits 1 and resolves nothing when fewer configs are tracked than the floor", async () => {
-      const tree = plant({ "pkg/vitest.config.mjs": configCollecting(["*.test.ts"]) });
+      const tree = plant({
+        "pkg/vitest.config.mjs": configCollecting(["*.test.ts"]),
+        "pkg/one.test.ts": TEST_BODY,
+      });
 
       const result = await main(["--root", tree.root], { listFiles: () => ok([...tree.tracked]) });
 
@@ -275,6 +304,8 @@ describe("scope contract", () => {
       expect(result.output).toContain(
         "error: vitest:(tracked configs): 1 tracked vitest configs, below the floor of 80"
       );
+      // The same count, the tracked vitest configs, that a run past the floor reports: not the 2
+      // tracked files.
       expect(result.output).toContain("0 of 1 tracked vitest configs resolved");
     });
 
@@ -316,6 +347,22 @@ describe("scope contract", () => {
       },
       VITEST_TIMEOUT_MS
     );
+
+    it("takes a --root value that names a `--` directory by a path", async () => {
+      const listedRoots: string[] = [];
+
+      const result = await main(["--root", "./--weird"], {
+        listFiles: (root) => {
+          listedRoots.push(root);
+          return ok([]);
+        },
+        floor: 1,
+      });
+
+      expect(listedRoots).toEqual([path.resolve("./--weird")]);
+      expect(result.code).toBe(1);
+      expect(result.output).not.toContain("usage:");
+    });
 
     it.each([[["--bogus"]], [["--root"]], [["--root", "--json"]]])(
       "exits 2 on the usage error %j",

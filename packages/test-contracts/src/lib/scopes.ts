@@ -115,10 +115,15 @@ function scopesOf(vitest: Vitest, config: string): Scope[] {
  * Narrowing the candidates keeps a run over the whole tree from matching each glob against every
  * tracked path of the repository.
  *
+ * The cache is keyed by the directory and by that one bit, whether the glob names `..`, and never
+ * by the glob: the candidate list depends on nothing else, so every glob of a directory scans the
+ * same list and only the match differs. A narrowing that came to depend on the glob itself (a
+ * static prefix, say) would have to add the glob to the key.
+ *
  * @param root - Absolute repository root, the base of the tracked paths.
  * @param tracked - Every tracked file, repository-relative.
  * @returns A lookup from a directory and a normalised glob to its candidate files, cached per
- *   directory.
+ *   directory and per side of the `..` bit.
  */
 function candidateFiles(
   root: string,
@@ -193,9 +198,18 @@ export function checkScopes(
 }
 
 /**
+ * Normalises a glob the way tinyglobby 0.2.17's `normalizePattern` does before it crawls: an
+ * absolute glob is made relative to the directory, any other goes through `path.posix.normalize`,
+ * which drops `./` and empty segments and folds an interior `..` into the segment before it, and a
+ * trailing `/` is dropped. Measured on 2026-10-14 against the tinyglobby copy vitest 4.1.11 ships,
+ * over a planted tree: `a/./b/*`, `foo/../bar/*` with no `foo`, `a/b/../../c/*`,
+ * `../shared/v/../*`, `a//b/*`, `**` followed by `..` and `bar/../a/*` matched the same files both
+ * ways, 12 globs (the last one matching nothing either way) and no disagreement.
+ *
  * @param glob - A positive glob as the config wrote it.
  * @param cwd - The directory it resolves against.
- * @returns The glob relative to `cwd`, `/`-separated, with no leading `./` or trailing `/`.
+ * @returns The glob relative to `cwd`, `/`-separated, with no `./` segment, no interior `..` and
+ *   no trailing `/`.
  */
 function normalizeGlob(glob: string, cwd: string): string {
   const relative = path.isAbsolute(glob)
@@ -217,6 +231,9 @@ export async function checkScopeContract(
   tracked: readonly string[],
   options: ScopeCheckOptions = {}
 ): Promise<ScopesReport> {
+  // One count for both outcomes: the tracked files whose name is a vitest config, the set the
+  // floor is held against and, past it, the set this check resolves.
+  const configCount = tracked.filter((file) => VITEST_CONFIG.test(file)).length;
   const configs = trackedConfigs(
     COLLECTOR_ID.VITEST,
     { root, tracked },
@@ -226,7 +243,7 @@ export async function checkScopeContract(
   if (!configs.ok) {
     return {
       ok: false,
-      configs: tracked.filter((file) => VITEST_CONFIG.test(file)).length,
+      configs: configCount,
       resolved: 0,
       globs: 0,
       violations: [],
@@ -254,7 +271,7 @@ export async function checkScopeContract(
   const checked = checkScopes(realRoot, scopes, tracked);
   return {
     ok: errors.length === 0 && checked.violations.length === 0,
-    configs: configs.value.configs.length,
+    configs: configCount,
     resolved,
     globs: checked.globs,
     violations: checked.violations,

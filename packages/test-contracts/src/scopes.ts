@@ -33,6 +33,10 @@ interface ScopesArguments {
 const USAGE = "usage: scopes [--root <dir>] [--json]\n";
 
 /**
+ * Parses the command line. A value that begins with `--` is read as the next flag, never as the
+ * root, so `--root --json` is a usage error rather than a root named `--json`; a directory whose
+ * name begins with `--` is named with a path, `./--name`.
+ *
  * @param argv - The arguments after the script path.
  * @returns The parsed arguments, or the usage error; a `--root` with no value is one.
  */
