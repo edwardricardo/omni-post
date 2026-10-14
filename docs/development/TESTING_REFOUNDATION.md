@@ -1,7 +1,21 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-14, the node:test collector reads Node's test events, not TAP
+**As of:** 2026-10-14, the scope rule of fitness #36 exists, with its suite and its command,
+and nothing in CI runs it yet (`workstream/refound-1-scopes`, PR R12a, the first half of WU-1.12).
+`pnpm --filter @packages/test-contracts scopes` (`packages/test-contracts/src/scopes.ts`, rule S1 in
+`src/lib/scopes.ts`, pinned by `tests/scopes.test.ts`) resolves the 93 tracked vitest configs with
+vitest's own loader, through `withVitest`, the open-read-close helper it now shares with the vitest
+collector, and holds every positive `test.include` glob of every project, and the `coverage.include`
+of each config that sets one (`apps/api` alone), to at least one tracked file; a negation is never
+checked. Over the tree it found one dead glob the textual #36 never read, `tests/**/*.test.tsx` in
+`packages/query-client/vitest.config.ts`, deleted here, so the command is green: 93 of 93 configs,
+97 positive globs, 0 violations. Both command lines of the package now start through
+`runIfInvoked` (`src/lib/cli.ts`, pinned by `tests/cli.test.ts`). The `#36` step moves into the
+`test-contracts` job in PR R12b. It moved M1 `999 + 14` → `1001 + 14` and left M5, M7 and M8 where
+they were.
+
+Before it, on 2026-10-14, the node:test collector reads Node's test events, not TAP
 (`workstream/refound-1-node-collector`, PR R16b, the second half of WU-1.16). `run-tests.sh` runs
 each suite file under `scripts/testing/node-summary-reporter.mjs`, the reporter PR R16a landed, and
 reads one anchored line of it, `@@SUMMARY tests=N pass=N fail=N cancelled=N skipped=N todo=N`,
@@ -531,7 +545,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 999 + 14              | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R16a  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1001 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR R12a  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |

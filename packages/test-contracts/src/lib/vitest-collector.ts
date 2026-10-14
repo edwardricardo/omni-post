@@ -12,7 +12,8 @@
  *
  *              It fails closed twice: below {@link VITEST_CONFIG_FLOOR} tracked configs, and for a
  *              config that collects no file at all. Either means the collector read less than the
- *              tree runs.
+ *              tree runs. {@link withVitest}, which opens and closes the instance, is shared with
+ *              the scope check (`lib/scopes.ts`), so the two resolve a config the same way.
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -77,25 +78,30 @@ export interface VitestCollectorOptions {
 }
 
 /**
- * Lists a config's files through the vitest node API. The instance is always closed, and a
- * failed close is a failed listing: an instance that cannot be closed may still hold the
- * process open, and the CLI fallback starts from a clean process.
- *
+ * @description Opens a vitest instance over one config, the way `vitest run` in that config's
+ *   directory resolves it, hands it to `read`, and closes it. The instance is always closed, and
+ *   a failed close is a failure of the whole read: an instance that cannot be closed may still
+ *   hold the process open. The collector lists files through it and the scope check reads the
+ *   resolved globs through it, so both see one resolution.
  * @param root - The config's directory.
  * @param config - The config's absolute path.
- * @returns The collected files, or the error vitest raised.
+ * @param read - What to read from the open instance.
+ * @returns What `read` returned, or the error vitest raised while resolving, reading or closing.
  */
-const listWithNodeApi: VitestListing = async (root, config) => {
+export async function withVitest<T>(
+  root: string,
+  config: string,
+  read: (vitest: Vitest) => T | Promise<T>
+): Promise<Result<T, string>> {
   let vitest: Vitest | undefined;
-  let listed: Result<CollectedSpec[], string>;
+  let result: Result<T, string>;
   try {
     // Vite's own logger would print a config it cannot load before the error reaches the catch
     // below; silencing it keeps the reason in exactly one place, the failure this returns.
     vitest = await createVitest("test", { root, config, watch: false }, { logLevel: "silent" });
-    const specs = await vitest.globTestSpecifications();
-    listed = ok(specs.map((spec) => ({ file: spec.moduleId, project: spec.project.name })));
+    result = ok(await read(vitest));
   } catch (error: unknown) {
-    listed = err(`vitest/node: ${describeError(error)}`);
+    result = err(`vitest/node: ${describeError(error)}`);
   }
   if (vitest !== undefined) {
     try {
@@ -104,8 +110,22 @@ const listWithNodeApi: VitestListing = async (root, config) => {
       return err(`vitest/node close: ${describeError(error)}`);
     }
   }
-  return listed;
-};
+  return result;
+}
+
+/**
+ * Lists a config's files through the vitest node API. A failed listing falls back to the CLI,
+ * which starts from a clean process.
+ *
+ * @param root - The config's directory.
+ * @param config - The config's absolute path.
+ * @returns The collected files, or the error vitest raised.
+ */
+const listWithNodeApi: VitestListing = (root, config) =>
+  withVitest(root, config, async (vitest) => {
+    const specs = await vitest.globTestSpecifications();
+    return specs.map((spec) => ({ file: spec.moduleId, project: spec.project.name }));
+  });
 
 /** The entry point the `vitest` binary runs, resolved from this package's own dependency. */
 function vitestCliPath(): string {
@@ -162,7 +182,8 @@ function parseListOutput(stdout: string): Result<CollectedSpec[], string> {
 }
 
 /**
- * Lists a config's files through `vitest list --filesOnly --json`, in a child process.
+ * @description Lists a config's files through `vitest list --filesOnly --json`, in a child
+ *   process.
  *
  * @param root - The config's directory.
  * @param config - The config's absolute path.
@@ -248,7 +269,7 @@ function toCollections(
 }
 
 /**
- * Builds the vitest collector.
+ * @description Builds the vitest collector.
  *
  * @param options - A smaller floor or replacement listings, for the self-tests only.
  * @returns The collector.
