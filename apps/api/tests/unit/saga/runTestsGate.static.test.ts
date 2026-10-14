@@ -64,8 +64,8 @@ const WINDOW_SLACK = 3;
  * Returns a copy of `source` in which the interior of `#` comments is replaced by
  * spaces, preserving length and newline positions so every index stays valid in
  * both copies. A `#` inside a single- or double-quoted string is left alone: the
- * script greps for `"^# tests "` and friends, and blanking those would hide real
- * code from the scan.
+ * script greps out the reporter's relayed lines with `'^# '`, and blanking that
+ * would hide real code from the scan.
  *
  * Two bash behaviours it deliberately does NOT model, written down because both
  * would blank real code and turn an assertion silently green:
@@ -186,7 +186,8 @@ describe("run-tests.sh is a gate that can go red", () => {
       lengthPreserved: code.length === runner.length,
       lineCountPreserved: codeLines.length === runnerLines.length,
       keepsCode: code.includes("run_batch()"),
-      keepsQuotedHash: code.includes('grep "^# tests "'),
+      keepsQuotedHash: code.includes("grep -v '^# '"),
+      keepsQuotedAnchor: code.includes("grep '^@@SUMMARY '"),
       // Read in both copies, so a reworded comment fails here instead of passing
       // on a phrase that no longer exists anywhere.
       dropsCommentProse:
@@ -196,6 +197,7 @@ describe("run-tests.sh is a gate that can go red", () => {
       lineCountPreserved: true,
       keepsCode: true,
       keepsQuotedHash: true,
+      keepsQuotedAnchor: true,
       dropsCommentProse: true,
     });
   });
@@ -252,11 +254,53 @@ describe("run-tests.sh is a gate that can go red", () => {
       expect({
         oneFile: nodeLine.includes('"$file"') && !nodeLine.includes('"$@"'),
         oneAtATime: nodeLine.includes("--test-concurrency=1"),
+        sourceMode: nodeLine.includes("--conditions development"),
+        summaryReporter: nodeLine.includes('--test-reporter="$SUMMARY_REPORTER"'),
+        noTapReporter: !code.includes("--test-reporter=tap"),
         batchFailsWithAFile: codeLines
           .slice(append - 3, append)
           .join("\n")
           .includes("failed_files"),
-      }).toEqual({ oneFile: true, oneAtATime: true, batchFailsWithAFile: true });
+      }).toEqual({
+        oneFile: true,
+        oneAtATime: true,
+        sourceMode: true,
+        summaryReporter: true,
+        noTapReporter: true,
+        batchFailsWithAFile: true,
+      });
+    });
+
+    it("reads each file's counts from the reporter's one anchored line, never from formatted text", () => {
+      // The reproduction: Node declares its reporters' text unstable, and the TAP
+      // summary this runner grepped is formatted text. A change to it parses as
+      // zero tests, or a suite printing `tests 5` reads as `# tests 5`. The counts
+      // now come from one line the repository's own reporter writes from Node's
+      // test events, matched whole, and a run without it fails rather than reading
+      // as zeros (design decision DD-7).
+      const reporterLine = codeLines.find((line) => /^SUMMARY_REPORTER=/.test(line.trim())) ?? "";
+      const summaryLine = codeLines.find((line) => /^SUMMARY_LINE=/.test(line.trim())) ?? "";
+      const missingIndex = codeLines.findIndex((line) => line.includes('-z "$summary_read"'));
+
+      expect({
+        reporterFromTheRunner:
+          reporterLine.includes('"$RUNNER_PATH"') &&
+          reporterLine.endsWith('/scripts/testing/node-summary-reporter.mjs"'),
+        lineAnchoredWhole:
+          summaryLine.includes("'^@@SUMMARY tests=([0-9]+) pass=([0-9]+) fail=([0-9]+) ") &&
+          summaryLine.endsWith("skipped=([0-9]+) todo=([0-9]+)$'"),
+        matchedWhole: codeLinesContaining("=~ $SUMMARY_LINE").length,
+        noTapSummaryGrep: codeLines.filter((line) =>
+          /\^# (?:tests|pass|fail|cancelled|skipped)\b|ok 1 - /.test(line)
+        ),
+        missingLineFails: /reasons=.*no @@SUMMARY line/.test(codeLines[missingIndex] ?? ""),
+      }).toEqual({
+        reporterFromTheRunner: true,
+        lineAnchoredWhole: true,
+        matchedWhole: 1,
+        noTapSummaryGrep: [],
+        missingLineFails: true,
+      });
     });
 
     it("fails the file on a SKIPPED test in a tier-driven run", () => {

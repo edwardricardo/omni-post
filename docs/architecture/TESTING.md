@@ -201,13 +201,32 @@ pnpm --filter @apps/admin run typecheck   # Admin TypeScript validation
 
 **Collector** (`apps/api/scripts/run-tests.sh`)
 
-The collector finds the suites by their suffix — the services tier is every `*.integration.test.ts` under `tests/`, the live tier every `*.live.test.ts` — and runs each file in its own Node.js process, one after another, so every file gets its own verdict from its TAP summary. Before each live file it probes the API and the workers. Uses `--test-force-exit` to handle Prisma connection pool sockets.
+The collector finds the suites by their suffix — the services tier is every `*.integration.test.ts` under `tests/`, the live tier every `*.live.test.ts` — and runs each file in its own Node.js process, one after another, so every file gets its own verdict. Before each live file it probes the API and the workers. Uses `--test-force-exit` to handle Prisma connection pool sockets.
+
+**The verdict comes from Node's test events, not from a formatted report.** Node declares the text of its reporters unstable and ships no JSON reporter, so each process runs the repository's own reporter, `scripts/testing/node-summary-reporter.mjs` (design decision DD-7). It reads the documented `TestsStream` events and prints one anchored line, which is all the collector reads:
+
+```text
+@@SUMMARY tests=N pass=N fail=N cancelled=N skipped=N todo=N
+```
+
+| What a file's run shows                   | What the reporter does                                                                                                                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The counts                                | Takes them from the run's `test:summary` event and cross-checks them against its own tally of the test events; on a mismatch it prints both and the line takes the count that fails the run |
+| A test cut short (a broken `before` hook) | Counts it as cancelled, as Node does: a failure of type `cancelledByParent`, `testTimeoutFailure` or `testAborted`                                                                          |
+| A file that registers no test             | Leaves out the passing test Node reports in its place, named by the file's path, so the file counts zero tests and fails the tier                                                           |
+| A failure                                 | Prints `failed:`, `cancelled:` or `suite failed:` with the test's name and location, its error, its cause and its first stack frames outside Node                                           |
+| A skip or a todo                          | Prints `skipped:` or `todo:` with its reason                                                                                                                                                |
+| What a suite prints, and each diagnostic  | Relays it behind `# `, so no line a suite prints can pass for the summary line                                                                                                              |
+
+A file fails on any failed, cancelled or (under `TIER`) skipped test, on zero tests (under `TIER`), on a non-zero exit, and on a run with no `@@SUMMARY` line at all.
 
 **Tiers, and the order CI runs them in.** `TIER` picks what one run executes: unset runs both tiers (the local default, without the tier-only skip and zero-collection guards), `pr-integration` runs the services tier alone and `live-integration` the live tier alone. The `Integration Tests` job of `ci.yml` runs `pr-integration` before it starts the API and the workers, and `live-integration` after them. The order matters: a running API advances every tenant's sagas from its own retry scan, so a services suite that shares the database with one races a saga engine it never booted (DEF-82). The battery's `tier` step runs `pr-integration` with no API running.
 
 ```bash
-# One node:test process per file, one file at a time
-node --conditions development --import tsx --test --test-reporter=tap \
+# One node:test process per file, one file at a time; SUMMARY_REPORTER is the
+# absolute path of scripts/testing/node-summary-reporter.mjs
+node --conditions development --import tsx --test \
+  --test-reporter="$SUMMARY_REPORTER" --test-reporter-destination=stdout \
   --test-force-exit --test-concurrency=1 --test-timeout="${TIMEOUT:-30000}" "$file"
 ```
 

@@ -1,15 +1,16 @@
 /**
  * @file runTestsGate.behavior.test.ts
  * @description Executable proof that `apps/api/scripts/run-tests.sh` exits non-zero
- *              whenever a file is recorded failed, gives every file its own verdict,
- *              collects the services tier and the live tier by their suffixes (in byte
- *              order, or reversed), probes the API and the workers before each live
- *              file and stops the live tier at the first probe that fails, keeps a
- *              quarantined file out of the run while printing it, lists its inventory
- *              without running anything, and refuses to start at all without a test
- *              database, without the live URLs a live tier needs, or with a quarantine
- *              it cannot trust; given paths, it runs those suites alone and refuses a
- *              path it does not collect. Its sibling
+ *              whenever a file is recorded failed, gives every file its own verdict
+ *              from the summary reporter's `@@SUMMARY` line (a file whose run prints
+ *              none fails), collects the services tier and the live tier by their
+ *              suffixes (in byte order, or reversed), probes the API and the workers
+ *              before each live file and stops the live tier at the first probe that
+ *              fails, keeps a quarantined file out of the run while printing it, lists
+ *              its inventory without running anything, and refuses to start at all
+ *              without a test database, without the live URLs a live tier needs, or
+ *              with a quarantine it cannot trust; given paths, it runs those suites
+ *              alone and refuses a path it does not collect. Its sibling
  *              `runTestsGate.static.test.ts` reads the script's SHAPE; this one runs
  *              the real script and reads its EXIT CODE and its output, which is the
  *              contract every "the tests pass" claim in this repository rests on.
@@ -53,6 +54,15 @@ import { fileURLToPath } from "node:url";
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const apiRoot = join(currentDir, "..", "..", "..");
 const runnerPath = join(apiRoot, "scripts", "run-tests.sh");
+/** The node:test reporter `run_file` hands node, from the repository's own scripts. */
+const summaryReporterPath = join(
+  apiRoot,
+  "..",
+  "..",
+  "scripts",
+  "testing",
+  "node-summary-reporter.mjs"
+);
 
 /** The cap `spawnSync` puts on one runner or node process a case starts. */
 const SPAWN_TIMEOUT_MS = 60_000;
@@ -100,7 +110,7 @@ const SERVICES_UNIT = "integration";
 /** A path the live tier collects. */
 const LIVE_TARGET = "tests/integration/crisisRoutes.live.test.ts";
 
-/** The TAP summary a stub run reports, plus the exit code it ends on. */
+/** The counts a stand-in run reports on its `@@SUMMARY` line, plus the exit code it ends on. */
 interface StubShape {
   tests: number;
   pass: number;
@@ -109,6 +119,8 @@ interface StubShape {
   /** Defaults to 0 so every pre-existing scenario keeps its exact shape. */
   skip?: number;
   exit: number;
+  /** False makes the stand-in runner print no `@@SUMMARY` line at all; defaults to true. */
+  summary?: boolean;
 }
 
 /** A healthy file: what every collected path reports in the per-file scenarios. */
@@ -165,8 +177,9 @@ function writeQuarantine(name: string, entries: QuarantineFixture[]): string {
 
 /**
  * Writes the stand-in runner and the stand-in `curl`. Each suite path the runner is
- * handed reports the scenario's shape, printed as the five summary lines `run_file`
- * greps for, and the call ends on the exit code the scenario is about. A call whose
+ * handed reports the scenario's shape, printed as the one `@@SUMMARY` line `run_file`
+ * reads from the summary reporter, and the call ends on the exit code the scenario is
+ * about. A call whose
  * last argument is `GATE_REAL_TARGET` goes to the real runner instead. The `curl`
  * logs each probe in the same call log, as a call handed 0 paths with the probed
  * URL last, so the log reads the probes and the files in the order the run made
@@ -187,9 +200,11 @@ beforeAll(() => {
       "files=0",
       'for arg in "$@"; do case "$arg" in *.ts) files=$((files + 1)) ;; esac; done',
       'if [ -n "${GATE_CALL_LOG:-}" ]; then echo "$files ${!#}" >> "$GATE_CALL_LOG"; fi',
-      "printf '# tests %s\\n# suites 1\\n# pass %s\\n# fail %s\\n# cancelled %s\\n# skipped %s\\n# todo 0\\n' \\",
-      '  "$((files * GATE_STUB_TESTS))" "$((files * GATE_STUB_PASS))" "$((files * GATE_STUB_FAIL))" \\',
-      '  "$((files * GATE_STUB_CANCEL))" "$((files * GATE_STUB_SKIP))"',
+      'if [ "$GATE_STUB_SUMMARY" = 1 ]; then',
+      "  printf '@@SUMMARY tests=%s pass=%s fail=%s cancelled=%s skipped=%s todo=0\\n' \\",
+      '    "$((files * GATE_STUB_TESTS))" "$((files * GATE_STUB_PASS))" "$((files * GATE_STUB_FAIL))" \\',
+      '    "$((files * GATE_STUB_CANCEL))" "$((files * GATE_STUB_SKIP))"',
+      "fi",
       'exit "$GATE_STUB_EXIT"',
       "",
     ].join("\n"),
@@ -240,6 +255,11 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
       GATE_STUB_CANCEL: String(shape.cancel),
       GATE_STUB_SKIP: String(shape.skip ?? 0),
       GATE_STUB_EXIT: String(shape.exit),
+      // The stub prints the summary line unless the shape says `summary: false`.
+      // Its script tests `[ "$GATE_STUB_SUMMARY" = 1 ]`, so "1" and "0" are the
+      // pair it reads: an unset or misspelled variable prints no summary, and the
+      // case goes red on `no @@SUMMARY line` rather than green.
+      GATE_STUB_SUMMARY: shape.summary === false ? "0" : "1",
       ...(callLog !== undefined && { GATE_CALL_LOG: callLog }),
       ...(quarantineFile !== undefined && { QUARANTINE_FILE: quarantineFile }),
       ...(testOrder !== undefined && { TEST_ORDER: testOrder }),
@@ -442,6 +462,24 @@ describe("run-tests.sh exits non-zero when a file is recorded failed", () => {
 
     expect(run.exitCode).toBe(1);
     expect(reportedFailedFiles(run.stdout).length).toBeGreaterThan(1);
+  });
+
+  it("exits 1 naming every file whose run prints no @@SUMMARY line, with TIER unset too", () => {
+    // A run with no summary line has no counts at all: the reporter never loaded, or
+    // the process died before the end of its run. Read as zeros, such a file passed
+    // whenever the zero-collection guard was off, which it is with TIER unset.
+    const run = runGate(
+      { ...PASSING, summary: false },
+      { tier: "", quarantineFile: emptyQuarantine }
+    );
+    const entries = listedFailedEntries(run.stdout);
+
+    expect(entries.length).toBeGreaterThan(1);
+    expect({
+      exitCode: run.exitCode,
+      everyReason: [...new Set(entries.map((entry) => entry.slice(entry.indexOf(": ") + 2)))],
+      noPassingFile: passedFiles(run.stdout),
+    }).toEqual({ exitCode: 1, everyReason: ["no @@SUMMARY line"], noPassingFile: [] });
   });
 });
 
@@ -647,6 +685,32 @@ describe("a real node:test file gets the same verdict, end to end", () => {
     const run = runRealTarget("export {};\n");
 
     expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, SERVICES_UNIT, "zero tests"));
+  });
+
+  it("exits 1 naming a file whose test fails, and prints the failure with its detail", () => {
+    // The failure printer moved into the reporter: the run still names the test, where
+    // it is declared, and what it threw, above the tail of the file's output.
+    const run = runRealTarget(
+      'import { it } from "node:test";\nit("fails", () => { throw new Error("planted failure"); });\n'
+    );
+
+    // The column is where tsx's transform puts the call, so only the line is pinned:
+    // the header line is found by its literal prefix and its column checked apart,
+    // with no regex built from the file name (CodeQL js/incomplete-sanitization).
+    const headerPrefix = `failed: fails (${TARGET_FILE}:2:`;
+    const headerLine = run.stdout.split("\n").find((line) => line.startsWith(headerPrefix));
+
+    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, SERVICES_UNIT, "1 failed, exit 1"));
+    expect(headerLine).toMatch(/:\d+\)$/);
+    expect(run.stdout).toContain(`${headerLine}\n  testCodeFailure: planted failure`);
+  });
+
+  it("exits 1 naming a file that throws while it loads", () => {
+    // Node reports a file whose module throws as one failed test named by its path,
+    // so the load error is a failure, never an empty pass.
+    const run = runRealTarget('export {};\nthrow new Error("planted load failure");\n');
+
+    expect(fileVerdict(run)).toEqual(aloneFails(TARGET_FILE, SERVICES_UNIT, "1 failed, exit 1"));
   });
 
   it("exits 1 naming a file whose before hook throws", () => {
@@ -999,7 +1063,7 @@ describe("the runner-gate fixtures still produce the shapes they document", () =
   it("reports the passing fixture as passing and the broken-hook fixture as cancelled", () => {
     // Executing both in ONE runner invocation is what makes them controls rather
     // than two unread files: the clean fixture contributes the passes, the broken
-    // hook contributes the cancellations, and the shared summary shows `# fail 0`
+    // hook contributes the cancellations, and the shared summary shows `fail=0`
     // for both — the shape a gate reading only failure counts calls green.
     const result = spawnSync(
       process.execPath,
@@ -1009,7 +1073,7 @@ describe("the runner-gate fixtures still produce the shapes they document", () =
         "--import",
         "tsx",
         "--test",
-        "--test-reporter=tap",
+        `--test-reporter=${summaryReporterPath}`,
         "--test-reporter-destination=stdout",
         "--test-force-exit",
         "--test-concurrency=1",
@@ -1021,8 +1085,11 @@ describe("the runner-gate fixtures still produce the shapes they document", () =
     );
 
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+    const summary = output.split("\n").filter((line) => line.startsWith("@@SUMMARY "));
     const count = (label: string): number =>
-      Number(new RegExp(`^# ${label} (\\d+)$`, "m").exec(output)?.[1] ?? "-1");
+      Number(new RegExp(` ${label}=(\\d+)\\b`).exec(summary.join("\n"))?.[1] ?? "-1");
+
+    expect(summary).toHaveLength(1);
 
     expect({
       pass: count("pass"),

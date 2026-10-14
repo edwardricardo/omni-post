@@ -797,7 +797,11 @@ pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base
 # The pattern is `pass[W]ithNoTests`: the workflow step is itself a tracked
 # `.yml` file, and the bracket class keeps its own text from matching. The scope
 # is held to a floor of 2500 files and a `git grep` exit above 1 fails the step,
-# so a missing checkout cannot read as a clean zero.
+# so a missing checkout cannot read as a clean zero. Residual limit, stated:
+# GitHub runs the step under `bash -e`, so it captures `git grep`'s exit 1, which
+# means no match, with `|| ASTATUS=$?` and fails only on an exit above 1; a future
+# shift of git's exit codes would surface through the 2500-file floor and fitness
+# #34's pairing rather than through that capture.
 # Out of scope, stated: `*.yaml`, `*.js`, `*.mjs` and `*.cjs`. Measured on
 # 2026-10-14: none holds the flag, the 4 `.yaml` files are the lockfile, the
 # workspace manifest and two tool configs, and all 93 tracked vitest configs are
@@ -806,13 +810,21 @@ pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base
 git ls-files -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l   # expect >= 2500 (3113 on 2026-10-14)
 git grep -nE 'pass[W]ithNoTests' -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l   # expect 0
 #
-# Part B: the node:test runner must KEEP its zero-collection guards. node:test
-# has no equivalent default: a crashed or empty run prints a 0/0/0 TAP summary
-# that parses as success, so apps/api/scripts/run-tests.sh carries the check
-# itself — once per file and once on the total. Both terms are pinned because
-# deleting either restores the silent green with nothing left to notice it.
+# Part B: the node:test runner must KEEP its zero-collection guards and read its
+# counts from the summary reporter. node:test has no equivalent default: it
+# counts a file that registers no test as one passing test, and counts read from
+# a formatted report parse as zero the day its text changes. So
+# apps/api/scripts/run-tests.sh takes each file's counts from the one anchored
+# `@@SUMMARY` line of scripts/testing/node-summary-reporter.mjs, which reads
+# Node's documented test events and leaves that stand-in pass uncounted (design
+# decision DD-7: Node ships no JSON reporter), and carries the zero check itself
+# — once per file and once on the total. Both zero terms are pinned because
+# deleting either restores the silent green with nothing left to notice it; the
+# reporter's assignment is pinned, and the TAP reporter must be gone.
 grep -c '\[ "\$tests" -eq 0 \]' apps/api/scripts/run-tests.sh          # expect >= 1
 grep -c '\[ "\$TOTAL_TESTS" -eq 0 \]' apps/api/scripts/run-tests.sh    # expect >= 1
+grep -c '^SUMMARY_REPORTER=.*/scripts/testing/node-summary-reporter\.mjs"$' apps/api/scripts/run-tests.sh   # expect >= 1
+grep -c -- '--test-reporter=tap' apps/api/scripts/run-tests.sh   # expect 0
 
 # 32. No committed skipped or focused test. CODING_STANDARDS §Zero Cancelled
 # Tests states this as canon; nothing enforced it mechanically. A committed
