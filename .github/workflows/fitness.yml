@@ -30,10 +30,10 @@ name: Architectural Fitness Functions
 # step does NOT mask later violations — every PR sees every check. The greps run
 # in the `fitness` job, which installs nothing; a check that needs the installed
 # tree runs in a job that installs it: #45 to #47 in `dependency-consistency`,
-# #30 in `test-contracts`. Two exceptions to `if: always()` alone: #37 and #47
-# gate the delta against the PR base, which only exists on pull_request events —
-# their `if` adds that event condition and the step is skipped (visibly, not
-# silently green) on push runs.
+# #30 and #36 in `test-contracts`. Two exceptions to `if: always()` alone: #37
+# and #47 gate the delta against the PR base, which only exists on pull_request
+# events — their `if` adds that event condition and the step is skipped
+# (visibly, not silently green) on push runs.
 # Annotations are aggregated to one `::error` per check (bypasses the
 # 10-errors-per-step / 50-per-job silent cap of GitHub Actions).
 
@@ -61,9 +61,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      # Fitness #36 expands scope globs via node's fs.glob (node >= 22; stable on
-      # 24). The runner's default node is not version-pinned, so pin it here —
-      # no install/cache: the fitness job runs zero package code.
+      # #37 and #41 run node heredocs, #41 expanding its scope with node's fs.glob
+      # (node >= 22; stable on 24), and #44 runs a node script. The runner's default
+      # node is not version-pinned, so pin it here — no install/cache: the fitness
+      # job runs zero package code.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -972,105 +973,6 @@ jobs:
             exit 1
           fi
 
-      - name: "#36 Every positive scope glob in a coverage config matches a file"
-        if: always()
-        run: |
-          # Dead scope = infallible gate (the #2/#3/#4 class): a POSITIVE glob
-          # matching zero files makes the gate report green over code it never touched.
-          # Scope: the `include` arrays (test.include + coverage.include) of
-          # apps/api/vitest.config.ts. Negations (!...) are deliberately out of scope: an
-          # empty negation is inert protection, and flagging it pushes authors to
-          # delete real exclusions. FAIL-CLOSED: zero globs extracted is a blind scan, not a
-          # clean one — a renamed key, or an array assembled at runtime or inherited by
-          # spread, would otherwise report green over a scope it never read. Comments inside
-          # the arrays are dropped, line AND block, so a glob named in a comment is not
-          # reported; bracket counting skips string literals, so a picomatch class neither
-          # ends the array early nor leaks into the next key. Needs node >= 22 (fs.glob).
-          # Hard-zero.
-          # Mirrors CLAUDE.md #36.
-          set -uo pipefail
-          VIOLATIONS=$(node --input-type=module <<'EOF'
-          import { readFileSync } from "node:fs";
-          import { glob } from "node:fs/promises";
-
-          const cwd = "apps/api";
-          // Subject: the test.include + coverage.include arrays of apps/api/vitest.config.ts.
-          const scanned = [["vitest.config.ts", "include"]];
-          // Walk to the array's closing bracket while IGNORING brackets that live inside
-          // string literals or comments. Picomatch character classes (`src/api[Vv]2/**`)
-          // are legitimate glob syntax, and counting them either ends the array early —
-          // every glob after it goes unchecked — or runs past its end and pulls values out
-          // of the next key. Comment bytes are dropped with the brackets they contain, so
-          // a glob named inside a comment is neither extracted nor reported.
-          const sliceArray = (source, from) => {
-            let i = from;
-            let depth = 1;
-            let body = "";
-            while (i < source.length) {
-              const c = source[i];
-              if (c === '"' || c === "'" || c === "`") {
-                let j = i + 1;
-                while (j < source.length && source[j] !== c) j += source[j] === "\\" ? 2 : 1;
-                body += source.slice(i, j + 1);
-                i = j + 1;
-                continue;
-              }
-              if (c === "/" && source[i + 1] === "/") {
-                const nl = source.indexOf("\n", i);
-                i = nl === -1 ? source.length : nl;
-                continue;
-              }
-              if (c === "/" && source[i + 1] === "*") {
-                const end = source.indexOf("*/", i + 2);
-                i = end === -1 ? source.length : end + 2;
-                continue;
-              }
-              if (c === "[") depth += 1;
-              if (c === "]" && --depth === 0) return { body, end: i + 1 };
-              i += 1;
-            }
-            return null;
-          };
-          const extract = (source, key) => {
-            const found = [];
-            const re = new RegExp(`\\b${key}\\s*:\\s*\\[`, "g");
-            while (re.exec(source) !== null) {
-              const slice = sliceArray(source, re.lastIndex);
-              if (slice === null) return null;
-              for (const q of slice.body.matchAll(/"([^"]*)"|'([^']*)'/g)) found.push(q[1] ?? q[2]);
-              re.lastIndex = slice.end;
-            }
-            return found;
-          };
-          const dead = [];
-          for (const [file, key] of scanned) {
-            const patterns = extract(readFileSync(`${cwd}/${file}`, "utf8"), key);
-            if (patterns === null) {
-              console.error(`fitness #36 scope error: unbalanced '${key}' array in ${cwd}/${file} — the extraction cannot see where the scope ends, failing closed`);
-              process.exit(1);
-            }
-            if (patterns.length === 0) {
-              console.error(`fitness #36 scope error: zero '${key}' globs extracted from ${cwd}/${file} — the key was renamed, or the array is assembled at runtime or inherited by spread. Either way the gate would report green over a scope it never read, so it fails closed. Give the config a literal '${key}' array.`);
-              process.exit(1);
-            }
-            for (const pattern of patterns) {
-              if (pattern.startsWith("!")) continue;
-              let live = false;
-              for await (const _ of glob(pattern, { cwd })) { live = true; break; }
-              if (!live) dead.push(`${cwd}/${file}: dead positive glob "${pattern}"`);
-            }
-          }
-          console.log(dead.join("\n"));
-          EOF
-          ) || { echo "fitness #36: expansion crashed or scope is invalid — failing closed (needs node >= 22 for fs.glob)"; exit 1; }
-          COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
-          COUNT=${COUNT:-0}
-          if [ "$COUNT" -gt 0 ]; then
-            echo "::error title=Fitness #36 violation::$COUNT dead positive scope glob(s) in the coverage config — each names a scope the gate reports on without measuring. Repoint or delete the glob; if the scope moved (e.g. into packages/core), measuring it there is a separate scope, not a repoint."
-            printf "%s\n" "$VIOLATIONS" | head -20
-            exit 1
-          fi
-
       - name: "#37 Coverage threshold floors never descend vs the PR base (pull_request only)"
         if: ${{ always() && github.event_name == 'pull_request' }}
         env:
@@ -1497,7 +1399,7 @@ jobs:
           #                                `{ refreshTokenHash }` is matched too, so a rotation
           #                                is never exempt by syntax
           # STRUCTURAL, not line-windowed: each `.update(` / `.updateMany(` / `.upsert(` call's argument is sliced
-          # to its balanced close (the #36 string/comment-aware slicer); the `data:` literal (`update:` for upsert)
+          # to its balanced close (this step's own string- and comment-aware slicer); the `data:` literal (`update:` for upsert)
           # is tested for a marker, whose column must then appear as a key in that SAME call's `where:` literal. A
           # `select:` cannot satisfy the gate — a line window could not tell the two apart.
           # NAMED EXCEPTION, exactly one, held to exactly ONE site so a second write in that file fails closed:
@@ -1562,7 +1464,7 @@ jobs:
             column: "refreshTokenHash",
           };
           // Slice from `open` at `from` to its balanced `close`, dropping comment bytes and
-          // skipping brackets inside string/template literals (the #36 slicer, generalised).
+          // skipping brackets inside string/template literals (this step's own slicer).
           const sliceBalanced = (src, from, open, close) => {
             let depth = 0;
             let i = from;
@@ -1685,9 +1587,10 @@ jobs:
           # is the failure mode the floor exists to prevent. `manifests()` backs both.
           # FAIL-CLOSED on both sides. If the exception stops declaring ANY lifecycle
           # script, the check exits 1 rather than quietly exempting whatever is re-created
-          # at that path — the #36 quarantine rule. And if fewer than 90 manifests are
-          # found the workspace layout moved and the gate would report a clean zero over
-          # packages it never opened, so that exits 1 too.
+          # at that path — the rule #30's quarantine holds too, where an entry whose file
+          # is gone fails. And if fewer than 90 manifests are found the workspace layout
+          # moved and the gate would report a clean zero over packages it never opened, so
+          # that exits 1 too.
           # RESIDUAL LIMIT, stated rather than implied: this proves no manifest DECLARES
           # such a script. It does not prove a dependency's install script is unnecessary —
           # that is `allowBuilds` in pnpm-workspace.yaml, a different list with a different
@@ -1984,8 +1887,8 @@ jobs:
   test-contracts:
     name: Test Contracts
     runs-on: ubuntu-latest
-    # The reach engine lists every collector in about 3 s on a developer machine; the rest of the
-    # budget is checkout and install.
+    # On a developer machine the reach engine lists every collector in about 3 s and the scope check
+    # resolves every vitest config in about 2 s; the rest of the budget is checkout and install.
     timeout-minutes: 6
     permissions:
       contents: read
@@ -2050,5 +1953,25 @@ jobs:
           fi
           if ! pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base "$BASE_QUARANTINE"; then
             echo "::error title=Fitness #30 violation::A test file runs in no collector, in two, or only in one no required check runs; a collectors.json entry does not hold; a quarantine entry is untracked, collected, or new against the base; a package's test script is not vitest run; or the engine could not read one of its inputs. The R1, R2, R3, C1 and error lines above name each file. Give the file its tier suffix or its collector, set the package's test script to vitest run, or delete the file: the quarantine no longer grows."
+            exit 1
+          fi
+
+      - name: "#36 Every positive scope glob of every vitest config matches a tracked file"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #36. packages/test-contracts/src/scopes.ts lists the tracked files and
+          # resolves every tracked vitest.config.* with vitest's own config loader, so it reads the
+          # globs a run applies: the shared factory's merge, projects and vitest's defaults
+          # included. Each positive glob of every project's test.include, and of the root config's
+          # coverage.include where a config sets one, must match at least one tracked file (S1),
+          # and each scope must hold one; a negation is never checked, since an exclusion that
+          # matches nothing is inert. It fails closed below the vitest collector's floor of tracked
+          # configs, on a config vitest cannot resolve and on a file listing that fails. Pinned by
+          # packages/test-contracts/tests/scopes.test.ts, which Package Tests runs. It runs in this
+          # job, not in the Fitness Functions job, because resolving a config loads it and what it
+          # imports, which needs the installed tree.
+          set -euo pipefail
+          if ! pnpm --filter @packages/test-contracts scopes; then
+            echo "::error title=Fitness #36 violation::A positive test.include or coverage.include glob of a vitest config matches no tracked file, a scope holds no positive glob, a config does not resolve, or the tracked configs fall below the floor. The S1 and error lines above name each config and glob. Repoint or delete the glob; a scope that moved is a new scope, not a repoint."
             exit 1
           fi
