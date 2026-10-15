@@ -209,7 +209,7 @@ export class ExternalApiCircuitBreaker {
   private readonly maxBreakerEntries: number;
 
   /**
-   * @constructor
+   * @class
    * @description Builds a breaker that owns NO connection and NO queue.
    *
    *   Every provider `apiClient` calls the shared factory at module scope, so anything this
@@ -506,7 +506,7 @@ export class ExternalApiCircuitBreaker {
    * @method evictBreakersIfNeeded
    * @description Bounds the `breakers` Map ABSOLUTELY with insertion-ordered (LRU),
    *   priority-tiered eviction. The naive "permanently exempt every non-CLOSED breaker"
-   *   policy is UNSAFE under the real opossum 9.x lifecycle: after `resetTimeout` an OPEN
+   *   policy is UNSAFE under opossum's real 10.x lifecycle: after `resetTimeout` an OPEN
    *   breaker auto-transitions to HALF_OPEN with NO `fire`, and only returns to CLOSED
    *   when a LATER probe `fire()` SUCCEEDS. An idle-after-trip breaker therefore stays
    *   HALF_OPEN indefinitely (an OPEN breaker does NOT self-close on its `resetTimeout` —
@@ -687,6 +687,34 @@ export class ExternalApiCircuitBreaker {
     return Math.max(0, exponentialDelay + randomJitter);
   }
 
+  /**
+   * @method call
+   * @description Runs one external API call through the circuit breaker of its
+   *   (service, operation, tenant) partition, with caching, retries, fallbacks and
+   *   dead-lettering.
+   *
+   *   A `cacheEnabled` call that carries a non-blank `cacheKeyDiscriminant` is served from
+   *   the L1 cache while a fresh entry exists. Otherwise the caller's own `apiCall` is fired
+   *   through the breaker, and a retryable failure is retried up to `maxRetries` times with
+   *   exponential backoff (plus jitter when enabled); an OPEN circuit or a non-retryable
+   *   error ends the retries at once. A success is written to the L1 cache when caching
+   *   applies and, when `fallbackEnabled`, to the tenant-scoped L2 fallback store. Once the
+   *   retries are exhausted, the configured fallback strategies run, and then, when
+   *   `deadLetterEnabled`, the failed operation goes to the dead-letter queue a composition
+   *   root created; with no queue the loss is logged. Metrics record in-flight requests,
+   *   retries, fallbacks and duration.
+   * @param service - Provider/service name; the first segment of the cache and breaker keys.
+   * @param operation - Operation name; the second segment of the cache and breaker keys.
+   * @param apiCall - The caller's own function; the breaker's generic dispatcher runs it.
+   * @param args - Arguments for `apiCall`, also passed to `options.fallback` and recorded
+   *   in the dead-letter entry.
+   * @param options - Overrides of `DEFAULT_EXTERNAL_API_OPTIONS`, plus `cacheEnabled`,
+   *   `cacheKeyDiscriminant` (the tenant scope) and an optional per-call `fallback` that the
+   *   breaker runs when the call fails or the circuit is open.
+   * @returns The value `apiCall` resolved with, a cached value, the per-call `fallback`'s
+   *   value, or the value of a fallback strategy.
+   * @throws The last error of `apiCall` when the retries and every fallback strategy failed.
+   */
   async call<T extends unknown[], R>(
     service: string,
     operation: string,
@@ -1040,13 +1068,18 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Get circuit breaker status for a specific service/operation, aggregated
-   * across ALL partitions (W-2). Returns the worst-of state (OPEN ≻ HALF_OPEN ≻
-   * CLOSED) with failure/success counters summed across the exact
-   * `service:operation` breaker and every `service:operation:<discriminant>`
-   * partition, so an operator polling the generic operation sees "is ANY tenant's
-   * circuit for this op open?" instead of null. `null` only when no partition
-   * exists yet. Per-partition detail remains available via `getAllStatuses`.
+   * @method getStatus
+   * @description Gets the circuit breaker status for a specific service/operation,
+   *   aggregated across ALL partitions (W-2). Returns the worst-of state (OPEN ≻
+   *   HALF_OPEN ≻ CLOSED) with failure/success counters summed across the exact
+   *   `service:operation` breaker and every `service:operation:<discriminant>`
+   *   partition, so an operator polling the generic operation sees "is ANY tenant's
+   *   circuit for this op open?" instead of null. Per-partition detail remains
+   *   available via `getAllStatuses`.
+   * @param service - Provider/service name.
+   * @param operation - Operation name.
+   * @returns The worst-of status with summed counters, or `null` only when no partition
+   *   exists yet.
    */
   getStatus(service: string, operation: string): CircuitBreakerStatus | null {
     const matches = this.matchingBreakers(service, operation);
@@ -1080,8 +1113,11 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Get all circuit breaker statuses (each under its actual, possibly
-   * tenant-partitioned, key).
+   * @method getAllStatuses
+   * @description Gets every circuit breaker's status, each under its actual, possibly
+   *   tenant-partitioned, key.
+   * @returns A map from breaker key (`service:operation` or
+   *   `service:operation:<discriminant>`) to that breaker's status snapshot.
    */
   getAllStatuses(): Record<string, CircuitBreakerStatus | null> {
     const statuses: Record<string, CircuitBreakerStatus | null> = {};
@@ -1094,11 +1130,14 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Manually open a circuit breaker across ALL partitions addressed by
-   * `service:operation` (W-2): the exact legacy key and every per-tenant
-   * `service:operation:<discriminant>` partition. Returns `true` when at least
-   * one breaker matched (so a control addressed by the generic operation is not
-   * a silent no-op against partitioned breakers).
+   * @method forceOpen
+   * @description Manually opens the circuit breaker across ALL partitions addressed by
+   *   `service:operation` (W-2): the exact legacy key and every per-tenant
+   *   `service:operation:<discriminant>` partition, so a control addressed by the
+   *   generic operation is not a silent no-op against partitioned breakers.
+   * @param service - Provider/service name.
+   * @param operation - Operation name.
+   * @returns `true` when at least one breaker matched and was opened, `false` otherwise.
    */
   forceOpen(service: string, operation: string): boolean {
     const matches = this.matchingBreakers(service, operation);
@@ -1109,9 +1148,13 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Manually close a circuit breaker across ALL partitions addressed by
-   * `service:operation` (W-2). Mirrors {@link forceOpen}: applies to the exact
-   * key and every per-tenant partition; returns `true` when at least one matched.
+   * @method forceClose
+   * @description Manually closes the circuit breaker across ALL partitions addressed by
+   *   `service:operation` (W-2). Mirrors {@link forceOpen}: applies to the exact key and
+   *   every per-tenant partition.
+   * @param service - Provider/service name.
+   * @param operation - Operation name.
+   * @returns `true` when at least one breaker matched and was closed, `false` otherwise.
    */
   forceClose(service: string, operation: string): boolean {
     const matches = this.matchingBreakers(service, operation);
@@ -1122,7 +1165,12 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Clear cache for a specific service/operation or all cache
+   * @method clearCache
+   * @description Clears the L1 response cache: only the entries keyed under
+   *   `service:operation:` when both are given, otherwise every entry. The L2 fallback
+   *   store is not touched.
+   * @param service - Provider/service name; scopes the clear only together with `operation`.
+   * @param operation - Operation name; scopes the clear only together with `service`.
    */
   clearCache(service?: string, operation?: string): void {
     if (service && operation) {
@@ -1138,7 +1186,9 @@ export class ExternalApiCircuitBreaker {
   }
 
   /**
-   * Get cache statistics
+   * @method getCacheStats
+   * @description Reports the L1 response cache's size and the key and expiry of each entry.
+   * @returns The entry count and, per entry, its key and its expiry in epoch milliseconds.
    */
   getCacheStats(): { size: number; entries: Array<{ key: string; expires: number }> } {
     const entries = Array.from(this.cache.entries()).map(([key, value]) => ({

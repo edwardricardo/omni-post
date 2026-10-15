@@ -104,7 +104,7 @@ catalog:
 
   # ── Runtime-critical drifters (MAX of declared) ──
   "@prisma/client": 7.9.1 # taken 2026-08-17 (`9b872895`), not moved since; 7.10.0 is newer and mature (registry, 2026-10-03); was 7.8.0
-  opossum: 9.0.0 # MAX of 8.0.0 / 9.0.0 (fitness #25)
+  opossum: 10.0.0 # latest stable AND latest mature, measured 2026-10-15T00:44Z: published 2026-06-24T13:12Z, nothing newer; OSV lists nothing for 9.0.0 or 10.0.0. Taken for Node 26: 9.0.0 declares engines.node `^24 || ^22 || ^20`, which excludes it, and 10.0.0's one breaking change drops Node 20 (`^26 || ^24 || ^22`). Its published index.js and lib/ are byte-identical to 9.0.0's; only the browser bundle in dist/, which Node never loads, was rebuilt, so no call site changes. It is the breaker behind fitness #25. Declared via `catalog:` by packages/adapters/{db-prisma,external-apis,queue-bullmq}; @types/opossum stays 8.1.9, its latest. Was 9.0.0
   prom-client: 15.1.3 # MAX of 15.0.0 / 15.1.3
 
   # ── App/server runtime (DIRECT) ──

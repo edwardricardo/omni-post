@@ -347,7 +347,7 @@ describe("LRU eviction bounds growth (timer-free)", { concurrent: false }, () =>
       };
 
       // 1. Trip the OLDEST breaker OPEN, then advance opossum's resetTimeout so it
-      //    auto-transitions OPEN -> HALF_OPEN WITHOUT a successful probe (opossum 9.x:
+      //    auto-transitions OPEN -> HALF_OPEN with NO successful probe (opossum 10.x:
       //    the reset timer half-opens the breaker; it only re-closes on a probe SUCCESS,
       //    which idle traffic never sends — so it stays HALF_OPEN indefinitely).
       await assert.rejects(() =>
