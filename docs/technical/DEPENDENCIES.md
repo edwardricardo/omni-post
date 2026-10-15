@@ -192,7 +192,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 | Package    | Version | Purpose                                         |
 | ---------- | ------- | ----------------------------------------------- |
-| next       | 16.3.8  | React framework (App Router, server components) |
+| next       | 16.4.1  | React framework (App Router, server components) |
 | react      | 19.2.7  | UI library                                      |
 | react-dom  | 19.2.7  | DOM rendering                                   |
 | typescript | 6.0.3   | Language                                        |
@@ -245,7 +245,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 ## Frontend — Owner Portal (apps/admin)
 
-Same core stack as apps/client (Next.js 16.3.8, React 19.2.7, Tailwind, Recharts). 13 pages focused on platform administration: accounts, subscriptions, pricing, security, compliance, audit logs, webhooks, executive dashboard.
+Same core stack as apps/client (Next.js 16.4.1, React 19.2.7, Tailwind, Recharts). 13 pages focused on platform administration: accounts, subscriptions, pricing, security, compliance, audit logs, webhooks, executive dashboard.
 
 ---
 
@@ -320,6 +320,8 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @playwright/test          | 1.63.0  | E2E testing                          |
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
 | yaml                      | 2.9.1   | Workflow parsing in the reach engine |
+
+Component stories run on the Storybook 10.6.1 family. `@storybook/nextjs-vite` 10.6.1 carries a patch, Storybook's merged fix for next 16.4, until 10.6.3 is published and the family moves to it ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)).
 
 ### Update cadence
 

@@ -1,5 +1,5 @@
 {
-  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. A package entry leaves the list in the change that records its clean 14-day review; a date entry stays, with its `due` review recorded as the evidence that the day was reviewed; a package entry whose version leaves the tree before that review leaves the list too, because nothing is left to review. A date entry marks a contract milestone and never schedules a dependency move: since 2026-10-14 (ADR-0036) a non-security bump is taken in the weekly Tuesday window and a toolchain lag is legal for 30 days, so the scheduled hold entries left the list, their evidence in the pull requests that took or retired each move. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
+  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. A package entry leaves the list in the change that records its clean 14-day review; a date entry stays, with its `due` review recorded as the evidence that the day was reviewed; a package entry whose version leaves the tree before that review leaves the list too, because nothing is left to review. A date entry marks a contract milestone, or reviews a patched dependency until its remove-when fires (ADR-0037: a review that finds it unresolved records outcome flagged and adds the next date entry, due two or three days later), and never schedules a dependency move: since 2026-10-14 (ADR-0036) a non-security bump is taken in the weekly Tuesday window and a toolchain lag is legal for 30 days, so the scheduled hold entries left the list, their evidence in the pull requests that took or retired each move. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
   "entries": [
     {
       "kind": "package",
@@ -29,7 +29,10 @@
         "pr": 305,
         "via": "the root packageManager field, 2.4 days after publication"
       },
-      "milestones": { "maturity": "2026-09-29", "final": "2026-10-06" },
+      "milestones": {
+        "maturity": "2026-09-29",
+        "final": "2026-10-06"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-05",
@@ -58,7 +61,10 @@
         "pr": 305,
         "via": "packages/providers/youtube, replacing the googleapis monolith, 1.1 days after publication"
       },
-      "milestones": { "maturity": "2026-10-01", "final": "2026-10-08" },
+      "milestones": {
+        "maturity": "2026-10-01",
+        "final": "2026-10-08"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-05",
@@ -94,7 +100,10 @@
         "pr": 325,
         "via": "the catalog CVE floor, a deliberate deviation from the buffer approved on 2026-10-01, 0.4 days after publication"
       },
-      "milestones": { "maturity": "2026-10-07", "final": "2026-10-14" },
+      "milestones": {
+        "maturity": "2026-10-07",
+        "final": "2026-10-14"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-07",
@@ -119,7 +128,10 @@
         "pr": 377,
         "via": "@secretlint/walker 13.0.6, and @typescript-eslint/eslint-plugin 8.70.1 by deduplication, 0.9 days after publication"
       },
-      "milestones": { "maturity": "2026-10-09", "final": "2026-10-16" },
+      "milestones": {
+        "maturity": "2026-10-09",
+        "final": "2026-10-16"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-10",
@@ -150,7 +162,10 @@
         "pr": 487,
         "via": "the catalog CVE floor, 2.4 days after publication and about 4.5 days before the 2026-10-13T04:10Z maturity: the latest mature 8.3.2 is inside the range >=8.3.0 <=8.3.2 of GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg and GHSA-9jrq-w75r-8gcw (vitejs/vite repository advisories of 2026-10-06, not yet in OSV or the GitHub global database), and 8.3.3 is the minimal patched version; dev-only, the devDependencies of apps/admin and apps/client"
       },
-      "milestones": { "maturity": "2026-10-13", "final": "2026-10-20" },
+      "milestones": {
+        "maturity": "2026-10-13",
+        "final": "2026-10-20"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-14",
@@ -170,7 +185,10 @@
         "pr": 492,
         "via": "the catalog CVE floor, 2.9 days after publication and about 4.1 days before the 2026-10-12T22:37Z maturity: 4.7.9 is inside the range >=4.0.0 <=4.7.9 of GHSA-8r5x-fm3f-whwj and GHSA-p8wg-vrv2-v86f (critical) and GHSA-xw65-4hp5-5hc7 (moderate), published to the GitHub global database on 2026-10-08T17:52Z, and 4.7.10 is the minimal patched version and latest; production, packages/shared BaseTemplateEngine under the API's tenant template compile route and the client preview"
       },
-      "milestones": { "maturity": "2026-10-12", "final": "2026-10-19" },
+      "milestones": {
+        "maturity": "2026-10-12",
+        "final": "2026-10-19"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-14",
@@ -201,7 +219,10 @@
         "pr": 557,
         "via": "the catalog entry of @typescript-eslint/parser and the root literal of @typescript-eslint/eslint-plugin, 6.1 days after publication and about 22 hours before the 2026-10-12T17:08Z maturity (17:09Z for the plugin), on Edward's instruction of 2026-10-11, so the holds gate would not go red on every pull request and on main at that instant; #557 owed this entry once it had a pull request number, and it was recorded on 2026-10-14"
       },
-      "milestones": { "maturity": "2026-10-12", "final": "2026-10-19" },
+      "milestones": {
+        "maturity": "2026-10-12",
+        "final": "2026-10-19"
+      },
       "reviews": {
         "maturity": {
           "date": "2026-10-14",
@@ -225,6 +246,46 @@
         "maturity": "2026-10-20",
         "final": "2026-10-27"
       },
+      "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "next",
+      "version": "16.4.1",
+      "published": "2026-10-14T17:43:55.246Z",
+      "members": [
+        "@next/env@16.4.1",
+        "@next/swc-darwin-arm64@16.4.1",
+        "@next/swc-darwin-x64@16.4.1",
+        "@next/swc-linux-arm64-gnu@16.4.1",
+        "@next/swc-linux-arm64-musl@16.4.1",
+        "@next/swc-linux-x64-gnu@16.4.1",
+        "@next/swc-linux-x64-musl@16.4.1",
+        "@next/swc-win32-arm64-msvc@16.4.1",
+        "@next/swc-win32-x64-msvc@16.4.1"
+      ],
+      "entered": {
+        "date": "2026-10-14",
+        "commit": "PENDING",
+        "pr": 0,
+        "via": "the catalog CVE floor, about 2.4 hours after publication and 7 days before the 2026-10-21T17:43Z maturity: 16.3.8 is inside the ranges of GHSA-673q-mjm6-r5xr and GHSA-2464-fhr4-w9xw (critical) and GHSA-p3m5-59mp-jv5r (high), vercel/next.js repository advisories published 2026-10-14 between 17:46Z and 17:47Z and not yet in OSV or the GitHub global database, and 16.4.1 is the minimal patched version and latest; production, the dependencies of apps/admin and apps/client, the high reachable through their Server Actions (apps/admin/app/actions/auth.ts, apps/client/app/actions/auth.ts)"
+      },
+      "milestones": {
+        "maturity": "2026-10-21",
+        "final": "2026-10-28"
+      },
+      "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "patch-storybook-nextjs-vite-10.6.3",
+      "title": "Storybook 10.6.3: published? move the family to it and drop the nextjs-vite patch (ADR-0037)",
+      "due": "2026-10-17",
+      "refs": [
+        "docs/technical/ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md, Decision 3 and Remove-when: read npm for @storybook/nextjs-vite 10.6.3; if published, the family moves to it immediately, not in the weekly window, and 10.6.3 enters this list; if unpublished, record this review as flagged with what was read and add the next entry, patch-storybook-nextjs-vite-10.6.3-<due>, due two or three days later",
+        "https://github.com/storybookjs/storybook/pull/36762, Release: Patch 10.6.3, which carries the fix of storybookjs/storybook#36732",
+        "docs/security/SECURITY_CANON.md, section Patched dependencies; branch workstream/next-16-4-1-floor"
+      ],
       "reviews": {}
     }
   ]

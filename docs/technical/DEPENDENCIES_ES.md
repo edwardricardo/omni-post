@@ -192,7 +192,7 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 | Paquete    | Version | Proposito                                       |
 | ---------- | ------- | ----------------------------------------------- |
-| next       | 16.3.8  | Framework React (App Router, server components) |
+| next       | 16.4.1  | Framework React (App Router, server components) |
 | react      | 19.2.7  | Biblioteca de UI                                |
 | react-dom  | 19.2.7  | Renderizado DOM                                 |
 | typescript | 6.0.3   | Lenguaje                                        |
@@ -245,7 +245,7 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 ## Frontend — Portal de Administracion (apps/admin)
 
-Mismo stack base que apps/client (Next.js 16.3.8, React 19.2.7, Tailwind, Recharts). 13 paginas enfocadas en la administracion de la plataforma: cuentas, suscripciones, precios, seguridad, cumplimiento, logs de auditoria, webhooks, dashboard ejecutivo.
+Mismo stack base que apps/client (Next.js 16.4.1, React 19.2.7, Tailwind, Recharts). 13 paginas enfocadas en la administracion de la plataforma: cuentas, suscripciones, precios, seguridad, cumplimiento, logs de auditoria, webhooks, dashboard ejecutivo.
 
 ---
 
@@ -320,6 +320,8 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 | @playwright/test          | 1.63.0  | Testing E2E                              |
 | @faker-js/faker           | 10.6.0  | Generacion de datos de prueba            |
 | yaml                      | 2.9.1   | Parseo de workflows del motor de alcance |
+
+Las historias de componentes se ejecutan sobre la familia Storybook 10.6.1. `@storybook/nextjs-vite` 10.6.1 lleva un parche, la corrección para next 16.4 que Storybook ya integró, hasta que se publique la versión 10.6.3 y la familia pase a ella ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)).
 
 ### Cadencia de actualización
 
