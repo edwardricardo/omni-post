@@ -6,8 +6,32 @@
 # ==============================================================================
 # Shared Base Stage - Node.js with pnpm
 # ==============================================================================
-FROM node:24-bookworm-slim AS base
-RUN corepack enable
+FROM node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567 AS base
+# Node 26 ships no corepack, so pnpm comes from its immutable v12.6.0 GitHub
+# release, checked against the sha256 GitHub records for the asset; the slim
+# image has no curl, so node's own fetch downloads it, three attempts 5 s then
+# 10 s apart, each checked by sha256 before it counts. `packageManager` in
+# package.json stays the version pnpm runs as. Why: docs/deployment/base-images.md
+RUN set -eu; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) asset=pnpm-linux-x64.tar.gz; sum=3f4c66f668d0e84219679982d095b30da68325e1fac9284e7f5dc1584bd3d13e ;; \
+      arm64) asset=pnpm-linux-arm64.tar.gz; sum=973af2b3eb9509416cf889a7336705062c936407d5fda07298814e7532f5dea1 ;; \
+      *) echo "no pinned pnpm 12.6.0 build for $arch" >&2; exit 1 ;; \
+    esac; \
+    for attempt in 1 2 3; do \
+      rm -f /tmp/pnpm.tar.gz; \
+      if node -e 'fetch(process.argv[1], { signal: AbortSignal.timeout(120000) }).then(async (res) => { if (!res.ok) throw new Error(`${res.status} ${res.url}`); require("node:fs").writeFileSync("/tmp/pnpm.tar.gz", Buffer.from(await res.arrayBuffer())); })' \
+           "https://github.com/pnpm/pnpm/releases/download/v12.6.0/$asset" \
+         && echo "$sum  /tmp/pnpm.tar.gz" | sha256sum -c -; then break; fi; \
+      [ "$attempt" -lt 3 ] || { echo "pnpm 12.6.0 asset $asset: 3 attempts failed" >&2; exit 1; }; \
+      sleep $((attempt * 5)); \
+    done; \
+    mkdir /opt/pnpm; \
+    tar -xzf /tmp/pnpm.tar.gz -C /opt/pnpm --no-same-owner; \
+    rm /tmp/pnpm.tar.gz; \
+    ln -s /opt/pnpm/pnpm /usr/local/bin/pnpm; \
+    pnpm --version
 WORKDIR /app
 
 # ==============================================================================
@@ -84,7 +108,7 @@ RUN pnpm --filter @apps/admin exec next build ${NEXT_BUILD_FLAGS}
 # updates an ALREADY-pinned digest and does not add one to a bare reference.
 # The measurements, the glibc-direction reading and what the CI smoke proves:
 # docs/deployment/base-images.md
-FROM gcr.io/distroless/nodejs24-debian13@sha256:96df910f65fdd8a21d00d14d4cc046adcfcf3ced2d5e96be4b39ebde9f4866c6 AS production
+FROM gcr.io/distroless/nodejs26-debian13@sha256:746f728c8b61c9beb5d0350f054b4049c4cef0ae71d5b3f8f33bc57904bbc37e AS production
 
 WORKDIR /app
 

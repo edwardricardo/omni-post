@@ -167,7 +167,7 @@ Dos adaptadores de pago implementados: **Stripe** y **Paddle**. La seleccion es 
 
 | Capa           | Tecnologia                             |
 | -------------- | -------------------------------------- |
-| Runtime        | Node.js 24, TypeScript 6.0.2           |
+| Runtime        | Node.js 26, TypeScript 6.0.2           |
 | API            | Fastify 5.6.1                          |
 | Frontend       | Next.js 16.1.6, React 19, Tailwind CSS |
 | Base de datos  | PostgreSQL 16                          |

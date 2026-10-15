@@ -461,7 +461,7 @@ Post publication across 10 providers with approvals, campaigns, recurring schedu
 
 ### Prerequisites
 
-- Node.js 24
+- Node.js 26
 - pnpm 12.6.0+
 - Docker (for PostgreSQL + Redis)
 

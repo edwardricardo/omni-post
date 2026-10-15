@@ -473,7 +473,7 @@ El trade-off es claro: mayor ceremonia inicial al modelar el dominio, pero acopl
 
 ### Prerrequisitos
 
-- Node.js 24
+- Node.js 26
 - pnpm 12.6.0+
 - Docker (para PostgreSQL + Redis)
 
