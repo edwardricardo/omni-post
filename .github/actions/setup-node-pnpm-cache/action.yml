@@ -6,9 +6,9 @@ branding:
 
 inputs:
   node-version:
-    description: "Node.js version to install"
+    description: "Node.js version to install; empty (the default) reads it from .nvmrc, the major the engines gate holds every manifest to"
     required: false
-    default: "24"
+    default: ""
   frozen-lockfile:
     description: "Use --frozen-lockfile for pnpm install"
     required: false
@@ -17,10 +17,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup Node.js ${{ inputs.node-version }}
+    - name: Setup Node.js ${{ inputs.node-version || '(.nvmrc)' }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ inputs.node-version }}
+        # Passed only when node-version is empty: setup-node warns when it gets both.
+        node-version-file: ${{ inputs.node-version == '' && '.nvmrc' || '' }}
 
     - name: Setup pnpm (from package.json packageManager)
       uses: pnpm/action-setup@v4

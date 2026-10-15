@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: "24"
+  NODE_VERSION: "26"
 
 jobs:
   # ===== DEPENDENCY ANALYSIS =====
@@ -332,14 +332,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Setup Node.js with pnpm
+      # Node 26 ships no corepack (ADR-0038), so pnpm comes from pnpm/action-setup, which installs
+      # the version the root package.json pins in `packageManager` (12.6.0), as fitness.yml does. It
+      # runs before setup-node because `cache: "pnpm"` asks pnpm for its store path.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "pnpm"
-
-      - name: Enable pnpm
-        run: corepack enable pnpm
 
       - name: Analyze major updates
         run: |
