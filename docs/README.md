@@ -31,6 +31,7 @@
 | [Turborepo](development/turborepo.md)                           | Build cache, CI integration                             |
 | [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks, reach, CI execution, gates that cannot fail |
 | [Testing Re-foundation](development/TESTING_REFOUNDATION.md)    | Progress tracker and fixed plan of the re-foundation    |
+| [Foundation Practices](development/FOUNDATION_PRACTICES.md)     | Practices the next app adopts from its first commit     |
 
 ### Architecture
 
