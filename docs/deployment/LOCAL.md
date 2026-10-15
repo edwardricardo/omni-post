@@ -6,20 +6,33 @@ Complete guide for running OmniPost locally with all services and observability 
 
 ## Prerequisites
 
-| Tool           | Version  | Install                                            |
-| -------------- | -------- | -------------------------------------------------- |
-| Docker Desktop | 4.x+     | https://docs.docker.com/desktop/                   |
-| Node.js        | 24.x LTS | https://nodejs.org/ or `nvm install 24`            |
-| pnpm           | 11.17.0  | `corepack enable && corepack prepare`              |
-| Git            | 2.x+     | https://git-scm.com/                               |
-| ffmpeg         | 6.x+     | `sudo apt install ffmpeg` or `brew install ffmpeg` |
+| Tool           | Version | Install                                            |
+| -------------- | ------- | -------------------------------------------------- |
+| Docker Desktop | 4.x+    | https://docs.docker.com/desktop/                   |
+| Node.js        | 26.x    | `fnm install 26.11.1`; `.nvmrc` holds `26`         |
+| pnpm           | 12.6.0  | the official installer, below                      |
+| Git            | 2.x+    | https://git-scm.com/                               |
+| ffmpeg         | 6.x+    | `sudo apt install ffmpeg` or `brew install ffmpeg` |
+
+Node 26 ships no corepack, so pnpm comes from its official installer, pinned to the version the root
+`package.json` names in `packageManager` ([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)):
+
+```bash
+fnm install 26.11.1 && fnm use 26.11.1
+curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=12.6.0 sh -
+```
+
+pnpm does not check `engines.node` when it installs (`engineStrict` is unset), so a shell left on
+another Node installs without a warning; the engines gate (`node scripts/testing/engines-node-gate.mjs`)
+and the local battery refuse it. fnm reads `.nvmrc` on `cd` only when its environment is loaded with
+`fnm env --use-on-cd`.
 
 Verify installations:
 
 ```bash
 docker --version        # Docker version 27.x+
-node --version          # v24.x.x
-pnpm --version          # 11.17.0
+node --version          # v26.11.1 or a later 26.x
+pnpm --version          # 12.6.0
 git --version           # git version 2.x
 ffmpeg -version         # ffmpeg version 6.x+
 ```

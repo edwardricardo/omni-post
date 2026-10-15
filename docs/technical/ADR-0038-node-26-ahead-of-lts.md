@@ -42,14 +42,20 @@ running a Current release for those thirteen days, and the maturity watchlist re
    system requirements page says it "supports and tests all Active LTS and Maintenance LTS Node.js
    releases. Releases that are not in these states like Current … probably also work, but are not
    recommended for production use".
-5. **Why one change.** Three facts tie every site together:
-   - pnpm refuses to install a workspace whose projects' `engines.node` excludes the running Node,
-     whatever `engineStrict` says, so the manifests and every place that installs move together;
+5. **Why one change.** Two facts tie every site together, and a third limits what enforces it:
    - the engines gate (`scripts/testing/engines-node-gate.mjs`) refuses a process on another major
-     than `.nvmrc`, and a `@types/node` pin on another major;
+     than `.nvmrc`, a manifest whose `engines.node` differs from the root's, and a `@types/node` pin
+     on another major, so `.nvmrc`, the manifests, the pin and every Node that runs the gate (CI and
+     the local battery) move together;
    - Node 26 ships no corepack: it is "no longer distributed as of Node.js v25.0.0"
      (nodejs/node#61207), so `RUN corepack enable` in the four Dockerfiles and
-     `corepack enable pnpm` in `dependency-updates.yml` stop working.
+     `corepack enable pnpm` in `dependency-updates.yml` stop working;
+   - pnpm does not enforce `engines.node` here. Measured with pnpm 12.6.0 on 2026-10-15: with
+     `engineStrict` unset, as in this repository, a Node 24.15.0 process installs a workspace whose
+     every project declares `>=26.11.1 <27`, exit 0 and no warning, and `pnpm install
+--frozen-lockfile --offline` in this tree under 24.15.0 also exits 0; with `engineStrict` on,
+     pnpm refuses the root project's range only (`ERR_PNPM_UNSUPPORTED_ENGINE`, "current:
+     {"node":"24.15.0"}").
 
 ## Decision
 
@@ -97,33 +103,74 @@ package state on 2026-10-28.
 - **Wait for the LTS date.** The original plan. Rejected by the owner: every unit of the catch-up
   until 2026-10-28 would be certified on Node 24 and certified again after the move, while Node 24
   enters Maintenance on 2026-10-20.
-- **Move only CI.** Rejected: CI on 26 needs `engines.node` at 26, which a Node 24 image build cannot
-  install, and production would run a major the tests never ran on.
-- **Move only the images.** Rejected for the mirror reason: an image on 26 cannot install manifests
-  that declare 24, and the tests would run on a major production does not use.
+- **Move only CI.** Rejected: production would run a major the tests never ran on, and the engines
+  gate refuses a CI Node on another major than `.nvmrc`, so `.nvmrc` and the manifests would move
+  anyway.
+- **Move only the images.** Rejected for the mirror reason: the tests would run on a major production
+  does not use.
 - **`npm install -g pnpm@12.6.0` or `npm install -g corepack` in the images.** Rejected: the same
   binary or one more moving part, with no digest pinned in the tree (Rationale).
+- **`engineStrict: true` in `pnpm-workspace.yaml`, so `pnpm install` refuses a Node outside the
+  range.** Considered and not taken in this change. Measured with pnpm 12.6.0 (Context item 5), it
+  checks only the root project's `engines.node`, and only when `engineStrict` is on. The engines gate,
+  in CI and in the local battery, already refuses a process on another major than `.nvmrc`. A strict
+  install would also turn any later dependency whose `engines` exclude the running Node from a
+  warning into a failed install.
 
 ## Consequences
 
-- **Every install needs Node 26 from this commit.** A Node 24 process cannot install the tree: local
-  work runs under `fnm exec --using 26.11.1` until the fnm default moves after merge, every live
-  worktree reinstalls, and a branch on the Node 24 base installs under 24 until it is rebased.
+- **Every process that runs the gates needs Node 26 from this commit.** The engines gate, in CI and
+  in the local battery, exits 1 on any other major. The install does not: pnpm installs this tree
+  under Node 24 with exit 0 and no warning (Context item 5), so a local run on the wrong Node is
+  caught by the gate, never by `pnpm install`. Local work runs under `fnm exec --using 26.11.1`
+  until the fnm default moves after merge, every live worktree reinstalls, and a branch on the Node
+  24 base stays on 24 until it is rebased.
 - **Operators** need Node 26 and pnpm 12.6.0 wherever they run `pnpm` (migrations, the app role):
   a new Infrastructure row in `docs/deployment/DEPLOYMENT_CHECKLIST.md`.
 - **Build and runtime differ by one minor**: 26.11.1 builds, 26.12.0 runs. The distroless repository
   has no version tags, and the N-API addons do not depend on the minor.
 - **Production runs a release Prisma does not test** until 2026-10-28. The re-check reads Prisma's
-  statement again.
+  statement again. Every install under Node 26 prints Prisma's preinstall notice, "Prisma only
+  supports Node.js versions 20.19+, 22.12+, 24.0+. Please use a supported Node.js version.", and
+  continues: `prisma generate` runs after it (measured on 2026-10-15, exit 0).
 - **`setup-node` follows the 26 line.** When the `actions/node-versions` manifest lists 26.12.0, CI
   moves to it inside the major; the floor stays 26.11.1 until a change raises it.
 - **Two watchlist reviews** for `@types/node` 26.6.5: 2026-10-16, at its maturity, and 2026-10-23, entered by the follow-up commit once this change has its sha and PR number, the convention of every entry in that file.
 - **The build stage is pinned by digest**, so Dependabot now tracks both `FROM` lines of each
   Dockerfile.
+- **Two warnings appear on Node 26**, neither a failure; both are follow-ups of the recalibration
+  unit that comes after this one:
+  - vitest 4's `localStorage` read prints Node's experimental-storage warning on stderr, once per
+    worker process of a suite without a DOM environment: 8 lines in the `apps/api` suite and 1 in
+    `@providers/telegram`. The fix is Node's `--no-experimental-webstorage` flag;
+  - `@tailwindcss/node` 4.3.0 calls `module.register()`, which Node 26 deprecates (DEP0205), once
+    per process in both portal suites, builds and the story run. The fix is Tailwind 4.3.3, which
+    calls `module.registerHooks()` where it exists.
+- **`@types/node` 26 declares `assert.ok` with two overloads** (a message function, or a format
+  string with arguments). Under TypeScript 6 that made two loops in each of
+  `tests/threading.planner.integration.test.ts` and `tests/threading.xprovider.integration.test.ts`
+  circular (TS7022: `tweet` read `result.value.tweets[i]` while `assert.ok` narrowed `result`), and
+  the tests typecheck ratchet of `apps/api` rose from 2135 to 2137. The four loops now read
+  `tweets` once, after `assert.ok(result.ok)`, and iterate `tweets.entries()`; the ratchet measures
+  2133, and its ledger dropped both `TS7022` keys.
+- **Measured on 2026-10-15 under Node 26.11.1**, on this change:
+  - the lockfile moved only `@types/node`: one copy, 26.6.5, where 24.13.6 and 26.6.4 stood, and
+    `undici-types` 7.18.2 left with 24.13.6 (packages 1942 → 1940, snapshots 1946 → 1944);
+    `pnpm dedupe --check` and `pnpm install --frozen-lockfile --offline` exit 0;
+  - `apps/api` 608 files and 9,613 tests, `apps/workers` 17 and 129, the admin portal 17 and 129,
+    the client portal 45 and 556, and the client stories 9 and 68 pass, with the test environment
+    loaded the way the battery loads it; both portal builds pass;
+  - `apps/api` coverage on Node 26 measures statements 59.04, branches 49.94, functions 60.05 and
+    lines 59.61, above every floor of `apps/api/vitest.config.ts` (56.2, 47.8, 57.3, 56.8);
+  - the four images build with `podman`; each runs `/nodejs/bin/node` v26.12.0 as `nonroot`;
+    argon2 round-trips in the API image; both portal images answer 200 on `/api/health` and `/`,
+    and `podman healthcheck run` passes for both; Trivy 0.75.0 finds no HIGH or CRITICAL
+    vulnerability in the runtime digest (debian 13.7).
 - **Records moved with it:** the canon row `@types/node` in `docs/security/SECURITY_CANON.md`;
-  `docs/deployment/base-images.md`; the stated runtime in `CLIENT-APP.md`, `DEPENDENCIES.md` and
-  `DEPENDENCIES_ES.md`, the two standards documents, both investor documents and
-  `TESTING_INFRASTRUCTURE.md`; slice `0.16` in `tasks.md`, `TESTING_REFOUNDATION.md` and
+  `docs/deployment/base-images.md` and `docs/deployment/LOCAL.md`; the stated runtime in
+  `CLIENT-APP.md`, `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, the two standards documents, both
+  investor documents, `TESTING_INFRASTRUCTURE.md` and the coverage note of
+  `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md`, `TESTING_REFOUNDATION.md` and
   `MASTER_PLAN_ES.md`.
 
 ## Legal impact
@@ -160,15 +207,15 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
 
 ## Risks and Mitigations
 
-| Risk                                                      | Mitigation                                                                                                               |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| A defect in a Current release reaches production          | Thirteen days to the LTS promotion of the same line; security releases are taken immediately; the re-check on 2026-10-28 |
-| Prisma does not test Current                              | Prisma's engines admit 26; the integration tier runs on 26; the re-check reads Prisma's statement                        |
-| A Node 24 process installs or tests the tree              | pnpm refuses the install; the engines gate refuses a process on another major than `.nvmrc`                              |
-| The pnpm asset changes after the pin                      | The release is immutable, and `sha256sum -c` fails the build on any other bytes                                          |
-| The runtime digest goes stale                             | Dependabot tracks it; the re-check re-reads it; base-images.md item 3 moves the four together                            |
-| An operator runs `pnpm` on Node 24                        | The checklist row; pnpm refuses the install and names the engines range                                                  |
-| The distroless image carries a newer minor than the build | N-API addons; the `Container Security` smoke runs every image and the API's argon2 round trip                            |
+| Risk                                                      | Mitigation                                                                                                                               |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| A defect in a Current release reaches production          | Thirteen days to the LTS promotion of the same line; security releases are taken immediately; the re-check on 2026-10-28                 |
+| Prisma does not test Current                              | Prisma's engines admit 26; the integration tier runs on 26; the re-check reads Prisma's statement                                        |
+| A Node 24 process installs or tests the tree              | The engines gate exits 1 on another major than `.nvmrc`, in CI and in the battery; `pnpm install` does not refuse it (no `engineStrict`) |
+| The pnpm asset changes after the pin                      | The release is immutable, and `sha256sum -c` fails the build on any other bytes                                                          |
+| The runtime digest goes stale                             | Dependabot tracks it; the re-check re-reads it; base-images.md item 3 moves the four together                                            |
+| An operator runs `pnpm` on Node 24                        | The checklist row names the check, `node --version`, because pnpm installs on Node 24 without a warning                                  |
+| The distroless image carries a newer minor than the build | N-API addons; the `Container Security` smoke runs every image and the API's argon2 round trip                                            |
 
 ## References
 

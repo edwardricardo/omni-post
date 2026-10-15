@@ -118,8 +118,9 @@ export default defineConfig({
       //     indivisible unit of its own metric.
       //   - `branches` measured 47.93 here and 47.88 in CI. A 47.9 floor turned that
       //     0.05pp difference into a red build on a commit that changed no source.
-      // The CI runner tracks `node-version: "24"`, a floating major, and V8's
-      // range counting shifts between releases; ~0.1pp absorbs that drift while still
+      // The CI runner tracks a floating major, the `26` of `.nvmrc` read by the shared
+      // setup action, and V8's range counting shifts between releases, majors
+      // included (24 → 26 is measured in ADR-0038); ~0.1pp absorbs that drift while still
       // failing every regression larger than it. A regression SMALLER than 0.1pp goes
       // undetected — the deliberate trade for a gate people can trust.
       //

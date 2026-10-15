@@ -108,14 +108,19 @@ Measured on 2026-10-15 from the `linux/amd64` image of `746f728c` (manifest
 `20dc887d…`), by reading its layers' own `var/lib/dpkg/status.d` and
 `/nodejs/bin/node`:
 
-|         | `96df910` (nodejs24, 2026-10-10) | `746f728c` (nodejs26, 2026-10-15) |
-| ------- | -------------------------------- | --------------------------------- |
-| openssl | `libssl3t64` 3.5.7-1~deb13u3     | `libssl3t64` 3.5.7-1~deb13u3      |
-| glibc   | `libc6` 2.41-12+deb13u4          | `libc6` 2.41-12+deb13u4           |
-| node    | v24.21.0                         | **v26.12.0**                      |
+|                       | `96df910` (nodejs24, 2026-10-10) | `746f728c` (nodejs26, 2026-10-15) |
+| --------------------- | -------------------------------- | --------------------------------- |
+| openssl               | `libssl3t64` 3.5.7-1~deb13u3     | `libssl3t64` 3.5.7-1~deb13u3      |
+| glibc                 | `libc6` 2.41-12+deb13u4          | `libc6` 2.41-12+deb13u4           |
+| node                  | v24.21.0                         | **v26.12.0**                      |
+| Trivy `HIGH,CRITICAL` | 0 (debian 13.7)                  | 0 (debian 13.7)                   |
 
-Only node moved. The re-check of 2026-10-28 re-reads the `latest` index digest,
-because Google rebuilds it as Node 26 releases land.
+Trivy 0.75.0 produced the last cell of the new digest, over the same `linux/amd64`
+image. Only node moved. The four images built from it with `podman` on the same
+day each run `/nodejs/bin/node` v26.12.0 as `nonroot`; argon2 round-trips in the
+API image, and both portal images answer 200 on `/api/health` and `/` and pass
+`podman healthcheck run`. The re-check of 2026-10-28 re-reads the `latest` index
+digest, because Google rebuilds it as Node 26 releases land.
 
 ### pnpm in the build stage
 
@@ -142,9 +147,11 @@ Node 26 ships no corepack: it is "no longer distributed as of Node.js v25.0.0"
    still moves the four Dockerfiles' version and digests in the same change, so
    the image builds with the release it verified.
 
-The asset is pnpm's single executable, which embeds its own Node runtime; pnpm
-runs lifecycle scripts and its `engines` check with the `node` on `PATH`, the
-image's 26.11.1.
+The asset is pnpm's single executable, which embeds its own Node runtime. pnpm
+runs lifecycle scripts with the `node` on `PATH`, the image's 26.11.1, and
+compares `engines` against that same `node` when `engineStrict` asks it to
+(measured on 2026-10-15: under Node 24.15.0 it reports `current:
+{"node":"24.15.0"}`).
 
 ---
 
@@ -236,8 +243,9 @@ letting a silent pass read as more than it is.
    in `.trivyignore`, never a silent suppression.
 5. **Moving the Node major** → both `FROM` lines of all four Dockerfiles move in
    the change that raises `.nvmrc`, every `engines.node` and the `@types/node`
-   pin, because pnpm refuses to install a workspace whose `engines` exclude the
-   running Node ([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)).
+   pin, so the images ship the major the engines gate holds CI and every manifest
+   to. pnpm does not enforce it: with `engineStrict` unset it installs on any
+   Node ([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)).
 6. **Moving pnpm** → the version and both digests of §"pnpm in the build stage"
    move in all four Dockerfiles with `packageManager`, read from the release API
    (`gh api repos/pnpm/pnpm/releases/tags/v<version>`) and reproduced by
