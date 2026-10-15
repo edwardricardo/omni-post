@@ -70,6 +70,8 @@
     "@packages/eslint-plugin-testing": "workspace:*",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.7",
     "@size-limit/preset-small-lib": "14.1.0",
+    "@t3-oss/env-core": "catalog:",
+    "@t3-oss/env-nextjs": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
@@ -98,8 +100,7 @@
     "tsx": "catalog:",
     "turbo": "2.11.7",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "zod": "catalog:"
+    "vitest": "catalog:"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -130,9 +131,5 @@
       "limit": "1.75 MB",
       "gzip": true
     }
-  ],
-  "dependencies": {
-    "@t3-oss/env-core": "catalog:",
-    "@t3-oss/env-nextjs": "catalog:"
-  }
+  ]
 }

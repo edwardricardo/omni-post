@@ -478,13 +478,6 @@ patchedDependencies:
 importers:
 
   .:
-    dependencies:
-      '@t3-oss/env-core':
-        specifier: 'catalog:'
-        version: 0.13.11(typescript@6.0.3)(valibot@1.4.2(typescript@6.0.3))(zod@4.4.3)
-      '@t3-oss/env-nextjs':
-        specifier: 'catalog:'
-        version: 0.13.11(typescript@6.0.3)(valibot@1.4.2(typescript@6.0.3))(zod@4.4.3)
     devDependencies:
       '@eslint/js':
         specifier: 9.39.5
@@ -501,6 +494,12 @@ importers:
       '@size-limit/preset-small-lib':
         specifier: 14.1.0
         version: 14.1.0(size-limit@14.1.0)
+      '@t3-oss/env-core':
+        specifier: 'catalog:'
+        version: 0.13.11(typescript@6.0.3)(valibot@1.4.2(typescript@6.0.3))(zod@4.4.3)
+      '@t3-oss/env-nextjs':
+        specifier: 'catalog:'
+        version: 0.13.11(typescript@6.0.3)(valibot@1.4.2(typescript@6.0.3))(zod@4.4.3)
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.5
@@ -588,9 +587,6 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(jsdom@30.1.2)(msw@2.15.0(@types/node@26.6.5)(typescript@6.0.3))(vite@8.3.3(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.15)(yaml@2.9.1))
-      zod:
-        specifier: 'catalog:'
-        version: 4.4.3
 
   apps/admin:
     dependencies:
@@ -823,9 +819,6 @@ importers:
       '@core/embeddings':
         specifier: workspace:*
         version: link:../../packages/core/embeddings
-      '@core/engine':
-        specifier: workspace:*
-        version: link:../../packages/core
       '@core/external-notifications':
         specifier: workspace:*
         version: link:../../packages/core/external-notifications
@@ -1088,6 +1081,9 @@ importers:
         specifier: 3.25.2
         version: 3.25.2(zod@4.4.3)
     devDependencies:
+      '@core/engine':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@faker-js/faker':
         specifier: 10.6.0
         version: 10.6.0
@@ -1250,9 +1246,6 @@ importers:
       recharts:
         specifier: 'catalog:'
         version: 3.8.1(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-is@19.2.7)(react@19.2.7)(redux@5.0.1)
-      tw-animate-css:
-        specifier: 'catalog:'
-        version: 1.4.0
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -1347,6 +1340,9 @@ importers:
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.3
+      tw-animate-css:
+        specifier: 'catalog:'
+        version: 1.4.0
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1480,25 +1476,25 @@ importers:
 
   infra/prisma:
     dependencies:
-      '@observability/logger':
-        specifier: workspace:*
-        version: link:../../packages/observability/logger
       '@prisma/adapter-pg':
         specifier: 7.9.1
         version: 7.9.1
       '@prisma/client':
         specifier: 'catalog:'
         version: 7.9.1(prisma@7.9.1(@types/node@26.6.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(magicast@0.5.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@6.0.3))(typescript@6.0.3)
+    devDependencies:
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../packages/observability/logger
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
       argon2:
         specifier: 'catalog:'
         version: 0.44.0
       dotenv:
         specifier: 'catalog:'
         version: 17.2.2
-    devDependencies:
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.6.5
       prisma:
         specifier: 7.9.1
         version: 7.9.1(@types/node@26.6.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(magicast@0.5.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@6.0.3)
@@ -2358,6 +2354,9 @@ importers:
       csv-parse:
         specifier: 'catalog:'
         version: 7.0.2
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
       '@packages/vitest-shared':
         specifier: workspace:*
@@ -2872,22 +2871,22 @@ importers:
 
   packages/core/mentions:
     dependencies:
-      '@core/application':
-        specifier: workspace:*
-        version: link:../application
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports
-      '@shared/types':
-        specifier: workspace:*
-        version: link:../../shared
     devDependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
       '@packages/vitest-shared':
         specifier: workspace:*
         version: link:../../vitest-shared
+      '@shared/types':
+        specifier: workspace:*
+        version: link:../../shared
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.5
@@ -3152,9 +3151,6 @@ importers:
 
   packages/core/settings:
     dependencies:
-      '@core/application':
-        specifier: workspace:*
-        version: link:../application
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
@@ -3165,6 +3161,9 @@ importers:
         specifier: workspace:*
         version: link:../../shared
     devDependencies:
+      '@core/application':
+        specifier: workspace:*
+        version: link:../application
       '@packages/vitest-shared':
         specifier: workspace:*
         version: link:../../vitest-shared
@@ -4283,9 +4282,6 @@ importers:
       radix-ui:
         specifier: 1.4.3
         version: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      react:
-        specifier: 'catalog:'
-        version: 19.2.7
       tailwind-merge:
         specifier: 2.6.0
         version: 2.6.0
@@ -4302,6 +4298,9 @@ importers:
       '@types/react-dom':
         specifier: 'catalog:'
         version: 19.2.3(@types/react@19.2.17)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.7
       react-dom:
         specifier: 'catalog:'
         version: 19.2.7(react@19.2.7)

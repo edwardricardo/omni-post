@@ -32,13 +32,13 @@
     "test:unit:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@core/application": "workspace:*",
     "@core/domain": "workspace:*",
-    "@ports/core": "workspace:*",
-    "@shared/types": "workspace:*"
+    "@ports/core": "workspace:*"
   },
   "devDependencies": {
+    "@core/application": "workspace:*",
     "@packages/vitest-shared": "workspace:*",
+    "@shared/types": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

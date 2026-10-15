@@ -58,7 +58,6 @@
     "@core/customer-auth": "workspace:*",
     "@core/domain": "workspace:*",
     "@core/embeddings": "workspace:*",
-    "@core/engine": "workspace:*",
     "@core/external-notifications": "workspace:*",
     "@core/first-comment": "workspace:*",
     "@core/glossary": "workspace:*",
@@ -148,6 +147,7 @@
     "zod-to-json-schema": "3.25.2"
   },
   "devDependencies": {
+    "@core/engine": "workspace:*",
     "@packages/vitest-shared": "workspace:*",
     "@faker-js/faker": "10.6.0",
     "@fastify/rate-limit": "10.3.0",
