@@ -1,9 +1,9 @@
 {
   "_README": "Tracked type-error debt for apps/api/tests, the scope no tsconfig used to open. The gate (apps/api/scripts/typecheck-tests-ratchet.mjs) FAILS on any NEW file+code pair and on any pair whose count RISES, so new type errors in test code are prevented while this ledger is burned down. Never grow an entry to absorb a new error. Regenerate after genuine fixes: node apps/api/scripts/typecheck-tests-ratchet.mjs --write",
   "_RESIDUAL": "Keys are file+code, not file+line+message, so an unrelated edit does not churn the ledger. The cost of that choice: fixing one TS2339 in a file and introducing a different TS2339 in the SAME file leaves the count unchanged and passes. Narrow, and stated rather than discovered.",
-  "totalErrors": 2135,
+  "totalErrors": 2133,
   "filesWithErrors": 282,
-  "testFilesInProgram": 781,
+  "testFilesInProgram": 784,
   "byCode": {
     "TS2339": 438,
     "TS18048": 384,
@@ -31,7 +31,6 @@
     "TS2412": 5,
     "TS2683": 4,
     "TS2820": 3,
-    "TS7022": 3,
     "TS2314": 3,
     "TS2571": 3,
     "TS2367": 2,
@@ -50,6 +49,7 @@
     "TS2307": 1,
     "TS2456": 1,
     "TS7023": 1,
+    "TS7022": 1,
     "TS2531": 1,
     "TS2638": 1
   },
@@ -103,9 +103,7 @@
     "tests/setup/testDataFactory.ts::TS2820": 1,
     "tests/threading.canonical.integration.test.ts::TS2339": 2,
     "tests/threading.planner.integration.test.ts::TS2353": 15,
-    "tests/threading.planner.integration.test.ts::TS7022": 1,
     "tests/threading.xprovider.integration.test.ts::TS2353": 19,
-    "tests/threading.xprovider.integration.test.ts::TS7022": 1,
     "tests/unit/accountRoutes.test.ts::TS2322": 1,
     "tests/unit/accountRoutes.test.ts::TS2345": 1,
     "tests/unit/accountRoutes.test.ts::TS2379": 1,

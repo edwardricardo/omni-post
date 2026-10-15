@@ -183,14 +183,14 @@ describe("X/Twitter Provider Threading", () => {
 
       const result = xAdapter.planThread(longPost);
       assert.ok(result.ok);
+      const { tweets } = result.value;
 
-      const totalTweets = result.value.tweets.length;
+      const totalTweets = tweets.length;
 
-      for (let i = 0; i < totalTweets; i++) {
-        const tweet = result.value.tweets[i];
+      for (const [i, tweet] of tweets.entries()) {
         const expectedIndicator = `${i + 1}/${totalTweets} `;
         assert.ok(
-          tweet?.text.startsWith(expectedIndicator),
+          tweet.text.startsWith(expectedIndicator),
           `Tweet ${i + 1} should start with thread indicator`
         );
       }
@@ -210,10 +210,10 @@ describe("X/Twitter Provider Threading", () => {
 
       const result = xAdapter.planThread(longPost);
       assert.ok(result.ok);
+      const { tweets } = result.value;
 
       // Verify sequence numbers are consecutive
-      for (let i = 0; i < result.value.tweets.length; i++) {
-        const tweet = result.value.tweets[i];
+      for (const [i, tweet] of tweets.entries()) {
         assert.strictEqual(
           tweet.sequence,
           i + 1,
