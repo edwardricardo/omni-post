@@ -17,16 +17,20 @@ Typical use from a hook:
         ...
 """
 
+import contextlib
 import fcntl
 import json
+import os
 import re
 import shlex
 import subprocess
 import sys
+import tempfile
+import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable, NoReturn
+from typing import Callable, Iterator, NoReturn
 
 
 # Repository root, resolved from the location of THIS file
@@ -39,9 +43,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 LOG_PATH = PROJECT_ROOT / ".claude" / "hooks.log"
 
-# Time-boxed authorization tokens created by `.claude/bin/omnipost-allow`.
-# One token per operation (`push`, `sensitive-edit`, ...). Validated
-# identically by pre-bash and pre-edit (shared contract, no drift).
+# The grant store: one file per operation (`push`, `sensitive-edit`, ...),
+# written by `.claude/bin/omnipost-allow` and read by every hook through the
+# grant functions at the end of this module (shared contract, no drift).
 ALLOWED_TOKENS_DIR = PROJECT_ROOT / ".claude" / ".allowed"
 
 
@@ -844,37 +848,316 @@ def recovered_file_notice(tag: str, name: str, path: Path, session_id: str = "")
     return f"[{tag}] {name} RECOVERED at {path}"
 
 
-def check_grant_token(operation: str, log_fn: Callable[[str], None]) -> str | None:
-    """Validate the time-boxed token for `operation` in .claude/.allowed/<op>.
+# ────────────────────────────────────────────────────────────────────
+# Authorization grants: `.claude/.allowed/<operation>`
+#
+# A grant is a window `[not_before, expires_at)`; one file holds every grant
+# of an operation, consecutive windows included, and an operation is allowed
+# while one of its windows contains now. Each grant carries the claim fields
+# (`claimed_at`, `claim_fingerprint`) the push hooks are to record on the grant
+# that authorizes a publication.
+# ────────────────────────────────────────────────────────────────────
 
-    Returns None when the token is valid (not expired). Returns the reason
-    ("missing"|"corrupt"|"malformed"|"expired") otherwise, deleting the file
-    when expired. Identical contract for `push` and `sensitive-edit`.
-    """
-    token_path = ALLOWED_TOKENS_DIR / operation
-    if not token_path.exists():
-        return "missing"
+# How long a CLAIMED grant outlives its window. A push pre-bash authorized a
+# second before its window closed finishes after it, and post-bash must still
+# find the grant that authorized it: without it, post-bash would consume the
+# grant of the NEXT window. Ten minutes is the Bash tool's longest foreground
+# timeout, so no authorized command is still running after it.
+GRANT_CLAIM_GRACE = timedelta(minutes=10)
+# The most windows one `omnipost-allow` call creates: twelve one-hour windows
+# are a night; a larger number is likelier a typo than a plan.
+MAX_GRANTS_PER_CALL = 12
+GRANT_ISSUER = "edward"
+
+
+def now_utc() -> datetime:
+    """The instant every grant decision reads: one seam, so the tests freeze
+    the clock instead of sleeping across a window boundary."""
+    return datetime.now(timezone.utc)
+
+
+def format_local(moment: datetime) -> str:
+    """`moment` in the machine's local time, the clock the owner reads."""
+    return moment.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+
+
+def _parse_instant(raw: object) -> datetime:
+    """An ISO-8601 instant, aware (UTC when it carries no zone). Raises ValueError."""
+    if not isinstance(raw, str):
+        raise ValueError(f"not a timestamp: {raw!r}")
+    moment = datetime.fromisoformat(raw)
+    return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+@dataclass
+class Grant:
+    """One window during which an operation is allowed, and the command that
+    claimed it, if one did."""
+
+    id: str
+    not_before: datetime
+    expires_at: datetime
+    created_at: datetime
+    ttl_minutes: int | None = None
+    claimed_at: datetime | None = None
+    claim_fingerprint: str | None = None
+
+    def is_open(self, now: datetime) -> bool:
+        return self.not_before <= now < self.expires_at
+
+    def is_expired(self, now: datetime) -> bool:
+        """Past its window, and past the claim grace when a command claimed it."""
+        grace = GRANT_CLAIM_GRACE if self.claimed_at is not None else timedelta(0)
+        return now >= self.expires_at + grace
+
+    def window(self) -> str:
+        return f"{self.not_before.isoformat()} -> {self.expires_at.isoformat()}"
+
+    def to_json(self) -> dict:
+        data: dict = {
+            "id": self.id,
+            "created_at": self.created_at.isoformat(),
+            "not_before": self.not_before.isoformat(),
+            "expires_at": self.expires_at.isoformat(),
+            "ttl_minutes": self.ttl_minutes,
+        }
+        if self.claimed_at is not None:
+            data["claimed_at"] = self.claimed_at.isoformat()
+            data["claim_fingerprint"] = self.claim_fingerprint
+        return data
+
+    @classmethod
+    def from_json(cls, raw: object) -> "Grant":
+        """A grant as `to_json` writes it. Raises KeyError, TypeError or
+        ValueError on any other shape, an empty window included."""
+        if not isinstance(raw, dict):
+            raise TypeError("a grant is not a JSON object")
+        ttl = raw.get("ttl_minutes")
+        if ttl is not None and (isinstance(ttl, bool) or not isinstance(ttl, int)):
+            raise ValueError(f"ttl_minutes is not an integer: {ttl!r}")
+        grant = cls(
+            id=str(raw["id"]),
+            not_before=_parse_instant(raw["not_before"]),
+            expires_at=_parse_instant(raw["expires_at"]),
+            created_at=_parse_instant(raw.get("created_at", raw["not_before"])),
+            ttl_minutes=ttl,
+            claimed_at=_parse_instant(raw["claimed_at"]) if raw.get("claimed_at") else None,
+            claim_fingerprint=raw.get("claim_fingerprint"),
+        )
+        if grant.not_before >= grant.expires_at:
+            raise ValueError(f"grant {grant.id} has an empty window")
+        return grant
+
+
+@dataclass
+class GrantCheck:
+    """What the grant file of an operation allows now. `reason` is None when a
+    window is open (`grant` is its grant); otherwise one of "missing",
+    "corrupt", "malformed", "expired" or "not-yet-open" (`next_opens_at` says
+    when the next window opens)."""
+
+    reason: str | None
+    grant: Grant | None = None
+    next_opens_at: datetime | None = None
+
+
+@dataclass
+class _GrantFile:
+    """A grant file as read: the grants still pending after pruning, how many
+    the file held, and why it could not be read, if it could not."""
+
+    operation: str
+    grants: list[Grant]
+    held: int
+    reason: str | None
+
+    def pruned(self) -> bool:
+        """Whether reading changed what the file must hold."""
+        return self.reason is None and (len(self.grants) != self.held or not self.grants)
+
+
+def grant_file(operation: str) -> Path:
+    return ALLOWED_TOKENS_DIR / operation
+
+
+@contextlib.contextmanager
+def _grant_store_lock() -> Iterator[None]:
+    """Serializes each read-modify-write of the store: the PreToolUse hooks of
+    two Bash calls in one turn run at the same time. The lock is taken on the
+    directory itself, so the store holds no lock file; without the directory
+    there is no file to race on."""
     try:
-        with token_path.open("r") as f:
-            token_data = json.load(f)
-    except (json.JSONDecodeError, OSError) as e:
-        log_fn(f"ERROR: token {operation} unreadable: {e}")
-        return "corrupt"
-    expires_at_str = token_data.get("expires_at")
-    if not expires_at_str:
-        log_fn(f"ERROR: token {operation} missing expires_at")
-        return "malformed"
+        descriptor: int | None = os.open(ALLOWED_TOKENS_DIR, os.O_RDONLY)
+    except OSError:
+        descriptor = None
     try:
-        expires_at = datetime.fromisoformat(expires_at_str)
-    except ValueError as e:
-        log_fn(f"ERROR: token {operation} invalid expires_at: {e}")
-        return "malformed"
-    if datetime.now(timezone.utc) >= expires_at:
-        log_fn(f"token {operation} expired (was {expires_at_str})")
-        try:
-            token_path.unlink()
-        except OSError:
-            pass
-        return "expired"
-    log_fn(f"token {operation} valid (expires {expires_at_str})")
-    return None
+        if descriptor is not None:
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _grants_from(raw: object, now: datetime) -> list[Grant]:
+    """The grants a file holds. The single-window shape `omnipost-allow` wrote
+    before grants existed (an `expires_at`, no `grants`) is one grant from its
+    `created_at` (or now) to its `expires_at`, so a token issued before the
+    upgrade keeps working. Raises KeyError, TypeError or ValueError."""
+    if not isinstance(raw, dict):
+        raise TypeError("the file is not a JSON object")
+    if "grants" in raw:
+        if not isinstance(raw["grants"], list):
+            raise TypeError("grants is not a list")
+        return [Grant.from_json(item) for item in raw["grants"]]
+    if not raw.get("expires_at"):
+        raise ValueError("missing expires_at")
+    expires_at = _parse_instant(raw["expires_at"])
+    created_at = _parse_instant(raw["created_at"]) if raw.get("created_at") else now
+    ttl = raw.get("ttl_minutes")
+    return [Grant("legacy", created_at, expires_at, created_at, ttl if isinstance(ttl, int) else None)]
+
+
+def _load_grants(operation: str, now: datetime, log_fn: Callable[[str], None]) -> tuple[list[Grant], str | None]:
+    path = grant_file(operation)
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return [], "missing"
+    except (OSError, ValueError) as error:
+        log_fn(f"ERROR: token {operation} unreadable: {error}")
+        return [], "corrupt"
+    try:
+        return _grants_from(raw, now), None
+    except (KeyError, TypeError, ValueError) as error:
+        log_fn(f"ERROR: token {operation} malformed: {error!r}")
+        return [], "malformed"
+
+
+def _open_grant_file(operation: str, now: datetime, log_fn: Callable[[str], None]) -> _GrantFile:
+    """Reads the grant file of `operation` and drops the grants whose window
+    (and claim grace) is over, logging each."""
+    grants, reason = _load_grants(operation, now, log_fn)
+    kept: list[Grant] = []
+    for grant in grants:
+        if grant.is_expired(now):
+            claimed = "" if grant.claimed_at is None else ", claimed and past its grace"
+            log_fn(f"grant {operation}/{grant.id} pruned: window {grant.window()} is over{claimed}")
+        else:
+            kept.append(grant)
+    return _GrantFile(operation, kept, len(grants), reason)
+
+
+def _store_grants(operation: str, grants: list[Grant], log_fn: Callable[[str], None]) -> None:
+    """Writes the grants of `operation` atomically — a temporary file renamed
+    over the old one, so a reader never sees half a file — or deletes the file
+    when no grant remains. Raises OSError."""
+    path = grant_file(operation)
+    if not grants:
+        with contextlib.suppress(FileNotFoundError):
+            path.unlink()
+            log_fn(f"grant file {operation} removed: no grant remains")
+        return
+    payload = {"operation": operation, "authorized_by": GRANT_ISSUER, "grants": [grant.to_json() for grant in grants]}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(dir=path.parent, prefix=f".{operation}.", suffix=".tmp")
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2)
+            handle.write("\n")
+        os.replace(temporary, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(temporary)
+        raise
+
+
+def _save(store: _GrantFile, log_fn: Callable[[str], None]) -> None:
+    """`_store_grants` from a hook, which must not crash on a store it cannot
+    write: the failure is logged and the decision already taken stands."""
+    try:
+        _store_grants(store.operation, store.grants, log_fn)
+    except OSError as error:
+        log_fn(f"ERROR: grant file {store.operation} not written: {error}")
+
+
+def _verdict(grants: list[Grant], now: datetime, held_any: bool) -> GrantCheck:
+    open_now = [grant for grant in grants if grant.is_open(now)]
+    if open_now:
+        return GrantCheck(None, min(open_now, key=lambda grant: grant.expires_at))
+    upcoming = [grant.not_before for grant in grants if grant.not_before > now]
+    if upcoming:
+        return GrantCheck("not-yet-open", next_opens_at=min(upcoming))
+    return GrantCheck("expired" if held_any else "missing")
+
+
+def _log_verdict(operation: str, check: GrantCheck, log_fn: Callable[[str], None]) -> None:
+    if check.grant is not None:
+        log_fn(f"token {operation} valid (grant {check.grant.id}, window {check.grant.window()})")
+    elif check.reason == "not-yet-open" and check.next_opens_at is not None:
+        log_fn(f"token {operation} not yet open (next window opens {check.next_opens_at.isoformat()})")
+    elif check.reason == "expired":
+        log_fn(f"token {operation} expired (every window is over)")
+
+
+def inspect_grants(operation: str, log_fn: Callable[[str], None]) -> GrantCheck:
+    """What the grant file of `operation` allows now, pruning what is over (and
+    deleting the file when nothing remains)."""
+    now = now_utc()
+    with _grant_store_lock():
+        store = _open_grant_file(operation, now, log_fn)
+        if store.reason is not None:
+            return GrantCheck(store.reason)
+        if store.pruned():
+            _save(store, log_fn)
+        check = _verdict(store.grants, now, store.held > 0)
+    _log_verdict(operation, check, log_fn)
+    return check
+
+
+def check_grant_token(operation: str, log_fn: Callable[[str], None]) -> str | None:
+    """None when a window of `operation` contains now; otherwise why not
+    ("missing", "corrupt", "malformed", "expired", "not-yet-open"). Nothing is
+    consumed: the contract of `sensitive-edit`, read identically by pre-edit,
+    pre-bash and the tripwire blocker."""
+    return inspect_grants(operation, log_fn).reason
+
+
+@dataclass
+class GrantIssue:
+    """What `add_grants` did: the grants that were pending, the new ones, and
+    why the old file was replaced instead of extended, if it was."""
+
+    pending: list[Grant]
+    created: list[Grant]
+    replaced: str | None
+
+
+def add_grants(operation: str, count: int, ttl_minutes: int, log_fn: Callable[[str], None]) -> GrantIssue:
+    """Appends `count` consecutive windows of `ttl_minutes` each, starting now
+    or, when grants are pending, when the last pending window ends. A file
+    that cannot be read is replaced. Raises ValueError on a count outside
+    1..MAX_GRANTS_PER_CALL or a non-positive TTL, and OSError when the store
+    cannot be written."""
+    if not 1 <= count <= MAX_GRANTS_PER_CALL:
+        raise ValueError(f"count must be between 1 and {MAX_GRANTS_PER_CALL}, received {count}")
+    if ttl_minutes <= 0:
+        raise ValueError(f"TTL must be positive, received {ttl_minutes}")
+    now = now_utc()
+    ALLOWED_TOKENS_DIR.mkdir(parents=True, exist_ok=True)
+    with _grant_store_lock():
+        store = _open_grant_file(operation, now, log_fn)
+        replaced = store.reason if store.reason in ("corrupt", "malformed") else None
+        if replaced:
+            log_fn(f"grant file {operation} was {replaced}: replaced by the new grants")
+        pending = list(store.grants)
+        start = max([now, *(grant.expires_at for grant in pending)])
+        step = timedelta(minutes=ttl_minutes)
+        created = [
+            Grant(uuid.uuid4().hex[:12], start + k * step, start + (k + 1) * step, now, ttl_minutes)
+            for k in range(count)
+        ]
+        _store_grants(operation, pending + created, log_fn)
+        for grant in created:
+            log_fn(f"grant {operation}/{grant.id} created: window {grant.window()}")
+    return GrantIssue(pending, created, replaced)
