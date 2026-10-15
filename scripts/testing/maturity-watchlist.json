@@ -209,6 +209,23 @@
           "note": "Reviewed 2026-10-14, two days after the 2026-10-12 milestone, inside the check's 3-day grace: the entry was recorded only on 2026-10-14 (18dfbd12), so the reminder first saw it that day and opened #575 at 17:47Z. 8.71.1 left the 7-day buffer between 2026-10-12T17:08Z and 17:10Z (the ten published 2026-10-05 between 17:08:04Z and 17:09:59Z). Registry, read 2026-10-14T17:58Z: 8.71.1 is no longer latest: 8.71.2 is latest for all ten, published 2026-10-12 between 17:08:00Z and 17:11:57Z, and the canary is 8.71.3-alpha.4 (2026-10-13T13:36Z). 8.71.2 keeps every dependency, peer and engines range of 8.71.1 but its own version: typescript >=4.8.4 <6.1.0, so TypeScript 7 stays held (canon row typescript; the canary keeps the same peer), eslint ^8.57.0 || ^9.0.0 || ^10.0.0, node ^18.18.0 || ^20.9.0 || >=21.1.0. OSV, which carries the GitHub database, at 17:59Z: nothing for any of the ten at 8.71.1, at 8.71.2 or at any version; GitHub's global advisories and the repository's security advisories list none. Release notes of 8.71.2 (2026-10-12): six fixes, nothing on security: no-unused-vars without the typescript-eslint parser (#12989, the fix of #12980, the 8.71.1 regression the 8.71.0 final review found unreachable here), no-unused-vars type-only references under args after-used (#12977, closing #12975), two no-unnecessary-type-parameters fixes (#12974, #12995), prefer-optional-chain (#12805) and type-utils TypeOrValueSpecifier matching (#12948). One reaches this configuration: eslint.config.ts runs @typescript-eslint/no-unused-vars as a warning with the default args after-used and pnpm lint allows no warning, so #12977 can report a parameter 8.71.1 left silent; that is a false negative fixed, for the move to measure, not a defect of 8.71.1. Upstream issues: fifteen opened from 2026-10-05, the search API listing them all, and the eight that name 8.71.1 are among them. The three opened after the 8.71.0 final review are #13012 (prefer-readonly-parameter-types allow option, open), #13013 (typescript-estree to reject abstract export class, closed 2026-10-13) and #13023 (await-thenable false negatives, open): none is a regression, and none names a rule enabled here. #12993 closed 2026-10-12 with #12995; #13002, a request for TypeScript 7 support, was closed as a duplicate, and the TypeScript 7 issue #10940 is open. #12980 remains the only regression reported against 8.71.1. Reachability, the lockfile parsed with yaml.safe_load_all and walked uncut: no production dependency of the 101 importers reaches any of the ten; one copy each, 8.71.1, from the root devDependencies, the devDependencies of packages/eslint-plugin-testing, eslint-plugin-jsdoc 65.1.0, @es-joy/jsdoccomment 0.98.0 and @vitest/eslint-plugin 1.6.27. Works here: main b5773184's CI run 38593155624 (push, 2026-10-14T15:52Z) passed Run ESLint, pnpm lint (eslint . --ext .ts,.tsx --max-warnings 0), and the full monorepo type check, and its Package Tests ran @packages/eslint-plugin-testing, whose RuleTester parses TypeScript, past the turbo cache: 107 of 107. The holds gate on the pair alone with --instant exits 0 at 2026-10-19T17:09:51Z and 1 at 17:09:53Z, naming @typescript-eslint/eslint-plugin against 8.71.2 (both packages at 17:12:30Z), so the move to 8.71.2, or a pre-registered hold row, is owed by 2026-10-19T17:09Z, the final milestone's day. Clean; the 14-day review is due 2026-10-19."
         }
       }
+    },
+    {
+      "kind": "package",
+      "name": "fastify",
+      "version": "5.12.6",
+      "published": "2026-10-13T06:50:58.498Z",
+      "entered": {
+        "date": "2026-10-15",
+        "commit": "PENDING",
+        "pr": 0,
+        "via": "the catalog CVE floor, about 1.7 days after publication and about 5.3 days before the 2026-10-20T06:50Z maturity: 5.12.5 is inside the range >=5.12.2 <5.12.6 of GHSA-389g-gv7q-r4x8 (low, CVE-2026-107832, header validation bypass via case-sensitive propertyNames), a fastify/fastify repository advisory published 2026-10-13T06:51:29Z that GitHub's global database and OSV's npm records do not carry yet, and 5.12.6 is the minimal patched version (5.12.7, latest, only sets the VERSION constant 5.12.6 left at 5.12.5); production, the dependencies of apps/api and packages/api-common, not reachable: no route schema declares headers and nothing names propertyNames"
+      },
+      "milestones": {
+        "maturity": "2026-10-20",
+        "final": "2026-10-27"
+      },
+      "reviews": {}
     }
   ]
 }

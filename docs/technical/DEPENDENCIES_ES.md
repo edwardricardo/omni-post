@@ -44,7 +44,7 @@
 
 | Paquete                       | Version | Proposito                    | Razon de Eleccion                                                  |
 | ----------------------------- | ------- | ---------------------------- | ------------------------------------------------------------------ |
-| fastify                       | 5.12.5  | Servidor HTTP                | 2x el throughput de Express, TypeScript nativo, rutas schema-first |
+| fastify                       | 5.12.6  | Servidor HTTP                | 2x el throughput de Express, TypeScript nativo, rutas schema-first |
 | fastify-plugin                | 5.0.1   | Sistema de plugins           |                                                                    |
 | fastify-type-provider-zod     | 6.1.0   | Integracion con esquemas Zod | Validacion type-safe de request/response                           |
 | @fastify/cors                 | 11.1.0  | Middleware CORS              |                                                                    |
