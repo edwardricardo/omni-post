@@ -321,17 +321,18 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 | @faker-js/faker           | 10.6.0  | Generacion de datos de prueba            |
 | yaml                      | 2.9.1   | Parseo de workflows del motor de alcance |
 
-Las historias de componentes se ejecutan sobre la familia Storybook 10.6.1. `@storybook/nextjs-vite` 10.6.1 lleva un parche, la corrección para next 16.4 que Storybook ya integró, hasta que se publique la versión 10.6.3 y la familia pase a ella ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)).
+Las historias de componentes se ejecutan sobre la familia Storybook 10.6.1. `@storybook/nextjs-vite` 10.6.1 lleva un parche, la corrección para next 16.4 que Storybook ya integró, hasta que se publique la versión 10.6.3 y la familia pase a ella ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)). Cada dependencia parcheada tiene un registro en `scripts/testing/patched-dependencies.json`, que `scripts/testing/patched-dependencies-gate.mjs` mantiene coherente con `pnpm-workspace.yaml` (fitness #48) y contrasta con el registro de npm cada 6 horas.
 
 ### Cadencia de actualización
 
 Cómo se mueve una dependencia desde el 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-cadence.md)):
 
-| Evento                       | Cuándo se mueve                                                                                                                           | Gate                                                                       |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Un aviso de seguridad        | De inmediato: un piso en la versión mínima corregida, dentro del margen de 7 días si hace falta                                           | `pnpm audit`; las filas de pisos CVE de `docs/security/SECURITY_CANON.md`  |
-| Cualquier otra actualización | En la ventana semanal: cada martes, o el primer día trabajado después, agrupada por familia                                               | cada unidad se certifica como hasta ahora                                  |
-| Un retraso del toolchain     | Se informa durante 30 días desde que madura la versión más antigua pendiente (37 desde su publicación); después necesita una fila de hold | `scripts/testing/holds-gate.mjs`, en el job de CI `Dependency Consistency` |
+| Evento                       | Cuándo se mueve                                                                                                                           | Gate                                                                                                  |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Un aviso de seguridad        | De inmediato: un piso en la versión mínima corregida, dentro del margen de 7 días si hace falta                                           | `pnpm audit`; las filas de pisos CVE de `docs/security/SECURITY_CANON.md`                             |
+| Cualquier otra actualización | En la ventana semanal: cada martes, o el primer día trabajado después, agrupada por familia                                               | cada unidad se certifica como hasta ahora                                                             |
+| Un retraso del toolchain     | Se informa durante 30 días desde que madura la versión más antigua pendiente (37 desde su publicación); después necesita una fila de hold | `scripts/testing/holds-gate.mjs`, en el job de CI `Dependency Consistency`                            |
+| Una dependencia parcheada    | En cuanto se publica la versión que nombra el `resolvedBy` de su registro, en un cambio que elimina el parche                             | `scripts/testing/patched-dependencies-gate.mjs`: `--check` (fitness #48), `--resolution` cada 6 horas |
 
 ### Metricas
 
@@ -393,7 +394,7 @@ Cómo se mueve una dependencia desde el 2026-10-14 ([ADR-0036](ADR-0036-dependen
 | MinIO      | minio/minio:latest          | 9000, 9001 | Almacenamiento de medios compatible con S3 (API, consola)          |
 | MinIO init | minio/mc:latest             | —          | Crea el bucket `omni-post-media` cuando MinIO está listo y termina |
 
-### Workflows de GitHub Actions (12)
+### Workflows de GitHub Actions (13)
 
 1. **ci.yml** — CI principal: lint, test, build, seguridad, tests de proveedores, tests de frontend
 2. **security-testing.yml** — SAST (CodeQL), DAST, escaneo de dependencias (diario a las 2 AM UTC)
@@ -407,6 +408,7 @@ Cómo se mueve una dependencia desde el 2026-10-14 ([ADR-0036](ADR-0036-dependen
 10. **chaos.yml** — Escenarios de caos de saga y outbox, cada noche (3:30 AM UTC), con el mismo runner de tests que usa CI
 11. **cache-divergence.yml** — Sonda diaria de un acierto de caché de Turborepo que repite artefactos no construidos desde el commit (4:17 AM UTC)
 12. **maturity-reminder.yml** — Abre, o comenta, el issue de cada revisión de la lista de madurez que vence ese día (1 PM, 5 PM y 9 PM UTC), y arrastra cada día, en el mismo issue, una revisión que sigue sin registrarse después de su día, reabriéndolo si se cerró un día anterior
+13. **patched-dependencies.yml** — Cada 6 horas (y a demanda), consulta el registro de npm para cada dependencia parcheada y falla cuando se publica la versión que resuelve una de ellas: abre un issue para ese parche (etiqueta `patched-dependency`), lo comenta una vez al día mientras sigue abierto y lo reabre si se cierra mientras el parche sigue en pie
 
 ### Servicios Externos Requeridos
 
