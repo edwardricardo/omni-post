@@ -1221,3 +1221,34 @@ def add_grants(operation: str, count: int, ttl_minutes: int, log_fn: Callable[[s
         for grant in created:
             log_fn(f"grant {operation}/{grant.id} created: window {grant.window()}")
     return GrantIssue(pending, created, replaced)
+
+
+def pending_grants(operation: str, log_fn: Callable[[str], None]) -> tuple[list[Grant], str | None]:
+    """The pending grants of `operation`, pruned as every read prunes, and the
+    reason the file could not be read (None when it was read or is absent)."""
+    now = now_utc()
+    with _grant_store_lock():
+        store = _open_grant_file(operation, now, log_fn)
+        if store.pruned():
+            _save(store, log_fn)
+    return store.grants, None if store.reason == "missing" else store.reason
+
+
+def revoke_grants(operation: str, log_fn: Callable[[str], None]) -> tuple[int, str | None] | None:
+    """Deletes every grant of `operation`. None when there was no grant file;
+    otherwise the number of pending grants it deleted and, when the file could
+    not be read, why. An unreadable file is deleted too: it grants nothing, and
+    revoking removes authority; the caller reports it as unreadable rather than
+    as a file that held no grant."""
+    now = now_utc()
+    with _grant_store_lock():
+        store = _open_grant_file(operation, now, log_fn)
+        if store.reason == "missing":
+            return None
+        with contextlib.suppress(FileNotFoundError):
+            grant_file(operation).unlink()
+        if store.reason is None:
+            log_fn(f"grants {operation} revoked: {len(store.grants)} pending grant(s) deleted")
+        else:
+            log_fn(f"grants {operation} revoked: the file was unreadable ({store.reason}) and was deleted")
+    return len(store.grants), store.reason

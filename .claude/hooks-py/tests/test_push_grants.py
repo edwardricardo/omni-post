@@ -1,4 +1,5 @@
-"""Tests of the grant store: push windows and their claim and consumption.
+"""Tests of the grant store: push windows, their claim and consumption, and the
+CLI that issues them.
 
 Every test points `_common.ALLOWED_TOKENS_DIR` and `_common.LOG_PATH` at a
 temporary directory and freezes `_common.now_utc`: none reads or writes the
@@ -8,6 +9,8 @@ Run: python3 -m unittest discover -s .claude/hooks-py/tests -t .claude/hooks-py
 """
 
 import contextlib
+import importlib.machinery
+import importlib.util
 import io
 import json
 import sys
@@ -25,9 +28,19 @@ import pre_bash  # noqa: E402
 import pre_edit  # noqa: E402
 from _common import format_local  # noqa: E402
 
+CLI = Path(__file__).resolve().parents[2] / "bin" / "omnipost-allow"
 T0 = datetime(2026, 10, 15, 4, 0, tzinfo=timezone.utc)
 PUSH = "cd /wt && git push origin workstream/a"
 OTHER_PUSH = "cd /wt && git push origin workstream/b"
+
+
+def _load_cli():
+    """The CLI has no `.py` suffix, so it needs an explicit source loader."""
+    loader = importlib.machinery.SourceFileLoader("omnipost_allow_grants", str(CLI))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
 
 
 class _Clock:
@@ -341,6 +354,96 @@ class PushWindowTests(_GrantStoreCase):
         self.clock.at(minutes=60 + 10)
         _common.inspect_grants("push", self.log)
         self.assertEqual([grant["id"] for grant in self.grants()], [second.id])
+
+
+class CliTests(_GrantStoreCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.cli = _load_cli()
+
+    def run_cli(self, *arguments: str) -> tuple[int, str, str]:
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = self.cli.main(list(arguments))
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_count_three_creates_three_windows_and_prints_them_in_local_time(self):
+        code, out, _ = self.run_cli("push", "--count", "3", "--ttl", "60")
+        self.assertEqual(code, 0)
+        self.assertEqual(len(self.grants()), 3)
+        for hour in range(4):
+            self.assertIn(format_local(T0 + timedelta(hours=hour)), out)
+        self.assertIn("one publication", out)
+
+    def test_running_it_again_appends_after_the_pending_window_and_says_so(self):
+        self.run_cli("push", "--count", "1", "--ttl", "60")
+        code, out, _ = self.run_cli("push", "--count", "1", "--ttl", "60")
+        self.assertEqual(code, 0)
+        self.assertIn("Appended after 1 pending grant", out)
+        self.assertEqual(self.windows(), [(_iso(), _iso(hours=1)), (_iso(hours=1), _iso(hours=2))])
+
+    def test_a_count_outside_the_cap_or_not_positive_and_a_bad_ttl_are_refused(self):
+        for arguments in (("--count", "13"), ("--count", "0"), ("--count", "-2"), ("--ttl", "0")):
+            with self.subTest(arguments=arguments):
+                code, _, err = self.run_cli("push", *arguments)
+                self.assertEqual(code, 1)
+                self.assertTrue(err)
+        self.assertFalse((self.store / "push").exists())
+
+    def test_the_old_interface_and_defaults_are_unchanged(self):
+        self.assertEqual(self.run_cli("push")[0], 0)
+        self.assertEqual(self.windows(), [(_iso(), _iso(minutes=15))])
+        self.assertEqual(self.run_cli("sensitive-edit", "--ttl", "30")[0], 0)
+        self.assertEqual(self.windows("sensitive-edit"), [(_iso(), _iso(minutes=30))])
+
+    def test_an_unknown_operation_is_refused(self):
+        code, _, err = self.run_cli("deploy")
+        self.assertEqual(code, 1)
+        self.assertIn("Unknown operation 'deploy'", err)
+        self.assertEqual(self.run_cli("revoke", "deploy")[0], 1)
+
+    def test_status_says_there_is_nothing_pending(self):
+        self.assertEqual(self.run_cli("status")[:2], (0, "no pending grants\n"))
+
+    def test_status_lists_every_pending_grant_with_its_window_and_state(self):
+        self.run_cli("push", "--count", "2", "--ttl", "60")
+        self.run_cli("sensitive-edit")
+        self.clock.at(minutes=5)
+        self.pre(PUSH)
+        code, out, _ = self.run_cli("status")
+        self.assertEqual(code, 0)
+        self.assertIn("push:", out)
+        self.assertIn(f"{format_local(T0)} → {format_local(T0 + timedelta(hours=1))}  (open, claimed at {format_local(T0 + timedelta(minutes=5))})", out)
+        self.assertIn("(upcoming)", out)
+        self.assertIn("sensitive-edit:", out)
+
+    def test_status_exits_1_on_an_unreadable_grant_file(self):
+        self.write_file("push", "{")
+        code, out, _ = self.run_cli("status")
+        self.assertEqual(code, 1)
+        self.assertIn("unreadable (corrupt)", out)
+
+    def test_revoke_deletes_every_grant_and_logs_it(self):
+        self.run_cli("push", "--count", "3")
+        code, out, _ = self.run_cli("revoke", "push")
+        self.assertEqual(code, 0)
+        self.assertIn("3 pending grant(s) deleted", out)
+        self.assertFalse((self.store / "push").exists())
+        self.assertIn("grants push revoked", self.hooks_log())
+        self.assertEqual(self.run_cli("revoke", "push")[:2], (0, "No grants for 'push'.\n"))
+
+    def test_revoke_of_an_unreadable_file_deletes_it_and_says_it_was_unreadable(self):
+        self.write_file("push", "{")
+        code, out, _ = self.run_cli("revoke", "push")
+        self.assertEqual(code, 0)
+        self.assertIn("could not be read (corrupt)", out)
+        self.assertNotIn("pending grant(s) deleted", out)
+        self.assertFalse((self.store / "push").exists())
+        self.assertIn("unreadable (corrupt) and was deleted", self.hooks_log())
+
+    def test_every_create_is_logged(self):
+        self.run_cli("push", "--count", "2")
+        self.assertEqual(self.hooks_log().count("] [omnipost-allow] grant push/"), 2)
 
 
 if __name__ == "__main__":
