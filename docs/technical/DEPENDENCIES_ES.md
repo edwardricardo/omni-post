@@ -160,7 +160,7 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 | Paquete              | Version  | Proposito                                                 |
 | -------------------- | -------- | --------------------------------------------------------- |
-| zod                  | 4.4.3    | Validacion de esquemas — nativo en TypeScript, componible |
+| zod                  | 4.6.5    | Validacion de esquemas — nativo en TypeScript, componible |
 | validator            | 13.15.35 | Utilidades de validacion de strings                       |
 | isomorphic-dompurify | 4.5.0    | Sanitizacion de HTML                                      |
 
@@ -366,7 +366,7 @@ Cómo se mueve una dependencia desde el 2026-10-14 ([ADR-0036](ADR-0036-dependen
 | prettier                         | 3.9.10  | Formateo de codigo                                                                                                        |
 | husky                            | 9.1.7   | Git hooks                                                                                                                 |
 | lint-staged                      | 17.6.0  | Linting de archivos staged pre-commit                                                                                     |
-| knip                             | 6.40.0  | Deteccion de codigo muerto                                                                                                |
+| knip                             | 6.41.0  | Deteccion de codigo muerto                                                                                                |
 | dependency-cruiser               | 18.5.0  | Reglas de arquitectura y deteccion de dependencias circulares                                                             |
 | jscpd                            | 5.4.1   | Deteccion de codigo duplicado                                                                                             |
 
