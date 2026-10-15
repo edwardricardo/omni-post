@@ -300,6 +300,8 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 **Push grants.** `omnipost-allow push --count K --ttl N` leaves K consecutive windows of N minutes (`--count` defaults to 1 and is at most 12; each operation keeps its default TTL, 15 minutes). Each push window allows one publication: pre-bash allows a push while a window contains now and records the command on that window's grant, and post-bash consumes that grant once the push succeeds, even when it finishes after the window closed. A failed push consumes nothing, so a retry in the same window is allowed; a grant used early does not open the next window early. Run again while grants are pending, it appends its windows after the last pending one. Grants whose window is over are pruned on every read. `omnipost-allow status` lists the pending grants with their windows, and `omnipost-allow revoke <operation>` deletes them. `sensitive-edit` takes the same `--count` and stays valid for its whole window; using it consumes nothing. Every create, claim, consumption, prune and revoke goes to `.claude/hooks.log`.
 
+**Only the owner issues grants.** No session writes `.claude/.allowed/` (pre-edit blocks every Edit/Write under it, pre-bash every Bash write construct on it) or runs `omnipost-allow` with anything but `status` (pre-bash); no token unlocks either, the `sensitive-edit` token included. Edward issues, extends and revokes grants from his own terminal. Reading the store (`ls`, `cat`, `jq`) stays allowed.
+
 ### How to extend tripwires
 
 1. Add the pattern to the table above with rationale.

@@ -12,7 +12,9 @@ before it was used early. Run again while grants are pending, it appends its
 windows after the last pending one. A `sensitive-edit` window is valid for its
 whole length and is never consumed.
 
-Only the owner runs it, from his own terminal. The grants live in
+Only the owner runs it, from his own terminal: pre-bash refuses every session
+command that runs it except `omnipost-allow status`, and pre-edit and pre-bash
+refuse every session write to the store. The grants live in
 `.claude/.allowed/<operation>`; this command reads and writes them through the
 hooks' own `_common`, so the two cannot disagree on the file's shape.
 """
