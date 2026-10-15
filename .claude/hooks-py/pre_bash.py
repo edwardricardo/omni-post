@@ -305,7 +305,7 @@ def gate_git_push_requires_token(command: str) -> None:
             "Ask Edward for a fresh one via 'omnipost-allow push'."
         ),
     }
-    block(messages[status])
+    block(messages.get(status, f"Authorization unavailable ({status}). Ask Edward in chat."))
 
 
 def gate_no_npm_yarn_or_npx(command: str) -> None:
