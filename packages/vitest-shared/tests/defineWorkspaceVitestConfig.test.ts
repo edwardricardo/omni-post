@@ -13,12 +13,17 @@
  *              conditions the factory sets in both environments, `client` and `ssr`; whether they
  *              send every test's workspace import to `src/` is the contract
  *              `packages/test-contracts/tests/source-resolution.test.ts` holds over the tree.
+ *              A third array key, `test.execArgv`, concatenates like `test.exclude`: the factory
+ *              writes Node's Web Storage off for a node environment only, a caller's own arguments
+ *              follow it, and the worker running this very suite, whose config the factory builds,
+ *              has no `localStorage` global.
  * @layer infrastructure
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { configDefaults } from "vitest/config";
 import {
+  NODE_TEST_EXEC_ARGV,
   RESERVED_TIER_EXCLUDES,
   SOURCE_CONDITIONS,
   defineWorkspaceVitestConfig,
@@ -116,6 +121,49 @@ describe("defineWorkspaceVitestConfig", () => {
       });
 
       expect(config.test?.reporters).toEqual(["default"]);
+    });
+  });
+
+  describe("test.execArgv", () => {
+    it("names exactly the argument that turns Node's Web Storage off", () => {
+      expect(NODE_TEST_EXEC_ARGV).toEqual(["--no-experimental-webstorage"]);
+    });
+
+    it("starts a node-environment worker with the shared arguments when the caller names none", () => {
+      const config = defineWorkspaceVitestConfig(import.meta.dirname, {
+        test: { include: ["tests/**/*.test.ts"] },
+      });
+
+      expect(config.test?.execArgv).toEqual([...NODE_TEST_EXEC_ARGV]);
+    });
+
+    it("starts the worker with the shared arguments when the caller names the node environment", () => {
+      const config = defineWorkspaceVitestConfig(import.meta.dirname, {
+        test: { environment: "node" },
+      });
+
+      expect(config.test?.execArgv).toEqual([...NODE_TEST_EXEC_ARGV]);
+    });
+
+    it("keeps the shared arguments ahead of the caller's own instead of replacing them", () => {
+      const config = defineWorkspaceVitestConfig(import.meta.dirname, {
+        test: { execArgv: ["--expose-gc"] },
+      });
+
+      expect(config.test?.execArgv).toEqual([...NODE_TEST_EXEC_ARGV, "--expose-gc"]);
+    });
+
+    it("writes no argument for a DOM environment, whose localStorage is the DOM's", () => {
+      const config = defineWorkspaceVitestConfig(import.meta.dirname, {
+        test: { environment: "jsdom" },
+      });
+
+      expect(config.test?.execArgv).toBeUndefined();
+    });
+
+    it("runs this suite in a worker with no Node localStorage global, because the factory built its config", () => {
+      expect(Object.getOwnPropertyDescriptor(globalThis, "localStorage")).toBeUndefined();
+      expect(Object.getOwnPropertyDescriptor(globalThis, "sessionStorage")).toBeUndefined();
     });
   });
 });

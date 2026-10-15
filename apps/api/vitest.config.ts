@@ -12,6 +12,7 @@
 import { defineConfig } from "vitest/config";
 import { shardedThresholdOverride } from "./vitest.coverage-thresholds.js";
 import {
+  NODE_TEST_EXEC_ARGV,
   RESERVED_TIER_EXCLUDES,
   SOURCE_CONDITIONS,
   buildWorkspaceAliases,
@@ -59,6 +60,9 @@ export default defineConfig({
     // `*.integration.test.ts`: the reserved suffixes keep its files out of this collector.
     exclude: ["**/node_modules/**", ...RESERVED_TIER_EXCLUDES],
     pool: "forks",
+    // Node 26's experimental `localStorage` global warns when msw reads it; nothing here uses
+    // Web Storage on the server, so the shared worker arguments turn it off (NODE_TEST_EXEC_ARGV).
+    execArgv: [...NODE_TEST_EXEC_ARGV],
     // Serialize to a single fork. Each fork loads the full monorepo module
     // graph and, under v8 coverage, accumulates raw coverage for every file it
     // runs — so two forks were two full base processes whose combined RSS

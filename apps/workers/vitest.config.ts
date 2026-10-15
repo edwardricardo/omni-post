@@ -6,7 +6,11 @@
 import { configDefaults, defineConfig } from "vitest/config";
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { RESERVED_TIER_EXCLUDES, SOURCE_CONDITIONS } from "@packages/vitest-shared";
+import {
+  NODE_TEST_EXEC_ARGV,
+  RESERVED_TIER_EXCLUDES,
+  SOURCE_CONDITIONS,
+} from "@packages/vitest-shared";
 
 function findMonorepoRoot(startDir: string): string {
   let dir = path.resolve(startDir);
@@ -69,6 +73,9 @@ export default defineConfig({
     // suffixes keep those files out; setting `exclude` replaces vitest's defaults, spread back first.
     exclude: [...configDefaults.exclude, ...RESERVED_TIER_EXCLUDES],
     pool: "forks",
+    // Node 26's experimental `localStorage` global warns when a dependency reads it; nothing here
+    // uses Web Storage on the server, so the shared worker arguments turn it off.
+    execArgv: [...NODE_TEST_EXEC_ARGV],
     // Loads `.env.test` from repo root before any test's transitive Zod env
     // validation kicks in.
     setupFiles: ["./tests/setup-env.ts"],
