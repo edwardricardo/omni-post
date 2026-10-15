@@ -182,7 +182,7 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 | Paquete | Version | Proposito       |
 | ------- | ------- | --------------- |
-| opossum | 9.0.0   | Circuit breaker |
+| opossum | 10.0.0  | Circuit breaker |
 
 ---
 

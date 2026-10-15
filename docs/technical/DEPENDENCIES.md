@@ -182,7 +182,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 | Package | Version | Purpose         |
 | ------- | ------- | --------------- |
-| opossum | 9.0.0   | Circuit breaker |
+| opossum | 10.0.0  | Circuit breaker |
 
 ---
 
