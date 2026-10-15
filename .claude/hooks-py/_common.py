@@ -23,6 +23,7 @@ import re
 import shlex
 import subprocess
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, NoReturn
@@ -323,7 +324,10 @@ _GIT_VALUE_OPTIONS = frozenset(
 # The ones that move the tree THAT git invocation acts on
 # (`git -C a -C b commit` is `cd a; cd b; git commit`).
 _GIT_TREE_OPTIONS = frozenset({"-C", "--work-tree"})
-_SHELL_SEPARATORS = frozenset({"&&", "||", ";", "|"})
+# What ends one command and starts the next. The newline is one: the shell runs
+# `ls\nbash -c '…'` as two commands, and a reading that kept them as one saw
+# `ls` as the program and never the shell after it.
+_SHELL_SEPARATORS = frozenset({"&&", "||", ";", "|", "&", "|&", "\n"})
 # Fallback when shlex cannot tokenize (unclosed quote): the conservative form
 # `git … commit` within one shell segment. Only `commit` is recoverable this
 # way; a gate on another subcommand cannot rely on the fallback.
@@ -336,18 +340,144 @@ def _unquote(token: str) -> str:
     return token
 
 
-def _shell_tokens(command: str) -> list[str]:
-    """Shell tokens with `&&`, `||`, `;` and `|` as tokens of their OWN even when
-    glued (`git commit&&…`); inside quotes they remain text. Raises ValueError
-    on an unclosed quote, like shlex.split."""
-    lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
+# What shlex reads as punctuation: its own set plus the newline, which it
+# otherwise reads as whitespace (see _SHELL_SEPARATORS).
+_PUNCTUATION = "();<>|&\n"
+_PUNCTUATION_SET = frozenset(_PUNCTUATION)
+
+
+def _separator(run: str) -> str:
+    """One separator for a run shlex glued (`;\n`, `\n\n`): the newline when
+    the run holds one, else the run itself when it is a separator the shell
+    knows, else `;`."""
+    if "\n" in run:
+        return "\n"
+    return run if run in _SHELL_SEPARATORS else ";"
+
+
+def _split_punctuation_run(token: str) -> list[str]:
+    """A token shlex glued from punctuation characters, split the way the
+    shell reads it: each `(` and `)` alone, and a run of separators as one
+    separator. Redirections (`>`, `>&`, `<<`) and words come back unchanged."""
+    if not token or "<" in token or ">" in token or not set(token) <= _PUNCTUATION_SET:
+        return [token]
+    parts: list[str] = []
+    run = ""
+    for char in token:
+        if char in "()":
+            if run:
+                parts.append(_separator(run))
+                run = ""
+            parts.append(char)
+        else:
+            run += char
+    if run:
+        parts.append(_separator(run))
+    return parts
+
+
+def _lex(text: str) -> list[str]:
+    """shlex over `text` with the newline as a separator. Raises ValueError on
+    an unclosed quote, like shlex.split."""
+    lexer = shlex.shlex(text, posix=True, punctuation_chars=_PUNCTUATION)
+    lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
-    return list(lexer)
+    return [part for token in lexer for part in _split_punctuation_run(token)]
+
+
+# `<<DELIM`, `<<-DELIM`, `<<'DELIM'`, `<<"DELIM"`, `<<\DELIM`; not `<<<`, a
+# here-string, whose word stays on the line.
+_HEREDOC_RE = re.compile(r"(?<!<)<<(?!<)(-?)[ \t]*(?:'([^'\n]*)'|\"([^\"\n]*)\"|(\\?)([^\s;&|<>()'\"`]+))")
+# Programs that read a heredoc as text and run none of it. A heredoc fed to any
+# other program — a shell, an interpreter, or one this list does not know — is
+# read as a script, on the conservative side.
+_HEREDOC_TEXT_READERS = frozenset(
+    {"cat", "tee", "git", "gh", "jq", "yq", "wc", "sort", "uniq", "head", "tail", "grep", "rg",
+     "column", "tr", "base64", "diff", "cmp", "sha256sum", "md5sum", "read"}
+)
+
+
+@dataclass(frozen=True)
+class Heredoc:
+    """A heredoc body: whether the shell expands `$(…)` and backticks in it
+    (an unquoted delimiter), and whether the program it feeds only reads text."""
+
+    body: str
+    expands: bool
+    is_text: bool
+
+
+def _heredoc_is_text(line: str, match: re.Match) -> bool:
+    """Whether the heredoc `match` opens on `line` feeds a program that only
+    reads text: the program of the command the operator belongs to (inside an
+    enclosing `$(`, as in `--body "$(cat <<'EOF'`), with no pipe after the
+    operator to carry the text on to another program."""
+    if "|" in line[match.end():]:
+        return False
+    prefix = line[:match.start()]
+    opened = prefix.rfind("$(")
+    if opened >= 0 and ")" not in prefix[opened:]:
+        prefix = prefix[opened + 2:]
+    try:
+        tokens = _lex(prefix)
+    except ValueError:
+        return False
+    segment: list[str] = []
+    for token in tokens:
+        segment = [] if token in _SHELL_SEPARATORS else [*segment, token]
+    words = command_words(segment)
+    index = program_index(words)
+    return index is not None and Path(words[index]).name in _HEREDOC_TEXT_READERS
+
+
+def heredocs(command: str) -> tuple[str, list[Heredoc]]:
+    """`command` without its heredoc bodies, and the bodies.
+
+    A body is not part of the command line: read as tokens, a commit message
+    or a PR body written through `cat <<'EOF'` turned its lines into
+    commands, and its words into a publication or a write. An operator whose
+    delimiter line never comes is not read as a heredoc, so nothing after it
+    is hidden.
+    """
+    if "<<" not in command:
+        return command, []
+    lines = command.split("\n")
+    kept: list[str] = []
+    found: list[Heredoc] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        kept.append(line)
+        i += 1
+        for match in _HEREDOC_RE.finditer(line):
+            delimiter = next(g for g in (match.group(2), match.group(3), match.group(5)) if g is not None)
+            strip_tabs = match.group(1) == "-"
+            end = next(
+                (j for j in range(i, len(lines)) if (lines[j].lstrip("\t") if strip_tabs else lines[j]) == delimiter),
+                None,
+            )
+            if end is None:
+                break
+            quoted = match.group(5) is None or bool(match.group(4))
+            found.append(Heredoc("\n".join(lines[i:end]), not quoted, _heredoc_is_text(line, match)))
+            i = end + 1
+    return "\n".join(kept), found
+
+
+def _shell_tokens(command: str) -> list[str]:
+    """Shell tokens with `&&`, `||`, `;`, `|`, `&`, `|&` and the newline as
+    tokens of their OWN even when glued (`git commit&&…`), and each `(` and `)`
+    alone; inside quotes they remain text. Heredoc bodies are left out (see
+    `heredocs`) and a backslash-newline joins two lines, as in the shell.
+    Raises ValueError on an unclosed quote, like shlex.split."""
+    text, _ = heredocs(command)
+    return _lex(text.replace("\\\n", ""))
 
 
 def shell_segments(command: str) -> list[list[str]] | None:
-    """The commands of `command` as token lists, split at `&&`, `||`, `;` and
-    `|` (glued separators included); None when it cannot be tokenized."""
+    """The commands of `command` as token lists, split at `&&`, `||`, `;`, `|`,
+    `&`, `|&` and the newline (glued separators included); None when it cannot
+    be tokenized."""
     try:
         tokens = _shell_tokens(command)
     except ValueError:
@@ -359,6 +489,113 @@ def shell_segments(command: str) -> list[list[str]] | None:
         else:
             segments[-1].append(tok)
     return [seg for seg in segments if seg]
+
+
+ENV_ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+# Words that open a command without being its program: grouping, negation,
+# the keywords of a compound command, and the `$` of an unquoted `$(`.
+_COMMAND_PREFIXES = frozenset({"(", ")", "{", "}", "!", "$", "if", "then", "else", "elif", "do", "while", "until", "time", "exec"})
+
+
+def command_words(segment: list[str]) -> list[str]:
+    """The words of one command: its tokens without redirections (operator and
+    operand) and without the descriptor number glued before one (`2>`)."""
+    words: list[str] = []
+    i = 0
+    while i < len(segment):
+        token = segment[i]
+        if token.startswith(("<", ">")) or token in ("&>", "&>>"):
+            if words and words[-1].isdigit():
+                words.pop()
+            i += 2
+            continue
+        words.append(token)
+        i += 1
+    return words
+
+
+def program_index(words: list[str]) -> int | None:
+    """Index of the program in `words`: the first word that is not a command
+    prefix nor a variable assignment; None when there is none."""
+    for index, word in enumerate(words):
+        if word not in _COMMAND_PREFIXES and not ENV_ASSIGNMENT_RE.match(word):
+            return index
+    return None
+
+
+def substitutions(text: str) -> list[str]:
+    """The bodies of the `$(…)`, `<(…)`, `>(…)` and backtick substitutions in
+    `text` outside single quotes, where the shell runs them. An unclosed one
+    reads to the end of the text, on the conservative side."""
+    bodies: list[str] = []
+    i, length = 0, len(text)
+    quote: str | None = None
+    while i < length:
+        char = text[i]
+        if quote == "'":
+            quote = None if char == "'" else quote
+            i += 1
+            continue
+        if char == "\\":
+            i += 2
+            continue
+        if char == "'" and quote is None:
+            quote = "'"
+        elif char == '"':
+            quote = None if quote == '"' else '"'
+        elif char == "`":
+            end = text.find("`", i + 1)
+            bodies.append(text[i + 1:] if end < 0 else text[i + 1:end])
+            i = length if end < 0 else end + 1
+            continue
+        elif char in "$<>" and text.startswith("(", i + 1):
+            depth, j = 1, i + 2
+            while j < length and depth:
+                depth += {"(": 1, ")": -1}.get(text[j], 0)
+                j += 1
+            bodies.append(text[i + 2:j - 1] if depth == 0 else text[i + 2:])
+            i = j
+            continue
+        i += 1
+    return bodies
+
+
+def shell_scripts(segment: list[str]) -> list[str]:
+    """The `-c` script of each shell named in `segment` (`bash -c "…"`, and as
+    the argument of a wrapper: `sudo bash -c "…"`). As the shell itself does,
+    `c` anywhere in a short-option cluster (`-c`, `-lc`, `-ic`) sets the
+    option, and the script is the first argument after the cluster that is not
+    an option."""
+    scripts: list[str] = []
+    for index, token in enumerate(segment):
+        if Path(token).name not in _SHELLS:
+            continue
+        flags = [i for i in range(index + 1, len(segment)) if _sets_shell_command_flag(segment[i])]
+        if not flags:
+            continue
+        script = next((tok for tok in segment[flags[0] + 1:] if not tok.startswith("-")), None)
+        if script is not None:
+            scripts.append(script)
+    return scripts
+
+
+def nested_scripts(command: str) -> list[str] | None:
+    """Every script `command` hands to a shell: the `-c` script of a shell, the
+    body of each substitution, each heredoc that is not plain text, and the
+    substitutions inside a text heredoc whose delimiter is unquoted (the shell
+    expands those). None when the command cannot be tokenized."""
+    segments = shell_segments(command)
+    if segments is None:
+        return None
+    text, docs = heredocs(command)
+    scripts = [script for segment in segments for script in shell_scripts(segment)]
+    scripts.extend(substitutions(text))
+    for doc in docs:
+        if not doc.is_text:
+            scripts.append(doc.body)
+        elif doc.expands:
+            scripts.extend(substitutions(doc.body))
+    return scripts
 
 
 def repository_of(path: Path) -> Path | None:
@@ -430,7 +667,7 @@ _SHELLS = frozenset({"bash", "sh", "zsh", "dash"})
 _GIT_PUSH_FALLBACK_RE = re.compile(r"\bgit\b(?!\s+stash\b)\s.*\bpush\b")
 
 
-_MAX_SHELL_DEPTH = 8
+MAX_SHELL_DEPTH = 8
 
 
 def runs_git_push(command: str, depth: int = 0) -> bool:
@@ -444,31 +681,22 @@ def runs_git_push(command: str, depth: int = 0) -> bool:
     CONSUMED it, with nothing published (measured 2026-10-02, hooks.log
     11:05:19). `git stash push` is a local stash, not a publication.
 
-    A script passed to a shell with `-c` (`bash -c "git push …"`) is read too,
-    since the quoted script would otherwise be one opaque token. As the shell
-    itself does, `c` anywhere in a short-option cluster (`-c`, `-lc`, `-ic`)
-    sets the option, and the script is the first argument after the cluster
-    that is not an option. Nesting deeper than `_MAX_SHELL_DEPTH` scripts, and a
-    line shlex cannot tokenize, fall back to the broad regex, on the
+    Every script the command hands to a shell is read too (`nested_scripts`):
+    a `bash -c "git push …"` script, a `$(…)` or backtick substitution, and a
+    heredoc fed to a shell, since each would otherwise be one opaque token.
+    A heredoc that is plain text (a commit message, a PR body) is not read:
+    its words publish nothing. Nesting deeper than `MAX_SHELL_DEPTH` scripts,
+    and a line shlex cannot tokenize, fall back to the broad regex, on the
     conservative side. Not covered, stated: a publication inside a script file
     or a function is invisible to any reading of the command line.
     """
-    segments = shell_segments(command)
-    if segments is None or depth > _MAX_SHELL_DEPTH:
-        _append_log(f"runs_git_push: unreadable or nested past {_MAX_SHELL_DEPTH} (depth {depth}); conservative fallback")
+    scripts = nested_scripts(command)
+    if scripts is None or depth > MAX_SHELL_DEPTH:
+        _append_log(f"runs_git_push: unreadable or nested past {MAX_SHELL_DEPTH} (depth {depth}); conservative fallback")
         return bool(_GIT_PUSH_FALLBACK_RE.search(command))
     if "push" in git_subcommands(command):
         return True
-    for segment in segments:
-        if Path(segment[0]).name not in _SHELLS:
-            continue
-        flags = [i for i, tok in enumerate(segment) if i and _sets_shell_command_flag(tok)]
-        if not flags:
-            continue
-        script = next((tok for tok in segment[flags[0] + 1:] if not tok.startswith("-")), None)
-        if script is not None and runs_git_push(script, depth + 1):
-            return True
-    return False
+    return any(runs_git_push(script, depth + 1) for script in scripts)
 
 
 def _sets_shell_command_flag(token: str) -> bool:

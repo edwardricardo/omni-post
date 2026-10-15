@@ -2,6 +2,7 @@
 
 import contextlib
 import io
+import json
 import socketserver
 import sys
 import tempfile
@@ -64,6 +65,34 @@ class PublicationGateTests(_Gate):
         self.assertEqual(self._verdict(pre_bash.gate_git_push_requires_token, line), "blocked(2)")
 
 
+class GateOrderTests(_Gate):
+    """A valid push token authorizes the publication, not the rest of the line:
+    the publication gate used to exit early and skip every gate after it."""
+
+    def setUp(self):
+        super().setUp()
+        store = Path(self._tmp.name) / "allowed"
+        store.mkdir()
+        (store / "push").write_text(json.dumps({"operation": "push", "expires_at": "2099-01-01T00:00:00+00:00"}))
+        self._tokens = mock.patch.object(_common, "ALLOWED_TOKENS_DIR", store)
+        self._tokens.start()
+
+    def tearDown(self):
+        self._tokens.stop()
+        super().tearDown()
+
+    def _main(self, command: str) -> int:
+        payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}, "cwd": self._tmp.name})
+        with mock.patch("sys.stdin", io.StringIO(payload)), contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as raised:
+                pre_bash.main()
+        return raised.exception.code
+
+    def test_a_valid_push_token_does_not_let_the_rest_of_the_line_through(self):
+        self.assertEqual(self._main("git push origin a"), 0, "the token is valid")
+        self.assertEqual(self._main("git push origin a && echo x > .claude/settings.json"), 2)
+
+
 class SensitiveWriteGateTests(_Gate):
     """Without a token: blocks only when a write construct POINTS AT the path."""
 
@@ -115,6 +144,22 @@ class SensitiveWriteGateTests(_Gate):
         with mock.patch.object(pre_bash, "check_grant_token", return_value=None):
             self.assertEqual(self._gate("echo x > .claude/settings.json"), "allowed")
 
+    def test_moving_a_hook_away_or_switching_it_off_is_a_write(self):
+        self.assertEqual(self._gate("mv .claude/hooks-py/pre_bash.py /tmp/x"), "blocked(2)")
+        self.assertEqual(self._gate("chmod -x .claude/hooks-py/pre_bash.py"), "blocked(2)")
+        self.assertEqual(self._gate("touch .claude/settings.json"), "blocked(2)")
+        self.assertEqual(self._gate("rm -rf .claude/hooks-py"), "blocked(2)")
+
+    def test_a_write_after_a_newline_or_inside_a_shell_script_is_a_write(self):
+        self.assertEqual(self._gate("ls\nrm -rf .claude/hooks-py/tests"), "blocked(2)")
+        self.assertEqual(self._gate('bash -c "rm -rf .claude/hooks-py/tests"'), "blocked(2)")
+        self.assertEqual(self._gate("echo x >| .claude/settings.json"), "blocked(2)")
+
+    def test_a_relative_write_is_read_from_the_directory_it_is_written_in(self):
+        self.assertEqual(self._gate("cd .claude && rm -rf hooks-py"), "blocked(2)")
+        self.assertEqual(self._verdict(pre_bash.gate_sensitive_path_writes_require_token, "echo x > pre_bash.py", Path("/r/.claude/hooks-py")), "blocked(2)")
+        self.assertEqual(self._verdict(pre_bash.gate_sensitive_path_writes_require_token, "echo x > notes.md", Path("/r/docs")), "allowed")
+
 
 class WriteTargetsTests(unittest.TestCase):
     def test_targets_named_by_the_command(self):
@@ -123,6 +168,21 @@ class WriteTargetsTests(unittest.TestCase):
         self.assertEqual(pre_bash.write_targets("dd if=x of=y bs=1"), ["y"])
         self.assertEqual(pre_bash.write_targets("FOO=1 sudo cp a b"), ["b"])
         self.assertEqual(pre_bash.write_targets("cp -r a b dir/ && ln -s t l && rm a b"), ["dir/", "l", "a", "b"])
+
+    def test_every_redirection_that_writes_names_its_target(self):
+        self.assertEqual(pre_bash.write_targets("a >| f && b <> g && c >& h && d >&2 && e >&-"), ["f", "g", "h"])
+
+    def test_mv_writes_its_sources_and_touch_and_chmod_their_operands(self):
+        self.assertEqual(pre_bash.write_targets("mv a b dir/"), ["a", "b", "dir/"])
+        self.assertEqual(pre_bash.write_targets("touch a && chmod 600 b && chown u:g c"), ["a", "600", "b", "u:g", "c"])
+
+    def test_effective_targets_follow_cd_and_nested_scripts(self):
+        self.assertEqual(
+            pre_bash.effective_write_targets("cd sub && touch a && cd /abs && touch b", Path("/r")),
+            ["/r/sub/a", "/abs/b"],
+        )
+        self.assertEqual(pre_bash.effective_write_targets("bash -c 'touch a'", Path("/r")), ["/r/a"])
+        self.assertEqual(pre_bash.effective_write_targets("cd - && touch a", Path("/r")), ["a"])
 
     def test_untokenizable_is_none(self):
         self.assertIsNone(pre_bash.write_targets("echo 'unclosed"))
