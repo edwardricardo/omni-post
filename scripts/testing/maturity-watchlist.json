@@ -276,6 +276,17 @@
         "final": "2026-10-28"
       },
       "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "storybook-11-dep0205",
+      "title": "Storybook 11 stable? Move the family and drop --disable-warning=DEP0205 from apps/client test:stories (ADR-0038)",
+      "due": "2026-10-20",
+      "refs": [
+        "docs/technical/ADR-0038-node-26-ahead-of-lts.md, Consequences (the story run's DEP0205) and Revisit if: read npm for a stable storybook 11.x (`pnpm view storybook dist-tags`); if published and mature, move the Storybook family to it, remove the flag, and measure the story run free of DEP0205 without it; if not, move `due` to the next Tuesday window",
+        "apps/client/package.json, script test:stories"
+      ],
+      "reviews": {}
     }
   ]
 }

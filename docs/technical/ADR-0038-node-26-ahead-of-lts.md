@@ -138,14 +138,45 @@ package state on 2026-10-28.
 - **Two watchlist reviews** for `@types/node` 26.6.5: 2026-10-16, at its maturity, and 2026-10-23, entered by the follow-up commit once this change has its sha and PR number, the convention of every entry in that file.
 - **The build stage is pinned by digest**, so Dependabot now tracks both `FROM` lines of each
   Dockerfile.
-- **Two warnings appear on Node 26**, neither a failure; both are follow-ups of the recalibration
-  unit that comes after this one:
-  - vitest 4's `localStorage` read prints Node's experimental-storage warning on stderr, once per
-    worker process of a suite without a DOM environment: 8 lines in the `apps/api` suite and 1 in
-    `@providers/telegram`. The fix is Node's `--no-experimental-webstorage` flag;
-  - `@tailwindcss/node` 4.3.0 calls `module.register()`, which Node 26 deprecates (DEP0205), once
-    per process in both portal suites, builds and the story run. The fix is Tailwind 4.3.3, which
-    calls `module.registerHooks()` where it exists.
+- **Node 26 printed two kinds of warning**, neither a failure. The battery holds zero warnings, so
+  this change fixes them at their source instead of deferring them:
+  - Node 26 defines an experimental `localStorage` global that prints an `ExperimentalWarning` when
+    it is read without `--localstorage-file`. The reader is msw 2.15.0, not vitest: its cookie-store
+    module (`lib/core/utils/cookieStore.mjs`) builds a `CookieStore` when it loads, and the
+    constructor reads `typeof localStorage`, so every node-environment worker that imports msw
+    printed it, 8 lines per run of the `apps/api` suite and 1 in `@providers/telegram` (traced with
+    a preload that prints the stack of the first read). No server code here uses Web Storage, so
+    `NODE_TEST_EXEC_ARGV` (`--no-experimental-webstorage`) in `packages/vitest-shared` turns the
+    feature off in those workers: `defineWorkspaceVitestConfig` writes it into `test.execArgv` for
+    the node environment only, and the `apps/api` and `apps/workers` configs, which do not go
+    through the factory, spread it. A DOM environment keeps the DOM's `localStorage`. Production
+    reads nothing: the built API served requests for 30 seconds under that preload with no read,
+    and the four images, run against the test services, printed no warning. msw 3.0.3 builds no
+    cookie store under Node, so the argument can go with the msw 3 move;
+  - `@tailwindcss/node` 4.3.0 called `module.register()`, which Node 26 deprecates (DEP0205), once
+    per process in both portal suites and builds and in the test contracts that load their configs.
+    Tailwind 4.3.1 calls `module.registerHooks()` where it exists. `tailwindcss` and
+    `@tailwindcss/postcss` move from 4.3.0 to 4.3.3, the latest release (2026-07-16T12:03Z), with
+    no advisory in OSV; the lockfile moves only the 16 `tailwindcss` and `@tailwindcss/*` packages,
+    4.3.0 to 4.3.3. Since 4.3.1 a spacing utility emits `0` or `var(--spacing)` where it emitted
+    `calc(var(--spacing) * 0)` or `calc(var(--spacing) * 1)`, the same values, and the portal CSS
+    is 0.6 to 0.7 percent smaller. `tailwindcss@4.1.18` stays, pinned exactly by
+    `@react-email/tailwind@2.0.6`: it is the core package, which registers no hook;
+  - the story run's DEP0205 is not Tailwind's: Storybook's `importModule` calls `module.register()`
+    for its TypeScript loader when `loadMainConfig` reads `.storybook/main.ts`, in 10.6.1 and in
+    10.6.2, the latest release. Only 11.0.0-alpha.6 calls `module.registerHooks()` on Node 26, and
+    10.6.1's loader hook is asynchronous, which `registerHooks()` does not accept, so no patch can
+    move it. The owner chose, on 2026-10-15, to silence DEP0205 in that one process until a stable
+    Storybook 11 is installed: `apps/client` runs `test:stories` as
+    `NODE_OPTIONS="${NODE_OPTIONS:-} --disable-warning=DEP0205" vitest run --config
+vitest.stories.config.ts`, which appends to the caller's `NODE_OPTIONS` and keeps `vitest` the
+    script's command, so knip still reads the stories config as used. The cost, stated: another
+    DEP0205 in the story process or a process it starts would be hidden too. The watchlist date entry
+    `storybook-11-dep0205` re-checks it in each Tuesday window;
+  - Measured after both fixes: `apps/api` 609 files and 9,654 tests, `apps/workers` 17 and 129, the
+    admin portal 17 and 129, the client portal 45 and 556, `@providers/telegram` 4 and 73, and the
+    client stories 9 and 68 pass; no suite prints an `ExperimentalWarning` or a DEP0205, the story
+    run with its one deprecation silenced.
 - **`@types/node` 26 declares `assert.ok` with two overloads** (a message function, or a format
   string with arguments). Under TypeScript 6 that made two loops in each of
   `tests/threading.planner.integration.test.ts` and `tests/threading.xprovider.integration.test.ts`
@@ -171,7 +202,8 @@ package state on 2026-10-28.
   `CLIENT-APP.md`, `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, the two standards documents, both
   investor documents, `TESTING_INFRASTRUCTURE.md` and the coverage note of
   `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md`, `TESTING_REFOUNDATION.md` and
-  `MASTER_PLAN_ES.md`.
+  `MASTER_PLAN_ES.md`; the `tailwindcss` row of `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, and the
+  `@tailwindcss/node` consumer named in the canon row `source-map-js`.
 
 ## Legal impact
 
@@ -203,6 +235,9 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
   digest and, when CI must not resolve below it, the `engines.node` floor.
 - Prisma, or a production dependency, states Node 26 unsupported, or fails on it.
 - Node moves 26's LTS date.
+- A stable Storybook 11 is published (it calls `module.registerHooks()` on Node 26): move the
+  family to it and drop `--disable-warning=DEP0205` from `apps/client`'s `test:stories`, with the
+  story run measured free of DEP0205 without the flag.
 - pnpm's release stops being immutable, or pnpm publishes its own checksums.
 
 ## Risks and Mitigations
@@ -233,5 +268,9 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
 - Docs: [base-images.md](../deployment/base-images.md); [DEPLOYMENT_CHECKLIST.md](../deployment/DEPLOYMENT_CHECKLIST.md);
   [SECURITY_CANON.md](../security/SECURITY_CANON.md) row `@types/node`
 - Code: `scripts/testing/engines-node-gate.mjs`; `scripts/testing/maturity-watchlist.json`, entries
-  `contract-0.16-node-26` and `@types/node@26.6.5`
+  `contract-0.16-node-26` and `@types/node@26.6.5`; `NODE_TEST_EXEC_ARGV` in
+  `packages/vitest-shared/src/index.ts`
+- Upstream: Tailwind CSS 4.3.1 changelog, "Remove deprecation warnings by using
+  `Module#registerHooks` instead of `Module#register` on Node 26+"; Node.js CLI,
+  [`--no-experimental-webstorage`](https://nodejs.org/docs/latest-v26.x/api/cli.html)
 - Branch: `workstream/node-26`

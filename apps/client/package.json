@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:stories": "vitest run --config vitest.stories.config.ts",
+    "test:stories": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --disable-warning=DEP0205\" vitest run --config vitest.stories.config.ts",
     "test:e2e": "playwright test --config=tests/e2e/config/playwright.config.ts",
     "test:e2e:ui": "playwright test --config=tests/e2e/config/playwright.config.ts --ui",
     "test:e2e:headed": "playwright test --config=tests/e2e/config/playwright.config.ts --headed",
