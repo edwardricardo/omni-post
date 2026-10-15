@@ -51,6 +51,7 @@
     "check:duplicates": "node scripts/testing/jscpd-baseline-gate.mjs",
     "check:duplicates:update-baseline": "node scripts/testing/jscpd-baseline-gate.mjs --update",
     "check:jsdoc": "node scripts/testing/jsdoc-touched-gate.mjs",
+    "check:patched-deps": "node scripts/testing/patched-dependencies-gate.mjs --check",
     "check:legal": "node scripts/legal/run.mjs --check",
     "legal:inventory": "node scripts/legal/run.mjs",
     "check:support": "node scripts/support/run.mjs --check",
