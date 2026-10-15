@@ -1889,7 +1889,9 @@ fi
 # docs/legal/classification/<name>.json; a stale entry, whose row no longer exists; an entry the
 # generator refuses (a status it does not list, no note, a field its status requires left out, a
 # `manual` flag on a row the scan finds, an OAuth scope whose declared `sources` differ from the
-# scan); and a `pending` count above or below the file's `pendingBaseline`.
+# scan, a subprocessors `tooling` entry with no note, a name no private workspace carries, or a
+# workspace that a manifest which is not tooling declares outside `devDependencies`); and a
+# `pending` count above or below the file's `pendingBaseline`.
 # NOT APPLICABLE IS A ROW. A touched surface that holds nothing legally relevant is declared in its
 # classification file — `not-personal` for a schema field, `library` for a dependency — with a note
 # saying why. A pull request sentence or a label never satisfies this check, because nothing reads

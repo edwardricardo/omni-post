@@ -1,6 +1,12 @@
 {
   "generator": "scripts/legal/subprocessors.mjs",
   "pendingBaseline": 1,
+  "tooling": [
+    {
+      "workspace": "@packages/test-contracts",
+      "note": "Private, never deployed and declared by no manifest: it runs only in CI, as fitness #30 (`reach`) and #36 (`scopes`) of `.github/workflows/fitness.yml`, so what its code loads when it runs (vitest, typescript, yaml, tsx) is declared under `dependencies` without reaching production."
+    }
+  ],
   "entries": {
     "@anthropic-ai/sdk": {
       "status": "service",
