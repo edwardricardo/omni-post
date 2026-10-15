@@ -68,7 +68,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "26"
 
       - name: "#1 No Prisma singleton imports in routes"
         if: always()
@@ -1715,7 +1715,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "26"
           cache: "pnpm"
 
       - name: "Lockfile gate: pnpm install --frozen-lockfile"
@@ -1771,11 +1771,11 @@ jobs:
         # A manifest that declares no engines.node, or declares a major different from the runtime,
         # is refused. The root package.json's value is the ONE source of truth and must match the
         # shape >=<M>.<minor>.<patch> <<M+1> with <M> the .nvmrc major — an ALLOWLIST by shape, in the
-        # form fitness #28 and #40 use, because ^24 / >=24 / 24.x each name no floor, no ceiling, or
+        # form fitness #28 and #40 use, because ^26 / >=26 / 26.x each name no floor, no ceiling, or
         # neither, and would admit the next major silently.
         #
         # WHY IT EXISTS, measured: @types/node was pinned at 25.9.3 while every declared runtime here
-        # is the Node 24 LTS line, and nothing noticed, because no manifest declared a runtime for the
+        # was the Node 24 LTS line, and nothing noticed, because no manifest declared a runtime for the
         # pin to disagree with. Types ahead of the runtime describe APIs the runtime does not have. The
         # gate therefore also compares the @types/node catalog pin's major against that same runtime,
         # and refuses a manifest whose major is AHEAD exactly as loudly as one behind: moving the Node
@@ -1936,7 +1936,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "26"
           cache: "pnpm"
 
       - name: Install dependencies

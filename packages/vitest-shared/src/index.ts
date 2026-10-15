@@ -43,7 +43,7 @@ import { configDefaults, defineConfig, mergeConfig, type ViteUserConfig } from "
 import type { BuiltinReporters } from "vitest/reporters";
 
 /**
- * Walks up from a directory until it finds the monorepo root (the directory containing
+ * @description Walks up from a directory until it finds the monorepo root (the directory containing
  * `pnpm-workspace.yaml`). Searching for the marker rather than counting `../..` is what
  * makes this correct from a copied, nested or relocated working directory — any place
  * where a fixed relative offset silently resolves somewhere else.
@@ -67,7 +67,8 @@ interface TsconfigPaths {
 }
 
 /**
- * Reads `tsconfig.base.json` and converts its `paths` into a Vitest `resolve.alias` map.
+ * @description Reads `tsconfig.base.json` and converts its `paths` into a Vitest `resolve.alias`
+ * map.
  *
  * Each `@scope/name/*` glob becomes a directory alias (`@scope/name` → `<root>/.../src`) so both
  * the bare import and every subpath resolve to source. Bare `@scope/name` entries that point at an
@@ -169,6 +170,20 @@ export const RESERVED_TIER_EXCLUDES = [
 export const SOURCE_CONDITIONS = ["development", "node"] as const;
 
 /**
+ * The Node arguments every worker of a node-environment test run starts with. Node 26 defines an
+ * experimental `localStorage` global that prints an `ExperimentalWarning` when it is read without
+ * `--localstorage-file`, and msw 2.15.0 reads it when its cookie-store module loads, so every test
+ * file that imports msw printed the warning. Nothing on the server side of this repository uses
+ * Web Storage, so the argument turns the feature off rather than giving it a file. It applies to
+ * the node environment only: a DOM environment installs its own `localStorage`, which the DOM tests
+ * use. {@link defineWorkspaceVitestConfig} writes it for every package that goes through it, and
+ * `apps/api` and `apps/workers`, whose node configs do not, spread it into their own `execArgv`.
+ * msw 3 no longer reads `localStorage` under Node (`cookieStore` is `null` there); the argument
+ * can go once msw 3 is installed and a node run measures no warning without it.
+ */
+export const NODE_TEST_EXEC_ARGV = ["--no-experimental-webstorage"] as const;
+
+/**
  * The reporters this workspace installs, by name: the one typed source for them. vitest's own
  * `reporters` option accepts any string, so a misspelled name there type-checks and then loads
  * nothing. Every value here must instead be one of the names vitest exports as `BuiltinReporters`,
@@ -199,7 +214,7 @@ export interface ReporterSignals {
 }
 
 /**
- * Decides which reporters a run installs, from the environment alone.
+ * @description Decides which reporters a run installs, from the environment alone.
  *
  * This lives in configuration rather than in a command-line flag at one call site, and the
  * difference is not tidiness. A `--reporter=blob` flag REPLACES the default reporter instead of
@@ -225,12 +240,13 @@ export function workspaceReporters(env: ReporterSignals = process.env): Workspac
 }
 
 /**
- * Builds a Vitest config that resolves workspace specifiers to source.
+ * @description Builds a Vitest config that resolves workspace specifiers to source.
  *
  * It also sets `test.exclude` to vitest's own defaults plus {@link RESERVED_TIER_EXCLUDES}.
  * `mergeConfig` concatenates arrays, so an override that names its own `exclude` ADDS to that
  * list rather than replacing it: no package can hand another tier's file back to vitest by
- * declaring exclusions of its own.
+ * declaring exclusions of its own. `test.execArgv` merges the same way: a node-environment config
+ * starts its workers with {@link NODE_TEST_EXEC_ARGV}, followed by any arguments it names itself.
  *
  * @param packageDir - The calling package directory (used to locate the monorepo root).
  * @param overrides - Package-specific config merged on top of the shared defaults.
@@ -243,6 +259,10 @@ export function defineWorkspaceVitestConfig(packageDir: string, overrides: ViteU
   // arrays. Deciding here rather than post-processing the merged result keeps `mergeConfig` the
   // single merge step, with nothing downstream to undo.
   const callerReporters = overrides.test?.reporters;
+  // The worker arguments belong to the node environment, the base's default, so they are written
+  // only when the caller keeps it; a DOM environment's `localStorage` is the DOM's.
+  const callerEnvironment = overrides.test?.environment;
+  const nodeEnvironment = callerEnvironment === undefined || callerEnvironment === "node";
 
   const base = defineConfig({
     resolve: {
@@ -263,6 +283,7 @@ export function defineWorkspaceVitestConfig(packageDir: string, overrides: ViteU
       // for `["junit"]` gets exactly that instead of `["default", "junit"]`. Replacement, not
       // concatenation, is the whole semantics of this key.
       ...(callerReporters === undefined ? { reporters: workspaceReporters() } : {}),
+      ...(nodeEnvironment ? { execArgv: [...NODE_TEST_EXEC_ARGV] } : {}),
       // `.only` is deliberately NOT configured here. vitest already refuses a
       // committed `.only` in CI through `allowOnly`, whose default is
       // `!process.env.CI`, and the static half of the rule is fitness #32.

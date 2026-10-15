@@ -13,7 +13,7 @@ The Universal Client Dashboard is a modern React 19.2.7 application built with N
 - **React**: 19.2.7 with concurrent rendering and automatic batching
 - **Next.js**: 16.3.8 with App Router, server components, and Turbopack
 - **TypeScript**: 6.0.3 with strict mode and exact optional properties
-- **Node.js**: 24 (`.nvmrc`; `engines.node` `>=24.15.0 <25`) with ES modules support
+- **Node.js**: 26 (`.nvmrc`; `engines.node` `>=26.11.1 <27`) with ES modules support
 
 ### State Management & Data Fetching
 

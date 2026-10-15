@@ -1,7 +1,7 @@
 # OmniPost — Code Standards (transversal)
 
 **Applies to:** `apps/admin`, `apps/client`, `apps/api`, `apps/workers`, `packages/**`
-**Stack baseline:** TypeScript 6, Node.js 24
+**Stack baseline:** TypeScript 6, Node.js 26
 **Last updated:** 2026-04-18
 **Version:** 1
 

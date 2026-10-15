@@ -12,6 +12,7 @@
 import { defineConfig } from "vitest/config";
 import { shardedThresholdOverride } from "./vitest.coverage-thresholds.js";
 import {
+  NODE_TEST_EXEC_ARGV,
   RESERVED_TIER_EXCLUDES,
   SOURCE_CONDITIONS,
   buildWorkspaceAliases,
@@ -59,6 +60,9 @@ export default defineConfig({
     // `*.integration.test.ts`: the reserved suffixes keep its files out of this collector.
     exclude: ["**/node_modules/**", ...RESERVED_TIER_EXCLUDES],
     pool: "forks",
+    // Node 26's experimental `localStorage` global warns when msw reads it; nothing here uses
+    // Web Storage on the server, so the shared worker arguments turn it off (NODE_TEST_EXEC_ARGV).
+    execArgv: [...NODE_TEST_EXEC_ARGV],
     // Serialize to a single fork. Each fork loads the full monorepo module
     // graph and, under v8 coverage, accumulates raw coverage for every file it
     // runs — so two forks were two full base processes whose combined RSS
@@ -118,8 +122,9 @@ export default defineConfig({
       //     indivisible unit of its own metric.
       //   - `branches` measured 47.93 here and 47.88 in CI. A 47.9 floor turned that
       //     0.05pp difference into a red build on a commit that changed no source.
-      // The CI runner tracks `node-version: "24"`, a floating major, and V8's
-      // range counting shifts between releases; ~0.1pp absorbs that drift while still
+      // The CI runner tracks a floating major, the `26` of `.nvmrc` read by the shared
+      // setup action, and V8's range counting shifts between releases, majors
+      // included (24 → 26 is measured in ADR-0038); ~0.1pp absorbs that drift while still
       // failing every regression larger than it. A regression SMALLER than 0.1pp goes
       // undetected — the deliberate trade for a gate people can trust.
       //

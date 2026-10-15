@@ -15,11 +15,14 @@ All four deployables (`api`, `workers`, `admin`, `client`) share one production
 stage:
 
 ```
-FROM gcr.io/distroless/nodejs24-debian13@sha256:<digest> AS production
+FROM gcr.io/distroless/nodejs26-debian13@sha256:<digest> AS production
 ```
 
-The build chain stays on `node:24-bookworm-slim`. That asymmetry is deliberate
-and is explained under §"The glibc direction" below.
+The build chain stays on Debian bookworm, `node:26.11.1-bookworm-slim`, pinned by
+digest as well. That asymmetry is deliberate and is explained under §"The glibc
+direction" below. The Node 26 line arrived on 2026-10-15, ahead of its LTS date
+([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)); §"Moved to Node 26
+on 2026-10-15" below holds the measurements.
 
 ---
 
@@ -83,6 +86,73 @@ Trivy 0.67.2 produced the last row. Only openssl moved, so one change re-pins
 the four Dockerfiles together, and the four Dependabot pull requests close as
 superseded.
 
+### Moved to Node 26 on 2026-10-15
+
+The owner moved the runtime to Node 26 ahead of its 2026-10-28 LTS date
+([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)). Both stages of all
+four Dockerfiles moved in one change:
+
+| Stage      | Before                                         | After                                                               |
+| ---------- | ---------------------------------------------- | ------------------------------------------------------------------- |
+| build      | `node:24-bookworm-slim`, tag only              | `node:26.11.1-bookworm-slim@sha256:86f07bc9…`, the multi-arch index |
+| production | `distroless/nodejs24-debian13@sha256:96df910…` | `distroless/nodejs26-debian13@sha256:746f728c…`, the `latest` index |
+
+The build stage names an exact release, 26.11.1, the latest 26.x past the
+7-day buffer and the version `actions/setup-node` resolves for `"26"`. The
+distroless repository has no version tags: its `latest` index carried v26.12.0
+(released 2026-10-14) when it was pinned, so build and runtime differ by one
+minor. Every native addon in the tree is N-API, whose ABI holds across Node
+releases, so nothing compiled in the build stage depends on that minor.
+
+Measured on 2026-10-15 from the `linux/amd64` image of `746f728c` (manifest
+`20dc887d…`), by reading its layers' own `var/lib/dpkg/status.d` and
+`/nodejs/bin/node`:
+
+|                       | `96df910` (nodejs24, 2026-10-10) | `746f728c` (nodejs26, 2026-10-15) |
+| --------------------- | -------------------------------- | --------------------------------- |
+| openssl               | `libssl3t64` 3.5.7-1~deb13u3     | `libssl3t64` 3.5.7-1~deb13u3      |
+| glibc                 | `libc6` 2.41-12+deb13u4          | `libc6` 2.41-12+deb13u4           |
+| node                  | v24.21.0                         | **v26.12.0**                      |
+| Trivy `HIGH,CRITICAL` | 0 (debian 13.7)                  | 0 (debian 13.7)                   |
+
+Trivy 0.75.0 produced the last cell of the new digest, over the same `linux/amd64`
+image. Only node moved. The four images built from it with `podman` on the same
+day each run `/nodejs/bin/node` v26.12.0 as `nonroot`; argon2 round-trips in the
+API image, and both portal images answer 200 on `/api/health` and `/` and pass
+`podman healthcheck run`. The re-check of 2026-10-28 re-reads the `latest` index
+digest, because Google rebuilds it as Node 26 releases land.
+
+### pnpm in the build stage
+
+Node 26 ships no corepack: it is "no longer distributed as of Node.js v25.0.0"
+(nodejs/node#61207), and `node:26.11.1-bookworm-slim` carries `node`, `npm` and
+`npx` only. Each build stage therefore installs pnpm 12.6.0 itself:
+
+1. **The source** is pnpm's own GitHub release `v12.6.0`, an immutable release,
+   so its assets cannot be replaced after publication.
+2. **The check** is the sha256 GitHub records for each asset (`digest` in the
+   release API), pinned per architecture in the Dockerfile:
+   `pnpm-linux-x64.tar.gz` and `pnpm-linux-arm64.tar.gz`. pnpm publishes no
+   separate checksum file. Downloading both assets on 2026-10-15 reproduced both
+   digests.
+3. **The architecture** comes from `dpkg --print-architecture`, the image's own,
+   as the official Node image derives it. CI builds `linux/amd64` only (no
+   `platforms:` in `production-ci.yml`); arm64 covers a local build on an arm64
+   host.
+4. **The download** uses node's built-in `fetch`, because the slim image has no
+   `curl` or `wget` and adding them would mean an `apt-get` layer for one file. The fetch runs up to three times, 5 s then 10 s apart, and an attempt counts only once `sha256sum -c` accepts the archive, so one transient GitHub failure does not fail the image.
+5. **The version contract** stays the root `package.json` `packageManager` field,
+   `pnpm@12.6.0+sha512…`, which pnpm switches itself to when it differs from the
+   running version (`managePackageManagerVersions`, on by default). A pnpm bump
+   still moves the four Dockerfiles' version and digests in the same change, so
+   the image builds with the release it verified.
+
+The asset is pnpm's single executable, which embeds its own Node runtime. pnpm
+runs lifecycle scripts with the `node` on `PATH`, the image's 26.11.1, and
+compares `engines` against that same `node` when `engineStrict` asks it to
+(measured on 2026-10-15: under Node 24.15.0 it reports `current:
+{"node":"24.15.0"}`).
+
 ---
 
 ## Why the digest pin, and why it is only half a practice
@@ -102,13 +172,18 @@ resolves to the `latest` tag (`debian12` is part of the repository NAME, not a
 tag). Nothing tracked it: every build silently took whatever `latest` pointed at
 that day, with no record of what changed or when.
 
+The build stage read `node:24-bookworm-slim`, a floating tag, until 2026-10-15.
+Since then it names an exact release and its index digest,
+`node:26.11.1-bookworm-slim@sha256:…`, so Dependabot tracks both `FROM` lines of
+every Dockerfile.
+
 ---
 
 ## The glibc direction
 
 `argon2` ships a prebuilt native binary that must match the runtime ABI. The
-build chain stays on `node:24-bookworm-slim` (glibc 2.36) while the runtime is
-trixie (glibc 2.41).
+build chain stays on `node:26.11.1-bookworm-slim` (glibc 2.36) while the runtime
+is trixie (glibc 2.41).
 
 That is the **safe** direction: glibc is forward-compatible, so a binary built
 against 2.36 runs on 2.41. The reverse would not hold. OpenSSL keeps the
@@ -166,3 +241,12 @@ letting a silent pass read as more than it is.
    move generation, or accept. Accepting goes through
    `docs/security/SECURITY_CANON.md` §"Audited audit-ignores" and its projection
    in `.trivyignore`, never a silent suppression.
+5. **Moving the Node major** → both `FROM` lines of all four Dockerfiles move in
+   the change that raises `.nvmrc`, every `engines.node` and the `@types/node`
+   pin, so the images ship the major the engines gate holds CI and every manifest
+   to. pnpm does not enforce it: with `engineStrict` unset it installs on any
+   Node ([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)).
+6. **Moving pnpm** → the version and both digests of §"pnpm in the build stage"
+   move in all four Dockerfiles with `packageManager`, read from the release API
+   (`gh api repos/pnpm/pnpm/releases/tags/v<version>`) and reproduced by
+   downloading the assets.

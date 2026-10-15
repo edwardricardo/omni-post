@@ -116,10 +116,10 @@ describe("Thread Planner", () => {
 
       const result = planThread(longPost, "AUTO");
       assert.ok(result.ok);
+      const { tweets } = result.value;
 
       // Verify sequence numbers
-      for (let i = 0; i < result.value.tweets.length; i++) {
-        const tweet = result.value.tweets[i];
+      for (const [i, tweet] of tweets.entries()) {
         assert.ok(tweet, `Tweet at index ${i} should exist`);
         assert.strictEqual(
           tweet.sequence,
@@ -143,14 +143,14 @@ describe("Thread Planner", () => {
 
       const result = planThread(longPost, "AUTO");
       assert.ok(result.ok);
+      const { tweets } = result.value;
 
-      const totalTweets = result.value.tweets.length;
+      const totalTweets = tweets.length;
 
-      for (let i = 0; i < totalTweets; i++) {
-        const tweet = result.value.tweets[i];
+      for (const [i, tweet] of tweets.entries()) {
         const expectedIndicator = `${i + 1}/${totalTweets} `;
         assert.ok(
-          tweet?.text.startsWith(expectedIndicator),
+          tweet.text.startsWith(expectedIndicator),
           `Tweet ${i + 1} should start with "${expectedIndicator}"`
         );
       }

@@ -323,7 +323,7 @@ Switching between processors requires changing a single environment variable -- 
 
 | Layer           | Technology                                                 |
 | --------------- | ---------------------------------------------------------- |
-| **Runtime**     | Node.js 24, TypeScript 6.0.2                               |
+| **Runtime**     | Node.js 26, TypeScript 6.0.2                               |
 | **API**         | Fastify 5.6.1                                              |
 | **Frontend**    | Next.js 16.1.6, React 19.2.4, Tailwind CSS, Radix UI       |
 | **ORM**         | Prisma 7.4.1                                               |

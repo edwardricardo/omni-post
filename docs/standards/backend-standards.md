@@ -1,7 +1,7 @@
 # OmniPost — Backend Standards
 
 **Applies to:** `apps/api`, `apps/workers`, `packages/adapters/**`, `packages/core/**`, `packages/ports/**`, backend portions of `packages/shared/**`
-**Stack:** Fastify 5, Node.js 24, TypeScript 6, Prisma (PostgreSQL), BullMQ (Redis), Zod
+**Stack:** Fastify 5, Node.js 26, TypeScript 6, Prisma (PostgreSQL), BullMQ (Redis), Zod
 **Last updated:** 2026-04-18
 **Version:** 1 (stub — expanded progressively)
 **Transversal rules:** see `CODE_STANDARDS.md` for TypeScript, catch blocks, path conventions, code hygiene, dead code policy.
