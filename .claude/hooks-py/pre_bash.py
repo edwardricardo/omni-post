@@ -9,12 +9,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
+    ENV_ASSIGNMENT_RE,
+    MAX_SHELL_DEPTH,
     PROJECT_ROOT,
     check_grant_token,
+    command_words,
     commit_repos,
     current_branch,
     git_subcommands,
     make_logger,
+    nested_scripts,
+    program_index,
     read_hook_input,
     runs_git_push,
     shell_segments,
@@ -53,12 +58,19 @@ PNPM_MIGRATE_RE = re.compile(r"pnpm\s+(?:db:migrate|db:push|prisma\s+migrate)")
 # blocks in one day teach people to dodge the gate, which is how gates die. The
 # constructs whose destination sits in code or in arguments the text does not
 # order (`sed -i`, `open('w')`, `git checkout`) block by mention.
-_WRITE_VERBS = frozenset({"tee", "cp", "mv", "install", "rsync", "ln", "rm", "rmdir", "unlink", "shred", "truncate", "dd"})
-# Of these, the source is only read: the destination is the LAST operand.
-_DESTINATION_LAST_VERBS = frozenset({"cp", "mv", "install", "rsync", "ln"})
-_REDIRECTS = frozenset({">", ">>", "&>", "&>>"})
+# `touch` creates a file, `chmod`/`chown`/`chgrp` change who may read or run
+# one: `chmod -x` on a hook leaves it unfired, which is how a gate is switched off.
+_WRITE_VERBS = frozenset(
+    {"tee", "cp", "mv", "install", "rsync", "ln", "rm", "rmdir", "unlink", "shred", "truncate", "dd",
+     "touch", "chmod", "chown", "chgrp"}
+)
+# Of these, the source is only read: the destination is the LAST operand. `mv`
+# is not one of them: it removes its sources, so every operand is written.
+_DESTINATION_LAST_VERBS = frozenset({"cp", "install", "rsync", "ln"})
+# `>|` writes even under noclobber; `<>` opens the file for reading AND writing.
+_REDIRECTS = frozenset({">", ">>", "&>", "&>>", ">|", "<>"})
 _NOT_A_FILE = frozenset({"/dev/null", "/dev/stdout", "/dev/stderr"})
-_ENV_ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+_ENV_ASSIGNMENT_RE = ENV_ASSIGNMENT_RE
 COARSE_WRITE_RES = [
     re.compile(r"\b(?:sd|sed|perl|ruby)\b[^|;]*\s-i\b"),            # in-place edit
     re.compile(r"\bpython3?\b[^|;]*\bopen\s*\([^)]*['\"][wax]"),   # open(...,'w')
@@ -83,54 +95,123 @@ def _mentions(pattern: str, text: str) -> bool:
     return pattern in text or re.search(r"(?<![A-Za-z0-9_])" + re.escape(stripped), text) is not None
 
 
-def write_targets(command: str) -> list[str] | None:
-    """Paths that the write constructs of `command` name as a destination:
-    redirections (except /dev/null and the `>&N`), the last operand of
-    cp/mv/install/rsync/ln (the source is only read), every operand of
-    tee/rm/rmdir/unlink/shred/truncate, and `dd of=`; None when it cannot be
-    tokenized."""
-    segments = shell_segments(command)
-    if segments is None:
-        return None
+def _segment_write_targets(segment: list[str]) -> list[str]:
+    """The destinations one command writes: see `write_targets`."""
     targets: list[str] = []
-    for segment in segments:
-        words: list[str] = []
-        i = 0
-        while i < len(segment):
-            tok = segment[i]
-            if tok in _REDIRECTS and i + 1 < len(segment):
-                target = segment[i + 1]
-                if target not in _NOT_A_FILE and not target.startswith("&"):
-                    targets.append(target)
-                i += 2
-            elif tok.startswith(("<", ">")):
-                # input, heredoc or descriptor duplication: operator and operand are not arguments
-                i += 2
-            else:
-                words.append(tok)
-                i += 1
-        while words and (_ENV_ASSIGNMENT_RE.match(words[0]) or words[0] in ("sudo", "command", "nice")):
-            words.pop(0)
-        if not words or words[0] not in _WRITE_VERBS:
-            continue
-        verb, args = words[0], words[1:]
-        if verb == "dd":
-            targets.extend(arg[3:] for arg in args if arg.startswith("of="))
-            continue
-        if "--" in args:
-            args = args[args.index("--") + 1:]
-        operands = [arg for arg in args if not arg.startswith("-")]
-        if verb in _DESTINATION_LAST_VERBS and len(operands) >= 2:
-            operands = operands[-1:]
-        targets.extend(operands)
+    words: list[str] = []
+    i = 0
+    while i < len(segment):
+        tok = segment[i]
+        operand = segment[i + 1] if i + 1 < len(segment) else None
+        if tok in _REDIRECTS and operand is not None:
+            if operand not in _NOT_A_FILE and not operand.startswith("&"):
+                targets.append(operand)
+            i += 2
+        elif tok == ">&" and operand is not None and not operand.isdigit() and operand != "-":
+            # `>& file` sends stdout and stderr to a file; `2>&1` only duplicates a descriptor
+            if operand not in _NOT_A_FILE:
+                targets.append(operand)
+            i += 2
+        elif tok.startswith(("<", ">")):
+            # input, heredoc or descriptor duplication: operator and operand are not arguments
+            i += 2
+        else:
+            words.append(tok)
+            i += 1
+    start = program_index(words)
+    words = [] if start is None else words[start:]
+    while words and (_ENV_ASSIGNMENT_RE.match(words[0]) or words[0] in ("sudo", "command", "nice")):
+        words.pop(0)
+    if not words or Path(words[0]).name not in _WRITE_VERBS:
+        return targets
+    verb, args = Path(words[0]).name, words[1:]
+    if verb == "dd":
+        targets.extend(arg[3:] for arg in args if arg.startswith("of="))
+        return targets
+    if "--" in args:
+        args = args[args.index("--") + 1:]
+    operands = [arg for arg in args if not arg.startswith("-") and arg not in ("(", ")", "{", "}")]
+    if verb in _DESTINATION_LAST_VERBS and len(operands) >= 2:
+        operands = operands[-1:]
+    targets.extend(operands)
     return targets
 
 
-def gate_sensitive_path_writes_require_token(command: str) -> None:
+def write_targets(command: str) -> list[str] | None:
+    """Paths that the write constructs of `command` name as a destination:
+    redirections (except /dev/null and the `>&N`), the last operand of
+    cp/install/rsync/ln (the source is only read), every operand of
+    mv/tee/rm/rmdir/unlink/shred/truncate/touch/chmod/chown/chgrp, and
+    `dd of=`; None when it cannot be tokenized."""
+    segments = shell_segments(command)
+    if segments is None:
+        return None
+    return [target for segment in segments for target in _segment_write_targets(segment)]
+
+
+def _moved_base(base: str | None, operands: list[str]) -> str | None:
+    """The directory a `cd`/`pushd` with `operands` moves `base` to, or None
+    when it cannot be read from the text (`cd`, `cd -`, `cd ~`, a variable).
+    An empty `base` is the starting directory when no session cwd is known:
+    `cd .claude` from it is `.claude`."""
+    destination = next((operand for operand in operands if not operand.startswith("-")), None)
+    if destination is None or destination.startswith(("~", "$")):
+        return None
+    if destination.startswith("/") or base == "":
+        return destination
+    return None if base is None else f"{base}/{destination}"
+
+
+def _resolved(base: str | None, target: str) -> str:
+    """`target` as written from `base`; as given when it is absolute or the
+    base is unknown or the starting directory."""
+    return target if not base or target.startswith(("/", "~")) else f"{base}/{target}"
+
+
+def effective_write_targets(command: str, cwd: Path | None = None, depth: int = 0) -> list[str] | None:
+    """`write_targets` of `command` and of every script it hands to a shell
+    (`bash -c "…"`, `$(…)`, a heredoc fed to a shell), each relative target
+    resolved against the directory it is written from: `cwd`, moved by every
+    `cd` or `pushd` before it. None when some part cannot be tokenized.
+
+    Read without the directory, `cd .claude/.allowed && touch push` writes
+    `push`, which names nothing; and read without the nested script, `bash -c
+    "rm …"` writes nothing at all."""
+    segments = shell_segments(command)
+    scripts = nested_scripts(command)
+    if segments is None or scripts is None or depth > MAX_SHELL_DEPTH:
+        return None
+    base: str | None = "" if cwd is None else str(cwd)
+    targets: list[str] = []
+    for segment in segments:
+        words = command_words(segment)
+        index = program_index(words)
+        if index is not None and words[index] in ("cd", "pushd"):
+            base = _moved_base(base, words[index + 1:])
+            continue
+        targets.extend(_resolved(base, target) for target in _segment_write_targets(segment))
+    for script in scripts:
+        nested = effective_write_targets(script, cwd, depth + 1)
+        if nested is None:
+            return None
+        targets.extend(nested)
+    return targets
+
+
+def _targets_pattern(pattern: str, target: str) -> bool:
+    """`target` is the sensitive `pattern` or lies under it. A directory named
+    without its trailing slash (`rm -rf .claude/hooks-py`) is the directory
+    the pattern names (`/.claude/hooks-py/`)."""
+    return _mentions(pattern, target) or _mentions(pattern, target.rstrip("/") + "/")
+
+
+def gate_sensitive_path_writes_require_token(command: str, cwd: Path | None = None) -> None:
     """Require the `sensitive-edit` token when Bash writes a sensitive path.
 
     Same contract as pre-edit, same pattern list (imported, not copied): what
-    Edit/Write cannot touch without a token, Bash cannot either.
+    Edit/Write cannot touch without a token, Bash cannot either. The write
+    targets are read as `effective_write_targets` reads them: relative to the
+    session `cwd` and to each `cd`, and inside every script handed to a shell.
 
     READING STAYS FREE, deliberately: `bat schema.prisma`, `rg x migrations/`
     or a `prisma migrate diff` are used all the time and mutate nothing.
@@ -146,19 +227,22 @@ def gate_sensitive_path_writes_require_token(command: str) -> None:
     pre-edit would be the kind of lie this repo hunts down.
     """
     mentioned = [pattern for pattern in SENSITIVE_PATTERNS if _mentions(pattern, command)]
-    if not mentioned:
-        return
-    targets = write_targets(command)
+    targets = effective_write_targets(command, cwd)
     coarse = any(rx.search(command) for rx in COARSE_WRITE_RES)
     if targets is None:
         coarse = coarse or _UNTOKENIZABLE_WRITE_RE.search(command) is not None
         targets = []
     matched_path = next(
-        (pattern for pattern in mentioned if coarse or any(_mentions(pattern, target) for target in targets)),
+        (
+            pattern
+            for pattern in SENSITIVE_PATTERNS
+            if (coarse and pattern in mentioned) or any(_targets_pattern(pattern, target) for target in targets)
+        ),
         None,
     )
     if matched_path is None:
-        log(f"sensitive path {mentioned[0]} mentioned, no write construct targets it — read-only, allowed")
+        if mentioned:
+            log(f"sensitive path {mentioned[0]} mentioned, no write construct targets it — read-only, allowed")
         return
 
     status = check_grant_token("sensitive-edit", log)
@@ -191,7 +275,9 @@ def gate_git_push_requires_token(command: str) -> None:
     Validation delegated to the shared `check_grant_token` helper — the
     same contract pre-edit uses for `sensitive-edit` (no drift). What counts
     as a publication is `runs_git_push`, the reading post-bash uses to consume
-    the token: the two hooks cannot disagree about which line published.
+    the token: the two hooks cannot disagree about which line published. It
+    returns instead of allowing, so the gates after it still run: an early exit
+    here let `git push && <write to a hook>` through every other gate.
     """
     if not runs_git_push(command):
         return
@@ -199,7 +285,7 @@ def gate_git_push_requires_token(command: str) -> None:
     status = check_grant_token("push", log)
     if status is None:
         log("push token valid, deferring consumption to post-hook")
-        allow("remote publish authorized via valid token")
+        return
 
     messages = {
         "missing": (
@@ -345,14 +431,17 @@ def main() -> None:
         allow(f"not bash (tool={tool_name})")
 
     log(f"inspecting: {command}")
+    session_cwd = Path(data.get("cwd") or PROJECT_ROOT)
 
-    gate_git_push_requires_token(command)
-    gate_sensitive_path_writes_require_token(command)
+    gate_sensitive_path_writes_require_token(command, session_cwd)
     gate_no_npm_yarn_or_npx(command)
     gate_no_co_authored_in_commit(command)
-    gate_commit_only_in_allowed_branch(command, Path(data.get("cwd") or PROJECT_ROOT))
+    gate_commit_only_in_allowed_branch(command, session_cwd)
     gate_db_migrations_require_running_db(command)
     gate_no_patches_in_ts_writes(command)
+    # Last: it claims a push grant, which only a command every other gate let
+    # through may do.
+    gate_git_push_requires_token(command)
 
     allow("command passed all gates")
 

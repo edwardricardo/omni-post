@@ -35,11 +35,13 @@ from _common import (  # noqa: E402
     emit_missing_file_context,
     git_invocations,
     git_subcommands,
+    heredocs,
     memory_dir,
     notice_already_sent,
     notice_seen,
     recovered_file_notice,
     runs_git_push,
+    shell_segments,
 )
 
 
@@ -116,6 +118,33 @@ class RunsGitPushTests(unittest.TestCase):
     def test_a_line_that_cannot_be_tokenized_falls_back_to_the_conservative_reading(self) -> None:
         self.assertTrue(runs_git_push("git push origin 'unterminated"))
         self.assertFalse(runs_git_push("git status 'unterminated"))
+
+
+class ShellReadingTests(unittest.TestCase):
+    """The shared reading of a command line: where one command ends, what a
+    heredoc is, and which scripts a command hands to a shell."""
+
+    def test_a_newline_ends_a_command(self) -> None:
+        self.assertEqual(shell_segments("ls\nbash -c 'x'"), [["ls"], ["bash", "-c", "x"]])
+        self.assertEqual(shell_segments("a\\\n b"), [["a", "b"]], "a backslash-newline joins the lines")
+
+    def test_a_publication_after_a_newline_or_inside_a_wrapper_or_substitution_is_one(self) -> None:
+        self.assertTrue(runs_git_push("ls\nbash -c 'git push origin a'"))
+        self.assertTrue(runs_git_push('sudo bash -c "git push origin a"'))
+        self.assertTrue(runs_git_push('echo "$(git push origin a)"'))
+        self.assertTrue(runs_git_push("bash <<'EOF'\ngit push origin a\nEOF"))
+        self.assertTrue(runs_git_push("cat <<'EOF' | bash\ngit push origin a\nEOF"))
+
+    def test_a_heredoc_of_text_is_not_a_command(self) -> None:
+        self.assertFalse(runs_git_push("git commit -F - <<'EOF'\nthen git push later\nEOF"))
+        self.assertFalse(runs_git_push("cat > notes.md <<'EOF'\ngit push origin main\nEOF"))
+
+    def test_heredoc_bodies_leave_the_command_line_and_an_unclosed_one_does_not(self) -> None:
+        text, docs = heredocs("cat > f <<'EOF'\nit's text\nEOF\nls")
+        self.assertEqual(text, "cat > f <<'EOF'\nls")
+        self.assertEqual([(doc.body, doc.expands, doc.is_text) for doc in docs], [("it's text", False, True)])
+        self.assertIsNotNone(shell_segments("cat > f <<'EOF'\nit's text\nEOF"), "an apostrophe in a body no longer breaks the line")
+        self.assertEqual(heredocs("cat <<EOF\nnever closed"), ("cat <<EOF\nnever closed", []))
 
 
 class CommitReposTests(unittest.TestCase):
