@@ -19,6 +19,7 @@ Typical use from a hook:
 
 import contextlib
 import fcntl
+import hashlib
 import json
 import os
 import re
@@ -851,11 +852,12 @@ def recovered_file_notice(tag: str, name: str, path: Path, session_id: str = "")
 # ────────────────────────────────────────────────────────────────────
 # Authorization grants: `.claude/.allowed/<operation>`
 #
-# A grant is a window `[not_before, expires_at)`; one file holds every grant
-# of an operation, consecutive windows included, and an operation is allowed
-# while one of its windows contains now. Each grant carries the claim fields
-# (`claimed_at`, `claim_fingerprint`) the push hooks are to record on the grant
-# that authorizes a publication.
+# A grant is a window `[not_before, expires_at)`. `omnipost-allow push --count 3
+# --ttl 60` leaves three consecutive one-hour windows in one file. A push is
+# allowed while one window contains now, and post-bash consumes the grant that
+# authorized it, so each window allows one publication; a window opens at its
+# own start time even when the grant before it was used early. A
+# `sensitive-edit` grant is valid for its whole window and is never consumed.
 # ────────────────────────────────────────────────────────────────────
 
 # How long a CLAIMED grant outlives its window. A push pre-bash authorized a
@@ -879,6 +881,12 @@ def now_utc() -> datetime:
 def format_local(moment: datetime) -> str:
     """`moment` in the machine's local time, the clock the owner reads."""
     return moment.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+
+
+def command_fingerprint(command: str) -> str:
+    """What pre-bash records on the grant it authorizes and post-bash looks
+    for: both hooks receive the same command text."""
+    return hashlib.sha256(command.encode("utf-8")).hexdigest()
 
 
 def _parse_instant(raw: object) -> datetime:
@@ -942,7 +950,9 @@ class Grant:
             created_at=_parse_instant(raw.get("created_at", raw["not_before"])),
             ttl_minutes=ttl,
             claimed_at=_parse_instant(raw["claimed_at"]) if raw.get("claimed_at") else None,
-            claim_fingerprint=raw.get("claim_fingerprint"),
+            # A claim is its time and its fingerprint together, as `to_dict` writes them: a
+            # fingerprint with no claim time is no claim, so post-bash never selects by it.
+            claim_fingerprint=raw.get("claim_fingerprint") if raw.get("claimed_at") else None,
         )
         if grant.not_before >= grant.expires_at:
             raise ValueError(f"grant {grant.id} has an empty window")
@@ -1121,6 +1131,56 @@ def check_grant_token(operation: str, log_fn: Callable[[str], None]) -> str | No
     consumed: the contract of `sensitive-edit`, read identically by pre-edit,
     pre-bash and the tripwire blocker."""
     return inspect_grants(operation, log_fn).reason
+
+
+def claim_grant(operation: str, fingerprint: str, log_fn: Callable[[str], None]) -> GrantCheck:
+    """`inspect_grants`, recording on the open grant the command it authorizes
+    (`claimed_at`, `claim_fingerprint`), so post-bash consumes that grant and
+    no other even when the command finishes after its window. A claim of a
+    grant some command already claimed replaces it: that command never reached
+    post-bash (a failed push), and a retry is entitled to the same window."""
+    now = now_utc()
+    with _grant_store_lock():
+        store = _open_grant_file(operation, now, log_fn)
+        if store.reason is not None:
+            return GrantCheck(store.reason)
+        check = _verdict(store.grants, now, store.held > 0)
+        grant = check.grant
+        if grant is not None:
+            if grant.claim_fingerprint is not None:
+                again = "the same command, a retry" if grant.claim_fingerprint == fingerprint else "another command"
+                log_fn(f"grant {operation}/{grant.id} claimed again by {again}: the previous claim never reached post-bash")
+            grant.claimed_at, grant.claim_fingerprint = now, fingerprint
+            log_fn(f"grant {operation}/{grant.id} claimed by command {fingerprint[:12]} (window {grant.window()})")
+        if grant is not None or store.pruned():
+            _save(store, log_fn)
+    _log_verdict(operation, check, log_fn)
+    return check
+
+
+def consume_grant(operation: str, fingerprint: str, log_fn: Callable[[str], None]) -> Grant | None:
+    """Removes the ONE grant that authorized the command with `fingerprint`:
+    the one pre-bash claimed for it (its latest claim, when a retry claimed a
+    later window), or, when no claim names it, the grant whose window contains
+    now. The windows after it keep their start times. Returns the grant, or
+    None when there was none to consume."""
+    now = now_utc()
+    with _grant_store_lock():
+        store = _open_grant_file(operation, now, log_fn)
+        if store.reason is not None:
+            log_fn(f"no {operation} grant to consume ({store.reason})")
+            return None
+        claimed = [grant for grant in store.grants if grant.claim_fingerprint == fingerprint]
+        grant = max(claimed, key=lambda g: g.claimed_at or g.not_before) if claimed else _verdict(store.grants, now, True).grant
+        if grant is None:
+            log_fn(f"no {operation} grant claimed by command {fingerprint[:12]} and none open now: nothing consumed")
+        else:
+            store.grants = [other for other in store.grants if other is not grant]
+            how = "its claim" if claimed else "no claim recorded, the grant open now"
+            log_fn(f"grant {operation}/{grant.id} consumed ({how}; window {grant.window()})")
+        if grant is not None or store.pruned():
+            _save(store, log_fn)
+    return grant
 
 
 @dataclass
