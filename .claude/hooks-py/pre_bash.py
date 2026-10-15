@@ -275,11 +275,12 @@ log, block, allow = make_logger(HOOK_NAME)
 _PUSH_MESSAGES = {
     "missing": (
         "Remote publish requires authorization. Ask Edward in chat; "
-        "he runs 'omnipost-allow push' and you retry."
+        "he runs 'omnipost-allow push' (or 'omnipost-allow push --count K --ttl N' for "
+        "consecutive windows) and you retry."
     ),
     "corrupt": (
         "Authorization token corrupt. Edward must inspect "
-        ".claude/.allowed/push, delete it, and re-run 'omnipost-allow push'."
+        ".claude/.allowed/push, delete it ('omnipost-allow revoke push'), and re-run 'omnipost-allow push'."
     ),
     "malformed": (
         "Authorization token malformed (missing/invalid expires_at or grants). "

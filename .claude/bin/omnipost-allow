@@ -1,31 +1,55 @@
 #!/usr/bin/env python3
-"""omnipost-allow — creates expiring authorization tokens for sensitive operations."""
+"""omnipost-allow — the owner's grants for sensitive operations.
+
+    omnipost-allow <operation> [--ttl MINUTES] [--count K]
+    omnipost-allow status
+    omnipost-allow revoke <operation>
+
+`omnipost-allow push --count 3 --ttl 60` leaves three consecutive one-hour
+windows. Each window allows one publication (post-bash consumes the grant that
+authorized it), and a window opens at its own start time even when the grant
+before it was used early. Run again while grants are pending, it appends its
+windows after the last pending one. A `sensitive-edit` window is valid for its
+whole length and is never consumed.
+
+Only the owner runs it, from his own terminal. The grants live in
+`.claude/.allowed/<operation>`; this command reads and writes them through the
+hooks' own `_common`, so the two cannot disagree on the file's shape.
+"""
 
 import argparse
-import json
 import sys
-from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+# The hooks' module, resolved from the script's location (.claude/bin/ ->
+# .claude/hooks-py/), not from the cwd: `_common` resolves the store from its
+# own location, so the CLI writes where the hooks read, from any directory.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "hooks-py"))
+import _common  # noqa: E402
 
-# Allowed operations with their default TTL in minutes.
+# Allowed operations with their default TTL in minutes, and what one window
+# allows.
 ALLOWED_OPERATIONS = {
     "push": {
         "description": "authorized git push",
         "default_ttl_minutes": 15,
+        "window_note": "Each window allows one publication, and opens at its start time even when the grant before it was used early.",
     },
     "sensitive-edit": {
         "description": "authorized edit of a sensitive file (hooks/CI/env/schema)",
         "default_ttl_minutes": 15,
+        "window_note": "Each window is valid for its whole length; using it consumes nothing.",
     },
     # New operations are added here:
-    # "deploy": {"description": "production deployment", "default_ttl_minutes": 5},
+    # "deploy": {"description": "production deployment", "default_ttl_minutes": 5, "window_note": "..."},
 }
+SUBCOMMANDS = ("status", "revoke")
 
-# Resolved from the script's location (.claude/bin/ -> .claude/ -> root), not
-# from the cwd: run from a subdirectory, the token would land in
-# <subdir>/.claude/.allowed, where no hook looks for it.
-TOKENS_DIR = Path(__file__).resolve().parents[2] / ".claude" / ".allowed"
+USAGE = """omnipost-allow <operation> [--ttl MINUTES] [--count K]
+       omnipost-allow status
+       omnipost-allow revoke <operation>"""
+
+log = _common.make_logger("omnipost-allow")[0]
 
 
 def list_operations() -> str:
@@ -37,62 +61,146 @@ def list_operations() -> str:
     return "\n".join(lines)
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """One subcommand per operation (each with `--ttl` and `--count`), plus
+    `status` and `revoke`, so `omnipost-allow push --ttl 30` reads as it always has."""
     parser = argparse.ArgumentParser(
-        description="Creates an authorization token for a sensitive operation.",
+        prog="omnipost-allow",
+        usage=USAGE,
+        description="Issues, lists and revokes the time-boxed grants the OmniPost hooks check.",
         epilog=f"Available operations:\n{list_operations()}",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument(
-        "operation",
-        help="Name of the operation to authorize (e.g. 'push').",
-    )
-    parser.add_argument(
-        "--ttl",
-        type=int,
-        default=None,
-        help="Token lifetime in minutes. When omitted, the operation's default is used.",
-    )
+    commands = parser.add_subparsers(dest="command", metavar="<operation>|status|revoke")
+    for operation, meta in ALLOWED_OPERATIONS.items():
+        sub = commands.add_parser(
+            operation,
+            help=meta["description"],
+            usage=f"omnipost-allow {operation} [--ttl MINUTES] [--count K]",
+        )
+        sub.add_argument(
+            "--ttl",
+            type=int,
+            default=None,
+            help=f"Minutes per window. When omitted, the default ({meta['default_ttl_minutes']} min) is used.",
+        )
+        sub.add_argument(
+            "--count",
+            type=int,
+            default=1,
+            help=f"Consecutive windows to create, 1 to {_common.MAX_GRANTS_PER_CALL}. Default: 1.",
+        )
+    commands.add_parser("status", help="List every pending grant with its window.", usage="omnipost-allow status")
+    revoke_parser = commands.add_parser("revoke", help="Delete every grant of an operation.", usage="omnipost-allow revoke <operation>")
+    revoke_parser.add_argument("operation", help="The operation whose grants are deleted.")
+    return parser
 
-    args = parser.parse_args()
 
-    if args.operation not in ALLOWED_OPERATIONS:
-        print(f"Unknown operation '{args.operation}'.", file=sys.stderr)
-        print(f"\nAvailable operations:\n{list_operations()}", file=sys.stderr)
-        sys.exit(1)
+def _unknown(operation: str) -> int:
+    print(f"Unknown operation '{operation}'.", file=sys.stderr)
+    print(f"\nAvailable operations:\n{list_operations()}", file=sys.stderr)
+    return 1
 
-    operation_meta = ALLOWED_OPERATIONS[args.operation]
-    ttl_minutes = args.ttl if args.ttl is not None else operation_meta["default_ttl_minutes"]
 
+def _state(grant: _common.Grant, now) -> str:
+    """Where `grant` stands at `now`, as `status` prints it."""
+    if grant.is_open(now):
+        state = "open"
+    elif grant.not_before > now:
+        state = "upcoming"
+    else:
+        kept_until = _common.format_local(grant.expires_at + _common.GRANT_CLAIM_GRACE)
+        state = f"window over, kept until {kept_until} for the push it authorized"
+    if grant.claimed_at is not None:
+        state += f", claimed at {_common.format_local(grant.claimed_at)}"
+    return state
+
+
+def issue(operation: str, ttl: int | None, count: int) -> int:
+    """Creates `count` consecutive windows of `ttl` minutes for `operation`."""
+    meta = ALLOWED_OPERATIONS[operation]
+    ttl_minutes = meta["default_ttl_minutes"] if ttl is None else ttl
     if ttl_minutes <= 0:
         print(f"TTL must be positive. Received: {ttl_minutes}", file=sys.stderr)
-        sys.exit(1)
+        return 1
+    if not 1 <= count <= _common.MAX_GRANTS_PER_CALL:
+        print(f"--count must be between 1 and {_common.MAX_GRANTS_PER_CALL}. Received: {count}", file=sys.stderr)
+        return 1
+    try:
+        issued = _common.add_grants(operation, count, ttl_minutes, log)
+    except OSError as error:
+        print(f"The grant store cannot be written: {error}", file=sys.stderr)
+        return 1
+    if issued.replaced:
+        print(f"The grant file for '{operation}' was {issued.replaced}; it was replaced.", file=sys.stderr)
+    noun = "grant" if count == 1 else "grants"
+    print(f"✓ {count} {noun} for '{operation}' created")
+    print(f"  Path:    {_common.grant_file(operation)}")
+    for index, grant in enumerate(issued.created, start=1):
+        start, end = _common.format_local(grant.not_before), _common.format_local(grant.expires_at)
+        print(f"  #{index}  {start} → {end}  ({ttl_minutes} min)")
+    if issued.pending:
+        print(
+            f"  Appended after {len(issued.pending)} pending grant(s): the first new window opens "
+            f"when the last pending one ends."
+        )
+    print(f"  {meta['window_note']}")
+    return 0
 
-    now = datetime.now(timezone.utc)
-    expires_at = now + timedelta(minutes=ttl_minutes)
 
-    token_data = {
-        "operation": args.operation,
-        "created_at": now.isoformat(),
-        "expires_at": expires_at.isoformat(),
-        "ttl_minutes": ttl_minutes,
-        "authorized_by": "edward",
-    }
+def show_status() -> int:
+    """Lists every operation's pending grants; exits 1 when a grant file
+    cannot be read, so a broken store is not mistaken for an empty one."""
+    now = _common.now_utc()
+    lines: list[str] = []
+    unreadable = False
+    for operation in ALLOWED_OPERATIONS:
+        grants, reason = _common.pending_grants(operation, log)
+        if reason is not None:
+            unreadable = True
+            lines.append(f"{operation}: grant file unreadable ({reason}); 'omnipost-allow revoke {operation}' deletes it")
+            continue
+        if not grants:
+            continue
+        lines.append(f"{operation}:")
+        for index, grant in enumerate(sorted(grants, key=lambda g: g.not_before), start=1):
+            start, end = _common.format_local(grant.not_before), _common.format_local(grant.expires_at)
+            lines.append(f"  #{index}  {start} → {end}  ({_state(grant, now)})")
+    print("\n".join(lines) if lines else "no pending grants")
+    return 1 if unreadable else 0
 
-    TOKENS_DIR.mkdir(parents=True, exist_ok=True)
-    token_path = TOKENS_DIR / args.operation
 
-    if token_path.exists():
-        print(f"A token for '{args.operation}' already exists. It will be replaced.", file=sys.stderr)
+def revoke(operation: str) -> int:
+    """Deletes every grant of `operation`."""
+    if operation not in ALLOWED_OPERATIONS:
+        return _unknown(operation)
+    result = _common.revoke_grants(operation, log)
+    if result is None:
+        print(f"No grants for '{operation}'.")
+        return 0
+    removed, unreadable = result
+    if unreadable is not None:
+        print(f"✓ Grants for '{operation}' revoked: the file could not be read ({unreadable}) and was deleted")
+        return 0
+    print(f"✓ Grants for '{operation}' revoked ({removed} pending grant(s) deleted)")
+    return 0
 
-    with token_path.open("w") as f:
-        json.dump(token_data, f, indent=2)
 
-    expires_local = expires_at.astimezone()  # local timezone, for display
-    print(f"✓ Token '{args.operation}' created")
-    print(f"  Path:    {token_path}")
-    print(f"  Expires: {expires_local.strftime('%H:%M:%S')} ({ttl_minutes} minutes)")
+def main(argv: list[str] | None = None) -> int:
+    arguments = sys.argv[1:] if argv is None else argv
+    if arguments and not arguments[0].startswith("-") and arguments[0] not in (*ALLOWED_OPERATIONS, *SUBCOMMANDS):
+        return _unknown(arguments[0])
+    parser = build_parser()
+    parsed = parser.parse_args(arguments)
+    if parsed.command is None:
+        parser.print_usage(sys.stderr)
+        return 2
+    if parsed.command == "status":
+        return show_status()
+    if parsed.command == "revoke":
+        return revoke(parsed.operation)
+    return issue(parsed.command, parsed.ttl, parsed.count)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
