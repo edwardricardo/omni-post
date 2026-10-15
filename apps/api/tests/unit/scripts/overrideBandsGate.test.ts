@@ -18,9 +18,11 @@
  *   prove the red path once the real file is clean.
  *
  *   The ALLOWLIST is a literal inside the gate rather than an injected input, because an injected
- *   allowlist would prove the mechanism and leave the real exception unmeasured. Every fixture
- *   therefore carries its key, which is also what drives the case that only the allowlist can make
- *   green, and one fixture drops it to drive the orphan refusal.
+ *   allowlist would prove the mechanism and leave the real exception unmeasured. The literal is
+ *   empty since 2026-10-15, when its last entry left with its override, so no real exception is
+ *   left to measure: the two cases only an entry reaches, the allowlisted verdict and the orphan
+ *   refusal, run a COPY of the gate whose literal the suite rewrites, and the gate in the tree
+ *   still takes no allowlist from outside.
  *
  *   The fail-closed cases carry as much weight as the happy path. A gate that reports a clean zero
  *   over a block it could not parse, a line it could not read, or a file that is not there asserts
@@ -32,7 +34,15 @@
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,20 +56,22 @@ const GATE_SCRIPT = path.join(REPO_ROOT, "scripts", "testing", "override-bands-g
 const BLOCK_READER = path.join(REPO_ROOT, "scripts", "testing", "workspace-block-reader.mjs");
 
 /**
- * The keys the gate's own allowlist names, written here exactly as the real manifest writes them.
- * Every fixture renders every key unless it deliberately drops one: an allowlist entry that matches
- * no override key is itself a violation, so omitting one would make every other case red for the
- * wrong reason.
+ * The literal the gate declares its allowlist with, matched byte for byte by the copy that rewrites
+ * it: a gate whose literal changes shape fails the two allowlist cases instead of running unchanged.
  */
-const ALLOWLISTED: readonly (readonly [string, string])[] = [['"find-my-way@<9.6.1"', "9.7.0"]];
+const EMPTY_ALLOWLIST = "const ALLOWED = new Map([]);";
+
+/**
+ * One canonical entry every fixture renders before its own, so the column-0 separator comment sits
+ * BETWEEN entries and every count below includes it.
+ */
+const BASELINE: readonly (readonly [string, string])[] = [['"baseline@<1.0.0"', "1.0.0"]];
 
 interface Fixture {
   /** Override entries rendered verbatim, in order, as `  <key>: <value>` lines. */
   readonly overrides?: readonly (readonly [string, string])[];
-  /** Allowlisted keys to leave OUT of the rendered block, for the orphan refusal. */
-  readonly omitAllowlisted?: readonly string[];
   /**
-   * Renders a COLUMN-0 comment between the allowlisted entries and the fixture's own. YAML allows an
+   * Renders a COLUMN-0 comment between the baseline entry and the fixture's own. YAML allows an
    * unindented comment inside a mapping — yaml 2.9.0 and js-yaml 4.3.2 both parse the entries after
    * it into the same mapping — so a reader that treats column 0 as the end of the block drops every
    * entry after it, which is where new overrides are appended.
@@ -98,7 +110,6 @@ afterEach(() => {
  * skipped every column-0 line, the key included, would read the decoy.
  */
 const renderWorkspace = (fixture: Fixture): string => {
-  const omitted = new Set(fixture.omitAllowlisted ?? []);
   const render = (pairs: readonly (readonly [string, string])[]): string[] =>
     pairs.map(([key, value]) => `  ${key}: ${value}`);
   return [
@@ -111,7 +122,7 @@ const renderWorkspace = (fixture: Fixture): string => {
     "overrides:",
     '  axios: "catalog:"',
     "  bn.js: 5.2.3",
-    ...render(ALLOWLISTED.filter(([key]) => !omitted.has(key))),
+    ...render(BASELINE),
     ...(fixture.separatorComment === true
       ? ["# a column-0 comment, which YAML allows inside a mapping"]
       : []),
@@ -149,16 +160,26 @@ const runGate = (fixture: Fixture): GateResult => {
  * scratch directory — which is no git repository — as its working directory. The only manifest the
  * copy can measure is then the one written beside its `scripts/` directory, so a lookup that leaned
  * on git or on the working directory fails here instead of quietly reading another tree. The block
- * reader the gate imports is copied beside it, exactly as it sits in the repository.
+ * reader the gate imports is copied beside it, exactly as it sits in the repository. With
+ * `allowlist`, the copy's empty allowlist literal is rewritten to hold those entries first, which is
+ * how the allowlist cases run while the gate in the tree holds none.
  */
-const runCopiedGate = (manifest: string): GateResult => {
+const runCopiedGate = (
+  manifest: string,
+  allowlist: readonly (readonly [string, string])[] = []
+): GateResult => {
   const dir = mkdtempSync(path.join(tmpdir(), "override-bands-gate-copy-"));
   scratchDirs.push(dir);
 
   const scriptDir = path.join(dir, "scripts", "testing");
   mkdirSync(scriptDir, { recursive: true });
   const script = path.join(scriptDir, "override-bands-gate.mjs");
-  copyFileSync(GATE_SCRIPT, script);
+  const source = readFileSync(GATE_SCRIPT, "utf8");
+  expect(source.split(EMPTY_ALLOWLIST)).toHaveLength(2);
+  writeFileSync(
+    script,
+    source.replace(EMPTY_ALLOWLIST, `const ALLOWED = new Map(${JSON.stringify(allowlist)});`)
+  );
   copyFileSync(BLOCK_READER, path.join(scriptDir, "workspace-block-reader.mjs"));
   writeFileSync(path.join(dir, "pnpm-workspace.yaml"), manifest);
 
@@ -334,31 +355,41 @@ describe("override bands gate", () => {
   });
 
   describe("the allowlist", () => {
-    // Each assertion names the ALLOWLISTED verdict and the recorded reason. The key alone also
-    // appears on a violation line, so asserting only the key would stay green with the allowlist
-    // branch gone or printing nothing of the measurement that earned the exception.
-    it("accepts the unpublished-patch exception through its entry, and prints its recorded reason", () => {
-      const result = runGate({});
+    // The gate in the tree holds no entry since 2026-10-15, so these cases run the copy whose
+    // literal names one. Each assertion names the ALLOWLISTED verdict and the recorded reason: the
+    // key alone also appears on a violation line, so asserting only the key would stay green with the
+    // allowlist branch gone or printing nothing of the measurement that earned the exception.
+    it("accepts a band through its entry, and prints its recorded reason", () => {
+      const result = runCopiedGate(renderWorkspace({ overrides: [['"widget@<9.6.1"', "9.7.0"]] }), [
+        ["widget@<9.6.1", "9.6.1 was never published"],
+      ]);
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("find-my-way@<9.6.1\t9.7.0\tallowlisted: ");
-      expect(result.stdout).toContain("npm never published it");
+      expect(result.stdout).toContain(
+        "widget@<9.6.1\t9.7.0\tallowlisted: 9.6.1 was never published"
+      );
     });
 
-    // The fixture keeps one canonical entry so the block still parses a range-scoped key: without it
+    // The fixture keeps the baseline entry so the block still parses a range-scoped key: without it
     // the zero-entries refusal would also fire, and the exit code alone could not show that the
     // orphan was the reason.
     it("exits 1 when an allowlist entry matches no override key, so the list can only shrink", () => {
-      const result = runGate({
-        omitAllowlisted: ['"find-my-way@<9.6.1"'],
-        overrides: [['"widget@<2.0.0"', "2.0.0"]],
-      });
+      const result = runCopiedGate(renderWorkspace({}), [["widget@<9.6.1", "a stale reason"]]);
 
       expect(result.status).toBe(1);
       expect(result.stdout).toContain("1 range-scoped overrides measured, 0 violating");
-      expect(result.stderr).toContain("the allowlist names `find-my-way@<9.6.1`");
+      expect(result.stderr).toContain("the allowlist names `widget@<9.6.1`");
       expect(result.stderr).toContain("which no override key");
+    });
+
+    it("refuses the band its last entry excused, now that the list is empty", () => {
+      const result = runGate({ overrides: [['"find-my-way@<9.6.1"', "9.7.0"]] });
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(
+        "find-my-way@<9.6.1\t9.7.0\tviolation: the band was left behind by its target"
+      );
     });
   });
 

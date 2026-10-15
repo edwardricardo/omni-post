@@ -27,7 +27,7 @@
     "@ports/core": "workspace:*",
     "@providers/shared": "workspace:*",
     "@shared/types": "workspace:*",
-    "image-size": "catalog:",
+    "image-size": "2.0.4",
     "pino": "catalog:"
   },
   "scripts": {
