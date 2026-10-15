@@ -23,8 +23,10 @@ class TokenConsumptionTests(unittest.TestCase):
         self.token = root / "allowed" / "push"
         self.token.parent.mkdir()
         self.token.write_text(json.dumps({"operation": "push", "expires_at": "2099-01-01T00:00:00+00:00"}))
+        # The grant functions read the store through `_common`: the patch goes
+        # where they look, so no test touches a real `.claude/.allowed/`.
         self._patches = [
-            mock.patch.object(post_bash, "ALLOWED_TOKENS_DIR", self.token.parent),
+            mock.patch.object(_common, "ALLOWED_TOKENS_DIR", self.token.parent),
             mock.patch.object(_common, "LOG_PATH", root / "hooks.log"),
         ]
         for patch in self._patches:

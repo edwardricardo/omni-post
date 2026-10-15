@@ -1,5 +1,4 @@
-"""Tests of the grant store: windows, pruning, the legacy shape and the push
-gate that reads them.
+"""Tests of the grant store: push windows and their claim and consumption.
 
 Every test points `_common.ALLOWED_TOKENS_DIR` and `_common.LOG_PATH` at a
 temporary directory and freezes `_common.now_utc`: none reads or writes the
@@ -21,11 +20,14 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import _common  # noqa: E402
+import post_bash  # noqa: E402
 import pre_bash  # noqa: E402
 import pre_edit  # noqa: E402
+from _common import format_local  # noqa: E402
 
 T0 = datetime(2026, 10, 15, 4, 0, tzinfo=timezone.utc)
 PUSH = "cd /wt && git push origin workstream/a"
+OTHER_PUSH = "cd /wt && git push origin workstream/b"
 
 
 class _Clock:
@@ -88,6 +90,9 @@ class _GrantStoreCase(unittest.TestCase):
 
     def pre(self, command: str, cwd: Path | None = None) -> tuple[str, str]:
         return self._run(pre_bash, {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(cwd or self.root)})
+
+    def post(self, command: str) -> None:
+        self._run(post_bash, {"tool_name": "Bash", "tool_input": {"command": command}})
 
     def edit(self, file_path: str, key: str = "file_path") -> tuple[str, str]:
         return self._run(pre_edit, {"tool_name": "Write", "tool_input": {key: file_path}})
@@ -172,6 +177,24 @@ class GrantWindowsTests(_GrantStoreCase):
                 self.assertTrue((self.store / "push").exists(), "an unreadable file is left for the owner to inspect")
 
 
+class PushGateTests(_GrantStoreCase):
+    """pre-bash allows a push only while a window contains now."""
+
+    def test_a_push_before_its_window_says_when_the_window_opens(self):
+        self.write_file("push", {"operation": "push", "grants": [{"id": "g", "not_before": _iso(hours=1), "expires_at": _iso(hours=2)}]})
+        verdict, message = self.pre(PUSH)
+        self.assertEqual(verdict, "blocked(2)")
+        self.assertIn(f"not yet open: the next window opens at {format_local(T0 + timedelta(hours=1))}", message)
+
+    def test_a_push_after_every_window_is_over_is_blocked_and_the_file_deleted(self):
+        self.issue(count=2, ttl=60)
+        self.clock.at(hours=2, minutes=1)
+        verdict, message = self.pre(PUSH)
+        self.assertEqual(verdict, "blocked(2)")
+        self.assertIn("expired", message)
+        self.assertFalse((self.store / "push").exists())
+
+
 class PruningTests(_GrantStoreCase):
     def test_expired_grants_are_pruned_on_every_read_and_the_empty_file_deleted(self):
         first, second = self.issue(count=2, ttl=60)
@@ -207,6 +230,117 @@ class SensitiveEditGrantTests(_GrantStoreCase):
         self.issue("sensitive-edit", count=2, ttl=15)
         self.clock.at(minutes=20)
         self.assertIsNone(_common.check_grant_token("sensitive-edit", self.log))
+
+
+class PushWindowTests(_GrantStoreCase):
+    """pre-bash claims the grant of the open window; post-bash consumes exactly that grant."""
+
+    def test_a_push_inside_window_1_is_allowed_and_claims_grant_1(self):
+        first, _, _ = self.issue(count=3, ttl=60)
+        self.clock.at(minutes=5)
+        self.assertEqual(self.pre(PUSH)[0], "allowed")
+        claimed = self.grants()[0]
+        self.assertEqual(claimed["id"], first.id)
+        self.assertEqual(claimed["claimed_at"], _iso(minutes=5))
+        self.assertEqual(claimed["claim_fingerprint"], _common.command_fingerprint(PUSH))
+        self.assertNotIn("claimed_at", self.grants()[1])
+
+    def test_post_bash_consumes_only_the_claimed_grant(self):
+        _, second, third = self.issue(count=3, ttl=60)
+        self.clock.at(minutes=5)
+        self.pre(PUSH)
+        self.post(PUSH)
+        self.assertEqual([grant["id"] for grant in self.grants()], [second.id, third.id])
+        self.assertIn("consumed (its claim", self.hooks_log())
+
+    def test_using_window_1_early_leaves_window_2_closed_until_it_opens(self):
+        self.issue(count=3, ttl=60)
+        self.clock.at(minutes=5)
+        self.pre(PUSH)
+        self.post(PUSH)
+        self.clock.at(minutes=10)
+        verdict, message = self.pre(OTHER_PUSH)
+        self.assertEqual(verdict, "blocked(2)")
+        self.assertIn(format_local(T0 + timedelta(hours=1)), message)
+        self.assertEqual(self.windows()[0], (_iso(hours=1), _iso(hours=2)), "window 2 keeps its own start")
+        self.clock.at(minutes=60)
+        self.assertEqual(self.pre(OTHER_PUSH)[0], "allowed")
+
+    def test_a_push_that_ends_after_its_window_consumes_the_grant_that_authorized_it(self):
+        first, second = self.issue(count=2, ttl=60)
+        self.clock.at(minutes=59, seconds=59)
+        self.assertEqual(self.pre(PUSH)[0], "allowed")
+        self.clock.at(minutes=61)
+        self.post(PUSH)
+        remaining = self.grants()
+        self.assertEqual([grant["id"] for grant in remaining], [second.id])
+        self.assertNotIn("claimed_at", remaining[0])
+        self.assertEqual(self.pre(OTHER_PUSH)[0], "allowed")
+
+    def test_a_retry_after_a_failed_push_is_allowed_and_consumes_once(self):
+        first, second = self.issue(count=2, ttl=60)
+        self.clock.at(minutes=5)
+        self.assertEqual(self.pre(PUSH)[0], "allowed")
+        # The push failed: PostToolUse does not fire, so post-bash never runs.
+        self.clock.at(minutes=6)
+        self.assertEqual(self.pre(PUSH)[0], "allowed")
+        self.post(PUSH)
+        self.assertEqual([grant["id"] for grant in self.grants()], [second.id])
+        self.clock.at(minutes=7)
+        self.assertEqual(self.pre(PUSH)[0], "blocked(2)")
+
+    def test_a_retry_crossing_into_the_next_window_consumes_that_window_and_lets_the_old_claim_expire(self):
+        first, second, third = self.issue(count=3, ttl=60)
+        self.clock.at(minutes=59)
+        self.pre(PUSH)  # claims grant 1; the push fails
+        self.clock.at(minutes=62)
+        self.pre(PUSH)  # the retry claims grant 2
+        self.post(PUSH)
+        self.assertEqual([grant["id"] for grant in self.grants()], [first.id, third.id])
+        self.clock.at(minutes=70)
+        self.assertEqual([grant["id"] for grant in self.grants()], [first.id, third.id])
+        _common.inspect_grants("push", self.log)
+        self.assertEqual([grant["id"] for grant in self.grants()], [third.id])
+
+    def test_a_push_with_no_recorded_claim_consumes_the_grant_open_now(self):
+        _, second = self.issue(count=2, ttl=60)
+        self.clock.at(minutes=5)
+        self.post(PUSH)
+        self.assertEqual([grant["id"] for grant in self.grants()], [second.id])
+
+    def test_a_fingerprint_without_a_claim_time_is_no_claim(self):
+        _, second = self.issue(count=2, ttl=60)
+        payload = json.loads((self.store / "push").read_text())
+        payload["grants"][1]["claim_fingerprint"] = _common.command_fingerprint(PUSH)
+        self.write_file("push", payload)
+        self.clock.at(minutes=5)
+        self.post(PUSH)
+        self.assertEqual([grant["id"] for grant in self.grants()], [second.id], "the window open now is consumed")
+
+    def test_a_legacy_grant_is_consumed_by_one_push(self):
+        self.write_file("push", {"operation": "push", "created_at": _iso(), "expires_at": _iso(minutes=15)})
+        self.assertEqual(self.pre(PUSH)[0], "allowed")
+        self.post(PUSH)
+        self.assertFalse((self.store / "push").exists())
+
+    def test_a_line_that_only_reads_the_store_neither_claims_nor_consumes(self):
+        self.issue(count=1, ttl=60)
+        before = (self.store / "push").read_text()
+        line = "git status && jq -r '.grants[0].expires_at' .claude/.allowed/push"
+        self.assertEqual(self.pre(line)[0], "allowed")
+        self.post(line)
+        self.assertEqual((self.store / "push").read_text(), before)
+
+    def test_a_claimed_grant_outlives_its_window_by_the_grace_and_no_more(self):
+        first, second = self.issue(count=2, ttl=60)
+        self.clock.at(minutes=59)
+        self.pre(PUSH)
+        self.clock.at(minutes=60 + 9)
+        _common.inspect_grants("push", self.log)
+        self.assertEqual([grant["id"] for grant in self.grants()], [first.id, second.id])
+        self.clock.at(minutes=60 + 10)
+        _common.inspect_grants("push", self.log)
+        self.assertEqual([grant["id"] for grant in self.grants()], [second.id])
 
 
 if __name__ == "__main__":

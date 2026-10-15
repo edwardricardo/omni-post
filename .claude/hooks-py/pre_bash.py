@@ -13,9 +13,12 @@ from _common import (  # noqa: E402
     MAX_SHELL_DEPTH,
     PROJECT_ROOT,
     check_grant_token,
+    claim_grant,
+    command_fingerprint,
     command_words,
     commit_repos,
     current_branch,
+    format_local,
     git_subcommands,
     make_logger,
     nested_scripts,
@@ -269,43 +272,51 @@ log, block, allow = make_logger(HOOK_NAME)
 # ────────────────────────────────────────────────────────────────────
 
 
-def gate_git_push_requires_token(command: str) -> None:
-    """Block the remote-publish command unless a valid token exists.
+_PUSH_MESSAGES = {
+    "missing": (
+        "Remote publish requires authorization. Ask Edward in chat; "
+        "he runs 'omnipost-allow push' and you retry."
+    ),
+    "corrupt": (
+        "Authorization token corrupt. Edward must inspect "
+        ".claude/.allowed/push, delete it, and re-run 'omnipost-allow push'."
+    ),
+    "malformed": (
+        "Authorization token malformed (missing/invalid expires_at or grants). "
+        "Edward must re-run 'omnipost-allow push'."
+    ),
+    "expired": (
+        "Authorization token expired: every push window is over. "
+        "Ask Edward for a fresh one via 'omnipost-allow push'."
+    ),
+}
 
-    Validation delegated to the shared `check_grant_token` helper — the
-    same contract pre-edit uses for `sensitive-edit` (no drift). What counts
-    as a publication is `runs_git_push`, the reading post-bash uses to consume
-    the token: the two hooks cannot disagree about which line published. It
-    returns instead of allowing, so the gates after it still run: an early exit
-    here let `git push && <write to a hook>` through every other gate.
+
+def gate_git_push_requires_token(command: str) -> None:
+    """Block the remote-publish command unless a push window is open now.
+
+    `claim_grant` records the command on the grant of that window, and
+    post-bash consumes exactly that grant: one publication per window. What
+    counts as a publication is `runs_git_push`, the reading post-bash uses:
+    the two hooks cannot disagree about which line published. It returns
+    instead of allowing, so the gates after it still run: an early exit here
+    let `git push && <write to a hook>` through every other gate.
     """
     if not runs_git_push(command):
         return
 
-    status = check_grant_token("push", log)
-    if status is None:
-        log("push token valid, deferring consumption to post-hook")
+    check = claim_grant("push", command_fingerprint(command), log)
+    if check.reason is None:
+        log("push grant claimed, deferring consumption to post-hook")
         return
-
-    messages = {
-        "missing": (
-            "Remote publish requires authorization. Ask Edward in chat; "
-            "he runs 'omnipost-allow push' and you retry."
-        ),
-        "corrupt": (
-            "Authorization token corrupt. Edward must inspect "
-            ".claude/.allowed/push, delete it, and re-run 'omnipost-allow push'."
-        ),
-        "malformed": (
-            "Authorization token malformed (missing/!expires_at). "
-            "Edward must re-run 'omnipost-allow push'."
-        ),
-        "expired": (
-            "Authorization token expired. "
-            "Ask Edward for a fresh one via 'omnipost-allow push'."
-        ),
-    }
-    block(messages.get(status, f"Authorization unavailable ({status}). Ask Edward in chat."))
+    if check.reason == "not-yet-open" and check.next_opens_at is not None:
+        message = (
+            f"Authorization not yet open: the next window opens at {format_local(check.next_opens_at)}. "
+            f"Each window allows one publication; retry once it opens, or ask Edward."
+        )
+    else:
+        message = _PUSH_MESSAGES.get(check.reason, f"Authorization unavailable ({check.reason}). Ask Edward in chat.")
+    block(message)
 
 
 def gate_no_npm_yarn_or_npx(command: str) -> None:
