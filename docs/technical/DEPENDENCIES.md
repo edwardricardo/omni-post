@@ -321,6 +321,16 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
 | yaml                      | 2.9.1   | Workflow parsing in the reach engine |
 
+### Update cadence
+
+How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-cadence.md)):
+
+| Event                  | When it moves                                                                                                         | Gate                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| A security advisory    | Immediately: a floor at the minimal patched version, inside the 7-day buffer if it must                               | `pnpm audit`; the CVE-floor rows of `docs/security/SECURITY_CANON.md`    |
+| Any other bump         | In the weekly window: every Tuesday, or the first day worked after it, grouped by family                              | each unit certified as before                                            |
+| A lag of the toolchain | Reported for 30 days after its oldest unmet release matures (37 after it is published); past that it needs a hold row | `scripts/testing/holds-gate.mjs`, in the `Dependency Consistency` CI job |
+
 ### Metrics
 
 | Metric              | Value                                  |

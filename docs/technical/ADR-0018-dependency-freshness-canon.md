@@ -3,6 +3,8 @@
 - **Status**: Accepted
 - **Date**: 2026-06-19
 - **Deciders**: Edward Velasquez, Platform engineering
+- **Amended by**: [ADR-0036](ADR-0036-dependency-update-cadence.md) (update cadence,
+  2026-10-14)
 
 ## Context
 
@@ -29,6 +31,10 @@ EXACT pin (no `^ ~ * >= x`), at the LATEST STABLE release (no RC/beta/alpha/next
 One version. Pinned. Fresh. — TRANSITIVE deps are consumer-governed (highest
 in-range; multiple versions may coexist), NOT force-pinned; see the transitive
 policy below.**
+
+> **Update cadence (ADR-0036, 2026-10-14).** "Latest stable" is reached in a weekly
+> Tuesday window, not on the day a release matures; security floors stay immediate.
+> See `docs/technical/ADR-0036-dependency-update-cadence.md`.
 
 > **Config-location update (ADR-0019, 2026-07-15).** This ADR placed the
 > `pnpm.overrides` block, `pnpm.auditConfig.ignoreGhsas`, and
@@ -102,6 +108,10 @@ before RE-VERIFY. Catalog-bump candidates drain after the walk as one root PR.
 
 `syncpack lint` + `pnpm install --frozen-lockfile` + `pnpm dedupe --check` per PR.
 Renovate `rangeStrategy: pin` + family grouping + catalog-aware.
+
+> **Amended by ADR-0036 (2026-10-14).** The holds gate (`scripts/testing/holds-gate.mjs`)
+> fails a toolchain lag only once its oldest unmet release has been mature for 30 days
+> with no hold row; the catalog-bump candidates above drain in the weekly window.
 
 ## Rationale
 

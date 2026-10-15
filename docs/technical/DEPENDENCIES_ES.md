@@ -321,6 +321,16 @@ Construido con: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tail
 | @faker-js/faker           | 10.6.0  | Generacion de datos de prueba            |
 | yaml                      | 2.9.1   | Parseo de workflows del motor de alcance |
 
+### Cadencia de actualización
+
+Cómo se mueve una dependencia desde el 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-cadence.md)):
+
+| Evento                       | Cuándo se mueve                                                                                                                           | Gate                                                                       |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Un aviso de seguridad        | De inmediato: un piso en la versión mínima corregida, dentro del margen de 7 días si hace falta                                           | `pnpm audit`; las filas de pisos CVE de `docs/security/SECURITY_CANON.md`  |
+| Cualquier otra actualización | En la ventana semanal: cada martes, o el primer día trabajado después, agrupada por familia                                               | cada unidad se certifica como hasta ahora                                  |
+| Un retraso del toolchain     | Se informa durante 30 días desde que madura la versión más antigua pendiente (37 desde su publicación); después necesita una fila de hold | `scripts/testing/holds-gate.mjs`, en el job de CI `Dependency Consistency` |
+
 ### Metricas
 
 | Metrica               | Valor                                   |

@@ -47,20 +47,44 @@ across a multi-week change.
 
 ---
 
-### Requirement: Every lag below latest mature carries a documented hold, and a gate proves it
+### Requirement: A lag older than the 30-day budget carries a documented hold; a younger lag is reported
 
-A testing dependency that stays below its latest-mature target MUST have a hold row in the canon
-holds table carrying a measured reason, the date, and a **remove-when** condition that can
-actually fire. A CI step MUST compare the holds table against the measured lag set and fail when a
-lag has no row. The step MUST fail closed: zero parsed holds rows, or an unreadable table, exits 1
-rather than reporting a clean zero.
+A testing dependency that stays below its latest-mature target is reported, and needs no row, while
+the OLDEST stable release above its installed version has been mature for less than **30 days**
+(that is, less than 37 days after its publication, because a release matures 7 days after it is
+published). Past that budget it MUST have a hold row in the canon holds table carrying a measured
+reason, the date, and a **remove-when** condition that can actually fire. A CI step MUST compare the
+holds table against the measured lag set and fail when a lag past the budget has no row, and MUST
+refuse a row whose text describes a scheduled hold (the words `scheduled` or `pre-registered`). The
+step MUST fail closed: zero parsed holds rows, or an unreadable table, exits 1 rather than reporting
+a clean zero.
 
-#### Scenario: Red — a lag with no hold row exits 1 [static]
+> **Amended 2026-10-14 ([ADR-0036](../../../../../docs/technical/ADR-0036-dependency-update-cadence.md)):**
+> previously read "every lag below latest mature carries a documented hold, and a gate proves it".
+> Every maturity instant then became a unit, and a row written ahead of an instant exempted its
+> package for as long as it stood. Non-security bumps now wait for a weekly window, and a lag needs a
+> row only past a 30-day budget.
 
-- **GIVEN** a testing dependency pinned below its latest-mature target with no holds row
+#### Scenario: Red — a lag past the budget with no hold row exits 1 [static]
+
+- **GIVEN** a testing dependency pinned below a release that has been mature for 30 days or more,
+  with no holds row
 - **WHEN** the complete gate step runs
 - **THEN** it exits 1 naming the package, the installed version and the target
 - **AND** the tree restores byte-exact
+
+#### Scenario: A lag inside the budget is reported, never red [static]
+
+- **GIVEN** a testing dependency below its latest-mature target, whose oldest unmet release has been
+  mature for fewer than 30 days, with no holds row
+- **WHEN** the gate runs
+- **THEN** it exits 0 and prints the lag as within budget with the days it has used
+
+#### Scenario: Red — a row that describes a scheduled hold exits 1 [static]
+
+- **GIVEN** a holds row whose text says `scheduled` or `pre-registered`
+- **WHEN** the gate runs
+- **THEN** it exits 1 naming the row, whether or not its package lags
 
 #### Scenario: Red — a hold row without a remove-when, or an unreadable table, exits 1 [static]
 
@@ -79,6 +103,14 @@ rather than reporting a clean zero.
 ---
 
 ### Requirement: vitest holds at 4.1.11 with its measured reason, and mutation runs only on vitest 4
+
+> **AMENDED 2026-10-14 (measured that day; [ADR-0036](../../../../../docs/technical/ADR-0036-dependency-update-cadence.md)).**
+> The runner named below left the tree on 2026-09-27 with mutation testing itself (MASTER_PLAN
+> N-CI-4, #307 → #310 → #311): `@stryker-mutator/vitest-runner` is declared in no manifest, and
+> nothing installed peer-blocks vitest 5 (`@storybook/addon-vitest` 10.6.1 peers `vitest ^5.0.0`).
+> The hold stands as a recorded decision: the 4 → 5 behavioural migration is its own change, and its
+> remove-when is that change landing. The text below, and the first scenario's runner clause, are
+> the history that put the row in place.
 
 vitest MUST remain at 4.1.11 as a documented hold. The reason is measured, not preferential: the
 only stable Stryker vitest runner reports every covered mutant as Survived on vitest 5 (score
