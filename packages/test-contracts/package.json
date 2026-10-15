@@ -15,13 +15,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "devDependencies": {
+  "dependencies": {
     "@packages/vitest-shared": "workspace:*",
     "@shared/types": "workspace:*",
-    "@types/node": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
   }
 }

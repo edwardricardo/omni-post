@@ -1,9 +1,10 @@
 /**
  * @file subprocessorsInventory.test.ts
  * @description Pins `scripts/legal/subprocessors.mjs`: the manifest scan and its production or
- *   dev-only derivation, the derived recipients without a dependency, the scan hash, the
- *   classification refusals and scope errors, and the committed page equal byte for byte to the one
- *   regenerated from the real tree. Each case runs on a scratch tree that starts green.
+ *   dev-only derivation, the `tooling` list and its refusals, the derived recipients without a
+ *   dependency, the scan hash, the classification refusals and scope errors, and the committed page
+ *   equal byte for byte to the one regenerated from the real tree. Each case runs on a scratch tree
+ *   that starts green.
  * @layer infrastructure
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -17,9 +18,13 @@ type Inventory = { pagePath: string; markdown: string; problems: string[]; scope
 type Entry = Record<string, unknown>;
 type Row = [string, () => void, string];
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
-type Scan = { names: Map<string, { manifests: string[]; production: boolean }> };
+type Scan = {
+  names: Map<string, { manifests: string[]; production: boolean }>;
+  listed: string[];
+  problems: string[];
+};
 type Generator = Record<"CLASSIFICATION" | "PAGE", string> & {
-  scanManifests: (root: string) => Scan;
+  scanManifests: (root: string, listed?: string[]) => Scan;
   buildInventory: (options: { root: string }) => Promise<Inventory>;
   generator: { generate: (options?: { root: string }) => Promise<Inventory> };
 };
@@ -52,6 +57,8 @@ const KEPT = Object.keys(MANIFESTS).slice(0, 6);
 let root = "";
 let entries: Record<string, Entry> = {};
 let pendingBaseline = 0;
+/** The classification's `tooling` list; `undefined` leaves the key out of the file. */
+let tooling: unknown = [];
 
 const put = (file: string, data: unknown): void => {
   mkdirSync(path.join(root, path.dirname(file)), { recursive: true });
@@ -59,7 +66,7 @@ const put = (file: string, data: unknown): void => {
 };
 const remove = (file: string): void => rmSync(path.join(root, file), { recursive: true });
 const build = (): Promise<Inventory> => {
-  put(CLASSIFICATION, { pendingBaseline, entries });
+  put(CLASSIFICATION, { pendingBaseline, tooling, entries });
   return buildInventory({ root });
 };
 const set = (name: string, overrides: Entry) => (): void => {
@@ -75,6 +82,7 @@ beforeEach(() => {
   Object.entries(MANIFESTS).forEach(([file, data]) => put(file, data));
   put(SCHEMA, "enum Provider {\n  X\n  INSTAGRAM // reached by fetch\n}\n");
   pendingBaseline = 0;
+  tooling = [];
   const service = { ...SERVICE, productionPath: "yes", note: "N." };
   entries = { pay: service, xsdk: service, "fetch:mail": { ...service, manual: true } };
   ["env", "lint", "mock", "peer"].forEach((name) => (entries[name] = LIBRARY));
@@ -128,6 +136,105 @@ describe("the scan", () => {
 
     expect(summary).toMatch(/\| dev-only services +\| 1 +\|/);
     expect(summary).toMatch(/\| services without a dependency \(manual\) +\| 1 +\|/);
+  });
+});
+
+describe("the tooling list", () => {
+  const RUNNER = "packages/runner/package.json";
+  const TESTING = "packages/testing/package.json";
+  const LISTED = { workspace: "@w/r", note: "Private, run only in CI." };
+  /** A private workspace no manifest declares; its run needs `runner` and the tooling `@w/t`. */
+  const runner = { name: "@w/r", private: true, dependencies: { runner: "1", "@w/t": WS } };
+  /** The Scope cell of a service's row in the Inventory table. */
+  const scopeOf = (markdown: string, name: string): string | undefined =>
+    new RegExp("\\| `" + name + "` +\\| service +\\| ([a-z-]+) +\\|").exec(markdown)?.[1];
+
+  beforeEach(() => {
+    put(RUNNER, runner);
+    entries["runner"] = { ...SERVICE, productionPath: "no", note: "N." };
+  });
+
+  it("keeps a listed workspace's dependencies, and the workspaces it declares, out of production", () => {
+    const listed = scanManifests(root, ["@w/r"]);
+    const unlisted = scanManifests(root);
+
+    expect(listed.problems).toEqual([]);
+    expect(listed.listed).toEqual(["@w/r"]);
+    expect(listed.names.get("runner")?.production).toBe(false);
+    expect(listed.names.get("mock")?.production).toBe(false);
+    expect(unlisted.names.get("runner")?.production).toBe(true);
+    expect(unlisted.names.get("mock")?.production).toBe(true);
+    put(TESTING, { ...MANIFESTS[TESTING], dependencies: { mock: "1", "@w/r": WS } });
+    expect(scanManifests(root, ["@w/r"]).problems).toEqual([]);
+  });
+
+  it("counts a workspace only tooling declares as tooling, until a manifest that is not declares it", () => {
+    put(RUNNER, { ...runner, dependencies: { ...runner.dependencies, "@w/h": WS } });
+    put("packages/helper/package.json", { name: "@w/h", dependencies: { helper: "1" } });
+
+    expect(scanManifests(root, ["@w/r"]).names.get("helper")?.production).toBe(false);
+    put(API, { name: "@w/api", dependencies: { pay: "catalog:", "@w/h": WS } });
+    expect(scanManifests(root, ["@w/r"]).names.get("helper")?.production).toBe(true);
+  });
+
+  it("renders the list it applied, and a listed workspace's service as dev-only", async () => {
+    tooling = [LISTED];
+    const listed = await build();
+    tooling = [];
+    const unlisted = await build();
+
+    expect(listed.problems).toEqual([]);
+    expect(scopeOf(listed.markdown, "runner")).toBe("dev-only");
+    expect(section(listed.markdown, "About this page")).toContain("names (`@w/r`)");
+    expect(unlisted.problems).toEqual([]);
+    expect(scopeOf(unlisted.markdown, "runner")).toBe("production");
+    expect(section(unlisted.markdown, "About this page")).toContain("names (none)");
+  });
+
+  it.each<Row>([
+    ["no tooling array", () => (tooling = undefined), `${CLASSIFICATION} holds no tooling array`],
+    ["an entry that is no object", () => (tooling = ["@w/r"]), "tooling entry 0 is not an object"],
+    [
+      "an unknown key",
+      () => (tooling = [{ ...LISTED, x: "1" }]),
+      "tooling @w/r has unknown keys x",
+    ],
+    ["an entry with no workspace", () => (tooling = [{ note: "N." }]), "entry 0 has no workspace"],
+    [
+      "an entry with no note",
+      () => (tooling = [{ workspace: "@w/r" }]),
+      "tooling @w/r has no note",
+    ],
+    [
+      "a name no workspace carries",
+      () => (tooling = [{ ...LISTED, workspace: "@w/none" }]),
+      "tooling @w/none is not a workspace package",
+    ],
+    [
+      "a workspace that is not private",
+      () => put(RUNNER, { ...runner, private: false }),
+      "tooling @w/r is not private: true",
+    ],
+    [
+      "a workspace a manifest that is not tooling declares outside devDependencies",
+      () => put(DB, { ...MANIFESTS[DB], dependencies: { "@w/r": WS } }),
+      `outside devDependencies by a manifest that is not tooling: ${DB} (dependencies)`,
+    ],
+  ])("refuses %s, and does not apply it", async (_case, plant, expected) => {
+    tooling = [LISTED];
+    plant();
+    const { problems, markdown } = await build();
+
+    expect(problems.join("\n")).toContain(expected);
+    expect(scopeOf(markdown, "runner")).toBe("production");
+  });
+
+  it("refuses a duplicate, and applies the name once", async () => {
+    tooling = [LISTED, LISTED];
+    const { problems, markdown } = await build();
+
+    expect(problems).toEqual([`${CLASSIFICATION}: tooling @w/r is listed twice`]);
+    expect(scopeOf(markdown, "runner")).toBe("dev-only");
   });
 });
 

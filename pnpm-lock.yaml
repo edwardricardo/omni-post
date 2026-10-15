@@ -4219,16 +4219,13 @@ importers:
         version: 6.0.3
 
   packages/test-contracts:
-    devDependencies:
+    dependencies:
       '@packages/vitest-shared':
         specifier: workspace:*
         version: link:../vitest-shared
       '@shared/types':
         specifier: workspace:*
         version: link:../shared
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.6.5
       tsx:
         specifier: 'catalog:'
         version: 4.23.15
@@ -4241,6 +4238,10 @@ importers:
       yaml:
         specifier: 2.9.1
         version: 2.9.1
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
 
   packages/ui:
     dependencies:
