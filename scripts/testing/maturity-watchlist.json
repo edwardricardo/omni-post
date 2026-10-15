@@ -1,5 +1,5 @@
 {
-  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. A package entry leaves the list in the change that records its clean 14-day review; a date entry stays, with its `due` review recorded as the evidence that the day was reviewed; a package entry whose version leaves the tree before that review leaves the list too, because nothing is left to review. A date entry marks a contract milestone and never schedules a dependency move: since 2026-10-14 (ADR-0036) a non-security bump is taken in the weekly Tuesday window and a toolchain lag is legal for 30 days, so the scheduled hold entries left the list, their evidence in the pull requests that took or retired each move. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
+  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. A package entry leaves the list in the change that records its clean 14-day review; a date entry stays, with its `due` review recorded as the evidence that the day was reviewed; a package entry whose version leaves the tree before that review leaves the list too, because nothing is left to review. A date entry marks a contract milestone, or reviews a patched dependency until its remove-when fires (ADR-0037: a review that finds it unresolved records outcome flagged and adds the next date entry, due two or three days later), and never schedules a dependency move: since 2026-10-14 (ADR-0036) a non-security bump is taken in the weekly Tuesday window and a toolchain lag is legal for 30 days, so the scheduled hold entries left the list, their evidence in the pull requests that took or retired each move. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
   "entries": [
     {
       "kind": "package",
@@ -274,6 +274,18 @@
         "maturity": "2026-10-21",
         "final": "2026-10-28"
       },
+      "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "patch-storybook-nextjs-vite-10.6.3",
+      "title": "Storybook 10.6.3: published? move the family to it and drop the nextjs-vite patch (ADR-0037)",
+      "due": "2026-10-17",
+      "refs": [
+        "docs/technical/ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md, Decision 3 and Remove-when: read npm for @storybook/nextjs-vite 10.6.3; if published, the family moves to it immediately, not in the weekly window, and 10.6.3 enters this list; if unpublished, record this review as flagged with what was read and add the next entry, patch-storybook-nextjs-vite-10.6.3-<due>, due two or three days later",
+        "https://github.com/storybookjs/storybook/pull/36762, Release: Patch 10.6.3, which carries the fix of storybookjs/storybook#36732",
+        "docs/security/SECURITY_CANON.md, section Patched dependencies; branch workstream/next-16-4-1-floor"
+      ],
       "reviews": {}
     }
   ]

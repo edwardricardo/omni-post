@@ -189,6 +189,8 @@ catalog:
   # storybook and @storybook/react for the stories colocated with its components, which the client
   # Storybook runs. @storybook/react has that one declarer and is a catalog member anyway, because
   # the family moves as one; 10.6.1 peers react/react-dom up to ^19 (19.2.7) and storybook ^10.6.1.
+  # @storybook/nextjs-vite 10.6.1 carries the patch of `patchedDependencies` below (ADR-0037): the
+  # family stays here until 10.6.3 is published, then moves to it at once and drops the patch.
   storybook: 10.6.1
   "@storybook/addon-a11y": 10.6.1
   "@storybook/addon-docs": 10.6.1
@@ -332,3 +334,7 @@ overrides:
 # chains carried either, so neither suppressed anything any more.
 auditConfig:
   ignoreGhsas: []
+
+patchedDependencies:
+  # Storybook's merged fix for next 16.4 (storybookjs/storybook#36732), absent from 10.6.1; leaves when 10.6.3 is published (ADR-0037)
+  "@storybook/nextjs-vite@10.6.1": patches/@storybook__nextjs-vite@10.6.1.patch

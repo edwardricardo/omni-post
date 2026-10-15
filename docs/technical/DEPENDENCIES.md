@@ -321,6 +321,8 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
 | yaml                      | 2.9.1   | Workflow parsing in the reach engine |
 
+Component stories run on the Storybook 10.6.1 family. `@storybook/nextjs-vite` 10.6.1 carries a patch, Storybook's merged fix for next 16.4, until 10.6.3 is published and the family moves to it ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)).
+
 ### Update cadence
 
 How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-cadence.md)):
