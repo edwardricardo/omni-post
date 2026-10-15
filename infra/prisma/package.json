@@ -23,14 +23,14 @@
     "seed": "tsx --conditions development seed.ts"
   },
   "dependencies": {
-    "@observability/logger": "workspace:*",
     "@prisma/adapter-pg": "7.9.1",
-    "@prisma/client": "catalog:",
-    "argon2": "catalog:",
-    "dotenv": "catalog:"
+    "@prisma/client": "catalog:"
   },
   "devDependencies": {
+    "@observability/logger": "workspace:*",
     "@types/node": "catalog:",
+    "argon2": "catalog:",
+    "dotenv": "catalog:",
     "prisma": "7.9.1",
     "tsx": "catalog:"
   },

@@ -36,7 +36,8 @@
     "@core/domain": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
-    "csv-parse": "catalog:"
+    "csv-parse": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@packages/vitest-shared": "workspace:*",
