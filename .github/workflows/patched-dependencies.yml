@@ -5,6 +5,10 @@ name: Patched Dependencies
 # a stable release inside the record's resolvedBy range is published, opens one issue for that patch
 # (label patched-dependency), comments on it once a day while it stays open, reopens it when it is
 # closed while the patch still stands, and fails the run, so the signal never waits for a calendar.
+# An input the gate cannot read (a registry document, the records file or a GitHub call) is retried,
+# three attempts 30 s then 60 s apart, and then fails the run under its own title, so a transient
+# failure never reads as a resolvable patch; the gate opens no second issue and posts no second
+# comment on the same day, so a retry repeats nothing it already did.
 # The consistency half of the same gate is fitness #48 (fitness.yml, Dependency Consistency job) and
 # the battery step patched-deps; this half stays out of pull-request CI, so an upstream release never
 # blocks unrelated work. Pinned by apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts.
@@ -40,10 +44,28 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          # Exit codes of the gate: 0 nothing resolvable; 1 a stable release resolves a patch (the
+          # signal); 2 a usage error; 3 an input could not be read (registry, records or GitHub).
+          # Only 3 is retried: a registry or API hiccup gets three attempts, 30 s then 60 s apart,
+          # so a transient failure and a real resolution never share a verdict or a title.
           # --resolution asks the registry whether a stable release inside each record's resolvedBy
-          # range exists, and exits 1 when one does; --remind then opens the issue for each resolvable
-          # patch, comments on it once a day and reopens it if closed, and makes no API call otherwise.
-          if ! node scripts/testing/patched-dependencies-gate.mjs --resolution --remind; then
-            echo "::error title=Patched dependency resolvable::A release that resolves a patched dependency is published, a record or a registry document could not be read, or a GitHub call failed. The patched-dependencies-gate lines above name each one; the issue labelled patched-dependency carries the record's remove-when. Take the move it names, in one change that deletes the patch file, its patchedDependencies entry and its record."
-            exit 1
-          fi
+          # range exists; --remind then opens the issue for each resolvable patch, comments on it
+          # once a day and reopens it if closed, and makes no API call otherwise.
+          status=0
+          for attempt in 1 2 3; do
+            status=0
+            node scripts/testing/patched-dependencies-gate.mjs --resolution --remind || status=$?
+            [ "$status" -eq 3 ] || break
+            [ "$attempt" -eq 3 ] || sleep $((attempt * 30))
+          done
+          case "$status" in
+            0) ;;
+            1)
+              echo "::error title=Patched dependency resolvable::A stable release inside a record's resolvedBy range is published, so a patched dependency can leave. The patched-dependencies-gate lines above name it, and the issue labelled patched-dependency carries the record's remove-when. Take the move it names, in one change that deletes the patch file, its patchedDependencies entry and its record."
+              exit 1
+              ;;
+            *)
+              echo "::error title=Patched dependencies gate could not read its inputs::The gate exited $status. Exit 3, after 3 attempts 30 s then 60 s apart, means a registry document, the records file or a GitHub call could not be read; any other code is a usage error or a crash of this step and is not retried. The patched-dependencies-gate lines above name each input it could not read, and any patch it found resolvable beside them; a patch whose input went unread was judged neither resolvable nor unresolvable this run."
+              exit "$status"
+              ;;
+          esac

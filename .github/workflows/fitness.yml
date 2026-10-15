@@ -1891,16 +1891,17 @@ jobs:
       - name: "#48 Every patched dependency has its record, its patch file and its ADR"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #48. `pnpm check:patched-deps` is the consistency half of the gate,
-          # `node scripts/testing/patched-dependencies-gate.mjs --check`: it reads the
-          # patchedDependencies block of pnpm-workspace.yaml as text (the reader the engines and
-          # override-bands steps above share) and scripts/testing/patched-dependencies.json: every key
-          # names one exact version and has one record with the same patch file, every record has its
-          # key, its patch file and its ADR on disk, and every file under patches/ is named by a
-          # record. Tracked files only: no install, no registry, no API. The registry half of the same
-          # gate, red when the release that resolves a patch is published, runs every 6 hours in
-          # patched-dependencies.yml and never here, so an upstream release never blocks unrelated
-          # work. Pinned by apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts.
+          # Mirrors CLAUDE.md #48. `pnpm check:patched-deps` runs the consistency half of the gate,
+          # `node scripts/testing/patched-dependencies-gate.mjs --check`. It reads two files: the
+          # patchedDependencies block of pnpm-workspace.yaml, as text, through the reader the engines
+          # and override-bands steps above share; and scripts/testing/patched-dependencies.json. Every
+          # key must name one exact version and have one record with the same patch file. Every record
+          # must have its key, its patch file and its ADR on disk. Every file under patches/ must be
+          # named by a record. The step reads tracked files only: no install, no registry, no API. The
+          # gate exits 1 on an inconsistency and 3 on an input it cannot read, and either fails this
+          # step. The registry half of the same gate runs every 6 hours in patched-dependencies.yml and
+          # never here, so an upstream release never blocks unrelated work. Pinned by
+          # apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts.
           set -euo pipefail
           if ! pnpm check:patched-deps; then
             echo "::error title=Fitness #48 violation::A patched dependency is inconsistent: a patchedDependencies key with no record or no exact version, a record with no key, a missing patch file or ADR, a file under patches/ no record names, a record missing a field, or a resolvedBy range that does not parse. The patched-dependencies-gate lines above name each one. A patch exists only by an owner decision in its own ADR (docs/security/SECURITY_CANON.md, Patched dependencies), with its record in scripts/testing/patched-dependencies.json."

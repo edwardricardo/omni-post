@@ -22,9 +22,17 @@
  *     `resolvedBy.range`, published at or before the instant, makes the patch resolvable: the gate
  *     exits 1 naming the lowest such version, its publish instant and the record's remove-when.
  *     `--remind` then opens one issue per resolvable patch through `gh` (label `patched-dependency`),
- *     comments on it once a day while it stays open, and reopens it when it was closed while the
- *     patch still stands. This half runs on a schedule (`patched-dependencies.yml`, every 6 hours),
- *     never in pull-request CI, so an upstream release never blocks unrelated work.
+ *     comments on it once a day while it stays open (never on the day it opened it), and reopens it
+ *     when it was closed while the patch still stands. A second run on the same day therefore opens
+ *     no second issue and posts no second comment, which is what makes the workflow's retry safe.
+ *     This half runs on a schedule (`patched-dependencies.yml`, every 6 hours), never in
+ *     pull-request CI, so an upstream release never blocks unrelated work.
+ *
+ *   EXIT CODES, the same in every mode: 0 a clean verdict; 1 a verdict (in `--check` an
+ *   inconsistency, in `--resolution` at least one resolvable patch); 2 a usage error; 3 an input
+ *   could not be read. 3 wins over 1 when both occur, so a run that found a resolvable patch but left
+ *   another input unread still asks the operator to look. The scheduled workflow retries only 3, so
+ *   a registry or GitHub hiccup and a resolvable patch never share a verdict.
  *
  *   THE WORKSPACE IS READ AS TEXT, through the reader the engines and override-bands gates share
  *   (`workspace-block-reader.mjs`), not through a YAML parser: neither `yaml` nor `js-yaml` resolves
@@ -34,10 +42,13 @@
  *   flow mapping, a quoted or nested key, a second block) is refused, so a patch the reader cannot
  *   see never passes as an absent one.
  *
- *   FAIL-CLOSED: an unreadable workspace, records file or registry document, a records file with no
- *   `entries` array, a registry document with no versions or no publish times, and a `gh` call that
- *   fails each exit 1 naming the cause. Zero patches in both the workspace and the records is a clean
- *   pass that says so: the state the repository returns to when its last patch leaves.
+ *   FAIL-CLOSED, exit 3: an unreadable workspace, records file, `patches/` directory or registry
+ *   document, a records file with no `entries` array, a workspace block line or key the text reader
+ *   cannot read, a registry document with no versions or no publish times, a record `--resolution`
+ *   cannot measure because it is malformed, and a `gh` call that fails, each naming the cause. A
+ *   missing `patches/` directory is no patch file, not an unread one. Zero patches in both the
+ *   workspace and the records is a clean pass that says so: the state the repository returns to when
+ *   its last patch leaves.
  *
  *   RESIDUAL LIMITS, stated rather than implied. (1) `resolvedBy.range` is the comparator subset of
  *   semver (`<`, `<=`, `>`, `>=`, `=` or none, on an exact `X.Y.Z`, joined by spaces and `||`);
@@ -54,7 +65,7 @@
  *   `--registry` a directory of `pnpm view` documents named like the holds gate's
  *   (`@scope/name` → `_scope_name.json`). With none of them, the inputs are the files beside the
  *   `scripts/` directory this file lives in, the registry and the clock. Exit 0 on a clean verdict,
- *   1 on a violation or an unreadable input, 2 on a usage error.
+ *   1 on a violation, 2 on a usage error, 3 on an unreadable input.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -71,6 +82,11 @@ const PATCHES_DIR = "patches";
 const LABEL = "patched-dependency";
 const LABEL_COLOR = "d93f0b";
 const UNKNOWN = "—";
+/** The exit codes, one per outcome; the scheduled workflow retries only `EXIT_UNREAD`. */
+const EXIT_CLEAN = 0;
+const EXIT_VERDICT = 1;
+const EXIT_USAGE = 2;
+const EXIT_UNREAD = 3;
 const USAGE =
   "usage: node scripts/testing/patched-dependencies-gate.mjs --check [--workspace <file>] " +
   "[--records <file>] [--root <dir>] | --resolution [--remind] [--records <file>] " +
@@ -107,9 +123,11 @@ const ADR_PATH = /^docs\/technical\/ADR-\d{4}-[^/]+\.md$/;
  * @typedef {{ record: PatchRecord, id: string, range: Range }} Parsed
  * @typedef {{ parsed: Parsed[], problems: string[] }} Records
  * @typedef {{ key: string, value: string }} WorkspaceEntry
- * @typedef {{ lines: string[], violations: string[], summary: string }} Verdict
+ * @typedef {{ lines: string[], violations: string[], unread: string[], summary: string }} Verdict
+ *   `violations` are the verdict (exit 1); `unread` names every input that could not be read
+ *   (exit 3), kept apart so the two never share an exit code.
  * @typedef {{ parsed: Parsed, version: string, published: string }} Resolvable
- * @typedef {{ number: number, title: string, state: string }} Issue
+ * @typedef {{ number: number, title: string, state: string, created: string }} Issue
  * @typedef {{ mode: "check" | "resolution", remind: boolean, workspace: string, records: string,
  *   root: string, registry: string | null, instant: number }} Options
  */
@@ -327,10 +345,11 @@ function readRecords(file) {
 }
 
 /**
- * Reads the `patchedDependencies:` block of the workspace manifest as text.
+ * Reads the `patchedDependencies:` block of the workspace manifest as text. A block line the reader
+ * cannot read is `unread`, not a violation: the patch it may hold was never measured.
  *
  * @param {string} file
- * @returns {{ entries: WorkspaceEntry[], problems: string[] } | { error: string }}
+ * @returns {{ entries: WorkspaceEntry[], problems: string[], unread: string[] } | { error: string }}
  */
 function readWorkspace(file) {
   /** @type {string} */
@@ -355,12 +374,14 @@ function readWorkspace(file) {
   const entries = [];
   /** @type {string[]} */
   const problems = [];
+  /** @type {string[]} */
+  const unread = [];
   for (const line of readTopLevelBlock(source, KEY) ?? []) {
     const hit = ENTRY.exec(line);
     const key = hit === null ? undefined : (hit[1] ?? hit[2] ?? hit[3]);
     const value = hit === null ? undefined : (hit[4] ?? hit[5] ?? hit[6]);
     if (key === undefined || value === undefined) {
-      problems.push(
+      unread.push(
         `${file}: the \`${KEY}\` line "${line.trim()}" is not one flat key: value entry, so it ` +
           `cannot be matched to a record`
       );
@@ -370,7 +391,26 @@ function readWorkspace(file) {
       entries.push({ key, value });
     }
   }
-  return { entries, problems };
+  return { entries, problems, unread };
+}
+
+/**
+ * The file names under `patches/`. A missing directory holds no patch file, the state the
+ * repository returns to when its last patch leaves; any other failure is an unread input.
+ *
+ * @param {string} root
+ * @returns {{ files: string[] } | { error: string }}
+ */
+function readPatchesDir(root) {
+  const dir = path.join(root, PATCHES_DIR);
+  try {
+    return { files: readdirSync(dir) };
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return { files: [] };
+    return {
+      error: `${dir} could not be read, so its files were not matched to records: ${reason(error)}`,
+    };
+  }
 }
 
 /**
@@ -383,10 +423,13 @@ function check(options) {
   /** @type {string[]} */
   const lines = [];
   const records = readRecords(options.records);
-  if ("error" in records) return { lines, violations: [records.error], summary: "" };
+  if ("error" in records) return { lines, violations: [], unread: [records.error], summary: "" };
   const workspace = readWorkspace(options.workspace);
-  if ("error" in workspace) return { lines, violations: [workspace.error], summary: "" };
+  if ("error" in workspace) {
+    return { lines, violations: [], unread: [workspace.error], summary: "" };
+  }
   const violations = [...records.problems, ...workspace.problems];
+  const unread = [...workspace.unread];
 
   const byId = new Map(records.parsed.map((parsed) => [parsed.id, parsed.record]));
   for (const { key, value } of workspace.entries) {
@@ -427,14 +470,9 @@ function check(options) {
     lines.push(`${id}\tpatch\t${found.length === 0 ? "consistent" : "INCONSISTENT"}`);
   }
 
-  /** @type {string[]} */
-  let files = [];
-  try {
-    files = readdirSync(path.join(options.root, PATCHES_DIR));
-  } catch {
-    files = [];
-  }
-  for (const name of files) {
+  const patches = readPatchesDir(options.root);
+  if ("error" in patches) unread.push(patches.error);
+  for (const name of "files" in patches ? patches.files : []) {
     const file = `${PATCHES_DIR}/${name}`;
     if (!records.parsed.some(({ record }) => record.patch === file)) {
       violations.push(
@@ -445,13 +483,17 @@ function check(options) {
 
   const consistent = lines.filter((line) => line.endsWith("\tconsistent")).length;
   const empty =
-    records.parsed.length === 0 && workspace.entries.length === 0 && violations.length === 0;
+    records.parsed.length === 0 &&
+    workspace.entries.length === 0 &&
+    violations.length === 0 &&
+    unread.length === 0;
   const summary = empty
     ? `0 patched dependencies: none in ${KEY}, none recorded, no file under ${PATCHES_DIR}/ (a clean pass)`
     : `${String(lines.length)} patched ${dependencies(lines.length)} checked against ${KEY}, ` +
       `${PATCHES_DIR}/ and the ADRs: ${String(consistent)} consistent, ` +
-      `${String(violations.length)} violation(s)`;
-  return { lines, violations, summary };
+      `${String(violations.length)} violation(s)` +
+      (unread.length > 0 ? `, ${String(unread.length)} input(s) unread` : "");
+  return { lines, violations, unread, summary };
 }
 
 /**
@@ -509,9 +551,13 @@ function resolution(options) {
   const resolvable = [];
   const records = readRecords(options.records);
   if ("error" in records) {
-    return { verdict: { lines, violations: [records.error], summary: "" }, resolvable };
+    return { verdict: { lines, violations: [], unread: [records.error], summary: "" }, resolvable };
   }
-  const violations = [...records.problems];
+  /** @type {string[]} */
+  const violations = [];
+  // A malformed record cannot be measured, so here it is an unread input: exit 1 in this mode means
+  // only that a patch is resolvable. `--check`, fitness #48, reports it as the violation it is.
+  const unread = records.problems.map((problem) => `${problem}; its resolution was not measured`);
   for (const parsed of records.parsed) {
     const { record, id, range } = parsed;
     /** @type {{ versions: string[], time: Record<string, unknown> }} */
@@ -519,7 +565,7 @@ function resolution(options) {
     try {
       document = registryDocument(record.resolvedBy.package, options.registry);
     } catch (error) {
-      violations.push(
+      unread.push(
         `${id}: the registry of ${record.resolvedBy.package} could not be read, so its ` +
           `resolution was not measured: ${reason(error)}`
       );
@@ -558,7 +604,7 @@ function resolution(options) {
       : `${String(count)} patched ${dependencies(count)} measured against the registry: ` +
         `${String(resolvable.length)} resolvable, ` +
         `${String(lines.filter((line) => line.includes("\tunresolved")).length)} unresolved`;
-  return { verdict: { lines, violations, summary }, resolvable };
+  return { verdict: { lines, violations, unread, summary }, resolvable };
 }
 
 /**
@@ -591,11 +637,13 @@ function listIssues() {
       number: Number(issue.number),
       title: String(issue.title),
       state: String(issue.state),
+      created: typeof issue.created_at === "string" ? issue.created_at : "",
     }));
 }
 
 /**
- * The comment bodies an issue received on or after the start of `today`.
+ * The comment bodies an issue received on or after the start of `today`. An answer that is not a
+ * list is refused rather than read as no comment, which would post a second one the same day.
  *
  * @param {number} number
  * @param {string} today
@@ -604,12 +652,16 @@ function listIssues() {
 function commentsSince(number, today) {
   const endpoint = `repos/{owner}/{repo}/issues/${String(number)}/comments`;
   const page = JSON.parse(gh(["api", `${endpoint}?since=${today}T00:00:00Z&per_page=100`]));
-  return Array.isArray(page) ? page.map((comment) => String(fieldsOf(comment).body)) : [];
+  if (!Array.isArray(page)) {
+    throw new Error(`listing the comments of #${String(number)} returned no list`);
+  }
+  return page.map((comment) => String(fieldsOf(comment).body));
 }
 
 /**
  * Opens one issue per resolvable patch, comments on it once a day while it stays open, and reopens
- * it when it was closed while the patch still stands.
+ * it when it was closed while the patch still stands. An issue opened on `today` gets no comment
+ * that day, so a re-run after a failure midway repeats nothing it already did.
  *
  * @param {Resolvable[]} resolvable
  * @param {string} today `YYYY-MM-DD`, the day of the instant.
@@ -657,6 +709,8 @@ function remind(resolvable, today, log) {
     if (issue.state !== "open") {
       gh(["issue", "reopen", String(issue.number), "--comment", body]);
       log.push(`reopen #${String(issue.number)}: ${title}`);
+    } else if (issue.created.slice(0, 10) === today) {
+      log.push(`skip #${String(issue.number)}: ${title} (opened on ${today})`);
     } else if (commentsSince(issue.number, today).includes(body)) {
       log.push(`skip #${String(issue.number)}: ${title} (already commented on ${today})`);
     } else {
@@ -723,6 +777,18 @@ function parseOptions(argv) {
 }
 
 /**
+ * An unread input wins over a verdict: the run that found a resolvable patch but left another
+ * input unread is judged incomplete, so the operator looks instead of trusting a partial answer.
+ *
+ * @param {Verdict} verdict
+ * @returns {number}
+ */
+function exitCode(verdict) {
+  if (verdict.unread.length > 0) return EXIT_UNREAD;
+  return verdict.violations.length > 0 ? EXIT_VERDICT : EXIT_CLEAN;
+}
+
+/**
  * @param {string[]} argv
  * @returns {number} The process exit code.
  */
@@ -730,7 +796,7 @@ function main(argv) {
   const parsed = parseOptions(argv);
   if ("usage" in parsed) {
     process.stderr.write(`${GATE}: ${parsed.usage}\n${USAGE}\n`);
-    return 2;
+    return EXIT_USAGE;
   }
   const { options } = parsed;
   /** @type {Verdict} */
@@ -748,7 +814,7 @@ function main(argv) {
         try {
           remind(measured.resolvable, today, log);
         } catch (error) {
-          verdict.violations.push(`GitHub: ${reason(error)}`);
+          verdict.unread.push(`GitHub: ${reason(error)}`);
         }
       }
     }
@@ -756,13 +822,14 @@ function main(argv) {
     process.stderr.write(
       `${GATE}: an input could not be read, so nothing was measured: ${reason(error)}\n`
     );
-    return 1;
+    return EXIT_UNREAD;
   }
   for (const line of verdict.lines) process.stdout.write(`${line}\n`);
   for (const entry of log) process.stdout.write(`remind: ${entry}\n`);
   if (verdict.summary.length > 0) process.stdout.write(`\n${verdict.summary}\n`);
   for (const violation of verdict.violations) process.stderr.write(`${GATE}: ${violation}\n`);
-  return verdict.violations.length > 0 ? 1 : 0;
+  for (const input of verdict.unread) process.stderr.write(`${GATE}: ${input}\n`);
+  return exitCode(verdict);
 }
 
 process.exitCode = main(process.argv.slice(2));

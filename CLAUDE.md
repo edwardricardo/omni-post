@@ -2063,23 +2063,30 @@ JSDOC_BASE_REF="${FITNESS_BASE_REF:-origin/main}" pnpm check:jsdoc   # expect ex
 # (`pnpm view <package> versions time --json`) for every record and exits 1 when a stable release
 # inside `resolvedBy.range` is published, naming the lowest one, its publish instant and the record's
 # remove-when; `--remind` opens one issue per resolvable patch (label `patched-dependency`), comments
-# on it once a day while it stays open, and reopens it if it is closed while the patch stands. It runs
-# every 6 hours in .github/workflows/patched-dependencies.yml and never in pull-request CI, so an
-# upstream release never blocks unrelated work.
+# on it once a day while it stays open (never on the day it opened it), and reopens it if it is closed
+# while the patch stands, so a second run on the same day repeats none of it. It runs every 6 hours in
+# .github/workflows/patched-dependencies.yml and never in pull-request CI, so an upstream release never
+# blocks unrelated work. The gate's exit codes are the same in every mode: 0 clean, 1 a verdict (here
+# an inconsistency, there a resolvable patch), 2 a usage error, 3 an input it could not read, and 3
+# wins when both occur. The workflow retries only 3, three attempts 30 s then 60 s apart, and fails
+# under one title for 1 and another for 3, so a transient read failure never reads as a resolvable
+# patch.
 # WHERE IT RUNS, and why: in the dependency-consistency job of fitness.yml, beside the gates that own
 # pnpm-workspace.yaml (holds, engines, override bands). It reads tracked files only: no install, no
 # registry, no API. The battery runs the same rule as its step `patched-deps`.
-# WHAT FAILS, each printed as `patched-dependencies-gate: <problem>`: a key that names no exact
+# WHAT FAILS, exit 1, each printed as `patched-dependencies-gate: <problem>`: a key that names no exact
 # version, a key with no well-formed record, a key whose patch file differs from its record's, a
 # record with no key, a record whose patch file or ADR is missing, a file under patches/ no record
 # names, a record missing a field or holding it in the wrong shape, a duplicate record or key, and a
 # `resolvedBy.range` that does not parse.
-# FAIL-CLOSED, exit 1: an unreadable workspace or records file, a records file with no `entries`
-# array, a block line that is not one flat `key: value` entry, and a `patchedDependencies` key spelled
+# FAIL-CLOSED, exit 3: an unreadable workspace or records file, a records file with no `entries`
+# array, a block line that is not one flat `key: value` entry, a `patchedDependencies` key spelled
 # any way but as one plain column-0 block (a flow mapping, a quoted or nested key, a second block),
-# which the text reader could not see. A usage error exits 2. Zero patches in the workspace and in the
-# records is a clean pass that says so: the state the repository returns to when its last patch
-# leaves.
+# which the text reader could not see, and a `patches/` directory that exists but cannot be listed;
+# in the other half, a registry document `pnpm view` cannot produce or that lists no versions or no
+# publish times, a record too malformed to measure, and a GitHub call that fails. A usage error
+# exits 2. Zero patches in the workspace and in the records is a clean pass that says so: the state
+# the repository returns to when its last patch leaves, `patches/` gone with it.
 # RESIDUAL LIMITS, stated rather than implied: (1) `resolvedBy.range` is the comparator subset of
 # semver (`<`, `<=`, `>`, `>=`, `=` or none on an exact X.Y.Z, joined by spaces and `||`); `^`, `~`,
 # partial versions and prereleases are refused rather than guessed; (2) the check proves a record

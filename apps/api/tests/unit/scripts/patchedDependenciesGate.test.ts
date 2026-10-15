@@ -4,7 +4,9 @@
  *   every patched dependency. `--check` holds the `patchedDependencies` keys of the workspace, the
  *   records of `scripts/testing/patched-dependencies.json`, the patch files and the ADRs consistent;
  *   `--resolution` exits 1 when a stable release inside a record's `resolvedBy.range` is published;
- *   `--remind` opens or updates one issue per resolvable patch through `gh`.
+ *   `--remind` opens or updates one issue per resolvable patch through `gh`, and a second run on the
+ *   same day repeats none of it. An input the gate cannot read exits 3 in every mode, and wins over a
+ *   verdict, so the scheduled workflow can retry a transient failure without ever retrying a signal.
  *
  *   HERMETIC: every input is a fixture written to a temporary directory (the workspace, the records,
  *   the patch files, the ADRs, the registry documents), and `gh` and `pnpm` are replaced on `PATH` by
@@ -56,9 +58,13 @@ interface Fixture {
   readonly registry?: Record<string, unknown>;
   /** The issues the `gh` double lists, and the comments it returns for any issue. */
   readonly issues?: readonly Record<string, unknown>[];
-  readonly comments?: readonly Record<string, unknown>[];
+  readonly comments?: readonly Record<string, unknown>[] | Record<string, unknown>;
+  /** The leading `gh` arguments the double fails on, for the failed-call case. */
+  readonly ghFailsOn?: readonly string[];
   /** Replaces the records file's content, for the unreadable-input case. */
   readonly recordsText?: string;
+  /** Replaces the workspace's content; null writes no workspace at all. */
+  readonly workspaceText?: string | null;
 }
 
 interface GateResult {
@@ -112,6 +118,8 @@ const writeDouble = (bin: string, command: string): void => {
     "const args = process.argv.slice(2);",
     `fs.appendFileSync(path.join(__dirname, "calls.log"), JSON.stringify([${JSON.stringify(command)}, ...args]) + "\\n");`,
     `if (${JSON.stringify(command)} === "pnpm") process.exit(1);`,
+    'const failsOn = JSON.parse(fs.readFileSync(path.join(__dirname, "fail.json"), "utf8"));',
+    'if (failsOn.length > 0 && failsOn.every((part, index) => args[index] === part)) { process.stderr.write("HTTP 502: Bad Gateway\\n"); process.exit(1); }',
     'const endpoint = args.find((arg) => arg.startsWith("repos/")) ?? "";',
     'if (args[0] === "api" && endpoint.split("?")[0].endsWith("/comments")) process.stdout.write(fs.readFileSync(path.join(__dirname, "comments.json"), "utf8"));',
     'else if (args[0] === "api") process.stdout.write(fs.readFileSync(path.join(__dirname, "issues.json"), "utf8"));',
@@ -129,6 +137,7 @@ const runGate = (fixture: Fixture, flags: readonly string[]): GateResult => {
   writeDouble(bin, "pnpm");
   writeFileSync(path.join(bin, "issues.json"), JSON.stringify(fixture.issues ?? []));
   writeFileSync(path.join(bin, "comments.json"), JSON.stringify(fixture.comments ?? []));
+  writeFileSync(path.join(bin, "fail.json"), JSON.stringify(fixture.ghFailsOn ?? []));
 
   const root = path.join(dir, "root");
   for (const file of fixture.files ?? []) {
@@ -145,17 +154,20 @@ const runGate = (fixture: Fixture, flags: readonly string[]): GateResult => {
           ...Object.entries(fixture.keys).map(([key, value]) => `  ${key}: ${value}`),
         ];
   const workspace = path.join(root, "pnpm-workspace.yaml");
-  writeFileSync(
-    workspace,
-    [
-      "packages:",
-      '  - "apps/*"',
-      "",
-      "# patchedDependencies mentioned in a comment",
-      ...block,
-      "",
-    ].join("\n")
-  );
+  if (fixture.workspaceText !== null) {
+    writeFileSync(
+      workspace,
+      fixture.workspaceText ??
+        [
+          "packages:",
+          '  - "apps/*"',
+          "",
+          "# patchedDependencies mentioned in a comment",
+          ...block,
+          "",
+        ].join("\n")
+    );
+  }
   const records = path.join(dir, "records.json");
   writeFileSync(
     records,
@@ -166,7 +178,11 @@ const runGate = (fixture: Fixture, flags: readonly string[]): GateResult => {
   mkdirSync(registry);
   for (const [name, document] of Object.entries(fixture.registry ?? {})) {
     const file = `${name.replaceAll("@", "_").replaceAll("/", "_")}.json`;
-    writeFileSync(path.join(registry, file), JSON.stringify(document));
+    // A string is written as is, so a fixture can hold a document that is not JSON.
+    writeFileSync(
+      path.join(registry, file),
+      typeof document === "string" ? document : JSON.stringify(document)
+    );
   }
 
   const inputs = flags.includes("--check")
@@ -220,8 +236,21 @@ const WIDGET_UNRELEASED: Record<string, unknown> = {
 
 const RESOLVABLE_TITLE = "Patched dependency resolvable: @widget/core@1.0.0 → 1.0.2";
 
-/** The issue the `gh` double lists as already open for the resolvable patch. */
-const OPEN_ISSUE = { number: 7, title: RESOLVABLE_TITLE, state: "open" };
+/** The issue the `gh` double lists as already open for the resolvable patch, opened the day before. */
+const OPEN_ISSUE = {
+  number: 7,
+  title: RESOLVABLE_TITLE,
+  state: "open",
+  created_at: "2026-10-19T23:59:59Z",
+};
+
+/** A second patch whose registry document the fixture never writes. */
+const UNREAD_RECORD = makeRecord({
+  package: "@other/pkg",
+  version: "2.0.0",
+  patch: "patches/@other__pkg@2.0.0.patch",
+  resolvedBy: { package: "@other/pkg", range: ">=2.0.1" },
+});
 
 /** The first recorded call whose leading elements are `prefix`. */
 const findCall = (result: GateResult, prefix: readonly string[]): readonly string[] | undefined =>
@@ -326,12 +355,72 @@ describe("patched dependencies gate", () => {
       expect(result.stderr).toContain("patches/left.patch is named by no record");
     });
 
-    it("exits 1 rather than passing when the records file cannot be read", () => {
-      const result = runGate({ ...CONSISTENT, recordsText: "{ not json" }, ["--check"]);
+    it.each<[string, Fixture, string]>([
+      [
+        "the records file is not JSON",
+        { ...CONSISTENT, recordsText: "{ not json" },
+        "could not be read, so no patch was measured",
+      ],
+      [
+        "the records file holds no entries array",
+        { ...CONSISTENT, recordsText: '{ "entries": {} }' },
+        "holds no `entries` array, so no patch was measured",
+      ],
+      [
+        "the workspace does not exist",
+        { ...CONSISTENT, workspaceText: null },
+        "pnpm-workspace.yaml could not be read, so no patch was measured",
+      ],
+      [
+        "the workspace keys patchedDependencies as a flow mapping",
+        {
+          ...CONSISTENT,
+          workspaceText: `patchedDependencies: { "@widget/core@1.0.0": ${PATCH_FILE} }\n`,
+        },
+        "is invisible to the text reader",
+      ],
+      [
+        "a patchedDependencies line is not one flat entry",
+        { ...CONSISTENT, keys: { '"@widget/core@1.0.0"': "a b" } },
+        "is not one flat key: value entry",
+      ],
+      [
+        "patches/ is a file, not a directory",
+        { files: ["patches"] },
+        "could not be read, so its files were not matched to records",
+      ],
+    ])("exits 3 rather than passing when %s", (_case, fixture, message) => {
+      const result = runGate(fixture, ["--check"]);
 
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("could not be read, so no patch was measured");
-      expect(result.stdout).not.toContain("consistent");
+      expect(result.status).toBe(3);
+      expect(result.stderr).toContain(message);
+      expect(result.stdout).not.toContain("\tconsistent");
+      expect(result.stdout).not.toContain("(a clean pass)");
+    });
+
+    it("exits 3, not 1, when an inconsistency and an unreadable line occur together", () => {
+      const result = runGate(
+        {
+          ...CONSISTENT,
+          keys: { '"@widget/core@1.0.0"': PATCH_FILE, '"@other/pkg@2.0.0"': "a b" },
+          records: [],
+          files: [],
+        },
+        ["--check"]
+      );
+
+      expect(result.status).toBe(3);
+      expect(result.stderr).toContain("has no well-formed record");
+      expect(result.stderr).toContain("is not one flat key: value entry");
+      expect(result.stdout).toContain("1 violation(s), 1 input(s) unread");
+    });
+
+    it("exits 0 when patches/ does not exist and nothing is patched", () => {
+      const result = runGate({ keys: {} }, ["--check"]);
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("(a clean pass)");
     });
 
     it("reads no registry and calls no GitHub API", () => {
@@ -383,13 +472,60 @@ describe("patched dependencies gate", () => {
       expect(result.stdout).toContain("unresolved (latest 1.0.0)");
     });
 
-    it("exits 1 rather than passing when the registry document lists no versions", () => {
-      const empty = { "@widget/core": { versions: [], time: {} } };
-      const result = runGate({ ...CONSISTENT, registry: empty }, ["--resolution"]);
+    it.each<[string, Record<string, unknown>, string]>([
+      ["the registry document is missing", {}, "ENOENT"],
+      ["the registry document is not JSON", { "@widget/core": "{ not json" }, "JSON"],
+      [
+        "the registry document lists no versions",
+        { "@widget/core": { versions: [], time: {} } },
+        "lists no versions",
+      ],
+      [
+        "the registry document carries no publish times",
+        { "@widget/core": { versions: ["1.0.0", "1.0.2"], time: {} } },
+        "carries no publish times",
+      ],
+    ])("exits 3 rather than passing when %s", (_case, registry, message) => {
+      const result = runGate({ ...CONSISTENT, registry }, ["--resolution"]);
 
-      expect(result.status).toBe(1);
+      expect(result.status).toBe(3);
       expect(result.stdout).toContain("@widget/core@1.0.0\tpatch\tunmeasured");
-      expect(result.stderr).toContain("lists no versions");
+      expect(result.stderr).toContain("the registry of @widget/core could not be read");
+      expect(result.stderr).toContain(message);
+    });
+
+    it("exits 3 rather than passing when the records file cannot be read", () => {
+      const result = runGate(
+        { ...CONSISTENT, recordsText: "{ not json", registry: WIDGET_RELEASED },
+        ["--resolution"]
+      );
+
+      expect(result.status).toBe(3);
+      expect(result.stderr).toContain("could not be read, so no patch was measured");
+    });
+
+    it("exits 3, not 1, for a malformed record, so 1 means only a resolvable patch", () => {
+      const result = runGate(
+        { ...CONSISTENT, records: [makeRecord({ removeWhen: " " })], registry: WIDGET_RELEASED },
+        ["--resolution"]
+      );
+
+      expect(result.status).toBe(3);
+      expect(result.stderr).toContain("lacks or misshapes removeWhen");
+      expect(result.stderr).toContain("its resolution was not measured");
+    });
+
+    it("exits 3, not 1, when one patch is resolvable and another's registry cannot be read", () => {
+      const result = runGate(
+        { ...CONSISTENT, records: [makeRecord(), UNREAD_RECORD], registry: WIDGET_RELEASED },
+        ["--resolution"]
+      );
+
+      expect(result.status).toBe(3);
+      expect(result.stdout).toContain("@widget/core@1.0.0\tpatch\tresolvable: 1.0.2");
+      expect(result.stdout).toContain("@other/pkg@2.0.0\tpatch\tunmeasured");
+      expect(result.stderr).toContain("@widget/core@1.0.0 is resolvable by 1.0.2");
+      expect(result.stderr).toContain("the registry of @other/pkg could not be read");
     });
   });
 
@@ -457,6 +593,62 @@ describe("patched dependencies gate", () => {
       expect(findCall(result, ["gh", "issue", "reopen", "9", "--comment"])?.[5]).toContain(
         "Still resolvable on 2026-10-20"
       );
+    });
+
+    it("opens no second issue and posts no comment on a re-run the day it opened the issue", () => {
+      const first = runGate({ ...CONSISTENT, registry: WIDGET_RELEASED }, [
+        "--resolution",
+        "--remind",
+      ]);
+      // The issue the first run opened, as GitHub lists it on the second: open, created that day.
+      const opened = {
+        number: 11,
+        title: findCall(first, ["gh", "issue", "create"])?.[4],
+        state: "open",
+        created_at: "2026-10-20T00:00:05Z",
+      };
+
+      const second = runGate({ ...CONSISTENT, registry: WIDGET_RELEASED, issues: [opened] }, [
+        "--resolution",
+        "--remind",
+      ]);
+
+      expect(opened.title).toBe(RESOLVABLE_TITLE);
+      expect(second.status).toBe(1);
+      expect(second.stdout).toContain(
+        `remind: skip #11: ${RESOLVABLE_TITLE} (opened on 2026-10-20)`
+      );
+      expect(findCall(second, ["gh", "issue", "create"])).toBeUndefined();
+      expect(findCall(second, ["gh", "issue", "comment"])).toBeUndefined();
+    });
+
+    it("exits 3, not 1, when a GitHub call fails, naming the call's error", () => {
+      const result = runGate(
+        { ...CONSISTENT, registry: WIDGET_RELEASED, ghFailsOn: ["issue", "create"] },
+        ["--resolution", "--remind"]
+      );
+
+      expect(result.status).toBe(3);
+      expect(result.stdout).toContain("resolvable: 1.0.2");
+      expect(result.stdout).not.toContain("remind: open:");
+      expect(result.stderr).toContain("patched-dependencies-gate: GitHub:");
+      expect(result.stderr).toContain("HTTP 502: Bad Gateway");
+    });
+
+    it("exits 3 rather than commenting again when the comments listing is not a list", () => {
+      const result = runGate(
+        {
+          ...CONSISTENT,
+          registry: WIDGET_RELEASED,
+          issues: [OPEN_ISSUE],
+          comments: { message: "Bad credentials" },
+        },
+        ["--resolution", "--remind"]
+      );
+
+      expect(result.status).toBe(3);
+      expect(result.stderr).toContain("listing the comments of #7 returned no list");
+      expect(findCall(result, ["gh", "issue", "comment"])).toBeUndefined();
     });
 
     it("calls no GitHub API when nothing is resolvable", () => {

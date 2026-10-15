@@ -408,7 +408,7 @@ Cómo se mueve una dependencia desde el 2026-10-14 ([ADR-0036](ADR-0036-dependen
 10. **chaos.yml** — Escenarios de caos de saga y outbox, cada noche (3:30 AM UTC), con el mismo runner de tests que usa CI
 11. **cache-divergence.yml** — Sonda diaria de un acierto de caché de Turborepo que repite artefactos no construidos desde el commit (4:17 AM UTC)
 12. **maturity-reminder.yml** — Abre, o comenta, el issue de cada revisión de la lista de madurez que vence ese día (1 PM, 5 PM y 9 PM UTC), y arrastra cada día, en el mismo issue, una revisión que sigue sin registrarse después de su día, reabriéndolo si se cerró un día anterior
-13. **patched-dependencies.yml** — Cada 6 horas (y a demanda), consulta el registro de npm para cada dependencia parcheada y falla cuando se publica la versión que resuelve una de ellas: abre un issue para ese parche (etiqueta `patched-dependency`), lo comenta una vez al día mientras sigue abierto y lo reabre si se cierra mientras el parche sigue en pie
+13. **patched-dependencies.yml** — Cada 6 horas (y a demanda), consulta el registro de npm para cada dependencia parcheada y falla cuando se publica la versión que resuelve una de ellas: abre un issue para ese parche (etiqueta `patched-dependency`), lo comenta una vez al día mientras sigue abierto y lo reabre si se cierra mientras el parche sigue en pie. Un documento del registro, el archivo de registros o una llamada a GitHub que no puede leer se reintenta, en tres intentos con 30 s y luego 60 s de separación, y después falla la ejecución con su propio título, nunca como un parche resoluble
 
 ### Servicios Externos Requeridos
 
