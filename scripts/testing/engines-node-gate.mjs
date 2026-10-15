@@ -5,7 +5,7 @@
  *   major, and a `@types/node` catalog pin on a different major from that runtime.
  *
  *   WHY IT EXISTS, measured: `@types/node` was pinned at 25.9.3 while every runtime in this
- *   repository — `.nvmrc`, the CI setup-node resolution, both Dockerfiles — is on the Node 24 LTS
+ *   repository — `.nvmrc`, the CI setup-node resolution, both Dockerfiles — was on the Node 24 LTS
  *   line, and nothing noticed, because no manifest declared a runtime for the pin to disagree with.
  *   Types ahead of the runtime describe APIs the runtime does not have, so the compiler accepts calls
  *   that fail in production. The declaration is what turns that drift from folklore into a gate.
@@ -14,7 +14,7 @@
  *   declare that exact string. The root's value must match the required SHAPE `>=<M>.<minor>.<patch>
  *   <<M+1>` with `<M>` the runtime major — an ALLOWLIST by shape, in the form fitness #28 and #40
  *   use, because the admissible shape is one sentence while the inadmissible set is open-ended:
- *   `^24`, `>=24`, `24.x` and a bare `24` name no floor, no ceiling, or neither, and each would let
+ *   `^26`, `>=26`, `26.x` and a bare `26` name no floor, no ceiling, or neither, and each would let
  *   the next major in silently. Checking the shape rather than enumerating the wrong ones needs no
  *   semver library and cannot be outgrown by a form nobody predicted.
  *

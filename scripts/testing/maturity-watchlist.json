@@ -143,11 +143,12 @@
     {
       "kind": "date",
       "id": "contract-0.16-node-26",
-      "title": "Contract task 0.16 is due: move the runtime to Node 26 on its Active LTS date",
+      "title": "Re-check Node 26 move on 2026-10-28: LTS promotion, distroless digest, pins",
       "due": "2026-10-28",
       "refs": [
-        "openspec/changes/testing-refoundation/tasks.md, task 0.16",
-        "docs/development/TESTING_REFOUNDATION.md, decision D45: Phase 0 closes without it"
+        "docs/technical/ADR-0038-node-26-ahead-of-lts.md, Revisit if: the 2026-10-28 re-check of the move made on 2026-10-15 (LTS promotion, distroless digest, build stage, setup-node resolution, engines floor and @types/node, Prisma's statement)",
+        "branch workstream/node-26, the change that made the move; docs/development/TESTING_REFOUNDATION.md, decision D52",
+        "openspec/changes/testing-refoundation/tasks.md, task 0.16"
       ],
       "reviews": {}
     },
