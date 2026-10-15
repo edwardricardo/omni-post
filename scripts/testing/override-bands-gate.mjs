@@ -54,6 +54,8 @@
  *   TWO RESIDUALS, stated rather than discovered later. (1) The allowlist is keyed by the FULL key
  *   text, band included, so raising an allowlisted band orphans its entry and forces the reason to be
  *   re-read — but the orphan check proves the key still EXISTS, never that its reason still holds.
+ *   While the list is empty, the suite proves the allowlisted verdict and the orphan refusal on a
+ *   copy of this file with an entry written into its literal, never on this file.
  *   (2) The gate compares a band with its own target; it does not know which version an advisory
  *   actually patches. `pnpm audit` cannot decide that either (its vulnerable-range string can
  *   disagree with the advisory's own first-patched version), which is why the canon requires a floor
@@ -88,16 +90,14 @@ const MANIFEST = fileURLToPath(new URL("../../pnpm-workspace.yaml", import.meta.
  * form. Keyed by the FULL override key so that raising a band orphans its entry and forces the reason
  * to be re-read rather than inherited. The list may only shrink.
  *
+ * Empty since 2026-10-15: its last entry, `find-my-way@<9.6.1`, left with its override, which
+ * pinned nothing — removing it changed no lockfile snapshot, and a resolution with no lockfile took
+ * find-my-way 9.7.0 and 9.9.0 (SECURITY_CANON.md §"Override audit"). The suite drives the two
+ * branches only an entry reaches through a copy of this file whose literal it rewrites.
+ *
  * @type {Map<string, string>}
  */
-const ALLOWED = new Map([
-  [
-    "find-my-way@<9.6.1",
-    "the advisory names 9.6.1 as its patched version but npm never published it (the registry goes " +
-      "9.6.0 then 9.7.0), so 9.7.0 is the minimal AVAILABLE patched version and ADR-0018's " +
-      'minimal-patch rule is satisfied rather than waived (SECURITY_CANON.md §"CVE-floor pins")',
-  ],
-]);
+const ALLOWED = new Map([]);
 
 /**
  * @typedef {object} Options
