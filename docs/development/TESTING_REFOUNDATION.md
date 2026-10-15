@@ -998,8 +998,8 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-15T16:32:47Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
-exit 0 with EMPTY stderr: of the 50 packages in `scripts/testing/toolchain-population.json` (49 direct, 1
+**CURRENT, re-measured 2026-10-15T18:47:25Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
+exit 0 with EMPTY stderr: of the 51 packages in `scripts/testing/toolchain-population.json` (50 direct, 1
 named transitive, no declared-absent candidate left), 10 sit below latest mature: 1 within the 30-day
 budget of ADR-0036, 0 past it unheld, 9 held.**
 
@@ -1393,6 +1393,25 @@ and what moved it. A slice that moves the count appends its own line.
     and 1.37 MB, against 907.02 kB and 1.36 MB at line 35: zod's classic import alone bundles to
     92.1 kB gzipped on 4.6.5 against 64.7 kB on 4.4.3. At `2026-10-20T00:00:00Z` the gate reads 20 below latest
     mature, 11 within budget and none undocumented.
+37. `2026-10-15T18:47:25Z` — **10** (1 within budget, 9 held, 0 undocumented): the population rose 50 → 51
+    with `prisma`, the CLI through which the gate now measures the Prisma family (residual (3) of
+    `holds-gate.mjs`; `@prisma/client` and `@prisma/adapter-pg` move with it by convention, and the gate
+    reads neither). The same change took the family 7.9.1 → 7.10.0, its latest stable release (the `prev`
+    dist-tag; `latest` is the release candidate 8.0.0-rc.23, not taken), published `2026-08-25T12:47:51Z`
+    and mature since `2026-09-01T12:47:51Z`, so `prisma` reads `at or above latest mature` and the count
+    holds. Pinned back to 7.9.1 (`--ignore-scripts`), the gate reads
+    `prisma 7.9.1 7.10.0 lag: UNDOCUMENTED` and exits 1 at `2026-10-02T00:00:00Z` and at
+    `2026-10-01T12:47:52Z`, and exits 0 at
+    `2026-10-01T12:47:50Z` (29 d of 30); with the manifest and the lockfile restored byte for byte
+    (sha256), it exits 0 again. OSV, GitHub's global advisories and the `prisma/prisma` repository
+    advisories list nothing for 7.9.1 or 7.10.0. In the lockfile, parsed with `yaml.safe_load_all`, the 11
+    packages of the family swap 7.9.1 → 7.10.0 one for one (`prisma`, `@prisma/client`, `adapter-pg`,
+    `client-runtime-utils`, `config`, `debug`, `driver-adapter-utils`, `engines`, `engines-version`,
+    `fetch-engine`, `get-platform`) and nothing else moves: 1952 packages and 1954 snapshots, as before.
+    Resolved with pnpm's minimum release age at 10080 minutes, excluding the 23 young pins of line 35 and
+    `knip` 6.41.0, then with `pnpm update -r --lockfile-only` of the family: lockfile preference had kept
+    the `prisma` 7.9.1 peer of `@prisma/client` under `apps/api` and `packages/adapters/db-prisma`.
+    `pnpm dedupe --check` exits 0 and the deprecated subdependencies stay 26.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the

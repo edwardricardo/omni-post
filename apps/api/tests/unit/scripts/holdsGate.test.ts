@@ -13,7 +13,9 @@
  *   runs `pnpm`, and never reads the repository's own canon, so it measures the gate's RULE rather
  *   than today's dependency tree. A suite that read the live tree would go green or red for reasons
  *   that have nothing to do with the code under test, and would stop being able to prove the red
- *   path at all once the tree was clean.
+ *   path at all once the tree was clean. One case reads a tracked file, the population itself, to
+ *   pin the gate's SCOPE: the Prisma family is measured through its CLI, `prisma`, and that case
+ *   fails when the entry leaves the population, still without the registry or pnpm.
  *
  *   The fail-closed cases carry as much weight as the happy path. A gate that reports a clean zero
  *   when its table cannot be parsed, or silently skips a package it cannot resolve, is worse than no
@@ -31,7 +33,7 @@
  * @layer infrastructure
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -344,6 +346,69 @@ describe("testing toolchain holds gate", () => {
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
+    });
+  });
+
+  describe("the Prisma family, measured through its CLI", () => {
+    /**
+     * The registry's own times for `prisma`, read 2026-10-15: its `latest` dist-tag is a release
+     * candidate of the next major, while the stable line ends at 7.10.0 (the `prev` dist-tag). The
+     * outdated document therefore reports the CLI as behind even when it sits at 7.10.0, and only
+     * the gate's own stable-and-mature reading decides.
+     */
+    const PRISMA_PUBLISHED: Fixture["published"] = {
+      prisma: {
+        created: "2019-07-24T00:00:00Z",
+        "7.9.1": "2026-07-27T13:49:09Z",
+        "7.10.0": "2026-08-25T12:47:51Z",
+        "8.0.0-rc.23": "2026-10-15T09:32:33Z",
+      },
+    };
+    const PRISMA_INSTANT = "2026-10-15T18:00:00Z";
+
+    it("exits 1 when the CLI sits on 7.9.1 past the budget of 7.10.0, under a prerelease latest", () => {
+      // 7.10.0 matured 2026-09-01T12:47:51Z, so its budget ran out 2026-10-01T12:47:51Z.
+      const result = runGate({
+        installed: { prisma: "7.9.1" },
+        published: PRISMA_PUBLISHED,
+        population: [{ name: "prisma" }],
+        holds: [UNRELATED_HOLD],
+        instant: PRISMA_INSTANT,
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("prisma\t7.9.1\t7.10.0\tlag: UNDOCUMENTED");
+      expect(result.stderr).toContain("prisma is installed at 7.9.1");
+    });
+
+    it("exits 0 when the CLI sits on the latest stable release although latest is a candidate", () => {
+      const result = runGate({
+        installed: { prisma: "7.10.0" },
+        published: PRISMA_PUBLISHED,
+        population: [{ name: "prisma" }],
+        holds: [UNRELATED_HOLD],
+        instant: PRISMA_INSTANT,
+      });
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("prisma\t7.10.0\t7.10.0\tat or above latest mature");
+    });
+
+    it("names the CLI in the tracked population, with no declared absence", () => {
+      // The one case that reads a tracked file instead of a fixture: what it pins is the gate's
+      // SCOPE, the population, not the dependency tree, so it stays independent of the registry
+      // and of pnpm.
+      const tracked = JSON.parse(
+        readFileSync(
+          path.join(REPO_ROOT, "scripts", "testing", "toolchain-population.json"),
+          "utf8"
+        )
+      ) as { packages: PopulationEntry[] };
+
+      const entry = tracked.packages.find((candidate) => candidate.name === "prisma");
+
+      expect(entry).toEqual({ name: "prisma" });
     });
   });
 

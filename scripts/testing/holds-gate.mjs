@@ -44,10 +44,13 @@
  *   as the other would fail the wrong trees. That check needs a typed column first. (3) The
  *   population is the testing and quality TOOLCHAIN. Production direct dependencies are not
  *   measured here: they move by CVE floor and by deliberate units (ADR-0036), and this gate claims
- *   nothing about their freshness. (4) Inside the budget a lag is not looked up in the table, so a
- *   real hold and a lag the next window takes read the same until the budget runs out. (5) The
- *   retired words are matched as whole words; a scheduled row phrased without them passes, and
- *   review is what reads it.
+ *   nothing about their freshness. The Prisma family is the one exception, measured through its
+ *   CLI, `prisma`: a toolchain devDependency (generate, migrate, studio) that moves in lockstep with
+ *   `@prisma/client` and `@prisma/adapter-pg`. Only the CLI is read; the lockstep is a convention,
+ *   one change moving all three, and nothing here checks it. (4) Inside the budget a lag is not
+ *   looked up in the table, so a real hold and a lag the next window takes read the same until the
+ *   budget runs out. (5) The retired words are matched as whole words; a scheduled row phrased
+ *   without them passes, and review is what reads it.
  *
  *   Usage: `node scripts/testing/holds-gate.mjs`
  * @layer infrastructure

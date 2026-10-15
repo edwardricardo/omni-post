@@ -69,11 +69,12 @@ La capa de dominio no importa nada externo — ni Prisma, ni Fastify, ni Redis. 
 
 ### Base de Datos
 
-| Paquete        | Version     | Proposito                   | Razon de Eleccion                            |
-| -------------- | ----------- | --------------------------- | -------------------------------------------- |
-| @prisma/client | 7.9.1       | Cliente de queries generado | Queries type-safe generadas desde el esquema |
-| prisma         | 7.9.1       | ORM + migraciones           | Herramientas de migracion e introspeccion    |
-| postgresql     | 16 (Docker) | Base de datos principal     | ACID, soporte JSON, ecosistema maduro        |
+| Paquete            | Version     | Proposito                   | Razon de Eleccion                            |
+| ------------------ | ----------- | --------------------------- | -------------------------------------------- |
+| @prisma/client     | 7.10.0      | Cliente de queries generado | Queries type-safe generadas desde el esquema |
+| @prisma/adapter-pg | 7.10.0      | Adaptador de driver (pg)    | Prisma 7 ejecuta las queries con `pg`        |
+| prisma             | 7.10.0      | ORM + migraciones           | Herramientas de migracion e introspeccion    |
+| postgresql         | 16 (Docker) | Base de datos principal     | ACID, soporte JSON, ecosistema maduro        |
 
 **Tamanio del esquema:** 98 modelos. Esto refleja la complejidad real del negocio: publicacion de posts en 10 proveedores con aprobaciones, campanas, programacion recurrente, ingesta de analiticas, sincronizacion de inbox, enriquecimiento con IA, facturacion y referidos.
 

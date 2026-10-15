@@ -23,7 +23,7 @@
     "seed": "tsx --conditions development seed.ts"
   },
   "dependencies": {
-    "@prisma/adapter-pg": "7.9.1",
+    "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "catalog:"
   },
   "devDependencies": {
@@ -31,7 +31,7 @@
     "@types/node": "catalog:",
     "argon2": "catalog:",
     "dotenv": "catalog:",
-    "prisma": "7.9.1",
+    "prisma": "7.10.0",
     "tsx": "catalog:"
   },
   "main": "./dist/src/index.js",
