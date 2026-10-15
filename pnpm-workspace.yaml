@@ -147,8 +147,8 @@ catalog:
   lucide-react: 1.7.0
   recharts: 3.8.1
   tw-animate-css: 1.4.0
-  tailwindcss: 4.3.0
-  "@tailwindcss/postcss": 4.3.0
+  tailwindcss: 4.3.3
+  "@tailwindcss/postcss": 4.3.3
   postcss-load-config: 6.0.1
   vite: 8.3.3 # CVE floor, measured 2026-10-08T14:45Z: the MINIMAL patched version of GHSA-rq7h-c2jc-7f22 (medium, files outside server.fs.allow served), GHSA-vfpm-58rq-9qcg (medium, ?vite-wasm-instance exposes the first 4 bytes of a file outside server.fs) and GHSA-9jrq-w75r-8gcw (low, cross-origin script through custom middleware), vitejs/vite repository advisories of 2026-10-06, vulnerable >=8.3.0 <=8.3.2, not yet in OSV or the GitHub global database. Taken 2.4 days after publication (2026-10-06T04:10Z), over the 7-day buffer, because the latest mature 8.3.2 sits inside the vulnerable range (CVE-floor row vite in SECURITY_CANON). latest is 8.3.4 (2026-10-08T12:07Z), immature until 2026-10-15T12:07Z; the weekly dependency window takes it inside the 30-day budget (ADR-0036), with postcss ^8.5.29. Declares postcss ^8.5.28, which the postcss floor meets. One version tree-wide since apps/client gained @vitejs/plugin-react (ADR-0019). Was 8.3.1
   eslint: 9.39.5 # the v9 line's FINAL release and its ceiling. Still held below 10: eslint-plugin-react@7.37.5 peers eslint up to ^9.7, eslint-plugin-jsx-a11y@6.10.2 up to ^9, both already at their own latest. Measured 2026-09-27; see SECURITY_CANON §"Build-tool version holds"

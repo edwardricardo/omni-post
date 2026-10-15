@@ -209,7 +209,7 @@ Ambos detras del puerto `IPaymentAdapter`. Cambiar de proveedor de pagos = una v
 
 | Paquete                  | Version | Proposito                                         |
 | ------------------------ | ------- | ------------------------------------------------- |
-| tailwindcss              | 4.3.0   | Framework de CSS utilitario                       |
+| tailwindcss              | 4.3.3   | Framework de CSS utilitario                       |
 | lucide-react             | 1.7.0   | Biblioteca de iconos                              |
 | radix-ui                 | 1.4.3   | Primitivas de componentes accesibles              |
 | class-variance-authority | 0.7.1   | Gestion de variantes de componentes               |

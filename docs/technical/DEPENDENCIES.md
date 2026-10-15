@@ -209,7 +209,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 | Package                  | Version | Purpose                                   |
 | ------------------------ | ------- | ----------------------------------------- |
-| tailwindcss              | 4.3.0   | Utility CSS framework                     |
+| tailwindcss              | 4.3.3   | Utility CSS framework                     |
 | lucide-react             | 1.7.0   | Icon library                              |
 | radix-ui                 | 1.4.3   | Accessible component primitives           |
 | class-variance-authority | 0.7.1   | Component variant management              |
