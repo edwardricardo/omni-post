@@ -89,7 +89,7 @@ catalog:
 
   # ── Build/test toolchain ──
   cross-env: 10.1.0 # latest stable AND latest mature, measured 2026-10-04T04:45Z: published 2025-09-29T17:34Z, nothing newer; OSV lists nothing. Catalog since 2026-10-03 (decision D35): declared by apps/api and apps/workers, and ADR-0018 gives a direct dependency declared in two manifests a catalog entry, not two literals. 10.1.0 adds only the `${VAR:-default}` expansion, which no script here uses. Was 10.0.0
-  vitest: 4.1.11 # CVE floor raised 2026-09-09: GHSA-82fw-gwwq-j7x9 (moderate, @vitest/mocker redirect-mock path traversal), vulnerable >=2.1.0 <4.1.11. vitest 4.1.11 pins @vitest/mocker EXACTLY at 4.1.11, so the transitive needs no override of its own. Peer-locked to @vitest/* 4.1.11 (was 4.1.10)
+  vitest: 5.0.4 # CVE floor raised 2026-09-09: GHSA-82fw-gwwq-j7x9 (moderate, @vitest/mocker redirect-mock path traversal), vulnerable >=2.1.0 <4.1.11. vitest 4.1.11 pins @vitest/mocker EXACTLY at 4.1.11, so the transitive needs no override of its own. Peer-locked to @vitest/* 4.1.11 (was 4.1.10)
   typescript: 6.0.3 # NOT latest stable (the previous comment said so and was false, corrected 2026-09-27): latest mature is 7.0.2. 6.0.3 is the v6 ceiling, HELD — @typescript-eslint 8.71.1 peers typescript ">=4.8.4 <6.1.0" (re-measured 2026-10-11 on 8.71.1: the range is unchanged from 8.70.0 through 8.71.0, and the 8.71.2 alphas carry it too). See SECURITY_CANON §"Build-tool version holds"
   tsx: 4.23.15 # latest MATURE and latest stable, re-measured 2026-10-02T07:22Z: published 2026-09-20T07:22:17Z, no later release. No hold row, because there is no lag. Declared via `catalog:` by root, apps/api, apps/workers and infra/prisma; also an optional peer (^4.8.1) of vite and postcss-load-config. Depends on esbuild ~0.28.0, which resolves 0.28.2 unaided: the blanket esbuild override left on 2026-10-15 (SECURITY_CANON.md §"CVE-floor pins", row `esbuild`)
   "@types/node": 26.6.5 # The runtime major's line: the runtime is Node 26 (.nvmrc, engines.node ">=26.11.1 <27" in every manifest, setup-node and the four Dockerfiles) since 2026-10-15, ahead of its 2026-10-28 LTS date (ADR-0038), and types ahead of the runtime describe APIs it does not have, so the pin follows the runtime major and never a higher one. 26.6.5 is latest, published 2026-10-09T18:46:47Z and taken inside the 7-day buffer under the owner's 72-hour rule (it matures 2026-10-16T18:46Z; its watchlist entry, with its two reviews on 2026-10-16 and 2026-10-23, is added by the follow-up commit once this change has its sha and PR number, as every entry of that file); 26.6.4 (2026-10-01) is the latest mature 26.x. Every consumer's range admits it, so the tree keeps one copy: 18 transitive dependents declare `*`, protobufjs `>=13.7.0` and jsdoc-type-pratt-parser `^26.4.0`, and the optional peers of vite, vitest, sharp, stripe, mysql2 and @inquirer/* are open ranges. Was 24.13.6 (the 24 line, 2026-09-28), and before that 25.9.3, a major above the runtime. The major is gated by scripts/testing/engines-node-gate.mjs against .nvmrc and engines.node; holds row in SECURITY_CANON
@@ -165,10 +165,10 @@ catalog:
   # (published 2026-08-18T14:22Z; OSV lists nothing) run the apps/client stories in Chromium
   # through @storybook/addon-vitest; both peer vitest 4.1.11 exactly, and the playwright provider
   # takes `playwright` as a REQUIRED peer, catalogued beside @playwright/test as one atomic pair
-  "@vitest/browser": 4.1.11
-  "@vitest/browser-playwright": 4.1.11
-  "@vitest/coverage-v8": 4.1.11
-  "@vitest/ui": 4.1.11
+  "@vitest/browser": 5.0.4
+  "@vitest/browser-playwright": 5.0.4
+  "@vitest/coverage-v8": 5.0.4
+  "@vitest/ui": 5.0.4
   # Storybook family (atomic). 10.6.1 since 2026-10-06 (hold bump): `latest` AND the latest MATURE
   # release, published 2026-09-29 between 17:14Z and 17:20Z and mature since 2026-10-06T17:20Z;
   # only 11.0.0 prereleases are newer, so no hold row is left in SECURITY_CANON.md. 10.6.0 before
