@@ -365,6 +365,23 @@
         "final": "2026-10-24"
       },
       "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "knip",
+      "version": "6.41.0",
+      "published": "2026-10-09T07:57:03.479Z",
+      "entered": {
+        "date": "2026-10-15",
+        "commit": "e352e810",
+        "pr": 609,
+        "via": "the root devDependency literal behind the knip ratchet, moved from 6.40.0 about 6.4 days after publication and about 0.6 days before the 2026-10-16T07:57Z maturity, under the owner's 72-hour rule; it declares zod ^4.6.5, which moved the catalog zod 4.4.3 -> 4.6.5 in the same commit; its findings equal the 308-key ratchet baseline, with 0 regressions and 0 resolved"
+      },
+      "milestones": {
+        "maturity": "2026-10-16",
+        "final": "2026-10-23"
+      },
+      "reviews": {}
     }
   ]
 }
