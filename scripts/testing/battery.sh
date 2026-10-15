@@ -36,7 +36,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=26
+PLANNED_STEPS=27
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -144,6 +144,9 @@ step install pnpm install --frozen-lockfile --offline
 step hooks python3 -m unittest discover -s .claude/hooks-py/tests -t .claude/hooks-py
 step audit pnpm audit --audit-level moderate
 step holds node scripts/testing/holds-gate.mjs
+# Fitness #48: every patched dependency has its record, its patch file and its ADR, and every
+# file under patches/ is named by a record. Offline; the registry half runs on its own schedule.
+step patched-deps node scripts/testing/patched-dependencies-gate.mjs --check
 step engines node scripts/testing/engines-node-gate.mjs
 step lint pnpm lint --max-warnings 0
 step format pnpm format:check

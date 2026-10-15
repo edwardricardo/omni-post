@@ -321,17 +321,18 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
 | yaml                      | 2.9.1   | Workflow parsing in the reach engine |
 
-Component stories run on the Storybook 10.6.1 family. `@storybook/nextjs-vite` 10.6.1 carries a patch, Storybook's merged fix for next 16.4, until 10.6.3 is published and the family moves to it ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)).
+Component stories run on the Storybook 10.6.1 family. `@storybook/nextjs-vite` 10.6.1 carries a patch, Storybook's merged fix for next 16.4, until 10.6.3 is published and the family moves to it ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)). Every patched dependency has a record in `scripts/testing/patched-dependencies.json`, which `scripts/testing/patched-dependencies-gate.mjs` holds consistent with `pnpm-workspace.yaml` (fitness #48) and checks against the registry every 6 hours.
 
 ### Update cadence
 
 How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-cadence.md)):
 
-| Event                  | When it moves                                                                                                         | Gate                                                                     |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| A security advisory    | Immediately: a floor at the minimal patched version, inside the 7-day buffer if it must                               | `pnpm audit`; the CVE-floor rows of `docs/security/SECURITY_CANON.md`    |
-| Any other bump         | In the weekly window: every Tuesday, or the first day worked after it, grouped by family                              | each unit certified as before                                            |
-| A lag of the toolchain | Reported for 30 days after its oldest unmet release matures (37 after it is published); past that it needs a hold row | `scripts/testing/holds-gate.mjs`, in the `Dependency Consistency` CI job |
+| Event                  | When it moves                                                                                                         | Gate                                                                                                   |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| A security advisory    | Immediately: a floor at the minimal patched version, inside the 7-day buffer if it must                               | `pnpm audit`; the CVE-floor rows of `docs/security/SECURITY_CANON.md`                                  |
+| Any other bump         | In the weekly window: every Tuesday, or the first day worked after it, grouped by family                              | each unit certified as before                                                                          |
+| A lag of the toolchain | Reported for 30 days after its oldest unmet release matures (37 after it is published); past that it needs a hold row | `scripts/testing/holds-gate.mjs`, in the `Dependency Consistency` CI job                               |
+| A patched dependency   | As soon as the release named by its record's `resolvedBy` is published, in one change that deletes the patch          | `scripts/testing/patched-dependencies-gate.mjs`: `--check` (fitness #48), `--resolution` every 6 hours |
 
 ### Metrics
 
@@ -393,7 +394,7 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 | MinIO      | minio/minio:latest          | 9000, 9001 | S3-compatible media storage (API, console)                        |
 | MinIO init | minio/mc:latest             | —          | Creates the `omni-post-media` bucket once MinIO is up, then exits |
 
-### GitHub Actions Workflows (12)
+### GitHub Actions Workflows (13)
 
 1. **ci.yml** — Main CI: lint, test, build, security, provider tests, frontend tests
 2. **security-testing.yml** — SAST (CodeQL), DAST, dependency scanning (daily at 2 AM UTC)
@@ -407,6 +408,7 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 10. **chaos.yml** — Saga and outbox chaos scenarios, nightly (3:30 AM UTC), through the same test runner CI uses
 11. **cache-divergence.yml** — Daily probe for a Turborepo cache hit that replays artifacts not built from the commit (4:17 AM UTC)
 12. **maturity-reminder.yml** — Opens, or comments on, the issue of each maturity watchlist review due that day (1 PM, 5 PM and 9 PM UTC), and carries a review still unrecorded after its day over daily on the same issue, reopening it when it was closed on an earlier day
+13. **patched-dependencies.yml** — Every 6 hours (and on demand), reads the registry for each patched dependency and fails when the release that resolves one is published, opening one issue for that patch (label `patched-dependency`), commenting on it once a day while it stays open, and reopening it if it is closed while the patch stands. A registry document, the records file or a GitHub call it cannot read is retried, three attempts 30 s then 60 s apart, and then fails the run under its own title, never as a resolvable patch
 
 ### Required External Services
 

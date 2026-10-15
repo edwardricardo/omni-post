@@ -308,7 +308,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **47 checks, numbered #1-#47**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **48 checks, numbered #1-#48**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -2039,6 +2039,64 @@ pnpm check:support   # expect exit 0, and one `is current` line per page:
 # non-empty, never that they are right.
 JSDOC_BASE_REF="${FITNESS_BASE_REF:-origin/main}" pnpm check:jsdoc   # expect exit 0 and one line:
 #   jsdoc-touched-gate: <N> touched in-scope files in <base> (merge base <sha>): zero violations
+
+# 48. Every patched dependency has its record, its patch file and its ADR, and is watched until resolved.
+# Threat: a dependency patched through `patchedDependencies` in pnpm-workspace.yaml runs code no
+# published release carries. CLAUDE.md §Problem-Solving Standards forbids a temporary patch, so each
+# one exists only by an owner's decision in its own ADR (ADR-0037 is the first), and nothing tied the
+# key to that decision or to the release that ends it: a key with no record, a record whose patch
+# file or ADR is gone, or a file under patches/ that no record names reads as justified while nothing
+# justifies it, and a patch whose fix has shipped keeps running after its reason ended. The owner's
+# rule of 2026-10-15: every patch is monitored all the time until it is resolved.
+# WHAT IT RUNS: `pnpm check:patched-deps`, which is `node scripts/testing/patched-dependencies-gate.mjs
+# --check`, pinned by apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts. It reads the
+# `patchedDependencies:` block of pnpm-workspace.yaml as text, through the reader the engines and
+# override-bands gates share (scripts/testing/workspace-block-reader.mjs), and the records of
+# scripts/testing/patched-dependencies.json: one per patch, with its package and exact version, its
+# patch file, the upstream pull request, merge commit and release it reproduces, `resolvedBy` (the
+# package and the version range whose first stable release ends it), its ADR, `since`, `why` and
+# `removeWhen`, every field required. Each key names one exact version and has exactly one record
+# with the same package, version and patch file; each record has its key, its patch file under
+# patches/ and its ADR on disk; every file under patches/ is named by a record; each
+# `resolvedBy.range` parses.
+# THE OTHER HALF, deliberately not this check: `--resolution` reads the registry
+# (`pnpm view <package> versions time --json`) for every record and exits 1 when a stable release
+# inside `resolvedBy.range` is published, naming the lowest one, its publish instant and the record's
+# remove-when; `--remind` opens one issue per resolvable patch (label `patched-dependency`), comments
+# on it once a day while it stays open (never on the day it opened it), and reopens it if it is closed
+# while the patch stands, so a second run on the same day repeats none of it. It runs every 6 hours in
+# .github/workflows/patched-dependencies.yml and never in pull-request CI, so an upstream release never
+# blocks unrelated work. The gate's exit codes are the same in every mode: 0 clean, 1 a verdict (here
+# an inconsistency, there a resolvable patch), 2 a usage error, 3 an input it could not read, and 3
+# wins when both occur. The workflow retries only 3, three attempts 30 s then 60 s apart, and fails
+# under one title for 1 and another for 3, so a transient read failure never reads as a resolvable
+# patch.
+# WHERE IT RUNS, and why: in the dependency-consistency job of fitness.yml, beside the gates that own
+# pnpm-workspace.yaml (holds, engines, override bands). It reads tracked files only: no install, no
+# registry, no API. The battery runs the same rule as its step `patched-deps`.
+# WHAT FAILS, exit 1, each printed as `patched-dependencies-gate: <problem>`: a key that names no exact
+# version, a key with no well-formed record, a key whose patch file differs from its record's, a
+# record with no key, a record whose patch file or ADR is missing, a file under patches/ no record
+# names, a record missing a field or holding it in the wrong shape, a duplicate record or key, and a
+# `resolvedBy.range` that does not parse.
+# FAIL-CLOSED, exit 3: an unreadable workspace or records file, a records file with no `entries`
+# array, a block line that is not one flat `key: value` entry, a `patchedDependencies` key spelled
+# any way but as one plain column-0 block (a flow mapping, a quoted or nested key, a second block),
+# which the text reader could not see, and a `patches/` directory that exists but cannot be listed;
+# in the other half, a registry document `pnpm view` cannot produce or that lists no versions or no
+# publish times, a record too malformed to measure, and a GitHub call that fails. A usage error
+# exits 2. Zero patches in the workspace and in the records is a clean pass that says so: the state
+# the repository returns to when its last patch leaves, `patches/` gone with it.
+# RESIDUAL LIMITS, stated rather than implied: (1) `resolvedBy.range` is the comparator subset of
+# semver (`<`, `<=`, `>`, `>=`, `=` or none on an exact X.Y.Z, joined by spaces and `||`); `^`, `~`,
+# partial versions and prereleases are refused rather than guessed; (2) the check proves a record
+# exists and is well formed, never that the patch reproduces the upstream change it names, which
+# review reads; (3) the resolution half proves a release inside the range is published, not that it
+# carries the fix, and between two scheduled runs, up to 6 hours, a resolvable patch is not yet
+# reported.
+pnpm check:patched-deps   # expect exit 0, one line per patch and a summary:
+#   @storybook/nextjs-vite@10.6.1  patch  consistent   (tab-separated)
+#   1 patched dependency checked against patchedDependencies, patches/ and the ADRs: 1 consistent, 0 violation(s)
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One
@@ -2067,7 +2125,7 @@ A generic "RLS not covered" would send the reader toward the wrong fix.
 **Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
-2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #47) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #48) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
 3. Prove the red path — mandatory for every NEW or MODIFIED check or CI gate, fitness or otherwise: plant the violation, run the gate, and observe a REAL failure (non-zero exit / `core.setFailed`; an `::error` annotation alone leaves the job green and proves nothing), then restore the tree byte-exact (verify with `cmp` or a checksum) and re-confirm the count is 0. A gate whose red path was never demonstrated does not merge.
 4. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a backlog entry rather than locking in non-zero noise.
 
