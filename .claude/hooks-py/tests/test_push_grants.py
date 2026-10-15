@@ -1,5 +1,5 @@
-"""Tests of the grant store: push windows, their claim and consumption, and the
-CLI that issues them.
+"""Tests of the grant store: push windows, their claim and consumption, the CLI
+that issues them, and the owner-only blocks around the store and the CLI.
 
 Every test points `_common.ALLOWED_TOKENS_DIR` and `_common.LOG_PATH` at a
 temporary directory and freezes `_common.now_utc`: none reads or writes the
@@ -444,6 +444,176 @@ class CliTests(_GrantStoreCase):
     def test_every_create_is_logged(self):
         self.run_cli("push", "--count", "2")
         self.assertEqual(self.hooks_log().count("] [omnipost-allow] grant push/"), 2)
+
+
+class StoreEditBlockTests(_GrantStoreCase):
+    """pre-edit refuses the store before any token is read."""
+
+    def test_an_edit_in_the_store_is_blocked_even_with_a_valid_sensitive_edit_token(self):
+        self.issue("sensitive-edit", count=1, ttl=15)
+        self.assertEqual(self.edit(str(self.root / ".claude" / "hooks-py" / "x.py"))[0], "allowed", "the token IS valid")
+        verdict, message = self.edit(str(self.store / "push"))
+        self.assertEqual(verdict, "blocked(2)")
+        self.assertIn("grant store", message)
+
+    def test_every_spelling_of_a_path_in_the_store_is_blocked(self):
+        for path in (
+            "/x/.claude/.allowed/push",
+            "/x/.claude/.allowed",
+            "/x/.claude/./.allowed/push",
+            "/x/.claude/hooks-py/../.allowed/sensitive-edit",
+            ".claude/.allowed/push",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(self.edit(path)[0], "blocked(2)")
+        self.assertEqual(self.edit("/x/.claude/.allowed/push", key="notebook_path")[0], "blocked(2)")
+
+    def test_a_symlink_into_the_store_is_blocked(self):
+        self.store.mkdir(parents=True)
+        (self.root / "link").symlink_to(self.store)
+        self.assertEqual(self.edit(str(self.root / "link" / "push"))[0], "blocked(2)")
+
+    def test_names_that_only_look_like_the_store_are_not_it(self):
+        for path in ("/x/docs/allowed.md", "/x/.claude/allowed/push", "/x/a.allowed/push"):
+            with self.subTest(path=path):
+                self.assertFalse(pre_edit.is_grant_store(path))
+
+
+class StoreBashBlockTests(_GrantStoreCase):
+    """pre-bash refuses every write to the store, with valid grants of both kinds present."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.issue("push", count=1, ttl=60)
+        self.issue("sensitive-edit", count=1, ttl=60)
+
+    def test_every_write_construct_on_the_store_is_blocked(self):
+        for command in (
+            "echo x > .claude/.allowed/push",
+            "echo x >| .claude/.allowed/push",
+            "printf '{}' >> /root/omni-post/.claude/.allowed/push",
+            "cp a .claude/.allowed/push",
+            "cp -r /tmp/.allowed .claude",
+            "mv .claude/.allowed/push /tmp/push",
+            "rm .claude/.allowed/push",
+            "rm -rf .claude",
+            "touch .claude/.allowed/push",
+            "chmod 600 .claude/.allowed/push",
+            "ln -s /tmp/fake .claude/.allowed/push",
+            "tee .claude/.allowed/push < /tmp/fake",
+            "dd if=/tmp/fake of=.claude/.allowed/push",
+            "rm .claude/.allow*/push",
+            'bash -c "echo x > .claude/.allowed/push"',
+            "sh -c 'rm -f .claude/.allowed/push'",
+            "bash -lc 'cd .claude/.allowed && touch push'",
+            "cd .claude/.allowed && touch push",
+            "cd .claude && rm -rf .allowed",
+            "ls\necho x > .claude/.allowed/push",
+            "find .claude/.allowed -name push -delete",
+            "ls .claude/.allowed | xargs rm",
+            "python3 -c \"import pathlib; pathlib.Path('.claude/.allowed/push').write_text('{}')\"",
+            "sd -i x y .claude/.allowed/push",
+            "python3 - <<'EOF'\nopen('.claude/.allowed/push', 'w').write('{}')\nEOF",
+            "echo 'x > .claude/.allowed/push",
+        ):
+            with self.subTest(command=command):
+                verdict, message = self.pre(command)
+                self.assertEqual(verdict, "blocked(2)")
+                self.assertIn("grant store", message)
+
+    def test_a_write_from_a_session_cwd_inside_the_store_is_blocked(self):
+        self.assertEqual(self.pre("touch push", cwd=self.store)[0], "blocked(2)")
+
+    def test_reading_the_store_stays_allowed(self):
+        for command in (
+            "ls .claude/.allowed",
+            "eza -la .claude/.allowed",
+            "cat .claude/.allowed/push",
+            "bat .claude/.allowed/push",
+            "jq -r '.grants[0].expires_at' .claude/.allowed/push",
+            "jq . .claude/.allowed/push 2>/dev/null | head -5",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.pre(command)[0], "allowed")
+
+
+class GrantCliBlockTests(_GrantStoreCase):
+    """pre-bash refuses every run of the CLI but `status`."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.issue("push", count=1, ttl=60)
+
+    def test_running_the_cli_is_blocked_however_it_is_spelled(self):
+        for command in (
+            "omnipost-allow push",
+            "omnipost-allow",
+            "omnipost-allow sensitive-edit --ttl 30",
+            "omnipost-allow revoke push",
+            "omnipost-allow status --verbose",
+            ".claude/bin/omnipost-allow push --count 3",
+            "/root/omni-post/.claude/bin/omnipost-allow push",
+            "bash -c 'omnipost-allow push'",
+            'sh -c "omnipost-allow push --count 3"',
+            "python3 .claude/bin/omnipost-allow push",
+            "python3 -I /root/omni-post/.claude/bin/omnipost-allow push",
+            "FOO=1 omnipost-allow push",
+            "(omnipost-allow push)",
+            "timeout 5 omnipost-allow push",
+            "sudo -u root omnipost-allow push",
+            "echo push | xargs omnipost-allow",
+            "find .claude/bin -name x -exec omnipost-allow push \\;",
+            'echo "$(omnipost-allow push)"',
+            "echo `omnipost-allow push`",
+            "ls\nomnipost-allow push",
+            "omnipost-allow status && omnipost-allow push",
+            "echo omnipost-allow push | sh",
+            "python3 -c \"import subprocess; subprocess.run(['omnipost-allow', 'push'])\"",
+            "bash <<'EOF'\nomnipost-allow push\nEOF",
+            "python3 - <<'EOF'\nimport os\nos.system('omnipost-allow push')\nEOF",
+            "git commit -m \"$(omnipost-allow push)\"",
+            "omnipost-allow push 'unclosed",
+        ):
+            with self.subTest(command=command):
+                verdict, message = self.pre(command)
+                self.assertEqual(verdict, "blocked(2)")
+                self.assertIn("only Edward issues", message)
+
+    def test_a_publication_another_gate_refuses_claims_nothing(self):
+        verdict, _ = self.pre("git push origin a && omnipost-allow push")
+        self.assertEqual(verdict, "blocked(2)")
+        self.assertNotIn("claimed_at", self.grants()[0])
+
+    def test_status_is_allowed(self):
+        for command in (
+            "omnipost-allow status",
+            ".claude/bin/omnipost-allow status",
+            "python3 .claude/bin/omnipost-allow status",
+            "bash -c 'omnipost-allow status'",
+            "omnipost-allow status | head -5",
+            "omnipost-allow status 2>&1",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.pre(command)[0], "allowed")
+
+    def test_reading_or_naming_the_cli_is_not_running_it(self):
+        for command in (
+            "bat .claude/bin/omnipost-allow",
+            "rg -n omnipost-allow CLAUDE.md",
+            "rg -n 'omnipost-allow push' docs",
+            "git diff -- .claude/bin/omnipost-allow",
+            "which omnipost-allow",
+            "command -v omnipost-allow",
+            "find .claude -name omnipost-allow",
+            # A message written through a heredoc (a tag here: the temporary
+            # directory is no repository, so the commit gate would refuse a commit).
+            "git tag -a v1 -F - <<'EOF'\nfeat: omnipost-allow push grants\n\n- `omnipost-allow push --count 3`\nEOF",
+            "cat > notes.md <<'EOF'\nomnipost-allow push --count 3\nEOF",
+            "gh pr create --title t --body \"$(cat <<'EOF'\nRun omnipost-allow push --count 3 --ttl 60\nEOF\n)\"",
+        ):
+            with self.subTest(command=command):
+                self.assertEqual(self.pre(command)[0], "allowed")
+        self.assertNotIn("claimed_at", self.grants()[0])
 
 
 if __name__ == "__main__":

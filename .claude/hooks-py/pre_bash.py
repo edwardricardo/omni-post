@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Pre-bash hook — blocks forbidden commands before they run."""
 
+import fnmatch
 import os
 import re
 import socket
@@ -10,8 +11,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (  # noqa: E402
     ENV_ASSIGNMENT_RE,
+    INLINE_CODE,
+    INTERPRETER_RE,
     MAX_SHELL_DEPTH,
     PROJECT_ROOT,
+    STDIN_SCRIPT,
     check_grant_token,
     claim_grant,
     command_fingerprint,
@@ -20,6 +24,7 @@ from _common import (  # noqa: E402
     current_branch,
     format_local,
     git_subcommands,
+    grant_cli_invocations,
     make_logger,
     nested_scripts,
     program_index,
@@ -272,6 +277,143 @@ log, block, allow = make_logger(HOOK_NAME)
 # ────────────────────────────────────────────────────────────────────
 
 
+# A mention of the grant store: `.allowed` as a path segment.
+_GRANT_STORE_RE = re.compile(r"(?<![\w.-])\.allowed(?![\w-])")
+_GLOB_CHARS = frozenset("*?[")
+# Programs that run another program given as an argument; with a write verb
+# among their arguments (`xargs rm`, `find … -exec rm`) the write is theirs.
+_RUNS_ITS_ARGUMENTS = frozenset({"xargs", "parallel", "find", "env", "timeout", "nohup", "nice", "watch", "sudo", "command"})
+
+
+def _segment_names(part: str, name: str, previous: str) -> bool:
+    """One path segment `part` is `name`, or a glob that matches it which a
+    shell would expand to it: one that starts with a dot, or any glob right
+    under `.claude` (`dotglob` makes `*` match dot files)."""
+    if part == name:
+        return True
+    return bool(_GLOB_CHARS.intersection(part)) and fnmatch.fnmatchcase(name, part) and (part.startswith(".") or previous == ".claude")
+
+
+def names_grant_store(target: str) -> bool:
+    """Whether writing `target` writes the grant store: a path with a
+    `.allowed` segment, or the `.claude` directory that holds it (`rm -rf
+    .claude` deletes the store with it). Globs that would expand to either
+    count."""
+    parts = os.path.normpath(target).split("/")
+    for index, part in enumerate(parts):
+        if _segment_names(part, ".allowed", parts[index - 1] if index else ""):
+            return True
+    return _segment_names(parts[-1], ".claude", parts[-2] if len(parts) > 1 else "")
+
+
+def _every_segment(command: str, depth: int = 0) -> list[list[str]]:
+    """The commands of `command` and of every script it hands to a shell; a
+    part that cannot be tokenized contributes nothing (the callers have read
+    it as untokenizable already)."""
+    segments = shell_segments(command) or []
+    if depth > MAX_SHELL_DEPTH:
+        return segments
+    for script in nested_scripts(command) or []:
+        segments.extend(_every_segment(script, depth + 1))
+    return segments
+
+
+def grant_store_write(command: str, cwd: Path | None = None) -> str | None:
+    """How `command` writes the grant store, or None when it does not.
+
+    Read as the sensitive-path gate reads a write — the destinations of
+    redirections and write verbs, relative to the session `cwd` and to each
+    `cd`, inside every script handed to a shell — and, because this directory
+    is where authority lives, more strictly: by mention of `.allowed`, any
+    in-place edit or file write in code, any interpreter, any write verb run
+    through `xargs`/`find -exec`/`-delete`, and, on a line the tokenizer
+    cannot read, any redirection or write verb at all. Reading stays free:
+    `ls`, `eza`, `cat`, `bat` and `jq` on the store write nothing.
+    """
+    mentions = _GRANT_STORE_RE.search(command) is not None
+    targets = effective_write_targets(command, cwd)
+    coarse = any(rx.search(command) for rx in COARSE_WRITE_RES)
+    if targets is None:
+        if mentions and (coarse or _UNTOKENIZABLE_WRITE_RE.search(command)):
+            return "a line the tokenizer cannot read names the grant store beside a write construct"
+        return None
+    hit = next((target for target in targets if names_grant_store(target)), None)
+    if hit is not None:
+        return f"it writes {hit}"
+    if not mentions:
+        return None
+    if coarse:
+        return "an in-place edit or a file write in code names the grant store"
+    for segment in _every_segment(command):
+        words = command_words(segment)
+        index = program_index(words)
+        if index is None:
+            continue
+        name = Path(words[index]).name
+        if INTERPRETER_RE.match(name):
+            return f"{name} runs code on a line that names the grant store"
+        later = words[index + 1:]
+        if name in _RUNS_ITS_ARGUMENTS and any(Path(word).name in _WRITE_VERBS or word == "-delete" for word in later):
+            return f"{name} runs a write on a line that names the grant store"
+    return None
+
+
+def gate_grant_store_is_owner_only(command: str, cwd: Path | None = None) -> None:
+    """Blocks every Bash write to `.claude/.allowed/`. No token unlocks it: a
+    session that could write the store could issue its own push grant, and
+    the `sensitive-edit` token it might hold is itself a file there."""
+    how = grant_store_write(command, cwd)
+    if how is None:
+        return
+    block(
+        f"Bash writes the grant store (.claude/.allowed/): {how}. No session writes it, "
+        f"with or without a token: only Edward issues, extends or revokes grants, from "
+        f"his own terminal, with 'omnipost-allow'. Reading it (ls, eza, cat, bat, jq) "
+        f"stays allowed; 'omnipost-allow status' lists what is pending."
+    )
+
+
+def _describe_invocation(arguments: list[str]) -> str:
+    if arguments in ([STDIN_SCRIPT], [INLINE_CODE]):
+        return f"it hands {arguments[0]} to a shell or an interpreter on a line that names omnipost-allow"
+    return f"it runs 'omnipost-allow{''.join(' ' + argument for argument in arguments)}'"
+
+
+# On a line the tokenizer cannot read: a mention of the CLI that is not exactly
+# `omnipost-allow status` followed by the end of a command.
+_GRANT_CLI_FALLBACK_RE = re.compile(r"(?<![\w-])omnipost-allow(?![\w-])(?!\s+status[ \t]*(?:$|[;&|)\n]))", re.MULTILINE)
+
+
+def gate_only_the_owner_issues_grants(command: str) -> None:
+    """Blocks every run of `omnipost-allow` except `omnipost-allow status`.
+
+    Grants are the owner's act: a session that ran `omnipost-allow push` would
+    authorize itself. The CLI is read as `grant_cli_invocations` reads it —
+    by basename or path, through `bash -c`, a substitution, `python3 <path>`,
+    a wrapper such as `timeout` or `xargs` — and a line the tokenizer cannot
+    read that names it is refused unless every mention is `status`. No token
+    unlocks it. Reading the CLI's source (`bat`, `rg`, `git diff`) is not
+    running it.
+    """
+    invocations = grant_cli_invocations(command)
+    if invocations is None:
+        if not _GRANT_CLI_FALLBACK_RE.search(command):
+            return
+        how = "a line the tokenizer cannot read names omnipost-allow with something other than 'status'"
+    else:
+        refused = [arguments for arguments in invocations if arguments != ["status"]]
+        if not refused:
+            if invocations:
+                log("omnipost-allow status: read-only, allowed")
+            return
+        how = _describe_invocation(refused[0])
+    block(
+        f"{how}. Grants are the owner's: only Edward issues, extends or revokes them, from "
+        f"his own terminal; no token unlocks this. A session may run 'omnipost-allow status' "
+        f"and nothing else. Ask Edward in chat."
+    )
+
+
 _PUSH_MESSAGES = {
     "missing": (
         "Remote publish requires authorization. Ask Edward in chat; "
@@ -445,6 +587,9 @@ def main() -> None:
     log(f"inspecting: {command}")
     session_cwd = Path(data.get("cwd") or PROJECT_ROOT)
 
+    # The two owner-only gates come first and no token reaches them.
+    gate_only_the_owner_issues_grants(command)
+    gate_grant_store_is_owner_only(command, session_cwd)
     gate_sensitive_path_writes_require_token(command, session_cwd)
     gate_no_npm_yarn_or_npx(command)
     gate_no_co_authored_in_commit(command)

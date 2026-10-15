@@ -46,7 +46,8 @@ LOG_PATH = PROJECT_ROOT / ".claude" / "hooks.log"
 
 # The grant store: one file per operation (`push`, `sensitive-edit`, ...),
 # written by `.claude/bin/omnipost-allow` and read by every hook through the
-# grant functions at the end of this module (shared contract, no drift).
+# grant functions at the end of this module (shared contract, no drift). No
+# session writes it: pre-edit and pre-bash block every write to it, token or not.
 ALLOWED_TOKENS_DIR = PROJECT_ROOT / ".claude" / ".allowed"
 
 
@@ -702,6 +703,106 @@ def runs_git_push(command: str, depth: int = 0) -> bool:
     if "push" in git_subcommands(command):
         return True
     return any(runs_git_push(script, depth + 1) for script in scripts)
+
+
+# The command that issues grants. Only the owner runs it, from his own
+# terminal; a session may run `omnipost-allow status` and nothing else.
+GRANT_CLI = "omnipost-allow"
+GRANT_CLI_MENTION_RE = re.compile(r"(?<![\w-])omnipost-allow(?![\w-])")
+# Interpreters that run code given on their command line or on stdin.
+INTERPRETER_RE = re.compile(r"^(?:python[0-9.]*|pypy3?|node|nodejs|perl|ruby|php|deno|bun|tsx|lua)$")
+# Programs that only read, print, copy or compare the files they are given:
+# the CLI named as their argument is a file, not a command. Any other program
+# that receives it (`timeout`, `xargs`, `env`, `sudo`, an interpreter, one this
+# list does not know) is read as running it, on the conservative side.
+_MENTION_ONLY_PROGRAMS = frozenset(
+    {"bat", "batcat", "cat", "less", "more", "head", "tail", "rg", "grep", "egrep", "fgrep", "eza", "exa", "ls",
+     "fd", "find", "wc", "file", "stat", "sha256sum", "sha1sum", "sha512sum", "md5sum", "cksum", "b2sum", "diff",
+     "cmp", "readlink", "realpath", "dirname", "basename", "which", "type", "whereis", "echo", "printf", "git",
+     "jq", "yq", "od", "xxd", "hexdump", "strings", "du", "tree", "sort", "uniq", "cut", "column", "nl", "cp",
+     "rsync", "install", "ln", "mv", "tee", "test", "[", "chmod", "touch", "cd", "pushd"}
+)
+# The `find` actions that run a program.
+_FIND_RUNNERS = frozenset({"-exec", "-execdir", "-ok", "-okdir"})
+# What an invocation that is not a plain argv is recorded as, so the gate can
+# name it; none of these is `["status"]`.
+STDIN_SCRIPT = "<a script read from standard input>"
+INLINE_CODE = "<inline code>"
+
+
+def _is_grant_cli(token: str) -> bool:
+    """`token` names the CLI: by basename or path, with the backtick or `$(`
+    of a substitution still around it."""
+    return Path(token.strip("`$()")).name == GRANT_CLI
+
+
+def _reads_stdin_script(program: str, arguments: list[str]) -> bool:
+    """Whether `program` (a shell or an interpreter) takes its script from
+    standard input: no inline code, and no script operand or the operand `-`."""
+    name = Path(program).name
+    if name in _SHELLS:
+        if any(_sets_shell_command_flag(argument) for argument in arguments):
+            return False
+        operand = next((argument for argument in arguments if not argument.startswith("-")), None)
+        return operand is None or "-s" in arguments
+    if INTERPRETER_RE.match(name):
+        if any(argument in ("-c", "-e", "-m", "-p", "--eval", "--print") for argument in arguments):
+            return False
+        operand = next((argument for argument in arguments if argument == "-" or not argument.startswith("-")), None)
+        return operand is None or operand == "-"
+    return False
+
+
+def grant_cli_invocations(command: str, depth: int = 0, mentioned: bool | None = None) -> list[list[str]] | None:
+    """The arguments of every invocation of `omnipost-allow` in `command`, and
+    in every script it hands to a shell; None when some part cannot be
+    tokenized or nests past `MAX_SHELL_DEPTH`.
+
+    An invocation is the CLI as a program (by basename or path, after any
+    prefix such as `(`, `!`, `exec` or `FOO=1`), the CLI as the argument of a
+    program that is not mention-only (`python3 …/omnipost-allow push`,
+    `timeout 5 omnipost-allow push`, `find … -exec omnipost-allow …`), inline
+    code that names it (`python3 -c "…omnipost-allow…"`), and a shell or an
+    interpreter that reads its script from standard input on a line that names
+    it (`echo omnipost-allow push | sh`).
+
+    LIMIT, stated plainly: a copy of the CLI under another name, a variable
+    that holds its name, or a script file that runs it are invisible to any
+    reading of the command line; the hard block raises the cost from running
+    it to a deliberate act of concealment, and claims no more.
+    """
+    if mentioned is None:
+        mentioned = GRANT_CLI_MENTION_RE.search(command) is not None
+    scripts = nested_scripts(command)
+    segments = shell_segments(command)
+    if scripts is None or segments is None or depth > MAX_SHELL_DEPTH:
+        return None
+    found: list[list[str]] = []
+    for segment in segments:
+        words = command_words(segment)
+        index = program_index(words)
+        if index is None:
+            continue
+        program, arguments = words[index], words[index + 1:]
+        name = Path(program.strip("`$()")).name
+        if _is_grant_cli(program):
+            found.append(arguments)
+            continue
+        mention_only = name in _MENTION_ONLY_PROGRAMS and not (name == "find" and _FIND_RUNNERS.intersection(arguments))
+        if name == "command" and arguments[:1] in (["-v"], ["-V"]):
+            mention_only = True
+        if not mention_only:
+            found.extend(arguments[i + 1:] for i, argument in enumerate(arguments) if _is_grant_cli(argument))
+        if INTERPRETER_RE.match(name) and any(GRANT_CLI in argument and not _is_grant_cli(argument) for argument in arguments):
+            found.append([INLINE_CODE])
+        if mentioned and _reads_stdin_script(program, arguments):
+            found.append([STDIN_SCRIPT])
+    for script in scripts:
+        nested = grant_cli_invocations(script, depth + 1, mentioned)
+        if nested is None:
+            return None
+        found.extend(nested)
+    return found
 
 
 def _sets_shell_command_flag(token: str) -> bool:
