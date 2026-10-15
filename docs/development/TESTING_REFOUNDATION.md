@@ -998,7 +998,7 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-15T15:54:20Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
+**CURRENT, re-measured 2026-10-15T16:32:47Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
 exit 0 with EMPTY stderr: of the 50 packages in `scripts/testing/toolchain-population.json` (49 direct, 1
 named transitive, no declared-absent candidate left), 10 sit below latest mature: 1 within the 30-day
 budget of ADR-0036, 0 past it unheld, 9 held.**
@@ -1363,6 +1363,36 @@ and what moved it. A slice that moves the count appends its own line.
     instants the live gate names: `knip` 6.41.0 at `2026-10-16T07:57Z` and `eslint-plugin-jsdoc` 65.2.6 at
     `2026-10-18T12:58Z`, both `within budget`; at `2026-10-20T00:00:00Z` it reads 21 below latest mature,
     12 within budget and none undocumented.
+36. `2026-10-15T16:32:47Z` — **10** (1 within budget, 9 held, 0 undocumented): the bump took `knip` 6.40.0 →
+    6.41.0 inside the 7-day buffer under the owner's 72-hour rule (published `2026-10-09T07:57:03Z`, taken at
+    6.4 d, mature at `2026-10-16T07:57Z`, re-verified then by a later commit); 6.41.0 is `latest` and reads
+    `at latest`, and it was not in the set, so the count holds. It took `zod` 4.4.3 → 4.6.5 with it, the
+    latest mature release (`2026-09-13T23:25:14Z`), because 6.41.0 declares `zod ^4.6.5` and the catalog value
+    is the tree's single zod 4 copy; `zod` is a production dependency, not a population package. OSV and the
+    GitHub repository advisories list nothing for either at the versions taken, nor for the 25 packages the
+    lockfile adds. The knip 6.41.0 notes add the Flue and Expo Router plugins, React Native config extensions,
+    tsconfig references under `--use-tsconfig-files`, nested `.gitignore` files on workspace globs and
+    binaries from absent optional dependencies, and move to `unbash` 5 and `formatly` 0.11: the scan's key set
+    is the baseline's, 308 keys, so `knip-baseline.json` is unchanged and `node scripts/knip-ratchet.mjs`
+    exits 0 with 0 regressions and 0 resolved. The zod 4.5 and 4.6 notes change parsing (`z.iso.datetime()`
+    requires seconds, string `min`, `max` and `length` count code points, a strict object reports every issue
+    beside `unrecognized_keys`, `__proto__` is always stripped), build a `safeParse` error on first read, and
+    change JSON Schema output. Measured: the OpenAPI document `createApp()` dumps is byte-identical on 4.4.3
+    and 4.6.5 (420 paths), so the regenerated API types equal the committed ones; of the 14 structured-output
+    schemas under `apps/api/src/ai`, 3 change, each `.nullable()` string or number now emitted as
+    `type: [T, "null"]` instead of an `anyOf`, the same constraint. In the lockfile, parsed with
+    `yaml.safe_load_all`, 25 packages swap versions (`zod`, `knip`, `formatly` 0.7.1 → 0.11.4, `unbash`
+    4.0.12 → 5.0.0, and `oxc-parser`, `@oxc-project/types` and 19 `@oxc-parser` bindings 0.150.0 → 0.153.0)
+    and the peer suffixes of the zod consumers move with them; nothing else moves: 1934 packages and 1936
+    snapshots, as before. Resolved with pnpm's minimum release age at 10080 minutes, excluding the 23 young
+    pins of line 35 and `knip` 6.41.0, then with `pnpm update -r --lockfile-only zod`: lockfile preference had
+    kept 4.4.3 under the root's `@t3-oss/env-core` and `env-nextjs` and under `eslint-plugin-react-hooks`.
+    `pnpm dedupe --check` exits 0 and the deprecated subdependencies stay 26. The suites pass as before (api
+    9655 of 9655, the services tier 828 of 828, the client stories 68 of 68), the tests typecheck ratchet holds
+    at 2133, and the built API boots and answers `/health` under the test env. The portals measure 915.04 kB
+    and 1.37 MB, against 907.02 kB and 1.36 MB at line 35: zod's classic import alone bundles to
+    92.1 kB gzipped on 4.6.5 against 64.7 kB on 4.4.3. At `2026-10-20T00:00:00Z` the gate reads 20 below latest
+    mature, 11 within budget and none undocumented.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
@@ -1494,7 +1524,7 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 
 | dep                                            | installed | latest mature (published)                                      | documented hold (yes/no — where)                                       | CVE floor                                                                       |
 | ---------------------------------------------- | --------- | -------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `knip`                                         | 6.40.0    | 6.40.0 — **no lag** until 6.41.0 matures, `2026-10-16T07:57Z`  | **in budget** from `2026-10-16T07:57Z`; Tuesday window, no row         | `smol-toml` 1.9.0 by natural resolution; its override deleted with the bump     |
+| `knip`                                         | 6.41.0    | 6.40.0 (2026-10-06, 9.0 d); **6.41.0 installed above it**      | **no** lag; `latest`, taken at 6.4 d, mature `2026-10-16T07:57Z`       | `smol-toml` 1.9.0 by natural resolution; its override deleted with the bump     |
 | `jscpd`                                        | 5.4.1     | 5.4.0 (2026-09-30, 14.9 d); **5.4.1 installed above it**       | **no** lag; 5.4.1 is `latest`, mature `2026-10-16T11:42Z`              | —                                                                               |
 | `dependency-cruiser`                           | 18.5.0    | **18.5.0 (2026-09-30, 7.0 d) — latest mature**, and `latest`   | **no** — no lag; its canon row deleted with the bump                   | —                                                                               |
 | `secretlint`                                   | 13.0.7    | **13.0.7 (2026-10-03, 7.1 d) — latest mature**, and `latest`   | **no** — no lag; the canon row `secretlint` was deleted with this bump | —                                                                               |
