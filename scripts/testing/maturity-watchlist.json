@@ -239,8 +239,8 @@
       "published": "2026-10-13T06:50:58.498Z",
       "entered": {
         "date": "2026-10-15",
-        "commit": "PENDING",
-        "pr": 0,
+        "commit": "b90bed2f",
+        "pr": 583,
         "via": "the catalog CVE floor, about 1.7 days after publication and about 5.3 days before the 2026-10-20T06:50Z maturity: 5.12.5 is inside the range >=5.12.2 <5.12.6 of GHSA-389g-gv7q-r4x8 (low, CVE-2026-107832, header validation bypass via case-sensitive propertyNames), a fastify/fastify repository advisory published 2026-10-13T06:51:29Z that GitHub's global database and OSV's npm records do not carry yet, and 5.12.6 is the minimal patched version (5.12.7, latest, only sets the VERSION constant 5.12.6 left at 5.12.5); production, the dependencies of apps/api and packages/api-common, not reachable: no route schema declares headers and nothing names propertyNames"
       },
       "milestones": {
@@ -267,13 +267,30 @@
       ],
       "entered": {
         "date": "2026-10-14",
-        "commit": "PENDING",
-        "pr": 0,
+        "commit": "24166702",
+        "pr": 594,
         "via": "the catalog CVE floor, about 2.4 hours after publication and 7 days before the 2026-10-21T17:43Z maturity: 16.3.8 is inside the ranges of GHSA-673q-mjm6-r5xr and GHSA-2464-fhr4-w9xw (critical) and GHSA-p3m5-59mp-jv5r (high), vercel/next.js repository advisories published 2026-10-14 between 17:46Z and 17:47Z and not yet in OSV or the GitHub global database, and 16.4.1 is the minimal patched version and latest; production, the dependencies of apps/admin and apps/client, the high reachable through their Server Actions (apps/admin/app/actions/auth.ts, apps/client/app/actions/auth.ts)"
       },
       "milestones": {
         "maturity": "2026-10-21",
         "final": "2026-10-28"
+      },
+      "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "@types/node",
+      "version": "26.6.5",
+      "published": "2026-10-09T18:46:47.657Z",
+      "entered": {
+        "date": "2026-10-15",
+        "commit": "7ff9ad62",
+        "pr": 597,
+        "via": "the catalog pin, moved from 24.13.6 with the runtime (ADR-0038), about 5.3 days after publication and about 1.7 days before the 2026-10-16T18:46Z maturity, under the owner's 72-hour rule (a version that matures within 72 hours is taken and re-verified at its maturity instant); 26.6.4 is the latest mature 26.x and 26.6.5 is latest; every consumer's range admits it (18 transitive dependents declare *, protobufjs >=13.7.0, jsdoc-type-pratt-parser ^26.4.0, and the optional peers of vite, vitest, sharp, stripe, mysql2 and @inquirer/* are open ranges), so the tree keeps one copy; types only, no runtime code"
+      },
+      "milestones": {
+        "maturity": "2026-10-16",
+        "final": "2026-10-23"
       },
       "reviews": {}
     },
