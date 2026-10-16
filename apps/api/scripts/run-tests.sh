@@ -16,6 +16,15 @@
 # without running anything, and paths narrow a run to those suites. No test total
 # appears here on purpose — a count in a comment rots.
 
+# select_files fills the tier arrays through a nameref (`local -n`), which bash 4.3
+# introduced. An older bash would read the quarantine and then fail on that line
+# with a message naming neither the version nor the fix, so the version is checked
+# before anything else runs.
+if [ "${BASH_VERSINFO[0]:-0}" -lt 4 ] || { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -lt 3 ]; }; then
+  echo "run-tests.sh: needs bash 4.3 or later (select_files uses local -n); this is bash ${BASH_VERSION:-unknown}." >&2
+  exit 2
+fi
+
 set -e
 export NODE_ENV=test
 
@@ -27,10 +36,12 @@ TOTAL_SKIP=0
 FAILED_BATCHES=""
 # One line per failed file, "<path>: <reasons>", printed under the failed batches.
 FAILED_FILES=""
-# The last file run_file ran, and the record of a live-tier readiness probe that
-# failed, which names the file it stopped before and that last one.
+# The last file run_file ran, the record of a live-tier readiness probe that
+# failed, which names the file it stopped before and that last one, and what that
+# probe printed, which the final summary repeats beside the record.
 LAST_RAN=""
 ENV_UNREADY=""
+PROBE_ERROR=""
 
 # TIER selects which tiers run, so CI can split them across steps:
 #   (unset)          local default — the services tier, then the live tier,
@@ -112,13 +123,15 @@ SUMMARY_LINE='^@@SUMMARY tests=([0-9]+) pass=([0-9]+) fail=([0-9]+) cancelled=([
 
 # Prints every `*.<suffix>.test.ts` under tests/, outside tests/unit (the unit
 # tier, collected elsewhere), one per line in byte order, or in reverse byte
-# order under TEST_ORDER=reverse.
+# order under TEST_ORDER=reverse. The order reaches `sort` as an array, so the
+# forward order passes it no argument rather than an empty word.
 collect() {
-  local suffix="$1" order=""
+  local suffix="$1"
+  local -a sort_args=()
   case "$TEST_ORDER" in
-    reverse) order="-r" ;;
+    reverse) sort_args=(-r) ;;
   esac
-  find tests -path tests/unit -prune -o -type f -name "*.$suffix.test.ts" -print | LC_ALL=C sort $order
+  find tests -path tests/unit -prune -o -type f -name "*.$suffix.test.ts" -print | LC_ALL=C sort "${sort_args[@]}"
 }
 
 # The quarantine: suites known not to pass yet, each with the reason, the owner
@@ -181,9 +194,12 @@ select_files() {
   fi
 }
 
-# Succeeds when every path given is a suite this run executes. A quarantined one
-# runs nowhere until its entry leaves the quarantine, and any other path is not a
-# suite of a tier this TIER runs.
+# Succeeds when every path given is a suite this run executes. Otherwise it names
+# why the path will not run, since each cause is put right a different way: a
+# quarantined suite runs nowhere until its entry leaves the quarantine, a path
+# that is not there was given from the wrong directory or misspelt, a suite of a
+# tier this TIER does not run needs another TIER, and any other file is one no
+# tier collects.
 check_filter() {
   local path selected
   selected=$(printf '%s\n' "${SERVICES_FILES[@]}" "${LIVE_FILES[@]}")
@@ -193,8 +209,14 @@ check_filter() {
     fi
     if is_quarantined "$path"; then
       echo "run-tests.sh: $path is quarantined, so it runs nowhere until its entry leaves $QUARANTINE_FILE." >&2
+    elif [ ! -e "$path" ]; then
+      echo "run-tests.sh: $path does not exist in $(pwd); give each path from apps/api, as tests/<dir>/<file>." >&2
+    elif collect integration | grep -Fxq -- "$path"; then
+      echo "run-tests.sh: $path is a services-tier suite, and TIER=$TIER does not run the services tier; run it under TIER=pr-integration or with TIER unset." >&2
+    elif collect live | grep -Fxq -- "$path"; then
+      echo "run-tests.sh: $path is a live-tier suite, and TIER=$TIER does not run the live tier; run it under TIER=live-integration or with TIER unset." >&2
     else
-      echo "run-tests.sh: $path is not a suite this run collects; give, from apps/api, a *.integration.test.ts under a TIER that runs the services tier or a *.live.test.ts under a TIER that runs the live tier." >&2
+      echo "run-tests.sh: $path exists, but no tier of this runner collects it: the services tier runs each *.integration.test.ts and the live tier each *.live.test.ts, under tests/ outside tests/unit." >&2
     fi
     return 2
   done <<< "$FILTER"
@@ -274,10 +296,23 @@ fi
 # queue. One attempt each, no retry: `-f` fails on any status from 400 up, a 429
 # from a rate-limit window the previous file left closed included, so a file that
 # leaves the environment unready is the one that must restore it. `--max-time`
-# bounds a probe of a server that accepts the connection and never answers.
+# bounds a probe of a server that accepts the connection and never answers, and
+# `--connect-timeout` ends sooner a probe of a host that drops the connection. The
+# worst case before a live file is the two `--max-time` in a row, 20 s, and the
+# first probe that fails stops the tier, so that wait is paid once. curl's error,
+# on stderr, is what run_batch captures and prints with the record.
+# shellcheck disable=SC2317 # run_batch calls it through BATCH_PROBE, which shellcheck cannot follow
 probe_live() {
-  curl -fsS --max-time 10 -o /dev/null "$TEST_API_URL/health" &&
-    curl -fsS --max-time 10 -o /dev/null "$TEST_WORKERS_READY_URL"
+  curl -fsS --connect-timeout 3 --max-time 10 -o /dev/null "$TEST_API_URL/health" &&
+    curl -fsS --connect-timeout 3 --max-time 10 -o /dev/null "$TEST_WORKERS_READY_URL"
+}
+
+# Prints each line of `$2` behind the indent `$1`.
+print_indented() {
+  local line
+  while IFS= read -r line; do
+    printf '%s%s\n' "$1" "$line"
+  done <<< "$2"
 }
 
 # Runs ONE suite file in its own node:test process and gives it its own verdict,
@@ -292,7 +327,10 @@ run_file() {
   # and hooks, which overrides it (a `describe` option does not).
   local timeout="${TIMEOUT:-30000}"
 
-  local extra_flags="${EXTRA_FLAGS:-}"
+  # EXTRA_FLAGS holds node flags separated by spaces. Read into an array, each flag
+  # reaches node as one word, and none is expanded as a file-name pattern.
+  local -a extra_flags=()
+  read -r -a extra_flags <<< "${EXTRA_FLAGS:-}"
 
   local result
   # The runner's own exit code is CAPTURED, not discarded. A batch can end
@@ -312,7 +350,7 @@ run_file() {
   # from GITHUB_ENV). See change dev-prod-resolution-model.
   # --test-concurrency=1: the process holds one file, and a batch's files run
   # one after another, so no two suites ever share the database at once.
-  result=$(node --conditions development --import tsx --test --test-reporter="$SUMMARY_REPORTER" --test-reporter-destination=stdout --test-force-exit --test-concurrency=1 --test-timeout="$timeout" $extra_flags "$file" 2>&1) || runner_exit=$?
+  result=$(node --conditions development --import tsx --test --test-reporter="$SUMMARY_REPORTER" --test-reporter-destination=stdout --test-force-exit --test-concurrency=1 --test-timeout="$timeout" "${extra_flags[@]}" "$file" 2>&1) || runner_exit=$?
 
   # The counts are read from the last @@SUMMARY line, and only when the whole
   # pattern matches it. A run with none — the reporter did not load, or the
@@ -401,7 +439,7 @@ run_batch() {
   shift
   local tests0=$TOTAL_TESTS pass0=$TOTAL_PASS fail0=$TOTAL_FAIL cancel0=$TOTAL_CANCEL skip0=$TOTAL_SKIP
   # The first non-zero runner exit among the files; each one's is on its own line.
-  local runner_exit=0 failed_files=0 file
+  local runner_exit=0 failed_files=0 file probe_output
   # After a failed readiness probe no probed file runs, here or in a later batch.
   if [ -n "${BATCH_PROBE:-}" ] && [ -n "$ENV_UNREADY" ]; then
     return 0
@@ -411,9 +449,13 @@ run_batch() {
     # A failed probe names the file it stops before and the last file run: that
     # one left the environment unready, or it went down while that one ran. The
     # files after it would only fail for the same reason, so none of them runs.
-    if [ -n "${BATCH_PROBE:-}" ] && ! "$BATCH_PROBE"; then
+    # What the probe printed is kept and printed under the record, here and in the
+    # final summary, so the cause sits beside the verdict on the stream that has it.
+    if [ -n "${BATCH_PROBE:-}" ] && ! probe_output=$("$BATCH_PROBE" 2>&1); then
       ENV_UNREADY="env-unready-before: $file (last ran: ${LAST_RAN:-none})"
+      PROBE_ERROR=${probe_output:-the probe failed and printed nothing}
       printf "    ✗ %s\n" "$ENV_UNREADY"
+      print_indented "      " "$PROBE_ERROR"
       failed_files=$((failed_files + 1))
       FAILED_FILES="$FAILED_FILES
   $ENV_UNREADY"
@@ -504,9 +546,10 @@ if [ "$TOTAL_FAIL" -gt 0 ] || [ "$TOTAL_CANCEL" -gt 0 ] || { [ -n "${TIER:-}" ] 
   fi
   if [ -n "$ENV_UNREADY" ]; then
     echo "ERROR: the live tier stopped at $ENV_UNREADY. The readiness"
-    echo "       probe failed before that file, and its curl error is printed above: the"
-    echo "       file that ran last left the API or the workers unready, or one of them"
-    echo "       went down while it ran. The live files after it did not run."
+    echo "       probe failed before that file with this error:"
+    print_indented "         " "$PROBE_ERROR"
+    echo "       The file that ran last left the API or the workers unready, or one of"
+    echo "       them went down while it ran. The live files after it did not run."
   elif [ -n "${TIER:-}" ] && [ "$TOTAL_SKIP" -gt 0 ] && [ "$TOTAL_FAIL" -eq 0 ] && [ "$TOTAL_CANCEL" -eq 0 ]; then
     echo "ERROR: $TOTAL_SKIP test(s) were SKIPPED — a skipped test never ran, and in"
     echo "       a TIER-driven run the reason is a service the tier was supposed to"

@@ -4,11 +4,12 @@
  *              The suite depends on a background consumer and used to state that
  *              dependency in a COMMENT, so a consumer-less environment was
  *              reported six minutes later as three per-test timeouts. These
- *              assertions pin the three properties that make the new precondition
- *              worth having: it runs BEFORE any fixture is created, its failure
- *              path FAILS rather than skips, and the runner verifies readiness
- *              before each live file, so a consumer that died while an earlier
- *              file ran is named before this suite starts rather than after it.
+ *              assertions pin the properties that make the new precondition worth
+ *              having: it runs BEFORE any fixture is created, its failure path
+ *              FAILS rather than skips, and the runner verifies readiness before
+ *              each live file, with every probe bounded in time, so a consumer that
+ *              died while an earlier file ran is named before this suite starts
+ *              rather than after it.
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
@@ -112,7 +113,7 @@ describe("the live publish suite states its consumer dependency as a check, not 
         /^\s*BATCH_PROBE=probe_live run_batch /.test(line)
       ),
       probeBeforeEachFile:
-        /! "\$BATCH_PROBE"/.test(loopBody) &&
+        /! probe_output=\$\("\$BATCH_PROBE" 2>&1\)/.test(loopBody) &&
         loopBody.indexOf('"$BATCH_PROBE"') < loopBody.indexOf('run_file "$file"'),
     }).toEqual({
       liveSuffix: true,
@@ -121,5 +122,34 @@ describe("the live publish suite states its consumer dependency as a check, not 
       everyLiveCallProbes: true,
       probeBeforeEachFile: true,
     });
+  });
+
+  it("bounds each readiness probe, its connection and its whole request alike", () => {
+    // A probe of a server that accepts the connection and never answers ends at
+    // `--max-time`, and one of a host that drops the connection ends sooner, at
+    // `--connect-timeout`. The two probes run one after the other, so the worst case
+    // before a live file is the sum of their `--max-time`, and the first probe that
+    // fails stops the tier, so that wait is paid at most once per failed tier.
+    const probeLines = runnerBlock("probe_live() {", "}")
+      .split("\n")
+      .filter((line) => /^\s*curl /.test(line));
+    /** The whole seconds `flag` is given on `line`, or NaN when it is absent. */
+    const seconds = (line: string, flag: string): number =>
+      Number(new RegExp(`${flag} (\\d+)(?:\\s|$)`).exec(line)?.[1] ?? Number.NaN);
+
+    expect(probeLines).toHaveLength(2);
+    expect(
+      probeLines.map((line) => {
+        const connect = seconds(line, "--connect-timeout");
+        const whole = seconds(line, "--max-time");
+        return {
+          wholeBounded: Number.isInteger(whole) && whole > 0,
+          connectBounded: Number.isInteger(connect) && connect > 0,
+          connectShorter: connect < whole,
+        };
+      })
+    ).toEqual(
+      probeLines.map(() => ({ wholeBounded: true, connectBounded: true, connectShorter: true }))
+    );
   });
 });
