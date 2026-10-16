@@ -35,7 +35,6 @@
     "@observability/background-scheduler": "workspace:*",
     "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
-    "@prisma/client": "catalog:",
     "@shared/types": "workspace:*",
     "ioredis": "catalog:",
     "opossum": "catalog:"

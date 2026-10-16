@@ -26,7 +26,6 @@
   "devDependencies": {
     "@packages/vitest-shared": "workspace:*",
     "@tanstack/react-query": "catalog:",
-    "@testing-library/react": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "jsdom": "catalog:",

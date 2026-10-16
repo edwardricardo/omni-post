@@ -19,8 +19,6 @@
   },
   "dependencies": {
     "@shared/types": "workspace:*",
-    "fastify": "catalog:",
-    "pino": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
