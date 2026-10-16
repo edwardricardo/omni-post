@@ -130,7 +130,9 @@ import type { ReferralRewardMailer } from "@core/domain/repositories/ReferralRew
 import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
 import type { TeamInvitationMailer } from "@core/domain/repositories/TeamInvitationMailer.js";
 import type { NotificationMailer } from "@core/domain/repositories/NotificationMailer.js";
+import type { DeletedAccountNoticeMailer } from "@core/domain/repositories/DeletedAccountNoticeMailer.js";
 import { TransactionalEmailAdapter } from "../adapters/TransactionalEmailAdapter.js";
+import { ThrottledDeletedAccountNoticeMailer } from "../adapters/ThrottledDeletedAccountNoticeMailer.js";
 import {
   BullMQQueuePortRegistry,
   BullMQDeadLetterQueueAdapter,
@@ -145,7 +147,11 @@ import {
 import { env } from "../../config/env.js";
 
 /**
- * Register all services in the container
+ * @function setupServices
+ * @description Registers every service of the API in the container.
+ * @param container - The composition root's container.
+ * @param integrationEventPublisher - The publisher integration events go through, when the
+ *   caller has one.
  */
 export function setupServices(
   container: Container,
@@ -915,7 +921,7 @@ export function setupServices(
     true
   );
 
-  // Register the transactional-email role ports (one adapter backs all four).
+  // Register the transactional-email role ports (one adapter backs all five).
   const transactionalEmailAdapter = () =>
     new TransactionalEmailAdapter(
       container.resolve<EmailPort>(TOKENS.EmailPort),
@@ -935,6 +941,17 @@ export function setupServices(
   container.register<NotificationMailer>(
     TOKENS.NotificationMailer,
     transactionalEmailAdapter,
+    true
+  );
+  // Anyone can trigger this notice by registering with an address a deleted holder owns, so it
+  // reaches the transport through a per-address throttle kept in the shared cache.
+  container.register<DeletedAccountNoticeMailer>(
+    TOKENS.DeletedAccountNoticeMailer,
+    () =>
+      new ThrottledDeletedAccountNoticeMailer(
+        transactionalEmailAdapter(),
+        container.resolve<CachePort>(TOKENS.CachePort)
+      ),
     true
   );
 

@@ -84,9 +84,18 @@ interface BaseLayoutProps {
   children: React.ReactNode;
   ctaText?: string;
   ctaUrl?: string;
+  /** Replaces the default "member of {accountName}" footer for a recipient who is no member. */
+  footerText?: string;
 }
 
-function BaseEmailLayout({ preview, accountName, children, ctaText, ctaUrl }: BaseLayoutProps) {
+function BaseEmailLayout({
+  preview,
+  accountName,
+  children,
+  ctaText,
+  ctaUrl,
+  footerText,
+}: BaseLayoutProps) {
   return (
     <Html>
       <Head />
@@ -110,7 +119,7 @@ function BaseEmailLayout({ preview, accountName, children, ctaText, ctaUrl }: Ba
           </Section>
           <Section style={footerStyle}>
             <Text style={{ color: "#9ca3af", fontSize: "12px", margin: 0 }}>
-              You are receiving this because you are a member of {accountName}.
+              {footerText ?? `You are receiving this because you are a member of ${accountName}.`}
             </Text>
           </Section>
         </Container>
@@ -654,5 +663,87 @@ export async function teamInvitationEmail(
   return {
     subject: `${params.inviterName} invited you to ${params.accountName}`,
     html: await render(React.createElement(TeamInvitationEmail, params)),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Deleted Account Notice
+// ---------------------------------------------------------------------------
+
+interface DeletedAccountNoticeProps {
+  supportEmail: string;
+}
+
+const DELETED_ACCOUNT_NOTICE_SUBJECT =
+  "A registration was attempted with your OmniPost email address";
+
+const DELETED_ACCOUNT_NOTICE_HEADING = "Someone tried to register with this email address";
+
+const DELETED_ACCOUNT_NOTICE_ATTEMPT =
+  "A new OmniPost registration was attempted with this email address. The address belongs " +
+  "to an account that was deleted, so no new account was created.";
+
+const DELETED_ACCOUNT_NOTICE_OPTIONS =
+  "The deleted account can be restored, or its deletion can be completed so that the " +
+  "address can be registered again. Completing the deletion permanently erases all of the " +
+  "account's data and cannot be undone.";
+
+const DELETED_ACCOUNT_NOTICE_IGNORE =
+  "If you did not try to register, you can ignore this email. Nothing has changed.";
+
+const DELETED_ACCOUNT_NOTICE_FOOTER =
+  "You are receiving this because this email address belongs to a deleted OmniPost account.";
+
+/**
+ * @param supportEmail - Where the owner asks for the restore or the completed deletion.
+ * @returns The sentence that sends the owner to support. Both owner actions are done by
+ *   support today: a deleted account cannot sign in to restore itself, and completing the
+ *   deletion is an administrator's operation.
+ */
+function deletedAccountNoticeContact(supportEmail: string): string {
+  return `To restore the account or complete its deletion, contact us at ${supportEmail}.`;
+}
+
+function DeletedAccountNoticeEmail(props: DeletedAccountNoticeProps) {
+  return (
+    <BaseEmailLayout
+      preview={DELETED_ACCOUNT_NOTICE_HEADING}
+      accountName="OmniPost"
+      footerText={DELETED_ACCOUNT_NOTICE_FOOTER}
+    >
+      <Text style={{ fontSize: "18px", fontWeight: 600, color: "#111827", margin: "0 0 12px" }}>
+        {DELETED_ACCOUNT_NOTICE_HEADING}
+      </Text>
+      <Text style={{ color: "#4b5563" }}>{DELETED_ACCOUNT_NOTICE_ATTEMPT}</Text>
+      <Text style={{ color: "#4b5563" }}>{DELETED_ACCOUNT_NOTICE_OPTIONS}</Text>
+      <Text style={{ color: "#4b5563" }}>{deletedAccountNoticeContact(props.supportEmail)}</Text>
+      <Text style={{ color: "#9ca3af", fontSize: "13px", marginTop: "16px" }}>
+        {DELETED_ACCOUNT_NOTICE_IGNORE}
+      </Text>
+    </BaseEmailLayout>
+  );
+}
+
+/**
+ * @function deletedAccountNoticeEmail
+ * @description Renders the notice sent to the owner of an address when a registration is
+ *   attempted with it while it still belongs to a deleted account. It carries no link and no
+ *   secret: the only variable it names is the support address.
+ * @param params - Template parameters (support email)
+ * @returns Subject line, rendered HTML body and the plain-text body
+ */
+export async function deletedAccountNoticeEmail(
+  params: DeletedAccountNoticeProps
+): Promise<{ subject: string; html: string; text: string }> {
+  return {
+    subject: DELETED_ACCOUNT_NOTICE_SUBJECT,
+    html: await render(React.createElement(DeletedAccountNoticeEmail, params)),
+    text: [
+      DELETED_ACCOUNT_NOTICE_HEADING,
+      DELETED_ACCOUNT_NOTICE_ATTEMPT,
+      DELETED_ACCOUNT_NOTICE_OPTIONS,
+      deletedAccountNoticeContact(params.supportEmail),
+      DELETED_ACCOUNT_NOTICE_IGNORE,
+    ].join("\n\n"),
   };
 }

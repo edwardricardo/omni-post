@@ -124,6 +124,32 @@ describe("TransactionalEmailAdapter", () => {
     assert.ok((call?.subject ?? "").includes("Alice"));
   });
 
+  it("renders + sends the deleted-account notice with its plain-text body", async () => {
+    const result = await adapter.notifyRegistrationAttemptOnDeletedAccount("owner@test.com", {
+      supportEmail: "help@test.io",
+    });
+
+    assert.ok(result.ok);
+    expect(emailPort.send).toHaveBeenCalledOnce();
+    const call = emailPort.send.mock.calls[0]?.[0];
+    assert.deepStrictEqual(call?.to, ["owner@test.com"]);
+    assert.match(call?.subject ?? "", /registration was attempted/i);
+    assert.ok((call?.html ?? "").includes("help@test.io"));
+    assert.ok((call?.body ?? "").includes("help@test.io"));
+    assert.match(call?.body ?? "", /erases all of the account's data/);
+  });
+
+  it("returns the transport's failure for the deleted-account notice", async () => {
+    const failure = new Error("transport down");
+    emailPort.send.mockResolvedValue({ ok: false, error: failure });
+
+    const result = await adapter.notifyRegistrationAttemptOnDeletedAccount("owner@test.com", {
+      supportEmail: "help@test.io",
+    });
+
+    assert.deepStrictEqual(result, { ok: false, error: failure });
+  });
+
   it("falls back to a plain body for an unmapped notification type", async () => {
     await adapter.sendNotification({
       recipientId: "m-1",

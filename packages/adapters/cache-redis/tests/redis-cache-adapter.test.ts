@@ -3,7 +3,8 @@
  * @description Tests for `RedisCacheAdapter` — verifies the wrapper correctly
  *              translates `Result<T, E>` returns from `RedisCacheManager` into
  *              the plain `CachePort` shape, propagates factory errors from
- *              `getOrSet`, and degrades gracefully on cache failures.
+ *              `getOrSet`, degrades gracefully on cache failures, and rejects a
+ *              `claim` the manager cannot decide.
  * @layer infrastructure
  */
 
@@ -19,14 +20,16 @@ function makeFakeManager(): {
   del: ReturnType<typeof vi.fn>;
   invalidateByTag: ReturnType<typeof vi.fn>;
   has: ReturnType<typeof vi.fn>;
+  claim: ReturnType<typeof vi.fn>;
 } {
   const get = vi.fn();
   const set = vi.fn();
   const del = vi.fn();
   const invalidateByTag = vi.fn();
   const has = vi.fn();
-  const manager = { get, set, del, invalidateByTag, has } as unknown as RedisCacheManager;
-  return { manager, get, set, del, invalidateByTag, has };
+  const claim = vi.fn();
+  const manager = { get, set, del, invalidateByTag, has, claim } as unknown as RedisCacheManager;
+  return { manager, get, set, del, invalidateByTag, has, claim };
 }
 
 describe("RedisCacheAdapter", () => {
@@ -132,6 +135,24 @@ describe("RedisCacheAdapter", () => {
     it("has() returns false on manager error (treated as absent)", async () => {
       fake.has.mockResolvedValue(err("CACHE_ERROR"));
       expect(await adapter.has("k")).toBe(false);
+    });
+  });
+
+  describe("claim()", () => {
+    it("resolves true when the manager created the key, forwarding the key and the TTL", async () => {
+      fake.claim.mockResolvedValue(ok(true));
+      expect(await adapter.claim("k", 60)).toBe(true);
+      expect(fake.claim).toHaveBeenCalledExactlyOnceWith("k", 60);
+    });
+
+    it("resolves false when the manager found the key already held", async () => {
+      fake.claim.mockResolvedValue(ok(false));
+      expect(await adapter.claim("k", 60)).toBe(false);
+    });
+
+    it("rejects, unlike the cache-semantics methods, when the manager cannot decide", async () => {
+      fake.claim.mockResolvedValue(err("CACHE_ERROR"));
+      await expect(adapter.claim("k", 60)).rejects.toThrow(/claim/);
     });
   });
 });

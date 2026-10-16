@@ -23,12 +23,14 @@ import type { AccountQueryRepositoryPort } from "@core/domain/repositories/Accou
 import type { UnitOfWork } from "@core/domain/repositories/Repository.js";
 import type { EmailPort } from "@core/domain/repositories/EmailPort.js";
 import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
+import type { DeletedAccountNoticeMailer } from "@core/domain/repositories/DeletedAccountNoticeMailer.js";
 import type { PasswordHasher } from "@core/domain/repositories/PasswordHasher.js";
 import type { CustomerTokenService } from "@core/domain/repositories/CustomerTokenService.js";
 import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
 import { PrismaAccountSubscriptionAdapter } from "../repositories/PrismaAccountSubscriptionAdapter.js";
 import { PrismaCustomerUserRepository } from "../repositories/PrismaCustomerUserRepository.js";
 import { PrismaCustomerRoleRepository } from "../repositories/PrismaCustomerRoleRepository.js";
+import { createLogger } from "../../lib/logger.js";
 import {
   RegisterCustomerUseCase,
   LoginCustomerUseCase,
@@ -42,6 +44,7 @@ import {
 /**
  * @function setupCustomerAuthUseCases
  * @description Registers all customer auth dependencies in the DI container.
+ * @param container - The composition root's container.
  */
 export function setupCustomerAuthUseCases(container: Container): void {
   // Repositories
@@ -67,10 +70,12 @@ export function setupCustomerAuthUseCases(container: Container): void {
         container.resolve<AccountRepositoryPort>(TOKENS.AccountRepository),
         container.resolve<PasswordHasher>(TOKENS.PasswordHasher),
         container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService),
+        createLogger("customer-registration"),
+        container.resolve<DeletedAccountNoticeMailer>(TOKENS.DeletedAccountNoticeMailer),
         new PrismaAccountSubscriptionAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
-        container.resolve<UnitOfWork>(TOKENS.UnitOfWork),
         container.resolve<WelcomeMailer>(TOKENS.WelcomeMailer),
-        container.resolve<PlatformCredentialReader>(TOKENS.PlatformCredentialService)
+        container.resolve<PlatformCredentialReader>(TOKENS.PlatformCredentialService),
+        container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true
   );

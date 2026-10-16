@@ -11,6 +11,7 @@ import {
   approvalDecisionEmail,
   taskAssignedEmail,
   mentionEmail,
+  deletedAccountNoticeEmail,
 } from "../../../src/infrastructure/email/templates/emailTemplates.js";
 
 describe("approvalRequestedEmail", () => {
@@ -98,5 +99,33 @@ describe("mentionEmail", () => {
     assert.ok(subject.includes("Alice"));
     assert.ok(subject.includes("task"));
     assert.ok(html.includes("mentioned you"));
+  });
+});
+
+describe("deletedAccountNoticeEmail", () => {
+  it("renders subject, html and text that name support, both options and the erasure", async () => {
+    const { subject, html, text } = await deletedAccountNoticeEmail({
+      supportEmail: "help@test.io",
+    });
+
+    assert.match(subject, /registration was attempted/i);
+    for (const body of [html, text]) {
+      assert.ok(body.includes("help@test.io"), "the notice sends the owner to support");
+      assert.match(body, /can be restored/);
+      assert.match(body, /deletion can be completed/);
+      assert.match(body, /permanently erases all of the account(&#x27;|')s data/);
+    }
+    assert.ok(html.includes("belongs to a deleted OmniPost account"), "the footer names why");
+    assert.ok(!html.includes("member of"), "the recipient is not addressed as a member");
+  });
+
+  it("carries no link, token or credential", async () => {
+    const { html, text } = await deletedAccountNoticeEmail({ supportEmail: "help@test.io" });
+
+    assert.ok(!html.includes("href="), "the notice has no link to follow");
+    assert.doesNotMatch(text, /https?:\/\//);
+    for (const body of [html, text]) {
+      assert.doesNotMatch(body, /token|password/i);
+    }
   });
 });

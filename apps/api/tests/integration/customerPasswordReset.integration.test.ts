@@ -40,6 +40,7 @@ import {
 import { ok } from "@shared/types";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import { RegisterCustomerUseCase } from "@core/customer-auth/RegisterCustomerUseCase.js";
+import type { DeletedAccountNoticeMailer } from "@core/domain/repositories/DeletedAccountNoticeMailer.js";
 import { LoginCustomerUseCase } from "@core/customer-auth/LoginCustomerUseCase.js";
 import { RefreshCustomerTokenUseCase } from "@core/customer-auth/RefreshCustomerTokenUseCase.js";
 import { RequestPasswordResetUseCase } from "@core/customer-auth/RequestPasswordResetUseCase.js";
@@ -63,6 +64,7 @@ import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2Pa
 import { CustomerTokenServiceAdapter } from "../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
 import { customerAuthRoutes } from "../../src/auth/customerAuthRoutes.js";
 import { needsRehash } from "../../src/auth/passwordHashing.js";
+import { createLogger } from "../../src/lib/logger.js";
 
 assertSeedChannelConfigured();
 
@@ -224,6 +226,15 @@ describe("Customer password reset — persisted outcomes through the guarded cli
       },
     };
 
+    // Registration here only creates the customers the reset flows act on: it opens no trial
+    // and sends no welcome e-mail, and a notice it might send goes nowhere.
+    const noticeMailer: DeletedAccountNoticeMailer = {
+      notifyRegistrationAttemptOnDeletedAccount: async () => ok(undefined),
+    };
+    const noTrialSubscription = undefined;
+    const noWelcomeMailer = undefined;
+    const defaultPlatformLinks = undefined;
+
     const container = new Container();
     container.registerInstance(
       TOKENS.RegisterCustomerUseCase,
@@ -233,7 +244,11 @@ describe("Customer password reset — persisted outcomes through the guarded cli
         new PrismaAccountRepository(guarded),
         hasher,
         tokenService,
-        undefined,
+        createLogger("customer-registration"),
+        noticeMailer,
+        noTrialSubscription,
+        noWelcomeMailer,
+        defaultPlatformLinks,
         unitOfWork
       )
     );

@@ -2,8 +2,8 @@
  * @file in-memory-cache-adapter.test.ts
  * @description Tests for `InMemoryCacheAdapter` — verifies in-process Map +
  *              TTL semantics, tag-based invalidation, scheduler integration
- *              (cleanup task registration + teardown), and `getOrSet`
- *              cache-aside behavior.
+ *              (cleanup task registration + teardown), `getOrSet`
+ *              cache-aside behavior, and the exclusive `claim`.
  * @layer infrastructure
  */
 
@@ -163,6 +163,59 @@ describe("InMemoryCacheAdapter", () => {
       vi.advanceTimersByTime(1500);
       expect(await a.has("k")).toBe(false);
       a.close();
+    });
+  });
+
+  describe("claim", () => {
+    it("resolves true for the first claim on a key, and the key is then held", async () => {
+      expect(await adapter.claim("k", 60)).toBe(true);
+      expect(await adapter.has("k")).toBe(true);
+    });
+
+    it("resolves false for a second claim on a key that is still held", async () => {
+      await adapter.claim("k", 60);
+      expect(await adapter.claim("k", 60)).toBe(false);
+    });
+
+    it("resolves false when set wrote the key and it has not expired", async () => {
+      await adapter.set("k", "v", { ttlSeconds: 60 });
+      expect(await adapter.claim("k", 60)).toBe(false);
+      expect(await adapter.get("k")).toBe("v");
+    });
+
+    it("grants exactly one of many concurrent claims on one key", async () => {
+      const verdicts = await Promise.all(Array.from({ length: 10 }, () => adapter.claim("k", 60)));
+      expect(verdicts.filter(Boolean)).toHaveLength(1);
+    });
+
+    it("resolves true again once the claim's TTL has passed", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-16T00:00:00.000Z"));
+      const a = new InMemoryCacheAdapter();
+      expect(await a.claim("k", 1)).toBe(true);
+      vi.setSystemTime(Date.now() + 999);
+      expect(await a.claim("k", 1)).toBe(false);
+      vi.setSystemTime(Date.now() + 1);
+      expect(await a.claim("k", 1)).toBe(true);
+      a.close();
+    });
+
+    it("resolves true for a key whose entry written by set has expired", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-16T00:00:00.000Z"));
+      const a = new InMemoryCacheAdapter();
+      await a.set("k", "v", { ttlSeconds: 1, tags: ["t"] });
+      vi.setSystemTime(Date.now() + 1000);
+      expect(await a.claim("k", 60)).toBe(true);
+      await a.invalidateByTag("t");
+      expect(await a.has("k")).toBe(true);
+      a.close();
+    });
+
+    it("rejects a TTL that is not a positive whole number of seconds, and holds nothing", async () => {
+      await expect(adapter.claim("k", 0)).rejects.toThrow(RangeError);
+      await expect(adapter.claim("k", 1.5)).rejects.toThrow(RangeError);
+      expect(await adapter.has("k")).toBe(false);
     });
   });
 

@@ -35,6 +35,19 @@ export interface CustomerUserRepository {
   findByEmailAcrossAccounts(email: string): Promise<CustomerUser[]>;
 
   /**
+   * @method existsDeletedByEmailAcrossAccounts
+   * @description Answers whether a SOFT-DELETED customer user, in any account, carries the
+   *   address. It is the one read that sees deleted rows on purpose: registration must tell
+   *   an address that belongs to a deleted user apart from a free one, and
+   *   {@link findByEmailAcrossAccounts} hides exactly those rows by design. It answers a
+   *   boolean so nothing about the deleted row leaves the repository.
+   * @param email - The address to look for; the implementation normalizes it the way it
+   *   stores it.
+   * @returns True when at least one soft-deleted customer user carries the address.
+   */
+  existsDeletedByEmailAcrossAccounts(email: string): Promise<boolean>;
+
+  /**
    * @method findByAccountId
    * @description Lists all non-deleted customer users for a given account.
    */

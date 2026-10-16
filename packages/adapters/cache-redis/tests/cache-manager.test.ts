@@ -6,7 +6,8 @@
  * Tier 0: no real Redis required.
  *
  * @file cache-manager.test.ts
- * @description Tests for RedisCacheManager — set() and get()
+ * @description Tests for RedisCacheManager — reads, writes, invalidation, stats, and the
+ *              exclusive claim, which one SET NX EX decides on Redis alone.
  * @layer infrastructure
  */
 
@@ -29,10 +30,14 @@ class FakeRedis {
     return this.store.get(key) ?? null;
   }
 
-  async set(key: string, value: string, ex?: string, ttl?: number): Promise<string> {
+  async set(key: string, value: string, ...options: Array<string | number>): Promise<"OK" | null> {
+    if (options.includes("NX") && this.store.has(key)) {
+      return null;
+    }
     this.store.set(key, value);
-    if (ex === "EX" && ttl !== undefined) {
-      this.ttls.set(key, ttl);
+    const ex = options.indexOf("EX");
+    if (ex !== -1) {
+      this.ttls.set(key, Number(options[ex + 1]));
     }
     return "OK";
   }
@@ -680,6 +685,74 @@ describe("RedisCacheManager — has()", { concurrency: 1 }, () => {
     const result = await mgr.has("missing");
     expect(result.ok).toBe(true);
     expect((result as any).value).toBe(false);
+    await mgr.close();
+  });
+});
+
+describe("RedisCacheManager — claim()", { concurrency: 1 }, () => {
+  it("returns ok(true) for the first claim and writes the key with the TTL as EX", async () => {
+    const { manager: mgr, fakeRedis } = makeManager();
+    const result = await mgr.claim("k", 60);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(true);
+    expect(fakeRedis.store.has("k")).toBe(true);
+    expect(fakeRedis.ttls.get("k")).toBe(60);
+    await mgr.close();
+  });
+
+  it("returns ok(false) for a second claim on a key Redis still holds", async () => {
+    const { manager: mgr } = makeManager();
+    await mgr.claim("k", 60);
+    const result = await mgr.claim("k", 60);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(false);
+    await mgr.close();
+  });
+
+  it("decides on Redis alone: an entry only this process's L1 holds does not block it", async () => {
+    const { manager: mgr, fakeRedis } = makeManager();
+    await mgr.set("k", "v", { ttl: 60 });
+    fakeRedis.store.delete("k");
+    const result = await mgr.claim("k", 60);
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(true);
+    await mgr.close();
+  });
+
+  it("returns err(CACHE_ERROR) when Redis throws", async () => {
+    const { manager: mgr, fakeRedis } = makeManager();
+    (fakeRedis as any).set = async () => {
+      throw new Error("Redis unavailable");
+    };
+    const result = await mgr.claim("k", 60);
+    expect(result.ok).toBe(false);
+    expect((result as any).error).toBe("CACHE_ERROR");
+    await mgr.close();
+  });
+
+  it("sends one SET with NX and EX on the prefixed key through the real client", async () => {
+    const mgr = new RedisCacheManager({
+      redisUrl: "redis://localhost:6379",
+      keyPrefix: "test:",
+      enableMetrics: false,
+    });
+    const client = (mgr as any).redis;
+    const sent: Array<{ name: string; args: string[] }> = [];
+    client.sendCommand = (command: any) => {
+      sent.push({ name: command.name, args: [...command.args] });
+      command.resolve(command.name === "set" ? null : "OK");
+      return command.promise;
+    };
+
+    const result = await mgr.claim("k", 60);
+
+    expect(result.ok).toBe(true);
+    expect((result as any).value).toBe(false);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.name).toBe("set");
+    const [key, , ...options] = sent[0]?.args ?? [];
+    expect(key).toBe("test:k");
+    expect(options).toEqual(["EX", "60", "NX"]);
     await mgr.close();
   });
 });

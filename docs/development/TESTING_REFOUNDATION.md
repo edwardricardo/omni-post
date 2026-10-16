@@ -1,7 +1,20 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-16, the reach engine refuses the inputs Phase 1's review suggestions named
+**As of:** 2026-10-16, a customer registration answers one `409 EMAIL_EXISTS` for every address
+something already holds (`workstream/night-cp1b-register-500`, `PR cp1b`, unit C-P1b). A live account
+with no user answered 500 and a soft-deleted account let a second account be created beside it; the
+use case now runs the same holder lookups for every address, refuses a live and a deleted holder
+with the same bytes, and sends the owner of a deleted holder's address a notice e-mail, at most one
+per address per 24 hours, and the account save joins the Unit of Work, so a failed user insert rolls
+the account back. Its integration suite
+(`apps/api/tests/integration/customerRegisterHeldEmail.integration.test.ts`), the suite of the
+deleted-user read (`apps/api/tests/unit/infrastructure/PrismaCustomerUserRepository.test.ts`) and
+the suite of the notice throttle
+(`apps/api/tests/unit/infrastructure/adapters/ThrottledDeletedAccountNoticeMailer.test.ts`) moved M1
+`1007 + 14` → `1010 + 14`.
+
+Before it, the same day, the reach engine refuses the inputs Phase 1's review suggestions named
 (`workstream/night-r2-reach-engine`, `PR reach`, book rows SB-123 to SB-146). The source-resolution
 CLI refuses a bare `--root` and an unknown argument and its suite asserts the exit code; the node:test
 collector refuses absolute and escaping paths; every listing names its output cap and reports an
@@ -602,7 +615,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1007 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR reach |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1010 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR cp1b  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
