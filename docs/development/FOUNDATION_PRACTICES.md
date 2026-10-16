@@ -22,6 +22,7 @@ It is read by whoever starts the next application, by whoever writes that prompt
 | FP-001 | Testing              | Each test file has exactly one collector, run by a required check           | construction and gate |
 | FP-002 | Testing              | A test run that collects zero tests fails                                   | gate                  |
 | FP-011 | Testing              | An error double carries the shape measured on the real dependency           | construction          |
+| FP-012 | Testing              | A command double answers only the inputs its test planned, refuses the rest | construction          |
 | FP-003 | CI and gates         | A gate fails closed when its scope is missing or its scan read nothing      | construction and gate |
 | FP-004 | CI and gates         | A gate merges only after its red path shows a real non-zero exit            | construction and gate |
 | FP-008 | CI and gates         | Every root config a package extends is part of the build cache key          | gate                  |
@@ -106,6 +107,13 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Why:** omni-post's repositories recognised a unique-constraint violation by `meta.target`, the field the Prisma 5 and 6 query engine filled. Prisma 7 runs every query through a driver adapter, which reports the constraint at `meta.driverAdapterError.cause.constraint` and never sets `meta.target`: measured on PostgreSQL 16 on 2026-10-15 through 7.9.1 and 7.10.0, four readers never matched, and a team invitation colliding with a soft-deleted member answered 400 "Failed to save team member" instead of its documented 409. Every unit suite over those readers stayed green, because their doubles raised the old shape ([`statefulCustomerUserPrismaFake.ts`](../../apps/api/tests/unit/helpers/statefulCustomerUserPrismaFake.ts) before the fix; the measured fixture [`prismaKnownRequestErrors.ts`](../../apps/api/tests/unit/helpers/prismaKnownRequestErrors.ts); the one reader [`constraintViolation.ts`](../../infra/prisma/src/extensions/constraintViolation.ts); the end-to-end proof [`teamInviteDuplicateEmail.integration.test.ts`](../../apps/api/tests/integration/teamInviteDuplicateEmail.integration.test.ts)).
 - **Day-one enforcement:** construction. The error fixtures exist before the first test that needs one, each with its measurement header, and the one reader of each error family is a shared module the repositories import, so a shape change is fixed in one place and caught by the integration test that crosses it. Carry-over: by construction.
 - **Loosen if:** never: a double written from memory proves only that the code agrees with the memory, which is how four dead branches read as tested.
+
+### FP-012 — A test double of an external command answers only the inputs its test planned, and refuses any other by name
+
+- **Practice:** A double that stands in for an external command or endpoint (a `curl`, a CLI, an HTTP service) matches the exact inputs its test plans for, answers each with the planned result, and exits non-zero naming any input it was not built for. It records each call before it answers, so a test that plants a failure can assert the exact calls that led to it. A double never succeeds by default.
+- **Why:** omni-post's node:test runner probes two readiness URLs before its live tiers. Its suite's `curl` double answered every URL with success, so a new or misspelt probe passed every live case without being read, and a planted failure was counted against a call log one entry off from what the stopping cases assumed (book rows SB-127 and SB-150 in [review-suggestions-book.md](../reports/review-suggestions-book.md); [`runTestsGate.behavior.test.ts`](../../apps/api/tests/unit/saga/runTestsGate.behavior.test.ts), fixed on 2026-10-16).
+- **Day-one enforcement:** construction. The helpers that build command doubles take the planned inputs as a required table and have no default answer, so a double that succeeds on an input nobody planned cannot be written. Carry-over: by construction.
+- **Loosen if:** never: a double that answers anything proves only that the code called something.
 
 ## CI and gates
 
