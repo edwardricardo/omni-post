@@ -1756,14 +1756,15 @@ jobs:
         #
         # FAIL-CLOSED by construction: zero parsed hold rows, an unreadable table, a population
         # package that is neither installed nor declared absent, a stale declared absence, an
-        # unreadable registry document, or two installed versions of one direct dependency each
-        # exit 1 rather than reporting a clean zero over inputs the gate never read. Pinned by
+        # unreadable registry document, two installed versions of one direct dependency, or a
+        # family (toolchain-population.json `families`) refused or not resolving to one version
+        # each exit 1 rather than reporting a clean zero over inputs the gate never read. Pinned by
         # apps/api/tests/unit/scripts/holdsGate.test.ts, whose fixtures drive every one of those
         # refusals, and both sides of the budget, without touching the registry.
         run: |
           set -uo pipefail
           if ! node scripts/testing/holds-gate.mjs; then
-            echo "::error title=Toolchain holds violation::A testing dependency has been below a mature release for 30 days or more with no hold row naming it in docs/security/SECURITY_CANON.md (Build-tool version holds & dated-debt overrides), a hold row still describes a scheduled hold, or the gate could not read one of its inputs. The holds-gate lines above name each package with its installed version and its target: bump it in the weekly dependency window, or add a row carrying a measured reason, today's date and an observable remove-when (ADR-0036)."
+            echo "::error title=Toolchain holds violation::A testing dependency has been below a mature release for 30 days or more with no hold row naming it in docs/security/SECURITY_CANON.md (Build-tool version holds & dated-debt overrides), a hold row still describes a scheduled hold, a family's members (scripts/testing/toolchain-population.json families) do not resolve to one version, or the gate could not read one of its inputs. The holds-gate lines above name each package with its installed version and its target, and each diverging family member with its version and importer: bump it in the weekly dependency window, move every member of a family in one change, or add a row carrying a measured reason, today's date and an observable remove-when (ADR-0036)."
             exit 1
           fi
 
