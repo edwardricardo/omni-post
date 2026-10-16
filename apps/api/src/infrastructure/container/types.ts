@@ -318,6 +318,7 @@ export const TOKENS = {
   WelcomeMailer: Symbol.for("WelcomeMailer"),
   TeamInvitationMailer: Symbol.for("TeamInvitationMailer"),
   NotificationMailer: Symbol.for("NotificationMailer"),
+  DeletedAccountNoticeMailer: Symbol.for("DeletedAccountNoticeMailer"),
   BusinessMetricsPort: Symbol.for("BusinessMetricsPort"),
   CreateScheduledReportUseCase: Symbol.for("CreateScheduledReportUseCase"),
   UpdateScheduledReportUseCase: Symbol.for("UpdateScheduledReportUseCase"),
