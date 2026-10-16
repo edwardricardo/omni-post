@@ -8,9 +8,6 @@
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx"],
   "references": [
     {
-      "path": "../../adapters/db-prisma/tsconfig.build.json"
-    },
-    {
       "path": "../../adapters/external-apis/tsconfig.build.json"
     },
     {

@@ -14,9 +14,6 @@
       "path": "../domain/tsconfig.build.json"
     },
     {
-      "path": "../../ports/tsconfig.build.json"
-    },
-    {
       "path": "../../shared/tsconfig.build.json"
     }
   ]

@@ -1596,9 +1596,6 @@ importers:
       '@observability/logger':
         specifier: workspace:*
         version: link:../../observability/logger
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -1636,9 +1633,6 @@ importers:
       '@observability/logger':
         specifier: workspace:*
         version: link:../../observability/logger
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       opossum:
         specifier: 'catalog:'
         version: 10.0.0
@@ -1664,9 +1658,6 @@ importers:
 
   packages/adapters/fallback-strategies:
     dependencies:
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -1937,9 +1928,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -1996,9 +1984,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2024,9 +2009,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2080,9 +2062,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2127,9 +2106,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2155,9 +2131,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2239,9 +2212,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2267,9 +2237,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2329,9 +2296,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2357,9 +2321,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2385,9 +2346,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2407,9 +2365,6 @@ importers:
 
   packages/core/compliance:
     dependencies:
-      '@core/application':
-        specifier: workspace:*
-        version: link:../application
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
@@ -2441,9 +2396,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2497,9 +2449,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2519,9 +2468,6 @@ importers:
 
   packages/core/customer-auth:
     dependencies:
-      '@core/application':
-        specifier: workspace:*
-        version: link:../application
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
@@ -2572,9 +2518,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2600,9 +2543,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2628,9 +2568,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2659,9 +2596,6 @@ importers:
       '@core/embeddings':
         specifier: workspace:*
         version: link:../embeddings
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2681,18 +2615,9 @@ importers:
 
   packages/core/guardrails:
     dependencies:
-      '@core/application':
-        specifier: workspace:*
-        version: link:../application
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
-      '@shared/types':
-        specifier: workspace:*
-        version: link:../../shared
     devDependencies:
       '@packages/vitest-shared':
         specifier: workspace:*
@@ -2743,9 +2668,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2771,9 +2693,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2855,9 +2774,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2883,9 +2799,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2911,9 +2824,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2939,9 +2849,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -2967,9 +2874,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -3023,9 +2927,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -3051,9 +2952,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -3079,9 +2977,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -3138,9 +3033,6 @@ importers:
       '@core/embeddings':
         specifier: workspace:*
         version: link:../embeddings
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -3194,9 +3086,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -3269,9 +3158,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -3297,9 +3183,6 @@ importers:
       '@core/domain':
         specifier: workspace:*
         version: link:../domain
-      '@ports/core':
-        specifier: workspace:*
-        version: link:../../ports
       '@shared/types':
         specifier: workspace:*
         version: link:../../shared
@@ -3707,9 +3590,6 @@ importers:
 
   packages/providers/instagram:
     dependencies:
-      '@adapters/db-prisma':
-        specifier: workspace:*
-        version: link:../../adapters/db-prisma
       '@adapters/external-apis':
         specifier: workspace:*
         version: link:../../adapters/external-apis
@@ -3926,15 +3806,6 @@ importers:
 
   packages/providers/threads:
     dependencies:
-      '@adapters/external-apis':
-        specifier: workspace:*
-        version: link:../../adapters/external-apis
-      '@adapters/fallback-strategies':
-        specifier: workspace:*
-        version: link:../../adapters/fallback-strategies
-      '@observability/logger':
-        specifier: workspace:*
-        version: link:../../observability/logger
       '@ports/core':
         specifier: workspace:*
         version: link:../../ports

@@ -26,7 +26,6 @@
     "@adapters/dead-letter-queue": "workspace:*",
     "@adapters/fallback-strategies": "workspace:*",
     "@observability/logger": "workspace:*",
-    "@ports/core": "workspace:*",
     "opossum": "catalog:",
     "prom-client": "catalog:"
   },
