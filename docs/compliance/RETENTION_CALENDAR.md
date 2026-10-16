@@ -25,11 +25,13 @@ default on `GdprSettings`.
 | `AccountCredential` | tied to `Account` lifecycle               | n/a                         | DB-level FK CASCADE on `Account` delete                                          | ⚠ no soft-delete                |
 | `CustomerUser`      | tied to `Account` lifecycle               | n/a                         | DB-level FK CASCADE on `Account` delete                                          | ⚠ Phase C: GDPR cascade pending |
 | Tenant tables (51)  | tied to `Account` lifecycle               | n/a                         | DB-level FK CASCADE on `Account` delete                                          | ⚠ Phase C: GDPR cascade pending |
+| Notice claim key    | 24 hours; SHA-256 hex, not the address    | n/a                         | Redis key TTL; `ThrottledDeletedAccountNoticeMailer` set-if-absent with expiry   | ✅ automatic — key TTL          |
 
 Legend:
 
 - ✅ **Phase A1 — DAILY**: enforced by a registered `BackgroundTaskScheduler` task running every 24h.
 - ⚠ **manual / no soft-delete**: deletion happens only via explicit operator action or DB cascade; no scheduled cleanup.
+- ✅ **automatic — key TTL**: the Redis key of the deleted-account notice claim expires on its own after 24h; no scheduled job runs.
 - ❌ **no automated retention**: data accumulates indefinitely; retention work tracked under the linked roadmap sub-phase.
 
 ---
