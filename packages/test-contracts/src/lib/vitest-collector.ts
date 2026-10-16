@@ -27,6 +27,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { createVitest, type Vitest } from "vitest/node";
 import { err, ok, type Result } from "@shared/types";
+import { describeExit } from "./child-exit.js";
 import {
   COLLECTOR_ID,
   describeError,
@@ -281,16 +282,8 @@ export async function listWithCli(
     return err(`vitest list for ${config}: ${run.error.message}`);
   }
   if (run.status !== 0) {
-    // spawnSync names a signal whenever it reports no status and no error, so the last arm only
-    // keeps this message in step with the node collector's, whose recorded runs can omit both.
-    const ending =
-      run.status !== null
-        ? `exited ${String(run.status)}`
-        : run.signal !== null
-          ? `was stopped by ${run.signal}`
-          : "produced no exit status";
     const tail = run.stderr.trim().split("\n").slice(-3).join(" | ");
-    return err(`vitest list ${ending}: ${tail}`);
+    return err(`vitest list ${describeExit(run)}: ${tail}`);
   }
   const listed = parseListOutput(run.stdout);
   return listed.ok ? ok({ specs: listed.value, excludes: null }) : listed;

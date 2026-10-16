@@ -23,6 +23,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { err, ok, type Result } from "@shared/types";
+import { describeExit } from "./child-exit.js";
 import {
   COLLECTOR_ID,
   describeError,
@@ -190,16 +191,8 @@ function runListWithBash(
 function runFailure(run: RunnerRun): string | null {
   if (run.error !== undefined) return `--list could not run: ${run.error}`;
   if (run.status === 0) return null;
-  // A recorded run can report neither a status nor a signal; naming a null signal would read as a
-  // signal called "null".
-  const ending =
-    run.status !== null
-      ? `exited ${String(run.status)}`
-      : run.signal !== null
-        ? `was stopped by ${run.signal}`
-        : "produced no exit status";
   const tail = run.stderr.trim().split("\n").slice(-3).join(" | ");
-  return `--list ${ending}: ${tail}`;
+  return `--list ${describeExit(run)}: ${tail}`;
 }
 
 /**

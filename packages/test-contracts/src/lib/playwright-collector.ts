@@ -22,6 +22,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { err, ok, type Result } from "@shared/types";
+import { describeExit } from "./child-exit.js";
 import {
   asRecord,
   COLLECTOR_ID,
@@ -204,21 +205,13 @@ export function listWithPlaywrightCli(
   }
   if (run.error !== undefined) return err(`playwright test --list: ${run.error.message}`);
   if (run.status !== 0) {
-    // spawnSync names a signal whenever it reports no status and no error, so the last arm only
-    // keeps this message in step with the node collector's, whose recorded runs can omit both.
-    const ending =
-      run.status !== null
-        ? `exited ${String(run.status)}`
-        : run.signal !== null
-          ? `was stopped by ${run.signal}`
-          : "produced no exit status";
     // A config that loads but fails, "No tests found" included, reports it in the JSON on stdout
     // and leaves stderr empty, so the report is read first.
     const report = parsePlaywrightList(run.stdout);
     const tail = run.stderr.trim().split("\n").slice(-3).join(" | ");
     const detail =
       !report.ok && (report.error.startsWith(REPORTED_ERRORS) || tail === "") ? report.error : tail;
-    return err(`playwright test --list ${ending}: ${detail}`);
+    return err(`playwright test --list ${describeExit(run)}: ${detail}`);
   }
   const parsed = parsePlaywrightList(run.stdout);
   return parsed.ok ? parsed : err(`playwright test --list ${parsed.error}`);

@@ -1,7 +1,15 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-15, a Prisma constraint violation is read where Prisma 7 reports it
+**As of:** 2026-10-16, the reach engine refuses the inputs Phase 1's review suggestions named
+(`workstream/night-r2-reach-engine`, `PR reach`, book rows SB-123 to SB-146). The source-resolution
+CLI refuses a bare `--root` and an unknown argument and its suite asserts the exit code; the node:test
+collector refuses absolute and escaping paths; every listing names its output cap and reports an
+overflow by it; executed-by refuses an entry with both scopes; and one helper, `describeExit` in
+`packages/test-contracts/src/lib/child-exit.ts`, words every child that did not exit 0. Its suite
+moved M1 `1006 + 14` → `1007 + 14`.
+
+Before it, on 2026-10-15, a Prisma constraint violation is read where Prisma 7 reports it
 (`workstream/night-cp1-prisma-7-10`, `PR cp1`, unit C-P1 of `dependency-catch-up-2026-10-15`). Through
 `@prisma/adapter-pg` the violated constraint sits at `meta.driverAdapterError.cause.constraint` and
 `meta.target` is never set, so four readers of `meta.target` never matched; one reader,
@@ -583,7 +591,9 @@ package (M1 `995 + 14` → `998 + 14`, M8 `1/92` → `1/93` for its vitest confi
 patched-dependencies gate, fitness #48, on `workstream/patched-dependencies-gate`, which added its
 suite and its gate row (M1 `1002 + 14` → `1003 + 14`, M7 `37/37` → `38/38`). `PR cp1` is the Prisma
 constraint reader on `workstream/night-cp1-prisma-7-10`, which added its suite, the db-prisma
-unique-violation suite and the team-invite integration suite (M1 `1003 + 14` → `1006 + 14`). A `PR`
+unique-violation suite and the team-invite integration suite (M1 `1003 + 14` → `1006 + 14`). `PR reach`
+is the reach-engine hardening on `workstream/night-r2-reach-engine`, which added the suite of the
+shared child-exit helper of `@packages/test-contracts` (M1 `1006 + 14` → `1007 + 14`). A `PR`
 followed by a letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
 [§Plan (fixed)](#plan-fixed)'s own label for the pull request that
 closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
@@ -592,7 +602,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1006 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR cp1   |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1007 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR reach |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
