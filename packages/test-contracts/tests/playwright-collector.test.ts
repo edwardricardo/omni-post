@@ -1,8 +1,9 @@
 /**
  * @file playwright-collector.test.ts
  * @description Self-tests of the Playwright collector: how a `playwright test --list
- *              --reporter=json` report is read, every way the report or the collector fails
- *              closed, and one listing through the real CLI over the admin portal's config, which
+ *              --reporter=json` report is read, every way the report, the listing (its output
+ *              cap included) or the collector fails closed, and one listing through the real CLI
+ *              over the admin portal's config, which
  *              pins the report's shape to the Playwright the repository installs.
  * @layer infrastructure
  */
@@ -62,7 +63,12 @@ describe("Playwright report parsing", () => {
     [
       "a load error",
       report({ errors: [{ message: "Error: cannot find module" }] }),
-      "reported 1 errors: Error: cannot find module",
+      "reported 1 error: Error: cannot find module",
+    ],
+    [
+      "two load errors, naming the first",
+      report({ errors: [{ message: "first" }, { message: "second" }] }),
+      "reported 2 errors: first",
     ],
     ["no suites list", report({ suites: {} }), "no suites list"],
     [
@@ -70,7 +76,22 @@ describe("Playwright report parsing", () => {
       report({ suites: [{ specs: [{ tests: [] }] }] }),
       "a spec with no file",
     ],
+    [
+      "a spec whose file is absolute",
+      report({ suites: [{ specs: [{ file: "/etc/x.spec.ts" }] }] }),
+      'a spec whose file is absolute: "/etc/x.spec.ts"',
+    ],
     ["a suite that is not an object", report({ suites: [3] }), "a suite that is not an object"],
+    [
+      "nested specs that are not a list",
+      report({ suites: [{ suites: [{ specs: "a.spec.ts" }] }] }),
+      "printed a suite whose specs are not a list",
+    ],
+    [
+      "nested suites that are not a list",
+      report({ suites: [{ suites: [{ specs: [], suites: 3 }] }] }),
+      "printed a suite whose suites are not a list",
+    ],
   ])("returns a failure for %s", (_label, stdout, expected) => {
     const parsed = parsePlaywrightList(stdout);
 
@@ -95,8 +116,7 @@ describe("Playwright collector", () => {
   it("returns one collection per config, the files repository-relative", async () => {
     const tree = plantTree({ "app/playwright.config.ts": "", "other.txt": "" });
     planted.push(tree);
-    const listing = (config: string) =>
-      Promise.resolve(ok([path.join(path.dirname(config), "e2e/x.spec.ts")]));
+    const listing = (config: string) => ok([path.join(path.dirname(config), "e2e/x.spec.ts")]);
 
     const outcome = await createPlaywrightCollector({ listing }).collect(tree);
 
@@ -116,7 +136,7 @@ describe("Playwright collector", () => {
     const tree = plantTree({ "a/playwright.config.ts": "", "b/playwright.config.ts": "" });
     planted.push(tree);
     const listing = (config: string) =>
-      Promise.resolve(config.includes(`${path.sep}a${path.sep}`) ? ok([]) : err("exited 1: boom"));
+      config.includes(`${path.sep}a${path.sep}`) ? ok([]) : err("exited 1: boom");
 
     const outcome = await createPlaywrightCollector({ listing }).collect(tree);
 
@@ -146,18 +166,48 @@ describe("Playwright collector", () => {
     ]);
   });
 
-  it("returns a failure when no node_modules above the config installs Playwright", async () => {
+  it("returns a failure when no node_modules above the config installs Playwright", () => {
     const tree = plantTree({ "app/playwright.config.ts": "export default {};\n" });
     planted.push(tree);
 
-    const listed = await listWithPlaywrightCli(path.join(tree.root, "app/playwright.config.ts"));
+    const listed = listWithPlaywrightCli(path.join(tree.root, "app/playwright.config.ts"));
 
     expect(listed).toEqual(
       err(`no node_modules above ${path.join(tree.root, "app")} installs @playwright/test`)
     );
   });
 
-  it("names the report's own error when a failed listing also writes to stderr", async () => {
+  it("returns a failure naming the output cap when a listing prints more than it", () => {
+    const tree = plantTree({
+      "app/playwright.config.ts": "export default {};\n",
+      "node_modules/@playwright/test/cli.js": 'process.stdout.write("x".repeat(4096));\n',
+    });
+    planted.push(tree);
+
+    const listed = listWithPlaywrightCli(path.join(tree.root, "app/playwright.config.ts"), {
+      outputCapBytes: 1024,
+    });
+
+    expect(listed).toEqual(
+      err("playwright test --list printed more than the 1024-byte output cap")
+    );
+  });
+
+  it("returns a failure naming the signal that stopped the listing", () => {
+    const tree = plantTree({
+      "app/playwright.config.ts": "export default {};\n",
+      "node_modules/@playwright/test/cli.js": 'process.kill(process.pid, "SIGKILL");\n',
+    });
+    planted.push(tree);
+
+    const listed = listWithPlaywrightCli(path.join(tree.root, "app/playwright.config.ts"));
+
+    expect(listed).toEqual(
+      err('playwright test --list was stopped by SIGKILL: printed no JSON report; it begins ""')
+    );
+  });
+
+  it("names the report's own error when a failed listing also writes to stderr", () => {
     // A config that loads but fails writes its errors into the JSON on stdout; a stderr line
     // beside them (a warning, a stack) must not replace them in the failure message.
     const report = JSON.stringify({
@@ -176,17 +226,17 @@ describe("Playwright collector", () => {
     });
     planted.push(tree);
 
-    const listed = await listWithPlaywrightCli(path.join(tree.root, "app/playwright.config.ts"));
+    const listed = listWithPlaywrightCli(path.join(tree.root, "app/playwright.config.ts"));
 
-    expect(listed).toEqual(err("playwright test --list exited 1: reported 1 errors: boom"));
+    expect(listed).toEqual(err("playwright test --list exited 1: reported 1 error: boom"));
   });
 
   it(
     "lists the admin portal's specs through the real Playwright CLI",
-    async () => {
+    () => {
       const config = path.join(REPOSITORY_ROOT, "apps/admin/playwright.config.ts");
 
-      const listed = await listWithPlaywrightCli(config);
+      const listed = listWithPlaywrightCli(config);
 
       const files = listed.ok ? listed.value : [];
       expect(listed.ok ? "" : listed.error).toBe("");

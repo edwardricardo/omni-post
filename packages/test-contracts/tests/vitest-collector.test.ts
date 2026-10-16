@@ -3,7 +3,8 @@
  * @description Self-tests of the vitest collector over planted trees: what each config collects,
  *              per project, through the node API and through its CLI fallback, the two floors it
  *              fails closed on, the config expression metric M8 counts with, and how the CLI
- *              fallback names an output that is not the listing and a run past its time cap.
+ *              fallback names an output that is not the listing, a run past its time or output
+ *              cap, and a run a signal stopped.
  * @layer infrastructure
  */
 import path from "node:path";
@@ -239,11 +240,42 @@ describe("vitest list fallback", () => {
   it("returns a failure naming the config and the cap when vitest list times out", async () => {
     const { directory, config } = plantConfig(configCollecting(["*.test.ts"]));
 
-    const listed = await listWithCli(directory, config, 1);
+    const listed = await listWithCli(directory, config, { timeoutMs: 1 });
 
     expect(listed).toEqual({
       ok: false,
       error: `vitest list for ${config} timed out after the 1 ms cap`,
     });
   });
+
+  it(
+    "returns a failure naming the config and the output cap when vitest list prints more than it",
+    { timeout: CLI_SPAWN_TIMEOUT_MS },
+    async () => {
+      const { directory, config } = plantConfig(
+        `console.log("x".repeat(4096));\n${configCollecting(["*.test.ts"])}`
+      );
+
+      const listed = await listWithCli(directory, config, { outputCapBytes: 1024 });
+
+      expect(listed).toEqual({
+        ok: false,
+        error: `vitest list for ${config} printed more than the 1024-byte output cap`,
+      });
+    }
+  );
+
+  it(
+    "returns a failure naming the signal that stopped vitest list",
+    { timeout: CLI_SPAWN_TIMEOUT_MS },
+    async () => {
+      const { directory, config } = plantConfig(
+        'process.kill(process.pid, "SIGKILL");\nexport default {};\n'
+      );
+
+      const listed = await listWithCli(directory, config);
+
+      expect(listed.ok ? "" : listed.error).toMatch(/^vitest list was stopped by SIGKILL: /);
+    }
+  );
 });

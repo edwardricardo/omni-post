@@ -2,8 +2,8 @@
  * @file disk.test.ts
  * @description Self-tests of the disk side of the reach engine: the test-shaped expression stays
  *              the one metric M1 counts with, the floor fails closed, the git listing reads this
- *              repository in full and drops what the working tree lost, and a directory outside
- *              any repository is a failure.
+ *              repository in full and drops what the working tree lost, and a listing past its
+ *              output cap and a directory outside any repository are failures.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -113,6 +113,23 @@ describe("disk inventory", () => {
       });
 
       expect(listed).toEqual({ ok: true, value: ["kept.test.ts"] });
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
+  });
+
+  it("returns a failure naming the output cap when git ls-files prints more than it", () => {
+    const repository = mkdtempSync(path.join(tmpdir(), "test-contracts-"));
+    try {
+      const listed = withConfinedGit(repository, () => {
+        commitTwoTestsThenLoseOne(repository);
+        return listTrackedFiles(repository, 4);
+      });
+
+      expect(listed).toEqual({
+        ok: false,
+        error: { message: `git ls-files in ${repository} printed more than the 4-byte output cap` },
+      });
     } finally {
       rmSync(repository, { recursive: true, force: true });
     }

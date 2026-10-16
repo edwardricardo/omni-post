@@ -9,8 +9,13 @@
  *              file collected twice.
  *
  *              It fails closed below {@link PLAYWRIGHT_CONFIG_FLOOR} tracked configs, on a config
- *              whose listing cannot be run, exits non-zero, prints anything but the JSON report,
- *              reports a load error or a spec with no file, and on a config that collects no file.
+ *              whose listing cannot be run, exits non-zero, prints more than its output cap or
+ *              anything but the JSON report, reports a load error, a spec with no file or one whose
+ *              file is absolute, and on a config that collects no file.
+ *
+ *              A listing runs synchronously and is typed so: the engine runs its collectors one
+ *              after another and this collector lists its configs one after another, so no other
+ *              work shares the event loop while a listing runs.
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -39,6 +44,13 @@ const PLAYWRIGHT_CONFIG_FLOOR = 1;
 const LIST_TIMEOUT_MS = 120_000;
 
 /**
+ * The bytes one `playwright test --list` may print on stdout or stderr before it is stopped and
+ * reported. The report names every spec once per project, and the cap bounds what a runaway
+ * listing can hold in memory, far above what a tracked config prints.
+ */
+const LIST_OUTPUT_CAP_BYTES = 64 * 1024 * 1024;
+
+/**
  * Opens the error of a report that loaded but carried errors of its own (a failing config, "No
  * tests found"). A failed listing prefers that error over stderr's tail, because Playwright
  * writes it into the JSON on stdout and leaves stderr empty; the listing tells it apart by this
@@ -52,7 +64,15 @@ const REPORTED_ERRORS = "reported";
  * @param config - The config's absolute path.
  * @returns The collected spec files as absolute paths, or why the listing failed.
  */
-type PlaywrightListing = (config: string) => Promise<Result<string[], string>>;
+type PlaywrightListing = (config: string) => Result<string[], string>;
+
+/** The caps of one listing; the self-tests lower them, the collector takes the defaults. */
+export interface PlaywrightListLimits {
+  /** How long the listing may run before it is stopped. */
+  readonly timeoutMs?: number;
+  /** How many bytes stdout or stderr may carry before the listing is stopped. */
+  readonly outputCapBytes?: number;
+}
 
 /** Overrides for the self-tests: a smaller floor, or a recorded listing. */
 export interface PlaywrightCollectorOptions {
@@ -72,10 +92,14 @@ function collectSpecFiles(suite: unknown, files: Set<string>): string | null {
   if (record === null) return "a suite that is not an object";
   const specs = record.specs ?? [];
   const suites = record.suites ?? [];
-  if (!Array.isArray(specs) || !Array.isArray(suites)) return "a suite whose specs are not a list";
+  if (!Array.isArray(specs)) return "a suite whose specs are not a list";
+  if (!Array.isArray(suites)) return "a suite whose suites are not a list";
   for (const spec of specs) {
     const file = asRecord(spec)?.file;
     if (typeof file !== "string" || file === "") return "a spec with no file";
+    // An absolute file would replace config.rootDir when it is resolved, naming a file the
+    // config's own directory does not anchor.
+    if (path.isAbsolute(file)) return `a spec whose file is absolute: ${JSON.stringify(file)}`;
     files.add(file);
   }
   for (const child of suites) {
@@ -86,10 +110,10 @@ function collectSpecFiles(suite: unknown, files: Set<string>): string | null {
 }
 
 /**
- * Reads what `playwright test --list --reporter=json` printed on stdout. Measured on Playwright
- * 1.63.0: stdout is the JSON report and nothing else, its `config.rootDir` is absolute, every
- * spec's `file` is relative to it, and a config that cannot load lands in `errors`.
- *
+ * @description Reads what `playwright test --list --reporter=json` printed on stdout. Measured on
+ *   Playwright 1.63.0: stdout is the JSON report and nothing else, its `config.rootDir` is
+ *   absolute, every spec's `file` is relative to it, and a config that cannot load lands in
+ *   `errors`.
  * @param stdout - The command's standard output.
  * @returns The spec files as absolute paths, or why the output is not the report.
  */
@@ -114,7 +138,8 @@ export function parsePlaywrightList(stdout: string): Result<string[], string> {
   if (errors.length > 0) {
     const first = asRecord(errors[0])?.message;
     const message = typeof first === "string" ? first : "(no message)";
-    return err(`${REPORTED_ERRORS} ${String(errors.length)} errors: ${message}`);
+    const noun = errors.length === 1 ? "error" : "errors";
+    return err(`${REPORTED_ERRORS} ${String(errors.length)} ${noun}: ${message}`);
   }
   const suites = report?.suites;
   if (!Array.isArray(suites)) return err("printed a report with no suites list");
@@ -146,50 +171,61 @@ function findPlaywrightCli(directory: string): string | null {
 }
 
 /**
- * Lists a config's spec files through the Playwright CLI its own directory installs.
- *
+ * @description Lists a config's spec files through the Playwright CLI its own directory
+ *   installs, in a child process the call waits for.
  * @param config - The config's absolute path.
- * @param timeoutMs - How long the listing may run before it is stopped.
+ * @param limits - Lower caps, for the self-tests only.
  * @returns The spec files as absolute paths, or why the listing failed.
  */
 export function listWithPlaywrightCli(
   config: string,
-  timeoutMs: number = LIST_TIMEOUT_MS
-): Promise<Result<string[], string>> {
+  limits: PlaywrightListLimits = {}
+): Result<string[], string> {
+  const timeoutMs = limits.timeoutMs ?? LIST_TIMEOUT_MS;
+  const outputCapBytes = limits.outputCapBytes ?? LIST_OUTPUT_CAP_BYTES;
   const directory = path.dirname(config);
   const cli = findPlaywrightCli(directory);
-  if (cli === null) {
-    return Promise.resolve(err(`no node_modules above ${directory} installs @playwright/test`));
-  }
+  if (cli === null) return err(`no node_modules above ${directory} installs @playwright/test`);
   const run = spawnSync(
     process.execPath,
     [cli, "test", "--list", "--reporter=json", "-c", config],
-    { cwd: directory, encoding: "utf8", timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 }
+    { cwd: directory, encoding: "utf8", timeout: timeoutMs, maxBuffer: outputCapBytes }
   );
-  if (run.error !== undefined && "code" in run.error && run.error.code === "ETIMEDOUT") {
-    return Promise.resolve(err(`playwright test --list timed out after ${String(timeoutMs)} ms`));
+  const code = run.error !== undefined && "code" in run.error ? run.error.code : undefined;
+  if (code === "ETIMEDOUT") {
+    return err(`playwright test --list timed out after ${String(timeoutMs)} ms`);
   }
-  if (run.error !== undefined) {
-    return Promise.resolve(err(`playwright test --list: ${run.error.message}`));
+  // spawnSync stops the child and reports ENOBUFS when a stream outgrows maxBuffer; its own
+  // message names neither the stream's cap nor what was listed.
+  if (code === "ENOBUFS") {
+    return err(
+      `playwright test --list printed more than the ${String(outputCapBytes)}-byte output cap`
+    );
   }
+  if (run.error !== undefined) return err(`playwright test --list: ${run.error.message}`);
   if (run.status !== 0) {
+    // spawnSync names a signal whenever it reports no status and no error, so the last arm only
+    // keeps this message in step with the node collector's, whose recorded runs can omit both.
     const ending =
-      run.status === null ? `was stopped by ${String(run.signal)}` : `exited ${String(run.status)}`;
+      run.status !== null
+        ? `exited ${String(run.status)}`
+        : run.signal !== null
+          ? `was stopped by ${run.signal}`
+          : "produced no exit status";
     // A config that loads but fails, "No tests found" included, reports it in the JSON on stdout
     // and leaves stderr empty, so the report is read first.
     const report = parsePlaywrightList(run.stdout);
     const tail = run.stderr.trim().split("\n").slice(-3).join(" | ");
     const detail =
       !report.ok && (report.error.startsWith(REPORTED_ERRORS) || tail === "") ? report.error : tail;
-    return Promise.resolve(err(`playwright test --list ${ending}: ${detail}`));
+    return err(`playwright test --list ${ending}: ${detail}`);
   }
   const parsed = parsePlaywrightList(run.stdout);
-  return Promise.resolve(parsed.ok ? parsed : err(`playwright test --list ${parsed.error}`));
+  return parsed.ok ? parsed : err(`playwright test --list ${parsed.error}`);
 }
 
 /**
- * Builds the Playwright collector.
- *
+ * @description Builds the Playwright collector.
  * @param options - A smaller floor or a recorded listing, for the self-tests only.
  * @returns The collector.
  */
@@ -198,19 +234,19 @@ export function createPlaywrightCollector(options: PlaywrightCollectorOptions = 
   const listing = options.listing ?? ((config: string) => listWithPlaywrightCli(config));
   return {
     id: COLLECTOR_ID.PLAYWRIGHT,
-    async collect(context: CollectorContext): Promise<CollectorOutcome> {
+    collect(context: CollectorContext): Promise<CollectorOutcome> {
       const tracked = trackedConfigs(
         COLLECTOR_ID.PLAYWRIGHT,
         context,
         { pattern: PLAYWRIGHT_CONFIG, label: "Playwright" },
         floor
       );
-      if (!tracked.ok) return tracked.error;
+      if (!tracked.ok) return Promise.resolve(tracked.error);
       const { configs, root } = tracked.value;
       const collections: Collection[] = [];
       const failures: CollectorFailure[] = [];
       for (const config of configs) {
-        const listed = await listing(path.join(root, config));
+        const listed = listing(path.join(root, config));
         if (!listed.ok || listed.value.length === 0) {
           failures.push({
             collector: COLLECTOR_ID.PLAYWRIGHT,
@@ -230,7 +266,7 @@ export function createPlaywrightCollector(options: PlaywrightCollectorOptions = 
           files: [...new Set(files)].sort(),
         });
       }
-      return { collections, failures };
+      return Promise.resolve({ collections, failures });
     },
   };
 }
