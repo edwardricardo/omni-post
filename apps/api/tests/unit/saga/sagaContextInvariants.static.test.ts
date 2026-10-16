@@ -15,7 +15,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, dirname, relative } from "node:path";
+import { join, dirname, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
@@ -1632,14 +1632,62 @@ describe("saga engine context invariants", () => {
     // nowhere while reading as coverage. Whether a collected file then runs or sits
     // in the quarantine is reach, which fitness #30 measures over the whole tree;
     // this block holds the naming a saga suite needs to be collected at all.
+    //
+    // Its scope is saga suites BY PATH: a test-shaped file outside both vitest trees
+    // whose path says `saga`. A saga suite named for something else is outside it,
+    // and so is every other suite; fitness #30 holds those, since it reads every
+    // test-shaped file under apps/api/tests whatever its name and fails one no
+    // collector reaches. Test-shaped is fitness #30's own reading of a name, `.test.`
+    // or `.spec.` before a JavaScript or TypeScript extension, so a `.spec.ts` or a
+    // `.test.mjs` saga file is read here too rather than passing unseen.
     const testsRoot = join(apiRoot, "tests");
+    const TEST_SHAPED = /\.(?:test|spec)\.[cm]?[jt]sx?$/;
+    const VITEST_TREES = [join("tests", "unit"), join("tests", "eval")];
 
-    const sagaSuites = getAllTsFiles(testsRoot)
+    /** Succeeds for a path, from the API root, that this block holds to a tier suffix. */
+    function isNodeTestSagaSuite(path: string): boolean {
+      return (
+        TEST_SHAPED.test(path) &&
+        /saga/i.test(path) &&
+        !VITEST_TREES.some((tree) => path.startsWith(`${tree}${sep}`))
+      );
+    }
+
+    /** Every file under `dir`, at any depth, whatever its extension. */
+    function getAllFiles(dir: string): string[] {
+      return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const fullPath = join(dir, entry.name);
+        return entry.isDirectory() ? getAllFiles(fullPath) : [fullPath];
+      });
+    }
+
+    const sagaSuites = getAllFiles(testsRoot)
       .map((path) => relative(apiRoot, path))
-      .filter((path) => path.endsWith(".test.ts"))
-      .filter((path) => /saga/i.test(path))
-      .filter((path) => !path.startsWith(join("tests", "unit")))
+      .filter(isNodeTestSagaSuite)
       .sort();
+
+    it("reads every test-shaped saga name a collector could miss, outside both vitest trees", () => {
+      // The names a suffix check must see are the ones no collector takes: a `.spec.`
+      // file or a JavaScript one reads as a test to a reviewer and runs nowhere. The
+      // vitest trees, tests/unit and tests/eval, collect their own files.
+      expect(
+        [
+          "tests/integration/sagaReplay.spec.ts",
+          "tests/integration/sagaReplay.test.mts",
+          "tests/chaos/saga-retry.test.js",
+          "tests/integration/sagaCrashRecovery.integration.test.ts",
+          "tests/integration/helpers/sagaHarness.ts",
+          "tests/unit/saga/sagaThing.test.ts",
+          "tests/eval/sagaTrajectory.eval.test.ts",
+          "tests/integration/publishFlow.integration.test.ts",
+        ].filter(isNodeTestSagaSuite)
+      ).toEqual([
+        "tests/integration/sagaReplay.spec.ts",
+        "tests/integration/sagaReplay.test.mts",
+        "tests/chaos/saga-retry.test.js",
+        "tests/integration/sagaCrashRecovery.integration.test.ts",
+      ]);
+    });
 
     it("still finds the node:test saga suites on disk", () => {
       // Minimum + membership rather than an exact set: a NEW suite must fail

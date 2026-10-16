@@ -15,7 +15,7 @@
  * @layer infrastructure
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -25,6 +25,9 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 }).trim();
 
 const REPORTER = path.join(REPO_ROOT, "scripts", "testing", "node-summary-reporter.mjs");
+
+/** The integration collector, whose `SUMMARY_LINE` pattern reads the reporter's line. */
+const RUNNER = path.join(REPO_ROOT, "apps", "api", "scripts", "run-tests.sh");
 
 /** The cap `spawnSync` puts on one node process a case starts. */
 const SPAWN_TIMEOUT_MS = 60_000;
@@ -264,6 +267,56 @@ describe("node-summary-reporter over a real node:test run", () => {
     });
     expect(run.stdout).toContain("# a line from the suite\n");
     expect(run.stdout).toContain("# @@SUMMARY tests=9 pass=9");
+  });
+});
+
+describe("the collector's pattern reads the reporter's line", () => {
+  /** The `SUMMARY_LINE` pattern exactly as run-tests.sh assigns it, without its quotes. */
+  function runnerSummaryPattern(): string {
+    const assignment = readFileSync(RUNNER, "utf8")
+      .split("\n")
+      .find((line) => line.startsWith("SUMMARY_LINE='"));
+    return /^SUMMARY_LINE='(.*)'$/.exec(assignment ?? "")?.[1] ?? "";
+  }
+
+  it("matches the line a real run prints whole, in bash, with each count in the group the collector reads", () => {
+    // The collector reads groups 1 to 5 as tests, pass, fail, cancelled and skipped. A
+    // field the reporter renamed, reordered or added would leave every file without a
+    // verdict at run time; matched here, by bash's own `=~` as the collector matches it,
+    // the drift is a unit-test red. The counts differ from each other where they can, so
+    // a group read from the wrong field cannot pass.
+    const run = runFile(
+      "coupled",
+      [
+        'import { it } from "node:test";',
+        'it("one", () => {});',
+        'it("two", () => {});',
+        'it("three", () => {});',
+        'it("fails", () => { throw new Error("planted"); });',
+        'it("skip one", (t) => { t.skip("absent"); });',
+        'it("skip two", (t) => { t.skip("absent"); });',
+        'it("later", { todo: "not written" }, () => {});',
+        "",
+      ].join("\n")
+    );
+    const [line = ""] = summaryLines(run.stdout);
+    const pattern = runnerSummaryPattern();
+    const matched = spawnSync(
+      "bash",
+      ["-c", '[[ $1 =~ $2 ]] && printf "%s\\n" "${BASH_REMATCH[@]:1}"', "coupling", line, pattern],
+      { encoding: "utf8", timeout: SPAWN_TIMEOUT_MS }
+    );
+
+    expect(pattern.startsWith("^@@SUMMARY ")).toBe(true);
+    expect({
+      line,
+      matchExit: matched.status,
+      groups: (matched.stdout ?? "").split("\n").filter(Boolean),
+    }).toEqual({
+      line: "@@SUMMARY tests=7 pass=3 fail=1 cancelled=0 skipped=2 todo=1",
+      matchExit: 0,
+      groups: ["7", "3", "1", "0", "2", "1"],
+    });
   });
 });
 
