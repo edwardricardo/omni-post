@@ -263,6 +263,33 @@ describe("rule R2", () => {
     expect([...verdict.runSources]).toEqual(["vitest:pkg-a/vitest.config.ts"]);
   });
 
+  it("returns a source ending in a slash as under its own directory prefix", () => {
+    const collections = [vitest("pkg-a/"), vitest("pkg-ab/vitest.config.ts")];
+
+    const verdict = checkExecutedBy(
+      input([{ ...UNIT_ENTRY, packages: ["pkg-a"] }], { collections })
+    );
+
+    expect([...verdict.runSources]).toEqual(["vitest:pkg-a/"]);
+  });
+
+  it("returns an R2 violation and no run source for a hand-built entry with both scopes", () => {
+    const both = { ...UNIT_ENTRY, packages: ["pkg-a"], exclude: ["pkg-b"] };
+
+    const verdict = checkExecutedBy(input([both]));
+
+    expect(verdict).toEqual({
+      violations: [
+        {
+          rule: "R2",
+          file: SUBJECT,
+          message: "it carries both packages and exclude, so it runs no source",
+        },
+      ],
+      runSources: new Set(),
+    });
+  });
+
   it.each([
     [
       "a job the workflow does not hold",

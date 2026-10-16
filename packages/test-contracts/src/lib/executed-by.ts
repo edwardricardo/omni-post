@@ -8,7 +8,9 @@
  *              and every check name the job renders (one per matrix combination) is a required
  *              status check of the committed ruleset. Its scope names the sources it runs:
  *              `packages`, directory prefixes each of which must cover a source; `exclude`, every
- *              source outside these prefixes; or neither, every source of the collector.
+ *              source outside these prefixes; or neither, every source of the collector. The two
+ *              exclude each other: the parser refuses an entry carrying both, and one built by
+ *              hand that carries both is a violation and runs no source.
  *
  *              A source no entry covers is not run by a required check: the verdict in `rules.ts`
  *              then counts the files only it collects as unreached. A collector with an empty
@@ -113,8 +115,7 @@ function parseEntry(value: unknown, where: string): Result<ExecutedByEntry, stri
 }
 
 /**
- * Parses `collectors.json`.
- *
+ * @description Parses `collectors.json`.
  * @param text - The registry's JSON text.
  * @param label - What to call it in a failure, usually its path.
  * @returns Collector id → its entries, or why the registry cannot be trusted.
@@ -152,10 +153,9 @@ export function parseCollectorRegistry(
 }
 
 /**
- * Reads the required status-check contexts of a ruleset, in the shape GitHub's rulesets API
- * returns: `rules[]` with `type: "required_status_checks"` and
- * `parameters.required_status_checks[].context`.
- *
+ * @description Reads the required status-check contexts of a ruleset, in the shape GitHub's
+ *   rulesets API returns: `rules[]` with `type: "required_status_checks"` and
+ *   `parameters.required_status_checks[].context`.
  * @param text - The ruleset's JSON text.
  * @param label - What to call it in a failure, usually its path.
  * @returns The contexts, or why the ruleset cannot be trusted.
@@ -217,10 +217,9 @@ function matrixCombinations(strategy: unknown): Result<Map<string, string>[], st
 }
 
 /**
- * Renders the distinct check names a job reports. GitHub reports one check run per matrix
- * combination, and combinations whose names render alike report under the same name; a required
- * context is a name, so the distinct names are what rule R2 holds against the ruleset.
- *
+ * @description Renders the distinct check names a job reports. GitHub reports one check run per
+ *   matrix combination, and combinations whose names render alike report under the same name; a
+ *   required context is a name, so the distinct names are what rule R2 holds against the ruleset.
  * @param jobId - The job's id.
  * @param job - The job's parsed mapping.
  * @returns The names, or why they cannot be rendered without guessing.
@@ -271,10 +270,21 @@ function isUnder(source: string, prefix: string): boolean {
 
 /**
  * @param entry - A registry entry.
+ * @returns Whether it carries both scopes. The registry parser refuses such an entry, but an input
+ *   built by hand reaches {@link checkExecutedBy} without that parser.
+ */
+function hasBothScopes(entry: ExecutedByEntry): boolean {
+  return entry.packages !== undefined && entry.exclude !== undefined;
+}
+
+/**
+ * @param entry - A registry entry.
  * @param source - A collection's source.
- * @returns Whether the entry's scope runs the source.
+ * @returns Whether the entry's scope runs the source; an entry with both scopes runs none, rather
+ *   than whichever of the two is read first.
  */
 function covers(entry: ExecutedByEntry, source: string): boolean {
+  if (hasBothScopes(entry)) return false;
   if (entry.packages !== undefined) return entry.packages.some((p) => isUnder(source, p));
   if (entry.exclude !== undefined) return !entry.exclude.some((p) => isUnder(source, p));
   return true;
@@ -312,8 +322,7 @@ function checkEntryJob(entry: ExecutedByEntry, input: ExecutedByInput): string[]
 }
 
 /**
- * Holds the registry against R2 and returns the sources a required check runs.
- *
+ * @description Holds the registry against R2 and returns the sources a required check runs.
  * @param input - The registry, the ruleset's contexts, the workflows and the collections.
  * @returns Every R2 violation, in registry order, and the run sources.
  */
@@ -325,8 +334,9 @@ export function checkExecutedBy(input: ExecutedByInput): ExecutedByVerdict {
   for (const id of input.collectorIds) {
     if (!input.registry.has(id)) violation(REGISTRY_FILE, `collector "${id}" is not registered`);
   }
+  const ran = new Set(input.collectorIds);
   for (const id of input.registry.keys()) {
-    if (!input.collectorIds.includes(id)) {
+    if (!ran.has(id)) {
       violation(REGISTRY_FILE, `registers "${id}", which the engine does not run`);
     }
   }
@@ -335,6 +345,9 @@ export function checkExecutedBy(input: ExecutedByInput): ExecutedByVerdict {
     const sources = input.collections.filter((c) => c.collector === id);
     for (const entry of entries) {
       const subject = `${id}:${entry.workflow}#${entry.jobId}`;
+      if (hasBothScopes(entry)) {
+        violation(subject, "it carries both packages and exclude, so it runs no source");
+      }
       for (const message of checkEntryJob(entry, input)) violation(subject, message);
       for (const prefix of entry.packages ?? []) {
         if (!sources.some((source) => isUnder(source.source, prefix))) {
@@ -350,8 +363,7 @@ export function checkExecutedBy(input: ExecutedByInput): ExecutedByVerdict {
 }
 
 /**
- * Reads and parses every workflow the registry names.
- *
+ * @description Reads and parses every workflow the registry names.
  * @param root - Absolute repository root.
  * @param registry - The registry.
  * @returns Workflow path → its parsed document, or why it could not be read.
