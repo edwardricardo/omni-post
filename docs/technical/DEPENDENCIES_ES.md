@@ -14,7 +14,7 @@
 | ----------- | ------- | -------------------------------------------------------- |
 | pnpm        | 12.6.0  | Gestor de paquetes con soporte de workspaces             |
 | Turbo       | 2.11.7  | Orquestacion de builds en monorepo con cache inteligente |
-| Node.js     | 24      | Runtime (ultima version LTS)                             |
+| Node.js     | 26      | Runtime (LTS desde el 2026-10-28; ADR-0038)              |
 | TypeScript  | 6.0.3   | Lenguaje — modo estricto en toda la base de codigo       |
 
 ### Vista General de Workspaces
