@@ -2,8 +2,9 @@
  * @file node-collector.test.ts
  * @description Self-tests of the node:test collector: how a `run-tests.sh --list` output is read,
  *              line by line, and every way it fails closed — no line, a malformed line, an unknown
- *              kind, an absolute or repeated path, an untracked path, a run that exits non-zero or
- *              stops, a listing with nothing to collect. The real spawn runs a planted runner, never
+ *              kind, an absolute path in POSIX or Windows form, one that leaves the runner's
+ *              package, a repeated path, an untracked path, a run that exits non-zero, stops or
+ *              reports no exit status, a listing with nothing to collect. The real spawn runs a planted runner, never
  *              the repository's, and proves the runner starts without `DATABASE_URL` and `TIER`.
  * @layer infrastructure
  */
@@ -59,6 +60,12 @@ describe("node:test --list parsing", () => {
     });
   });
 
+  it("returns a path that leaves a directory and returns inside the package, normalised", () => {
+    const parsed = parseRunnerList("live\ttests/sub/../b.live.test.ts\n", "apps/api");
+
+    expect(parsed).toEqual({ ok: true, value: [{ kind: "live", file: LIVE }] });
+  });
+
   it("returns the listing of an output with no final newline", () => {
     const parsed = parseRunnerList("live\ttests/b.live.test.ts", "apps/api");
 
@@ -73,6 +80,24 @@ describe("node:test --list parsing", () => {
     ["a third field", "live\ttests/b.live.test.ts\textra\n", 'line 1 is not "<kind>\\t<path>"'],
     ["an unknown kind", "skipped\ttests/x.test.ts\n", 'line 1 carries the unknown kind "skipped"'],
     ["an absolute path", "live\t/tmp/x.live.test.ts\n", "line 1 names an absolute path"],
+    ["a drive-letter path", "live\tC:\\tests\\x.live.test.ts\n", "line 1 names an absolute path"],
+    [
+      "a forward-slash drive path",
+      "live\tC:/tests/x.live.test.ts\n",
+      "line 1 names an absolute path",
+    ],
+    ["a UNC path", "live\t\\\\host\\share\\x.live.test.ts\n", "line 1 names an absolute path"],
+    [
+      "a path that leaves the package",
+      "live\t../web/x.live.test.ts\n",
+      'line 1 names a path outside apps/api: "../web/x.live.test.ts"',
+    ],
+    [
+      "a path that leaves the package through a nested ..",
+      "live\ttests/../../web/x.live.test.ts\n",
+      'line 1 names a path outside apps/api: "tests/../../web/x.live.test.ts"',
+    ],
+    ["the parent directory itself", "live\t..\n", 'line 1 names a path outside apps/api: ".."'],
     [
       "a path listed under two kinds",
       "integration\ttests/x.test.ts\nlive\ttests/x.test.ts\n",
@@ -142,13 +167,41 @@ describe("node:test collector", () => {
     expect(outcome.failures[0]?.message).toBe('--list line 1 carries the unknown kind "unit"');
   });
 
-  it("returns a failure naming paths that are not tracked files", async () => {
+  it("returns a failure saying the runner produced no exit status when it reports no signal either", async () => {
+    const run = (): RunnerRun => ({ status: null, signal: null, stdout: "", stderr: "a\n" });
+
+    const outcome = await createNodeCollector({ run }).collect(CONTEXT);
+
+    expect(outcome.failures).toEqual([
+      { collector: "node", source: SOURCE, message: "--list produced no exit status: a" },
+    ]);
+  });
+
+  it("returns a failure naming the signal that stopped the runner", async () => {
+    const run = (): RunnerRun => ({ status: null, signal: "SIGKILL", stdout: "", stderr: "a\n" });
+
+    const outcome = await createNodeCollector({ run }).collect(CONTEXT);
+
+    expect(outcome.failures[0]?.message).toBe("--list was stopped by SIGKILL: a");
+  });
+
+  it("returns a failure naming the one path that is not a tracked file", async () => {
     const stdout = "integration\tapps/api/tests/integration/a.integration.test.ts\n";
 
     const outcome = await createNodeCollector({ run: printed(stdout) }).collect(CONTEXT);
 
     expect(outcome.failures[0]?.message).toBe(
-      "--list names 1 paths that are not tracked files: apps/api/apps/api/tests/integration/a.integration.test.ts"
+      "--list names 1 path that is not a tracked file: apps/api/apps/api/tests/integration/a.integration.test.ts"
+    );
+  });
+
+  it("returns a failure naming paths that are not tracked files", async () => {
+    const stdout = "live\ttests/x.live.test.ts\nlive\ttests/y.live.test.ts\n";
+
+    const outcome = await createNodeCollector({ run: printed(stdout) }).collect(CONTEXT);
+
+    expect(outcome.failures[0]?.message).toBe(
+      "--list names 2 paths that are not tracked files: apps/api/tests/x.live.test.ts, apps/api/tests/y.live.test.ts"
     );
   });
 
@@ -207,5 +260,19 @@ describe("node:test collector", () => {
     expect(outcome.failures[0]?.message).toBe(
       "--list could not run: timed out after the 200 ms cap"
     );
+  });
+
+  it("returns a failure naming the output cap when the planted runner prints more than it", async () => {
+    const tree = plantRunner("printf '%04096d' 0");
+
+    const outcome = await createNodeCollector({ outputCapBytes: 1024 }).collect(tree);
+
+    expect(outcome.failures).toEqual([
+      {
+        collector: "node",
+        source: SOURCE,
+        message: "--list could not run: printed more than the 1024-byte output cap",
+      },
+    ]);
   });
 });
