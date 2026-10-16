@@ -1403,11 +1403,13 @@ and what moved it. A slice that moves the count appends its own line.
     92.1 kB gzipped on 4.6.5 against 64.7 kB on 4.4.3. At `2026-10-20T00:00:00Z` the gate reads 20 below latest
     mature, 11 within budget and none undocumented.
 37. `2026-10-15T18:47:25Z` — **10** (1 within budget, 9 held, 0 undocumented): the population rose 50 → 51
-    with `prisma`, the CLI through which the gate now measures the Prisma family (residual (3) of
-    `holds-gate.mjs`; `@prisma/client` and `@prisma/adapter-pg` move with it by convention, and the gate
-    reads neither). The same change took the family 7.9.1 → 7.10.0, its latest stable release (the `prev`
-    dist-tag; `latest` is the release candidate 8.0.0-rc.23, not taken), published `2026-08-25T12:47:51Z`
-    and mature since `2026-09-01T12:47:51Z`, so `prisma` reads `at or above latest mature` and the count
+    with `prisma`, the CLI through which the gate now measures the Prisma family's freshness (residual (3)
+    of `holds-gate.mjs`; `@prisma/client` and `@prisma/adapter-pg` are read for equality only: the
+    population's family `prisma` holds the three to one version, as each importer declares them and as
+    each member resolves another as a dependency or a peer). The same change took the family 7.9.1 →
+    7.10.0, its latest stable release (the `prev` dist-tag; `latest` is the release candidate
+    8.0.0-rc.23, not taken), published `2026-08-25T12:47:51Z` and mature since
+    `2026-09-01T12:47:51Z`, so `prisma` reads `at or above latest mature` and the count
     holds. Pinned back to 7.9.1 (`--ignore-scripts`), the gate reads
     `prisma 7.9.1 7.10.0 lag: UNDOCUMENTED` and exits 1 at `2026-10-02T00:00:00Z` and at
     `2026-10-01T12:47:52Z`, and exits 0 at
@@ -1420,7 +1422,14 @@ and what moved it. A slice that moves the count appends its own line.
     Resolved with pnpm's minimum release age at 10080 minutes, excluding the 23 young pins of line 35 and
     `knip` 6.41.0, then with `pnpm update -r --lockfile-only` of the family: lockfile preference had kept
     the `prisma` 7.9.1 peer of `@prisma/client` under `apps/api` and `packages/adapters/db-prisma`.
-    `pnpm dedupe --check` exits 0 and the deprecated subdependencies stay 26.
+    `pnpm dedupe --check` exits 0 and the deprecated subdependencies stay 26. The family check landed in
+    the same unit: at `2026-10-16T03:16:22Z` the tree prints
+    `family prisma 7.10.0 in lockstep (3 members, 8 resolutions read in 3 importers)` and exits 0; with
+    `@prisma/adapter-pg` planted at 7.9.1 in `infra/prisma` and installed (`--offline --ignore-scripts`),
+    it exits 1 naming `7.9.1 — @prisma/adapter-pg in @infra/prisma` against the seven 7.10.0
+    resolutions; with the manifest
+    and the lockfile restored byte for byte (sha256) and reinstalled, it exits 0 again. The lockfile
+    resolved alone (`--lockfile-only`) does not move it, because `pnpm ls` reads the installed tree.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
