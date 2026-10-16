@@ -132,6 +132,7 @@ import type { TeamInvitationMailer } from "@core/domain/repositories/TeamInvitat
 import type { NotificationMailer } from "@core/domain/repositories/NotificationMailer.js";
 import type { DeletedAccountNoticeMailer } from "@core/domain/repositories/DeletedAccountNoticeMailer.js";
 import { TransactionalEmailAdapter } from "../adapters/TransactionalEmailAdapter.js";
+import { ThrottledDeletedAccountNoticeMailer } from "../adapters/ThrottledDeletedAccountNoticeMailer.js";
 import {
   BullMQQueuePortRegistry,
   BullMQDeadLetterQueueAdapter,
@@ -942,9 +943,15 @@ export function setupServices(
     transactionalEmailAdapter,
     true
   );
+  // Anyone can trigger this notice by registering with an address a deleted holder owns, so it
+  // reaches the transport through a per-address throttle kept in the shared cache.
   container.register<DeletedAccountNoticeMailer>(
     TOKENS.DeletedAccountNoticeMailer,
-    transactionalEmailAdapter,
+    () =>
+      new ThrottledDeletedAccountNoticeMailer(
+        transactionalEmailAdapter(),
+        container.resolve<CachePort>(TOKENS.CachePort)
+      ),
     true
   );
 

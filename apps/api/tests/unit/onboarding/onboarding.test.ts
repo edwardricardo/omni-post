@@ -10,6 +10,7 @@ import { CustomerTokenServiceAdapter } from "../../../src/infrastructure/adapter
 import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
+import type { DeletedAccountNoticeMailer } from "@core/domain/repositories/DeletedAccountNoticeMailer.js";
 import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
 import type { LoggerPort } from "@ports/core";
 
@@ -45,6 +46,14 @@ function makeMockWelcomeMailer(): WelcomeMailer {
   return { sendWelcome: vi.fn().mockResolvedValue({ ok: true, value: undefined }) };
 }
 
+function makeMockNoticeMailer(): DeletedAccountNoticeMailer {
+  return {
+    notifyRegistrationAttemptOnDeletedAccount: vi
+      .fn()
+      .mockResolvedValue({ ok: true, value: undefined }),
+  };
+}
+
 function makeMockCredentialService(): PlatformCredentialReader {
   return {
     getPlatformCredentials: vi.fn().mockResolvedValue({
@@ -65,6 +74,7 @@ const validInput = {
 
 describe("Welcome email on registration", () => {
   let welcomeMailer: WelcomeMailer;
+  let noticeMailer: DeletedAccountNoticeMailer;
   let credService: PlatformCredentialReader;
 
   function makeMockCustomerRoleRepo() {
@@ -83,24 +93,36 @@ describe("Welcome email on registration", () => {
     } as never;
   }
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    welcomeMailer = makeMockWelcomeMailer();
-    credService = makeMockCredentialService();
-  });
-
-  it("sends welcome email after successful registration", async () => {
-    const useCase = new RegisterCustomerUseCase(
+  /**
+   * @param logger - Receives the use case's log calls.
+   * @param welcome - The welcome mailer the registration sends with, if any.
+   * @returns The registration use case over fresh repository doubles and no trial port.
+   */
+  function registrationWith(logger: LoggerPort, welcome?: WelcomeMailer): RegisterCustomerUseCase {
+    const noTrialSubscription = undefined;
+    return new RegisterCustomerUseCase(
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
       hasher,
       tokenService,
-      makeMockLogger(),
-      undefined,
-      welcomeMailer,
+      logger,
+      noticeMailer,
+      noTrialSubscription,
+      welcome,
       credService
     );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    welcomeMailer = makeMockWelcomeMailer();
+    noticeMailer = makeMockNoticeMailer();
+    credService = makeMockCredentialService();
+  });
+
+  it("sends welcome email after successful registration", async () => {
+    const useCase = registrationWith(makeMockLogger(), welcomeMailer);
 
     const result = await useCase.execute(validInput);
 
@@ -119,17 +141,7 @@ describe("Welcome email on registration", () => {
     };
 
     const logger = makeMockLogger();
-    const useCase = new RegisterCustomerUseCase(
-      makeMockCustomerUserRepo(),
-      makeMockCustomerRoleRepo(),
-      makeMockAccountRepo(),
-      hasher,
-      tokenService,
-      logger,
-      undefined,
-      failingMailer,
-      credService
-    );
+    const useCase = registrationWith(logger, failingMailer);
 
     const result = await useCase.execute(validInput);
 
@@ -146,17 +158,7 @@ describe("Welcome email on registration", () => {
   });
 
   it("uses baseUrl from PLATFORM settings", async () => {
-    const useCase = new RegisterCustomerUseCase(
-      makeMockCustomerUserRepo(),
-      makeMockCustomerRoleRepo(),
-      makeMockAccountRepo(),
-      hasher,
-      tokenService,
-      makeMockLogger(),
-      undefined,
-      welcomeMailer,
-      credService
-    );
+    const useCase = registrationWith(makeMockLogger(), welcomeMailer);
 
     await useCase.execute(validInput);
     await new Promise((r) => setTimeout(r, 50));
@@ -168,15 +170,8 @@ describe("Welcome email on registration", () => {
     );
   });
 
-  it("works without a mailer (backward compatible)", async () => {
-    const useCase = new RegisterCustomerUseCase(
-      makeMockCustomerUserRepo(),
-      makeMockCustomerRoleRepo(),
-      makeMockAccountRepo(),
-      hasher,
-      tokenService,
-      makeMockLogger()
-    );
+  it("registers without a welcome mailer", async () => {
+    const useCase = registrationWith(makeMockLogger());
 
     const result = await useCase.execute(validInput);
 

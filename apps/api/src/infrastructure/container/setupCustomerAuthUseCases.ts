@@ -71,10 +71,10 @@ export function setupCustomerAuthUseCases(container: Container): void {
         container.resolve<PasswordHasher>(TOKENS.PasswordHasher),
         container.resolve<CustomerTokenService>(TOKENS.CustomerTokenService),
         createLogger("customer-registration"),
+        container.resolve<DeletedAccountNoticeMailer>(TOKENS.DeletedAccountNoticeMailer),
         new PrismaAccountSubscriptionAdapter(container.resolve<PrismaClient>(TOKENS.PrismaClient)),
         container.resolve<WelcomeMailer>(TOKENS.WelcomeMailer),
         container.resolve<PlatformCredentialReader>(TOKENS.PlatformCredentialService),
-        container.resolve<DeletedAccountNoticeMailer>(TOKENS.DeletedAccountNoticeMailer),
         container.resolve<UnitOfWork>(TOKENS.UnitOfWork)
       ),
     true

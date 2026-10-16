@@ -3,8 +3,9 @@
  * @description Creates a new Account + CustomerUser atomically, hashes the password,
  *   and returns JWT tokens for immediate login (no email verification enforced).
  *   An address already held by any account, live or deleted, is refused with the same
- *   EMAIL_EXISTS; when the holder is a deleted account or a deleted user, the owner of the
- *   address is told by e-mail instead of the caller being told on screen.
+ *   EMAIL_EXISTS after the same holder lookups; when the holder is a deleted account or a
+ *   deleted user, the owner of the address is told by e-mail instead of the caller being told
+ *   on screen.
  * @layer application
  */
 
@@ -98,10 +99,10 @@ export class RegisterCustomerUseCase {
     private readonly hasher: PasswordHasher,
     private readonly tokenService: CustomerTokenService,
     private readonly logger: LoggerPort,
+    private readonly deletedAccountNoticeMailer: DeletedAccountNoticeMailer,
     private readonly accountSubscriptionPort?: AccountSubscriptionPort,
     private readonly welcomeMailer?: WelcomeMailer,
     private readonly credentialService?: PlatformCredentialReader,
-    private readonly deletedAccountNoticeMailer?: DeletedAccountNoticeMailer,
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
@@ -109,8 +110,9 @@ export class RegisterCustomerUseCase {
    * @method execute
    * @description Creates account + user in a single transaction and returns tokens. An
    *   address any account already holds is refused with EMAIL_EXISTS whether that account
-   *   is live or deleted, so the answer reveals nothing a live-account refusal would not;
-   *   for a deleted holder the owner of the address is sent a notice afterwards.
+   *   is live or deleted, after the same holder lookups either way, so neither the answer nor
+   *   the time it takes reveals anything a live-account refusal would not; for a deleted
+   *   holder the owner of the address is sent a notice afterwards.
    * @param input - The registration's account and user data.
    * @returns The created account, user and tokens; VALIDATION_ERROR for invalid input,
    *   EMAIL_EXISTS for an address already held, INTERNAL_ERROR for any other failure.
@@ -132,6 +134,9 @@ export class RegisterCustomerUseCase {
     // cross-account read is a database fault like any other, so it is logged and answered
     // as INTERNAL_ERROR instead of escaping the application layer as a throw.
     try {
+      // Read before, and outside, the transaction below: a refusal writes nothing, so it
+      // opens no transaction, and every holder lookup runs for every address so that a live
+      // holder's refusal takes no less time than a deleted holder's.
       const hold = await this.findHolder(input.email, accountEmail);
       if (hold.taken) {
         // Sent only after the decision, outside any transaction, and never awaited: the
@@ -288,38 +293,47 @@ export class RegisterCustomerUseCase {
    *   live account, or a live account, takes the address with no notice. A live user whose
    *   account is deleted, a deleted user, or a deleted account takes it too, and names the
    *   address for the notice: the registration must not create an account beside the
-   *   deleted one, and only the owner of the address may learn that it exists.
+   *   deleted one, and only the owner of the address may learn that it exists. The four
+   *   lookups all run, together, whatever any of them finds: stopping at the first holder met
+   *   would answer a live holder sooner than a deleted one, and the refusal's latency would
+   *   tell the caller what its bytes do not. The accounts of live users are read only when a
+   *   live user holds the address, and then for a live account and a deleted one alike.
    * @param email - The address of the user being registered.
    * @param accountEmail - The address of the account being created.
    * @returns Whether the addresses are taken, and which of them belong to a deleted holder.
    */
   private async findHolder(email: string, accountEmail: string): Promise<AddressHold> {
-    const liveUsers = await this.customerUserRepo.findByEmailAcrossAccounts(email);
+    const userAddress = normalizeEmail(email);
+    const accountAddress = normalizeEmail(accountEmail);
+    const [liveUsers, deletedUserHolds, deletedAccountHolds, liveAccount] = await Promise.all([
+      this.customerUserRepo.findByEmailAcrossAccounts(email),
+      this.customerUserRepo.existsDeletedByEmailAcrossAccounts(email),
+      this.accountRepo.existsDeletedByEmail(accountEmail),
+      this.accountRepo.findByEmail(accountEmail),
+    ]);
+
     if (liveUsers.length > 0) {
-      for (const liveUser of liveUsers) {
-        if (await this.isAccountLive(liveUser.accountId)) {
-          return TAKEN_BY_LIVE_HOLDER;
-        }
-      }
-      return { taken: true, deletedHolderAddresses: [normalizeEmail(email)] };
+      const accountsLive = await Promise.all(
+        liveUsers.map((liveUser) => this.isAccountLive(liveUser.accountId))
+      );
+      return accountsLive.includes(true)
+        ? TAKEN_BY_LIVE_HOLDER
+        : { taken: true, deletedHolderAddresses: [userAddress] };
     }
 
     const deletedHolderAddresses = new Set<string>();
-    if (await this.customerUserRepo.existsDeletedByEmailAcrossAccounts(email)) {
-      deletedHolderAddresses.add(normalizeEmail(email));
+    if (deletedUserHolds) {
+      deletedHolderAddresses.add(userAddress);
     }
-    if (await this.accountRepo.existsDeletedByEmail(accountEmail)) {
-      deletedHolderAddresses.add(normalizeEmail(accountEmail));
+    if (deletedAccountHolds) {
+      deletedHolderAddresses.add(accountAddress);
     }
     if (deletedHolderAddresses.size > 0) {
       return { taken: true, deletedHolderAddresses: [...deletedHolderAddresses] };
     }
 
     // A live account with no live user, for example one created by an administrator.
-    if ((await this.accountRepo.findByEmail(accountEmail)) !== null) {
-      return TAKEN_BY_LIVE_HOLDER;
-    }
-    return FREE;
+    return liveAccount !== null ? TAKEN_BY_LIVE_HOLDER : FREE;
   }
 
   /**
@@ -363,10 +377,8 @@ export class RegisterCustomerUseCase {
    * @param address - The address that belongs to a deleted account or a deleted user.
    */
   private dispatchDeletedAccountNotice(address: string): void {
-    const mailer = this.deletedAccountNoticeMailer;
-    if (!mailer) return;
     this.dispatchEmail("registerCustomer.deletedAccountNotice", (links) =>
-      mailer.notifyRegistrationAttemptOnDeletedAccount(address, {
+      this.deletedAccountNoticeMailer.notifyRegistrationAttemptOnDeletedAccount(address, {
         supportEmail: links.supportEmail,
       })
     );

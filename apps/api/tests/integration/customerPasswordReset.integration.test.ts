@@ -40,6 +40,7 @@ import {
 import { ok } from "@shared/types";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import { RegisterCustomerUseCase } from "@core/customer-auth/RegisterCustomerUseCase.js";
+import type { DeletedAccountNoticeMailer } from "@core/domain/repositories/DeletedAccountNoticeMailer.js";
 import { LoginCustomerUseCase } from "@core/customer-auth/LoginCustomerUseCase.js";
 import { RefreshCustomerTokenUseCase } from "@core/customer-auth/RefreshCustomerTokenUseCase.js";
 import { RequestPasswordResetUseCase } from "@core/customer-auth/RequestPasswordResetUseCase.js";
@@ -225,6 +226,15 @@ describe("Customer password reset — persisted outcomes through the guarded cli
       },
     };
 
+    // Registration here only creates the customers the reset flows act on: it opens no trial
+    // and sends no welcome e-mail, and a notice it might send goes nowhere.
+    const noticeMailer: DeletedAccountNoticeMailer = {
+      notifyRegistrationAttemptOnDeletedAccount: async () => ok(undefined),
+    };
+    const noTrialSubscription = undefined;
+    const noWelcomeMailer = undefined;
+    const defaultPlatformLinks = undefined;
+
     const container = new Container();
     container.registerInstance(
       TOKENS.RegisterCustomerUseCase,
@@ -235,10 +245,10 @@ describe("Customer password reset — persisted outcomes through the guarded cli
         hasher,
         tokenService,
         createLogger("customer-registration"),
-        undefined,
-        undefined,
-        undefined,
-        undefined,
+        noticeMailer,
+        noTrialSubscription,
+        noWelcomeMailer,
+        defaultPlatformLinks,
         unitOfWork
       )
     );

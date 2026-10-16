@@ -1,13 +1,15 @@
 /**
  * @file customerAuthUseCases.test.ts
  * @description Unit tests for customer authentication use cases and middleware.
+ * @layer infrastructure
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, expectTypeOf, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
 import argon2 from "argon2";
 import { RegisterCustomerUseCase } from "@core/customer-auth/RegisterCustomerUseCase.js";
+import type { DeletedAccountNoticeMailer } from "@core/domain/repositories/DeletedAccountNoticeMailer.js";
 import { LoginCustomerUseCase } from "@core/customer-auth/LoginCustomerUseCase.js";
 import { RefreshCustomerTokenUseCase } from "@core/customer-auth/RefreshCustomerTokenUseCase.js";
 import { ResetPasswordUseCase } from "@core/customer-auth/ResetPasswordUseCase.js";
@@ -167,9 +169,18 @@ describe("RegisterCustomerUseCase", () => {
   let logger: { error: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn> };
   let welcomeMailer: { sendWelcome: ReturnType<typeof vi.fn> };
   let noticeMailer: { notifyRegistrationAttemptOnDeletedAccount: ReturnType<typeof vi.fn> };
+  let platformLinks: { getPlatformCredentials: ReturnType<typeof vi.fn> };
 
   /** Lets the fire-and-forget e-mail chains, all on resolved doubles, run to the end. */
   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  /** What the holder lookup asked each repository, comparable between two registrations. */
+  const holderLookups = () => ({
+    liveUsersByEmail: customerUserRepo.findByEmailAcrossAccounts.mock.calls,
+    deletedUsersByEmail: customerUserRepo.existsDeletedByEmailAcrossAccounts.mock.calls,
+    deletedAccountsByEmail: accountRepo.existsDeletedByEmail.mock.calls,
+    liveAccountsByEmail: accountRepo.findByEmail.mock.calls,
+  });
 
   const input = (overrides?: { email?: string; accountEmail?: string }) => ({
     accountName: "TestCo",
@@ -186,8 +197,11 @@ describe("RegisterCustomerUseCase", () => {
     return created.value;
   };
 
-  beforeEach(() => {
-    vi.clearAllMocks();
+  /** The trial-subscription port is left out: these tests pin the holder lookup and its notice. */
+  const noTrialSubscription = undefined;
+
+  /** Builds the use case over fresh doubles, so one test can compare two registrations. */
+  const build = () => {
     customerUserRepo = makeCustomerUserRepo();
     customerRoleRepo = makeCustomerRoleRepo();
     accountRepo = makeAccountRepo();
@@ -197,6 +211,11 @@ describe("RegisterCustomerUseCase", () => {
     noticeMailer = {
       notifyRegistrationAttemptOnDeletedAccount: vi.fn().mockResolvedValue(ok(undefined)),
     };
+    platformLinks = {
+      getPlatformCredentials: vi
+        .fn()
+        .mockResolvedValue(ok({ baseUrl: "https://app.test", supportEmail: SUPPORT_EMAIL })),
+    };
     useCase = new RegisterCustomerUseCase(
       customerUserRepo,
       customerRoleRepo,
@@ -204,16 +223,23 @@ describe("RegisterCustomerUseCase", () => {
       hasher,
       tokenService,
       logger,
-      undefined,
-      welcomeMailer,
-      {
-        getPlatformCredentials: vi
-          .fn()
-          .mockResolvedValue(ok({ baseUrl: "https://app.test", supportEmail: SUPPORT_EMAIL })),
-      },
       noticeMailer,
+      noTrialSubscription,
+      welcomeMailer,
+      platformLinks,
       unitOfWork
     );
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    build();
+  });
+
+  it("takes the deleted-account notice mailer as a required dependency, right after the logger", () => {
+    expectTypeOf<
+      ConstructorParameters<typeof RegisterCustomerUseCase>[6]
+    >().toEqualTypeOf<DeletedAccountNoticeMailer>();
   });
 
   it("creates Account + CustomerUser atomically and returns tokens", async () => {
@@ -334,6 +360,131 @@ describe("RegisterCustomerUseCase", () => {
     const deletedRefusal = await useCase.execute(input());
 
     assert.deepStrictEqual(deletedRefusal, liveRefusal);
+  });
+
+  it("starts every holder lookup, outside the transaction, before any of them answers", async () => {
+    let answer: () => void = () => undefined;
+    const answered = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    customerUserRepo.findByEmailAcrossAccounts.mockImplementation(async () => {
+      await answered;
+      return [];
+    });
+    customerUserRepo.existsDeletedByEmailAcrossAccounts.mockImplementation(async () => {
+      await answered;
+      return false;
+    });
+    accountRepo.existsDeletedByEmail.mockImplementation(async () => {
+      await answered;
+      return true;
+    });
+    accountRepo.findByEmail.mockImplementation(async () => {
+      await answered;
+      return null;
+    });
+
+    const pending = useCase.execute(input());
+
+    expect(customerUserRepo.findByEmailAcrossAccounts).toHaveBeenCalledTimes(1);
+    expect(customerUserRepo.existsDeletedByEmailAcrossAccounts).toHaveBeenCalledTimes(1);
+    expect(accountRepo.existsDeletedByEmail).toHaveBeenCalledTimes(1);
+    expect(accountRepo.findByEmail).toHaveBeenCalledTimes(1);
+    expect(unitOfWork.executeResultInTransaction).not.toHaveBeenCalled();
+    answer();
+    assert.deepStrictEqual(await pending, err("EMAIL_EXISTS"));
+  });
+
+  it("asks the same holder lookups whether the holder is live or deleted", async () => {
+    const lookupsFor = async (arrange: () => void) => {
+      build();
+      arrange();
+      assert.deepStrictEqual(await useCase.execute(input()), err("EMAIL_EXISTS"));
+      return { lookups: holderLookups(), accountsOfLiveUsers: accountRepo.findById.mock.calls };
+    };
+    const liveUserHolding = () =>
+      customerUserRepo.findByEmailAcrossAccounts.mockResolvedValue([
+        makeExistingUser({ accountId: LIVE_ACCOUNT_ID }),
+      ]);
+
+    const shapes = [
+      // No live user holds the address: a live account, a deleted account, a deleted user.
+      await lookupsFor(() => accountRepo.findByEmail.mockResolvedValue(liveAccount())),
+      await lookupsFor(() => accountRepo.existsDeletedByEmail.mockResolvedValue(true)),
+      await lookupsFor(() =>
+        customerUserRepo.existsDeletedByEmailAcrossAccounts.mockResolvedValue(true)
+      ),
+      // A live user holds it, and its account is live or deleted.
+      await lookupsFor(() => {
+        liveUserHolding();
+        accountRepo.findById.mockResolvedValue(ok(liveAccount()));
+      }),
+      await lookupsFor(() => {
+        liveUserHolding();
+        accountRepo.findById.mockResolvedValue(
+          err(new EntityNotFoundError("Account", LIVE_ACCOUNT_ID))
+        );
+      }),
+    ];
+
+    const everyLookupOnce = {
+      liveUsersByEmail: [["alice@testco.com"]],
+      deletedUsersByEmail: [["alice@testco.com"]],
+      deletedAccountsByEmail: [["alice@testco.com"]],
+      liveAccountsByEmail: [["alice@testco.com"]],
+    };
+    for (const { lookups } of shapes) {
+      assert.deepStrictEqual(lookups, everyLookupOnce);
+    }
+    // A live user's account is read whenever a live user holds the address, whether that
+    // account turns out live or deleted, and never otherwise.
+    assert.deepStrictEqual(
+      shapes.map(({ accountsOfLiveUsers }) => accountsOfLiveUsers.length),
+      [0, 0, 0, 1, 1]
+    );
+  });
+
+  it("notifies each address once when a deleted user holds one and a deleted account the other", async () => {
+    customerUserRepo.existsDeletedByEmailAcrossAccounts.mockImplementation(
+      async (email: string) => email === "alice@testco.com"
+    );
+    accountRepo.existsDeletedByEmail.mockImplementation(
+      async (email: string) => email === "billing@testco.com"
+    );
+
+    const result = await useCase.execute(
+      input({ email: "alice@testco.com", accountEmail: "billing@testco.com" })
+    );
+
+    assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
+    await settle();
+    expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).toHaveBeenCalledTimes(2);
+    expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).toHaveBeenCalledWith(
+      "alice@testco.com",
+      { supportEmail: SUPPORT_EMAIL }
+    );
+    expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).toHaveBeenCalledWith(
+      "billing@testco.com",
+      { supportEmail: SUPPORT_EMAIL }
+    );
+  });
+
+  it("returns INTERNAL_ERROR and sends no notice when reading a live user's account fails", async () => {
+    customerUserRepo.findByEmailAcrossAccounts.mockResolvedValue([
+      makeExistingUser({ accountId: LIVE_ACCOUNT_ID }),
+    ]);
+    accountRepo.findById.mockRejectedValue(new Error("database down"));
+
+    const result = await useCase.execute(input({ email: "existing@example.com" }));
+
+    assert.deepStrictEqual(result, err("INTERNAL_ERROR"));
+    expect(accountRepo.save).not.toHaveBeenCalled();
+    await settle();
+    expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "registerCustomer" }),
+      "Customer registration failed"
+    );
   });
 
   it("still returns EMAIL_EXISTS, and logs without the address, when the notice fails", async () => {

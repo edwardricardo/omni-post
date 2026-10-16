@@ -19,13 +19,17 @@
  *   account beside it. Only the real client, the real driver adapter and the real partial index
  *   can show what the route answers; a double reproduces whatever shape it was given.
  *
- *   The notice is observed at the transactional-email adapter: `createApp()` builds its own
- *   container and offers no override, so the suite records calls to the adapter's notice
- *   method on its prototype, which the container's instance inherits, and sends nothing.
+ *   The route's answers are asserted through `createApp()`. Who gets a notice is asserted on the
+ *   use case itself, over the same real repositories and Unit of Work: behind the route the notice
+ *   is dispatched after the response, through a platform-settings read and the throttle's cache,
+ *   so no point after the response says the dispatch has ended. Here the platform links resolve
+ *   without I/O and the notice mailer records synchronously, so every notice is in by the time
+ *   the microtasks queued behind the refusal have run, and the count is final. The route is held
+ *   to that same use case by the container check: the mailer it is handed is the throttled one.
  *
- *   The last case drives the use case directly over the real account repository and the real
- *   Unit of Work with a user insert that fails, and proves the account written before it is
- *   rolled back rather than left behind on its own connection.
+ *   The last case drives the use case over the real account repository and the real Unit of Work
+ *   with a user insert that fails, and proves the account written before it is rolled back rather
+ *   than left behind on its own connection.
  * @layer infrastructure
  */
 
@@ -35,12 +39,21 @@ import type { FastifyInstance } from "fastify";
 import type { PrismaClient } from "@infra/prisma";
 import { ok, err } from "@shared/types";
 import { PrismaUnitOfWork } from "@adapters/db-prisma";
-import { RegisterCustomerUseCase } from "@core/customer-auth/RegisterCustomerUseCase.js";
+import {
+  RegisterCustomerUseCase,
+  type RegisterCustomerInput,
+} from "@core/customer-auth/RegisterCustomerUseCase.js";
 import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
+import type { DeletedAccountNoticeMailer } from "@core/domain/repositories/DeletedAccountNoticeMailer.js";
+import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
+import type { LoggerPort } from "@ports/core";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { createApp } from "../../src/index.js";
+import { TOKENS } from "../../src/infrastructure/container/types.js";
 import { TransactionalEmailAdapter } from "../../src/infrastructure/adapters/TransactionalEmailAdapter.js";
+import { ThrottledDeletedAccountNoticeMailer } from "../../src/infrastructure/adapters/ThrottledDeletedAccountNoticeMailer.js";
 import { PrismaAccountRepository } from "../../src/infrastructure/repositories/PrismaAccountRepository.js";
+import { PrismaCustomerUserRepository } from "../../src/infrastructure/repositories/PrismaCustomerUserRepository.js";
 import { PrismaCustomerRoleRepository } from "../../src/infrastructure/repositories/PrismaCustomerRoleRepository.js";
 import { PrismaAccountSubscriptionAdapter } from "../../src/infrastructure/repositories/PrismaAccountSubscriptionAdapter.js";
 import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2PasswordHasher.js";
@@ -55,15 +68,10 @@ const TAG = `register-held-email-${Date.now()}`;
 const REGISTER_URL = "/auth/customer/register";
 const PASSWORD = "register-password-value";
 const SOFT_DELETED_AT = new Date("2026-10-01T00:00:00.000Z");
+const SUPPORT_EMAIL = "support@example.test";
 
 /** The one refusal every holder gets, as the route has always written it. */
 const EMAIL_EXISTS_BODY = JSON.stringify({ ok: false, error: "Email already exists" });
-
-/** How long a notice may take to reach the adapter after the refusal is answered. */
-const NOTICE_WAIT_MS = 5_000;
-
-/** How long the suite waits for a notice that must NOT arrive before it says so. */
-const QUIET_PERIOD_MS = 300;
 
 type HolderState = { readonly accountDeleted: boolean; readonly user: "none" | "live" | "deleted" };
 
@@ -112,6 +120,12 @@ const HELD_SHAPES: readonly {
   },
 ];
 
+/** The platform links, read without I/O so a notice's dispatch ends within microtasks. */
+const platformLinks: PlatformCredentialReader = {
+  getPlatformCredentials: async () =>
+    ok({ baseUrl: "https://app.example.test", supportEmail: SUPPORT_EMAIL }),
+};
+
 /**
  * @param slug - The shape's identifier.
  * @returns The address that shape's holder carries.
@@ -121,11 +135,53 @@ function addressFor(slug: string): string {
 }
 
 /**
- * @param ms - How long to wait.
- * @returns A promise that settles after that long.
+ * @param email - The address the registration claims for both the account and its owner.
+ * @returns The registration input the route would build for that address.
  */
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function attemptFor(email: string): RegisterCustomerInput {
+  return {
+    accountName: `${TAG}-attempt`,
+    accountEmail: email,
+    firstName: "Returning",
+    lastName: "Customer",
+    email,
+    password: PASSWORD,
+  };
+}
+
+/**
+ * @param notified - Receives, in order, every address a notice is sent to.
+ * @returns A notice mailer that records each notice synchronously and sends nothing.
+ */
+function recordingNoticeMailer(notified: string[]): DeletedAccountNoticeMailer {
+  return {
+    notifyRegistrationAttemptOnDeletedAccount: async (to: string) => {
+      notified.push(to);
+      return ok(undefined);
+    },
+  };
+}
+
+/**
+ * @param logged - Receives the arguments of every log call.
+ * @returns A logger that records each call and writes nothing.
+ */
+function recordingLogger(logged: unknown[]): LoggerPort {
+  return {
+    error: (...args: unknown[]) => {
+      logged.push(args);
+    },
+    warn: (...args: unknown[]) => {
+      logged.push(args);
+    },
+  };
+}
+
+/**
+ * @returns A promise that settles once every microtask queued before it has run.
+ */
+function afterQueuedMicrotasks(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
 }
 
 describe("POST /auth/customer/register with an e-mail something already holds", () => {
@@ -133,7 +189,6 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
   let prisma: PrismaClient;
   let ownerRoleId: string;
   let createdOwnerRole = false;
-  const notices: string[] = [];
 
   before(async () => {
     prisma = createSeedPrismaClient();
@@ -151,14 +206,13 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
       createdOwnerRole = true;
     }
 
-    // Recorded on the prototype before the app builds its adapter instance, which inherits it.
+    // The route's refusals still dispatch their notices through the container. Answering on the
+    // prototype, which the app's adapter instance inherits, keeps every one of them away from
+    // the transport.
     mock.method(
       TransactionalEmailAdapter.prototype,
       "notifyRegistrationAttemptOnDeletedAccount",
-      async (to: string) => {
-        notices.push(to);
-        return ok(undefined);
-      }
+      async () => ok(undefined)
     );
 
     app = await createApp();
@@ -166,8 +220,11 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
   });
 
   after(async () => {
-    mock.restoreAll();
+    // Closed before the prototype is restored: a notice the last refusal dispatched may still be
+    // on its way, and it must meet the recorded method or a closed connection, never the
+    // transport.
     await app?.close();
+    mock.restoreAll();
     if (prisma) {
       await prisma.customerUser
         .deleteMany({ where: { email: { startsWith: TAG } } })
@@ -200,6 +257,27 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
         password: PASSWORD,
       },
     });
+  }
+
+  /**
+   * @param notified - Receives every address the use case sends a notice to.
+   * @param logged - Receives the arguments of every log call the use case makes.
+   * @returns The registration use case over the real repositories and the real Unit of Work.
+   */
+  function registrationOver(notified: string[], logged: unknown[]): RegisterCustomerUseCase {
+    return new RegisterCustomerUseCase(
+      new PrismaCustomerUserRepository(prisma),
+      new PrismaCustomerRoleRepository(prisma),
+      new PrismaAccountRepository(prisma),
+      new Argon2PasswordHasher(),
+      new CustomerTokenServiceAdapter(),
+      recordingLogger(logged),
+      recordingNoticeMailer(notified),
+      new PrismaAccountSubscriptionAdapter(prisma),
+      undefined,
+      platformLinks,
+      new PrismaUnitOfWork(prisma, ambientTenantContextProvider)
+    );
   }
 
   /**
@@ -249,11 +327,18 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
     return account.id;
   }
 
-  it("registers an e-mail whose account and owner were hard-deleted", async () => {
-    const email = addressFor("hard-deleted");
+  /**
+   * @param email - The address whose live account and live owner are seeded and then erased.
+   */
+  async function seedHardDeletedHolder(email: string): Promise<void> {
     const accountId = await seedHolder(email, { accountDeleted: false, user: "live" });
     await prisma.customerUser.deleteMany({ where: { accountId } });
     await prisma.account.delete({ where: { id: accountId } });
+  }
+
+  it("registers an e-mail whose account and owner were hard-deleted", async () => {
+    const email = addressFor("hard-deleted");
+    await seedHardDeletedHolder(email);
 
     const res = await register(email);
 
@@ -291,23 +376,56 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
     });
   }
 
-  it("sends the notice to the owner of every deleted holder's address, and to no one else", async () => {
-    const expected = HELD_SHAPES.filter((shape) => shape.notice)
-      .map((shape) => addressFor(shape.slug))
-      .sort();
+  it("hands the registration a notice mailer that throttles each address", () => {
+    const container = app.container;
+    assert.ok(container, "createApp() decorates the instance with its container");
 
-    const deadline = Date.now() + NOTICE_WAIT_MS;
-    while (notices.length < expected.length && Date.now() < deadline) {
-      await delay(25);
-    }
-    // A notice that should not exist would have had at least as long as the ones awaited.
-    await delay(QUIET_PERIOD_MS);
-
-    assert.deepEqual(
-      [...notices].sort(),
-      expected,
-      "exactly one notice per deleted holder, none for a live holder or a hard-deleted one"
+    const noticeMailer = container.resolve<DeletedAccountNoticeMailer>(
+      TOKENS.DeletedAccountNoticeMailer
     );
+
+    assert.ok(
+      noticeMailer instanceof ThrottledDeletedAccountNoticeMailer,
+      "the notice the route triggers goes through the per-address throttle"
+    );
+  });
+
+  for (const { name, slug, state, notice } of HELD_SHAPES) {
+    it(`sends ${notice ? "exactly one notice, to the address," : "no notice"} when ${name}`, async () => {
+      const email = addressFor(`notice-${slug}`);
+      await seedHolder(email, state);
+      const notified: string[] = [];
+      const logged: unknown[] = [];
+
+      const result = await withSystemContext(CUSTOMER_REGISTER_SYSTEM_REASON, () =>
+        registrationOver(notified, logged).execute(attemptFor(email))
+      );
+      await afterQueuedMicrotasks();
+
+      assert.deepEqual(result, err("EMAIL_EXISTS"));
+      assert.deepEqual(
+        notified,
+        notice ? [email] : [],
+        "one notice for a deleted holder, none for a live one"
+      );
+      assert.deepEqual(logged, [], "the refusal and its notice log nothing");
+    });
+  }
+
+  it("sends no notice when the holder was hard-deleted, and registers the address", async () => {
+    const email = addressFor("notice-hard-deleted");
+    await seedHardDeletedHolder(email);
+    const notified: string[] = [];
+    const logged: unknown[] = [];
+
+    const result = await withSystemContext(CUSTOMER_REGISTER_SYSTEM_REASON, () =>
+      registrationOver(notified, logged).execute(attemptFor(email))
+    );
+    await afterQueuedMicrotasks();
+
+    assert.equal(result.ok, true, "a hard-deleted holder leaves the address free");
+    assert.deepEqual(notified, [], "no deleted holder, so no notice");
+    assert.deepEqual(logged, []);
   });
 
   it("rolls the account and its trial back when the user insert fails inside the unit of work", async () => {
@@ -317,6 +435,7 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
       existsDeletedByEmailAcrossAccounts: async () => false,
       create: async () => err("INTERNAL_ERROR" as const),
     } as unknown as CustomerUserRepository;
+    const notified: string[] = [];
     const logged: unknown[] = [];
     const useCase = new RegisterCustomerUseCase(
       failingUsers,
@@ -324,26 +443,16 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
       new PrismaAccountRepository(prisma),
       new Argon2PasswordHasher(),
       new CustomerTokenServiceAdapter(),
-      {
-        error: (...args: unknown[]) => logged.push(args),
-        warn: (...args: unknown[]) => logged.push(args),
-      },
+      recordingLogger(logged),
+      recordingNoticeMailer(notified),
       new PrismaAccountSubscriptionAdapter(prisma),
       undefined,
-      undefined,
-      undefined,
+      platformLinks,
       new PrismaUnitOfWork(prisma, ambientTenantContextProvider)
     );
 
     const result = await withSystemContext(CUSTOMER_REGISTER_SYSTEM_REASON, () =>
-      useCase.execute({
-        accountName: `${TAG}-rolled-back`,
-        accountEmail: email,
-        firstName: "Rolled",
-        lastName: "Back",
-        email,
-        password: PASSWORD,
-      })
+      useCase.execute({ ...attemptFor(email), accountName: `${TAG}-rolled-back` })
     );
 
     assert.deepEqual(result, err("INTERNAL_ERROR"));
@@ -353,5 +462,6 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
       where: { account: { email } },
     });
     assert.equal(trials, 0, "the trial subscription written with it is rolled back too");
+    assert.deepEqual(notified, [], "a failed registration is not a refusal, so no notice");
   });
 });
