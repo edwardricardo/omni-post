@@ -26,9 +26,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  NODE_VERSION: "26"
-
 jobs:
   # ===== DEPENDENCY ANALYSIS =====
   analyze-dependencies:
@@ -46,8 +43,6 @@ jobs:
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       - name: Check for security vulnerabilities
         id: security-check
@@ -165,8 +160,6 @@ jobs:
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       - name: Apply security updates
         run: |
@@ -242,8 +235,6 @@ jobs:
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       - name: Update minor versions
         run: |
@@ -332,17 +323,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      # Node 26 ships no corepack (ADR-0038), so pnpm comes from pnpm/action-setup, which installs
-      # the version the root package.json pins in `packageManager` (12.6.0), as fitness.yml does. It
-      # runs before setup-node because `cache: "pnpm"` asks pnpm for its store path.
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+      # Node 26 ships no corepack (ADR-0038), so pnpm comes from pnpm/action-setup inside the
+      # action, which installs the version the root package.json pins in `packageManager`. The
+      # action also installs the tree, so `pnpm outdated` runs over an installed workspace, as
+      # in the other jobs of this workflow.
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
 
       - name: Analyze major updates
         run: |

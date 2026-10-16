@@ -75,8 +75,6 @@ jobs:
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
-        with:
-          node-version: "26"
 
       - name: Setup test environment
         # `public`, not `test`: the migrations and the adapter-pg test client

@@ -57,8 +57,6 @@ jobs:
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
-        with:
-          node-version: "26"
 
       - name: Setup test environment
         # Per-app env files were consolidated into the repo root, so the

@@ -5,10 +5,6 @@ branding:
   color: "blue"
 
 inputs:
-  node-version:
-    description: "Node.js version to install; empty (the default) reads it from .nvmrc, the major the engines gate holds every manifest to"
-    required: false
-    default: ""
   frozen-lockfile:
     description: "Use --frozen-lockfile for pnpm install"
     required: false
@@ -17,15 +13,16 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup Node.js ${{ inputs.node-version || '(.nvmrc)' }}
-      uses: actions/setup-node@v4
+    - name: Setup Node.js (version from .nvmrc)
+      # .nvmrc is the one place the runtime version is written; the engines gate holds every
+      # manifest to its major. setup-node caches nothing here: since v6 its automatic cache covers
+      # npm projects only, and the pnpm store is cached by the step below.
+      uses: actions/setup-node@v7
       with:
-        node-version: ${{ inputs.node-version }}
-        # Passed only when node-version is empty: setup-node warns when it gets both.
-        node-version-file: ${{ inputs.node-version == '' && '.nvmrc' || '' }}
+        node-version-file: .nvmrc
 
     - name: Setup pnpm (from package.json packageManager)
-      uses: pnpm/action-setup@v4
+      uses: pnpm/action-setup@v6
 
     - name: Get pnpm store directory
       shell: bash
@@ -33,7 +30,7 @@ runs:
         echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
     - name: Setup pnpm cache
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ env.STORE_PATH }}
         key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}

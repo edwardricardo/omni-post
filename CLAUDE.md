@@ -815,18 +815,23 @@ pnpm --filter @packages/test-contracts reach --quarantine quarantine.json --base
 # reporting green forever once a rename or an `include` change breaks collection.
 # The pattern is `pass[W]ithNoTests`: the workflow step is itself a tracked
 # `.yml` file, and the bracket class keeps its own text from matching. The scope
-# is held to a floor of 2500 files and a `git grep` exit above 1 fails the step,
-# so a missing checkout cannot read as a clean zero. Residual limit, stated:
-# GitHub runs the step under `bash -e`, so it captures `git grep`'s exit 1, which
-# means no match, with `|| ASTATUS=$?` and fails only on an exit above 1; a future
-# shift of git's exit codes would surface through the 2500-file floor and fitness
-# #34's pairing rather than through that capture.
+# is held to a floor of PART_A_SCOPE_FLOOR files and a `git grep` exit above 1
+# fails the step, so a missing checkout cannot read as a clean zero. Residual
+# limit, stated: GitHub runs the step under `bash -e`, so it captures `git grep`'s
+# exit 1, which means no match, with `|| ASTATUS=$?` and fails only on an exit
+# above 1; a future shift of git's exit codes would surface through the
+# PART_A_SCOPE_FLOOR floor and fitness #34's pairing rather than through that
+# capture.
 # Out of scope, stated: `*.yaml`, `*.js`, `*.mjs` and `*.cjs`. Measured on
 # 2026-10-14: none holds the flag, the 4 `.yaml` files are the lockfile, the
 # workspace manifest and two tool configs, and all 93 tracked vitest configs are
 # `.ts`; a vitest config or script written in one of those extensions would
 # escape this part.
-git ls-files -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l   # expect >= 2500 (3113 on 2026-10-14)
+# The repository tracks about 3,100 JSON, TypeScript and workflow files (3132 on
+# 2026-10-16), so a count below 2500 means a partial checkout, not a smaller tree.
+PART_A_SCOPE_FLOOR=2500
+SCOPE=$(git ls-files -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l) || SCOPE=0
+[ "$SCOPE" -ge "$PART_A_SCOPE_FLOOR" ]   # expect exit 0 (3132 on 2026-10-16)
 git grep -nE 'pass[W]ithNoTests' -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l   # expect 0
 #
 # Part B: the node:test runner must KEEP its zero-collection guards and read its
