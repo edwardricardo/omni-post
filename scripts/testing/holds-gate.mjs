@@ -23,12 +23,23 @@
  *   package for as long as it stood. Rows stay for real holds only — a peer range that blocks the
  *   move, a measured breakage, or a recorded decision.
  *
+ *   A FAMILY is a set of packages that release together and must resolve to ONE version, declared
+ *   under `families` in the population with a `name`, its `members` and a `note` saying why. The gate
+ *   reads every member each importer declares, and every member that such a declaration resolves
+ *   as its own dependency or peer, and exits 1 when two of them carry different versions, naming
+ *   each version with the importer it was read in. That is the drift one member moved alone leaves,
+ *   and the drift lockfile preference leaves when a member keeps an older sibling as its peer.
+ *
  *   FAIL-CLOSED, deliberately, in every direction a silent pass could hide a lag: zero parsed hold
  *   rows, an unreadable table, a population package that is not installed and declares no absence,
  *   a declared absence that is stale because the package IS installed, an unrecognised absence
  *   reason, an unreadable registry document for a package the outdated report flags, an installed
- *   version that does not parse, or two different installed versions of one name. A gate that
- *   reports a clean zero over inputs it never read asserts an invariant nobody measured.
+ *   version that does not parse, or two different installed versions of one name. And for the
+ *   families: a population key other than `packages` and `families`, a family field other than
+ *   `name`, `members` and `note`, a family with no name, no note or fewer than two members, a
+ *   member listed twice, a member no importer declares, a member version that does not parse, and a
+ *   deduplicated listing entry whose expanded copy is missing, so its peers cannot be read. A gate
+ *   that reports a clean zero over inputs it never read asserts an invariant nobody measured.
  *
  *   Every input is injectable so the suite can drive the rule with fixtures and never touch the
  *   registry: `--installed`, `--outdated`, `--registry`, `--population`, `--canon`, `--instant`.
@@ -36,18 +47,26 @@
  *   rather than being ignored, because an ignored flag would silently read the live tree in a suite
  *   that must not reach it.
  *
- *   RESIDUALS, stated rather than discovered later. (1) The population is DIRECT dependencies:
- *   `pnpm ls --depth 0` cannot see a transitive, so `playwright-core` carries
- *   `absence: "transitive"` and is documented rather than gated. (2) It does NOT check that the
- *   installed version sits at or below a hold's own ceiling, because the `Hold / floor` column
- *   carries BOTH ceilings (holds) and minimums (CVE floors) and several cells are prose; reading one
- *   as the other would fail the wrong trees. That check needs a typed column first. (3) The
+ *   RESIDUALS, stated rather than discovered later. (1) The population is DIRECT dependencies: the
+ *   gate reads the importer level of `pnpm ls -r --depth 1`, where a transitive does not appear, so
+ *   `playwright-core` carries `absence: "transitive"` and is documented rather than gated. The one
+ *   level below is read for the families alone, and only a member's own dependencies and peers: a
+ *   member reached deeper, or only through a package outside its family, is not compared. Both read
+ *   the INSTALLED tree, which `pnpm ls` reports: it equals the lockfile after the frozen install the
+ *   CI job runs first, and a lockfile resolved but not installed is not read. (2) It
+ *   does NOT check that the installed version sits at or below a hold's own ceiling, because the
+ *   `Hold / floor` column carries BOTH ceilings (holds) and minimums (CVE floors) and several cells
+ *   are prose; reading one as the other would fail the wrong trees. That check needs a typed column first. (3) The
  *   population is the testing and quality TOOLCHAIN. Production direct dependencies are not
  *   measured here: they move by CVE floor and by deliberate units (ADR-0036), and this gate claims
- *   nothing about their freshness. (4) Inside the budget a lag is not looked up in the table, so a
- *   real hold and a lag the next window takes read the same until the budget runs out. (5) The
- *   retired words are matched as whole words; a scheduled row phrased without them passes, and
- *   review is what reads it.
+ *   nothing about their freshness. The Prisma family is the one exception, measured through its
+ *   CLI, `prisma`: a toolchain devDependency (generate, migrate, studio) that moves in lockstep with
+ *   `@prisma/client` and `@prisma/adapter-pg`. The CLI's freshness is measured; the family `prisma`
+ *   is checked for LOCKSTEP, so the two production members are read for equality with the CLI and
+ *   each other, and their freshness is still not measured. (4) Inside the budget a lag is not
+ *   looked up in the table, so a real hold and a lag the next window takes read the same until the
+ *   budget runs out. (5) The retired words are matched as whole words; a scheduled row phrased
+ *   without them passes, and review is what reads it.
  *
  *   Usage: `node scripts/testing/holds-gate.mjs`
  * @layer infrastructure
@@ -64,6 +83,9 @@ const BUDGET_MS = BUDGET_DAYS * DAY_MS;
 const RETIRED_SCHEDULE_WORDS = /\b(?:pre-registered|scheduled)\b/i;
 const HOLDS_HEADING = "### Build-tool version holds & dated-debt overrides";
 const RECOGNISED_ABSENCE = new Set(["candidate", "transitive"]);
+const POPULATION_FIELDS = new Set(["packages", "families"]);
+const FAMILY_FIELDS = new Set(["name", "members", "note"]);
+const DEPENDENCY_SECTIONS = ["dependencies", "devDependencies", "optionalDependencies"];
 const SEMVER = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
 
 /** @type {string | null} */
@@ -93,6 +115,27 @@ function repoRoot() {
  * @property {string | null} population
  * @property {string | null} canon
  * @property {string | null} instant
+ */
+
+/**
+ * @typedef {object} Family
+ * @property {string} name
+ * @property {string[]} members Distinct, two or more.
+ */
+
+/**
+ * @typedef {object} ListedEntry One dependency an importer declares, as `pnpm ls` prints it.
+ * @property {string} importer The importer's package name, or its path when it has none.
+ * @property {string} name
+ * @property {Record<string, unknown>} body
+ */
+
+/**
+ * @typedef {object} Resolution One version a family member was read at.
+ * @property {string} member
+ * @property {string} version
+ * @property {string} where The importer, and the member it resolved under when it is a dependency
+ *   or a peer of another member rather than a declaration of the importer itself.
  */
 
 /**
@@ -304,7 +347,7 @@ function installedVersions(document) {
   const importers = Array.isArray(document) ? document : [];
   for (const importer of importers) {
     if (typeof importer !== "object" || importer === null) continue;
-    for (const section of ["dependencies", "devDependencies", "optionalDependencies"]) {
+    for (const section of DEPENDENCY_SECTIONS) {
       const entries = /** @type {Record<string, unknown>} */ (
         /** @type {Record<string, unknown>} */ (importer)[section] ?? {}
       );
@@ -328,6 +371,222 @@ function installedVersions(document) {
     versions.set(name, sorted[0] ?? "");
   }
   return { versions, ambiguous };
+}
+
+/**
+ * Reads the population's `families` and refuses any declaration the lockstep check could not trust.
+ * A family that is refused is not checked at all: its refusal already fails the run, and comparing
+ * members of a declaration the gate could not read would report a verdict on a guess.
+ *
+ * @param {unknown} declared The population's `families` value; absent means no family is declared.
+ * @returns {{ families: Family[], problems: string[] }}
+ */
+function parseFamilies(declared) {
+  /** @type {Family[]} */
+  const families = [];
+  /** @type {string[]} */
+  const problems = [];
+  if (declared === undefined) return { families, problems };
+  if (!Array.isArray(declared)) {
+    problems.push("the population's `families` is not an array, so no family can be read from it.");
+    return { families, problems };
+  }
+  /** @type {Map<string, string>} */
+  const ownerOf = new Map();
+  /** @type {Set<string>} */
+  const names = new Set();
+  declared.forEach((raw, index) => {
+    const before = problems.length;
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+      problems.push(`family #${String(index + 1)} is not an object.`);
+      return;
+    }
+    const record = /** @type {Record<string, unknown>} */ (raw);
+    const name = typeof record.name === "string" ? record.name.trim() : "";
+    const title = name.length > 0 ? `family ${name}` : `family #${String(index + 1)}`;
+    const unknown = Object.keys(record).filter((key) => !FAMILY_FIELDS.has(key));
+    if (unknown.length > 0) {
+      problems.push(
+        `${title} declares ${unknown.map((key) => `"${key}"`).join(", ")}, which is not one of ` +
+          `${[...FAMILY_FIELDS].join(", ")}: an unread field may be a misspelled one, and a ` +
+          `misspelled \`members\` would check nothing.`
+      );
+    }
+    if (name.length === 0) problems.push(`${title} carries no name.`);
+    if (name.length > 0 && names.has(name)) problems.push(`${title} is declared twice.`);
+    names.add(name);
+    if (typeof record.note !== "string" || record.note.trim().length === 0) {
+      problems.push(`${title} carries no note saying why its members move together.`);
+    }
+    const members = record.members;
+    if (
+      !Array.isArray(members) ||
+      members.some((member) => typeof member !== "string" || member.trim().length === 0)
+    ) {
+      problems.push(`${title}'s \`members\` is not a list of package names.`);
+      return;
+    }
+    const distinct = [...new Set(/** @type {string[]} */ (members))];
+    if (distinct.length !== members.length) problems.push(`${title} lists a member twice.`);
+    if (distinct.length < 2) {
+      problems.push(
+        `${title} has ${String(distinct.length)} member(s): a family needs two or more, or there ` +
+          `is no lockstep to check.`
+      );
+    }
+    for (const member of distinct) {
+      const owner = ownerOf.get(member);
+      if (owner !== undefined) {
+        problems.push(`${member} is a member of both ${owner} and ${title}.`);
+      }
+      ownerOf.set(member, title);
+    }
+    if (problems.length === before) families.push({ name, members: distinct });
+  });
+  return { families, problems };
+}
+
+/**
+ * Every dependency the listing's importers declare, and the expanded children of each listed copy.
+ * `pnpm ls` prints a package's children once and marks every later copy at the same store path
+ * `deduped`, so a deduplicated entry is read through the copy that was expanded.
+ *
+ * @param {unknown} document The `pnpm ls -r --depth 1 --json` document.
+ * @returns {{ entries: ListedEntry[], expanded: Map<string, Record<string, unknown>> }}
+ */
+function listedEntries(document) {
+  /** @type {ListedEntry[]} */
+  const entries = [];
+  /** @type {Map<string, Record<string, unknown>>} */
+  const expanded = new Map();
+  const importers = Array.isArray(document) ? document : [];
+  for (const importer of importers) {
+    if (typeof importer !== "object" || importer === null) continue;
+    const record = /** @type {Record<string, unknown>} */ (importer);
+    const label =
+      typeof record.name === "string" && record.name.length > 0
+        ? record.name
+        : String(record.path ?? "(an importer with no name)");
+    for (const section of DEPENDENCY_SECTIONS) {
+      const dependencies = record[section];
+      if (typeof dependencies !== "object" || dependencies === null) continue;
+      for (const [name, raw] of Object.entries(dependencies)) {
+        if (typeof raw !== "object" || raw === null) continue;
+        const body = /** @type {Record<string, unknown>} */ (raw);
+        entries.push({ importer: label, name, body });
+        const children = body.dependencies;
+        if (
+          body.deduped !== true &&
+          typeof body.path === "string" &&
+          typeof children === "object" &&
+          children !== null
+        ) {
+          expanded.set(body.path, /** @type {Record<string, unknown>} */ (children));
+        }
+      }
+    }
+  }
+  return { entries, expanded };
+}
+
+/**
+ * Compares every version one family resolves to: each member an importer declares, and each member
+ * such a declaration resolves as its own dependency or peer. One version is lockstep; two or more is
+ * a violation naming each version with where it was read.
+ *
+ * @param {Family} family
+ * @param {{ entries: ListedEntry[], expanded: Map<string, Record<string, unknown>> }} listing
+ * @returns {{ line: string, violations: string[] }}
+ */
+function checkFamily(family, listing) {
+  /** @type {string[]} */
+  const violations = [];
+  /** @type {Resolution[]} */
+  const resolutions = [];
+  const members = new Set(family.members);
+  /** @type {Set<string>} */
+  const declared = new Set();
+  /** @type {Set<string>} */
+  const importers = new Set();
+
+  /**
+   * @param {string} member
+   * @param {unknown} version
+   * @param {string} where
+   */
+  const record = (member, version, where) => {
+    if (typeof version !== "string" || parseVersion(version) === null) {
+      violations.push(
+        `family ${family.name}: ${member} in ${where} reports the version ${JSON.stringify(version)}, ` +
+          `which does not parse, so it cannot be compared with its siblings.`
+      );
+      return;
+    }
+    resolutions.push({ member, version, where });
+  };
+
+  for (const { importer, name, body } of listing.entries) {
+    if (!members.has(name)) continue;
+    declared.add(name);
+    importers.add(importer);
+    record(name, body.version, importer);
+    const children =
+      body.deduped === true
+        ? listing.expanded.get(typeof body.path === "string" ? body.path : "")
+        : body.dependencies;
+    if (body.deduped === true && children === undefined) {
+      violations.push(
+        `family ${family.name}: ${name} in ${importer} is listed as deduplicated, and no expanded ` +
+          `copy of ${String(body.path)} is in the listing, so its dependencies and peers cannot be read.`
+      );
+      continue;
+    }
+    if (typeof children !== "object" || children === null) continue;
+    for (const [child, raw] of Object.entries(children)) {
+      if (!members.has(child) || typeof raw !== "object" || raw === null) continue;
+      record(
+        child,
+        /** @type {{ version?: unknown }} */ (raw).version,
+        `${importer} under ${name}`
+      );
+    }
+  }
+
+  for (const member of family.members) {
+    if (!declared.has(member)) {
+      violations.push(
+        `family ${family.name}: ${member} is a member that no importer declares — remove it from the ` +
+          `family, or the lockstep check reads a member it never sees.`
+      );
+    }
+  }
+
+  /** @type {Map<string, string[]>} */
+  const byVersion = new Map();
+  for (const { member, version, where } of resolutions) {
+    const sites = byVersion.get(version) ?? [];
+    sites.push(`${member} in ${where}`);
+    byVersion.set(version, sites);
+  }
+  const versions = [...byVersion.keys()].sort(compareVersions);
+  if (versions.length > 1) {
+    violations.push(
+      `family ${family.name} does not resolve to one version: ` +
+        versions
+          .map((version) => `${version} — ${(byVersion.get(version) ?? []).join(", ")}`)
+          .join("; ") +
+        `. Its members move together, in one change.`
+    );
+  }
+  const verdict =
+    versions.length === 1 && violations.length === 0 ? "in lockstep" : "NOT in lockstep";
+  return {
+    line:
+      `family ${family.name}\t${versions.join(", ") || UNKNOWN}\t${verdict} ` +
+      `(${String(family.members.length)} members, ${String(resolutions.length)} resolutions ` +
+      `read in ${String(importers.size)} importers)`,
+    violations,
+  };
 }
 
 /**
@@ -410,12 +669,21 @@ function parseOptions(argv) {
 }
 
 /**
+ * @typedef {object} Evaluation
+ * @property {string[]} lines One per population package.
+ * @property {string[]} familyLines One per declared family, printed after the population summary.
+ * @property {string[]} violations
+ */
+
+/**
  * @param {Options} options
- * @returns {{ lines: string[], violations: string[] }}
+ * @returns {Evaluation}
  */
 function evaluate(options) {
   /** @type {string[]} */
   const lines = [];
+  /** @type {string[]} */
+  const familyLines = [];
   /** @type {string[]} */
   const violations = [];
 
@@ -431,7 +699,7 @@ function evaluate(options) {
         `heading moved, the table moved, or it was commented out. Failing closed rather than ` +
         `reporting a clean zero over a table that was never read.`
     );
-    return { lines, violations };
+    return { lines, familyLines, violations };
   }
   for (const row of holds) {
     if (row.removeWhen.length === 0 || row.removeWhen === UNKNOWN) {
@@ -442,20 +710,33 @@ function evaluate(options) {
     }
   }
 
-  const population = /** @type {{ packages?: { name?: string, absence?: string }[] }} */ (
-    readJson(populationPath)
-  );
+  const population =
+    /** @type {{ packages?: { name?: string, absence?: string }[], families?: unknown }} */ (
+      readJson(populationPath)
+    );
   const packages = population.packages ?? [];
   if (packages.length === 0) {
     violations.push(
       `zero packages parsed from ${populationPath} — the gate would measure nothing and pass.`
     );
-    return { lines, violations };
+    return { lines, familyLines, violations };
   }
+  for (const key of Object.keys(population)) {
+    if (!POPULATION_FIELDS.has(key)) {
+      violations.push(
+        `${populationPath} declares "${key}", which is not one of ${[...POPULATION_FIELDS].join(", ")}: ` +
+          `an unread key may be a misspelled one, and a misspelled \`families\` would check nothing.`
+      );
+    }
+  }
+  const { families, problems: familyProblems } = parseFamilies(population.families);
+  violations.push(...familyProblems);
 
+  // Depth 1 for the families: a member's own dependencies and peers sit one level below the
+  // importer. The importer level, which is all the population reads, is the same at depth 0.
   const installedDocument = options.installed
     ? readJson(options.installed)
-    : JSON.parse(pnpmStdout(["ls", "-r", "--depth", "0", "--json"]));
+    : JSON.parse(pnpmStdout(["ls", "-r", "--depth", "1", "--json"]));
   const { versions, ambiguous } = installedVersions(installedDocument);
   for (const entry of ambiguous) {
     violations.push(`two installed versions of one direct dependency — ${entry}`);
@@ -470,7 +751,7 @@ function evaluate(options) {
   const instant = options.instant ? Date.parse(options.instant) : Date.now();
   if (Number.isNaN(instant)) {
     violations.push(`--instant ${String(options.instant)} is not a parseable instant.`);
-    return { lines, violations };
+    return { lines, familyLines, violations };
   }
   const boundary = instant - MATURITY_MS;
 
@@ -583,7 +864,14 @@ function evaluate(options) {
     lines.push(`${name}\t${installed}\t${target}\tlag: held by ${row.packages}`);
   }
 
-  return { lines, violations };
+  const listing = listedEntries(installedDocument);
+  for (const family of families) {
+    const { line, violations: diverging } = checkFamily(family, listing);
+    familyLines.push(line);
+    violations.push(...diverging);
+  }
+
+  return { lines, familyLines, violations };
 }
 
 /**
@@ -601,7 +889,7 @@ function main(argv) {
     return 1;
   }
 
-  /** @type {{ lines: string[], violations: string[] }} */
+  /** @type {Evaluation} */
   let result;
   try {
     result = evaluate(options);
@@ -623,6 +911,7 @@ function main(argv) {
       `${String(count("\tlag: held by "))} held, ` +
       `${String(count("\tlag: UNDOCUMENTED"))} undocumented)\n`
   );
+  for (const line of result.familyLines) process.stdout.write(`${line}\n`);
   for (const violation of result.violations) {
     process.stderr.write(`holds-gate: ${violation}\n`);
   }

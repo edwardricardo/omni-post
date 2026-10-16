@@ -8,6 +8,7 @@
  */
 
 import type { Prisma, PrismaClient } from "@infra/prisma";
+import { isUniqueViolationOf } from "@infra/prisma/extensions/constraintViolation.js";
 import { type Result, ok, err } from "@shared/types";
 import type { CustomerUserRepository } from "@core/domain/repositories/CustomerUserRepository.js";
 import { CustomerUser, type CustomerUserProps } from "@core/domain/entities/CustomerUser.js";
@@ -59,26 +60,18 @@ const CUSTOMER_ROLE_INCLUDE = {
 } as const;
 
 /**
- * Decide whether a failed write is the account/e-mail pair already being taken.
+ * The account/e-mail unique of `CustomerUser`, as the migrations name it.
  *
  * Narrow on purpose. A creation can also collide on the row id or on an invite
  * token, and answering `EMAIL_EXISTS` to those would tell a caller something
- * false about what went wrong. Prisma reports the collided fields either as an
- * array of column names or as the constraint's own name, so both shapes are
- * read; the e-mail verification token is not part of the creation projection,
- * so it cannot be the constraint that matched here.
+ * false about what went wrong, so only this constraint is matched, by its name
+ * or by its exact columns (`isUniqueViolationOf` reads both shapes the driver
+ * adapter reports, and refuses any other).
  */
-function isEmailUniqueViolation(error: unknown): boolean {
-  const raised = error as { code?: unknown; meta?: { target?: unknown } };
-  if (raised?.code !== "P2002") return false;
-  const target = raised.meta?.target;
-  const fields = Array.isArray(target)
-    ? target.join(",")
-    : typeof target === "string"
-      ? target
-      : "";
-  return fields.toLowerCase().includes("email");
-}
+const ACCOUNT_EMAIL_UNIQUE = {
+  index: "CustomerUser_accountId_email_key",
+  fields: ["accountId", "email"],
+} as const;
 
 /**
  * @class PrismaCustomerUserRepository
@@ -122,6 +115,12 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     );
   }
 
+  /**
+   * @method findById
+   * @description Reads one live customer user, with its role snapshot, by id.
+   * @param id - The customer user's id.
+   * @returns The user, or EntityNotFoundError when no live row has that id or the read failed.
+   */
   async findById(id: string): Promise<Result<CustomerUser, DomainError>> {
     try {
       const row = await this.getClient().customerUser.findFirst({
@@ -140,6 +139,14 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
+  /**
+   * @method findByEmail
+   * @description Reads the live customer user holding an e-mail within one account, comparing the
+   *   normalized address.
+   * @param email - The address, normalized before the comparison.
+   * @param accountId - The account the user belongs to.
+   * @returns The user, or EntityNotFoundError when no live row matches or the read failed.
+   */
   async findByEmail(email: string, accountId: string): Promise<Result<CustomerUser, DomainError>> {
     try {
       const row = await this.getClient().customerUser.findFirst({
@@ -158,6 +165,12 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
+  /**
+   * @method findByEmailAcrossAccounts
+   * @description Reads every live customer user holding an e-mail, in any account.
+   * @param email - The address, normalized before the comparison.
+   * @returns The matching users; empty when none holds the address.
+   */
   async findByEmailAcrossAccounts(email: string): Promise<CustomerUser[]> {
     const rows = await this.getClient().customerUser.findMany({
       where: { email: normalizeEmail(email), deletedAt: null },
@@ -166,6 +179,12 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     return rows.map((r) => this.toDomain(r as unknown as PrismaCustomerUserRowWithRole));
   }
 
+  /**
+   * @method findByAccountId
+   * @description Reads every live customer user of one account.
+   * @param accountId - The account whose users are read.
+   * @returns The account's live users.
+   */
   async findByAccountId(accountId: string): Promise<CustomerUser[]> {
     const rows = await this.getClient().customerUser.findMany({
       where: { accountId, deletedAt: null },
@@ -175,6 +194,13 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     return rows.map((r) => this.toDomain(r as unknown as PrismaCustomerUserRowWithRole));
   }
 
+  /**
+   * @method findByProjectId
+   * @description Reads the customer users who are members of one project, through its membership
+   *   rows.
+   * @param projectId - The project whose members are read.
+   * @returns The members, each with its role snapshot.
+   */
   async findByProjectId(projectId: string): Promise<CustomerUser[]> {
     const memberships = await this.getClient().projectMember.findMany({
       where: { projectId },
@@ -187,6 +213,13 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     );
   }
 
+  /**
+   * @method findByInviteToken
+   * @description Reads the live customer user an invitation token belongs to.
+   * @param token - The invitation token.
+   * @returns The invitee, or EntityNotFoundError when no live row holds the token or the read
+   *   failed.
+   */
   async findByInviteToken(token: string): Promise<Result<CustomerUser, DomainError>> {
     try {
       const row = await this.getClient().customerUser.findFirst({
@@ -207,6 +240,15 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
+  /**
+   * @method claimPasswordReset
+   * @description Consumes a password-reset token in one conditional write that also stores the new
+   *   hash, so two presentations of one token cannot both succeed.
+   * @param token - The reset token presented.
+   * @param newPasswordHash - The hash to store when the claim succeeds.
+   * @returns Ok when exactly one live row held the unexpired token; INVALID_TOKEN otherwise;
+   *   INTERNAL_ERROR when the write could not be made.
+   */
   async claimPasswordReset(
     token: string,
     newPasswordHash: string
@@ -236,6 +278,14 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
+  /**
+   * @method issueResetToken
+   * @description Stores a new password-reset token and its expiry on one live customer user.
+   * @param userId - The user the token is issued to.
+   * @param token - The reset token.
+   * @param expiresAt - When the token stops being claimable.
+   * @returns Ok, USER_NOT_FOUND when no live row has that id, or INTERNAL_ERROR.
+   */
   async issueResetToken(
     userId: string,
     token: string,
@@ -247,6 +297,14 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     });
   }
 
+  /**
+   * @method create
+   * @description Inserts a new customer user. A collision on the account and e-mail unique is a
+   *   typed conflict; any other failure, including a collision on another constraint, is internal.
+   * @param user - The user to create.
+   * @param passwordHash - The credential to store, the empty stub for an invitee.
+   * @returns Ok, EMAIL_EXISTS when the account already holds the address, or INTERNAL_ERROR.
+   */
   async create(
     user: CustomerUser,
     passwordHash: string
@@ -276,7 +334,7 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
       });
       return ok(undefined);
     } catch (error: unknown) {
-      if (isEmailUniqueViolation(error)) {
+      if (isUniqueViolationOf(error, ACCOUNT_EMAIL_UNIQUE)) {
         return err("EMAIL_EXISTS");
       }
       this.logWriteFailure("create", error);
@@ -284,6 +342,13 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
+  /**
+   * @method recordLogin
+   * @description Stores the instant of a successful login on one live customer user.
+   * @param userId - The user who logged in.
+   * @param at - The login instant.
+   * @returns Ok, USER_NOT_FOUND when no live row has that id, or INTERNAL_ERROR.
+   */
   async recordLogin(
     userId: string,
     at: Date
@@ -291,6 +356,14 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     return this.updateOneLiveRow("recordLogin", userId, { lastLoginAt: at });
   }
 
+  /**
+   * @method upgradePasswordHash
+   * @description Replaces one live customer user's password hash with a rehash of the same
+   *   password.
+   * @param userId - The user whose hash is upgraded.
+   * @param newHash - The new hash.
+   * @returns Ok, USER_NOT_FOUND when no live row has that id, or INTERNAL_ERROR.
+   */
   async upgradePasswordHash(
     userId: string,
     newHash: string
@@ -298,6 +371,13 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     return this.updateOneLiveRow("upgradePasswordHash", userId, { passwordHash: newHash });
   }
 
+  /**
+   * @method changeRole
+   * @description Points one live customer user at another role.
+   * @param userId - The user whose role changes.
+   * @param roleId - The new role's id.
+   * @returns Ok, USER_NOT_FOUND when no live row has that id, or INTERNAL_ERROR.
+   */
   async changeRole(
     userId: string,
     roleId: string
@@ -305,6 +385,12 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     return this.updateOneLiveRow("changeRole", userId, { roleId });
   }
 
+  /**
+   * @method deactivate
+   * @description Marks one live customer user inactive.
+   * @param userId - The user to deactivate.
+   * @returns Ok, USER_NOT_FOUND when no live row has that id, or INTERNAL_ERROR.
+   */
   async deactivate(userId: string): Promise<Result<void, "USER_NOT_FOUND" | "INTERNAL_ERROR">> {
     return this.updateOneLiveRow("deactivate", userId, { isActive: false });
   }
@@ -348,6 +434,12 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
     }
   }
 
+  /**
+   * @method delete
+   * @description Deletes one customer user's row.
+   * @param userId - The user to delete.
+   * @returns Ok, or EntityNotFoundError when the delete failed.
+   */
   async delete(userId: string): Promise<Result<void, DomainError>> {
     try {
       await this.getClient().customerUser.delete({ where: { id: userId } });

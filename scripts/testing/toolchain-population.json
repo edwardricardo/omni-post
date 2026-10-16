@@ -128,6 +128,9 @@
       "name": "prettier"
     },
     {
+      "name": "prisma"
+    },
+    {
       "name": "secretlint"
     },
     {
@@ -150,6 +153,23 @@
     },
     {
       "name": "vitest"
+    }
+  ],
+  "families": [
+    {
+      "name": "prisma",
+      "members": ["prisma", "@prisma/client", "@prisma/adapter-pg"],
+      "note": "The CLI generates the client that @prisma/client loads and @prisma/adapter-pg drives, and Prisma publishes the three at one version within minutes of each other (7.9.1 on 2026-07-27, 7.10.0 on 2026-08-25, registry times), so they move in one change. Only the CLI's freshness is measured; the family is checked for lockstep."
+    },
+    {
+      "name": "eslint",
+      "members": ["eslint", "@eslint/js"],
+      "note": "@eslint/js is ESLint's own recommended rule set, released from the same repository at the same version as eslint, and the hold rows of both in SECURITY_CANON move them in one pull request; declaring the family turns that convention into a check (review-suggestions-book SB-212)."
+    },
+    {
+      "name": "size-limit",
+      "members": ["size-limit", "@size-limit/preset-small-lib"],
+      "note": "The preset is size-limit's plugin bundle, published at the same version minutes apart (14.2.0 on 2026-10-07), and the two root literals move together; declaring the family turns that convention into a check (review-suggestions-book SB-212)."
     }
   ]
 }

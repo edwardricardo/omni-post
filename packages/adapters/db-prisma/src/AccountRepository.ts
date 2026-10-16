@@ -13,11 +13,24 @@ import {
   type UpdateAccountInput,
 } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
+import { isUniqueViolationOf } from "@infra/prisma/extensions/constraintViolation.js";
 
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:account");
 
+/** The partial unique on a live account's e-mail, as the migrations name it. */
+const ACCOUNT_EMAIL_UNIQUE = { index: "Account_email_key", fields: ["email"] } as const;
+
+/**
+ * @function createAccountRepository
+ * @description Builds the account repository over an injected Prisma client, each read and write
+ *   running through its circuit breaker.
+ * @param readBreaker - The breaker reads run through.
+ * @param writeBreaker - The breaker writes run through.
+ * @param prisma - The Prisma client.
+ * @returns The account repository's operations.
+ */
 export function createAccountRepository(
   readBreaker: { fire: (fn: () => Promise<unknown>) => Promise<unknown> },
   writeBreaker: { fire: (fn: () => Promise<unknown>) => Promise<unknown> },
@@ -61,17 +74,7 @@ export function createAccountRepository(
 
         return ok(account);
       } catch (error) {
-        if (
-          error instanceof Error &&
-          "code" in error &&
-          error.code === "P2002" &&
-          "meta" in error &&
-          error.meta &&
-          typeof error.meta === "object" &&
-          "target" in error.meta &&
-          Array.isArray(error.meta.target) &&
-          error.meta.target.includes("email")
-        ) {
+        if (isUniqueViolationOf(error, ACCOUNT_EMAIL_UNIQUE)) {
           return err("EMAIL_TAKEN");
         }
         logger.error({ err: error }, "createAccount error");

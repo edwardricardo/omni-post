@@ -45,10 +45,9 @@ export default defineConfig({
       // Subpath alias MUST precede the bare one: the bare @infra/prisma alias
       // targets a FILE (vitest-entry.ts), so a prefix match would resolve
       // subpath imports to <file>/extensions/... and fail with ENOTDIR.
-      "@infra/prisma/extensions/tenantGuc.js": path.join(
-        root,
-        "infra/prisma/src/extensions/tenantGuc.ts"
-      ),
+      // It names the extensions DIRECTORY, as the shared factory in
+      // packages/vitest-shared does, so every extension module resolves.
+      "@infra/prisma/extensions": path.join(root, "infra/prisma/src/extensions"),
       "@infra/prisma": path.join(root, "infra/prisma/src/vitest-entry.ts"),
       "@observability/logger": path.join(root, "packages/observability/logger/src/index.ts"),
       "@monitoring/circuit-breaker": path.join(

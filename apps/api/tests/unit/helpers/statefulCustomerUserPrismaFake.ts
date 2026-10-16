@@ -27,6 +27,7 @@
 import type { PrismaClient } from "@infra/prisma";
 import { tenantGuardCheck } from "@infra/prisma/extensions/tenantGuard.js";
 import { getTenantContext, getSystemContext } from "../../../src/security/tenantContext.js";
+import { uniqueViolationOnIndex } from "./prismaKnownRequestErrors.js";
 
 /**
  * The persisted shape of a `CustomerUser` row. Mirrors the scalar columns the
@@ -102,19 +103,19 @@ const SUPPORTED_FILTER_OPERATORS: ReadonlySet<string> = new Set<string>([
   "in",
 ]);
 
-/** Shape of the error the fake raises for a unique-constraint collision. */
-interface UniqueConstraintError extends Error {
-  code: string;
-  meta: { target: string[] };
-}
+/**
+ * The unique indexes of `CustomerUser`, as the migrations name them, each raised the way Prisma
+ * 7.10.0 raises a violation through `@prisma/adapter-pg`: by index name, never by `meta.target`.
+ */
+const CUSTOMER_USER_UNIQUE_INDEXES = {
+  accountIdEmail: "CustomerUser_accountId_email_key",
+  resetToken: "CustomerUser_resetToken_key",
+  inviteToken: "CustomerUser_inviteToken_key",
+  primaryKey: "CustomerUser_pkey",
+} as const;
 
-function uniqueConstraintError(target: string[]): UniqueConstraintError {
-  const error = new Error(
-    `Unique constraint failed on the fields: (${target.join(", ")})`
-  ) as UniqueConstraintError;
-  error.code = "P2002";
-  error.meta = { target };
-  return error;
+function uniqueConstraintError(index: string): Error {
+  return uniqueViolationOnIndex(index, "CustomerUser");
 }
 
 function recordNotFoundError(operation: string): Error & { code: string } {
@@ -316,13 +317,13 @@ export function createStatefulCustomerUserPrismaFake(): StatefulCustomerUserPris
     for (const other of store.values()) {
       if (other.id === candidate.id) continue;
       if (other.accountId === candidate.accountId && other.email === candidate.email) {
-        throw uniqueConstraintError(["accountId", "email"]);
+        throw uniqueConstraintError(CUSTOMER_USER_UNIQUE_INDEXES.accountIdEmail);
       }
       if (candidate.resetToken !== null && other.resetToken === candidate.resetToken) {
-        throw uniqueConstraintError(["resetToken"]);
+        throw uniqueConstraintError(CUSTOMER_USER_UNIQUE_INDEXES.resetToken);
       }
       if (candidate.inviteToken !== null && other.inviteToken === candidate.inviteToken) {
-        throw uniqueConstraintError(["inviteToken"]);
+        throw uniqueConstraintError(CUSTOMER_USER_UNIQUE_INDEXES.inviteToken);
       }
     }
   };
@@ -424,7 +425,7 @@ export function createStatefulCustomerUserPrismaFake(): StatefulCustomerUserPris
         `statefulCustomerUserPrismaFake: write failure armed for "${id}" (${operation})`
       );
     }
-    if (store.has(id)) throw uniqueConstraintError(["id"]);
+    if (store.has(id)) throw uniqueConstraintError(CUSTOMER_USER_UNIQUE_INDEXES.primaryKey);
     const accountId = typeof data.accountId === "string" ? data.accountId : "";
     const email = typeof data.email === "string" ? data.email : "";
     return commit(blankRow(id, accountId, email), data);

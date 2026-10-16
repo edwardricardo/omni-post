@@ -1,7 +1,14 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-15, every patched dependency is watched until it is resolved
+**As of:** 2026-10-15, a Prisma constraint violation is read where Prisma 7 reports it
+(`workstream/night-cp1-prisma-7-10`, `PR cp1`, unit C-P1 of `dependency-catch-up-2026-10-15`). Through
+`@prisma/adapter-pg` the violated constraint sits at `meta.driverAdapterError.cause.constraint` and
+`meta.target` is never set, so four readers of `meta.target` never matched; one reader,
+`infra/prisma/src/extensions/constraintViolation.ts`, now serves them. Its suite, the db-prisma
+unique-violation suite and the team-invite integration suite moved M1 `1003 + 14` → `1006 + 14`.
+
+Before it, the same day, every patched dependency is watched until it is resolved
 (`workstream/patched-dependencies-gate`, `PR pdeps`, unit M1 of `dependency-catch-up-2026-10-15`,
 stacked on the next 16.4.1 floor and its `@storybook/nextjs-vite` patch). Fitness #48,
 `pnpm check:patched-deps` (`scripts/testing/patched-dependencies-gate.mjs --check`, pinned by
@@ -574,8 +581,10 @@ deleted the bundle analyzer with its suite (M1 `994 + 14` → `993 + 14`). `PR d
 (M1 `993 + 14` → `995 + 14`) and the three suites of the shared `@observability/sentry-next`
 package (M1 `995 + 14` → `998 + 14`, M8 `1/92` → `1/93` for its vitest config). `PR pdeps` is the
 patched-dependencies gate, fitness #48, on `workstream/patched-dependencies-gate`, which added its
-suite and its gate row (M1 `1002 + 14` → `1003 + 14`, M7 `37/37` → `38/38`). A `PR` followed by a
-letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
+suite and its gate row (M1 `1002 + 14` → `1003 + 14`, M7 `37/37` → `38/38`). `PR cp1` is the Prisma
+constraint reader on `workstream/night-cp1-prisma-7-10`, which added its suite, the db-prisma
+unique-violation suite and the team-invite integration suite (M1 `1003 + 14` → `1006 + 14`). A `PR`
+followed by a letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
 [§Plan (fixed)](#plan-fixed)'s own label for the pull request that
 closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
 and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the gitleaks change. A
@@ -583,7 +592,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1003 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR pdeps |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1006 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR cp1   |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -998,8 +1007,8 @@ The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambigu
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-15T16:32:47Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
-exit 0 with EMPTY stderr: of the 50 packages in `scripts/testing/toolchain-population.json` (49 direct, 1
+**CURRENT, re-measured 2026-10-15T18:47:25Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
+exit 0 with EMPTY stderr: of the 51 packages in `scripts/testing/toolchain-population.json` (50 direct, 1
 named transitive, no declared-absent candidate left), 10 sit below latest mature: 1 within the 30-day
 budget of ADR-0036, 0 past it unheld, 9 held.**
 
@@ -1393,6 +1402,34 @@ and what moved it. A slice that moves the count appends its own line.
     and 1.37 MB, against 907.02 kB and 1.36 MB at line 35: zod's classic import alone bundles to
     92.1 kB gzipped on 4.6.5 against 64.7 kB on 4.4.3. At `2026-10-20T00:00:00Z` the gate reads 20 below latest
     mature, 11 within budget and none undocumented.
+37. `2026-10-15T18:47:25Z` — **10** (1 within budget, 9 held, 0 undocumented): the population rose 50 → 51
+    with `prisma`, the CLI through which the gate now measures the Prisma family's freshness (residual (3)
+    of `holds-gate.mjs`; `@prisma/client` and `@prisma/adapter-pg` are read for equality only: the
+    population's family `prisma` holds the three to one version, as each importer declares them and as
+    each member resolves another as a dependency or a peer). The same change took the family 7.9.1 →
+    7.10.0, its latest stable release (the `prev` dist-tag; `latest` is the release candidate
+    8.0.0-rc.23, not taken), published `2026-08-25T12:47:51Z` and mature since
+    `2026-09-01T12:47:51Z`, so `prisma` reads `at or above latest mature` and the count
+    holds. Pinned back to 7.9.1 (`--ignore-scripts`), the gate reads
+    `prisma 7.9.1 7.10.0 lag: UNDOCUMENTED` and exits 1 at `2026-10-02T00:00:00Z` and at
+    `2026-10-01T12:47:52Z`, and exits 0 at
+    `2026-10-01T12:47:50Z` (29 d of 30); with the manifest and the lockfile restored byte for byte
+    (sha256), it exits 0 again. OSV, GitHub's global advisories and the `prisma/prisma` repository
+    advisories list nothing for 7.9.1 or 7.10.0. In the lockfile, parsed with `yaml.safe_load_all`, the 11
+    packages of the family swap 7.9.1 → 7.10.0 one for one (`prisma`, `@prisma/client`, `adapter-pg`,
+    `client-runtime-utils`, `config`, `debug`, `driver-adapter-utils`, `engines`, `engines-version`,
+    `fetch-engine`, `get-platform`) and nothing else moves: 1952 packages and 1954 snapshots, as before.
+    Resolved with pnpm's minimum release age at 10080 minutes, excluding the 23 young pins of line 35 and
+    `knip` 6.41.0, then with `pnpm update -r --lockfile-only` of the family: lockfile preference had kept
+    the `prisma` 7.9.1 peer of `@prisma/client` under `apps/api` and `packages/adapters/db-prisma`.
+    `pnpm dedupe --check` exits 0 and the deprecated subdependencies stay 26. The family check landed in
+    the same unit: at `2026-10-16T03:16:22Z` the tree prints
+    `family prisma 7.10.0 in lockstep (3 members, 8 resolutions read in 3 importers)` and exits 0; with
+    `@prisma/adapter-pg` planted at 7.9.1 in `infra/prisma` and installed (`--offline --ignore-scripts`),
+    it exits 1 naming `7.9.1 — @prisma/adapter-pg in @infra/prisma` against the seven 7.10.0
+    resolutions; with the manifest
+    and the lockfile restored byte for byte (sha256) and reinstalled, it exits 0 again. The lockfile
+    resolved alone (`--lockfile-only`) does not move it, because `pnpm ls` reads the installed tree.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the

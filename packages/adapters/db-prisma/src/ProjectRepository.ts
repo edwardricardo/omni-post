@@ -7,9 +7,19 @@
 import { ok, err, type Result } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
 import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
+import {
+  isUniqueViolationOf,
+  violatedConstraint,
+} from "@infra/prisma/extensions/constraintViolation.js";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:project");
+
+/** The partial unique on a live project's name within its account, as the migrations name it. */
+const PROJECT_NAME_UNIQUE = {
+  index: "Project_accountId_name_key",
+  fields: ["accountId", "name"],
+} as const;
 
 export interface CreateProjectInput {
   name: string;
@@ -17,12 +27,17 @@ export interface CreateProjectInput {
 }
 
 /**
+ * @function createProjectRepository
+ * @description Builds the project repository over an injected Prisma client.
+ *
  * `Project` is RLS-covered, and this package is shared with the workers, where no request-scoped
  * tenant context exists to bind from. So every statement that touches it runs inside a
  * transaction that binds `app.account_id` EXPLICITLY from the account the caller already passed
  * — the pattern `ChannelRepository` established here, applied to the second covered table this
  * package reads. Under a role that cannot bypass row security an unbound read returns nothing,
  * silently, so binding is what keeps these methods answering at all after the cutover.
+ * @param prisma - The Prisma client.
+ * @returns The project repository's operations.
  */
 export function createProjectRepository(prisma: PrismaClient) {
   return {
@@ -73,6 +88,10 @@ export function createProjectRepository(prisma: PrismaClient) {
 
         return created;
       } catch (error) {
+        // A name the account already holds is an answer, not a fault, so it is not logged.
+        if (isUniqueViolationOf(error, PROJECT_NAME_UNIQUE)) {
+          return err("NAME_TAKEN");
+        }
         logger.error(
           {
             err: error,
@@ -80,40 +99,10 @@ export function createProjectRepository(prisma: PrismaClient) {
               error instanceof Error && "code" in error
                 ? (error as Record<string, unknown>).code
                 : undefined,
-            meta:
-              error instanceof Error && "meta" in error
-                ? (error as Record<string, unknown>).meta
-                : undefined,
+            constraint: violatedConstraint(error),
           },
           "createProject error"
         );
-
-        if (
-          error instanceof Error &&
-          "code" in error &&
-          error.code === "P2002" &&
-          "meta" in error &&
-          error.meta &&
-          typeof error.meta === "object" &&
-          "target" in error.meta
-        ) {
-          const target = (error.meta as Record<string, unknown>).target;
-          logger.error({ target }, "P2002 unique constraint violation");
-
-          // Check for various ways Prisma might format the constraint name
-          if (
-            Array.isArray(target) &&
-            (target.includes("name") ||
-              target.some((t: string) => typeof t === "string" && t.includes("name")) ||
-              target.some(
-                (t: string) => typeof t === "string" && t.includes("Project_accountId_name")
-              ))
-          ) {
-            logger.error("Detected NAME_TAKEN scenario");
-            return err("NAME_TAKEN");
-          }
-        }
-        logger.error({ err: error }, "createProject fallthrough error");
         return err("DATABASE_ERROR");
       }
     },

@@ -13,7 +13,16 @@
  *   runs `pnpm`, and never reads the repository's own canon, so it measures the gate's RULE rather
  *   than today's dependency tree. A suite that read the live tree would go green or red for reasons
  *   that have nothing to do with the code under test, and would stop being able to prove the red
- *   path at all once the tree was clean.
+ *   path at all once the tree was clean. Two cases read a tracked file, the population itself, to
+ *   pin the gate's SCOPE: the Prisma family's freshness is measured through its CLI, `prisma`, and
+ *   the family is declared for the lockstep check, CLI, client and adapter; each case fails when its
+ *   declaration leaves the population, still without the registry or pnpm.
+ *
+ *   The FAMILY cases present importers as `pnpm ls -r --depth 1 --json` prints them: a member's own
+ *   dependencies and peers one level below the importer, and a later copy at the same store path
+ *   printed as `deduped`, its children only on the copy that was expanded. That is how a member that
+ *   keeps an older sibling as its peer is presented, the drift lockfile preference leaves although
+ *   every manifest agrees.
  *
  *   The fail-closed cases carry as much weight as the happy path. A gate that reports a clean zero
  *   when its table cannot be parsed, or silently skips a package it cannot resolve, is worse than no
@@ -31,7 +40,7 @@
  * @layer infrastructure
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -71,11 +80,33 @@ interface RawTable {
   readonly separator?: readonly string[];
 }
 
+/** One dependency entry as `pnpm ls -r --depth 1 --json` prints it, for the family cases. */
+interface ListedDependency {
+  readonly version: string;
+  /** The store path; copies at one path are one installed package. Derived when omitted. */
+  readonly path?: string;
+  /** A later copy, printed without children: they appear only on the copy that was expanded. */
+  readonly deduped?: boolean;
+  /** Its own dependencies and resolved peers, one level below the importer. */
+  readonly dependencies?: Record<string, ListedDependency>;
+}
+
+interface ListedImporter {
+  readonly name: string;
+  readonly dependencies: Record<string, ListedDependency>;
+}
+
 interface Fixture {
-  /** Package name → installed semver, as `pnpm ls -r --depth 0 --json` reports it. */
+  /** Package name → installed semver, as the importer level of `pnpm ls -r --json` reports it. */
   readonly installed: Record<string, string>;
   /** A second importer, so one name can be installed at two versions across the workspace. */
   readonly alsoInstalled?: Record<string, string>;
+  /** Further importers, entries and children included, for the family cases. */
+  readonly importers?: readonly ListedImporter[];
+  /** The population's `families`, verbatim, so a malformed declaration can be presented. */
+  readonly families?: readonly unknown[];
+  /** Further top-level keys of the population document. */
+  readonly populationExtra?: Readonly<Record<string, unknown>>;
   /** Package name → the registry's `time` document: every version with its publish instant. */
   readonly published: Record<string, Record<string, string>>;
   readonly population: readonly PopulationEntry[];
@@ -151,11 +182,32 @@ const runGate = (fixture: Fixture): GateResult => {
     ),
   });
 
+  const listedEntry = (pkg: string, entry: ListedDependency): Record<string, unknown> => ({
+    from: pkg,
+    version: entry.version,
+    path: entry.path ?? path.join(dir, "store", `${pkg.replaceAll("/", "+")}@${entry.version}`),
+    ...(entry.deduped === true && { deduped: true, dedupedDependenciesCount: 1 }),
+    ...(entry.dependencies !== undefined && {
+      dependencies: Object.fromEntries(
+        Object.entries(entry.dependencies).map(([child, body]) => [child, listedEntry(child, body)])
+      ),
+    }),
+  });
+
   const installedDocument = [
     importer("fixture-workspace", fixture.installed),
     ...(fixture.alsoInstalled === undefined
       ? []
       : [importer("fixture-sibling", fixture.alsoInstalled)]),
+    ...(fixture.importers ?? []).map((listed) => ({
+      name: listed.name,
+      path: path.join(dir, listed.name),
+      private: true,
+      version: "0.0.0",
+      dependencies: Object.fromEntries(
+        Object.entries(listed.dependencies).map(([pkg, entry]) => [pkg, listedEntry(pkg, entry)])
+      ),
+    })),
   ];
   // `pnpm outdated` reports only what it considers behind the `latest` dist-tag, which is exactly
   // how the gate bounds its registry reads. `latest` here is the highest published version, mature
@@ -181,7 +233,14 @@ const runGate = (fixture: Fixture): GateResult => {
   const inFixture = (file: string): string => path.join(dir, file);
   writeFileSync(inFixture("installed.json"), JSON.stringify(installedDocument));
   writeFileSync(inFixture("outdated.json"), JSON.stringify(outdatedDocument));
-  writeFileSync(inFixture("population.json"), JSON.stringify({ packages: fixture.population }));
+  writeFileSync(
+    inFixture("population.json"),
+    JSON.stringify({
+      packages: fixture.population,
+      ...(fixture.families !== undefined && { families: fixture.families }),
+      ...fixture.populationExtra,
+    })
+  );
   const canon =
     fixture.table === undefined ? renderCanon(fixture.holds) : renderCanonTable(fixture.table);
   writeFileSync(inFixture("canon.md"), fixture.canonOverride ?? canon);
@@ -344,6 +403,295 @@ describe("testing toolchain holds gate", () => {
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
+    });
+  });
+
+  describe("the Prisma family, measured through its CLI", () => {
+    /**
+     * The registry's own times for `prisma`, read 2026-10-15: its `latest` dist-tag is a release
+     * candidate of the next major, while the stable line ends at 7.10.0 (the `prev` dist-tag). The
+     * outdated document therefore reports the CLI as behind even when it sits at 7.10.0, and only
+     * the gate's own stable-and-mature reading decides.
+     */
+    const PRISMA_PUBLISHED: Fixture["published"] = {
+      prisma: {
+        created: "2019-07-24T00:00:00Z",
+        "7.9.1": "2026-07-27T13:49:09Z",
+        "7.10.0": "2026-08-25T12:47:51Z",
+        "8.0.0-rc.23": "2026-10-15T09:32:33Z",
+      },
+    };
+    const PRISMA_INSTANT = "2026-10-15T18:00:00Z";
+
+    it("exits 1 when the CLI sits on 7.9.1 past the budget of 7.10.0, under a prerelease latest", () => {
+      // The dates derive from the publish instant and the gate's two windows: 7.10.0 was published
+      // 2026-08-25T12:47:51Z, so the 7-day maturity buffer (ADR-0018) makes it a target from
+      // 2026-09-01T12:47:51Z, and the 30-day budget (ADR-0036) that counts from that instant ran out
+      // 2026-10-01T12:47:51Z, two weeks before PRISMA_INSTANT.
+      const result = runGate({
+        installed: { prisma: "7.9.1" },
+        published: PRISMA_PUBLISHED,
+        population: [{ name: "prisma" }],
+        holds: [UNRELATED_HOLD],
+        instant: PRISMA_INSTANT,
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("prisma\t7.9.1\t7.10.0\tlag: UNDOCUMENTED");
+      expect(result.stderr).toContain("prisma is installed at 7.9.1");
+    });
+
+    it("exits 0 when the CLI sits on the latest stable release although latest is a candidate", () => {
+      const result = runGate({
+        installed: { prisma: "7.10.0" },
+        published: PRISMA_PUBLISHED,
+        population: [{ name: "prisma" }],
+        holds: [UNRELATED_HOLD],
+        instant: PRISMA_INSTANT,
+      });
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("prisma\t7.10.0\t7.10.0\tat or above latest mature");
+    });
+
+    it("names the CLI in the tracked population, with no declared absence", () => {
+      // The one case that reads a tracked file instead of a fixture: what it pins is the gate's
+      // SCOPE, the population, not the dependency tree, so it stays independent of the registry
+      // and of pnpm.
+      const tracked = JSON.parse(
+        readFileSync(
+          path.join(REPO_ROOT, "scripts", "testing", "toolchain-population.json"),
+          "utf8"
+        )
+      ) as { packages: PopulationEntry[] };
+
+      const entry = tracked.packages.find((candidate) => candidate.name === "prisma");
+
+      expect(entry).toEqual({ name: "prisma" });
+    });
+
+    it("declares the CLI, the client and the adapter as one family in the tracked population", () => {
+      // The second case that reads the tracked population: without this declaration the lockstep
+      // check has nothing to compare and passes, so the scope it pins is the family itself.
+      const tracked = JSON.parse(
+        readFileSync(
+          path.join(REPO_ROOT, "scripts", "testing", "toolchain-population.json"),
+          "utf8"
+        )
+      ) as { families?: { name: string; members: string[] }[] };
+
+      const family = tracked.families?.find((candidate) => candidate.name === "prisma");
+
+      expect(family?.members).toEqual(["prisma", "@prisma/client", "@prisma/adapter-pg"]);
+    });
+  });
+
+  describe("a family checked for lockstep", () => {
+    const GEN_FAMILY = {
+      name: "gen",
+      members: ["gen-cli", "gen-client", "gen-adapter"],
+      note: "the CLI generates the client that the adapter drives",
+    } as const;
+
+    /**
+     * The members as the Prisma family sits in the tree: the CLI, the client and the adapter in one
+     * importer, the client in a second, and every copy of the client resolving the CLI as its peer.
+     */
+    const genImporters = (versions: {
+      readonly cli?: string;
+      readonly adapter?: string;
+      readonly peerInApi?: string;
+    }): ListedImporter[] => [
+      {
+        name: "@fixture/db",
+        dependencies: {
+          "gen-cli": { version: versions.cli ?? "1.2.0" },
+          "gen-adapter": { version: versions.adapter ?? "1.2.0" },
+          "gen-client": {
+            version: "1.2.0",
+            dependencies: { "gen-cli": { version: versions.cli ?? "1.2.0" } },
+          },
+        },
+      },
+      {
+        name: "@fixture/api",
+        dependencies: {
+          "gen-client": {
+            version: "1.2.0",
+            path: "/store/gen-client@1.2.0(gen-cli@api)",
+            dependencies: { "gen-cli": { version: versions.peerInApi ?? "1.2.0" } },
+          },
+        },
+      },
+    ];
+
+    /** A population at its latest, so every red below is the family's. */
+    const AT_LATEST = {
+      installed: { widget: "2.0.0" },
+      published: WIDGET_MATURE_LAG,
+      population: [{ name: "widget" }],
+      holds: [WIDGET_HOLD],
+    } as const;
+
+    it("exits 0 reporting the family in lockstep when every member resolves to one version", () => {
+      const result = runGate({ ...AT_LATEST, importers: genImporters({}), families: [GEN_FAMILY] });
+
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(
+        "family gen\t1.2.0\tin lockstep (3 members, 6 resolutions read in 2 importers)"
+      );
+    });
+
+    it("exits 1 naming both versions and the importer when one member is a patch apart", () => {
+      const result = runGate({
+        ...AT_LATEST,
+        importers: genImporters({ adapter: "1.2.1" }),
+        families: [GEN_FAMILY],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("family gen does not resolve to one version");
+      expect(result.stderr).toContain("1.2.0 — gen-cli in @fixture/db");
+      expect(result.stderr).toContain("1.2.1 — gen-adapter in @fixture/db");
+      expect(result.stdout).toContain("family gen\t1.2.0, 1.2.1\tNOT in lockstep");
+    });
+
+    it("exits 1 when a member keeps an older sibling as its peer although every declaration agrees", () => {
+      // Lockfile preference leaves this shape: each manifest names 1.2.0, and the client in a second
+      // importer still resolves the previous CLI as its peer.
+      const result = runGate({
+        ...AT_LATEST,
+        importers: genImporters({ peerInApi: "1.1.0" }),
+        families: [GEN_FAMILY],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("1.1.0 — gen-cli in @fixture/api under gen-client");
+    });
+
+    it("reads a deduplicated copy through the copy that was expanded, naming its own importer", () => {
+      // `pnpm ls` prints a store path's children once. The divergence below is visible only through
+      // the expanded copy in @fixture/db, so naming @fixture/api proves the deduplicated copy was
+      // read rather than skipped.
+      const shared = "/store/gen-client@1.2.0(gen-cli@1.1.0)";
+      const result = runGate({
+        ...AT_LATEST,
+        importers: [
+          {
+            name: "@fixture/db",
+            dependencies: {
+              "gen-cli": { version: "1.2.0" },
+              "gen-adapter": { version: "1.2.0" },
+              "gen-client": {
+                version: "1.2.0",
+                path: shared,
+                dependencies: { "gen-cli": { version: "1.1.0" } },
+              },
+            },
+          },
+          {
+            name: "@fixture/api",
+            dependencies: { "gen-client": { version: "1.2.0", path: shared, deduped: true } },
+          },
+        ],
+        families: [GEN_FAMILY],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("gen-cli in @fixture/api under gen-client");
+    });
+
+    it("exits 1 when a deduplicated copy has no expanded copy in the listing", () => {
+      const result = runGate({
+        ...AT_LATEST,
+        importers: [
+          ...genImporters({}),
+          {
+            name: "@fixture/web",
+            dependencies: {
+              "gen-client": { version: "1.2.0", path: "/store/never-expanded", deduped: true },
+            },
+          },
+        ],
+        families: [GEN_FAMILY],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("gen-client in @fixture/web is listed as deduplicated");
+      expect(result.stderr).toContain("cannot be read");
+    });
+
+    it("exits 1 naming a family member that no importer declares", () => {
+      const result = runGate({
+        ...AT_LATEST,
+        importers: genImporters({}),
+        families: [{ ...GEN_FAMILY, members: [...GEN_FAMILY.members, "gen-plugin"] }],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("gen-plugin is a member that no importer declares");
+    });
+
+    it("exits 1 on a family with fewer than two members", () => {
+      const result = runGate({
+        ...AT_LATEST,
+        importers: genImporters({}),
+        families: [{ ...GEN_FAMILY, members: ["gen-cli"] }],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("family gen has 1 member(s)");
+      expect(result.stdout).not.toContain("family gen\t");
+    });
+
+    it("exits 1 on a family field the gate does not read", () => {
+      const result = runGate({
+        ...AT_LATEST,
+        importers: genImporters({}),
+        families: [{ ...GEN_FAMILY, lockstep: true }],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('family gen declares "lockstep"');
+    });
+
+    it("exits 1 on a family with no note saying why its members move together", () => {
+      const result = runGate({
+        ...AT_LATEST,
+        importers: genImporters({}),
+        families: [{ name: GEN_FAMILY.name, members: GEN_FAMILY.members }],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("family gen carries no note");
+    });
+
+    it("exits 1 when one package is a member of two families", () => {
+      const result = runGate({
+        ...AT_LATEST,
+        importers: genImporters({}),
+        families: [
+          GEN_FAMILY,
+          { name: "other", members: ["gen-client", "other-tool"], note: "a second claim" },
+        ],
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("gen-client is a member of both family gen and family other");
+    });
+
+    it("exits 1 on a population key the gate does not read", () => {
+      // A misspelled `families` would otherwise check nothing and pass.
+      const result = runGate({
+        ...AT_LATEST,
+        importers: genImporters({}),
+        populationExtra: { familes: [GEN_FAMILY] },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('declares "familes"');
     });
   });
 

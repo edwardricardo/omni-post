@@ -36,6 +36,11 @@ import {
   type FakeCustomerUserRow,
   type StatefulCustomerUserPrismaFake,
 } from "../../helpers/statefulCustomerUserPrismaFake.js";
+import {
+  uniqueViolationOnFields,
+  uniqueViolationOnIndex,
+  uniqueViolationWithConstraint,
+} from "../../helpers/prismaKnownRequestErrors.js";
 
 /** Stands in for the declared seam a route binds before any of these run. */
 const SEAM_REASON = "system:customer-write-invariants";
@@ -549,5 +554,64 @@ describe("Customer-user write API — each command writes exactly the columns it
         'the "VIEWER-like" fallback must be stored as NULL — "" would violate the optional FK to CustomerRole'
       );
     });
+  });
+});
+
+/**
+ * A creation whose insert raises the given error, so each shape the driver adapter can name a
+ * constraint in reaches the repository's translation unchanged.
+ */
+function repositoryRaising(error: Error): PrismaCustomerUserRepository {
+  const client = {
+    customerUser: {
+      create: (): Promise<never> => Promise.reject(error),
+    },
+  } as unknown as ConstructorParameters<typeof PrismaCustomerUserRepository>[0];
+  return new PrismaCustomerUserRepository(client);
+}
+
+describe("Customer-user creation reads the constraint the driver adapter names", () => {
+  it("answers EMAIL_EXISTS when Prisma 7.10.0 names the account and e-mail index", async () => {
+    const repo = repositoryRaising(
+      uniqueViolationOnIndex("CustomerUser_accountId_email_key", "CustomerUser")
+    );
+
+    const result = await repo.create(makeEntity(), CREATED_HASH);
+
+    assert.deepStrictEqual(result, { ok: false, error: "EMAIL_EXISTS" });
+  });
+
+  it("answers EMAIL_EXISTS when Prisma 7.9.1 names the same index by its quoted columns", async () => {
+    const repo = repositoryRaising(
+      uniqueViolationOnFields(
+        ['"accountId"', "email"],
+        "CustomerUser_accountId_email_key",
+        "CustomerUser"
+      )
+    );
+
+    const result = await repo.create(makeEntity(), CREATED_HASH);
+
+    assert.deepStrictEqual(result, { ok: false, error: "EMAIL_EXISTS" });
+  });
+
+  it("answers INTERNAL_ERROR for another unique index whose name also mentions the e-mail", async () => {
+    const repo = repositoryRaising(
+      uniqueViolationOnIndex("CustomerUser_emailVerifyToken_key", "CustomerUser")
+    );
+
+    const result = await repo.create(makeEntity(), CREATED_HASH);
+
+    assert.deepStrictEqual(result, { ok: false, error: "INTERNAL_ERROR" });
+  });
+
+  it("answers INTERNAL_ERROR when the constraint arrives in a shape it cannot read", async () => {
+    const repo = repositoryRaising(
+      uniqueViolationWithConstraint({ name: "CustomerUser_accountId_email_key" })
+    );
+
+    const result = await repo.create(makeEntity(), CREATED_HASH);
+
+    assert.deepStrictEqual(result, { ok: false, error: "INTERNAL_ERROR" });
   });
 });
