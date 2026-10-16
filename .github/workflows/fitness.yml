@@ -63,12 +63,14 @@ jobs:
 
       # #37 and #41 run node heredocs, #41 expanding its scope with node's fs.glob
       # (node >= 22; stable on 24), and #44 runs a node script. The runner's default
-      # node is not version-pinned, so pin it here — no install/cache: the fitness
-      # job runs zero package code.
+      # node is not version-pinned, so pin it here to the version .nvmrc names. This job
+      # sets up Node directly rather than through the setup-node-pnpm-cache action, because
+      # that action installs pnpm and the dependency tree, and the fitness job runs zero
+      # package code: no pnpm, no install, no cache.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "26"
+          node-version-file: .nvmrc
 
       - name: "#1 No Prisma singleton imports in routes"
         if: always()
@@ -762,7 +764,7 @@ jobs:
           # a tracked .yml file: the pattern carries a bracket class so it does
           # not match its own text, and the flag's name is spelled out nowhere
           # else in it. Fail-closed: a git grep that errors, or a scope below
-          # 2500 files, read less of the tree than it holds.
+          # PART_A_SCOPE_FLOOR files, read less of the tree than it holds.
           # Part B: the node:test runner must KEEP its zero-collection guards and
           # read its counts from the summary reporter. node:test has no equivalent
           # default: it counts a file that registers no test as one passing test,
@@ -776,9 +778,12 @@ jobs:
           # CLAUDE.md #31.
           # GitHub runs this body under `bash -e`: each status is captured with `||`, so
           # git grep's exit 1, which means "no match", is read rather than ending the step.
+          # The repository tracks about 3,100 JSON, TypeScript and workflow files (3132 on
+          # 2026-10-16), so a count below 2500 means a partial checkout, not a smaller tree.
+          PART_A_SCOPE_FLOOR=2500
           SCOPE=$(git ls-files -- '*.json' '*.ts' '*.mts' '*.yml' | wc -l) || SCOPE=0
-          if [ "$SCOPE" -lt 2500 ]; then
-            echo "::error title=Fitness #31 scope error::git ls-files found $SCOPE JSON, TypeScript and workflow files against a floor of 2500 — the checkout is missing or partial, and Part A would report a clean zero over files it never read."
+          if [ "$SCOPE" -lt "$PART_A_SCOPE_FLOOR" ]; then
+            echo "::error title=Fitness #31 scope error::git ls-files found $SCOPE JSON, TypeScript and workflow files against a floor of $PART_A_SCOPE_FLOOR — the checkout is missing or partial, and Part A would report a clean zero over files it never read."
             exit 1
           fi
           ASTATUS=0
@@ -1709,17 +1714,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "26"
-          cache: "pnpm"
-
-      - name: "Lockfile gate: pnpm install --frozen-lockfile"
-        run: pnpm install --frozen-lockfile
+      # The action's install step runs `pnpm install --frozen-lockfile` (its frozen-lockfile
+      # input defaults to true), so it is this job's lockfile gate: a lockfile that disagrees
+      # with the manifests fails here.
+      - name: "Lockfile gate: setup Node and pnpm, pnpm install --frozen-lockfile"
+        uses: ./.github/actions/setup-node-pnpm-cache
 
       - name: "Single-version gate: syncpack (catalog-managed direct deps; transitives are consumer-governed)"
         # syncpack 15 is a native binary with no JavaScript dependency tree, so a fresh
@@ -1931,17 +1930,10 @@ jobs:
           # shrink-only clause; `git ls-files` itself needs only the checked-out commit.
           fetch-depth: 0
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "26"
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # The job's DATABASE_URL above reaches the action's install step too: a composite action's
+      # steps inherit the job environment.
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
 
       - name: "#30 Every test file has exactly one collector run by a required check"
         if: always()

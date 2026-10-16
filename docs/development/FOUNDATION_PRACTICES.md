@@ -26,6 +26,7 @@ It is read by whoever starts the next application, by whoever writes that prompt
 | FP-003 | CI and gates         | A gate fails closed when its scope is missing or its scan read nothing      | construction and gate |
 | FP-004 | CI and gates         | A gate merges only after its red path shows a real non-zero exit            | construction and gate |
 | FP-008 | CI and gates         | Every root config a package extends is part of the build cache key          | gate                  |
+| FP-013 | CI and gates         | One shared CI setup step; the runtime version comes from one file           | construction and gate |
 | FP-007 | Security and tenancy | Tenant isolation fails closed from the first tenant-bearing model           | construction and gate |
 | FP-009 | Dependencies         | A dependency check reads a checked list for what the fields cannot say      | construction and gate |
 | FP-010 | Dependencies         | A freshness gate covers every tool in the manifests, families in lockstep   | gate                  |
@@ -137,6 +138,13 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Why:** omni-post's build cache hashed each package's own inputs plus a declared global list and nothing else, so a root compiler config a package merely extends was invisible to the hash. Editing it invalidated zero cache entries, and every dependent task replayed a `dist` compiled with the previous compiler settings under a green exit code, a false green reproduced end to end in [CI_CACHE_INTEGRITY_AUDIT.md](../reports/CI_CACHE_INTEGRITY_AUDIT.md) (fitness #33 in [CLAUDE.md](../../CLAUDE.md)).
 - **Day-one enforcement:** gate. The extends walk, fitness #33's form, runs from the first shared configuration. Carry-over: generalized gate.
 - **Loosen if:** never: a stale cache hit is a false green with no visible signal.
+
+### FP-013 — Every CI job sets up the runtime and the package manager through one shared step, which reads the runtime version from one file
+
+- **Practice:** One shared setup step (a composite action or its equivalent) installs the runtime, the package manager and the dependency tree for every CI job that needs them, and pins each third-party action it uses at one major. The runtime version is written in one file (`.nvmrc`) and the package manager's in one field (`packageManager`), and every setup reads them; no workflow writes a version literal. A job that needs the runtime alone sets it up directly from the same file, with a comment saying why it skips the shared step.
+- **Why:** omni-post's shared step pinned `actions/setup-node@v4`, `pnpm/action-setup@v4` and `actions/cache@v4` while the jobs that set up Node directly had moved to `actions/setup-node@v7` and `pnpm/action-setup@v6`, so two majors of each action ran in one pipeline, and support for pnpm 12, the version `packageManager` pins, arrived only in `pnpm/action-setup` v6.1.0. Eight places in six workflows wrote the runtime major as the literal `"26"` while `.nvmrc` already held it: the engines gate held every manifest to the `.nvmrc` major ([`engines-node-gate.mjs`](../../scripts/testing/engines-node-gate.mjs)), and nothing held the workflows to it (book rows SB-209, SB-250 and SB-251 in [review-suggestions-book.md](../reports/review-suggestions-book.md); [`action.yml`](../../.github/actions/setup-node-pnpm-cache/action.yml)).
+- **Day-one enforcement:** construction and gate. Construction: the shared setup step exists from the first workflow, takes no runtime-version input and reads `.nvmrc`; the package manager comes from `packageManager`. Gate: a check over the workflow files refuses a runtime-version literal anywhere, refuses a direct use of the runtime, package-manager or cache setup actions outside the shared step unless the job is on a list with its reason, and holds every reference to an action at one major. Carry-over: the shared step is omni-post's `setup-node-pnpm-cache` action; omni-post has no gate for the rule, so the next application builds the check new.
+- **Loosen if:** a job must run a runtime version other than the one `.nvmrc` names, such as a compatibility matrix; then that job alone lists its versions in one place, with the reason beside them.
 
 ## Security and tenancy
 

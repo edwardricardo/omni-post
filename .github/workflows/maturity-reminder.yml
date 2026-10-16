@@ -30,10 +30,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # Node alone, not the setup-node-pnpm-cache action: the reminder script imports only
+      # node: built-ins, so the job needs no pnpm and no installed tree.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "26"
+          node-version-file: .nvmrc
 
       - name: Remind
         env:

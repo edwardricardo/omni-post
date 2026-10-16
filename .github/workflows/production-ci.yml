@@ -15,7 +15,6 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
-  NODE_VERSION: "26"
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -31,8 +30,6 @@ jobs:
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       - name: Audit dependencies
         run: |
@@ -111,8 +108,6 @@ jobs:
 
       - name: Setup Node.js with pnpm and cache
         uses: ./.github/actions/setup-node-pnpm-cache
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       # PR path is build-only: ci.yml owns PR validation (full turbo typecheck
       # in Lint and Format, sharded coverage suite, Package Tests, integration
