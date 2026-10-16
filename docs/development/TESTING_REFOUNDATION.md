@@ -1,7 +1,14 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-15, every patched dependency is watched until it is resolved
+**As of:** 2026-10-15, a Prisma constraint violation is read where Prisma 7 reports it
+(`workstream/night-cp1-prisma-7-10`, `PR cp1`, unit C-P1 of `dependency-catch-up-2026-10-15`). Through
+`@prisma/adapter-pg` the violated constraint sits at `meta.driverAdapterError.cause.constraint` and
+`meta.target` is never set, so four readers of `meta.target` never matched; one reader,
+`infra/prisma/src/extensions/constraintViolation.ts`, now serves them. Its suite, the db-prisma
+unique-violation suite and the team-invite integration suite moved M1 `1003 + 14` → `1006 + 14`.
+
+Before it, the same day, every patched dependency is watched until it is resolved
 (`workstream/patched-dependencies-gate`, `PR pdeps`, unit M1 of `dependency-catch-up-2026-10-15`,
 stacked on the next 16.4.1 floor and its `@storybook/nextjs-vite` patch). Fitness #48,
 `pnpm check:patched-deps` (`scripts/testing/patched-dependencies-gate.mjs --check`, pinned by
@@ -574,8 +581,10 @@ deleted the bundle analyzer with its suite (M1 `994 + 14` → `993 + 14`). `PR d
 (M1 `993 + 14` → `995 + 14`) and the three suites of the shared `@observability/sentry-next`
 package (M1 `995 + 14` → `998 + 14`, M8 `1/92` → `1/93` for its vitest config). `PR pdeps` is the
 patched-dependencies gate, fitness #48, on `workstream/patched-dependencies-gate`, which added its
-suite and its gate row (M1 `1002 + 14` → `1003 + 14`, M7 `37/37` → `38/38`). A `PR` followed by a
-letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
+suite and its gate row (M1 `1002 + 14` → `1003 + 14`, M7 `37/37` → `38/38`). `PR cp1` is the Prisma
+constraint reader on `workstream/night-cp1-prisma-7-10`, which added its suite, the db-prisma
+unique-violation suite and the team-invite integration suite (M1 `1003 + 14` → `1006 + 14`). A `PR`
+followed by a letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
 [§Plan (fixed)](#plan-fixed)'s own label for the pull request that
 closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
 and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the gitleaks change. A
@@ -583,7 +592,7 @@ and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the git
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1003 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR pdeps |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1006 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR cp1   |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |

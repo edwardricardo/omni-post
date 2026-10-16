@@ -14,11 +14,18 @@ import {
   isOperationalError,
 } from "./AppError.js";
 import { captureError } from "../../observability/sentryInit.js";
+import {
+  violatedConstraint,
+  type ViolatedConstraint,
+} from "@infra/prisma/extensions/constraintViolation.js";
 
-/** Structural type for Prisma errors with a code and optional meta */
+/**
+ * Structural type for Prisma errors with a code and optional meta. Under Prisma 7 the meta holds
+ * the driver adapter's payload, which `violatedConstraint` reads; `meta.target` is never set.
+ */
 interface PrismaErrorLike {
   code: string;
-  meta?: { target?: unknown; field_name?: unknown; constraint?: unknown };
+  meta?: unknown;
 }
 
 /** Structural type for Zod validation errors */
@@ -27,9 +34,12 @@ interface ZodErrorLike {
 }
 
 /**
- * Centralized Error Handler
- * Ensures all errors are properly sanitized before being sent to clients
- * SECURITY: Never exposes stack traces, database schema, or internal paths in production
+ * @function createErrorHandler
+ * @description Builds the centralized Fastify error handler, which logs every error in full and
+ *   answers the client with a sanitized body. SECURITY: never exposes stack traces, database
+ *   schema, or internal paths in production.
+ * @param logger - The logger the full error is written to.
+ * @returns The Fastify error handler.
  */
 export function createErrorHandler(logger: FastifyBaseLogger) {
   return async function errorHandler(
@@ -103,8 +113,10 @@ export function createErrorHandler(logger: FastifyBaseLogger) {
 }
 
 /**
- * Async error wrapper for route handlers
- * Catches async errors and passes them to the error handler
+ * @function asyncHandler
+ * @description Wraps an async route handler so a rejection reaches Fastify's error handler.
+ * @param handler - The route handler to wrap.
+ * @returns A route handler that awaits the wrapped one.
  */
 export function asyncHandler<T>(
   handler: (request: FastifyRequest, reply: FastifyReply) => Promise<T>
@@ -115,7 +127,22 @@ export function asyncHandler<T>(
 }
 
 /**
- * Convert Prisma errors to safe AppErrors
+ * @param error - A Prisma constraint-violation error.
+ * @returns In development only, the constraint the driver adapter names, as `{ index }` or
+ *   `{ fields }`; otherwise, or when no constraint can be read, undefined.
+ */
+function constraintDetails(error: PrismaErrorLike): { constraint: ViolatedConstraint } | undefined {
+  if (process.env.NODE_ENV !== "development") return undefined;
+  const constraint = violatedConstraint(error);
+  return constraint === null ? undefined : { constraint };
+}
+
+/**
+ * @function convertPrismaError
+ * @description Converts a Prisma error to a safe AppError by its code; in development the detail
+ *   names the violated constraint as the driver adapter reports it.
+ * @param error - The Prisma error, read by its code and its meta.
+ * @returns The AppError the code maps to; an unknown code maps to a generic database error.
  */
 export function convertPrismaError(error: PrismaErrorLike): AppError {
   // Prisma error codes
@@ -127,7 +154,7 @@ export function convertPrismaError(error: PrismaErrorLike): AppError {
         409,
         "Resource already exists",
         true,
-        process.env.NODE_ENV === "development" ? { field: error.meta?.target } : undefined
+        constraintDetails(error)
       );
 
     case "P2025":
@@ -141,7 +168,7 @@ export function convertPrismaError(error: PrismaErrorLike): AppError {
         400,
         "Invalid reference",
         true,
-        process.env.NODE_ENV === "development" ? { field: error.meta?.field_name } : undefined
+        constraintDetails(error)
       );
 
     case "P2011":
@@ -151,7 +178,7 @@ export function convertPrismaError(error: PrismaErrorLike): AppError {
         400,
         "Required field is missing",
         true,
-        process.env.NODE_ENV === "development" ? { field: error.meta?.constraint } : undefined
+        constraintDetails(error)
       );
 
     default:
@@ -161,7 +188,11 @@ export function convertPrismaError(error: PrismaErrorLike): AppError {
 }
 
 /**
- * Convert Zod errors to safe AppErrors
+ * @function convertZodError
+ * @description Converts a Zod validation error to a safe AppError; in development the detail
+ *   lists each issue's path and message.
+ * @param error - The Zod error, read by its issues.
+ * @returns A 400 validation AppError.
  */
 export function convertZodError(error: ZodErrorLike): AppError {
   const details =
@@ -178,7 +209,12 @@ export function convertZodError(error: ZodErrorLike): AppError {
 }
 
 /**
- * Global error handler that processes all error types
+ * @function handleAnyError
+ * @description Converts any thrown value to an AppError: an AppError unchanged, a Prisma or Zod
+ *   error by its converter, and anything else to a generic internal error.
+ * @param error - The thrown value.
+ * @param logger - The logger an unexpected error is written to.
+ * @returns The AppError the value converts to.
  */
 export function handleAnyError(error: unknown, logger: FastifyBaseLogger): AppError {
   // Already an AppError
@@ -218,7 +254,11 @@ export function handleAnyError(error: unknown, logger: FastifyBaseLogger): AppEr
 }
 
 /**
- * Check if application is in a state to continue after an error
+ * @function shouldTerminateProcess
+ * @description Decides whether the process should stop after an error, which it should only for
+ *   a non-operational one.
+ * @param error - The error that occurred.
+ * @returns True when the error is not operational.
  */
 export function shouldTerminateProcess(error: Error): boolean {
   // Only terminate on non-operational errors

@@ -21,6 +21,7 @@ It is read by whoever starts the next application, by whoever writes that prompt
 | FP-005 | Architecture         | One composition root from the first route; routes never see the container   | construction and gate |
 | FP-001 | Testing              | Each test file has exactly one collector, run by a required check           | construction and gate |
 | FP-002 | Testing              | A test run that collects zero tests fails                                   | gate                  |
+| FP-011 | Testing              | An error double carries the shape measured on the real dependency           | construction          |
 | FP-003 | CI and gates         | A gate fails closed when its scope is missing or its scan read nothing      | construction and gate |
 | FP-004 | CI and gates         | A gate merges only after its red path shows a real non-zero exit            | construction and gate |
 | FP-008 | CI and gates         | Every root config a package extends is part of the build cache key          | gate                  |
@@ -98,6 +99,13 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Why:** omni-post's nightly chaos job ran `vitest run tests/chaos/` for the life of its workflow against node:test files that vitest's `include` globs never covered; it collected nothing and reported green over scenarios it never executed. node:test counts a file that registers no test as one passing test, and counts parsed from a formatted report read as zero the day its text changes (fitness #31 in [CLAUDE.md](../../CLAUDE.md)).
 - **Day-one enforcement:** gate. A check refuses the pass-with-no-tests opt-out in every tracked manifest, configuration and workflow, and holds the runner wrapper's zero guards and its reporter in place. Carry-over: generalized gate, fitness #31.
 - **Loosen if:** never: an empty run cannot be told apart from a broken collection.
+
+### FP-011 — A test double of a dependency's error carries the shape measured on the real dependency
+
+- **Practice:** A test that simulates an error a library or driver raises builds it with one shared fixture per error family, and the fixture reproduces the shape measured by raising that error through the real dependency, with the version and the date of the measurement in its header. No test writes such an error as an object literal from memory or from the dependency's documentation. The code that maps a dependency's error to a typed answer also has one integration test that raises the error through the real dependency, and an upgrade of that dependency re-runs the measurement.
+- **Why:** omni-post's repositories recognised a unique-constraint violation by `meta.target`, the field the Prisma 5 and 6 query engine filled. Prisma 7 runs every query through a driver adapter, which reports the constraint at `meta.driverAdapterError.cause.constraint` and never sets `meta.target`: measured on PostgreSQL 16 on 2026-10-15 through 7.9.1 and 7.10.0, four readers never matched, and a team invitation colliding with a soft-deleted member answered 400 "Failed to save team member" instead of its documented 409. Every unit suite over those readers stayed green, because their doubles raised the old shape ([`statefulCustomerUserPrismaFake.ts`](../../apps/api/tests/unit/helpers/statefulCustomerUserPrismaFake.ts) before the fix; the measured fixture [`prismaKnownRequestErrors.ts`](../../apps/api/tests/unit/helpers/prismaKnownRequestErrors.ts); the one reader [`constraintViolation.ts`](../../infra/prisma/src/extensions/constraintViolation.ts); the end-to-end proof [`teamInviteDuplicateEmail.integration.test.ts`](../../apps/api/tests/integration/teamInviteDuplicateEmail.integration.test.ts)).
+- **Day-one enforcement:** construction. The error fixtures exist before the first test that needs one, each with its measurement header, and the one reader of each error family is a shared module the repositories import, so a shape change is fixed in one place and caught by the integration test that crosses it. Carry-over: by construction.
+- **Loosen if:** never: a double written from memory proves only that the code agrees with the memory, which is how four dead branches read as tested.
 
 ## CI and gates
 

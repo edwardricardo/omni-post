@@ -28,6 +28,11 @@ import {
   shouldTerminateProcess,
 } from "../../src/lib/errors/errorHandler.js";
 import { AppError, ErrorCode, AuthenticationError } from "../../src/lib/errors/AppError.js";
+import {
+  foreignKeyViolationOnIndex,
+  uniqueViolationOnFields,
+  uniqueViolationOnIndex,
+} from "./helpers/prismaKnownRequestErrors.js";
 import type { FastifyRequest, FastifyReply } from "fastify";
 
 // Mock logger
@@ -264,10 +269,7 @@ describe("Error Handler - asyncHandler", () => {
 
 describe("Error Handler - convertPrismaError", () => {
   it("should convert P2002 unique constraint violation", () => {
-    const prismaError = {
-      code: "P2002",
-      meta: { target: ["email"] },
-    };
+    const prismaError = uniqueViolationOnIndex("Account_email_key", "Account");
 
     const appError = convertPrismaError(prismaError);
 
@@ -290,10 +292,7 @@ describe("Error Handler - convertPrismaError", () => {
   });
 
   it("should convert P2003 foreign key constraint violation", () => {
-    const prismaError = {
-      code: "P2003",
-      meta: { field_name: "userId" },
-    };
+    const prismaError = foreignKeyViolationOnIndex("Project_accountId_fkey", "Project");
 
     const appError = convertPrismaError(prismaError);
 
@@ -303,9 +302,16 @@ describe("Error Handler - convertPrismaError", () => {
   });
 
   it("should convert P2011 null constraint violation", () => {
+    // `@prisma/adapter-pg` maps SQLSTATE 23502 to a NullConstraintViolation whose columns it
+    // parses from a `Key (...)` detail, which a not-null violation does not carry: no constraint.
     const prismaError = {
       code: "P2011",
-      meta: { constraint: "email" },
+      meta: {
+        driverAdapterError: {
+          name: "DriverAdapterError",
+          cause: { originalCode: "23502", kind: "NullConstraintViolation" },
+        },
+      },
     };
 
     const appError = convertPrismaError(prismaError);
@@ -315,17 +321,36 @@ describe("Error Handler - convertPrismaError", () => {
     expect(appError.message).toBe("Required field is missing");
   });
 
-  it("should include field details in development", () => {
+  it("names the violated index in development when Prisma 7.10.0 reports it", () => {
     process.env.NODE_ENV = "development";
 
-    const prismaError = {
-      code: "P2002",
-      meta: { target: ["email"] },
-    };
+    const appError = convertPrismaError(uniqueViolationOnIndex("Account_email_key", "Account"));
 
-    const appError = convertPrismaError(prismaError);
-    expect(appError.details).toBeTruthy();
-    expect(appError.details.field).toStrictEqual(["email"]);
+    expect(appError.details).toStrictEqual({ constraint: { index: "Account_email_key" } });
+
+    process.env.NODE_ENV = "test";
+  });
+
+  it("names the violated columns, unquoted, in development when Prisma 7.9.1 reports them", () => {
+    process.env.NODE_ENV = "development";
+
+    const appError = convertPrismaError(
+      uniqueViolationOnFields(['"accountId"', "name"], "Project_accountId_name_key", "Project")
+    );
+
+    expect(appError.details).toStrictEqual({ constraint: { fields: ["accountId", "name"] } });
+
+    process.env.NODE_ENV = "test";
+  });
+
+  it("names the violated foreign key in development", () => {
+    process.env.NODE_ENV = "development";
+
+    const appError = convertPrismaError(
+      foreignKeyViolationOnIndex("Project_accountId_fkey", "Project")
+    );
+
+    expect(appError.details).toStrictEqual({ constraint: { index: "Project_accountId_fkey" } });
 
     process.env.NODE_ENV = "test";
   });
@@ -333,10 +358,7 @@ describe("Error Handler - convertPrismaError", () => {
   it("should not include field details in production", () => {
     process.env.NODE_ENV = "production";
 
-    const prismaError = {
-      code: "P2002",
-      meta: { target: ["email"] },
-    };
+    const prismaError = uniqueViolationOnIndex("Account_email_key", "Account");
 
     const appError = convertPrismaError(prismaError);
     expect(appError.details).toBe(undefined);
@@ -418,10 +440,7 @@ describe("Error Handler - handleAnyError", () => {
   });
 
   it("should convert Prisma errors", () => {
-    const prismaError = {
-      code: "P2002",
-      meta: { target: ["email"] },
-    };
+    const prismaError = uniqueViolationOnIndex("Account_email_key", "Account");
 
     const result = handleAnyError(prismaError, mockLogger);
 
