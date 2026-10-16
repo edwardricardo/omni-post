@@ -89,10 +89,9 @@ function workspacePackages(root: string, tracked: readonly string[]): WorkspaceP
 }
 
 /**
- * Reads the specifiers a module resolves at run time: value imports and re-exports, `import()`,
- * `require()` and the `vi` module calls. Type-only imports are erased before a run, and text in
- * comments or strings is not an import, so neither is returned.
- *
+ * @description Reads the specifiers a module resolves at run time: value imports and re-exports,
+ *   `import()`, `require()` and the `vi` module calls. Type-only imports are erased before a run,
+ *   and text in comments or strings is not an import, so neither is returned.
  * @param source - The module's text.
  * @param fileName - Its name, which selects the TypeScript or TSX grammar.
  * @returns The specifiers, in source order.
@@ -136,6 +135,7 @@ function scriptKind(fileName: string): ts.ScriptKind {
 }
 
 /**
+ * @description Finds the workspace package a bare specifier names.
  * @param specifier - A bare module specifier.
  * @param packages - The workspace packages.
  * @returns The package the specifier names, itself or one of its subpaths, or `undefined`.
@@ -208,8 +208,7 @@ async function checkConfig(
 }
 
 /**
- * Runs the contract over every tracked vitest config.
- *
+ * @description Runs the contract over every tracked vitest config.
  * @param root - Absolute repository root, a real path.
  * @param tracked - Every tracked file, repository-relative.
  * @param options - Smaller floors, for the self-tests only.
