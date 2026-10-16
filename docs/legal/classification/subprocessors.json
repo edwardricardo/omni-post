@@ -208,10 +208,6 @@
       "productionPath": "yes",
       "note": "`@observability/opentelemetry`, which the API and the workers start when tracing is on."
     },
-    "@opentelemetry/instrumentation": {
-      "status": "library",
-      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
-    },
     "@opentelemetry/instrumentation-fastify": {
       "status": "library",
       "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
@@ -225,10 +221,6 @@
       "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
     },
     "@opentelemetry/instrumentation-redis": {
-      "status": "library",
-      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
-    },
-    "@opentelemetry/propagation-utils": {
       "status": "library",
       "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
     },

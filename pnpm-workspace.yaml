@@ -102,24 +102,10 @@ catalog:
   "@tanstack/react-query": 5.101.0 # taken 2026-06-20 (`80627448`), not moved since; 5.104.1 is newer, 5.104.0 the newest mature (registry, 2026-10-03); was 5.95.0
 
   # ── Runtime-critical drifters (MAX of declared) ──
-  "@prisma/client": 7.10.0 # latest STABLE and latest mature, measured 2026-10-15T18:20Z: published 2026-08-25T12:47:51Z, the `prev` dist-tag; `latest` is 8.0.0-rc.23, a release candidate, not taken. OSV, GitHub's global advisories and the prisma/prisma repository advisories list nothing for 7.9.1 or 7.10.0. Moves as one family with the infra/prisma literals `prisma` and `@prisma/adapter-pg`; the holds gate measures the family through `prisma` (scripts/testing/toolchain-population.json). @prisma/config 7.10.0 still pins deepmerge-ts 7.1.5, so the `deepmerge-ts@<8.0.0` override stays. Was 7.9.1 (2026-08-17, `9b872895`)
   opossum: 10.0.0 # latest stable AND latest mature, measured 2026-10-15T00:44Z: published 2026-06-24T13:12Z, nothing newer; OSV lists nothing for 9.0.0 or 10.0.0. Taken for Node 26: 9.0.0 declares engines.node `^24 || ^22 || ^20`, which excludes it, and 10.0.0's one breaking change drops Node 20 (`^26 || ^24 || ^22`). Its published index.js and lib/ are byte-identical to 9.0.0's; only the browser bundle in dist/, which Node never loads, was rebuilt, so no call site changes. It is the breaker behind fitness #25. Declared via `catalog:` by packages/adapters/{db-prisma,external-apis,queue-bullmq}; @types/opossum stays 8.1.9, its latest. Was 9.0.0
   prom-client: 15.1.3 # MAX of 15.0.0 / 15.1.3
 
   # ── App/server runtime (DIRECT) ──
-  # CVE floor 5.12.1 — closes GHSA-w2qp-rph6-63g4 (schema validation bypass) and
-  # GHSA-3m5p-2c4r-xxw2 (X-Forwarded-* spoofing under hop-count trustProxy), both moderate.
-  # The floor was HELD at 5.10.0 until 2026-09-04 because fastify's fix for the second
-  # advisory REMOVES numeric hop-count trust in the RUNTIME, not only in the types:
-  # lib/request.js getTrustProxyFn returns `() => false` for a number ("Hop-count-only trust
-  # cannot validate the immediate peer"), so `request.ip` degraded to the socket peer for
-  # every request. ADR-0021 unblocked it by migrating this repo to fastify's sanctioned
-  # trusted-peer model: TRUSTED_PROXY_MODE selects socket-only or a TRUSTED_PROXY_RANGES
-  # IP/CIDR allowlist that proxy-addr compiles and validates against the IMMEDIATE PEER.
-  # Re-implementing `(addr, hop) => hop < N` as a TrustProxyFunction was rejected outright:
-  # it would type-check, keep tests green, and restore the exact vulnerability the advisory
-  # patched (Security canon: NO exception). See SECURITY_CANON.md §"Rate Limiting".
-  fastify: 5.12.6 # CVE floor raised 2026-10-15 to the MINIMAL version patching GHSA-389g-gv7q-r4x8 (low, CVE-2026-107832, header validation bypass via case-sensitive propertyNames, >=5.12.2 <5.12.6), a fastify/fastify repository advisory published 2026-10-13T06:51:29Z that completes the GHSA-9q9j-q6p8-xq58 fix of 5.12.2. GitHub's global endpoint answers 404 for it and OSV holds only the CVE-list record, with a GIT range and no npm package, so pnpm audit is green over 5.12.5. Not reachable: no route schema declares headers or propertyNames. 5.12.7 (published 08:07Z the same day) only sets the VERSION constant that 5.12.6 left at '5.12.5', with no security content. Deviates from the 7-day maturity buffer DELIBERATELY (published 2026-10-13T06:50:58Z, matures 2026-10-20T06:50Z). Its find-my-way ^9.6.0 resolves the patched 9.7.0 unaided; the find-my-way override, which pinned nothing, left on 2026-10-15. Was 5.12.5 (2026-10-01, five advisories); the dated history is SECURITY_CANON.md §Floor history, `fastify`
   pino: 10.3.1
   zod: 4.6.5 # raised 2026-10-15 with knip 6.41.0, which declares zod ^4.6.5: this value is the tree's single zod 4 copy, shared by every 4.x consumer (knip, @t3-oss/env-core and env-nextjs, fastify-type-provider-zod, @scalar, langchain, openai, @anthropic-ai/sdk); the @atproto packages keep their own 3.25.76. 4.6.5 is the latest mature release (published 2026-09-13T23:25:14Z, npm provenance from colinhacks/zod), and it predates the credential compromise the 4.6.6 notes disclose (malicious commits on main on 2026-09-21, reverted, never published). 4.6.6 (2026-10-11T16:18Z: collection size bounds checked before elements, a record type fix) and 4.6.7 (`latest`, 2026-10-12T16:29Z, version only) mature 2026-10-18T16:18Z and 2026-10-19T16:29Z. OSV and the colinhacks/zod repository advisories list nothing for 4.4.3 to 4.6.7. 4.5 and 4.6 change parsing (z.iso.datetime requires seconds; string min, max and length count code points; a strict object reports every issue beside unrecognized_keys; __proto__ is always stripped), build a safeParse error on first read, and change some JSON Schema output. Was 4.4.3; overrides: holds no zod key
   cloudinary: 2.10.0 # taken 2026-06-20 (`9ab44e82`), not moved since; 2.11.0 is newer and mature (registry, 2026-10-03); was 2.7.0
@@ -130,13 +116,15 @@ catalog:
   ws: 8.21.1 # CVE floor
 
   # ── Shared direct deps (T1.11 completion — declared in ≥2 manifests; reconcile-UP, structure-only) ──
+  # @sentry/node has one declaring manifest (apps/api) since 2026-10-16 but stays here, beside
+  # @sentry/nextjs, so the Sentry SDK family moves as one; both are held at 10.48.0
+  # (SECURITY_CANON.md §"Blocked floors").
   "@sentry/node": 10.48.0
   "@sentry/nextjs": 10.48.0
   "@t3-oss/env-core": 0.13.11
   "@t3-oss/env-nextjs": 0.13.11
   argon2: 0.44.0
   bullmq: 5.58.9
-  csv-parse: 7.0.2 # CVE floor raised 2026-09-09: GHSA-8cw4-87c7-c6xx (moderate, prototype replacement still reachable via the `columns` path), vulnerable <7.0.2 with no 6.x backport, so the minimal patched version is a MAJOR. REACHABLE here — parseSchedulingCsv parses uploaded CSV with `columns: true`; was 6.2.1
   dotenv: 17.2.2
   ioredis: 5.11.1
   date-fns: 4.1.0
@@ -200,7 +188,9 @@ catalogs:
   # instrumentation line vs the 2.x core/SDK line) and that they bump together.
   # Every value was taken on 2026-06-20 (`7d9da4aa`, then `725c8363`) and the set
   # moves atomically. It is not the newest: on 2026-10-03 the registry carries a
-  # newer release for 12 of the 14 members, named per line. Only `core` is still
+  # newer release for 10 of the 12 members, named per line. Two members left on
+  # 2026-10-16, `@opentelemetry/instrumentation` and `@opentelemetry/propagation-utils`,
+  # with their one declaration, which nothing imported. Only `core` is still
   # extended to transitive copies by an override, as a CVE floor (decision D47).
   otel:
     "@opentelemetry/api": 1.9.1 # the newest release on 2026-10-03
@@ -209,12 +199,10 @@ catalogs:
     "@opentelemetry/exporter-prometheus": 0.219.0 # 0.222.0 is newer and mature; was 0.217.0
     "@opentelemetry/sdk-node": 0.219.0 # 0.222.0 is newer and mature; was 0.217.0
     "@opentelemetry/exporter-trace-otlp-http": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
-    "@opentelemetry/instrumentation": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
     "@opentelemetry/instrumentation-fastify": 0.57.0 # the newest release on 2026-10-03
     "@opentelemetry/instrumentation-fs": 0.38.0 # 0.41.0 is newer and mature; was 0.33.0
     "@opentelemetry/instrumentation-http": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
     "@opentelemetry/instrumentation-redis": 0.67.0 # 0.70.0 is newer and mature; was 0.62.0
-    "@opentelemetry/propagation-utils": 0.31.22 # 0.31.23 is newer and mature; was 0.31.17
     "@opentelemetry/resources": 2.8.0 # 2.11.0 is newer and mature; was 2.6.1
     "@opentelemetry/semantic-conventions": 1.41.1 # 1.43.0 is newer and mature; was 1.40.0
 

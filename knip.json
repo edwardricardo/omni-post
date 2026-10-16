@@ -132,8 +132,7 @@
       "project": ["src/**/*.ts"]
     },
     "packages/observability/opentelemetry": {
-      "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["@opentelemetry/instrumentation", "@opentelemetry/propagation-utils"]
+      "project": ["src/**/*.ts"]
     },
     "packages/test-contracts": {
       "entry": ["src/reach.ts", "src/scopes.ts"],
