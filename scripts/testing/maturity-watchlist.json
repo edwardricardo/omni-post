@@ -118,29 +118,6 @@
       }
     },
     {
-      "kind": "package",
-      "name": "ignore",
-      "version": "7.0.12",
-      "published": "2026-10-02T12:24:54.844Z",
-      "entered": {
-        "date": "2026-10-03",
-        "commit": "fec21f88",
-        "pr": 377,
-        "via": "@secretlint/walker 13.0.6, and @typescript-eslint/eslint-plugin 8.70.1 by deduplication, 0.9 days after publication"
-      },
-      "milestones": {
-        "maturity": "2026-10-09",
-        "final": "2026-10-16"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-10",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-10, one day after the milestone, in the secretlint 13.0.7 hold bump that re-resolves the chain this entry names. Registry: 7.0.12 (2026-10-02T12:24Z) is latest; nothing newer is published. OSV: nothing for ignore 7.0.12. GitHub: kaelzhang/node-ignore has no repository advisory, and the global advisory search lists none for ignore. Upstream: no GitHub release after 7.0.8; the 7.0.12 commit (75533efa) bundles #170 and #171, which trim trailing spaces before anchoring a directory pattern, treat a lone '!' line as blank, reject a dangling escape and drop a pattern that normalizes to nothing, plus three linear-time pattern-parsing changes; since then only a Windows test (#172) landed, and no issue was opened from 2026-10-02 on. Reachability: dev-only. The lockfile, parsed with yaml.safe_load_all, resolves 7.0.12 for @secretlint/walker 13.0.7 (^7.0.10) and @typescript-eslint/eslint-plugin 8.71.0 (^7.0.5), 7.0.11 for dependency-cruiser 18.5.0, which declares it exactly, and 5.3.2 for eslint and @eslint/eslintrc; .secretlintignore holds none of the pattern shapes those fixes change (no trailing space, lone '!' or trailing backslash). Works here: pnpm secret:scan exits 0 on the tree and 1 naming AWSSecretAccessKey on a planted key, and the 133 hook tests pass, the env-template exclusion among them. Clean; the 14-day review is due 2026-10-16."
-        }
-      }
-    },
-    {
       "kind": "date",
       "id": "contract-0.16-node-26",
       "title": "Re-check Node 26 move on 2026-10-28: LTS promotion, distroless digest, pins",
@@ -292,7 +269,13 @@
         "maturity": "2026-10-16",
         "final": "2026-10-23"
       },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-16",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-16, the milestone day, about 4 hours after 26.6.5 left the 7-day buffer at 18:46:47Z (published 2026-10-09T18:46:47Z); the reminder opened #625 at 17:10:34Z, before that instant. Registry, read 2026-10-16T22:38Z: 26.6.5 is latest and the newest 26.x, and nothing is published after it on any line (24.19.2, the 24.x backport, went out at 18:44:25Z the same day; no 27.x exists); the document was last modified at 26.6.5's publication. OSV, at 22:39Z: nothing for @types/node 26.6.5. GitHub: no global advisory affects @types/node at any version, and DefinitelyTyped/DefinitelyTyped lists no repository security advisory. Changes: 26.6.5 is DefinitelyTyped #75656 (merged 2026-10-09T18:24:45Z), which lets the array argument of util.styleText take a hex color; npm diff from 26.6.4 lists util.d.ts, package.json and README.md, and no file of apps, packages, scripts or infra calls styleText. No types/node change has merged since, so no release follows it. Upstream issues: DefinitelyTyped routes package reports to its Discussions, and no discussion created since 2026-10-09 names @types/node or 26.6.5; the one issue opened since, #75766, is an unfilled infrastructure template. Reachability: types only; the package holds README.md, LICENSE, package.json and 89 declaration files, and no JavaScript. The lockfile, parsed with yaml.safe_load_all, holds one copy, 26.6.5: the catalog pin, declared by 100 of the 101 importers, and the dependency of 21 snapshots (17 @types/* packages, protobufjs 7.6.5, jest-worker 27.5.1, jsdoc-type-pratt-parser 9.2.2 and mysql2 3.23.1, which takes it as a peer). It reaches the production closure only through protobufjs and those @types/* packages, as declarations nothing executes, and the engines gate holds the pin on the runtime major, 26 (canon row @types/node). Works here: main be1fa16a's CI run 38976529186 (push, 2026-10-16T22:34Z) passed 'TypeScript type check (full monorepo)' at 22:40:55Z and Build Check at 22:37:28Z, and the local battery on 3d589f07 was green from 21:44Z to 22:06Z. Clean; the 14-day review is due 2026-10-23."
+        }
+      }
     },
     {
       "kind": "date",
@@ -347,7 +330,13 @@
         "maturity": "2026-10-16",
         "final": "2026-10-23"
       },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-16",
+          "outcome": "flagged",
+          "note": "Reviewed 2026-10-16, the milestone day, about 11 hours after 5.4.1 left the 7-day buffer at 11:42:46Z (published 2026-10-09T11:42:46Z; its eight platform binaries between 11:22:33Z and 11:36:55Z); the reminder opened #626 at 17:10:34Z. Registry, read 2026-10-16T22:38Z: 5.4.1 is latest for jscpd and for each of the eight binaries, and nothing is published after it (the document was last modified at 5.4.1's publication). OSV, at 22:39Z: nothing for jscpd 5.4.1, for any of the eight binaries at 5.4.1, or for jscpd at any version. GitHub: no global advisory affects jscpd, and kucherenko/jscpd lists no repository security advisory. The binary carries four all the same: v5.4.1's rust/Cargo.lock, whose 389 crates.io packages were queried in one OSV batch, pins rustls 0.23.45, inside RUSTSEC-2026-0346 (GHSA-c8m5-c952-6cm4, Debug impls of client session values expose TLS secrets), RUSTSEC-2026-0347 (GHSA-vp88-798v-h67f, buffered application data sent to the outer server after an ECH rejection), RUSTSEC-2026-0348 (GHSA-h2v8-394m-p7vv, Brotli certificate decompression can allocate up to 1 GiB before authentication) and RUSTSEC-2026-0349 (GHSA-w44r-93j7-qv28, an unauthenticated ServerHello can downgrade later connections to classical key exchange), all four fixed in 0.23.46; the only other hit is unsafe-libyaml 0.2.11, under RUSTSEC-2024-0449, an unmaintained notice rather than a vulnerability. They are crates.io advisories inside an npm binary, so pnpm audit cannot see them. Upstream moved rustls to 0.23.46 on the default branch on 2026-10-14 (4536dc37, #1201, 'four advisories for rustls 0.23.45') and replaced unsafe-libyaml on 2026-10-12 (cb5ec8d6, #1198); no release carries either yet. Release notes: no release after v5.4.1 (2026-10-09T12:39Z); 5.4.1's own notes carry a hardening fix (#1169): its git subprocesses drop the variables git exports to hooks, a --history range or --baseline-from-ref ref starting with '-' is refused, and an API key an embeddings API echoes in an error is redacted. Upstream issues: five opened in kucherenko/jscpd since 2026-10-09; two name 5.4.1, #1195 (--history fails when log.showSignature is true, closed 2026-10-11 by #1196, unreleased) and #1210 (--semantic counts no JSX element as a call, open), and the other three are feature requests. Reachability: dev-only; one copy, the root devDependency behind pnpm check:duplicates, which no production dependency of the 101 importers reaches. In the Rust build, rustls comes in only through ureq in cpd-semantic (embed/http.rs and embed/models.rs: the embeddings API and the model downloads of --semantic), and unsafe-libyaml through serde_yaml_ng; scripts/testing/jscpd-baseline-gate.mjs runs the token scan with --update-baseline, --baseline and --silent, and .jscpd.json sets no semantic, history or network option, so no rustls advisory is reached here, nor the mode of either issue. Works here: pnpm check:duplicates exits 0 on jscpd 5.4.1 at 2026-10-16T22:40:27Z, 1000 clones in 1799 files, no stale entry and no new clone against the 992-fingerprint baseline, and main be1fa16a's CI run 38976529186 (push, 2026-10-16T22:34Z) passed Duplicate code check (jscpd) at 22:35:05Z. Flagged, not clean: the pinned binary carries four rustls advisories, unreachable here and invisible to pnpm audit, and no jscpd release with rustls 0.23.46 exists yet. The follow-up is the first jscpd release whose rust/Cargo.lock holds rustls 0.23.46 or later, taken in its own PR once mature, 7 days after its publication, with check:duplicates and a planted clone measured on it. The 14-day review is due 2026-10-23."
+        }
+      }
     },
     {
       "kind": "package",
@@ -381,7 +370,13 @@
         "maturity": "2026-10-16",
         "final": "2026-10-23"
       },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-16",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-16, the milestone day, about 14.7 hours after 6.41.0 left the 7-day buffer at 07:57:03Z (published 2026-10-09T07:57:03Z); the reminder opened #627 at 17:10:35Z. Registry, read 2026-10-16T22:38Z: 6.41.0 is latest, and nothing is published after it (the document was last modified at its own publication). OSV, at 22:39Z: nothing for knip 6.41.0 or for knip at any version. GitHub: no global advisory affects knip, and webpro-nl/knip lists no repository security advisory. Release notes: no release after knip@6.41.0 (GitHub release 2026-10-09T07:50Z); the default branch holds 24 unreleased commits since, plugin features and fixes (among them Next Turbopack alias targets #2156, framework-entry re-exports #2154, a trailing-slash cwd #2139, a GitHub Actions working-directory nested under a checkout path #2136 and Nx run-commands paths #2151), none of them a security fix. Upstream issues: seven opened in webpro-nl/knip since 2026-10-09, and GitHub's search for 6.41.0 matches five: #2130 (bun check reported as an unlisted binary, closed not planned), #2132 (the GitHub Actions plugin with a working-directory under an actions/checkout path, fixed on the default branch by #2136), #2153 (--production dropping a file a plugin registers as config, closed not planned), #2138 (documentation) and #2160 (a feature request); the other two, #2133 (@knip/create-config on a CRLF pnpm-workspace.yaml) and #2135 (a trailing slash in --directory, fixed by #2139), name no version. None reports a regression of 6.41.0, and none reaches this tree: scripts/knip-ratchet.mjs runs npx knip --reporter json from the repository root with no --production and no --directory, no workflow under .github sets an actions/checkout path or a working-directory, nothing runs bun, and @knip/create-config is not used. Reachability: dev-only; the lockfile, parsed with yaml.safe_load_all, holds one knip, 6.41.0, the root devDependency, and the production closure of the 101 importers does not reach it. Works here: pnpm check:dead-code exits 0 on knip 6.41.0 at 2026-10-16T22:40:21Z with 0 regressions against the 290-key baseline (308 when 6.41.0 was taken; eaddd360 and 2fe6d7a8 removed 18 on 2026-10-16), main be1fa16a's CI run 38976529186 (push, 2026-10-16T22:34Z) passed Dead code check (knip) at 22:35:04Z, and pnpm audit --audit-level low finds no known vulnerability at 22:48:16Z. Clean; the 14-day review is due 2026-10-23."
+        }
+      }
     }
   ]
 }
