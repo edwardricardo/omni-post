@@ -8,16 +8,7 @@
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx"],
   "references": [
     {
-      "path": "../application/tsconfig.build.json"
-    },
-    {
       "path": "../domain/tsconfig.build.json"
-    },
-    {
-      "path": "../../ports/tsconfig.build.json"
-    },
-    {
-      "path": "../../shared/tsconfig.build.json"
     }
   ]
 }

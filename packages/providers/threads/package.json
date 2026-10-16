@@ -28,9 +28,6 @@
     "build": "tsc -b tsconfig.build.json"
   },
   "dependencies": {
-    "@adapters/external-apis": "workspace:*",
-    "@adapters/fallback-strategies": "workspace:*",
-    "@observability/logger": "workspace:*",
     "@ports/core": "workspace:*",
     "@providers/shared": "workspace:*",
     "@shared/types": "workspace:*",

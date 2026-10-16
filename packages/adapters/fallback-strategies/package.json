@@ -23,7 +23,6 @@
     }
   },
   "dependencies": {
-    "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
     "ioredis": "catalog:",
     "pino": "catalog:"

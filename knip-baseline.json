@@ -1,16 +1,8 @@
 {
   "_README": "Tracked dead-code debt ledger. The CI gate (scripts/knip-ratchet.mjs) FAILS on any knip finding NOT listed here, so new dead code is prevented. These pre-existing entries must be burned down — never grow this list to silence a new finding. Regenerate after genuine removals: node scripts/knip-ratchet.mjs --write. See docs/development/knip-baseline.md.",
-  "count": 298,
+  "count": 290,
   "keys": [
     "binaries::package.json::k6",
-    "dependencies::packages/core/compliance/package.json::@core/application",
-    "dependencies::packages/core/customer-auth/package.json::@core/application",
-    "dependencies::packages/core/guardrails/package.json::@core/application",
-    "dependencies::packages/core/guardrails/package.json::@shared/types",
-    "dependencies::packages/providers/instagram/package.json::@adapters/db-prisma",
-    "dependencies::packages/providers/threads/package.json::@adapters/external-apis",
-    "dependencies::packages/providers/threads/package.json::@adapters/fallback-strategies",
-    "dependencies::packages/providers/threads/package.json::@observability/logger",
     "exports::apps/admin/i18n/navigation.ts::getPathname",
     "exports::apps/admin/i18n/navigation.ts::redirect",
     "exports::apps/api/src/admin/accountLifecycleQueryService.ts::mapAdminUserToProfile",

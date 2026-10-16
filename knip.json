@@ -144,5 +144,5 @@
       "ignoreDependencies": ["@prisma/client"]
     }
   },
-  "ignoreDependencies": ["@ports/core", "tw-animate-css"]
+  "ignoreDependencies": ["tw-animate-css"]
 }
