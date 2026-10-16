@@ -9,9 +9,10 @@
  *              run, so no source collects it and it reaches the verdict through the quarantine.
  *
  *              It fails closed on a runner that cannot be started, times out or exits non-zero,
- *              on a listing with no line, a line that is not `<kind>\t<path>`, an unknown kind, a
- *              path listed twice or one that is not a tracked file (a listing that names paths
- *              from another base), and on a listing that collects no file.
+ *              on a listing with no line, a line that is not `<kind>\t<path>`, an unknown kind, an
+ *              absolute path (POSIX or Windows) or one that leaves the runner's package, a path
+ *              listed twice or one that is not a tracked file (a listing that names paths from
+ *              another base), and on a listing that collects no file.
  *
  *              The runner starts with `DATABASE_URL` and `TIER` removed from its environment.
  *              Listing needs no database, and the full inventory is the listing of no tier; a
@@ -22,6 +23,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { err, ok, type Result } from "@shared/types";
+import { describeExit } from "./child-exit.js";
 import {
   COLLECTOR_ID,
   describeError,
@@ -50,6 +52,12 @@ const COLLECTED_KINDS: readonly NodeKind[] = [NODE_KIND.INTEGRATION, NODE_KIND.L
 /** The time one `--list` run may take before it is stopped and reported. */
 const LIST_TIMEOUT_MS = 60_000;
 
+/**
+ * The bytes one `--list` run may print on stdout or stderr before it is stopped and reported: one
+ * short line per node:test file, so the cap bounds a runaway runner, far above a real listing.
+ */
+const LIST_OUTPUT_CAP_BYTES = 16 * 1024 * 1024;
+
 /** One line of the listing: its kind and its repository-relative path. */
 export interface ListedFile {
   readonly kind: NodeKind;
@@ -74,10 +82,11 @@ export interface RunnerRun {
  */
 type RunList = (packageDirectory: string) => RunnerRun;
 
-/** Overrides for the self-tests: a recorded run, or a shorter time cap. */
+/** Overrides for the self-tests: a recorded run, or a lower time or output cap. */
 export interface NodeCollectorOptions {
   readonly run?: RunList;
   readonly timeoutMs?: number;
+  readonly outputCapBytes?: number;
 }
 
 /**
@@ -89,8 +98,19 @@ function isNodeKind(value: string): value is NodeKind {
 }
 
 /**
- * Reads the `--list` output: every line `<kind>\t<path>`, each path once.
- *
+ * @param relative - A listed path, relative to the runner's package.
+ * @returns Whether it names a place outside that package once normalised (`..`, `../x`).
+ */
+function leavesPackage(relative: string): boolean {
+  const normalised = path.posix.normalize(relative);
+  return normalised === ".." || normalised.startsWith("../");
+}
+
+/**
+ * @description Reads the `--list` output: every line `<kind>\t<path>`, each path once, relative
+ *   to the runner's package and inside it. An absolute path is refused in POSIX and in Windows
+ *   form, and so is one whose `..` segments leave the package: either would name a file from
+ *   another base than the one the tracked list is read against.
  * @param stdout - The runner's standard output.
  * @param packageDir - The runner's repository-relative package, the base of every path.
  * @returns The listed files with repository-relative paths, or why the output is not a listing.
@@ -109,7 +129,12 @@ export function parseRunnerList(stdout: string, packageDir: string): Result<List
     const kind = match[1];
     const relative = match[2];
     if (!isNodeKind(kind)) return err(`${where} carries the unknown kind "${kind}"`);
-    if (path.posix.isAbsolute(relative)) return err(`${where} names an absolute path`);
+    if (path.posix.isAbsolute(relative) || path.win32.isAbsolute(relative)) {
+      return err(`${where} names an absolute path`);
+    }
+    if (leavesPackage(relative)) {
+      return err(`${where} names a path outside ${packageDir}: ${JSON.stringify(relative)}`);
+    }
     const file = path.posix.normalize(path.posix.join(packageDir, relative));
     if (seen.has(file)) return err(`${where} lists ${file} a second time`);
     seen.add(file);
@@ -123,9 +148,14 @@ export function parseRunnerList(stdout: string, packageDir: string): Result<List
  *
  * @param packageDirectory - The runner's absolute package directory.
  * @param timeoutMs - How long the runner may take before it is stopped.
+ * @param outputCapBytes - How many bytes stdout or stderr may carry before the runner is stopped.
  * @returns What the run produced.
  */
-function runListWithBash(packageDirectory: string, timeoutMs: number): RunnerRun {
+function runListWithBash(
+  packageDirectory: string,
+  timeoutMs: number,
+  outputCapBytes: number
+): RunnerRun {
   const env = { ...process.env };
   delete env.DATABASE_URL;
   delete env.TIER;
@@ -134,12 +164,17 @@ function runListWithBash(packageDirectory: string, timeoutMs: number): RunnerRun
     env,
     encoding: "utf8",
     timeout: timeoutMs,
-    maxBuffer: 16 * 1024 * 1024,
+    maxBuffer: outputCapBytes,
   });
+  // spawnSync reports a stream that outgrows maxBuffer as ENOBUFS, in a message that names
+  // neither the cap nor the stream's command.
+  const code = run.error !== undefined && "code" in run.error ? run.error.code : undefined;
   const stopped =
-    run.error !== undefined && "code" in run.error && run.error.code === "ETIMEDOUT"
+    code === "ETIMEDOUT"
       ? `timed out after the ${String(timeoutMs)} ms cap`
-      : run.error?.message;
+      : code === "ENOBUFS"
+        ? `printed more than the ${String(outputCapBytes)}-byte output cap`
+        : run.error?.message;
   return {
     status: run.status,
     signal: run.signal,
@@ -156,21 +191,20 @@ function runListWithBash(packageDirectory: string, timeoutMs: number): RunnerRun
 function runFailure(run: RunnerRun): string | null {
   if (run.error !== undefined) return `--list could not run: ${run.error}`;
   if (run.status === 0) return null;
-  const ending =
-    run.status === null ? `was stopped by ${String(run.signal)}` : `exited ${String(run.status)}`;
   const tail = run.stderr.trim().split("\n").slice(-3).join(" | ");
-  return `--list ${ending}: ${tail}`;
+  return `--list ${describeExit(run)}: ${tail}`;
 }
 
 /**
- * Builds the node:test collector.
- *
- * @param options - A recorded run or a shorter cap, for the self-tests only.
+ * @description Builds the node:test collector.
+ * @param options - A recorded run or lower caps, for the self-tests only.
  * @returns The collector.
  */
 export function createNodeCollector(options: NodeCollectorOptions = {}): Collector {
   const timeoutMs = options.timeoutMs ?? LIST_TIMEOUT_MS;
-  const run = options.run ?? ((directory: string) => runListWithBash(directory, timeoutMs));
+  const outputCapBytes = options.outputCapBytes ?? LIST_OUTPUT_CAP_BYTES;
+  const run =
+    options.run ?? ((directory: string) => runListWithBash(directory, timeoutMs, outputCapBytes));
   const source = `${NODE_RUNNER.packageDir}/${NODE_RUNNER.script}`;
   const fail = (message: string): CollectorOutcome => ({
     collections: [],
@@ -193,9 +227,13 @@ export function createNodeCollector(options: NodeCollectorOptions = {}): Collect
       const untracked = parsed.value.filter(({ file }) => !tracked.has(file));
       if (untracked.length > 0) {
         const named = untracked.slice(0, 3).map(({ file }) => file);
+        const noun =
+          untracked.length === 1
+            ? "path that is not a tracked file"
+            : "paths that are not tracked files";
         return Promise.resolve(
           fail(
-            `--list names ${String(untracked.length)} paths that are not tracked files: ` +
+            `--list names ${String(untracked.length)} ${noun}: ` +
               `${named.join(", ")}${untracked.length > named.length ? ", …" : ""}`
           )
         );

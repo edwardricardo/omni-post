@@ -27,6 +27,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { createVitest, type Vitest } from "vitest/node";
 import { err, ok, type Result } from "@shared/types";
+import { describeExit } from "./child-exit.js";
 import {
   COLLECTOR_ID,
   describeError,
@@ -55,6 +56,20 @@ export const VITEST_CONFIG_FLOOR = 80;
 
 /** The time one `vitest list` fallback may take before it is stopped and reported. */
 const CLI_TIMEOUT_MS = 120_000;
+
+/**
+ * The bytes one `vitest list` fallback may print on stdout or stderr before it is stopped and
+ * reported: one config's files, so the cap bounds a runaway listing, far above a real one.
+ */
+const CLI_OUTPUT_CAP_BYTES = 64 * 1024 * 1024;
+
+/** The caps of one `vitest list` fallback; the self-tests lower them, the collector takes none. */
+export interface VitestListLimits {
+  /** How long the command may run before it is stopped. */
+  readonly timeoutMs?: number;
+  /** How many bytes stdout or stderr may carry before the command is stopped. */
+  readonly outputCapBytes?: number;
+}
 
 /** One collected file: its absolute path and the project that collects it (`""` at the root). */
 interface CollectedSpec {
@@ -236,31 +251,39 @@ function parseListOutput(stdout: string): Result<CollectedSpec[], string> {
  *
  * @param root - The config's directory.
  * @param config - The config's absolute path.
- * @param timeoutMs - How long the command may run before it is stopped; the self-tests shorten it.
+ * @param limits - Lower caps, for the self-tests only.
  * @returns The collected files with `excludes: null`, since the command prints no config, or why
  *   the command or its output failed.
  */
 export async function listWithCli(
   root: string,
   config: string,
-  timeoutMs: number = CLI_TIMEOUT_MS
+  limits: VitestListLimits = {}
 ): Promise<Result<ConfigListing, string>> {
+  const timeoutMs = limits.timeoutMs ?? CLI_TIMEOUT_MS;
+  const outputCapBytes = limits.outputCapBytes ?? CLI_OUTPUT_CAP_BYTES;
   const run = spawnSync(
     process.execPath,
     [vitestCliPath(), "list", "--filesOnly", "--json", "--config", config, "--root", root],
-    { cwd: root, encoding: "utf8", timeout: timeoutMs, maxBuffer: 64 * 1024 * 1024 }
+    { cwd: root, encoding: "utf8", timeout: timeoutMs, maxBuffer: outputCapBytes }
   );
-  if (run.error !== undefined && "code" in run.error && run.error.code === "ETIMEDOUT") {
+  const code = run.error !== undefined && "code" in run.error ? run.error.code : undefined;
+  if (code === "ETIMEDOUT") {
     return err(`vitest list for ${config} timed out after the ${String(timeoutMs)} ms cap`);
+  }
+  // spawnSync stops the child and reports ENOBUFS when a stream outgrows maxBuffer; its own
+  // message names neither the cap nor the config.
+  if (code === "ENOBUFS") {
+    return err(
+      `vitest list for ${config} printed more than the ${String(outputCapBytes)}-byte output cap`
+    );
   }
   if (run.error !== undefined) {
     return err(`vitest list for ${config}: ${run.error.message}`);
   }
   if (run.status !== 0) {
-    const ending =
-      run.status === null ? `was stopped by ${String(run.signal)}` : `exited ${String(run.status)}`;
     const tail = run.stderr.trim().split("\n").slice(-3).join(" | ");
-    return err(`vitest list ${ending}: ${tail}`);
+    return err(`vitest list ${describeExit(run)}: ${tail}`);
   }
   const listed = parseListOutput(run.stdout);
   return listed.ok ? ok({ specs: listed.value, excludes: null }) : listed;

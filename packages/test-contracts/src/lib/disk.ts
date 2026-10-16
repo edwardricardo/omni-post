@@ -28,6 +28,13 @@ export const CANONICAL_TEST_SHAPED = /(\.(test|spec)\.[cm]?[jt]sx?|\.k6\.js)$/;
  */
 export const DISK_FLOOR = 800;
 
+/**
+ * The bytes `git ls-files -z` may print on stdout or stderr before it is stopped and reported:
+ * one NUL-terminated path per tracked file, so the cap bounds a runaway listing, far above this
+ * repository's index.
+ */
+const LS_FILES_OUTPUT_CAP_BYTES = 64 * 1024 * 1024;
+
 /** The tracked files of a tree, and the test-shaped subset. */
 export interface DiskInventory {
   /** Every tracked file that exists, repository-relative, sorted and unique. */
@@ -42,6 +49,7 @@ export interface DiskFailure {
 }
 
 /**
+ * @description Tells whether a file's name is test-shaped, by {@link CANONICAL_TEST_SHAPED}.
  * @param file - A repository-relative path.
  * @returns Whether its name is test-shaped.
  */
@@ -50,22 +58,33 @@ export function isTestShaped(file: string): boolean {
 }
 
 /**
- * Lists the files git tracks under a repository root that exist in the working tree.
- *
+ * @description Lists the files git tracks under a repository root that exist in the working tree.
  * @param root - Absolute repository root.
+ * @param outputCapBytes - How many bytes git may print before it is stopped; the self-tests lower
+ *   it.
  * @returns The repository-relative paths, or the failure of `git ls-files`.
  */
-export function listTrackedFiles(root: string): Result<string[], DiskFailure> {
+export function listTrackedFiles(
+  root: string,
+  outputCapBytes: number = LS_FILES_OUTPUT_CAP_BYTES
+): Result<string[], DiskFailure> {
   let listing: string;
   try {
     listing = execFileSync("git", ["ls-files", "-z"], {
       cwd: root,
       encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
+      maxBuffer: outputCapBytes,
       // Piped, not inherited, so git's own message lands in the failure instead of the console.
       stdio: ["ignore", "pipe", "pipe"],
     });
   } catch (error: unknown) {
+    // execFileSync throws ENOBUFS when a stream outgrows maxBuffer, in a message that names
+    // neither the cap nor the command.
+    if (error instanceof Error && "code" in error && error.code === "ENOBUFS") {
+      return err({
+        message: `git ls-files in ${root} printed more than the ${String(outputCapBytes)}-byte output cap`,
+      });
+    }
     return err({ message: `git ls-files failed in ${root}: ${describeError(error)}` });
   }
   return ok(
@@ -74,8 +93,7 @@ export function listTrackedFiles(root: string): Result<string[], DiskFailure> {
 }
 
 /**
- * Builds the inventory from a file list and holds it to the floor.
- *
+ * @description Builds the inventory from a file list and holds it to the floor.
  * @param files - Repository-relative paths, in any order, possibly repeated.
  * @param floor - The fewest test-shaped files the list may hold.
  * @returns The inventory, or a failure naming the count and the floor.

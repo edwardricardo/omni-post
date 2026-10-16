@@ -1,17 +1,19 @@
 /**
  * @file source-resolution.test.ts
  * @description The source-resolution contract: what it reads as an import, which package a
- *              specifier names, its verdict over planted trees, its two floors, and the gate
- *              itself, the command line over this repository in both vite modes: in this
+ *              specifier names, its verdict over planted trees, its two floors, the command
+ *              line's arguments and exit codes, and the gate itself, the command line over this
+ *              repository in both vite modes: in this
  *              process for the run's own mode, and in a child process with `NODE_ENV=production`,
  *              because vite reads `NODE_ENV` when a config is resolved and a test must not change
  *              its own process's environment.
  * @layer infrastructure
  */
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { realpathSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { ok } from "@shared/types";
 import {
   checkSourceResolution,
   owningPackage,
@@ -33,6 +35,26 @@ const VITEST_TIMEOUT_MS = 60_000;
 const GATE_TIMEOUT_MS = 180_000;
 
 const planted: PlantedTree[] = [];
+
+/**
+ * Reads the one JSON report a command-line run printed. A run that printed anything else (no
+ * report, a log line before it) failed before or beside the report, so the case fails with both of
+ * its streams rather than with the `SyntaxError` of a parse that hides them.
+ *
+ * @param run - The finished child process.
+ * @returns The parsed report.
+ */
+function reportOf(run: SpawnSyncReturns<string>): unknown {
+  try {
+    return JSON.parse(run.stdout);
+  } catch (error: unknown) {
+    throw new Error(
+      `the run printed no JSON report (status ${String(run.status)}, signal ${String(run.signal)})` +
+        `\n--- stdout ---\n${run.stdout}\n--- stderr ---\n${run.stderr}`,
+      { cause: error }
+    );
+  }
+}
 
 /**
  * Plants a tree holding one workspace package, `@x/pkg`, with a `src/` and a `dist/` entry, and a
@@ -181,6 +203,83 @@ describe("source resolution", () => {
     );
   });
 
+  describe("the command line", () => {
+    it.each([
+      ["a --root with no value", ["--root"], "--root needs a value"],
+      ["a --root followed by another flag", ["--root", "--root"], "--root needs a value"],
+      ["an argument it does not know", ["--rot", "app"], 'unknown argument "--rot"'],
+    ])("returns exit code 2 and the usage error for %s", async (_label, argv, expected) => {
+      const { code, report } = await main(argv);
+
+      expect(report).toEqual({
+        configs: 0,
+        checked: 0,
+        violations: [],
+        errors: [`${expected}; usage: source-resolution [--root <dir>]`],
+      });
+      expect(code).toBe(2);
+    });
+
+    it("returns exit code 1 and an error for a --root that does not exist", async () => {
+      const missing = path.join(realpathSync(import.meta.dirname), "no-such-root");
+
+      const { code, report } = await main(["--root", missing]);
+
+      expect(report.checked).toBe(0);
+      expect(report.errors).toHaveLength(1);
+      expect(report.errors[0]).toContain(`root ${missing} does not resolve: ENOENT`);
+      expect(code).toBe(1);
+    });
+
+    it("returns exit code 1 when a tracked tree holds fewer configs than the floor", async () => {
+      const tree = plantAliasedTo("src/index.ts");
+
+      const { code, report } = await main(["--root", tree.root], {
+        listFiles: () => ok(tree.tracked),
+      });
+
+      expect(report.errors).toEqual(["1 tracked vitest configs, below the floor of 80"]);
+      expect(code).toBe(1);
+    });
+
+    it(
+      "returns exit code 1 over a planted import that resolves to dist/",
+      async () => {
+        const tree = plantAliasedTo("dist/index.js");
+
+        const { code, report } = await main(["--root", tree.root], {
+          listFiles: () => ok(tree.tracked),
+          configFloor: 1,
+          importFloor: 1,
+        });
+
+        expect(report).toMatchObject({
+          violations: [{ file: "app/a.test.ts", resolved: "pkg/dist/index.js" }],
+          errors: [],
+        });
+        expect(code).toBe(1);
+      },
+      VITEST_TIMEOUT_MS
+    );
+
+    it(
+      "returns exit code 0 over a planted tree whose every import resolves to src/",
+      async () => {
+        const tree = plantAliasedTo("src/index.ts");
+
+        const { code, report } = await main(["--root", tree.root], {
+          listFiles: () => ok(tree.tracked),
+          configFloor: 1,
+          importFloor: 1,
+        });
+
+        expect(report).toEqual({ configs: 1, checked: 1, violations: [], errors: [] });
+        expect(code).toBe(0);
+      },
+      VITEST_TIMEOUT_MS
+    );
+  });
+
   describe("this repository", () => {
     it(
       "resolves every workspace package a collected test imports to its src/ in this run's mode",
@@ -208,10 +307,7 @@ describe("source resolution", () => {
           }
         );
 
-        // A run that printed no report failed before it could write one; its stderr is the reason.
-        const report: unknown =
-          run.stdout.trim() === "" ? { stderr: run.stderr } : JSON.parse(run.stdout);
-        expect(report).toMatchObject({ violations: [], errors: [] });
+        expect(reportOf(run)).toMatchObject({ violations: [], errors: [] });
         expect(run.status).toBe(0);
       },
       GATE_TIMEOUT_MS
