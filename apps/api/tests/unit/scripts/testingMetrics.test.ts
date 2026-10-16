@@ -69,6 +69,20 @@ const parseMetricLines = (stdout: string): MetricLine[] =>
       return { id, value, source };
     });
 
+/**
+ * Returns the rows the suite read, refusing an empty table. A case that filters the table for
+ * something wrong finds nothing in an empty one and passes, so every case reads the rows through
+ * here and fails instead when the shared run left them unset or printed no metric line.
+ */
+const rowsRead = (rows: readonly MetricLine[]): readonly MetricLine[] => {
+  if (rows.length === 0) {
+    throw new Error(
+      "metrics.mjs printed no metric line; a case over an empty table proves nothing"
+    );
+  }
+  return rows;
+};
+
 /** The `Now` cell of every `M<n>` row of the tracker's Metrics table. */
 const readTrackerNow = (): Map<string, string> => {
   const now = new Map<string, string>();
@@ -92,19 +106,23 @@ describe("testing re-foundation metrics script", () => {
   }, REACH_BUDGET_MS);
 
   describe("the whole table", () => {
+    it("refuses to read an empty table, so no case can pass over rows it never saw", () => {
+      expect(() => rowsRead([])).toThrow(/no metric line/);
+    });
+
     it("prints every metric the tracker declares, in order, exactly once", () => {
       // The expected set is READ from the tracker rather than listed here. A third hand-written
       // copy of the metric ids would be one more thing to drift, and this workstream exists in
       // part because hand-written lists of what should run kept disagreeing with what ran.
       const declared = [...readTrackerNow().keys()];
-      const printed = allRows.map((row) => row.id);
+      const printed = rowsRead(allRows).map((row) => row.id);
 
       expect(declared.length).toBeGreaterThan(0);
       expect(printed).toEqual(declared);
     });
 
     it("names a source class and a reason for every metric it cannot derive", () => {
-      const malformed = allRows.filter(
+      const malformed = rowsRead(allRows).filter(
         (row) => !/^(derived|pasted|network|unavailable): \S/.test(row.source)
       );
 
@@ -112,7 +130,7 @@ describe("testing re-foundation metrics script", () => {
     });
 
     it("derives exactly the metrics the tracker says are derived from the tree", () => {
-      const derived = allRows
+      const derived = rowsRead(allRows)
         .filter((row) => row.source.startsWith("derived:"))
         .map((row) => row.id);
 
@@ -123,7 +141,7 @@ describe("testing re-foundation metrics script", () => {
   describe("the now column", () => {
     it("reproduces every derived value of the Now column byte for byte", () => {
       const now = readTrackerNow();
-      const rows = allRows.filter((row) => row.source.startsWith("derived:"));
+      const rows = rowsRead(allRows).filter((row) => row.source.startsWith("derived:"));
 
       const derivedPairs = rows.map((row) => `${row.id}=${row.value}`);
       const trackerPairs = rows.map((row) => `${row.id}=${now.get(row.id) ?? "<missing row>"}`);
@@ -139,7 +157,7 @@ describe("testing re-foundation metrics script", () => {
       () => {
         for (const id of DERIVED_IDS) {
           const alone = parseMetricLines(runMetrics([`--${id.toLowerCase()}`, "--offline"]));
-          const inTable = allRows.filter((row) => row.id === id);
+          const inTable = rowsRead(allRows).filter((row) => row.id === id);
 
           expect(alone).toEqual(inTable);
         }
