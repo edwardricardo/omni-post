@@ -63,6 +63,7 @@ import { Argon2PasswordHasher } from "../../src/infrastructure/adapters/Argon2Pa
 import { CustomerTokenServiceAdapter } from "../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
 import { customerAuthRoutes } from "../../src/auth/customerAuthRoutes.js";
 import { needsRehash } from "../../src/auth/passwordHashing.js";
+import { createLogger } from "../../src/lib/logger.js";
 
 assertSeedChannelConfigured();
 
@@ -233,6 +234,10 @@ describe("Customer password reset — persisted outcomes through the guarded cli
         new PrismaAccountRepository(guarded),
         hasher,
         tokenService,
+        createLogger("customer-registration"),
+        undefined,
+        undefined,
+        undefined,
         undefined,
         unitOfWork
       )

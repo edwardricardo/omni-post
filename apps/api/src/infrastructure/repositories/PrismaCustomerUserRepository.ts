@@ -180,6 +180,25 @@ export class PrismaCustomerUserRepository implements CustomerUserRepository {
   }
 
   /**
+   * DELIBERATE soft-delete-sweep exception: the read targets SOFT-DELETED users
+   * (`NOT: { deletedAt: null }`) because registration must tell an address that belongs to a
+   * deleted user apart from a free one, and every other read here hides those rows. It
+   * answers a count, so nothing about the deleted row leaves the repository.
+   *
+   * @method existsDeletedByEmailAcrossAccounts
+   * @description Answers whether a soft-deleted customer user, in any account, holds an
+   *   e-mail.
+   * @param email - The address, normalized before the comparison.
+   * @returns True when at least one soft-deleted customer user carries the address.
+   */
+  async existsDeletedByEmailAcrossAccounts(email: string): Promise<boolean> {
+    const count = await this.getClient().customerUser.count({
+      where: { email: normalizeEmail(email), NOT: { deletedAt: null } },
+    });
+    return count > 0;
+  }
+
+  /**
    * @method findByAccountId
    * @description Reads every live customer user of one account.
    * @param accountId - The account whose users are read.

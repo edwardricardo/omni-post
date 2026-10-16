@@ -1,7 +1,7 @@
 /**
  * @file onboarding.test.ts
  * @description Unit tests for welcome email in registration and onboarding API logic.
- * @layer application
+ * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RegisterCustomerUseCase } from "@core/customer-auth/RegisterCustomerUseCase.js";
@@ -11,6 +11,7 @@ import type { CustomerUserRepository } from "@core/domain/repositories/CustomerU
 import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
 import type { WelcomeMailer } from "@core/domain/repositories/WelcomeMailer.js";
 import type { PlatformCredentialReader } from "@core/domain/repositories/PlatformCredentialReader.js";
+import type { LoggerPort } from "@ports/core";
 
 const hasher = new Argon2PasswordHasher();
 const tokenService = new CustomerTokenServiceAdapter();
@@ -18,6 +19,7 @@ const tokenService = new CustomerTokenServiceAdapter();
 function makeMockCustomerUserRepo(): CustomerUserRepository {
   return {
     findByEmailAcrossAccounts: vi.fn().mockResolvedValue([]),
+    existsDeletedByEmailAcrossAccounts: vi.fn().mockResolvedValue(false),
     create: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
     findById: vi.fn(),
     findByEmail: vi.fn(),
@@ -27,10 +29,16 @@ function makeMockCustomerUserRepo(): CustomerUserRepository {
 function makeMockAccountRepo(): AccountRepositoryPort {
   return {
     save: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
+    findByEmail: vi.fn().mockResolvedValue(null),
+    existsDeletedByEmail: vi.fn().mockResolvedValue(false),
     findById: vi.fn(),
     findByIdIncludingDeleted: vi.fn(),
     restore: vi.fn().mockResolvedValue({ ok: true, value: undefined }),
   } as unknown as AccountRepositoryPort;
+}
+
+function makeMockLogger() {
+  return { error: vi.fn(), warn: vi.fn() } satisfies LoggerPort;
 }
 
 function makeMockWelcomeMailer(): WelcomeMailer {
@@ -88,7 +96,7 @@ describe("Welcome email on registration", () => {
       makeMockAccountRepo(),
       hasher,
       tokenService,
-      undefined,
+      makeMockLogger(),
       undefined,
       welcomeMailer,
       credService
@@ -110,13 +118,14 @@ describe("Welcome email on registration", () => {
       sendWelcome: vi.fn().mockRejectedValue(new Error("SMTP down")),
     };
 
+    const logger = makeMockLogger();
     const useCase = new RegisterCustomerUseCase(
       makeMockCustomerUserRepo(),
       makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
       hasher,
       tokenService,
-      undefined,
+      logger,
       undefined,
       failingMailer,
       credService
@@ -128,6 +137,12 @@ describe("Welcome email on registration", () => {
     // Wait for async catch
     await new Promise((r) => setTimeout(r, 50));
     expect(failingMailer.sendWelcome).toHaveBeenCalled();
+    // The failure is logged, not swallowed, and the log carries no address.
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ operation: "registerCustomer.welcomeEmail" }),
+      "A registration e-mail was not sent"
+    );
+    expect(JSON.stringify(logger.error.mock.calls)).not.toContain("john@test.com");
   });
 
   it("uses baseUrl from PLATFORM settings", async () => {
@@ -137,7 +152,7 @@ describe("Welcome email on registration", () => {
       makeMockAccountRepo(),
       hasher,
       tokenService,
-      undefined,
+      makeMockLogger(),
       undefined,
       welcomeMailer,
       credService
@@ -159,7 +174,8 @@ describe("Welcome email on registration", () => {
       makeMockCustomerRoleRepo(),
       makeMockAccountRepo(),
       hasher,
-      tokenService
+      tokenService,
+      makeMockLogger()
     );
 
     const result = await useCase.execute(validInput);
