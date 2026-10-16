@@ -480,6 +480,27 @@ describe("run-tests.sh is a gate that can go red", () => {
       expect(codeLines.filter((line) => /tests\/[^\s"']*\.test\.ts/.test(line))).toEqual([]);
     });
 
+    it("collects each tier once to classify the refused paths, not once per path", () => {
+      // `check_filter` names why a given path will not run, and telling a suite of a
+      // tier this TIER skips from a file no tier collects needs both collections. Read
+      // inside its loop, each path given walked tests/ twice more.
+      const start = codeLines.findIndex((line) => line.trim() === "check_filter() {");
+      const end = codeLines.findIndex((line, index) => index > start && line === "}");
+      const body = codeLines.slice(start, end + 1);
+      const loopIndex = body.findIndex((line) => /^\s*while\s/.test(line));
+      /** Whether each `collect <suffix>` call in the function sits above its loop. */
+      const callsOf = (suffix: string): boolean[] =>
+        body.flatMap((line, index) =>
+          new RegExp(`\\bcollect ${suffix}\\b`).test(line) ? [index < loopIndex] : []
+        );
+
+      expect({
+        found: start >= 0 && end > start && loopIndex > 0,
+        servicesCalls: callsOf("integration"),
+        liveCalls: callsOf("live"),
+      }).toEqual({ found: true, servicesCalls: [true], liveCalls: [true] });
+    });
+
     it("answers --list above the database refusal, and exits there", () => {
       // Listing reads the tree, the script and the quarantine, never a database, so
       // fitness #30 can read it with no DATABASE_URL. Below the refusal it would be

@@ -199,10 +199,15 @@ select_files() {
 # quarantined suite runs nowhere until its entry leaves the quarantine, a path
 # that is not there was given from the wrong directory or misspelt, a suite of a
 # tier this TIER does not run needs another TIER, and any other file is one no
-# tier collects.
+# tier collects. Both collections are read once, above the loop, since telling a
+# suite of a tier this TIER skips from a file no tier collects needs both, and a
+# run given no path reads neither.
 check_filter() {
-  local path selected
+  local path selected services live
+  [ -n "$FILTER" ] || return 0
   selected=$(printf '%s\n' "${SERVICES_FILES[@]}" "${LIVE_FILES[@]}")
+  services=$(collect integration)
+  live=$(collect live)
   while IFS= read -r path; do
     if [ -z "$path" ] || printf '%s\n' "$selected" | grep -Fxq -- "$path"; then
       continue
@@ -211,9 +216,9 @@ check_filter() {
       echo "run-tests.sh: $path is quarantined, so it runs nowhere until its entry leaves $QUARANTINE_FILE." >&2
     elif [ ! -e "$path" ]; then
       echo "run-tests.sh: $path does not exist in $(pwd); give each path from apps/api, as tests/<dir>/<file>." >&2
-    elif collect integration | grep -Fxq -- "$path"; then
+    elif printf '%s\n' "$services" | grep -Fxq -- "$path"; then
       echo "run-tests.sh: $path is a services-tier suite, and TIER=$TIER does not run the services tier; run it under TIER=pr-integration or with TIER unset." >&2
-    elif collect live | grep -Fxq -- "$path"; then
+    elif printf '%s\n' "$live" | grep -Fxq -- "$path"; then
       echo "run-tests.sh: $path is a live-tier suite, and TIER=$TIER does not run the live tier; run it under TIER=live-integration or with TIER unset." >&2
     else
       echo "run-tests.sh: $path exists, but no tier of this runner collects it: the services tier runs each *.integration.test.ts and the live tier each *.live.test.ts, under tests/ outside tests/unit." >&2
@@ -300,11 +305,33 @@ fi
 # `--connect-timeout` ends sooner a probe of a host that drops the connection. The
 # worst case before a live file is the two `--max-time` in a row, 20 s, and the
 # first probe that fails stops the tier, so that wait is paid once. curl's error,
-# on stderr, is what run_batch captures and prints with the record.
+# on stderr, is what run_batch captures and prints with the record, its first
+# PROBE_ERROR_LINES lines of it.
 # shellcheck disable=SC2317 # run_batch calls it through BATCH_PROBE, which shellcheck cannot follow
 probe_live() {
   curl -fsS --connect-timeout 3 --max-time 10 -o /dev/null "$TEST_API_URL/health" &&
     curl -fsS --connect-timeout 3 --max-time 10 -o /dev/null "$TEST_WORKERS_READY_URL"
+}
+
+# The most lines of a failed probe's output that the record and the final summary
+# keep. A probe that prints a long body before it fails would otherwise flood
+# both; the lines past the limit are counted, not printed.
+PROBE_ERROR_LINES=20
+
+# Prints the first `$1` lines of `$2` and, when `$2` holds more, one line counting
+# the ones it left out. It reads `$2` whole rather than piping it into `head`, so no
+# writer is cut off mid-line and no broken-pipe error reaches the run's output.
+first_lines() {
+  local limit="$1" line total=0
+  while IFS= read -r line; do
+    total=$((total + 1))
+    if [ "$total" -le "$limit" ]; then
+      printf '%s\n' "$line"
+    fi
+  done <<< "$2"
+  if [ "$total" -gt "$limit" ]; then
+    printf '… %d more lines\n' "$((total - limit))"
+  fi
 }
 
 # Prints each line of `$2` behind the indent `$1`.
@@ -449,11 +476,12 @@ run_batch() {
     # A failed probe names the file it stops before and the last file run: that
     # one left the environment unready, or it went down while that one ran. The
     # files after it would only fail for the same reason, so none of them runs.
-    # What the probe printed is kept and printed under the record, here and in the
-    # final summary, so the cause sits beside the verdict on the stream that has it.
+    # What the probe printed, up to PROBE_ERROR_LINES lines, is kept and printed
+    # under the record, here and in the final summary, so the cause sits beside the
+    # verdict on the stream that has it.
     if [ -n "${BATCH_PROBE:-}" ] && ! probe_output=$("$BATCH_PROBE" 2>&1); then
       ENV_UNREADY="env-unready-before: $file (last ran: ${LAST_RAN:-none})"
-      PROBE_ERROR=${probe_output:-the probe failed and printed nothing}
+      PROBE_ERROR=$(first_lines "$PROBE_ERROR_LINES" "${probe_output:-the probe failed and printed nothing}")
       printf "    ✗ %s\n" "$ENV_UNREADY"
       print_indented "      " "$PROBE_ERROR"
       failed_files=$((failed_files + 1))

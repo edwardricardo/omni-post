@@ -142,10 +142,18 @@ interface GateOptions {
   /** The quarantine the run reads; defaults to the committed one. */
   quarantineFile?: string;
   testOrder?: string;
-  /** A probe URL the stand-in `curl` refuses from its `failFrom`-th call on; needs `callLog`. */
-  failingProbe?: { url: string; failFrom: number };
+  /** A probe the stand-in `curl` refuses from a given call on; needs `callLog`. */
+  failingProbe?: FailingProbe;
   /** The runner's arguments; none by default. */
   args?: string[];
+}
+
+/** A probe URL the stand-in `curl` refuses from its `failFrom`-th call on. */
+interface FailingProbe {
+  url: string;
+  failFrom: number;
+  /** Lines the refused call prints before curl's own error; none by default. */
+  lines?: number;
 }
 
 interface RunResult {
@@ -190,9 +198,10 @@ function writeQuarantine(name: string, entries: QuarantineFixture[]): string {
  * each probe in the same call log, as a call handed 0 paths with the probed URL
  * last, so the log reads the probes and the files in the order the run made them;
  * it succeeds, except on `GATE_CURL_FAIL_URL` from its `GATE_CURL_FAIL_FROM`-th call
- * on, where it fails the way `curl -f` fails on a 429. It numbers the call from the
- * log as it stood before the call, then logs it, and refuses with exit 98 a failing
- * probe with no log to count in.
+ * on, where it fails the way `curl -f` fails on a 429, after `GATE_CURL_FAIL_LINES`
+ * numbered lines when a scenario sets it. It numbers the call from the log as it
+ * stood before the call, then logs it, and refuses with exit 98 a failing probe with
+ * no log to count in.
  */
 beforeAll(() => {
   stubDir = mkdtempSync(join(tmpdir(), "run-tests-gate-"));
@@ -244,6 +253,9 @@ beforeAll(() => {
       '  echo "0 $url" >> "$GATE_CALL_LOG"',
       "fi",
       'if [ "$url" = "${GATE_CURL_FAIL_URL:-}" ] && [ "$call" -ge "$GATE_CURL_FAIL_FROM" ]; then',
+      "  for ((line = 1; line <= ${GATE_CURL_FAIL_LINES:-0}; line++)); do",
+      '    echo "gate curl stand-in: body line $line" >&2',
+      "  done",
       `  echo "${CURL_REFUSAL}" >&2`,
       "  exit 22",
       "fi",
@@ -290,6 +302,9 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
       ...(failingProbe !== undefined && {
         GATE_CURL_FAIL_URL: failingProbe.url,
         GATE_CURL_FAIL_FROM: String(failingProbe.failFrom),
+        ...(failingProbe.lines !== undefined && {
+          GATE_CURL_FAIL_LINES: String(failingProbe.lines),
+        }),
       }),
       ...(realTarget !== undefined && {
         GATE_REAL_TARGET: realTarget,
@@ -695,6 +710,54 @@ describe("run-tests.sh probes the live environment before each live-tier file", 
       });
     }
   );
+
+  it("keeps the first PROBE_ERROR_LINES lines a failed probe printed, and says how many it left out", () => {
+    // A probe that prints a long body before it fails would otherwise flood the record
+    // and the summary with it. The limit is read from the runner, so the case follows
+    // a change to it instead of restating it.
+    const callLog = join(stubDir, "flooding-probe-calls.log");
+    rmSync(callLog, { force: true });
+    const planted = 60;
+    const limit = Number(
+      /^PROBE_ERROR_LINES=(\d+)$/m.exec(readFileSync(runnerPath, "utf8"))?.[1] ?? Number.NaN
+    );
+    const live = listed(emptyQuarantine).get("live") ?? [];
+    const run = runGate(PASSING, {
+      callLog,
+      tier: "live-integration",
+      quarantineFile: emptyQuarantine,
+      failingProbe: { url: API_HEALTH, failFrom: 1, lines: planted },
+    });
+    const entry = `env-unready-before: ${live[0] ?? ""} (last ran: none)`;
+    const printedByTheProbe = [
+      ...Array.from(
+        { length: planted },
+        (_, index) => `gate curl stand-in: body line ${index + 1}`
+      ),
+      CURL_REFUSAL,
+    ];
+    /** The kept lines and the line that counts the rest, each behind `indent`. */
+    const record = (indent: string): string =>
+      [...printedByTheProbe.slice(0, limit), `… ${printedByTheProbe.length - limit} more lines`]
+        .map((line) => `${indent}${line}\n`)
+        .join("");
+
+    expect({
+      limitNamed: Number.isInteger(limit) && limit > 0 && limit < planted,
+      exitCode: run.exitCode,
+      underTheVerdict: run.stdout.includes(`    ✗ ${entry}\n${record("      ")}  live `),
+      inTheSummary: run.stdout.includes(
+        `with this error:\n${record("         ")}       The file that ran last`
+      ),
+      bodyLinesPrinted: run.stdout.split("gate curl stand-in: body line ").length - 1,
+    }).toEqual({
+      limitNamed: true,
+      exitCode: 1,
+      underTheVerdict: true,
+      inTheSummary: true,
+      bodyLinesPrinted: 2 * limit,
+    });
+  });
 });
 
 describe("run-tests.sh narrows a run to the paths it is given", () => {
