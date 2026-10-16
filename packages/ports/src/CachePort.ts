@@ -14,8 +14,23 @@
  *              revalidate, jitter) is intentionally NOT part of the
  *              port surface — adding it requires hot-key metrics and
  *              per-policy decisions.
+ *
+ *              Two kinds of method share the port. `get`, `set`, `getOrSet`,
+ *              `delete`, `invalidateByTag` and `has` have cache semantics:
+ *              an adapter may absorb a backend failure and answer as if the
+ *              key were absent, because a missed cache entry only costs a
+ *              recomputation. `claim` has lock semantics: its answer decides
+ *              who acts, so it never guesses.
  * @layer domain
  */
+
+/** The write options `set` and `getOrSet` share. */
+export interface CacheWriteOptions {
+  /** TTL in seconds; when omitted, the adapter's configured default applies. */
+  ttlSeconds?: number;
+  /** Groups the key for `invalidateByTag`. */
+  tags?: readonly string[];
+}
 
 export interface CachePort {
   /**
@@ -32,11 +47,7 @@ export interface CachePort {
    * `tags` opt-in: groups keys for `invalidateByTag`. Tags are O(1) at
    * write-time; invalidation is O(N) over the tag set on the adapter side.
    */
-  set<T>(
-    key: string,
-    value: T,
-    options?: { ttlSeconds?: number; tags?: readonly string[] }
-  ): Promise<void>;
+  set<T>(key: string, value: T, options?: CacheWriteOptions): Promise<void>;
 
   /**
    * Cache-aside: returns cached value or invokes `factory` + caches
@@ -44,11 +55,7 @@ export interface CachePort {
    * call; if concurrent callers race on a missed key, each runs the
    * factory independently (no single-flight protection).
    */
-  getOrSet<T>(
-    key: string,
-    factory: () => Promise<T>,
-    options?: { ttlSeconds?: number; tags?: readonly string[] }
-  ): Promise<T>;
+  getOrSet<T>(key: string, factory: () => Promise<T>, options?: CacheWriteOptions): Promise<T>;
 
   /**
    * Remove a key. No-op if the key is absent (does not throw).
@@ -66,4 +73,20 @@ export interface CachePort {
    * adapters that don't need to decode the payload (Redis EXISTS).
    */
   has(key: string): Promise<boolean>;
+
+  /**
+   * Atomically creates `key` for `ttlSeconds` if no unexpired entry holds it.
+   * Lock semantics, unlike the cache-semantics methods above: among any
+   * number of concurrent callers, on any number of instances sharing the
+   * backend, exactly one resolves `true`; every other caller resolves
+   * `false` until the entry expires. Use it for an exclusive claim, such as
+   * a per-key throttle, never for cache-aside.
+   *
+   * It REJECTS when the claim cannot be decided (the backend is unreachable
+   * or refuses the command, or `ttlSeconds` is not a positive whole number
+   * of seconds). It never absorbs that failure into `true` or `false`: a
+   * caller that treated an outage as a won claim would act without one, and
+   * one that treated it as a lost claim would never learn of the outage.
+   */
+  claim(key: string, ttlSeconds: number): Promise<boolean>;
 }

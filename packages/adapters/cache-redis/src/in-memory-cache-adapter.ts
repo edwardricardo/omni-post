@@ -13,12 +13,12 @@
  *                  Redis adapter for cross-instance consistency).
  *
  *              Not intended for production cross-pod caching: each process
- *              keeps its own Map, so writes and invalidations do not propagate
- *              across instances.
+ *              keeps its own Map, so writes, invalidations and claims do not
+ *              propagate across instances.
  * @layer infrastructure
  */
 
-import type { CachePort } from "@ports/core";
+import type { CachePort, CacheWriteOptions } from "@ports/core";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
 
 interface Entry<T> {
@@ -70,6 +70,12 @@ export class InMemoryCacheAdapter implements CachePort {
     }
   }
 
+  /**
+   * @method get
+   * @description Reads a value, dropping the entry when its TTL has passed.
+   * @param key - The key to read.
+   * @returns The stored value, or null on a miss or an expired entry.
+   */
   async get<T>(key: string): Promise<T | null> {
     const entry = this.store.get(key);
     if (!entry) return null;
@@ -80,11 +86,14 @@ export class InMemoryCacheAdapter implements CachePort {
     return entry.value as T;
   }
 
-  async set<T>(
-    key: string,
-    value: T,
-    options?: { ttlSeconds?: number; tags?: readonly string[] }
-  ): Promise<void> {
+  /**
+   * @method set
+   * @description Stores a value with its TTL and tags, replacing any previous entry and its tags.
+   * @param key - The key to write.
+   * @param value - The value to store.
+   * @param options - TTL in seconds (the adapter's default when omitted) and tags.
+   */
+  async set<T>(key: string, value: T, options?: CacheWriteOptions): Promise<void> {
     const ttl = options?.ttlSeconds ?? this.defaultTtlSeconds;
     const tags = options?.tags ?? [];
 
@@ -110,10 +119,19 @@ export class InMemoryCacheAdapter implements CachePort {
     }
   }
 
+  /**
+   * @method getOrSet
+   * @description Cache-aside over the Map: answers from an unexpired entry, or awaits `factory`
+   *   and stores what it resolves to.
+   * @param key - The entry to answer from, or to fill.
+   * @param factory - Called only on a miss; a rejection propagates and nothing is stored.
+   * @param options - The TTL and tags `set` applies to the stored value.
+   * @returns The stored value on a hit, otherwise the factory's result.
+   */
   async getOrSet<T>(
     key: string,
     factory: () => Promise<T>,
-    options?: { ttlSeconds?: number; tags?: readonly string[] }
+    options?: CacheWriteOptions
   ): Promise<T> {
     const cached = await this.get<T>(key);
     if (cached !== null) return cached;
@@ -123,12 +141,22 @@ export class InMemoryCacheAdapter implements CachePort {
     return value;
   }
 
+  /**
+   * @method delete
+   * @description Removes a key and its tags; a no-op when the key is absent.
+   * @param key - The key to remove.
+   */
   async delete(key: string): Promise<void> {
     const entry = this.store.get(key);
     if (!entry) return;
     this.dropEntry(key, entry);
   }
 
+  /**
+   * @method invalidateByTag
+   * @description Removes every key tagged with `tag`, and those keys from their other tags.
+   * @param tag - The tag whose keys are removed.
+   */
   async invalidateByTag(tag: string): Promise<void> {
     const keys = this.tagIndex.get(tag);
     if (!keys) return;
@@ -149,6 +177,12 @@ export class InMemoryCacheAdapter implements CachePort {
     this.tagIndex.delete(tag);
   }
 
+  /**
+   * @method has
+   * @description Checks whether an unexpired entry holds the key, dropping an expired one.
+   * @param key - The key to check.
+   * @returns True when an unexpired entry holds the key.
+   */
   async has(key: string): Promise<boolean> {
     const entry = this.store.get(key);
     if (!entry) return false;
@@ -160,8 +194,36 @@ export class InMemoryCacheAdapter implements CachePort {
   }
 
   /**
-   * Tear down: unregister the cleanup task (if any) and drop all entries.
-   * Tests and per-process scopes call this before discarding the instance.
+   * @method claim
+   * @description Creates `key` for `ttlSeconds` when no unexpired entry holds it, with the same
+   *   expiry rule as `get` and `has`. The check and the insert run with no `await` between them,
+   *   so among concurrent callers in this process exactly one wins; there is no other process to
+   *   arbitrate with, since the store is this instance's Map. A TTL that is not a positive whole
+   *   number of seconds rejects, as Redis refuses one in `SET ... EX`, so a test over this
+   *   adapter cannot pass a value production would refuse.
+   * @param key - The key to claim.
+   * @param ttlSeconds - How long the claim holds, in whole seconds.
+   * @returns True when this call created the key, false when an unexpired entry already held it.
+   */
+  async claim(key: string, ttlSeconds: number): Promise<boolean> {
+    if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0) {
+      throw new RangeError("A claim's TTL must be a positive whole number of seconds");
+    }
+    const now = Date.now();
+    const existing = this.store.get(key);
+    if (existing) {
+      if (existing.expiresAt > now) return false;
+      this.dropEntry(key, existing);
+    }
+    const entry: Entry<true> = { value: true, expiresAt: now + ttlSeconds * 1000, tags: [] };
+    this.store.set(key, entry);
+    return true;
+  }
+
+  /**
+   * @method close
+   * @description Tears down: unregisters the cleanup task (if any) and drops all entries. Tests
+   *   and per-process scopes call this before discarding the instance.
    */
   close(): void {
     if (this.scheduler) {

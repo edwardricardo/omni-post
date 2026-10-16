@@ -29,7 +29,7 @@ Edward asked the same question. The answer is **scope of consumer coupling**.
 
 ### Consumers don't need the full manager surface
 
-`RedisCacheManager` exposes 12+ methods: `get`, `set`, `del`, `getOrSet`, `invalidate`, `invalidateByTag`, `invalidateByPattern`, `invalidateByDependencies`, `getStats`, `flush`, `warmCache`, `healthCheck`, `has`, plus options for compression, dependency graphs, smart invalidation strategies, and access pattern tracking. Most callers need exactly six: `get`, `set`, `getOrSet`, `delete`, `invalidateByTag`, `has`.
+`RedisCacheManager` exposes 12+ methods: `get`, `set`, `del`, `getOrSet`, `invalidate`, `invalidateByTag`, `invalidateByPattern`, `invalidateByDependencies`, `getStats`, `flush`, `warmCache`, `healthCheck`, `has`, `claim`, plus options for compression, dependency graphs, smart invalidation strategies, and access pattern tracking. Callers need seven: the six cache-semantics methods `get`, `set`, `getOrSet`, `delete`, `invalidateByTag`, `has`, and `claim`, the exclusive claim (see [`claim` for exclusive claims](#claim-for-exclusive-claims)).
 
 The CachePort narrows that surface so consumers can be tested with a 90-line in-memory adapter instead of mocking 200+ lines of metrics, L1 LRU eviction, and access-pattern tracking. That maps directly to what BentoCache, PettyCache, and OneUptime's multi-layer caching guide call out as canonical: a small invocation API with the L1+L2 + stampede + tagging mechanics behind the abstraction.
 
@@ -52,6 +52,7 @@ Wraps the shared `RedisCacheManager` singleton and translates between the manage
 - `get` → cache failures degrade silently (return `null`, log warn). A missing cache is not a fatal error.
 - `set`, `delete`, `invalidateByTag`, `has` → best-effort, log on error.
 - `getOrSet` → re-runs the factory if the cache read errored, propagates factory exceptions to the caller (the value, not the cache, is what they asked for).
+- `claim` → rejects. It has lock semantics: its answer decides who acts, so a claim Redis cannot decide is an error, never `true` or `false`. It runs one `SET key value EX ttl NX` on Redis and never consults L1, which is per pod and cannot arbitrate between pods. The manager has no Redis-free mode (`redisUrl` is required, and so is `REDIS_URL` at boot), so during a Redis outage every claim rejects; none is decided per pod.
 
 The adapter does NOT implement stampede protection (single-flight, XFetch, stale-while-revalidate, jitter). Concurrent factory calls on a missed key each run independently. This matches the underlying manager's behavior; PR-29 in the backlog tracks adding stampede protection once we have hot-key metrics to motivate per-policy decisions.
 
@@ -105,6 +106,10 @@ Prefer `getOrSet` for cache-aside reads. The convenience method consolidates the
 - Race-condition double-fetches that nobody notices until the upstream API rate-limits.
 
 Use raw `get` + `set` only when the writes don't follow a "get-or-compute" pattern — e.g. write-only counters, fire-and-forget audit traces, or pre-warmed caches that have no associated factory.
+
+### `claim` for exclusive claims
+
+Use `claim(key, ttlSeconds)` when exactly one caller may act per key per window, such as a per-key throttle (`ThrottledDeletedAccountNoticeMailer` holds one deleted-account notice per address per 24 hours this way), and never for cache-aside. It resolves `true` only for the caller that created the key, `false` while an unexpired entry holds it, and rejects when the claim cannot be decided. `has` followed by `set` is not a claim: concurrent callers that arrive within one Redis round trip all see the key absent, and all act.
 
 ### Adding a new cache consumer
 
@@ -183,11 +188,11 @@ describe("MyService", () => {
 
 Don't try to spy on the production `RedisCacheManager` — pino-level mocking of the L1+L2 tiering is fragile and tests break on adapter upgrades. The InMemory adapter implements the same contract; if your test passes against it, it passes against Redis.
 
-If you need to assert specific cache calls (e.g. "service set tag X"), wrap the InMemory adapter in a `vi.spyOn`-backed observer. The adapter's API is six methods total, so the observer is small.
+If you need to assert specific cache calls (e.g. "service set tag X"), wrap the InMemory adapter in a `vi.spyOn`-backed observer. The adapter's API is seven methods total, so the observer is small.
 
 ### Testing TTL
 
-Use Vitest fake timers + the InMemory adapter's deterministic timestamp checks. The adapter calls `Date.now()` in `get`, `has`, and the periodic cleanup, so `vi.advanceTimersByTime(ttlMs + 100)` reliably evicts entries:
+Use Vitest fake timers + the InMemory adapter's deterministic timestamp checks. The adapter calls `Date.now()` in `get`, `has`, `claim`, and the periodic cleanup, so `vi.advanceTimersByTime(ttlMs + 100)` reliably evicts entries:
 
 ```typescript
 it("returns null after TTL elapses", async () => {

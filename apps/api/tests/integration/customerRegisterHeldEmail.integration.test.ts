@@ -23,8 +23,8 @@
  *   use case itself, over the same real repositories and Unit of Work: behind the route the notice
  *   is dispatched after the response, through a platform-settings read and the throttle's cache,
  *   so no point after the response says the dispatch has ended. Here the platform links resolve
- *   without I/O and the notice mailer records synchronously, so every notice is in by the time
- *   the microtasks queued behind the refusal have run, and the count is final. The route is held
+ *   without I/O and the notice mailer records synchronously, so every notice is in by the end of
+ *   the event-loop turn the refusal settles in, and the count is final. The route is held
  *   to that same use case by the container check: the mailer it is handed is the throttled one.
  *
  *   The last case drives the use case over the real account repository and the real Unit of Work
@@ -178,9 +178,12 @@ function recordingLogger(logged: unknown[]): LoggerPort {
 }
 
 /**
- * @returns A promise that settles once every microtask queued before it has run.
+ * Waits out the current event-loop turn: `setImmediate` fires in the check phase, after the
+ * microtask queue has drained and after the turn's I/O callbacks, so every promise continuation
+ * queued before it, and every one those queue in turn, has run by then.
+ * @returns A promise that settles in the check phase of the current event-loop turn.
  */
-function afterQueuedMicrotasks(): Promise<void> {
+function afterCurrentTurn(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
@@ -400,7 +403,7 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
       const result = await withSystemContext(CUSTOMER_REGISTER_SYSTEM_REASON, () =>
         registrationOver(notified, logged).execute(attemptFor(email))
       );
-      await afterQueuedMicrotasks();
+      await afterCurrentTurn();
 
       assert.deepEqual(result, err("EMAIL_EXISTS"));
       assert.deepEqual(
@@ -421,7 +424,7 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
     const result = await withSystemContext(CUSTOMER_REGISTER_SYSTEM_REASON, () =>
       registrationOver(notified, logged).execute(attemptFor(email))
     );
-    await afterQueuedMicrotasks();
+    await afterCurrentTurn();
 
     assert.equal(result.ok, true, "a hard-deleted holder leaves the address free");
     assert.deepEqual(notified, [], "no deleted holder, so no notice");

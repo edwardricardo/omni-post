@@ -1,7 +1,8 @@
 /**
  * @file cache-manager.ts
  * @description Main Redis cache manager orchestrating L1 in-memory cache, L2 Redis cache,
- *              invalidation strategies, access pattern tracking, and Prometheus metrics.
+ *              invalidation strategies, access pattern tracking, and Prometheus metrics, plus
+ *              the exclusive `claim`, which Redis alone decides.
  * @layer infrastructure
  */
 
@@ -123,7 +124,12 @@ export class RedisCacheManager {
   }
 
   /**
-   * Get value from cache with L1 → L2 fallback
+   * @method get
+   * @description Reads a value from L1 first, then from Redis, populating L1 on a Redis hit and
+   *   dropping an entry whose stored expiry has passed.
+   * @param key - The key to read, unprefixed; the client applies the configured key prefix.
+   * @returns ok(value) on a hit, ok(null) on a miss or an expired entry, or err("CACHE_ERROR")
+   *   when Redis fails or the stored payload cannot be decoded.
    */
   async get<T = any>(key: string): Promise<Result<T | null, "CACHE_ERROR">> {
     const startTime = Date.now();
@@ -227,7 +233,14 @@ export class RedisCacheManager {
   }
 
   /**
-   * Set value in cache
+   * @method set
+   * @description Writes a value to L1 synchronously, then to Redis with its TTL, and records its
+   *   tags and dependencies for invalidation.
+   * @param key - The key to write, unprefixed.
+   * @param value - The value to store; it must survive JSON serialization.
+   * @param options - TTL in seconds (the configured default when omitted), tags, version,
+   *   compression flag and dependency keys.
+   * @returns ok on success, or err("CACHE_ERROR") when Redis rejects a write.
    */
   async set<T = any>(
     key: string,
@@ -299,7 +312,10 @@ export class RedisCacheManager {
   }
 
   /**
-   * Delete specific key from cache (L1 and L2)
+   * @method del
+   * @description Removes a key from L1, the dependency graph and Redis.
+   * @param key - The key to remove, unprefixed.
+   * @returns ok(true) when Redis held the key, ok(false) when it did not, or err("CACHE_ERROR").
    */
   async del(key: string): Promise<Result<boolean, "CACHE_ERROR">> {
     const timer = cacheOperationDuration.startTimer({ operation: "del", status: "pending" });
@@ -323,7 +339,10 @@ export class RedisCacheManager {
   }
 
   /**
-   * Invalidate cache by tags
+   * @method invalidateByTag
+   * @description Removes every key tagged with `tag` from L1 and Redis.
+   * @param tag - The tag whose keys are removed.
+   * @returns ok(count) with the number of keys removed, or err("CACHE_ERROR").
    */
   async invalidateByTag(tag: string): Promise<Result<number, "CACHE_ERROR">> {
     const timer = cacheOperationDuration.startTimer({ operation: "invalidate", status: "pending" });
@@ -340,7 +359,10 @@ export class RedisCacheManager {
   }
 
   /**
-   * Invalidate cache by pattern
+   * @method invalidateByPattern
+   * @description Removes every key matching a Redis glob pattern from L1 and Redis.
+   * @param pattern - The glob pattern, unprefixed.
+   * @returns ok(count) with the number of keys removed, or err("CACHE_ERROR").
    */
   async invalidateByPattern(pattern: string): Promise<Result<number, "CACHE_ERROR">> {
     const timer = cacheOperationDuration.startTimer({
@@ -360,14 +382,21 @@ export class RedisCacheManager {
   }
 
   /**
-   * Invalidate cache by dependencies
+   * @method invalidateByDependencies
+   * @description Removes every key recorded as depending on one of `dependencies`.
+   * @param dependencies - The dependency keys whose dependents are removed.
+   * @returns ok(count) with the number of keys removed, or err("CACHE_ERROR").
    */
   async invalidateByDependencies(dependencies: string[]): Promise<Result<number, "CACHE_ERROR">> {
     return this.invalidationManager.invalidateByDependencies(dependencies, this.del.bind(this));
   }
 
   /**
-   * Invalidate with smart strategy
+   * @method invalidate
+   * @description Removes one or more keys with the chosen invalidation strategy.
+   * @param keys - The key or keys to invalidate.
+   * @param strategy - How the invalidation runs; "immediate" by default.
+   * @returns ok(count) with the number of keys invalidated, or err("CACHE_ERROR").
    */
   async invalidate(
     keys: string | string[],
@@ -377,7 +406,14 @@ export class RedisCacheManager {
   }
 
   /**
-   * Get or set pattern - atomic operation
+   * @method getOrSet
+   * @description Cache-aside: returns the cached value, or runs `factory`, caches its result and
+   *   returns it. It is not atomic: concurrent callers on a missed key each run the factory. A
+   *   failed write of the fresh value is logged and does not fail the call.
+   * @param key - The key to read and write, unprefixed.
+   * @param factory - Produces the value on a miss.
+   * @param options - The write options `set` takes.
+   * @returns ok(value), or err("FACTORY_ERROR") when the factory throws.
    */
   async getOrSet<T = any>(
     key: string,
@@ -408,8 +444,12 @@ export class RedisCacheManager {
   }
 
   /**
-   * Check if a key exists without decoding its payload. Checks L1 first
-   * (synchronous), then Redis `EXISTS` (single-RTT, no deserialization).
+   * @method has
+   * @description Checks whether a key exists without decoding its payload: L1 first, then one
+   *   Redis `EXISTS`.
+   * @param key - The key to check, unprefixed.
+   * @returns ok(true) when L1 or Redis holds the key, ok(false) when neither does, or
+   *   err("CACHE_ERROR").
    */
   async has(key: string): Promise<Result<boolean, "CACHE_ERROR">> {
     try {
@@ -428,7 +468,50 @@ export class RedisCacheManager {
   }
 
   /**
-   * Get cache statistics with L1/L2 breakdown
+   * @method claim
+   * @description Creates `key` on Redis for `ttlSeconds` only when Redis holds no entry for it,
+   *   with one `SET key value EX ttl NX`, so among concurrent callers on every instance exactly
+   *   one wins. L1 is neither read nor written: it is per process, so it can neither arbitrate a
+   *   claim between instances nor be trusted to mirror one. The stored value is an ordinary cache
+   *   item whose data is `true`, so `get` and `has` read a claimed key like any other entry.
+   *   There is no Redis-free mode to fall back on: the manager always talks to `redisUrl`, and a
+   *   claim Redis cannot answer is an error, never a guess.
+   * @param key - The key to claim, unprefixed; the client applies the configured key prefix.
+   * @param ttlSeconds - How long the claim holds, in whole seconds; Redis refuses anything else.
+   * @returns ok(true) when this call created the key, ok(false) when Redis already held it, or
+   *   err("CACHE_ERROR") when Redis did not answer or refused the command.
+   */
+  async claim(key: string, ttlSeconds: number): Promise<Result<boolean, "CACHE_ERROR">> {
+    const timer = cacheOperationDuration.startTimer({ operation: "claim", status: "pending" });
+
+    try {
+      const now = Date.now();
+      const claimItem: CacheItem<true> = {
+        data: true,
+        metadata: {
+          createdAt: now,
+          expiresAt: now + ttlSeconds * 1000,
+          version: "1.0.0",
+          tags: [],
+          hitCount: 0,
+        },
+      };
+      const reply = await this.redis.set(key, JSON.stringify(claimItem), "EX", ttlSeconds, "NX");
+      const created = reply === "OK";
+      timer({ operation: "claim", status: created ? "claimed" : "held" });
+      return ok(created);
+    } catch (error: unknown) {
+      logger.error(`Cache claim error for key ${key}: ${error}`);
+      timer({ operation: "claim", status: "error" });
+      return err("CACHE_ERROR");
+    }
+  }
+
+  /**
+   * @method getStats
+   * @description Reports hit and miss counts, the L1/L2 split, the Redis memory and key count,
+   *   and the hottest keys.
+   * @returns ok(stats), or err("CACHE_ERROR") when Redis cannot report its memory or size.
    */
   async getStats(): Promise<Result<CacheStats, "CACHE_ERROR">> {
     try {
@@ -468,7 +551,11 @@ export class RedisCacheManager {
   }
 
   /**
-   * Health check
+   * @method healthCheck
+   * @description Pings Redis and grades the round trip: healthy up to 100 ms, degraded up to
+   *   1000 ms, unhealthy above.
+   * @returns ok with the status and the latency in milliseconds, or err("CACHE_ERROR") when the
+   *   ping fails.
    */
   async healthCheck(): Promise<
     Result<{ status: "healthy" | "degraded" | "unhealthy"; latency: number }, "CACHE_ERROR">
@@ -491,7 +578,11 @@ export class RedisCacheManager {
   }
 
   /**
-   * Flush all cache data (use with caution)
+   * @method flush
+   * @description Clears L1, the dependency graph, the access patterns and the whole Redis
+   *   database. Destructive beyond this cache: `FLUSHDB` removes every key in the database, not
+   *   only the keys under the configured prefix.
+   * @returns ok on success, or err("CACHE_ERROR").
    */
   async flush(): Promise<Result<void, "CACHE_ERROR">> {
     try {
@@ -511,7 +602,11 @@ export class RedisCacheManager {
   }
 
   /**
-   * Warm cache based on access patterns
+   * @method warmCache
+   * @description Counts the frequently and recently accessed keys that Redis no longer holds. It
+   *   loads nothing itself, and returns at once while a previous run is still in progress.
+   * @param warmupThreshold - The access count from which a key counts as frequent.
+   * @returns ok(count) of hot keys absent from Redis, or err("CACHE_ERROR").
    */
   async warmCache(warmupThreshold = 10): Promise<Result<number, "CACHE_ERROR">> {
     if (this.isWarming) {
@@ -562,7 +657,9 @@ export class RedisCacheManager {
   }
 
   /**
-   * Close Redis connection and cleanup
+   * @method close
+   * @description Unregisters the background tasks, clears the in-process state and closes the
+   *   Redis connection, ignoring a connection that never opened.
    */
   async close(): Promise<void> {
     if (this.scheduler) {
