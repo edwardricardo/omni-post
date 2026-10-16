@@ -8,7 +8,42 @@ import { type Result } from "@shared/types";
 import { type HardDeleteContext, type HardDeleteImpact, type Repository } from "./Repository.js";
 import { type Account } from "../entities/Account.js";
 import { type AccountId } from "../value-objects/EntityId.js";
-import { type EntityNotFoundError } from "../errors/index.js";
+import { DomainError, type EntityNotFoundError } from "../errors/index.js";
+
+/**
+ * The code an {@link AccountEmailTakenError} carries. Exported so a caller recognises the
+ * failure by value: class identity is not stable across this package's dual conditional
+ * export (`development` -> `src`, `default` -> `dist`), so `instanceof` can go false where a
+ * string comparison cannot.
+ */
+export const ACCOUNT_EMAIL_TAKEN_CODE = "ACCOUNT_EMAIL_TAKEN";
+
+/**
+ * A save the database refused because another LIVE account already holds the e-mail
+ * address. The address is unique among live accounts only, so this is the answer to a race
+ * a pre-flight read cannot close: the competing account can be born between the read and
+ * the write, and the unique index is what decides. The message names no address, because
+ * it can reach a log.
+ */
+export class AccountEmailTakenError extends DomainError {
+  /**
+   * @description Builds the error with its fixed message and {@link ACCOUNT_EMAIL_TAKEN_CODE}.
+   */
+  constructor() {
+    super("Another live account already holds this e-mail address", ACCOUNT_EMAIL_TAKEN_CODE);
+  }
+}
+
+/**
+ * @function isAccountEmailTaken
+ * @description Recognises an {@link AccountEmailTakenError} by its code rather than by
+ *   class identity, for the reason {@link ACCOUNT_EMAIL_TAKEN_CODE} states.
+ * @param error - The failure a save returned.
+ * @returns True when the save failed because a live account holds the address.
+ */
+export function isAccountEmailTaken(error: Error): error is AccountEmailTakenError {
+  return (error as { readonly code?: unknown }).code === ACCOUNT_EMAIL_TAKEN_CODE;
+}
 
 /**
  * Account Repository Interface
@@ -66,9 +101,28 @@ export interface AccountRepositoryPort {
   findByEmail(email: string): Promise<Account | null>;
 
   /**
-   * Save an account (create or update)
+   * @method existsDeletedByEmail
+   * @description Answers whether a SOFT-DELETED account holds the address. It is the one
+   *   read that sees deleted accounts by e-mail on purpose: registration must tell an
+   *   address that belongs to a deleted account apart from a free one, and
+   *   {@link findByEmail} hides exactly those rows by design. It answers a boolean so nothing
+   *   about the deleted row leaves the repository.
+   * @param email - The address to look for; the implementation normalizes it the way it
+   *   stores it.
+   * @returns True when at least one soft-deleted account carries the address.
    */
-  save(account: Account): Promise<Result<void, Error>>;
+  existsDeletedByEmail(email: string): Promise<boolean>;
+
+  /**
+   * @method save
+   * @description Creates or updates an account. Inside a Unit of Work the write joins the
+   *   open transaction, so a later failure in the same unit rolls it back.
+   * @param account - The account to persist.
+   * @returns Ok on success; {@link AccountEmailTakenError} when another live account already
+   *   holds the address (recognise it with {@link isAccountEmailTaken}); any other failure as
+   *   an Error.
+   */
+  save(account: Account): Promise<Result<void, AccountEmailTakenError | Error>>;
 
   /**
    * Soft-delete an account (sets deletedAt = now).

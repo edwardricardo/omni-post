@@ -9,10 +9,14 @@ import type { PrismaClient } from "@infra/prisma";
 import { Prisma } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
 import { Account, AccountId, EntityNotFoundError } from "@core/domain/index.js";
-import type { AccountRepositoryPort } from "@core/domain/repositories/AccountRepository.js";
+import {
+  AccountEmailTakenError,
+  type AccountRepositoryPort,
+} from "@core/domain/repositories/AccountRepository.js";
 import type { HardDeleteContext, HardDeleteImpact } from "@core/domain/repositories/Repository.js";
 import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { PrismaUnitOfWork } from "@adapters/db-prisma";
+import { isUniqueViolationOf } from "@infra/prisma/extensions/constraintViolation.js";
 import { HARD_DELETE_TX_OPTIONS } from "../hardDeleteTransaction.js";
 import { getAmbientGucScope } from "../../security/tenantContext.js";
 import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
@@ -22,6 +26,13 @@ import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 
 /** Local type alias for Prisma transaction client */
 type TxClient = Prisma.TransactionClient;
+
+/**
+ * The partial unique on a live account's e-mail, as the migrations name it. Only this
+ * constraint is reported as the address being taken; a collision on any other constraint is
+ * an ordinary failure, so a caller is never told something false about what went wrong.
+ */
+const ACCOUNT_EMAIL_UNIQUE = { index: "Account_email_key", fields: ["email"] } as const;
 
 /**
  * Maps a Prisma Account row to the Account domain entity
@@ -79,19 +90,13 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
-   * Find an account by its ID (excludes soft-deleted accounts)
+   * @method findById
+   * @description Finds a live account by its id; a soft-deleted account reads as absent.
+   * @param id - Identity of the account to load.
+   * @returns The account, or EntityNotFoundError when no live account carries the id.
    */
   async findById(id: AccountId): Promise<Result<Account, EntityNotFoundError>> {
-    const row = await this.prisma.account.findFirst({
-      where: { id: id.value, deletedAt: null },
-      include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
-    });
-
-    if (!row) {
-      return err(new EntityNotFoundError("Account", id.value));
-    }
-
-    return ok(toDomain(row));
+    return this.findOne(this.prisma, { id: id.value, deletedAt: null });
   }
 
   /**
@@ -102,22 +107,47 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
    * {@link findById} exists to hide exactly that row — the restore must read the
    * stored e-mail to weigh it against the live population before bringing the row
    * back. Reserved for restore; every other read here keeps the sweep.
+   *
+   * @method findByIdIncludingDeleted
+   * @description Finds an account by its id whether it is live or soft-deleted.
+   * @param id - Identity of the account to load.
+   * @returns The account, or EntityNotFoundError when no row carries the id at all.
    */
   async findByIdIncludingDeleted(id: AccountId): Promise<Result<Account, EntityNotFoundError>> {
-    const row = await this.getClient().account.findFirst({
-      where: { id: id.value },
+    return this.findOne(this.getClient(), { id: id.value });
+  }
+
+  /**
+   * The one read both id lookups share; each caller states its own filter, so the sweep's
+   * `deletedAt: null` stays visible at the call that applies it. The project count always
+   * counts live projects only.
+   *
+   * @param client - The client the read runs on.
+   * @param where - The account's id and, for a live-only read, its soft-delete filter.
+   * @returns The account, or EntityNotFoundError when no row matches.
+   */
+  private async findOne(
+    client: PrismaClient | TxClient,
+    where: { readonly id: string; readonly deletedAt?: null }
+  ): Promise<Result<Account, EntityNotFoundError>> {
+    const row = await client.account.findFirst({
+      where,
       include: { _count: { select: { projects: { where: { deletedAt: null } } } } },
     });
 
     if (!row) {
-      return err(new EntityNotFoundError("Account", id.value));
+      return err(new EntityNotFoundError("Account", where.id));
     }
 
     return ok(toDomain(row));
   }
 
   /**
-   * Find an account by email address (excludes soft-deleted accounts)
+   * @method findByEmail
+   * @description Finds the live account holding an address; a soft-deleted account reads as
+   *   absent.
+   * @param email - The address to look for, normalized before the read.
+   * @returns The account, or null when no live account holds the address.
    */
   async findByEmail(email: string): Promise<Account | null> {
     const row = await this.prisma.account.findFirst({
@@ -133,11 +163,37 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
-   * Save an account (create or update via upsert)
+   * DELIBERATE soft-delete-sweep exception: the read targets SOFT-DELETED accounts
+   * (`NOT: { deletedAt: null }`) because registration must tell an address that belongs to
+   * a deleted account apart from a free one, and every other read here hides those rows. It
+   * answers a count, so nothing about the deleted row leaves the repository.
+   *
+   * @method existsDeletedByEmail
+   * @description Answers whether a soft-deleted account holds the address.
+   * @param email - The address to look for, normalized before the read.
+   * @returns True when at least one soft-deleted account carries the address.
    */
-  async save(account: Account): Promise<Result<void, Error>> {
+  async existsDeletedByEmail(email: string): Promise<boolean> {
+    const count = await this.getClient().account.count({
+      where: { email: normalizeEmail(email), NOT: { deletedAt: null } },
+    });
+    return count > 0;
+  }
+
+  /**
+   * The write resolves its client through the Unit of Work, so inside `executeInTransaction`
+   * or `executeResultInTransaction` the account is part of the transaction: a later failure
+   * in the same unit rolls it back instead of leaving an account with nothing beside it.
+   *
+   * @method save
+   * @description Creates or updates an account through an upsert on its id.
+   * @param account - The account to persist.
+   * @returns Ok; AccountEmailTakenError when another live account already holds the
+   *   address; any other failure as the Error raised.
+   */
+  async save(account: Account): Promise<Result<void, AccountEmailTakenError | Error>> {
     try {
-      await this.prisma.account.upsert({
+      await this.getClient().account.upsert({
         where: { id: account.id.value },
         create: {
           id: account.id.value,
@@ -181,7 +237,10 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
         },
       });
       return ok(undefined);
-    } catch (error) {
+    } catch (error: unknown) {
+      if (isUniqueViolationOf(error, ACCOUNT_EMAIL_UNIQUE)) {
+        return err(new AccountEmailTakenError());
+      }
       return err(error instanceof Error ? error : new Error(String(error)));
     }
   }
@@ -207,6 +266,11 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
    * they land in the same transaction when a Unit of Work is active: the pair is
    * a check-then-act, and split across two connections the check can be true
    * when the act runs against a row someone else already changed.
+   *
+   * @method delete
+   * @description Soft-deletes a live account.
+   * @param id - Identity of the account to soft-delete.
+   * @returns Ok, or EntityNotFoundError when no live account carries the id.
    */
   async delete(id: AccountId): Promise<Result<void, EntityNotFoundError>> {
     const client = this.getClient();
@@ -244,6 +308,11 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
    * (a live twin born after the soft delete): clearing `deletedAt` raises P2002
    * there, which the application layer classifies as CONFLICT rather than an
    * internal fault.
+   *
+   * @method restore
+   * @description Clears the soft delete of an account so standard reads return it again.
+   * @param id - Identity of the soft-deleted account to restore.
+   * @returns Ok, or EntityNotFoundError when no soft-deleted account carries the id.
    */
   async restore(id: AccountId): Promise<Result<void, EntityNotFoundError>> {
     const client = this.getClient();
@@ -291,6 +360,13 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
    *
    * ATOMIC: runs inside one transaction. UoW-aware: an outer
    * `executeInTransaction` is joined rather than nested.
+   *
+   * @method hardDelete
+   * @description Erases a soft-deleted account and everything it owns, writing its
+   *   tombstones first.
+   * @param id - Identity of the soft-deleted account to erase.
+   * @param context - The acting principal and the reason the tombstones record.
+   * @returns Ok, or EntityNotFoundError when no soft-deleted account carries the id.
    */
   async hardDelete(
     id: AccountId,
@@ -438,6 +514,11 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
    * estimate that never needs a consistent snapshot — and because a batch
    * `$transaction` here would nest if a caller ever ran the use case inside a Unit
    * of Work.
+   *
+   * @method countHardDeleteImpact
+   * @description Counts the posts and child rows a hard delete of the account would erase.
+   * @param id - Identity of the account to measure.
+   * @returns The post count and the child-row count.
    */
   async countHardDeleteImpact(id: AccountId): Promise<HardDeleteImpact> {
     const accountId = id.value;
@@ -459,8 +540,12 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
-   * Check whether an active (non-deleted) account with the given ID exists.
    * Joins the active Unit of Work transaction when one is open.
+   *
+   * @method exists
+   * @description Answers whether a live account carries the id.
+   * @param id - Identity of the account to probe.
+   * @returns True when a live account carries the id.
    */
   async exists(id: AccountId): Promise<boolean> {
     return this.existsOn(id, this.getClient());
@@ -479,8 +564,11 @@ export class PrismaAccountRepository implements AccountRepositoryPort {
   }
 
   /**
-   * Return all active accounts ordered by creation date descending.
    * The returned Account entities include projectCount from the DB aggregate.
+   *
+   * @method findAll
+   * @description Lists every live account, newest first.
+   * @returns The live accounts ordered by creation date descending.
    */
   async findAll(): Promise<Account[]> {
     const rows = await this.prisma.account.findMany({

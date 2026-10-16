@@ -10,9 +10,16 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, vi, expect } from "vitest";
+import { describe, it, beforeEach, afterEach, vi, expect } from "vitest";
+import assert from "node:assert/strict";
+import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import { PrismaAccountRepository } from "../../../src/infrastructure/repositories/PrismaAccountRepository.js";
 import { AccountId } from "@core/domain/index.js";
+import { isAccountEmailTaken } from "@core/domain/repositories/AccountRepository.js";
+import {
+  uniqueViolationOnFields,
+  uniqueViolationOnIndex,
+} from "../helpers/prismaKnownRequestErrors.js";
 import { toAdminActorId, type AdminActorId } from "@core/domain/value-objects/AdminActorId.js";
 
 /** Construct a branded admin actor id for the hard-delete context (throws on bad setup). */
@@ -204,6 +211,99 @@ describe("PrismaAccountRepository", () => {
       const saveResult = await repo.save(findResult.value);
       expect(saveResult.ok).toBeFalsy();
       expect(saveResult.error.message).toMatch(/DB connection lost/);
+    });
+
+    /** Loads the fixture account, narrowed to the entity the save tests write. */
+    const loadAccount = async () => {
+      const found = await repo.findById(
+        AccountId.fromStringUnsafe("a0000000-0000-4000-8000-000000000001")
+      );
+      assert.ok(found.ok, "the fixture account must load");
+      return found.value;
+    };
+
+    it("returns a plain error, not AccountEmailTakenError, when prisma throws", async () => {
+      prisma.account.upsert.mockImplementation(async () => {
+        throw new Error("DB connection lost");
+      });
+
+      const saveResult = await repo.save(await loadAccount());
+
+      assert.ok(!saveResult.ok);
+      expect(isAccountEmailTaken(saveResult.error)).toBe(false);
+    });
+
+    describe("inside a Unit of Work", () => {
+      afterEach(() => {
+        vi.restoreAllMocks();
+      });
+
+      it("writes through the open transaction, not on its own connection", async () => {
+        const account = await loadAccount();
+        const tx = makeMockPrisma();
+        vi.spyOn(PrismaUnitOfWork, "getTransactionClient").mockReturnValue(tx as never);
+
+        const saveResult = await repo.save(account);
+
+        expect(saveResult.ok).toBe(true);
+        expect(tx.account.upsert).toHaveBeenCalledTimes(1);
+        expect(prisma.account.upsert).not.toHaveBeenCalled();
+      });
+    });
+
+    it("returns AccountEmailTakenError when the live-email partial unique names its index", async () => {
+      prisma.account.upsert.mockImplementation(async () => {
+        throw uniqueViolationOnIndex("Account_email_key", "Account");
+      });
+
+      const saveResult = await repo.save(await loadAccount());
+
+      assert.ok(!saveResult.ok);
+      expect(isAccountEmailTaken(saveResult.error)).toBe(true);
+      expect(saveResult.error.message).not.toContain("alice@example.com");
+    });
+
+    it("returns AccountEmailTakenError when the live-email partial unique names its columns", async () => {
+      prisma.account.upsert.mockImplementation(async () => {
+        throw uniqueViolationOnFields(["email"], "Account_email_key", "Account");
+      });
+
+      const saveResult = await repo.save(await loadAccount());
+
+      assert.ok(!saveResult.ok);
+      expect(isAccountEmailTaken(saveResult.error)).toBe(true);
+    });
+
+    it("returns the raised error, not AccountEmailTakenError, for a collision on another constraint", async () => {
+      const raised = uniqueViolationOnIndex("Account_pkey", "Account");
+      prisma.account.upsert.mockImplementation(async () => {
+        throw raised;
+      });
+
+      const saveResult = await repo.save(await loadAccount());
+
+      assert.ok(!saveResult.ok);
+      expect(isAccountEmailTaken(saveResult.error)).toBe(false);
+      expect(saveResult.error).toBe(raised);
+    });
+  });
+
+  describe("existsDeletedByEmail", () => {
+    it("counts only soft-deleted accounts, by the normalized address", async () => {
+      prisma.account.count.mockImplementation(async () => 1);
+
+      const result = await repo.existsDeletedByEmail("  Alice@Example.com ");
+
+      expect(result).toBe(true);
+      expect(prisma.account.count).toHaveBeenCalledWith({
+        where: { email: "alice@example.com", NOT: { deletedAt: null } },
+      });
+    });
+
+    it("returns false when no soft-deleted account carries the address", async () => {
+      prisma.account.count.mockImplementation(async () => 0);
+
+      expect(await repo.existsDeletedByEmail("alice@example.com")).toBe(false);
     });
   });
 
