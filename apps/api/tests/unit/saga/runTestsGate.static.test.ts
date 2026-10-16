@@ -7,8 +7,9 @@
  *              captures, the script must refuse to start without a test database
  *              rather than read an environment file, it must never start vitest,
  *              both tiers must be collected by their suffixes rather than listed by
- *              hand, `--list` must answer above the database refusal, and the header
- *              must not carry a count that rots.
+ *              hand, `--list` must answer above the database refusal, a bash older
+ *              than the one it needs must be refused by name, and the header must not
+ *              carry a count that rots.
  *
  *              A runner that reports a batch FAILED and then exits zero is worse
  *              than one that never noticed, because every downstream gate believes
@@ -55,7 +56,7 @@ const KNOWN_COMMENT_PROSE = "The database is never guessed";
  * to find out what it assumes, and because a too-small window fails with a message
  * about the wrong thing.
  */
-const GATE_BLOCK_LINES = 27;
+const GATE_BLOCK_LINES = 28;
 const REFUSAL_BLOCK_LINES = 11;
 const COUNT_APPEND_BLOCK_LINES = 3;
 const WINDOW_SLACK = 3;
@@ -458,6 +459,9 @@ describe("run-tests.sh is a gate that can go red", () => {
         skipsTheUnitTier: collectLine.includes("-path tests/unit -prune"),
         byteOrder: collectLine.includes("LC_ALL=C sort"),
         reversible: codeLinesContaining('"$TEST_ORDER"').length > 0,
+        // `sort` takes its order from a quoted array, so the forward order passes it no
+        // argument at all rather than an empty word that word splitting happens to drop.
+        sortArgumentsQuoted: /LC_ALL=C sort "\$\{[a-z_]+\[@\]\}"$/.test(collectLine.trimEnd()),
       }).toEqual({
         collectsTheServicesTier: true,
         collectsTheLiveTier: true,
@@ -465,6 +469,7 @@ describe("run-tests.sh is a gate that can go red", () => {
         skipsTheUnitTier: true,
         byteOrder: true,
         reversible: true,
+        sortArgumentsQuoted: true,
       });
     });
 
@@ -473,6 +478,27 @@ describe("run-tests.sh is a gate that can go red", () => {
       // that let a suite stop running unnoticed, and the one the live tier kept
       // until it was collected too.
       expect(codeLines.filter((line) => /tests\/[^\s"']*\.test\.ts/.test(line))).toEqual([]);
+    });
+
+    it("collects each tier once to classify the refused paths, not once per path", () => {
+      // `check_filter` names why a given path will not run, and telling a suite of a
+      // tier this TIER skips from a file no tier collects needs both collections. Read
+      // inside its loop, each path given walked tests/ twice more.
+      const start = codeLines.findIndex((line) => line.trim() === "check_filter() {");
+      const end = codeLines.findIndex((line, index) => index > start && line === "}");
+      const body = codeLines.slice(start, end + 1);
+      const loopIndex = body.findIndex((line) => /^\s*while\s/.test(line));
+      /** Whether each `collect <suffix>` call in the function sits above its loop. */
+      const callsOf = (suffix: string): boolean[] =>
+        body.flatMap((line, index) =>
+          new RegExp(`\\bcollect ${suffix}\\b`).test(line) ? [index < loopIndex] : []
+        );
+
+      expect({
+        found: start >= 0 && end > start && loopIndex > 0,
+        servicesCalls: callsOf("integration"),
+        liveCalls: callsOf("live"),
+      }).toEqual({ found: true, servicesCalls: [true], liveCalls: [true] });
     });
 
     it("answers --list above the database refusal, and exits there", () => {
@@ -499,6 +525,37 @@ describe("run-tests.sh is a gate that can go red", () => {
         readWithJq: codeLinesContaining("jq -e").length > 0,
         printsEachEntry: code.includes('"  QUARANTINED (not run): %s — %s\\n"'),
       }).toEqual({ sharedFile: true, readWithJq: true, printsEachEntry: true });
+    });
+  });
+
+  describe("the runner states the bash it needs", () => {
+    it("refuses a bash older than 4.3, naming the version, before it does anything else", () => {
+      // `select_files` fills the tier arrays through a nameref (`local -n`), which bash
+      // 4.3 introduced. An older bash would read the quarantine and then fail on that
+      // line with a message naming neither the version nor the fix.
+      const guardIndex = codeLines.findIndex(
+        (line) => line.includes("BASH_VERSINFO[0]") && line.includes("-lt 4")
+      );
+      const guardBlock = codeLines.slice(guardIndex, guardIndex + 4).join("\n");
+      const firstNameref = codeLines.findIndex((line) => /\blocal -n\b/.test(line));
+
+      expect({
+        found: guardIndex >= 0,
+        checksTheMinor: /BASH_VERSINFO\[1\][^\n]*-lt 3/.test(codeLines[guardIndex] ?? ""),
+        exitsTwo: /^\s*exit 2\s*$/m.test(guardBlock),
+        toStderr: guardBlock.includes(">&2"),
+        namesTheVersion: /echo "[^"]*bash 4\.3/.test(guardBlock),
+        aboveSetE: guardIndex < codeLines.findIndex((line) => line.trim() === "set -e"),
+        aboveTheNameref: firstNameref > guardIndex,
+      }).toEqual({
+        found: true,
+        checksTheMinor: true,
+        exitsTwo: true,
+        toStderr: true,
+        namesTheVersion: true,
+        aboveSetE: true,
+        aboveTheNameref: true,
+      });
     });
   });
 

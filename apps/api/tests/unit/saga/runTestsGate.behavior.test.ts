@@ -6,11 +6,12 @@
  *              none fails), collects the services tier and the live tier by their
  *              suffixes (in byte order, or reversed), probes the API and the workers
  *              before each live file and stops the live tier at the first probe that
- *              fails, keeps a quarantined file out of the run while printing it, lists
- *              its inventory without running anything, and refuses to start at all
- *              without a test database, without the live URLs a live tier needs, or
- *              with a quarantine it cannot trust; given paths, it runs those suites
- *              alone and refuses a path it does not collect. Its sibling
+ *              fails, printing that probe's error with the record, keeps a quarantined
+ *              file out of the run while printing it, lists its inventory without
+ *              running anything, and refuses to start at all without a test database,
+ *              without the live URLs a live tier needs, or with a quarantine it cannot
+ *              trust; given paths, it runs those suites alone and refuses, naming the
+ *              cause, a path it does not run. Its sibling
  *              `runTestsGate.static.test.ts` reads the script's SHAPE; this one runs
  *              the real script and reads its EXIT CODE and its output, which is the
  *              contract every "the tests pass" claim in this repository rests on.
@@ -103,6 +104,9 @@ const UNUSED_DATABASE_URL = "postgresql://gate-behavior@127.0.0.1:1/none";
  */
 const RECORDED_PROGRAMS = ["node", "npx", "curl"] as const;
 
+/** What the stand-in `curl` prints when a scenario fails a probe, the way `curl -f` fails on a 429. */
+const CURL_REFUSAL = "curl: (22) The requested URL returned error: 429";
+
 /** The file the per-file scenarios single out; the services tier collects it with others. */
 const TARGET_FILE = "tests/integration/repositories/UserRepository.integration.test.ts";
 /** The row the services tier prints, and the name it is recorded failed under. */
@@ -138,10 +142,18 @@ interface GateOptions {
   /** The quarantine the run reads; defaults to the committed one. */
   quarantineFile?: string;
   testOrder?: string;
-  /** A probe URL the stand-in `curl` refuses from its `failFrom`-th call on; needs `callLog`. */
-  failingProbe?: { url: string; failFrom: number };
+  /** A probe the stand-in `curl` refuses from a given call on; needs `callLog`. */
+  failingProbe?: FailingProbe;
   /** The runner's arguments; none by default. */
   args?: string[];
+}
+
+/** A probe URL the stand-in `curl` refuses from its `failFrom`-th call on. */
+interface FailingProbe {
+  url: string;
+  failFrom: number;
+  /** Lines the refused call prints before curl's own error; none by default. */
+  lines?: number;
 }
 
 interface RunResult {
@@ -181,10 +193,15 @@ function writeQuarantine(name: string, entries: QuarantineFixture[]): string {
  * reads from the summary reporter, and the call ends on the exit code the scenario is
  * about. A call whose
  * last argument is `GATE_REAL_TARGET` goes to the real runner instead. The `curl`
- * logs each probe in the same call log, as a call handed 0 paths with the probed
- * URL last, so the log reads the probes and the files in the order the run made
- * them; it succeeds, except on `GATE_CURL_FAIL_URL` from its `GATE_CURL_FAIL_FROM`-th
- * call on, where it fails the way `curl -f` fails on a 429.
+ * answers only the two URLs the runner probes, `$TEST_API_URL/health` and
+ * `$TEST_WORKERS_READY_URL`, and refuses any other with exit 97, naming it. It logs
+ * each probe in the same call log, as a call handed 0 paths with the probed URL
+ * last, so the log reads the probes and the files in the order the run made them;
+ * it succeeds, except on `GATE_CURL_FAIL_URL` from its `GATE_CURL_FAIL_FROM`-th call
+ * on, where it fails the way `curl -f` fails on a 429, after `GATE_CURL_FAIL_LINES`
+ * numbered lines when a scenario sets it. It numbers the call from the log as it
+ * stood before the call, then logs it, and refuses with exit 98 a failing probe with
+ * no log to count in.
  */
 beforeAll(() => {
   stubDir = mkdtempSync(join(tmpdir(), "run-tests-gate-"));
@@ -217,10 +234,29 @@ beforeAll(() => {
     [
       "#!/usr/bin/env bash",
       'url="${!#}"',
-      'if [ -n "${GATE_CALL_LOG:-}" ]; then echo "0 $url" >> "$GATE_CALL_LOG"; fi',
-      'if [ "$url" = "${GATE_CURL_FAIL_URL:-}" ] &&',
-      '  [ "$(grep -cxF -- "0 $url" "$GATE_CALL_LOG")" -ge "$GATE_CURL_FAIL_FROM" ]; then',
-      '  echo "curl: (22) The requested URL returned error: 429" >&2',
+      'case "$url" in',
+      '  "$TEST_API_URL/health" | "$TEST_WORKERS_READY_URL") ;;',
+      "  *)",
+      '    echo "gate curl stand-in: the runner probes no such URL: $url" >&2',
+      "    exit 97",
+      "    ;;",
+      "esac",
+      'if [ -n "${GATE_CURL_FAIL_URL:-}" ] && [ -z "${GATE_CALL_LOG:-}" ]; then',
+      '  echo "gate curl stand-in: GATE_CURL_FAIL_URL needs GATE_CALL_LOG to count calls in" >&2',
+      "  exit 98",
+      "fi",
+      "call=1",
+      'if [ -n "${GATE_CALL_LOG:-}" ]; then',
+      '  if [ -f "$GATE_CALL_LOG" ]; then',
+      '    call=$(($(grep -cxF -- "0 $url" "$GATE_CALL_LOG" || true) + 1))',
+      "  fi",
+      '  echo "0 $url" >> "$GATE_CALL_LOG"',
+      "fi",
+      'if [ "$url" = "${GATE_CURL_FAIL_URL:-}" ] && [ "$call" -ge "$GATE_CURL_FAIL_FROM" ]; then',
+      "  for ((line = 1; line <= ${GATE_CURL_FAIL_LINES:-0}; line++)); do",
+      '    echo "gate curl stand-in: body line $line" >&2',
+      "  done",
+      `  echo "${CURL_REFUSAL}" >&2`,
       "  exit 22",
       "fi",
       "",
@@ -266,6 +302,9 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
       ...(failingProbe !== undefined && {
         GATE_CURL_FAIL_URL: failingProbe.url,
         GATE_CURL_FAIL_FROM: String(failingProbe.failFrom),
+        ...(failingProbe.lines !== undefined && {
+          GATE_CURL_FAIL_LINES: String(failingProbe.lines),
+        }),
       }),
       ...(realTarget !== undefined && {
         GATE_REAL_TARGET: realTarget,
@@ -302,10 +341,34 @@ function printedFailedFiles(stdout: string): string[] {
   return [...stdout.matchAll(/^ {4}✗ (\S+): /gm)].map((match) => match[1] ?? "");
 }
 
-/** The `<path>: <reasons>` entries the run listed under `FAILED files:`. */
+/**
+ * The `<path>: <reasons>` entries the run listed under `FAILED files:`, one per
+ * indented line, whatever the indent. The runner prints the header only when a file
+ * failed, so a header with no entry under it throws: an empty list would make every
+ * case that compares it against the printed verdicts pass over nothing.
+ */
 function listedFailedEntries(stdout: string): string[] {
-  const listed = /^FAILED files:\n((?: {2}\S.*(?:\n|$))*)/m.exec(stdout)?.[1] ?? "";
-  return listed.trim().split(/\n\s*/).filter(Boolean);
+  const block = /^FAILED files:\n((?:[ \t]+\S.*(?:\n|$))*)/m.exec(stdout);
+  if (block === null) return [];
+  const entries = (block[1] ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (entries.length === 0) {
+    throw new Error(
+      "the run printed 'FAILED files:' with no indented entry under it; its list format changed"
+    );
+  }
+  return entries;
+}
+
+/**
+ * `paths` in the order `LC_ALL=C sort` gives them, which is the order the runner
+ * collects in: UTF-8 bytes compared one by one, which JavaScript's default sort, over
+ * UTF-16 code units, does not match outside the Basic Multilingual Plane.
+ */
+function byteOrder(paths: readonly string[]): string[] {
+  return [...paths].sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)));
 }
 
 /** Paths the run REPORTED as failed under `FAILED files:`, in order. */
@@ -517,12 +580,20 @@ describe("run-tests.sh collects the services tier by its suffix", () => {
     const forward = calledPaths(forwardLog);
     const reverse = calledPaths(reverseLog);
 
+    // Each order is read against the byte order of its own run, so a forward run that
+    // drifted from byte order cannot carry the reverse case along with it.
     expect(forward.length).toBeGreaterThan(1);
     expect({
       exitCodes: [forwardRun.exitCode, reverseRun.exitCode],
-      forwardIsByteOrder: forward.join("\n") === [...forward].sort().join("\n"),
-      reverseIsItsMirror: reverse.join("\n") === [...forward].reverse().join("\n"),
-    }).toEqual({ exitCodes: [0, 0], forwardIsByteOrder: true, reverseIsItsMirror: true });
+      forward,
+      reverse,
+      sameFiles: byteOrder(reverse),
+    }).toEqual({
+      exitCodes: [0, 0],
+      forward: byteOrder(forward),
+      reverse: byteOrder(reverse).reverse(),
+      sameFiles: byteOrder(forward),
+    });
   });
 
   it("prints a quarantined file with its reason and does not run it", () => {
@@ -589,36 +660,102 @@ describe("run-tests.sh probes the live environment before each live-tier file", 
     });
   });
 
-  it.each([
-    ["the API stops answering its health route", API_HEALTH],
-    ["the workers stop reporting ready", WORKERS_READY_URL],
-  ])("stops the live tier when %s, naming the next file and the last one run", (_, url) => {
-    // The third probe of `url` fails: the first two live files run, the third and
-    // every one after it do not, and the record names the third and the second.
-    const callLog = join(stubDir, "unready-calls.log");
+  it.each<[string, string, string[]]>([
+    ["the API stops answering its health route", API_HEALTH, [API_HEALTH]],
+    ["the workers stop reporting ready", WORKERS_READY_URL, [API_HEALTH, WORKERS_READY_URL]],
+  ])(
+    "stops the live tier when %s, naming the next file, the last one run and the probe's error",
+    (_, url, stoppingProbes) => {
+      // The third probe of `url` fails: the first two live files run, the third and
+      // every one after it do not, and the record names the third and the second. The
+      // whole call log is compared, so a stand-in that failed one call early or late
+      // shows up as a probe or a file too many or too few.
+      const callLog = join(stubDir, "unready-calls.log");
+      rmSync(callLog, { force: true });
+      const live = listed(emptyQuarantine).get("live") ?? [];
+      const run = runGate(PASSING, {
+        callLog,
+        tier: "live-integration",
+        quarantineFile: emptyQuarantine,
+        failingProbe: { url, failFrom: 3 },
+      });
+      const entry = `env-unready-before: ${live[2] ?? ""} (last ran: ${live[1] ?? ""})`;
+      const { failedBatches, ...verdict } = fileVerdict(run);
+
+      expect(live.length).toBeGreaterThan(2);
+      expect({
+        ...verdict,
+        oneFailedBatch: failedBatches.length === 1,
+        called: calledPaths(callLog),
+        errorUnderTheVerdict: run.stdout.includes(`    ✗ ${entry}\n      ${CURL_REFUSAL}\n`),
+        errorInTheSummary: run.stdout.includes(
+          [
+            `ERROR: the live tier stopped at ${entry}. The readiness`,
+            "       probe failed before that file with this error:",
+            `         ${CURL_REFUSAL}`,
+            "",
+          ].join("\n")
+        ),
+      }).toEqual({
+        exitCode: 1,
+        printed: [entry],
+        listed: [entry],
+        oneFailedBatch: true,
+        called: [
+          ...live.slice(0, 2).flatMap((file) => [API_HEALTH, WORKERS_READY_URL, file]),
+          ...stoppingProbes,
+        ],
+        errorUnderTheVerdict: true,
+        errorInTheSummary: true,
+      });
+    }
+  );
+
+  it("keeps the first PROBE_ERROR_LINES lines a failed probe printed, and says how many it left out", () => {
+    // A probe that prints a long body before it fails would otherwise flood the record
+    // and the summary with it. The limit is read from the runner, so the case follows
+    // a change to it instead of restating it.
+    const callLog = join(stubDir, "flooding-probe-calls.log");
     rmSync(callLog, { force: true });
+    const planted = 60;
+    const limit = Number(
+      /^PROBE_ERROR_LINES=(\d+)$/m.exec(readFileSync(runnerPath, "utf8"))?.[1] ?? Number.NaN
+    );
     const live = listed(emptyQuarantine).get("live") ?? [];
     const run = runGate(PASSING, {
       callLog,
       tier: "live-integration",
       quarantineFile: emptyQuarantine,
-      failingProbe: { url, failFrom: 3 },
+      failingProbe: { url: API_HEALTH, failFrom: 1, lines: planted },
     });
-    const entry = `env-unready-before: ${live[2] ?? ""} (last ran: ${live[1] ?? ""})`;
-    const { failedBatches, ...verdict } = fileVerdict(run);
+    const entry = `env-unready-before: ${live[0] ?? ""} (last ran: none)`;
+    const printedByTheProbe = [
+      ...Array.from(
+        { length: planted },
+        (_, index) => `gate curl stand-in: body line ${index + 1}`
+      ),
+      CURL_REFUSAL,
+    ];
+    /** The kept lines and the line that counts the rest, each behind `indent`. */
+    const record = (indent: string): string =>
+      [...printedByTheProbe.slice(0, limit), `… ${printedByTheProbe.length - limit} more lines`]
+        .map((line) => `${indent}${line}\n`)
+        .join("");
 
     expect({
-      ...verdict,
-      oneFailedBatch: failedBatches.length === 1,
-      liveFilesRun: calledPaths(callLog).filter((path) => live.includes(path)),
-      saysWhy: run.stdout.includes("ERROR: the live tier stopped at env-unready-before:"),
+      limitNamed: Number.isInteger(limit) && limit > 0 && limit < planted,
+      exitCode: run.exitCode,
+      underTheVerdict: run.stdout.includes(`    ✗ ${entry}\n${record("      ")}  live `),
+      inTheSummary: run.stdout.includes(
+        `with this error:\n${record("         ")}       The file that ran last`
+      ),
+      bodyLinesPrinted: run.stdout.split("gate curl stand-in: body line ").length - 1,
     }).toEqual({
+      limitNamed: true,
       exitCode: 1,
-      printed: [entry],
-      listed: [entry],
-      oneFailedBatch: true,
-      liveFilesRun: live.slice(0, 2),
-      saysWhy: true,
+      underTheVerdict: true,
+      inTheSummary: true,
+      bodyLinesPrinted: 2 * limit,
     });
   });
 });
@@ -950,39 +1087,60 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
     }
   );
 
-  it.each([
-    ["an option it does not know", ["--verbose"], false],
-    ["--list with a path", ["--list", TARGET_FILE], false],
-    ["a test file no tier of it collects", ["tests/unit/saga/runTestsGate.static.test.ts"], false],
-    ["a path that does not exist", ["tests/integration/absent.integration.test.ts"], false],
-    ["a live suite under a TIER without the live tier", [LIVE_TARGET], false],
-    ["a quarantined suite", [TARGET_FILE], true],
-  ])("exits 2 before any suite starts on %s, rather than ignoring it", (_, args, quarantined) => {
-    // A path the run would not execute would run nothing and read as a pass.
-    const run = runRecorded(
-      {
-        TIER,
-        DATABASE_URL: UNUSED_DATABASE_URL,
-        ...(quarantined && {
-          QUARANTINE_FILE: writeQuarantine("filtered.json", [
-            {
-              path: `apps/api/${TARGET_FILE}`,
-              reason: "fixture",
-              owner: "gate",
-              since: "2026-10-10",
-            },
-          ]),
-        }),
-      },
-      args
-    );
+  it.each<[string, string[], boolean, string]>([
+    ["an option it does not know", ["--verbose"], false, "unknown option '--verbose'"],
+    ["--list with a path", ["--list", TARGET_FILE], false, "--list takes no other argument"],
+    [
+      "a test file no tier of it collects",
+      ["tests/unit/saga/runTestsGate.static.test.ts"],
+      false,
+      "exists, but no tier of this runner collects it",
+    ],
+    [
+      "a path that does not exist",
+      ["tests/integration/absent.integration.test.ts"],
+      false,
+      "tests/integration/absent.integration.test.ts does not exist",
+    ],
+    [
+      "a live suite under a TIER without the live tier",
+      [LIVE_TARGET],
+      false,
+      "is a live-tier suite, and TIER=pr-integration does not run the live tier",
+    ],
+    ["a quarantined suite", [TARGET_FILE], true, "is quarantined"],
+  ])(
+    "exits 2 before any suite starts on %s, rather than ignoring it",
+    (_, args, quarantined, says) => {
+      // A path the run would not execute would run nothing and read as a pass. The
+      // message tells a path that is not there from one this TIER does not run, and
+      // from one no tier collects, since each is put right a different way.
+      const run = runRecorded(
+        {
+          TIER,
+          DATABASE_URL: UNUSED_DATABASE_URL,
+          ...(quarantined && {
+            QUARANTINE_FILE: writeQuarantine("filtered.json", [
+              {
+                path: `apps/api/${TARGET_FILE}`,
+                reason: "fixture",
+                owner: "gate",
+                since: "2026-10-10",
+              },
+            ]),
+          }),
+        },
+        args
+      );
 
-    expect({
-      exitCode: run.exitCode,
-      started: run.started,
-      saysWhy: run.stderr.startsWith("run-tests.sh: "),
-    }).toEqual({ exitCode: 2, started: [], saysWhy: true });
-  });
+      expect({
+        exitCode: run.exitCode,
+        started: run.started,
+        saysWhy: run.stderr.startsWith("run-tests.sh: "),
+        namesTheCause: run.stderr.includes(says),
+      }).toEqual({ exitCode: 2, started: [], saysWhy: true, namesTheCause: true });
+    }
+  );
 
   it("exits 2 before any suite starts on a services suite under a TIER without the services tier", () => {
     // Under live-integration the services tier does not run, so a services path given
@@ -1001,7 +1159,10 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       exitCode: run.exitCode,
       started: run.started,
       saysWhy: run.stderr.startsWith("run-tests.sh: "),
-    }).toEqual({ exitCode: 2, started: [], saysWhy: true });
+      namesTheCause: run.stderr.includes(
+        "is a services-tier suite, and TIER=live-integration does not run the services tier"
+      ),
+    }).toEqual({ exitCode: 2, started: [], saysWhy: true, namesTheCause: true });
   });
 
   it.each(["full-integration", "integration"])(
@@ -1097,5 +1258,94 @@ describe("the runner-gate fixtures still produce the shapes they document", () =
       cancelled: count("cancelled"),
       runnerExit: result.status,
     }).toEqual({ pass: 1, fail: 0, cancelled: 2, runnerExit: 1 });
+  });
+});
+
+describe("the stand-ins and the parsers this suite reads the runner through", () => {
+  /** Runs the stand-in `curl` alone, with the two probe URLs the runner is handed. */
+  function probe(
+    args: string[],
+    env: NodeJS.ProcessEnv = {}
+  ): { exitCode: number; stderr: string } {
+    const result = spawnSync(join(stubDir, "curl"), args, {
+      encoding: "utf8",
+      timeout: SPAWN_TIMEOUT_MS,
+      env: {
+        PATH: process.env.PATH ?? "",
+        TEST_API_URL: API_URL,
+        TEST_WORKERS_READY_URL: WORKERS_READY_URL,
+        ...env,
+      },
+    });
+    return { exitCode: result.status ?? -1, stderr: result.stderr ?? "" };
+  }
+
+  it("answers the two probes the runner makes, and refuses any other URL by name", () => {
+    // A stand-in that answered every URL would let a new or misspelt probe pass every
+    // live case unread; refused, the cases that drive the live tier go red on it.
+    const elsewhere = "http://gate-elsewhere.invalid/status";
+
+    expect({
+      api: probe(["-fsS", "-o", "/dev/null", API_HEALTH]).exitCode,
+      workers: probe(["-fsS", "-o", "/dev/null", WORKERS_READY_URL]).exitCode,
+      unknown: probe(["-fsS", "-o", "/dev/null", elsewhere]),
+    }).toEqual({
+      api: 0,
+      workers: 0,
+      unknown: { exitCode: 97, stderr: expect.stringContaining(elsewhere) },
+    });
+  });
+
+  it("refuses to fail a probe it has no call log to count in", () => {
+    // `failingProbe` counts calls in the call log; without one, every call would read
+    // as the first and the planted failure would never fire.
+    expect(
+      probe(["-fsS", API_HEALTH], { GATE_CURL_FAIL_URL: API_HEALTH, GATE_CURL_FAIL_FROM: "1" })
+    ).toEqual({ exitCode: 98, stderr: expect.stringContaining("GATE_CALL_LOG") });
+  });
+
+  it("reads the FAILED files block whatever its indent", () => {
+    expect(
+      listedFailedEntries(
+        [
+          "FAILED batches: integration",
+          "FAILED files:",
+          "    tests/a.integration.test.ts: exit 1",
+          "\ttests/b.integration.test.ts: 1 failed",
+          "ERROR: every test that ran reported passing",
+          "",
+        ].join("\n")
+      )
+    ).toEqual(["tests/a.integration.test.ts: exit 1", "tests/b.integration.test.ts: 1 failed"]);
+  });
+
+  it("fails loudly on a FAILED files header with no entry under it, rather than reading none", () => {
+    // The runner prints the header only when a file failed, so an empty block is a
+    // change to its format, and an empty list would make every accounting case vacuous.
+    expect(() =>
+      listedFailedEntries("FAILED batches: integration\nFAILED files:\nERROR: x\n")
+    ).toThrow(/FAILED files:/);
+  });
+
+  it("orders paths as LC_ALL=C sort does, outside the Basic Multilingual Plane too", () => {
+    // JavaScript's default sort compares UTF-16 code units, so a character outside the
+    // Basic Multilingual Plane (a surrogate pair, from 0xD800) sorts before one from
+    // U+E000 up, whose UTF-8 bytes sort first. The order cases read the runner through
+    // this oracle, so it is held to the program the runner sorts with.
+    const paths = [
+      "tests/b.integration.test.ts",
+      "tests/a\u{1F600}.integration.test.ts",
+      "tests/a\u{FF01}.integration.test.ts",
+      "tests/a.integration.test.ts",
+    ];
+    const sorted = spawnSync("sort", [], {
+      input: `${paths.join("\n")}\n`,
+      encoding: "utf8",
+      timeout: SPAWN_TIMEOUT_MS,
+      env: { ...process.env, LC_ALL: "C" },
+    });
+
+    expect(sorted.status).toBe(0);
+    expect(byteOrder(paths)).toEqual((sorted.stdout ?? "").split("\n").filter(Boolean));
   });
 });
