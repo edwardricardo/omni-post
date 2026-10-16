@@ -101,7 +101,6 @@
     "@packages/api-common": "workspace:*",
     "@paddle/paddle-node-sdk": "3.6.1",
     "@ports/core": "workspace:*",
-    "@prisma/client": "catalog:",
     "@providers/bluesky": "workspace:*",
     "@providers/facebook": "workspace:*",
     "@providers/instagram": "workspace:*",

@@ -22,8 +22,5 @@
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
     "prom-client": "catalog:"
-  },
-  "devDependencies": {
-    "typescript": "catalog:"
   }
 }

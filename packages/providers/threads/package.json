@@ -34,8 +34,7 @@
     "@ports/core": "workspace:*",
     "@providers/shared": "workspace:*",
     "@shared/types": "workspace:*",
-    "pino": "catalog:",
-    "prom-client": "catalog:"
+    "pino": "catalog:"
   },
   "devDependencies": {
     "@packages/vitest-shared": "workspace:*",

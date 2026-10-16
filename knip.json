@@ -141,8 +141,9 @@
     },
     "infra/prisma": {
       "project": ["src/**/*.ts"],
-      "ignore": ["src/**/*.d.ts"]
+      "ignore": ["src/**/*.d.ts"],
+      "ignoreDependencies": ["@prisma/client"]
     }
   },
-  "ignoreDependencies": ["@ports/core", "@prisma/client", "tw-animate-css"]
+  "ignoreDependencies": ["@ports/core", "tw-animate-css"]
 }

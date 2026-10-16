@@ -14,13 +14,7 @@
       "path": "../../packages/adapters/db-prisma/tsconfig.build.json"
     },
     {
-      "path": "../../packages/adapters/external-apis/tsconfig.build.json"
-    },
-    {
       "path": "../../packages/adapters/queue-bullmq/tsconfig.build.json"
-    },
-    {
-      "path": "../../packages/core/application/tsconfig.build.json"
     },
     {
       "path": "../../packages/core/domain/tsconfig.build.json"

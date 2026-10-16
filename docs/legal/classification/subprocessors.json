@@ -305,7 +305,7 @@
       "envToggle": "a `sentryDsn` in the Admin `MONITORING` credentials",
       "dataSent": "error events with stack traces and request context, and a sample of performance traces",
       "productionPath": "yes",
-      "note": "`initSentry` in `apps/api/src/observability/sentryInit.ts`; `apps/workers` declares the package and does not import it."
+      "note": "`initSentry` in `apps/api/src/observability/sentryInit.ts`; `apps/api` is the one manifest that declares it."
     },
     "@size-limit/preset-small-lib": {
       "status": "library",
