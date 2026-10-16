@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Universal Client Dashboard is a modern React 19.2.7 application built with Next.js 16.3.8 (with Turbopack), providing a comprehensive content management interface for multi-platform social media publishing. It features a dynamic content editor, provider-agnostic architecture, and real-time collaboration capabilities.
+The Universal Client Dashboard is a modern React application built with Next.js (with Turbopack), providing a comprehensive content management interface for multi-platform social media publishing. It features a dynamic content editor, provider-agnostic architecture, and real-time collaboration capabilities.
 
 **Port**: 3200 (configurable via environment)
 
@@ -11,7 +11,7 @@ The Universal Client Dashboard is a modern React 19.2.7 application built with N
 ### Core Framework
 
 - **React**: 19.2.7 with concurrent rendering and automatic batching
-- **Next.js**: 16.3.8 with App Router, server components, and Turbopack
+- **Next.js**: 16.4.1 with App Router, server components, and Turbopack
 - **TypeScript**: 6.0.3 with strict mode and exact optional properties
 - **Node.js**: 26 (`.nvmrc`; `engines.node` `>=26.11.1 <27`) with ES modules support
 
@@ -24,7 +24,7 @@ The Universal Client Dashboard is a modern React 19.2.7 application built with N
 
 ### UI & Styling
 
-- **Tailwind CSS**: 4.3.0 for utility-first styling (via `@tailwindcss/postcss`)
+- **Tailwind CSS**: 4.3.3 for utility-first styling (via `@tailwindcss/postcss`)
 - **Radix UI**: Unified `radix-ui` 1.4.3 accessible component library (migrated from individual `@radix-ui/react-*` packages)
 - **Lucide React**: 1.7.0 for icons
 - **Class Variance Authority**: 0.7.1 for component variants
@@ -41,14 +41,14 @@ The Universal Client Dashboard is a modern React 19.2.7 application built with N
 - **Vitest**: 4.1.11 for unit and integration testing
 - **React Testing Library**: 16.3.3 for component testing
 - **Jest DOM**: 7.0.1 for DOM testing utilities
-- **Playwright**: 1.63.0 for end-to-end testing
+- **Playwright**: 1.64.0 for end-to-end testing
 - **JSDOM**: 30.1.2 for DOM simulation
 - **Storybook**: 10.6.1 on `@storybook/nextjs-vite` for component documentation; its stories run as vitest browser tests in headless Chromium (`test:stories`)
 
 ### Development Tools
 
 - **ESLint**: 9.39.5 with Next.js configuration
-- **PostCSS**: 8.5.28 for CSS processing
+- **PostCSS**: 8.5.29 for CSS processing
 
 ## Application Architecture
 
@@ -456,7 +456,4 @@ const nextConfig = {
 ---
 
 **Version**: 1.0
-**Last Updated**: October 6, 2026 (versions re-read from `pnpm-lock.yaml`)
-**React Version**: 19.2.7
-**Next.js Version**: 16.3.8
-**TypeScript Version**: 6.0.3
+**Last Updated**: October 16, 2026 (versions re-read from `pnpm-workspace.yaml`)
