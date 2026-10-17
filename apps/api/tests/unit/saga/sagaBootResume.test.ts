@@ -18,6 +18,7 @@
 import { describe, it, expect, vi, type MockInstance } from "vitest";
 import client from "prom-client";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { until } from "@packages/vitest-shared/determinism";
 import type {
   CompensableStep,
   PivotStep,
@@ -249,16 +250,8 @@ async function scrapeCompensatingOrphans(): Promise<number | undefined> {
   return (gauge?.values?.[0] as { value?: number } | undefined)?.value;
 }
 
-/** Waits until `probe` holds, so a detached dispatch is observed, never guessed. */
-async function until(probe: () => boolean | Promise<boolean>, description: string): Promise<void> {
-  const deadline = Date.now() + 2_000;
-  while (!(await probe())) {
-    if (Date.now() > deadline) {
-      throw new Error(`timed out waiting for ${description}`);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-}
+/** The deadline and the interval of every wait on a detached dispatch in this file. */
+const WAIT_TIMING = { timeoutMs: 2_000, intervalMs: 5 } as const;
 
 /** Lets a detached dispatch and every persist it awaits drain before observing. */
 async function drain(turns = 12): Promise<void> {
@@ -502,7 +495,10 @@ describe("saga boot recovery pass", () => {
       ]);
 
       await expect(lifecycle.initialize()).resolves.toBeUndefined();
-      await until(() => engine.executed.length === 2, "both readable rows to be advanced");
+      await until(() => engine.executed.length === 2, {
+        description: "both readable rows to be advanced",
+        ...WAIT_TIMING,
+      });
 
       expect(engine.executed).toEqual(["saga-before", "saga-after"]);
       expect(lifecycle.metrics.bootResumeRowFailures).toBe(1);
@@ -521,7 +517,10 @@ describe("saga boot recovery pass", () => {
       );
 
       await lifecycle.initialize();
-      await until(() => engine.executed.length === 1, "the known row to be advanced");
+      await until(() => engine.executed.length === 1, {
+        description: "the known row to be advanced",
+        ...WAIT_TIMING,
+      });
 
       expect(engine.executed).toEqual(["saga-known"]);
       expect(lifecycle.metrics.bootParkedSagas).toBe(1);
@@ -559,7 +558,10 @@ describe("saga boot recovery pass", () => {
       const { lifecycle, engine } = createLifecycle(rows, { maxConcurrentSagas: 3 });
 
       await lifecycle.initialize();
-      await until(() => engine.executed.length === rows.length, "every inherited row to advance");
+      await until(() => engine.executed.length === rows.length, {
+        description: "every inherited row to advance",
+        ...WAIT_TIMING,
+      });
 
       expect(engine.peakConcurrency).toBeLessThanOrEqual(3);
       // And the cap is a cap, not a drop: every row still gets its nudge.
@@ -571,7 +573,10 @@ describe("saga boot recovery pass", () => {
       const { lifecycle, engine } = createLifecycle(rows, { bootLoadLimit: 2 });
 
       await lifecycle.initialize();
-      await until(() => engine.executed.length === 2, "the loaded page to advance");
+      await until(() => engine.executed.length === 2, {
+        description: "the loaded page to advance",
+        ...WAIT_TIMING,
+      });
 
       expect(lifecycle.activeInstances.size).toBe(2);
       expect(lifecycle.metrics.bootLoadDeferred).toBe(3);
@@ -588,18 +593,18 @@ describe("saga boot recovery pass", () => {
       await lifecycle.initialize();
       expect(await scrapeCompensatingOrphans()).toBe(1);
 
-      await until(
-        () => engine.executed.length === 1 && engine.compensated.length === 1,
-        "the pass to drain both dispositions"
-      );
+      await until(() => engine.executed.length === 1 && engine.compensated.length === 1, {
+        description: "the pass to drain both dispositions",
+        ...WAIT_TIMING,
+      });
 
       // Published only at boot, the level would keep reading 1 until the next
       // restart — long after the engine finished the walk — and the alert that
       // keys on it would page for work that already completed.
-      await until(
-        async () => (await scrapeCompensatingOrphans()) === 0,
-        "the scrape to report the level the database now holds"
-      );
+      await until(async () => (await scrapeCompensatingOrphans()) === 0, {
+        description: "the scrape to report the level the database now holds",
+        ...WAIT_TIMING,
+      });
       await lifecycle.shutdown();
     });
 
@@ -613,7 +618,10 @@ describe("saga boot recovery pass", () => {
       );
 
       await lifecycle.initialize();
-      await until(() => engine.compensated.length === 1, "the walk to be dispatched");
+      await until(() => engine.compensated.length === 1, {
+        description: "the walk to be dispatched",
+        ...WAIT_TIMING,
+      });
 
       expect(await scrapeCompensatingOrphans()).toBe(2);
       expect(lifecycle.metrics.compensatingOrphans).toBe(2);
@@ -645,10 +653,10 @@ describe("saga boot recovery pass", () => {
         ]);
 
         await lifecycle.initialize();
-        await until(
-          () => engine.executed.length === 1 && engine.compensated.length === 1,
-          "the forward row to advance and the compensating row to resume its walk"
-        );
+        await until(() => engine.executed.length === 1 && engine.compensated.length === 1, {
+          description: "the forward row to advance and the compensating row to resume its walk",
+          ...WAIT_TIMING,
+        });
 
         // "Finishing an interrupted undo" and "finishing an interrupted
         // publish" are different operator situations; one word for both sends
@@ -696,7 +704,10 @@ describe("saga boot recovery pass", () => {
       ]);
 
       await lifecycle.initialize();
-      await until(() => engine.compensated.length === 1, "the walk to be resumed");
+      await until(() => engine.compensated.length === 1, {
+        description: "the walk to be resumed",
+        ...WAIT_TIMING,
+      });
 
       // Status is checked FIRST: a legacy row written before this change can
       // carry a stale retry marker, and the checker would drive it FORWARD.
@@ -712,10 +723,10 @@ describe("saga boot recovery pass", () => {
       ]);
       try {
         await harness.manager.initialize();
-        await until(
-          () => harness.steps.step0.compensateAttempts > 0,
-          "the boot pass to resume the walk"
-        );
+        await until(() => harness.steps.step0.compensateAttempts > 0, {
+          description: "the boot pass to resume the walk",
+          ...WAIT_TIMING,
+        });
         await drain();
 
         // Two mechanisms, both load-bearing, both proven here: the boot pass
@@ -742,10 +753,10 @@ describe("saga boot recovery pass", () => {
       const harness = await createRealHarness([makeCrashedCompensationRow("saga-p2-b", null)]);
       try {
         await harness.manager.initialize();
-        await until(
-          () => harness.steps.step0.compensateAttempts > 0,
-          "the boot pass to resume the walk"
-        );
+        await until(() => harness.steps.step0.compensateAttempts > 0, {
+          description: "the boot pass to resume the walk",
+          ...WAIT_TIMING,
+        });
         await drain();
 
         expect(bootSummary(harness.records)?.compensationResumed).toBe(1);
@@ -769,10 +780,10 @@ describe("saga boot recovery pass", () => {
       ]);
       try {
         await harness.manager.initialize();
-        await until(
-          () => harness.steps.step1.executeAttempts > 0,
-          "the boot pass to dispatch the legacy row"
-        );
+        await until(() => harness.steps.step1.executeAttempts > 0, {
+          description: "the boot pass to dispatch the legacy row",
+          ...WAIT_TIMING,
+        });
         await drain();
 
         // A row written by the OLD engine says RUNNING while a walk was under
@@ -800,7 +811,10 @@ describe("saga boot recovery pass", () => {
       ]);
 
       await lifecycle.initialize();
-      await until(() => engine.executed.length === 1, "the pre-pivot row to advance");
+      await until(() => engine.executed.length === 1, {
+        description: "the pre-pivot row to advance",
+        ...WAIT_TIMING,
+      });
 
       expect(engine.executed).toEqual(["saga-resumable"]);
       expect(engine.persisted).toEqual(["saga-resumable"]);

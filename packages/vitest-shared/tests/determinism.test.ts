@@ -114,6 +114,36 @@ describe("until", () => {
     expect(predicate).toHaveBeenCalledTimes(5);
   });
 
+  it("reads a description function once, at the deadline, never while probing", async () => {
+    let lastSeen = "nothing yet";
+    const description = vi.fn(() => `the row to settle (last seen: ${lastSeen})`);
+    const waiting = until(
+      () => {
+        lastSeen = "RUNNING";
+        return false;
+      },
+      { description, timeoutMs: 50, intervalMs: 10 }
+    );
+    track(waiting);
+
+    await vi.advanceTimersByTimeAsync(49);
+    expect(description).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(waiting).rejects.toThrow(
+      new Error("timed out after 50 ms waiting for the row to settle (last seen: RUNNING)")
+    );
+    expect(description).toHaveBeenCalledTimes(1);
+  });
+
+  it("never calls a description function when the wait succeeds", async () => {
+    const description = vi.fn(() => "a wait that succeeds");
+
+    await until(() => true, { description });
+
+    expect(description).not.toHaveBeenCalled();
+  });
+
   it("waits 5000 ms and probes every 10 ms by default", async () => {
     const predicate = vi.fn(() => false);
     const waiting = until(predicate, { description: "the default deadline" });

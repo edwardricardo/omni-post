@@ -17,8 +17,12 @@
 
 /** How a waiter names its wait and bounds it. */
 export interface WaitOptions {
-  /** What the wait is for, as the failure message will say it: "the saga to reach COMPENSATED". */
-  readonly description: string;
+  /**
+   * What the wait is for, as the failure message will say it: "the saga to reach COMPENSATED". A
+   * function is called once, when the deadline passes and never before, so the message can carry
+   * the state the probe last saw.
+   */
+  readonly description: string | (() => string);
   /** How long to keep probing, in milliseconds. Default 5000. */
   readonly timeoutMs?: number;
   /** The pause between two probes, in milliseconds. Default 10. */
@@ -50,14 +54,10 @@ export async function untilValue<T>(
   // A NaN or infinite deadline is never reached, so the wait would end only at the test timeout,
   // with a message that names nothing; a zero or negative interval would spin.
   if (!Number.isFinite(timeoutMs) || timeoutMs < 0) {
-    throw new RangeError(
-      `timeoutMs must be a finite number of at least 0, got ${timeoutMs} (waiting for ${description})`
-    );
+    throw new RangeError(`timeoutMs must be a finite number of at least 0, got ${timeoutMs}`);
   }
   if (!Number.isFinite(intervalMs) || intervalMs <= 0) {
-    throw new RangeError(
-      `intervalMs must be a finite number above 0, got ${intervalMs} (waiting for ${description})`
-    );
+    throw new RangeError(`intervalMs must be a finite number above 0, got ${intervalMs}`);
   }
   const startedAt = Date.now();
   for (;;) {
@@ -65,7 +65,8 @@ export async function untilValue<T>(
     if (answer !== null && answer !== undefined) return answer;
     const elapsedMs = Date.now() - startedAt;
     if (elapsedMs >= timeoutMs) {
-      throw new Error(`timed out after ${elapsedMs} ms waiting for ${description}`);
+      const expected = typeof description === "string" ? description : description();
+      throw new Error(`timed out after ${elapsedMs} ms waiting for ${expected}`);
     }
     await pause(Math.min(intervalMs, timeoutMs - elapsedMs));
   }

@@ -59,6 +59,7 @@ import { Queue, Worker, type Job } from "bullmq";
 import { type PrismaClient } from "@infra/prisma";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { createGate, until, untilValue } from "@packages/vitest-shared/determinism";
 import { createBullMQQueueAdapter, type BullMQQueueAdapter } from "@adapters/queue-bullmq";
 import {
   createPostPublishingSagaDefinition,
@@ -267,46 +268,6 @@ interface Harness {
 /** What a scenario may swap in a harness: the repository its RereadCheck reads through. */
 interface HarnessOverrides {
   postRepository?: PrismaPostRepository;
-}
-
-/**
- * A one-shot pause on a repository read. Two saga engines are ordered with it rather than with a
- * sleep: the read the gate holds is a point the first engine provably reached, and the release is
- * a point the test chooses.
- */
-interface ReadGate {
-  /** Holds the next read that arrives, and only that one. */
-  arm(): void;
-  /** Whether the held read has arrived. */
-  hasReached(): boolean;
-  /** Lets the held read through. Safe to call more than once. */
-  release(): void;
-  /** Runs `read`, waiting at the gate first when it is armed. */
-  pass<T>(read: () => Promise<T>): Promise<T>;
-}
-
-function createReadGate(): ReadGate {
-  let armed = false;
-  let reached = false;
-  let open: () => void = () => undefined;
-  const released = new Promise<void>((resolve) => {
-    open = resolve;
-  });
-  return {
-    arm: () => {
-      armed = true;
-    },
-    hasReached: () => reached,
-    release: () => open(),
-    pass: async <T>(read: () => Promise<T>): Promise<T> => {
-      if (armed) {
-        armed = false;
-        reached = true;
-        await released;
-      }
-      return await read();
-    },
-  };
 }
 
 describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
@@ -541,25 +502,10 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   }
 
   /**
-   * Polls `probe` until it answers, or fails with the reason it never did. One
-   * implementation for every wait in the suite, so no scenario invents its own
-   * tick, deadline or failure message.
+   * The deadline and the interval every wait in this suite polls with, so no scenario invents its
+   * own tick or deadline.
    */
-  async function pollUntil<T>(
-    probe: () => Promise<T | null>,
-    describeExpectation: () => string,
-    timeoutMs = 20_000
-  ): Promise<T> {
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-      const answer = await probe();
-      if (answer !== null) return answer;
-      if (Date.now() > deadline) {
-        assert.fail(`timed out after ${timeoutMs}ms waiting for ${describeExpectation()}`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 150));
-    }
-  }
+  const POLL_TIMING = { timeoutMs: 20_000, intervalMs: 150 } as const;
 
   /**
    * Drives a saga to a terminal state through the mechanism that OWNS it,
@@ -577,7 +523,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     timeoutMs = 20_000
   ): Promise<SagaSnapshot> {
     let last: SagaSnapshot | undefined;
-    return await pollUntil(
+    return await untilValue(
       async () => {
         const snapshot = await sagaSnapshot(sagaId);
         last = snapshot;
@@ -593,11 +539,14 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         }
         return null;
       },
-      () =>
-        `${description}: the saga is still ${String(last?.status)} at step ` +
-        `${String(last?.currentStep)} (nextRetryAt=${String(last?.nextRetryAt)}, ` +
-        `retryCount=${String(last?.retryCount)}, error=${String(last?.error)})`,
-      timeoutMs
+      {
+        description: () =>
+          `${description}: the saga is still ${String(last?.status)} at step ` +
+          `${String(last?.currentStep)} (nextRetryAt=${String(last?.nextRetryAt)}, ` +
+          `retryCount=${String(last?.retryCount)}, error=${String(last?.error)})`,
+        ...POLL_TIMING,
+        timeoutMs,
+      }
     );
   }
 
@@ -1624,7 +1573,7 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     let winnerTerminal: SagaSnapshot;
     let terminal: SagaSnapshot;
     let releaseLogLines: Record<string, unknown>[] = [];
-    const gate = createReadGate();
+    const gate = createGate();
 
     before(async () => {
       // Two engines advance ONE row, with no row claim between them: the overlap a deploy or a
@@ -1668,10 +1617,10 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       });
       gate.arm();
       await stale.scheduler.triggerTask(RETRY_RECOVERY_TASK_ID, { swallowErrors: false });
-      await pollUntil(
-        async () => (gate.hasReached() ? true : null),
-        () => `engine A to reach the RereadCheck of ${sagaId}`
-      );
+      await until(() => gate.hasReached(), {
+        description: `engine A to reach the RereadCheck of ${sagaId}`,
+        ...POLL_TIMING,
+      });
 
       // Engine B finishes the saga while A waits: the pivot passes on the DRAFT post, the queue
       // absorbs the re-enqueue, and the promotion publishes the post.
@@ -1688,10 +1637,10 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       // A resumes on a row that already ended: its reread now sees PUBLISHED.
       releaseLogLines = await captureLogs(async () => {
         gate.release();
-        await pollUntil(
-          async () => (stale.lifecycle.executionEngine.isAdvancerInFlight(sagaId) ? null : true),
-          () => `engine A to let go of ${sagaId}`
-        );
+        await until(() => !stale.lifecycle.executionEngine.isAdvancerInFlight(sagaId), {
+          description: `engine A to let go of ${sagaId}`,
+          ...POLL_TIMING,
+        });
       });
       terminal = await sagaSnapshot(sagaId);
     }, TIMING);
@@ -1916,12 +1865,12 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       const started = await startPublishNowSaga(draining, rejectingChannelId, "handoff");
       sagaId = started.id;
 
-      await pollUntil(
+      await until(
         async () => {
           const snapshot = await sagaSnapshot(sagaId);
-          return snapshot.nextRetryAt !== null && snapshot.status === "RUNNING" ? snapshot : null;
+          return snapshot.nextRetryAt !== null && snapshot.status === "RUNNING";
         },
-        () => `${sagaId} to schedule a retry before the drain`
+        { description: `${sagaId} to schedule a retry before the drain`, ...POLL_TIMING }
       );
 
       await shutdownHarness(draining);
