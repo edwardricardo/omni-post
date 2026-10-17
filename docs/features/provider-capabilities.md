@@ -36,19 +36,19 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 - **Auth**: OAuth 2.0 PKCE (S256)
 - **Max characters**: 280
 - **Max images**: 4
-- **Max video duration**: 140 seconds
+- **Max video duration**: Unknown (the adapter declares none)
 - **Polls**: Up to 4 options, 5min–7day duration
 - **Quote tweets**: Supported via `quote_tweet_id`
 - **Thread publishing**: Multi-tweet threads with reply chaining
 - **Rate limits**: ~50 tweets/15min (Basic tier)
-- **Webhook events**: Tweet activity (likes, replies, quotes, retweets)
+- **Webhook events**: tweets created and deleted, likes, replies, retweets, follows and direct messages (`xWebhookProcessor`)
 
 ### Instagram
 
 - **Auth**: Facebook Login / Instagram Graph API
 - **Max characters**: 2,200
-- **Max images**: 10 (carousel)
-- **Max video duration**: 60 seconds (Reels up to 90s)
+- **Max images**: 20 (carousel; `maxMediaPerPost`)
+- **Max video duration**: Unknown (the adapter declares none)
 - **Content types**: Feed post, Story, Reel, Carousel
 - **Comments**: Read via `GET /{media-id}/comments`, reply via `POST /{comment-id}/replies`
 - **Thread publishing**: Carousel posts with multiple images
@@ -59,29 +59,29 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 - **Auth**: Facebook Login / Pages API
 - **Max characters**: 63,206
 - **Max images**: 10
-- **Max video duration**: 4 hours
-- **Content types**: Post, Story, Reel, Link post
+- **Max video duration**: Unknown (the adapter declares none)
+- **Content types**: Post, Story, Reel; the API client's `postWithLink` is not on the publish path
 - **Scheduling**: Native via `scheduled_publish_time` parameter
 - **Comments**: Read via `GET /{post-id}/comments`, reply via `POST /{comment-id}/comments`
-- **Webhook events**: Feed updates, comments, reactions
+- **Webhook events**: feed, comments, mentions, page updates and live videos (`facebookWebhookProcessor`)
 
 ### YouTube
 
 - **Auth**: Google OAuth 2.0
 - **Max characters**: 5,000 (description)
-- **Max video duration**: 12 hours
+- **Max video duration**: Unknown; a 9:16 video of at most 60 seconds is published as a Short
 - **Content types**: Video, Short, Live Stream
 - **Comments**: Read via `commentThreads.list`, reply via `comments.insert`
 - **Analytics**: Views, likes, comments, shares, watch time, subscribers gained
 - **Quota**: 10,000 units/day (1 unit per read, 50 per write)
-- **Webhook events**: Video status changes, new subscriptions
+- **Webhook events**: videos published and updated, comments, channel and analytics updates (`youtubeWebhookProcessor`)
 
 ### TikTok
 
 - **Auth**: TikTok Login Kit (OAuth 2.0)
 - **Max characters**: 2,200
 - **Max images**: 35 (photo carousel)
-- **Max video duration**: 10 minutes
+- **Max video duration**: Unknown (the 180 seconds of `videoProcessorHelpers.ts` is not on the publish path)
 - **Content types**: Video, Photo carousel
 - **Photo posts**: Up to 35 images via Content Publishing API
 - **Hashtag strategy**: Automated via Research API (requires special approval)
@@ -92,26 +92,26 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 
 - **Auth**: LinkedIn OAuth 2.0 (3-legged)
 - **Max characters**: 3,000
-- **Max images**: 20 (multi-image)
-- **Max video duration**: 10 minutes
+- **Max images**: 9 (multi-image; `maxMediaPerPost`)
+- **Max video duration**: Unknown (the adapter declares none)
 - **Content types**: Text post, Image post, Multi-image, Video, Document (PDF), Poll
 - **Polls**: Up to 4 options, 1–14 day duration
 - **Documents**: PDF carousel via document upload API
 - **Comments**: Read via `GET /socialActions/{activityUrn}/comments`, reply with `parentComment`
-- **Webhook events**: HMAC-SHA256 verification
+- **Webhook events**: comments (created, edited, deleted, admin), likes, shares and share mentions (`linkedinWebhookProcessor`)
 
 ### Telegram
 
 - **Auth**: Bot API token
 - **Max characters**: 4,096
 - **Max images**: 10 (media group)
-- **Max video duration**: Unlimited
-- **Content types**: Text, Photo, Video, Document, Audio, Poll, Media group
+- **Max video duration**: Unknown (the adapter declares none)
+- **Content types**: Text, Photo, Video, Poll, Media group; documents and audio are not on the publish path
 - **Polls**: Quiz and regular polls via `sendPoll`
 - **Message editing**: `editMessageText` (within 48 hours)
 - **Message deletion**: `deleteMessage` (within 48 hours)
 - **Inline keyboards**: `reply_markup` support on all send methods
-- **Limitations**: No analytics API, no comments/replies concept
+- **Limitations**: no comments or replies (`comments: false`, `replies: false`); analytics come through `fetchAnalytics`
 - **Webhook events**: Update objects with secret token verification
 
 ### Snapchat
@@ -143,17 +143,17 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 ### Bluesky
 
 - **Auth**: AT Protocol (app password or OAuth)
-- **Max characters**: 300 (graphemes)
+- **Max characters**: 300, checked as JavaScript string length
 - **Max images**: 4
-- **Max video duration**: 60 seconds
-- **Content types**: Post, Reply, Quote post, Thread
-- **Threading**: Native thread support via reply chaining
-- **Comments/Replies**: Full support via AT Protocol
-- **Mentions**: Via `@handle.bsky.social` resolution to DID
-- **Links**: Rich link cards with facets
-- **Hashtags**: Supported via facets
+- **Max video duration**: no video (`allowedMedia: ["image"]`)
+- **Content types**: Post, with up to 4 images
+- **Threading**: No (`threading: false`, `maxPostsPerThread: 1`)
+- **Comments/Replies**: No (`comments: false`, `replies: false`)
+- **Mentions**: ingested through `searchMentions`; in a post, the facets `detectFacets` finds
+- **Links**: link facets from `detectFacets` (`linkCards: true`); no external card embed is built
+- **Hashtags**: Unknown (decided by `@atproto/api`'s `detectFacets`, not by the package)
 - **Limitations**: No analytics API, no scheduling API, no polls, no stories
-- **Webhook events**: Firehose subscription via Jetstream
+- **Webhook events**: none; there is no webhook processor and no firehose client
 
 ### Threads
 
@@ -213,7 +213,7 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 | Telegram  | `telegramWebhookProcessor`  | Secret token header  |
 | Snapchat  | `snapchatWebhookProcessor`  | HMAC-SHA256          |
 | Pinterest | N/A                         | No webhook API       |
-| Bluesky   | `blueskyWebhookProcessor`   | Firehose/Jetstream   |
+| Bluesky   | N/A                         | No processor         |
 | Threads   | N/A                         | No processor         |
 
 ## The adapter interface
