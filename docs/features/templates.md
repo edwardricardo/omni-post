@@ -576,6 +576,6 @@ Please see the [contributing guide](../development/getting-started.md) for guide
 
 For questions and support:
 
-- 📖 Documentation: this file (templates.md) and the related [advanced analytics](./advanced-analytics.md) doc
+- 📖 Documentation: this file (templates.md)
 - 🐛 Issues: [GitHub Issues](https://github.com/edwardricardo/omni-post/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/edwardricardo/omni-post/discussions)
