@@ -81,10 +81,12 @@ validity windows, audit verification).
 **Future architecture.** The current model holds the master key as a
 plaintext environment variable on the runtime host. The migration to
 KMS-backed envelope encryption (KEK in KMS, per-record DEKs) is
-documented in [SECRETS_KMS_MIGRATION.md](./SECRETS_KMS_MIGRATION.md).
+documented in [SECRETS_KMS_MIGRATION.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_KMS_MIGRATION.md).
 The further evolution to per-tenant KEKs (and optionally true BYOK) is
 documented as a feasibility study in
-[SECRETS_BYOK_FEASIBILITY.md](./SECRETS_BYOK_FEASIBILITY.md).
+[SECRETS_BYOK_FEASIBILITY.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_BYOK_FEASIBILITY.md).
+Both studies left `docs/` on 2026-10-17; every link to them in this
+document points at their last version.
 
 ---
 
@@ -525,7 +527,7 @@ mitigations.
 
 Which controls each secret category supports under SOC2 / PCI-DSS /
 GDPR / HIPAA. Detailed compliance interpretation lives in
-[SECRETS_BYOK_FEASIBILITY.md §7](./SECRETS_BYOK_FEASIBILITY.md#7-compliance-benefits)
+[SECRETS_BYOK_FEASIBILITY.md §7](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_BYOK_FEASIBILITY.md#7-compliance-benefits)
 for the per-tenant case.
 
 | Secret category                 | SOC2 (Trust Services Criteria) | PCI-DSS v4.0.1                    | GDPR                          | HIPAA Security Rule                    |
@@ -567,7 +569,7 @@ Immediate steps:
 5. Drop the compromised key from env once verification is complete.
 
 If the runtime model has migrated to KMS-backed envelope encryption
-(see [SECRETS_KMS_MIGRATION.md](./SECRETS_KMS_MIGRATION.md)): the
+(see [SECRETS_KMS_MIGRATION.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_KMS_MIGRATION.md)): the
 procedure simplifies to "rotate the KEK in the KMS and run re-wrap";
 the wrapped DEKs change, the data ciphertext stays.
 
@@ -680,10 +682,10 @@ Checklist for any contributor introducing a new secret.
 - **Production deployment delivery** (where secrets live in production
   runtimes, ESO / SOPS / dotenvx / Doppler / Vault) → [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)
 - **KMS migration** (envelope encryption, KEK / DEK model, four KMS
-  options, re-wrap procedure) → [SECRETS_KMS_MIGRATION.md](./SECRETS_KMS_MIGRATION.md)
+  options, re-wrap procedure) → [SECRETS_KMS_MIGRATION.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_KMS_MIGRATION.md)
 - **BYOK feasibility** (per-tenant key isolation, three levels L1 / L2 /
   L3, schema impact, compliance benefits, implementation phases) →
-  [SECRETS_BYOK_FEASIBILITY.md](./SECRETS_BYOK_FEASIBILITY.md)
+  [SECRETS_BYOK_FEASIBILITY.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_BYOK_FEASIBILITY.md)
 - **Rotation procedures** (per-secret step-by-step, NIST cryptoperiods,
   Argon2id parameters, decryption audit trail) →
   [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md)
