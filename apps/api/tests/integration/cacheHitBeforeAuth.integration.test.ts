@@ -8,8 +8,8 @@
  *              would do the same to its authentication. Tenant A loads its own project
  *              dashboard; tenant B (no access to the project) and an anonymous caller then
  *              send the identical query and must be refused by the route itself, never
- *              served A's body (CWE-639, CWE-306). A's own token, once expired, must be
- *              refused too, although the entry it filled is still cached. Every route a
+ *              served A's body (CWE-639, CWE-306). An expired token must be refused too,
+ *              although the entry its request would read is in the cache. Every route a
  *              cached rule declares public must answer a caller with no credentials, which
  *              catches an authenticating hook the boot guard cannot see. The last case
  *              proves the cache key names the caller without carrying the caller's
@@ -28,7 +28,7 @@ import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { createApp } from "../../src/index.js";
 import { env } from "../../src/config/env.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
-import { CACHE_CONFIG } from "../../src/lib/cache/cacheConfig.js";
+import { CACHE_CONFIG, generateApiCacheKey } from "../../src/lib/cache/cacheConfig.js";
 import { createRedisConnection } from "../../src/lib/redis.js";
 
 /** How long a case waits for the fire-and-forget cache write of a MISS to land. */
@@ -41,19 +41,17 @@ const CACHE_WRITE_DEADLINE_MS = 2000;
  */
 const CACHE_WIRE_PREFIX = "api:";
 
-/** Lifetime of the token the expiry case mints: long enough to load, short enough to wait out. */
-const SHORT_TOKEN_LIFETIME_S = 3;
-
 /**
- * @method shortLivedTokenFor
- * @description Mints a customer access token that expires within seconds, with the claims,
- *   issuer and audience `signCustomerAccessToken` uses, so `requireClientAuth` accepts it
- *   until it expires and refuses it afterwards.
+ * @method expiredTokenFor
+ * @description Mints a customer access token that expired a minute ago, signed with the
+ *   secret, claims, issuer and audience `signCustomerAccessToken` uses, so the only reason
+ *   `requireClientAuth` refuses it is its expiry.
  * @param accountId - The account the token authenticates
- * @returns The raw JWT and the second at which it expires
+ * @returns The raw JWT, without the `Bearer ` scheme
  */
-const shortLivedTokenFor = (accountId: string): { token: string; expiresAtSeconds: number } => {
-  const token = jwt.sign(
+const expiredTokenFor = (accountId: string): string => {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  return jwt.sign(
     {
       sub: `cache-auth-user-${accountId}`,
       accountId,
@@ -61,16 +59,12 @@ const shortLivedTokenFor = (accountId: string): { token: string; expiresAtSecond
       roleName: "OWNER",
       permissions: [],
       type: "customer",
+      iat: nowSeconds - 960,
+      exp: nowSeconds - 60,
     },
     env.CUSTOMER_JWT_SECRET,
-    {
-      expiresIn: SHORT_TOKEN_LIFETIME_S,
-      issuer: "omnipost-customer",
-      audience: "omnipost-customer-api",
-    }
+    { issuer: "omnipost-customer", audience: "omnipost-customer-api" }
   );
-  const decoded = jwt.decode(token) as { exp: number };
-  return { token, expiresAtSeconds: decoded.exp };
 };
 
 /**
@@ -347,27 +341,46 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
     assert.notEqual(res.payload, owner.payload);
   });
 
-  it("refuses the owner's cached dashboard to the owner once the owner's token has expired", async () => {
-    const { token, expiresAtSeconds } = shortLivedTokenFor(accountAId);
+  it("refuses a cached dashboard to a caller whose token has expired", async () => {
     const url = dashboardUrl();
-    const owner = await loadAndAwaitCacheWrite(url, token);
+    const owner = await loadAndAwaitCacheWrite(url, tokenA);
     const ownerData = dataJson(owner);
     assert.ok(ownerData, "the owner's dashboard carries a data payload");
+    const ownerKey = owner.headers["x-cache-key"] as string;
 
-    // The cached entry lives 5 minutes; the token dies first, and from then on the
-    // route refuses it, so the cache must too.
-    await new Promise((resolve) =>
-      setTimeout(resolve, Math.max(0, expiresAtSeconds * 1000 - Date.now()) + 100)
-    );
+    // The entry an expired token's request would read, planted directly: the entry the
+    // owner's MISS wrote, copied as written, under the key the read hook computes for the
+    // same request with the expired token. No wait on the clock decides the case.
+    const route = "/analytics/dashboard";
+    const rule = CACHE_CONFIG[`GET:${route}`];
+    assert.ok(rule?.enabled, `the ${route} rule is cached`);
+    const query = Object.fromEntries(new URL(url, "http://localhost").searchParams);
+    const keyFor = (token: string): string =>
+      generateApiCacheKey("GET", route, {}, query, { authorization: `Bearer ${token}` });
+    assert.equal(keyFor(tokenA), ownerKey, "the test builds the key the read hook builds");
+
+    const cache = app.cache;
+    assert.ok(cache, "the app decorates the cache port");
+    const ownerEntry = await cache.get<unknown>(ownerKey);
+    assert.ok(ownerEntry !== null, "the owner's MISS left an entry to copy");
+    const expiredToken = expiredTokenFor(accountAId);
+    const plantedKey = keyFor(expiredToken);
+    await cache.set(plantedKey, ownerEntry, {
+      ...(rule.ttl !== undefined && { ttlSeconds: rule.ttl }),
+      ...(rule.tags !== undefined && { tags: rule.tags }),
+    });
+    writtenKeys.set(plantedKey, rule.tags ?? []);
+    assert.ok(await cache.has(plantedKey), "the planted entry is in the cache");
+
     const res = await app.inject({
       method: "GET",
       url,
-      headers: { authorization: `Bearer ${token}` },
+      headers: { authorization: `Bearer ${expiredToken}` },
     });
 
     assert.notEqual(res.headers["x-cache"], "HIT", "an expired token never gets a cache HIT");
     assert.equal(res.statusCode, 401, `the route refuses an expired token: ${res.payload}`);
-    assert.notEqual(dataJson(res), ownerData, "no byte of the dashboard reaches an expired token");
+    assert.ok(!res.payload.includes(ownerData), "no byte of the cached dashboard is served");
   });
 
   it("answers a caller with no credentials on every route a cached rule declares public", async () => {
