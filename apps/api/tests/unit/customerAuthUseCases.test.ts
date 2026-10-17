@@ -7,6 +7,7 @@
 import { describe, it, expect, expectTypeOf, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
+import { until } from "@packages/vitest-shared/determinism";
 import argon2 from "argon2";
 import { RegisterCustomerUseCase } from "@core/customer-auth/RegisterCustomerUseCase.js";
 import type { DeletedAccountNoticeMailer } from "@core/domain/repositories/DeletedAccountNoticeMailer.js";
@@ -171,8 +172,31 @@ describe("RegisterCustomerUseCase", () => {
   let noticeMailer: { notifyRegistrationAttemptOnDeletedAccount: ReturnType<typeof vi.fn> };
   let platformLinks: { getPlatformCredentials: ReturnType<typeof vi.fn> };
 
-  /** Lets the fire-and-forget e-mail chains, all on resolved doubles, run to the end. */
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  /** The registration e-mails that have reached a mailer so far. */
+  const mailsSent = () =>
+    welcomeMailer.sendWelcome.mock.calls.length +
+    noticeMailer.notifyRegistrationAttemptOnDeletedAccount.mock.calls.length;
+
+  /**
+   * Checks that `execute` started exactly `count` registration e-mails, then waits until all of
+   * them have reached their mailers. The use case starts every e-mail before `execute` returns,
+   * never awaited, and each one reads the platform links as it starts, so the reads already
+   * count the e-mails started; the mailers are reached a few microtasks later.
+   */
+  const untilMailsReachMailers = async (count: number) => {
+    expect(platformLinks.getPlatformCredentials).toHaveBeenCalledTimes(count);
+    await until(() => mailsSent() === count, {
+      description: () => `${count} registration e-mail(s) to reach a mailer, ${mailsSent()} did`,
+      timeoutMs: 2_000,
+    });
+  };
+
+  /** Waits for the failure entry an e-mail chain logs once its send has failed. */
+  const untilMailFailureLogged = () =>
+    until(() => logger.error.mock.calls.length > 0, {
+      description: "the registration e-mail failure to be logged",
+      timeoutMs: 2_000,
+    });
 
   /** What the holder lookup asked each repository, comparable between two registrations. */
   const holderLookups = () => ({
@@ -262,7 +286,9 @@ describe("RegisterCustomerUseCase", () => {
     expect(unitOfWork.executeResultInTransaction).toHaveBeenCalledTimes(1);
     expect(unitOfWork.executeInTransaction).not.toHaveBeenCalled();
     assert.deepStrictEqual(unitOfWork.outcomes, ["commit"]);
-    await settle();
+    // The welcome e-mail is the one started; the notice is not.
+    await untilMailsReachMailers(1);
+    expect(welcomeMailer.sendWelcome).toHaveBeenCalledTimes(1);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).not.toHaveBeenCalled();
   });
 
@@ -276,7 +302,7 @@ describe("RegisterCustomerUseCase", () => {
 
     assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
     expect(accountRepo.save).not.toHaveBeenCalled();
-    await settle();
+    await untilMailsReachMailers(0);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).not.toHaveBeenCalled();
   });
 
@@ -288,7 +314,7 @@ describe("RegisterCustomerUseCase", () => {
     assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
     expect(accountRepo.save).not.toHaveBeenCalled();
     expect(unitOfWork.executeResultInTransaction).not.toHaveBeenCalled();
-    await settle();
+    await untilMailsReachMailers(0);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).not.toHaveBeenCalled();
   });
 
@@ -304,7 +330,7 @@ describe("RegisterCustomerUseCase", () => {
 
     assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
     expect(accountRepo.save).not.toHaveBeenCalled();
-    await settle();
+    await untilMailsReachMailers(1);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).toHaveBeenCalledExactlyOnceWith(
       "existing@example.com",
       { supportEmail: SUPPORT_EMAIL }
@@ -318,7 +344,7 @@ describe("RegisterCustomerUseCase", () => {
 
     assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
     expect(accountRepo.save).not.toHaveBeenCalled();
-    await settle();
+    await untilMailsReachMailers(1);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).toHaveBeenCalledExactlyOnceWith(
       "alice@testco.com",
       { supportEmail: SUPPORT_EMAIL }
@@ -333,7 +359,7 @@ describe("RegisterCustomerUseCase", () => {
     assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
     expect(accountRepo.existsDeletedByEmail).toHaveBeenCalledWith("billing@testco.com");
     expect(accountRepo.save).not.toHaveBeenCalled();
-    await settle();
+    await untilMailsReachMailers(1);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).toHaveBeenCalledExactlyOnceWith(
       "billing@testco.com",
       { supportEmail: SUPPORT_EMAIL }
@@ -347,7 +373,7 @@ describe("RegisterCustomerUseCase", () => {
     const result = await useCase.execute(input());
 
     assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
-    await settle();
+    await untilMailsReachMailers(1);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).toHaveBeenCalledTimes(1);
   });
 
@@ -457,7 +483,7 @@ describe("RegisterCustomerUseCase", () => {
     );
 
     assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
-    await settle();
+    await untilMailsReachMailers(2);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).toHaveBeenCalledTimes(2);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).toHaveBeenCalledWith(
       "alice@testco.com",
@@ -479,7 +505,7 @@ describe("RegisterCustomerUseCase", () => {
 
     assert.deepStrictEqual(result, err("INTERNAL_ERROR"));
     expect(accountRepo.save).not.toHaveBeenCalled();
-    await settle();
+    await untilMailsReachMailers(0);
     expect(noticeMailer.notifyRegistrationAttemptOnDeletedAccount).not.toHaveBeenCalled();
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ operation: "registerCustomer" }),
@@ -496,7 +522,7 @@ describe("RegisterCustomerUseCase", () => {
     const result = await useCase.execute(input());
 
     assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
-    await settle();
+    await untilMailFailureLogged();
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ operation: "registerCustomer.deletedAccountNotice" }),
       "A registration e-mail was not sent"
@@ -513,7 +539,7 @@ describe("RegisterCustomerUseCase", () => {
     const result = await useCase.execute(input());
 
     assert.deepStrictEqual(result, err("EMAIL_EXISTS"));
-    await settle();
+    await untilMailFailureLogged();
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ operation: "registerCustomer.deletedAccountNotice" }),
       "A registration e-mail was not sent"
@@ -526,7 +552,7 @@ describe("RegisterCustomerUseCase", () => {
     const result = await useCase.execute(input());
 
     assert.ok(result.ok);
-    await settle();
+    await untilMailFailureLogged();
     expect(logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ operation: "registerCustomer.welcomeEmail" }),
       "A registration e-mail was not sent"
