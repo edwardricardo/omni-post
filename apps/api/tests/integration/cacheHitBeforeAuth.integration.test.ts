@@ -386,8 +386,9 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
   it("answers a caller with no credentials on every route a cached rule declares public", async () => {
     // The boot guard refutes `public: true` only against hooks the route itself
     // carries; an authenticating hook a plugin adds with `addHook` is invisible to it.
-    // A route that refuses an anonymous caller is not public, whatever its rule says,
-    // and its cached body would be shared between every caller it admits.
+    // A public route answers every caller, so anything but a 2xx means the declaration
+    // is false or the probe is wrong, and both must surface.
+    const probeParam = "anonymous-check";
     const checked: string[] = [];
     for (const [key, rule] of Object.entries(CACHE_CONFIG)) {
       if (!key.startsWith("GET:") || rule.enabled !== true || rule.public !== true) {
@@ -398,24 +399,33 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
         continue;
       }
 
+      const substitutesParams = /:[^/]+/.test(pattern);
       const res = await app.inject({
         method: "GET",
-        url: pattern.replace(/:[^/]+/g, "anonymous-check"),
+        url: pattern.replace(/:[^/]+/g, probeParam),
       });
+
+      const probeNote =
+        substitutesParams && (res.statusCode === 400 || res.statusCode === 404)
+          ? ` Its path parameters were sent as "${probeParam}", and a ${res.statusCode} may ` +
+            "come from that value: give the probe a value the route accepts."
+          : "";
+      assert.ok(
+        res.statusCode >= 200 && res.statusCode < 300,
+        `${key} declares public: true, yet its route answers ${res.statusCode} to a caller ` +
+          `with no credentials: ${res.payload.slice(0, 300)}. A refusal from an authenticating ` +
+          "hook the boot guard cannot see means one caller's cached body would reach every " +
+          "other caller it admits: drop the declaration and vary the rule by " +
+          `"header:authorization".${probeNote}`
+      );
+
+      // Only a 2xx MISS is written to the cache, so only then is there a write to await.
       if (res.headers["x-cache"] === "MISS") {
         const cacheKey = recordCacheWrite(res);
         if (cacheKey !== undefined) {
           await awaitCacheWrite(cacheKey);
         }
       }
-
-      assert.ok(
-        res.statusCode !== 401 && res.statusCode !== 403,
-        `${key} declares public: true, yet its route answers ${res.statusCode} to a caller ` +
-          "with no credentials: an authenticating hook the boot guard cannot see guards it, " +
-          "so one caller's cached body would reach every other caller it admits. Drop the " +
-          'declaration and vary the rule by "header:authorization".'
-      );
       checked.push(key);
     }
 
