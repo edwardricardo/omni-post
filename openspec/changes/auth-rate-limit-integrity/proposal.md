@@ -78,7 +78,7 @@ Additional corrections landing with the change (not the two named, but the same 
 - `docs/api/auth.md:403` — _"Applied to all public auth endpoints via Fastify `rateLimit` config"_: false twice.
 - `docs/api/auth.md:37` — documents `/auth/*` as "admin authentication" and never documents `/admin/auth/*`, the login the portal should be using.
 - `docs/security/AUTH.md:322,324` — 5/15min holds for two routes, not universally; **`X-RateLimit-Limit` is never set by the limiter** (`:168-169, 204-205`), only by the dead `rbacMiddleware.ts:217` deleted in W2.
-- `docs/security/OVERVIEW.md` is the one accurate description in the set. Keep it.
+- `docs/security/OVERVIEW.md` is the one accurate description in the set. Keep it. (On 2026-10-17 it was folded into `docs/architecture/SECURITY.md` and deleted; the version this proposal read: [`docs/security/OVERVIEW.md`](https://github.com/edwardricardo/omni-post/blob/20542413c293aff3fcdbb96de7ba1d77d4a120f3/docs/security/OVERVIEW.md).)
 
 ### W9 — Fail-open telemetry that exists
 
