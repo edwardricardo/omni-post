@@ -40,12 +40,12 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 - **Polls**: Up to 4 options, 5min–7day duration
 - **Quote tweets**: Supported via `quote_tweet_id`
 - **Thread publishing**: Multi-tweet threads with reply chaining
-- **Rate limits**: ~50 tweets/15min (Basic tier)
+- **Rate limits**: 300 calls per 3 hours (`rateLimitHints`)
 - **Webhook events**: tweets created and deleted, likes, replies, retweets, follows and direct messages (`xWebhookProcessor`)
 
 ### Instagram
 
-- **Auth**: Facebook Login / Instagram Graph API
+- **Auth**: OAuth 2.0 through `api.instagram.com/oauth/authorize`; the adapter takes `accessToken` and `userId`
 - **Max characters**: 2,200
 - **Max images**: 20 (carousel; `maxMediaPerPost`)
 - **Max video duration**: Unknown (the adapter declares none)
@@ -73,7 +73,7 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 - **Content types**: Video, Short, Live Stream
 - **Comments**: Read via `commentThreads.list`, reply via `comments.insert`
 - **Analytics**: Views, likes, comments, shares, watch time, subscribers gained
-- **Quota**: 10,000 units/day (1 unit per read, 50 per write)
+- **Quota**: Unknown; the adapter's `rateLimitHints` are 100 calls per hour
 - **Webhook events**: videos published and updated, comments, channel and analytics updates (`youtubeWebhookProcessor`)
 
 ### TikTok
@@ -142,7 +142,7 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 
 ### Bluesky
 
-- **Auth**: AT Protocol (app password or OAuth)
+- **Auth**: AT Protocol app password (`identifier`, `appPassword`); no OAuth
 - **Max characters**: 300, checked as JavaScript string length
 - **Max images**: 4
 - **Max video duration**: no video (`allowedMedia: ["image"]`)
@@ -157,7 +157,7 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 
 ### Threads
 
-- **Auth**: OAuth (`accessToken` and `userId` credentials)
+- **Auth**: OAuth per the adapter's metadata (`accessToken` and `userId` credentials); the API's connect flow does not implement it
 - **Max characters**: 500
 - **Max media per post**: 10 images or videos; more than one is published as a carousel
 - **Aspect ratios**: 1:1, 4:5, 9:16, 16:9
@@ -170,35 +170,37 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 
 ## Authentication Requirements
 
-| Provider  | Auth Type        | Required Scopes                                                                              |
-| --------- | ---------------- | -------------------------------------------------------------------------------------------- |
-| X         | OAuth 2.0 PKCE   | `tweet.read`, `tweet.write`, `users.read`                                                    |
-| Instagram | Facebook Login   | `instagram_basic`, `instagram_content_publish`                                               |
-| Facebook  | Facebook Login   | `pages_manage_posts`, `pages_read_engagement`                                                |
-| YouTube   | Google OAuth 2.0 | `youtube.upload`, `youtube.readonly`                                                         |
-| TikTok    | OAuth 2.0        | `video.upload`, `user.info.basic`                                                            |
-| LinkedIn  | OAuth 2.0        | `w_member_social`, `r_liteprofile`                                                           |
-| Telegram  | Bot Token        | N/A (bot token is the auth)                                                                  |
-| Snapchat  | OAuth 2.0        | `snapchat-marketing-api`                                                                     |
-| Pinterest | OAuth 2.0        | `boards:read`, `pins:read`, `pins:write`                                                     |
-| Bluesky   | AT Protocol      | N/A (app password or OAuth session)                                                          |
-| Threads   | OAuth            | `threads_basic`, `threads_content_publish`, `threads_read_replies`, `threads_manage_replies` |
+| Provider  | Auth Type                                           | Required Scopes                                                                              |
+| --------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| X         | OAuth 2.0 PKCE                                      | `tweet.read`, `tweet.write`, `users.read`                                                    |
+| Instagram | OAuth 2.0 (`api.instagram.com`)                     | `instagram_basic`, `instagram_content_publish`                                               |
+| Facebook  | Facebook Login                                      | `pages_manage_posts`, `pages_read_engagement`                                                |
+| YouTube   | Google OAuth 2.0                                    | `youtube.upload`, `youtube.readonly`                                                         |
+| TikTok    | OAuth 2.0                                           | `video.upload`, `user.info.basic`                                                            |
+| LinkedIn  | OAuth 2.0                                           | `w_member_social`, `w_organization_social`, `openid`, `profile`                              |
+| Telegram  | Bot Token                                           | N/A (bot token is the auth)                                                                  |
+| Snapchat  | OAuth 2.0                                           | `snapchat-marketing-api`, `snapchat-profile-api`                                             |
+| Pinterest | OAuth 2.0                                           | `boards:read`, `boards:write`, `pins:read`, `pins:write`, `user_accounts:read`               |
+| Bluesky   | AT Protocol                                         | N/A (`identifier` and `appPassword`)                                                         |
+| Threads   | OAuth; the API's connect flow does not implement it | `threads_basic`, `threads_content_publish`, `threads_read_replies`, `threads_manage_replies` |
 
 ## Rate Limits
 
-| Provider  | Burst        | Window     | Notes                          |
-| --------- | ------------ | ---------- | ------------------------------ |
-| X         | 50 tweets    | 15 minutes | Basic tier ($100/mo for polls) |
-| Instagram | 25 posts     | 24 hours   | Per account                    |
-| Facebook  | 200 calls    | 1 hour     | Per user token                 |
-| YouTube   | 10,000 units | 24 hours   | 1 unit read, 50 units write    |
-| TikTok    | 50 requests  | 1 hour     | Content Publishing API         |
-| LinkedIn  | 100 calls    | 24 hours   | Per member                     |
-| Telegram  | 30 messages  | 1 second   | Per bot                        |
-| Snapchat  | 100 calls    | 1 hour     | Marketing API                  |
-| Pinterest | 1,000 calls  | 1 hour     | Per app                        |
-| Bluesky   | 3,000 calls  | 5 minutes  | AT Protocol rate limits        |
-| Threads   | 60 calls     | 24 hours   | The adapter's `rateLimitHints` |
+Burst and Window are each adapter's `rateLimitHints` (`burst` calls per `perSeconds`). The limits each provider enforces are not recorded in the packages, so every Notes cell reads Unknown.
+
+| Provider  | Burst | Window   | Notes   |
+| --------- | ----- | -------- | ------- |
+| X         | 300   | 3 hours  | Unknown |
+| Instagram | 25    | 24 hours | Unknown |
+| Facebook  | 200   | 1 hour   | Unknown |
+| YouTube   | 100   | 1 hour   | Unknown |
+| TikTok    | 50    | 1 hour   | Unknown |
+| LinkedIn  | 100   | 24 hours | Unknown |
+| Telegram  | 30    | 1 second | Unknown |
+| Snapchat  | 20    | 1 second | Unknown |
+| Pinterest | 100   | 1 second | Unknown |
+| Bluesky   | 100   | 1 hour   | Unknown |
+| Threads   | 60    | 24 hours | Unknown |
 
 ## Webhook Processors
 
