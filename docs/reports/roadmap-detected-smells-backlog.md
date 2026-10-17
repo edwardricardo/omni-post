@@ -271,8 +271,10 @@ Backlog audit pre-Implementation Roadmap. Cada SMELL fue evaluado con las 3 preg
   explicit so the post-fases sweep can route them to whichever
   workstream they actually belong to.
 - **FN-\* migration (2026-07-21)** — 29 unique F5 dead-code / forgotten-feature
-  findings were migrated here from the now-frozen
-  `docs/archive/PENDING_WORK_INVENTORY.md` (§3D-G / §4B / §5-5.1) so the
+  findings were migrated here from the then-frozen
+  [`docs/archive/PENDING_WORK_INVENTORY.md`](https://github.com/edwardricardo/omni-post/blob/cb4921bda93a39e300f1bd5203985edde8055258/docs/archive/PENDING_WORK_INVENTORY.md)
+  (§3D-G / §4B / §5-5.1; removed from the repository on 2026-10-17, git
+  history keeps it) so the
   live tracking has a single home ("un solo orden"). Each was **verified
   against `main`** before migrating: 6 are **ALREADY-RESOLVED** with evidence
   (FN-001 deleted `bab9bab2`, FN-006, FN-013 + FN-045 `@layer`-fixed, FN-038,
