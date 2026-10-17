@@ -273,7 +273,7 @@ describe("Cache Configuration - generateApiCacheKey", () => {
     expect(key.includes("status=published")).toBeTruthy();
   });
 
-  it("should include header values when specified in varyBy", () => {
+  it("should include a digest of header values when specified in varyBy, never the value", () => {
     const key = generateApiCacheKey(
       "GET",
       "/users/me",
@@ -281,7 +281,8 @@ describe("Cache Configuration - generateApiCacheKey", () => {
       {},
       { authorization: "Bearer token123" }
     );
-    expect(key.includes("authorization=Bearer token123")).toBeTruthy();
+    expect(key.includes("token123")).toBeFalsy();
+    expect(/authorization=sha256-[0-9a-f]{32}/.test(key)).toBeTruthy();
   });
 
   it("should include user ID when provided", () => {
