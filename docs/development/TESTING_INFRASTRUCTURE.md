@@ -3,7 +3,7 @@
 **Owner:** Platform engineering
 **As of:** 2026-09-27
 
-The one living description of how omni-post is tested: which frameworks are installed, which test files any runner reaches, what CI executes, and which gates cannot fail. It replaces [`docs/archive/testing-backlog.md`](https://github.com/edwardricardo/omni-post/blob/f89a0f519cf37679bd9d4236e120f4b7283f71ca/docs/archive/testing-backlog.md), [`docs/archive/testing-infrastructure-complete.md`](https://github.com/edwardricardo/omni-post/blob/f89a0f519cf37679bd9d4236e120f4b7283f71ca/docs/archive/testing-infrastructure-complete.md) and [`docs/archive/CI_TEST_REACH_AUDIT.md`](https://github.com/edwardricardo/omni-post/blob/f89a0f519cf37679bd9d4236e120f4b7283f71ca/docs/archive/CI_TEST_REACH_AUDIT.md), all three removed from the repository on 2026-10-17 (git history keeps them; the links are their last version). It does not yet adjudicate the other testing documents in `docs/` (`architecture/TESTING.md`, `architecture/chaos-testing.md`, `architecture/provider-testing.md`, `development/saga-test-suites.md`, `security/SECURITY_TESTING_FRAMEWORK.md`, the two `e2e/README.md` files); where one of them states a version, a count or a coverage figure that this document contradicts, this document is the measured one. It records findings. The action plan that follows from them is decided separately and is not written here.
+The one living description of how omni-post is tested: which frameworks are installed, which test files any runner reaches, what CI executes, and which gates cannot fail. It replaces [`docs/archive/testing-backlog.md`](https://github.com/edwardricardo/omni-post/blob/f89a0f519cf37679bd9d4236e120f4b7283f71ca/docs/archive/testing-backlog.md), [`docs/archive/testing-infrastructure-complete.md`](https://github.com/edwardricardo/omni-post/blob/f89a0f519cf37679bd9d4236e120f4b7283f71ca/docs/archive/testing-infrastructure-complete.md) and [`docs/archive/CI_TEST_REACH_AUDIT.md`](https://github.com/edwardricardo/omni-post/blob/f89a0f519cf37679bd9d4236e120f4b7283f71ca/docs/archive/CI_TEST_REACH_AUDIT.md), all three removed from the repository on 2026-10-17 (git history keeps them; the links are their last version). Since 2026-10-17 it also carries, under section 3, what stayed true in the testing strategy page, [`docs/architecture/TESTING.md`](https://github.com/edwardricardo/omni-post/blob/271d05bc59ad38bb67560d4305d610fae3ea002e/docs/architecture/TESTING.md): how the `node:test` runner works. That page was removed from the repository the same day (git history keeps it; the link is its last version). It does not yet adjudicate the other testing documents in `docs/` (`architecture/chaos-testing.md`, `architecture/provider-testing.md`, `development/saga-test-suites.md`, `security/SECURITY_TESTING_FRAMEWORK.md`, the two `e2e/README.md` files); where one of them states a version, a count or a coverage figure that this document contradicts, this document is the measured one. It records findings. The action plan that follows from them is decided separately and is not written here.
 
 ## The state in one table
 
@@ -293,6 +293,53 @@ The admin config run by hand, because `apps/admin/package.json` has no E2E scrip
 #### Nightly
 
 31 issues labelled `nightly-failure` are open, created from 2026-08-26 to 2026-09-26 (M, `gh issue list --label nightly-failure --state open`). The plan counted 40 failures in 40 runs, with the test steps passing inside them (P). The latest run, 36229399515 on 2026-09-26, failed on the step "Upload mutation reports" (M, `gh run view`), a step that no longer exists on `main`. No nightly had run on a tree without that step when this document was written (2026-09-27T02:03Z).
+
+### The `node:test` runner
+
+Carried over on 2026-10-17 from the testing strategy page, and read against `apps/api/scripts/run-tests.sh`, `scripts/testing/node-summary-reporter.mjs`, the `Integration Tests` job of `ci.yml` and `packages/eslint-plugin-testing` (M).
+
+**The collector.** `apps/api/scripts/run-tests.sh` finds the suites by suffix: the services tier is every `*.integration.test.ts` under `tests/`, the live tier every `*.live.test.ts`. It runs each file in its own Node.js process, one after another, so every file gets its own verdict, and before each live file it probes the API at `TEST_API_URL` and the workers at `TEST_WORKERS_READY_URL`. `--test-force-exit` ends a process that Prisma's connection pool would keep open.
+
+**The verdict comes from Node's test events, not from a formatted report.** Node declares the text of its reporters unstable and ships no JSON reporter, so each process runs the repository's own reporter, `scripts/testing/node-summary-reporter.mjs` (design decision DD-7). It reads the documented `TestsStream` events and prints one anchored line, which is all the collector reads:
+
+```text
+@@SUMMARY tests=N pass=N fail=N cancelled=N skipped=N todo=N
+```
+
+| What a file's run shows                   | What the reporter does                                                                                                                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The counts                                | Takes them from the run's `test:summary` event and cross-checks them against its own tally of the test events; on a mismatch it prints both and the line takes the count that fails the run |
+| A test cut short (a broken `before` hook) | Counts it as cancelled, as Node does: a failure of type `cancelledByParent`, `testTimeoutFailure` or `testAborted`                                                                          |
+| A file that registers no test             | Leaves out the passing test Node reports in its place, named by the file's path, so the file counts zero tests, which fails a run with `TIER` set                                           |
+| A failure                                 | Prints `failed:`, `cancelled:` or `suite failed:` with the test's name and location, its error, its cause and its first stack frames outside Node                                           |
+| A skip or a todo                          | Prints `skipped:` or `todo:` with its reason                                                                                                                                                |
+| What a suite prints, and each diagnostic  | Relays it behind `# `, so no line a suite prints can pass for the summary line                                                                                                              |
+
+A file fails on any failed or cancelled test, on a skipped test or zero tests when `TIER` is set, on a non-zero exit, and on a run with no `@@SUMMARY` line at all.
+
+**Tiers, and the order CI runs them in.** `TIER` picks what one run executes: unset runs both tiers (the local default, without the tier-only skip and zero-collection guards), `pr-integration` runs the services tier alone and `live-integration` the live tier alone. The `Integration Tests` job of `ci.yml` runs `pr-integration` before it starts the API and the workers, and `live-integration` after them. The order matters: a running API advances every tenant's sagas from its own retry scan, so a services suite that shares the database with one races a saga engine it never booted (DEF-82). The battery's `tier` step runs `pr-integration` with no API running.
+
+```bash
+# From apps/api. Unit and eval suites (vitest):
+pnpm test
+# Both node:test tiers. Needs PostgreSQL and Redis and the root .env.test exported;
+# the live tier also needs the API and the workers running, with TEST_API_URL and
+# TEST_WORKERS_READY_URL exported (http://localhost:3000 and
+# http://localhost:3300/health/ready for a local stack).
+pnpm test:integration
+# The two halves CI runs apart
+TIER=pr-integration bash scripts/run-tests.sh
+TIER=live-integration bash scripts/run-tests.sh
+# Only the named suites, each in its own tier and with its tier's guards
+bash scripts/run-tests.sh tests/auth.integration.test.ts tests/security.live.test.ts
+# What the collector runs for one file; SUMMARY_REPORTER is the absolute path of
+# scripts/testing/node-summary-reporter.mjs
+node --conditions development --import tsx --test \
+  --test-reporter="$SUMMARY_REPORTER" --test-reporter-destination=stdout \
+  --test-force-exit --test-concurrency=1 --test-timeout="${TIMEOUT:-30000}" "$file"
+```
+
+**Diagnostic output goes to stderr.** In a node:test child process, stdout is the runner's message channel: the parent reads it as serialized frames, and on Node 24.15.0 a line written right after a frame whose third byte is 0x80 or above (a leading "✓", "⚠️" or emoji) is read as the next frame's length, so the whole file is reported failed although its tests passed (DEF-83). Write diagnostics with `console.error` or `console.warn`, and nothing to stdout: the byte that decides is the third of the text at run time, so an ASCII-leading line such as "OK✓" fails too, and no reading of the source can tell a safe line from a fatal one. The lint rule `testing/no-stdout-in-node-test` (`packages/eslint-plugin-testing`) holds this on every file under `apps/api/tests` outside `unit/` and `eval/`: it rejects a call of `process.stdout.write` and of each console member that writes to stdout (`log`, `info`, `debug`, `dir`, `dirxml`, `table`, `count`, `group`, `groupCollapsed`, `timeLog`, `timeEnd`), through an alias too, and leaves a spy or a mock alone. Three dead files no suite imports (`tests/run.ts`, `tests/run-with-coverage.ts`, `tests/setup/verifyServices.ts`) are ignored until the testing re-foundation deletes them. A module outside that glob that a node:test suite imports runs in the child as well, and the rule does not see it: `tests/unit/admin/adminTestHelper.ts`, `tests/unit/sagaManager.test-helpers.ts`, `apps/workers/tests/setup.ts` and `infra/prisma/scripts/backfill-admin-mfa-backup-codes.ts` are imported that way, and none of them writes to stdout. Node fixed the parser in v24.20.0 ([nodejs/node#64706](https://github.com/nodejs/node/pull/64706)) and more fully in v26.11.1 ([nodejs/node#66273](https://github.com/nodejs/node/pull/66273)). The repository has run on Node 26.11.1 or later since 2026-10-15 (ADR-0038), and the rule stays.
 
 ## 4. Gates that cannot fail
 

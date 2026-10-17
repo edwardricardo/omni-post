@@ -302,6 +302,7 @@ A bracketed reference such as `[docs/x.md:12]` links to the version of the page 
 
 [docs/security/OVERVIEW.md:176]: https://github.com/edwardricardo/omni-post/blob/20542413c293aff3fcdbb96de7ba1d77d4a120f3/docs/security/OVERVIEW.md#L176
 [docs/architecture/SECURITY.md:177]: https://github.com/edwardricardo/omni-post/blob/88bc6d2a08be7b42afb1964082a6b2a0bfc26faf/docs/architecture/SECURITY.md#L177
+[docs/architecture/TESTING.md:158]: https://github.com/edwardricardo/omni-post/blob/ba39279bc1db5e89c8bf69cac9c8812f149042f8/docs/architecture/TESTING.md#L158
 
 **Who is misled — and this one has a cost beyond reading.** Two of these are counted as remediation _targets_: `SMELL-47` (`roadmap-detected-smells-backlog.md:79`) lists `credentialManager` (1 site) and `auditLogger` (3 sites) among its 14 `prisma.auditLog` bypasses, and `docs/reports/N_SEC_7_CLUSTER_B_MFA_DISPOSITION.md:104` cites `auditLogger.ts:381,384` as a live defect. **Engineering time is budgeted to migrate dead code.** Three security documents describe an architecture the running system does not have.
 
@@ -859,7 +860,7 @@ Ordered by risk-of-inaction, not by size:
 5. **`validateEvent` in the event write path.** Twelve Zod schemas (`packages/shared/src/events.ts:79-213`) tested and called only from tests, while `ARCHITECTURE_CANON §Event-Driven Architecture` claims every dispatched event has a registered schema. One call in `EventService` before append.
 6. **Two one-line wire-ups:** register `DatabaseConnectionPoolHealthChecker` (`healthRoutes.ts:81-106`); import `playlistAnalyticsHelpers` into `playlistManager.ts`, whose own header comment at `:4` points at it.
 7. **Three dead nav links** (`apps/client/.../dashboard/layout.tsx:91` `/dashboard/queue` — no route; `:170` `/dashboard/settings` — no `page.tsx`; the `/logs` link covered above).
-8. **The documentation correction bucket**, near-free and the thing that stops the next audit re-deriving the same wrong conclusions: `docs/architecture/README.md:70`, [docs/architecture/SECURITY.md:177], [docs/security/OVERVIEW.md:176], SMELL-47's site list (4 of its 14 sites are dead files), `MASTER_PLAN_ES.md:214`, `docs/security/SECRETS.md:391` (the seed hardcodes `admin@omnipost.local` at `seed.ts:741`; `ADMIN_EMAIL` is read by nothing), `docs/architecture/TESTING.md:158`.
+8. **The documentation correction bucket**, near-free and the thing that stops the next audit re-deriving the same wrong conclusions: `docs/architecture/README.md:70`, [docs/architecture/SECURITY.md:177], [docs/security/OVERVIEW.md:176], SMELL-47's site list (4 of its 14 sites are dead files), `MASTER_PLAN_ES.md:214`, `docs/security/SECRETS.md:391` (the seed hardcodes `admin@omnipost.local` at `seed.ts:741`; `ADMIN_EMAIL` is read by nothing), [docs/architecture/TESTING.md:158].
 
 ### 8.3 Product decisions — do not treat these as cleanup
 
