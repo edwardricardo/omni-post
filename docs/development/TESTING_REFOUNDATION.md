@@ -869,7 +869,7 @@ owner's decision ([D52](#decisions-log), ADR-0038; branch `workstream/node-26`).
 | 8     | 8.4    | `provider-testing.md` → folded and archived                                 | ✅     | `docs-minimization-granular`  | deleted, owner 2026-10-16; git keeps it | 2026-10-17 |
 | 8     | 8.5    | `saga-test-suites.md` → corrected                                           | ⬜     | —                             | —                                       | —          |
 | 8     | 8.6    | `SECURITY_TESTING_FRAMEWORK.md` → corrected                                 | ⬜     | —                             | —                                       | —          |
-| 8     | 8.7    | The four E2E READMEs → archived frozen                                      | ⬜     | —                             | —                                       | —          |
+| 8     | 8.7    | The four E2E READMEs → archived frozen                                      | ✅     | `docs-minimization-granular`  | deleted, owner 2026-10-16; git keeps it | 2026-10-17 |
 | 8     | 8.8    | `TESTING_INFRASTRUCTURE.md` re-measured and protected                       | ⬜     | —                             | —                                       | —          |
 | 8     | 8.9    | Correct the false #32 comment                                               | ⬜     | —                             | —                                       | —          |
 | 9     | 9      | The queue, measured under the new battery                                   | ⬜     | —                             | —                                       | —          |
