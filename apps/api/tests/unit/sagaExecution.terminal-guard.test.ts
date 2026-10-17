@@ -9,6 +9,7 @@ import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import {
   TEST_ACCOUNT_ID,
+  awaitSagaEnded,
   createMockRedis,
   createMockEventService,
   createSimpleSagaDefinition,
@@ -86,7 +87,7 @@ describe("V5: Terminal State Guard", () => {
     manager.registerSaga(definition);
 
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await awaitSagaEnded(manager, instance.id);
 
     const saga = await manager.getSaga(instance.id);
     expect(saga).toBeTruthy();
@@ -98,7 +99,7 @@ describe("V5: Terminal State Guard", () => {
     manager.registerSaga(definition);
 
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await awaitSagaEnded(manager, instance.id);
 
     const sagaBefore = await manager.getSaga(instance.id);
     expect(sagaBefore).toBeTruthy();
@@ -125,7 +126,7 @@ describe("V5: Terminal State Guard", () => {
     manager.registerSaga(failDef);
 
     const instance = await manager.startSaga(failDef.id, { accountId: TEST_ACCOUNT_ID });
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     const sagaAfterFail = await manager.getSaga(instance.id);
     expect(sagaAfterFail).toBeTruthy();
@@ -149,7 +150,7 @@ describe("V5: Terminal State Guard", () => {
     expect(instance).toBeTruthy();
 
     // Wait for async execution
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await awaitSagaEnded(manager, instance.id);
 
     const saga = await manager.getSaga(instance.id);
     expect(saga).toBeTruthy();

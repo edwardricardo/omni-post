@@ -11,6 +11,7 @@ import {
   MockRedis,
   MockEventService,
   TEST_ACCOUNT_ID,
+  awaitSagaEnded,
   createMockPrisma,
   createMockRedis,
   createMockEventService,
@@ -45,7 +46,7 @@ describe("SagaManager - Saga Execution", () => {
 
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await awaitSagaEnded(manager, instance.id);
 
     const sagaInstance = await manager.getSaga(instance.id);
     expect(sagaInstance).toBeTruthy();
@@ -59,7 +60,7 @@ describe("SagaManager - Saga Execution", () => {
 
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await awaitSagaEnded(manager, instance.id);
 
     const sagaInstance = await manager.getSaga(instance.id);
     expect(sagaInstance).toBeTruthy();
@@ -75,9 +76,9 @@ describe("SagaManager - Saga Execution", () => {
     const definition = createMultiStepSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await awaitSagaEnded(manager, instance.id);
 
     const stepCompletedEvents = mockEventService.publishedEvents.filter(
       (e) => e.type === SAGA_EVENTS.SAGA_STEP_COMPLETED
@@ -95,7 +96,7 @@ describe("SagaManager - Saga Execution", () => {
       metadata: { testValue: "shared-data" },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await awaitSagaEnded(manager, instance.id);
 
     const sagaInstance = await manager.getSaga(instance.id);
     expect(sagaInstance).toBeTruthy();
@@ -107,9 +108,9 @@ describe("SagaManager - Saga Execution", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await awaitSagaEnded(manager, instance.id);
 
     const completedEvents = mockEventService.publishedEvents.filter(
       (e) => e.type === SAGA_EVENTS.SAGA_COMPLETED
@@ -126,9 +127,9 @@ describe("SagaManager - Saga Execution", () => {
     const metricsBefore = manager.getMetrics();
     const completedBefore = metricsBefore.sagasCompleted;
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    await awaitSagaEnded(manager, instance.id);
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.sagasCompleted).toBe(completedBefore + 1);
@@ -158,11 +159,10 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
-    const _sagaInstance = await manager.getSaga(definition.id);
     const metrics = manager.getMetrics();
     expect(metrics.sagasFailed).toBe(1);
   });
@@ -171,9 +171,9 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     const failedEvents = mockEventService.publishedEvents.filter(
       (e) => e.type === SAGA_EVENTS.SAGA_FAILED
@@ -190,16 +190,17 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the saga to fail (FailingStep causes failure)
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     const sagaInstance = await manager.getSaga(instance.id);
     expect(sagaInstance).toBeTruthy();
     expect(sagaInstance.status).toBe("FAILED");
 
-    // Now trigger manual compensation on the naturally-failed saga
+    // Now trigger manual compensation on the naturally-failed saga. It leaves the row
+    // COMPENSATING and dispatches the walk detached, so the next ending is the walk's.
     await manager.compensateSaga(instance.id);
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     const compensatedEvents = mockEventService.publishedEvents.filter(
       (e) => e.type === SAGA_EVENTS.SAGA_COMPENSATION_COMPLETED
@@ -224,9 +225,9 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const metricsBefore = manager.getMetrics();
     const failedBefore = metricsBefore.sagasFailed;
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.sagasFailed).toBe(failedBefore + 1);
@@ -255,9 +256,10 @@ describe("SagaManager - Retry Logic", () => {
     const definition = createFailingSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // A scheduled retry would leave the saga unended, so this wait also fails on one.
+    await awaitSagaEnded(manager, instance.id);
 
     const stepFailedEvents = mockEventService.publishedEvents.filter(
       (e) => e.type === SAGA_EVENTS.SAGA_STEP_FAILED
