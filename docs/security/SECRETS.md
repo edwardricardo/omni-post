@@ -386,14 +386,25 @@ update the `WebhookSubscription` row. Detailed rotation cadence in
 | Model.field                     | Generation                        | TTL                         | Validation                                   |
 | ------------------------------- | --------------------------------- | --------------------------- | -------------------------------------------- |
 | `AdminUser.passwordResetToken`  | `crypto.randomUUID()`             | 1 hour                      | Plaintext lookup; UUID v4 = 122 bits entropy |
-| `CustomerUser.emailVerifyToken` | None: no code issues it           | `emailVerifyExpiry`         | Plaintext lookup                             |
+| `CustomerUser.emailVerifyToken` | None: no code writes it           | `emailVerifyExpiry`         | None: no code looks it up                    |
 | `CustomerUser.resetToken`       | `randomBytes(32).toString('hex')` | 1 hour                      | Plaintext lookup; 256 bits entropy           |
 | `CustomerUser.inviteToken`      | `crypto.randomUUID()`             | 7 days, `inviteTokenExpiry` | Plaintext lookup                             |
 
-These are not "rotated" in the traditional sense — they expire and are
-discarded. The lifecycle is: issued by API → emailed to user once →
-consumed (single-use) → marked used or expired. There is no graceful
-window because there is no long-lived value.
+The code issues three of these tokens today: `AdminUser.passwordResetToken`,
+`CustomerUser.resetToken` and `CustomerUser.inviteToken`. They are not
+"rotated" in the traditional sense — they expire and are discarded. Their
+lifecycle is: issued by API → emailed to user once → consumed (single-use)
+→ marked used or expired. There is no graceful window because there is no
+long-lived value.
+
+`CustomerUser.emailVerifyToken` is a column only: the schema has it, the
+repository maps it into the entity on read
+(`apps/api/src/infrastructure/repositories/PrismaCustomerUserRepository.ts:503`),
+and `CustomerUser.markEmailVerified()`
+(`packages/core/domain/src/entities/CustomerUser.ts:383`) clears it in
+memory, but only a unit test calls that method, the repository's save does
+not write the column, and no code issues the token or looks it up. The
+dead-code ledger has no row for it.
 
 ### 6.5 Class C — plaintext
 
