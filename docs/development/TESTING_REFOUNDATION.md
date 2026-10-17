@@ -1,10 +1,10 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-17 — #633 (`4e73e6dc`, `workstream/docs-minimization-granular`) deleted the
-documents of rows 8.2, 8.3, 8.4 and 8.7, which the plan archived ([D53](#decisions-log)). Phase 0 is
-closed, row 0.16 aside (🔄); Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1010 + 14` · M5 `29 · 0` ·
-M7 `38/38` · M8 `1/93`. Every unit's line is in [§Log](#log).
+**As of:** 2026-10-17 — #634 (`f55a21a2`, DEF-104) added the cache suite
+`cacheHitBeforeAuth.integration.test.ts`. Phase 0 is closed, row 0.16 aside (🔄); Phase 1 has 1.13,
+1.14 and 1.15 left. M1 `1011 + 14` · M5 `29 · 0` · M7 `38/38` · M8 `1/93`. Every unit's line is in
+[§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -407,6 +407,7 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 
 Newest first; a line with no date or no pull request number is one whose record named none.
 
+- 2026-10-17 — DEF-104, `PR hfx` (`workstream/hotfix-cache-hit-before-auth`) — #634 (`f55a21a2`) — a cached response reaches only a caller the route admits: the cache read is the route's last `preHandler`, every cached rule of an authenticated route is keyed by the caller, and a boot guard refuses one that is not — M1 `1010 + 14` → `1011 + 14`
 - 2026-10-17 — rows 8.2, 8.3, 8.4 and 8.7 (`workstream/docs-minimization-granular`) — #633 (`4e73e6dc`) — their documents deleted with `docs/archive` ([D53](#decisions-log)); four rows ✅, no metric
 - 2026-10-16 — C-P1b, `PR cp1b` (`workstream/night-cp1b-register-500`) — registration answers one `409 EMAIL_EXISTS` for every held address, live or deleted, and the account save joins the Unit of Work — M1 `1007 + 14` → `1010 + 14`
 - 2026-10-16 — reach-engine hardening, `PR reach` (`workstream/night-r2-reach-engine`), book rows SB-123 to SB-146 — the CLIs refuse bad input and name their output caps; `describeExit` words every failed child — M1 `1006 + 14` → `1007 + 14`
