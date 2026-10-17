@@ -104,14 +104,14 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 
 ## Features
 
-| Document                                                         | What it covers                                                                    |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| [Provider Capabilities](features/provider-capabilities.md)       | Capability matrix, per-provider details, authentication requirements, rate limits |
-| [Billing Gateways](features/billing-gateways.md)                 | Payment gateways and country routing                                              |
-| [Media Storage](features/media-storage.md)                       | Storage configuration, private access, health and upload limits                   |
-| [Bulk Scheduling Redesign](features/bulk-scheduling-redesign.md) | Post targeting model and bulk scheduling                                          |
-| [Templates](features/templates.md)                               | Template engine, A/B testing, versioning                                          |
-| [Webhook Ingest Wiring](features/WEBHOOK_INGEST_WIRING_ES.md)    | Wiring the inbound webhook ingestion pipeline                                     |
+| Document                                                         | What it covers                                                                                                 |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [Provider Capabilities](features/provider-capabilities.md)       | Capability matrix, per-provider details, authentication, rate limits, the adapter interface, adding a provider |
+| [Billing Gateways](features/billing-gateways.md)                 | Payment gateways and country routing                                                                           |
+| [Media Storage](features/media-storage.md)                       | Storage configuration, private access, health and upload limits                                                |
+| [Bulk Scheduling Redesign](features/bulk-scheduling-redesign.md) | Post targeting model and bulk scheduling                                                                       |
+| [Templates](features/templates.md)                               | Template engine, A/B testing, versioning                                                                       |
+| [Webhook Ingest Wiring](features/WEBHOOK_INGEST_WIRING_ES.md)    | Wiring the inbound webhook ingestion pipeline                                                                  |
 
 ## Product and plan
 

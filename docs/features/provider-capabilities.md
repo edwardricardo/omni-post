@@ -197,3 +197,29 @@ OmniPost supports 10 social media providers. Each provider adapter implements th
 | Snapchat  | `snapchatWebhookProcessor`  | HMAC-SHA256          |
 | Pinterest | N/A                         | No webhook API       |
 | Bluesky   | `blueskyWebhookProcessor`   | Firehose/Jetstream   |
+
+## The adapter interface
+
+Read from the code on 2026-10-17. This section and the next two replace the provider system page, [`docs/architecture/PROVIDERS.md`](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/architecture/PROVIDERS.md), which was removed from the repository that day (git history keeps it; the link is its last version).
+
+Each of the 11 adapters is a class in `packages/providers/<name>/src/<Name>Adapter.ts` that implements `ProviderAdapter` from `@ports/core` (`packages/ports/src/ProviderAdapter.ts`), built by a `create<Name>Adapter` factory. The port holds `id`, `limits` (`ProviderLimits`: `maxChars`, `maxMediaPerPost` and `allowedMedia` required, the rest optional) and `capabilities` (`publish`, `schedule`, `analytics`, `comments`, `replies`, `threading`, `mentions`), and three required methods:
+
+- `validateCredentials(credentials)`, which fails with `AUTH_INVALID` or `AUTH_EXPIRED`;
+- `render(canonical)`, a pure transformation with no I/O;
+- `publish(input, credentials)`, which fails with a `PublishError` (`packages/shared/src/types.ts`): `RATE_LIMIT`, `NETWORK`, `AUTH`, `VALIDATION`, `THREAD_INTERRUPTED` or `PARENT_TWEET_FAILED`.
+
+The optional methods are `planThread` and `publishThread`, `fetchAnalytics`, `handleWebhook`, `getComments`, `postReply`, `searchMentions` and `fetchMentionById`. An adapter never fetches credentials: the caller passes them to every call that needs them, and `handleWebhook` takes none, because a webhook is signed with the subscription's HMAC secret. Adapters compose the stateless helpers of `packages/providers/shared/src/helpers.ts` (credential checks, media upload with retry, HTTP status to `PublishError`) instead of inheriting from a base class. A second interface of the same name, `apps/api/src/providers/providerAdapter.interface.ts`, is used by the API's capability manager, constraint validator and content synchronizer; no adapter implements it.
+
+## Circuit breaker
+
+Nine of the 11 packages, all but Bluesky and Threads, call their provider through `ExternalApiCircuitBreaker` (`packages/adapters/external-apis/src/circuitBreaker.ts`). Its defaults, `DEFAULT_EXTERNAL_API_OPTIONS`, are a 10-second timeout, opening at 50% errors, a 30-second reset, and 3 retries with exponential backoff from 1 to 30 seconds with jitter; its states are `CLOSED`, `OPEN` and `HALF_OPEN`. It has no fallback by default: a failed write surfaces its error instead of a synthetic receipt, which fitness #25 holds. A read that may degrade opts in with `ANALYTICS_CB_OPTIONS` or `METADATA_CB_OPTIONS`, which serve the last cached response (30 minutes and 1 hour) and fail when there is none.
+
+## Adding a provider
+
+1. Add its value to the `Provider` enum of `infra/prisma/schema.prisma`, with a migration.
+2. Add its metadata to `PROVIDER_CONFIGS` (`packages/shared/src/providers/providerConfig.ts`); `registerAdapter` refuses a provider that is not there.
+3. Create `packages/providers/<name>/` with the adapter class and its factory. `packages/providers/_template/` holds an `apiClient.ts`, an `index.ts` and a sandbox test example, and no vitest config.
+4. Route the provider's HTTP calls through `ExternalApiCircuitBreaker`.
+5. Register the adapter where adapters are built: `registerBuiltInAdapters()` in `apps/api/src/providers/providerRegistry.ts` and the maps of `apps/workers/src/publishWorker.ts` (all 11 today) and `apps/workers/src/mentionIngestWorker.ts` (10, without Threads).
+6. Give the package a `vitest.config.ts` and a `test` script, as `docs/development/TESTING_INFRASTRUCTURE.md` "How to extend" says; a contract test follows its section 6.
+7. Classify the new OAuth scopes: `pnpm check:legal` (fitness #45) reads the provider adapters and fails on an unclassified scope.
