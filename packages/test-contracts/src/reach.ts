@@ -12,7 +12,10 @@
  *              script contract (C1, `lib/script-contract.ts`), and holds the `exclude` the vitest
  *              collector resolved for every tracked vitest config, its root config's and each
  *              project's, to every pattern of `RESERVED_TIER_EXCLUDES`, the exclude contract (C2,
- *              `lib/exclude-contract.ts`).
+ *              `lib/exclude-contract.ts`). The tracked test-shaped files come from `lib/disk.ts`,
+ *              what each vitest config collects from `lib/vitest-collector.ts`, the contract every
+ *              collector answers and the merge of their answers from `lib/registry.ts`, and the
+ *              quarantine's schema from `lib/rules.ts`.
  *
  *              `--quarantine` names the quarantine under check; `--base` names the quarantine of
  *              the commit it is compared against, and R3 then refuses any entry the base does not
