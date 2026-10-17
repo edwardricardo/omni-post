@@ -8,7 +8,7 @@ and how do I handle it?".
 This document does NOT duplicate procedures. For step-by-step rotation
 go to [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md).
 For the database-encryption taxonomy (the meaning of Class A/B/C/D/E)
-go to [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md).
+see [§6](#6-per-tenant-secrets-database-stored-encrypted).
 For architectural decisions (deployment delivery, KMS migration, BYOK)
 see [Appendix F](#appendix-f--cross-references).
 
@@ -27,7 +27,6 @@ see [Appendix F](#appendix-f--cross-references).
 ### Does not cover
 
 - The procedure to rotate any individual secret → [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md)
-- The Class A–E classification semantics → [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)
 - Architectural decisions (deployment delivery, KMS migration, BYOK
   feasibility) → [Appendix F](#appendix-f--cross-references)
 
@@ -55,7 +54,7 @@ without reading five other documents.
 Cross-references in tables use these short forms:
 
 - **Rotation:** link to the relevant section of T0A
-- **Class:** A / B / C / D / E from [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)
+- **Class:** A / B / C / D / E from [§6](#6-per-tenant-secrets-database-stored-encrypted)
 - **NIST:** cryptoperiod from NIST SP 800-57 Part 1 Rev 5
 
 ---
@@ -327,16 +326,13 @@ encrypted in the database — see [§6](#6-per-tenant-secrets-database-stored-en
 ## 6. Per-tenant secrets (database-stored, encrypted)
 
 Per-tenant credentials and tokens stored in the database. Each row is
-classified per the taxonomy in
-[SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md):
+in one of five classes:
 
 - **Class A** — symmetric encrypted with a KEK (rotation requires re-wrap)
 - **Class B** — hashed (one-way, password-style; rotation = re-hash on update)
+- **Class C** — stored in plaintext (a red flag for a credential; see [§6.5](#65-class-c--plaintext))
 - **Class D** — HMAC / signing key for webhooks (shared with provider)
 - **Class E** — temporary tokens (one-time use, short TTL)
-
-(Class C is the historical category for plaintext red flags. The
-inventory document tracks any remaining Class C entries.)
 
 ### 6.1 Class A — KEK-encrypted
 
@@ -400,6 +396,16 @@ These are not "rotated" in the traditional sense — they expire and are
 discarded. The lifecycle is: issued by API → emailed to user once →
 consumed (single-use) → marked used or expired. There is no graceful
 window because there is no long-lived value.
+
+### 6.5 Class C — plaintext
+
+Read from `infra/prisma/schema.prisma` on 2026-10-17. This section replaces the database secrets inventory, [`docs/security/SECRETS_DATABASE_INVENTORY.md`](https://github.com/edwardricardo/omni-post/blob/1a48bbf357fff7553159ba90002455f47181bf56/docs/security/SECRETS_DATABASE_INVENTORY.md), which was removed from the repository that day (git history keeps it; the link is its last version); its classes A, B, D and E are the tables above, and its gap list is closed or stale.
+
+None of the credentials that inventory flagged as plaintext is stored that way today: `Channel.credentials`, `OidcConfiguration.clientSecret` and `ExternalNotificationConfig.webhookUrl` are envelope columns (`credentialsCiphertext`, `clientSecretCiphertext`, `webhookUrlCiphertext`, each with its key version), and `AdminSession` keeps only `refreshTokenHash`. Three kinds of value are still stored as written:
+
+- `SamlConfiguration.idpCertificate`, a public X.509 certificate, by design;
+- `WebhookSubscription.secretKey` and `WebhookSubscription.verifyToken`, the shared secrets of §6.3;
+- the temporary tokens of §6.4, which are looked up as stored.
 
 ---
 
@@ -530,7 +536,7 @@ mitigations.
 | **B** — Hashed (Argon2id / SHA-256) | Spoofing, brute-force credential testing | Argon2id parameters from RFC 9106 second-recommended (m=64 MiB, t=3, p=4); SHA-256 sufficient for high-entropy lookup tokens |
 | **D** — HMAC / signing              | Tampering, Repudiation                   | HMAC-SHA256 over the canonical payload; signature verification before action; audit log of every verification outcome        |
 | **E** — Temporary tokens            | Elevation of Privilege                   | High-entropy generation (`crypto.randomUUID` / `randomBytes`); short TTL; single-use semantics                               |
-| **C** — Plaintext (red flag)        | All five                                 | Should not exist; remediation tracked in [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)                    |
+| **C** — Plaintext (red flag)        | All five                                 | Should not exist; what remains is listed in [§6.5](#65-class-c--plaintext)                                                   |
 
 ---
 
@@ -677,9 +683,9 @@ Checklist for any contributor introducing a new secret.
 5. **Add a rotation entry.** If rotation is non-trivial (anything beyond
    "re-issue at the provider and update env var"), add a section to
    [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md).
-6. **Classify under DATABASE_INVENTORY.** If the secret is stored in the
-   database, assign Class A / B / C / D / E and add the row to
-   [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md).
+6. **Classify it in §6.** If the secret is stored in the database,
+   assign Class A / B / C / D / E and add the row to the matching table of
+   [§6](#6-per-tenant-secrets-database-stored-encrypted).
 7. **Verify the pre-commit guards.** `secretlint` and `gitleaks` run
    automatically; confirm the new secret pattern is detected if a
    plaintext value is accidentally staged.
@@ -700,8 +706,5 @@ Checklist for any contributor introducing a new secret.
 - **Rotation procedures** (per-secret step-by-step, NIST cryptoperiods,
   Argon2id parameters, decryption audit trail) →
   [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md)
-- **Database-storage taxonomy** (Class A / B / C / D / E definitions,
-  per-column inventory, encryption infrastructure summary) →
-  [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)
 - **Architecture overview** (env layer, t3-env, Zod validation, fitness
   functions for env access) → [../architecture/secrets-and-env.md](../architecture/secrets-and-env.md)

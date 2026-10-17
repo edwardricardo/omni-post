@@ -48,16 +48,16 @@ The four canon documents are loaded into every agent session by `CLAUDE.md`.
 
 ## Security
 
-| Document                                                                   | What it covers                                                     |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| [Security Architecture](architecture/SECURITY.md)                          | Authentication, MFA, RBAC, encryption, rate limiting, audit        |
-| [Authentication](security/AUTH.md)                                         | Cookie authentication for the admin and client apps                |
-| [Multi-Tenant Guards](security/MULTI_TENANT_GUARDS.md)                     | Tenant guard, row level security and the tenant-scoped model list  |
-| [Multi-Tenant Audit 2026-05-27](security/MULTI_TENANT_AUDIT_2026-05-27.md) | Retrospective audit of the tenant-scoped adapters                  |
-| [Secrets](security/SECRETS.md)                                             | Where every secret lives and how to rotate it                      |
-| [Secrets Rotation Runbook](security/T0A_SECRETS_ROTATION_RUNBOOK.md)       | The rotation procedure; not yet executed (SECRETS-ROTATION-GOLIVE) |
-| [Dependency Audit Policy](security/dependency-audit-policy.md)             | When an advisory may be ignored                                    |
-| [Security Testing Framework](security/SECURITY_TESTING_FRAMEWORK.md)       | The `security/tests` suites; read its status note first            |
+| Document                                                                   | What it covers                                                                 |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [Security Architecture](architecture/SECURITY.md)                          | Authentication, MFA, RBAC, encryption, rate limiting, audit                    |
+| [Authentication](security/AUTH.md)                                         | Cookie authentication for the admin and client apps                            |
+| [Multi-Tenant Guards](security/MULTI_TENANT_GUARDS.md)                     | Tenant guard, row level security and the tenant-scoped model list              |
+| [Multi-Tenant Audit 2026-05-27](security/MULTI_TENANT_AUDIT_2026-05-27.md) | Retrospective audit of the tenant-scoped adapters                              |
+| [Secrets](security/SECRETS.md)                                             | Where every secret lives, how to rotate it, the database-stored classes A to E |
+| [Secrets Rotation Runbook](security/T0A_SECRETS_ROTATION_RUNBOOK.md)       | The rotation procedure; not yet executed (SECRETS-ROTATION-GOLIVE)             |
+| [Dependency Audit Policy](security/dependency-audit-policy.md)             | When an advisory may be ignored                                                |
+| [Security Testing Framework](security/SECURITY_TESTING_FRAMEWORK.md)       | The `security/tests` suites; read its status note first                        |
 
 ## API
 

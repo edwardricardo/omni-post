@@ -305,6 +305,8 @@ A bracketed reference such as `[docs/x.md:12]` links to the version of the page 
 [docs/architecture/TESTING.md:158]: https://github.com/edwardricardo/omni-post/blob/ba39279bc1db5e89c8bf69cac9c8812f149042f8/docs/architecture/TESTING.md#L158
 [docs/architecture/README.md:63-70]: https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/architecture/README.md#L63-L70
 [docs/architecture/README.md:70]: https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/architecture/README.md#L70
+[docs/security/SECRETS_DATABASE_INVENTORY.md:25-27]: https://github.com/edwardricardo/omni-post/blob/1a48bbf357fff7553159ba90002455f47181bf56/docs/security/SECRETS_DATABASE_INVENTORY.md#L25-L27
+[docs/security/SECRETS_DATABASE_INVENTORY.md:105]: https://github.com/edwardricardo/omni-post/blob/1a48bbf357fff7553159ba90002455f47181bf56/docs/security/SECRETS_DATABASE_INVENTORY.md#L105
 
 **Who is misled — and this one has a cost beyond reading.** Two of these are counted as remediation _targets_: `SMELL-47` (`roadmap-detected-smells-backlog.md:79`) lists `credentialManager` (1 site) and `auditLogger` (3 sites) among its 14 `prisma.auditLog` bypasses, and `docs/reports/N_SEC_7_CLUSTER_B_MFA_DISPOSITION.md:104` cites `auditLogger.ts:381,384` as a live defect. **Engineering time is budgeted to migrate dead code.** Three security documents describe an architecture the running system does not have.
 
@@ -340,7 +342,7 @@ A bracketed reference such as `[docs/x.md:12]` links to the version of the page 
 
 ### 2.16 `OAUTH_ENCRYPTION_KEY` — a mandatory secret that encrypts nothing, for a table that was never built
 
-**Where:** `apps/api/src/config/env.ts:101` · `packages/core/domain/src/security/secretCatalog.ts:70-72` · `docs/security/SECRETS_DATABASE_INVENTORY.md:25-27,105`
+**Where:** `apps/api/src/config/env.ts:101` · `packages/core/domain/src/security/secretCatalog.ts:70-72` · [docs/security/SECRETS_DATABASE_INVENTORY.md:25-27], [docs/security/SECRETS_DATABASE_INVENTORY.md:105]
 **Class:** DANGEROUS · **Intent:** LEGACY
 
 **What it claims.** Declared `z.string().min(32)` — **required, no default** — so every environment must supply a 32+ character secret or the app refuses to boot. `secretCatalog.ts:72` describes it as the key for _"ProviderConnection token columns"_, and `SECRETS_DATABASE_INVENTORY.md` documents three encrypted `ProviderConnection` columns.
@@ -833,7 +835,7 @@ The organising principle: **four changes are already queued and each one already
 
 - Delete `security/credentialManager.ts` (450) and `security/auditLogger.ts` (710). Both are superseded, both are cited in SMELL-47's site list as live migration targets, and both are presented as _the_ architecture in [docs/security/OVERVIEW.md:176] and [docs/architecture/SECURITY.md:177]. Deleting the code without correcting those three references leaves the next auditor pointed at ghosts.
 - Wire `auth/oauth/OAuthTokenRefresher.ts` (128 LOC). Its own docblock calls it the canonical rotation path; it has zero callers while each provider package does its own thing.
-- `OAUTH_ENCRYPTION_KEY` (`apps/api/src/config/env.ts:101`) — required, `min(32)`, **zero readers**. It imposes a mandatory secret on every environment and manufactures the belief that OAuth credentials sit under a separate KEK; they use `PLATFORM_ENCRYPTION_KEY` (`EncryptionService.ts:119`). Verification found it worse: `docs/security/SECRETS_DATABASE_INVENTORY.md:25-27,105` documents three encrypted `ProviderConnection` columns, and **`ProviderConnection` is not one of the 125 models in the schema**. Remediation must also touch `scripts/ci-setup-test-env.sh:32`, `.env.test.example:44`, and the seeded rotation-log row.
+- `OAUTH_ENCRYPTION_KEY` (`apps/api/src/config/env.ts:101`) — required, `min(32)`, **zero readers**. It imposes a mandatory secret on every environment and manufactures the belief that OAuth credentials sit under a separate KEK; they use `PLATFORM_ENCRYPTION_KEY` (`EncryptionService.ts:119`). Verification found it worse: [docs/security/SECRETS_DATABASE_INVENTORY.md:25-27], [docs/security/SECRETS_DATABASE_INVENTORY.md:105] documents three encrypted `ProviderConnection` columns, and **`ProviderConnection` is not one of the 125 models in the schema**. Remediation must also touch `scripts/ci-setup-test-env.sh:32`, `.env.test.example:44`, and the seeded rotation-log row.
 
 **→ `mfa-backup-code-single-use`**
 
