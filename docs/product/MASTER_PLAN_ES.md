@@ -99,7 +99,7 @@ Cada tarea de producto (§2-§4) referencia su **canon de implementación 2026**
 - **Arquitectura histórica (3):** `TARGET_ARCHITECTURE_CANON_ES.md` · `instagram-schema.md` · `turborepo-future-flags-evaluation.md`
 - **Guías cloud especulativas (4):** `deployment/{AWS,AZURE,DIGITALOCEAN,GCP}.md` (dev real = homelab)
 - **Reports stale (6):** `reports/audits/{conceptual-audit,feature-decisions,providers-gaps}.md` · `reports/mutations/stryker-expansion.md` · `reports/planning/next-sprint-backlog.md` · `reports/updates/dependency-update.md`
-- **Seguridad ya implementada (2):** `security/BRUTE_FORCE_HOMOLOGATION_ES.md` (ADR-0015) · `security/T0A_SECRETS_ROTATION_RUNBOOK.md`
+- **Seguridad (2):** `security/BRUTE_FORCE_HOMOLOGATION_ES.md` (ya implementada; se retiró y queda ADR-0015) · `security/T0A_SECRETS_ROTATION_RUNBOOK.md` (**conservado**, no archivado: su premisa "ya implementada" era falsa, porque `SECRETS-ROTATION-GOLIVE` (§5.2), CRED-6 y CRED-11 (DEF-45) siguen abiertos y `security/SECRETS.md` delega en él todo procedimiento de rotación)
 
 ### P.C — Reclasificar (1) + Actualizar (75, referencia)
 

@@ -9,6 +9,10 @@
 > **Fecha creación.** 2026-04-21.
 >
 > **Criterio de éxito.** `git log --all --oneline -- .env` retorna 0 líneas + todos los servicios externos corriendo con nuevos secrets + apps redeployadas verde.
+>
+> **Estado (2026-10-15): VIGENTE, NO EJECUTADO.** La rotación y la purga de historia se hacen al pasar a producción (`SECRETS-ROTATION-GOLIVE`, `docs/product/MASTER_PLAN_ES.md` §5.2). La ventana de doble clave de §7 y el re-cifrado de §10 describen lo que el código aún no hace: CRED-6 y CRED-11 (DEF-45) siguen abiertos. Los §2, §3 y §7 a §10 son el procedimiento permanente al que enlaza [`SECRETS.md`](./SECRETS.md); los §1, §4 y §5 son la parte del incidente L-591; el §6 (checklist) sirve a ambas.
+>
+> **Reparto de autoridad.** [`SECRETS.md`](./SECRETS.md) es el catálogo (qué secrets existen y dónde viven); este documento es el cómo (el procedimiento); el Plan Maestro lleva solo lo que falta por hacer.
 
 ---
 
