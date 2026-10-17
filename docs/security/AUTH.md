@@ -259,6 +259,8 @@ if (!user) {
 | `lib/auth/authContext.tsx`             | Client-side auth context (user state, login/logout triggers)                                   |
 | `lib/api/client.ts`                    | Centralized API client using `/api/backend` proxy                                              |
 
+`useAuth()` (`lib/auth/authContext.tsx`) exposes `user`, `isLoading`, `isAuthenticated` and `error`, and five actions: `login`, which resolves to `null` on a completed login or to an `MfaChallenge` when the account requires a second factor, `completeMfaLogin`, `register`, `logout` and `refreshSession`. It holds no token: the tokens live only in the httpOnly cookies.
+
 ### Admin App (`apps/admin`)
 
 | File                                  | Purpose                                                                                   |
