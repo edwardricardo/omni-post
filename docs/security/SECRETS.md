@@ -404,7 +404,8 @@ and `CustomerUser.markEmailVerified()`
 (`packages/core/domain/src/entities/CustomerUser.ts:383`) clears it in
 memory, but only a unit test calls that method, the repository's save does
 not write the column, and no code issues the token or looks it up. The
-dead-code ledger has no row for it.
+dead-code ledger, [`docs/reports/UNUSED_CODE_INVENTORY.md`](../reports/UNUSED_CODE_INVENTORY.md),
+has no row for it.
 
 ### 6.5 Class C — plaintext
 
