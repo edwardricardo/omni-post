@@ -237,6 +237,6 @@ pnpm --filter @infra/prisma prisma generate
 
 ## Next Steps
 
-1. Read [Architecture Overview](../architecture/README.md) to understand the codebase structure
+1. Read the [Architecture Canon](../architecture/ARCHITECTURE_CANON.md) to understand the codebase structure
 2. Read [API Reference](../architecture/API.md) for endpoint documentation
 3. Read [CODING_STANDARDS.md](./CODING_STANDARDS.md) and the root [CLAUDE.md](../../CLAUDE.md) for the rules every change follows
