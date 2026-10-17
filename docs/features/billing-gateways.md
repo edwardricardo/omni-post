@@ -15,7 +15,11 @@
   [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md); master plan
   N-COR-4 (`BILLING-DUNNING-DEAD`) and L-6 (`BILLING-EVENTID-FALLBACK`) in
   [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md)
-- **Related**: [docs/api/billing.md](../api/billing.md) (today's billing services and routes)
+- **Related**: the billing code as it stands lives in `apps/api/src/billing/`,
+  `apps/api/src/infrastructure/billing/` and `packages/core/billing/`, and the ADRs above govern
+  its change; [the former billing API reference](https://github.com/edwardricardo/omni-post/blob/b87dc0639d0406e34d7c4681b11ce6957cdec4df/docs/api/billing.md),
+  deleted on 2026-10-17, describes a billing service that no longer exists, so read it only as
+  history
 
 ---
 
