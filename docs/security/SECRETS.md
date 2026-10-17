@@ -407,7 +407,9 @@ window because there is no long-lived value.
 Two sections: the current location (where the CI/CD secrets live today)
 and the target location (where they will live after deployment-time
 secret delivery is in place per the architecture in
-[SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)).
+[SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md)).
+That study left `docs/` on 2026-10-17; every link to it in this document
+points at its last version.
 
 ### 7.1 Current state
 
@@ -426,7 +428,7 @@ are themselves not secrets and live in the repository.
 
 ### 7.2 Target state
 
-Per [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md),
+Per [SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md),
 the target is to remove static long-lived secrets from CI configuration
 and consume from the chosen target store via:
 
@@ -680,7 +682,7 @@ Checklist for any contributor introducing a new secret.
 ## Appendix F — Cross-references
 
 - **Production deployment delivery** (where secrets live in production
-  runtimes, ESO / SOPS / dotenvx / Doppler / Vault) → [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)
+  runtimes, ESO / SOPS / dotenvx / Doppler / Vault) → [SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md)
 - **KMS migration** (envelope encryption, KEK / DEK model, four KMS
   options, re-wrap procedure) → [SECRETS_KMS_MIGRATION.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_KMS_MIGRATION.md)
 - **BYOK feasibility** (per-tenant key isolation, three levels L1 / L2 /
