@@ -23,7 +23,9 @@ const testFiles = [
 // Paths that benefit from type-aware linting (no-floating-promises).
 // Scoped narrowly to keep memory usage bounded — full-monorepo projectService OOMs.
 // Backend core layers only: fire-and-forget in workers/services/webhooks is intentional,
-// documented as pending review in docs/audits/POST_REMEDIATION_BACKLOG.md.
+// documented as pending review in the post-remediation backlog, removed from the repository on
+// 2026-05-10; its last version:
+// https://github.com/edwardricardo/omni-post/blob/4730470a6c65ebed1b549fc31ed233a96f28e255/docs/audits/POST_REMEDIATION_BACKLOG.md
 const typeAwareBackendPaths = [
   "apps/api/src/domain/**/*.ts",
   "apps/api/src/application/**/*.ts",
