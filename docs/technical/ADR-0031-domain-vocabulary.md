@@ -27,7 +27,7 @@ counts. Measured on `main` at `bad953f2`, the word means three different things:
 
 `AccountPricingTier`, the multiplier itself, could mean any of them, and the read-only explorer that
 mapped the plan model listed it as undetermined (research
-[Report 5](../reports/research-2026-10-04-billing.md#report-5-plan-model-map)).
+[Report 5](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md#report-5-plan-model-map)).
 
 The other words drift too. Edward calls a project an "equipo" or a "subcuenta": a space per client
 or brand, with its own members and platforms. The code's `packages/core/team` module, however,
@@ -132,7 +132,7 @@ and is not part of the four terms Edward decided.
 ## References
 
 - [ADR-0030](ADR-0030-pricing-model.md) — the pricing model.
-- Research: [research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md), Report 5
+- Research: [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (removed from the repository on 2026-10-17; git history keeps it), Report 5
   (the plan model, "what an account means in the multiplier").
 - Code: `infra/prisma/schema.prisma` (`model Account`, `model Project`, `model CustomerUser`,
   `model ProjectMember`, `model Channel`, `enum Provider`);

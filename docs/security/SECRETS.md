@@ -8,7 +8,7 @@ and how do I handle it?".
 This document does NOT duplicate procedures. For step-by-step rotation
 go to [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md).
 For the database-encryption taxonomy (the meaning of Class A/B/C/D/E)
-go to [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md).
+see [§6](#6-per-tenant-secrets-database-stored-encrypted).
 For architectural decisions (deployment delivery, KMS migration, BYOK)
 see [Appendix F](#appendix-f--cross-references).
 
@@ -27,7 +27,6 @@ see [Appendix F](#appendix-f--cross-references).
 ### Does not cover
 
 - The procedure to rotate any individual secret → [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md)
-- The Class A–E classification semantics → [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)
 - Architectural decisions (deployment delivery, KMS migration, BYOK
   feasibility) → [Appendix F](#appendix-f--cross-references)
 
@@ -55,7 +54,7 @@ without reading five other documents.
 Cross-references in tables use these short forms:
 
 - **Rotation:** link to the relevant section of T0A
-- **Class:** A / B / C / D / E from [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)
+- **Class:** A / B / C / D / E from [§6](#6-per-tenant-secrets-database-stored-encrypted)
 - **NIST:** cryptoperiod from NIST SP 800-57 Part 1 Rev 5
 
 ---
@@ -66,10 +65,10 @@ The platform's two cryptographic roots. Both are required at boot; the
 API and workers refuse to start without them. They protect every
 encrypted-at-rest credential downstream.
 
-| Name                      | Format                  | Used by                                         | Encrypts                                                                                                                                                         | Rotation cadence  | Notes                                                                                                                                  |
-| ------------------------- | ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_ENCRYPTION_KEY` | base64-decoded 32 bytes | `EncryptionService`, `ChannelCredentialsCrypto` | Class A columns: `Channel.credentials`, `PlatformCredential.*`, `AccountCredential.*`, `OidcConfiguration.clientSecret`, `ExternalNotificationConfig.webhookUrl` | NIST 1 year (KEK) | `keyVersion` graceful-rotation window: prior keys live in `PLATFORM_ENCRYPTION_KEY_V{N}` during cutover. AAD-bound `EncryptionContext` |
-| `OAUTH_ENCRYPTION_KEY`    | hex-decoded 32 bytes    | `enhancedOAuthProvider`                         | `ProviderConnection.accessToken`, `.refreshToken`, `.apiSecret` (inline `iv:authTag:ciphertext` format)                                                          | NIST 1 year (KEK) | Single-version key today; same rotation pattern applies                                                                                |
+| Name                      | Format                  | Used by                                         | Encrypts                                                                                                                                                         | Rotation cadence  | Notes                                                                                                                                                                           |
+| ------------------------- | ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLATFORM_ENCRYPTION_KEY` | base64-decoded 32 bytes | `EncryptionService`, `ChannelCredentialsCrypto` | Class A columns: `Channel.credentials`, `PlatformCredential.*`, `AccountCredential.*`, `OidcConfiguration.clientSecret`, `ExternalNotificationConfig.webhookUrl` | NIST 1 year (KEK) | `keyVersion` graceful-rotation window: prior keys live in `PLATFORM_ENCRYPTION_KEY_V{N}` during cutover. AAD-bound `EncryptionContext`                                          |
+| `OAUTH_ENCRYPTION_KEY`    | hex-decoded 32 bytes    | No reader                                       | Nothing: no model has the `ProviderConnection` columns it was described as protecting                                                                            | NIST 1 year (KEK) | Required at boot (`apps/api/src/config/env.ts`) and named in `secretCatalog.ts`; wiring or deleting it is the owner's decision in `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16 |
 
 **Generation.** `openssl rand -base64 32` for `PLATFORM_ENCRYPTION_KEY`,
 `openssl rand -hex 32` for `OAUTH_ENCRYPTION_KEY`.
@@ -81,10 +80,13 @@ validity windows, audit verification).
 **Future architecture.** The current model holds the master key as a
 plaintext environment variable on the runtime host. The migration to
 KMS-backed envelope encryption (KEK in KMS, per-record DEKs) is
-documented in [SECRETS_KMS_MIGRATION.md](./SECRETS_KMS_MIGRATION.md).
+documented in [SECRETS_KMS_MIGRATION.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_KMS_MIGRATION.md).
 The further evolution to per-tenant KEKs (and optionally true BYOK) is
 documented as a feasibility study in
-[SECRETS_BYOK_FEASIBILITY.md](./SECRETS_BYOK_FEASIBILITY.md).
+[SECRETS_BYOK_FEASIBILITY.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_BYOK_FEASIBILITY.md).
+The KMS migration guide and the BYOK feasibility study were removed
+from the repository on 2026-10-17; git history keeps them, and every
+link to them in this document points at their last version.
 
 ---
 
@@ -324,16 +326,13 @@ encrypted in the database — see [§6](#6-per-tenant-secrets-database-stored-en
 ## 6. Per-tenant secrets (database-stored, encrypted)
 
 Per-tenant credentials and tokens stored in the database. Each row is
-classified per the taxonomy in
-[SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md):
+in one of five classes:
 
 - **Class A** — symmetric encrypted with a KEK (rotation requires re-wrap)
 - **Class B** — hashed (one-way, password-style; rotation = re-hash on update)
+- **Class C** — stored in plaintext (a red flag for a credential; see [§6.5](#65-class-c--plaintext))
 - **Class D** — HMAC / signing key for webhooks (shared with provider)
 - **Class E** — temporary tokens (one-time use, short TTL)
-
-(Class C is the historical category for plaintext red flags. The
-inventory document tracks any remaining Class C entries.)
 
 ### 6.1 Class A — KEK-encrypted
 
@@ -344,9 +343,8 @@ inventory document tracks any remaining Class C entries.)
 | `ExternalNotificationConfig.webhookUrl`                  | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | URLs may carry embedded auth tokens (Slack, Teams)                        |
 | `PlatformCredential.encryptedValue` + `.iv` + `.authTag` | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | Generic platform-credential blob                                          |
 | `AccountCredential.encryptedValue` + `.iv` + `.authTag`  | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | Per-account credential blob                                               |
-| `ProviderConnection.accessToken`                         | `OAUTH_ENCRYPTION_KEY`    | Inline `iv:authTag:ciphertext` (single column)                                                       | Per-tenant OAuth access tokens                                            |
-| `ProviderConnection.refreshToken`                        | `OAUTH_ENCRYPTION_KEY`    | Inline format                                                                                        | Per-tenant OAuth refresh tokens                                           |
-| `ProviderConnection.apiSecret`                           | `OAUTH_ENCRYPTION_KEY`    | Inline format                                                                                        | Per-tenant provider API secrets                                           |
+
+`OAUTH_ENCRYPTION_KEY` encrypts none of these: no code reads it, and the `ProviderConnection` model it was described as protecting is not in the schema (§3; `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16). Per-channel OAuth tokens live in `Channel.credentials`.
 
 Rotation = re-wrap with the new KEK version using the
 `*KeyVersion` discriminator. Procedure in
@@ -385,18 +383,39 @@ update the `WebhookSubscription` row. Detailed rotation cadence in
 
 ### 6.4 Class E — Temporary tokens
 
-| Model.field                     | Generation                        | TTL                 | Validation                                   |
-| ------------------------------- | --------------------------------- | ------------------- | -------------------------------------------- |
-| `AdminUser.passwordResetToken`  | `crypto.randomUUID()`             | 1 hour              | Plaintext lookup; UUID v4 = 122 bits entropy |
-| `AdminUser.emailVerifyToken`    | Similar                           | per-token           | Plaintext lookup                             |
-| `CustomerUser.emailVerifyToken` | Similar                           | `emailVerifyExpiry` | Plaintext lookup                             |
-| `CustomerUser.resetToken`       | `randomBytes(32).toString('hex')` | 1 hour              | Plaintext lookup; 256 bits entropy           |
-| `TeamMember.inviteToken`        | Similar                           | `inviteTokenExpiry` | Plaintext lookup                             |
+| Model.field                     | Generation                        | TTL                         | Validation                                   |
+| ------------------------------- | --------------------------------- | --------------------------- | -------------------------------------------- |
+| `AdminUser.passwordResetToken`  | `crypto.randomUUID()`             | 1 hour                      | Plaintext lookup; UUID v4 = 122 bits entropy |
+| `CustomerUser.emailVerifyToken` | None: no code writes it           | `emailVerifyExpiry`         | None: no code looks it up                    |
+| `CustomerUser.resetToken`       | `randomBytes(32).toString('hex')` | 1 hour                      | Plaintext lookup; 256 bits entropy           |
+| `CustomerUser.inviteToken`      | `crypto.randomUUID()`             | 7 days, `inviteTokenExpiry` | Plaintext lookup                             |
 
-These are not "rotated" in the traditional sense — they expire and are
-discarded. The lifecycle is: issued by API → emailed to user once →
-consumed (single-use) → marked used or expired. There is no graceful
-window because there is no long-lived value.
+The code issues three of these tokens today: `AdminUser.passwordResetToken`,
+`CustomerUser.resetToken` and `CustomerUser.inviteToken`. They are not
+"rotated" in the traditional sense — they expire and are discarded. Their
+lifecycle is: issued by API → emailed to user once → consumed (single-use)
+→ marked used or expired. There is no graceful window because there is no
+long-lived value.
+
+`CustomerUser.emailVerifyToken` is a column only: the schema has it, the
+repository maps it into the entity on read
+(`apps/api/src/infrastructure/repositories/PrismaCustomerUserRepository.ts:503`),
+and `CustomerUser.markEmailVerified()`
+(`packages/core/domain/src/entities/CustomerUser.ts:383`) clears it in
+memory, but only a unit test calls that method, the repository's save does
+not write the column, and no code issues the token or looks it up. The
+dead-code ledger, [`docs/reports/UNUSED_CODE_INVENTORY.md`](../reports/UNUSED_CODE_INVENTORY.md),
+has no row for it.
+
+### 6.5 Class C — plaintext
+
+Read from `infra/prisma/schema.prisma` on 2026-10-17. This section replaces the database secrets inventory, [`docs/security/SECRETS_DATABASE_INVENTORY.md`](https://github.com/edwardricardo/omni-post/blob/1a48bbf357fff7553159ba90002455f47181bf56/docs/security/SECRETS_DATABASE_INVENTORY.md), which was removed from the repository that day (git history keeps it; the link is its last version); its classes A, B, D and E are the tables above, and its gap list is closed or stale.
+
+None of the credentials that inventory flagged as plaintext is stored that way today: `Channel.credentials`, `OidcConfiguration.clientSecret` and `ExternalNotificationConfig.webhookUrl` are envelope columns (`credentialsCiphertext`, `clientSecretCiphertext`, `webhookUrlCiphertext`, each with its key version), and `AdminSession` keeps only `refreshTokenHash`. Three kinds of value are still stored as written:
+
+- `SamlConfiguration.idpCertificate`, a public X.509 certificate, by design;
+- `WebhookSubscription.secretKey` and `WebhookSubscription.verifyToken`, the shared secrets of §6.3;
+- the temporary tokens of §6.4, which are looked up as stored.
 
 ---
 
@@ -405,7 +424,10 @@ window because there is no long-lived value.
 Two sections: the current location (where the CI/CD secrets live today)
 and the target location (where they will live after deployment-time
 secret delivery is in place per the architecture in
-[SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)).
+[SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md)).
+That production secrets architecture document was removed from the
+repository on 2026-10-17; git history keeps it, and every link to it in
+this document points at its last version.
 
 ### 7.1 Current state
 
@@ -424,9 +446,16 @@ are themselves not secrets and live in the repository.
 
 ### 7.2 Target state
 
-Per [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md),
-the target is to remove static long-lived secrets from CI configuration
-and consume from the chosen target store via:
+Nothing in the tree describes the target secrets architecture any more:
+the production secrets architecture document that did was removed from
+the repository on 2026-10-17, and its last version,
+[SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md),
+is the record. In short, the target removes static long-lived secrets
+from CI configuration and has CI read them from one central secret
+store, which that document compared across six delivery patterns
+(External Secrets Operator, SOPS with age, dotenvx, Doppler, the
+1Password CLI and HashiCorp Vault) without choosing one. CI would reach
+the store via:
 
 - GitHub OIDC trust to the cloud secret manager (no static tokens in CI)
 - Or: a CI-side CLI (`doppler run`, `op run`, `vault read`) that
@@ -517,7 +546,7 @@ mitigations.
 | **B** — Hashed (Argon2id / SHA-256) | Spoofing, brute-force credential testing | Argon2id parameters from RFC 9106 second-recommended (m=64 MiB, t=3, p=4); SHA-256 sufficient for high-entropy lookup tokens |
 | **D** — HMAC / signing              | Tampering, Repudiation                   | HMAC-SHA256 over the canonical payload; signature verification before action; audit log of every verification outcome        |
 | **E** — Temporary tokens            | Elevation of Privilege                   | High-entropy generation (`crypto.randomUUID` / `randomBytes`); short TTL; single-use semantics                               |
-| **C** — Plaintext (red flag)        | All five                                 | Should not exist; remediation tracked in [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)                    |
+| **C** — Plaintext (red flag)        | All five                                 | Should not exist; what remains is listed in [§6.5](#65-class-c--plaintext)                                                   |
 
 ---
 
@@ -525,7 +554,7 @@ mitigations.
 
 Which controls each secret category supports under SOC2 / PCI-DSS /
 GDPR / HIPAA. Detailed compliance interpretation lives in
-[SECRETS_BYOK_FEASIBILITY.md §7](./SECRETS_BYOK_FEASIBILITY.md#7-compliance-benefits)
+[SECRETS_BYOK_FEASIBILITY.md §7](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_BYOK_FEASIBILITY.md#7-compliance-benefits)
 for the per-tenant case.
 
 | Secret category                 | SOC2 (Trust Services Criteria) | PCI-DSS v4.0.1                    | GDPR                          | HIPAA Security Rule                    |
@@ -567,7 +596,7 @@ Immediate steps:
 5. Drop the compromised key from env once verification is complete.
 
 If the runtime model has migrated to KMS-backed envelope encryption
-(see [SECRETS_KMS_MIGRATION.md](./SECRETS_KMS_MIGRATION.md)): the
+(see [SECRETS_KMS_MIGRATION.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_KMS_MIGRATION.md)): the
 procedure simplifies to "rotate the KEK in the KMS and run re-wrap";
 the wrapped DEKs change, the data ciphertext stays.
 
@@ -619,7 +648,7 @@ Immediate steps:
 3. Force a global session invalidation (rotate JWT signing keys per
    §4.3 with the dual-key window).
 4. Force every tenant to reconnect every provider channel (treat all
-   `ProviderConnection` rows as compromised).
+   `Channel.credentials` rows as compromised).
 5. Engage the compliance / legal channel for breach notification.
 6. Cross-reference [T0A §6](./T0A_SECRETS_ROTATION_RUNBOOK.md#6-verification-checklist-post-rotation)
    verification checklist.
@@ -632,7 +661,7 @@ Immediate steps:
 
 1. Re-issue the client secret in the provider's developer console.
 2. Update the env var in the runtime store.
-3. Existing per-tenant OAuth tokens (`ProviderConnection.*`) remain valid
+3. Existing per-tenant OAuth tokens (`Channel.credentials`) remain valid
    because they are independent of the client secret; the client secret
    is only used during initial consent and refresh-token exchange.
 4. Watch for refresh-token failures over the next refresh cycle and
@@ -664,9 +693,9 @@ Checklist for any contributor introducing a new secret.
 5. **Add a rotation entry.** If rotation is non-trivial (anything beyond
    "re-issue at the provider and update env var"), add a section to
    [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md).
-6. **Classify under DATABASE_INVENTORY.** If the secret is stored in the
-   database, assign Class A / B / C / D / E and add the row to
-   [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md).
+6. **Classify it in §6.** If the secret is stored in the database,
+   assign Class A / B / C / D / E and add the row to the matching table of
+   [§6](#6-per-tenant-secrets-database-stored-encrypted).
 7. **Verify the pre-commit guards.** `secretlint` and `gitleaks` run
    automatically; confirm the new secret pattern is detected if a
    plaintext value is accidentally staged.
@@ -678,17 +707,14 @@ Checklist for any contributor introducing a new secret.
 ## Appendix F — Cross-references
 
 - **Production deployment delivery** (where secrets live in production
-  runtimes, ESO / SOPS / dotenvx / Doppler / Vault) → [SECRETS_PRODUCTION_ARCHITECTURE.md](./SECRETS_PRODUCTION_ARCHITECTURE.md)
+  runtimes, ESO / SOPS / dotenvx / Doppler / Vault) → [SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md)
 - **KMS migration** (envelope encryption, KEK / DEK model, four KMS
-  options, re-wrap procedure) → [SECRETS_KMS_MIGRATION.md](./SECRETS_KMS_MIGRATION.md)
+  options, re-wrap procedure) → [SECRETS_KMS_MIGRATION.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_KMS_MIGRATION.md)
 - **BYOK feasibility** (per-tenant key isolation, three levels L1 / L2 /
   L3, schema impact, compliance benefits, implementation phases) →
-  [SECRETS_BYOK_FEASIBILITY.md](./SECRETS_BYOK_FEASIBILITY.md)
+  [SECRETS_BYOK_FEASIBILITY.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_BYOK_FEASIBILITY.md)
 - **Rotation procedures** (per-secret step-by-step, NIST cryptoperiods,
   Argon2id parameters, decryption audit trail) →
   [T0A_SECRETS_ROTATION_RUNBOOK.md](./T0A_SECRETS_ROTATION_RUNBOOK.md)
-- **Database-storage taxonomy** (Class A / B / C / D / E definitions,
-  per-column inventory, encryption infrastructure summary) →
-  [SECRETS_DATABASE_INVENTORY.md](./SECRETS_DATABASE_INVENTORY.md)
 - **Architecture overview** (env layer, t3-env, Zod validation, fitness
   functions for env access) → [../architecture/secrets-and-env.md](../architecture/secrets-and-env.md)

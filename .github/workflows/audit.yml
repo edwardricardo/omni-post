@@ -831,4 +831,3 @@ jobs:
           echo "| size-limit         | ${{ needs.size-limit.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| lychee             | ${{ needs.lychee-link-check.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Reference: docs/architecture/audit-toolkit.md" >> $GITHUB_STEP_SUMMARY

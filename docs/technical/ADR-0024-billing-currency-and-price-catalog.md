@@ -17,7 +17,7 @@ currency, same flow, whichever gateway a customer lands on.
 
 On the night of 2026-10-04 his first answer on currency was: payments are canonical in USD, and
 European customers see the amount converted to EUR for display. Three research reports were run on
-that answer ([research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md), Reports 1
+that answer ([research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md), Reports 1
 to 3). They showed that a display-only conversion is the weakest of the available options:
 
 - **Every multi-currency competitor uses hand-set round price lists, never live conversion.**
@@ -176,7 +176,7 @@ the gateways (point 3) is an open point of ADR-0030.
 
 ## References
 
-- Research: [research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md) — Report 1
+- Research: [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (removed from the repository on 2026-10-17; git history keeps it) — Report 1
   (competitor currencies and tax display), Report 2 §1 (gateways and EU display law), §2
   (exchange-rate sources), §3 (money storage), §5 (options A, B and C).
 - Specification: [billing-gateways.md](../features/billing-gateways.md).

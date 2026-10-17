@@ -1212,7 +1212,9 @@ interface PolicyArm {
  * could never ship (every `withSystemContext()` flow would see nothing under it), and
  * the shippable `B′+sys` measured indistinguishable from the shipped form. A retired
  * direction left in the arm list costs a full transaction per run and invites a reader
- * to compare against a form nobody can commit.
+ * to compare against a form nobody can commit. The research quoted above was removed from
+ * the repository on 2026-10-17; git history keeps it, and
+ * `git show f74fec94:docs/technical/TENANT_ISOLATION_RESEARCH.md` reads its last version.
  *
  * What is left is the question the migration actually has to answer: given that the
  * GUC read must be hoisted, is it hoisted as TWO wrapped calls (`W`) or as ONE

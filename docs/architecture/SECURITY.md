@@ -65,10 +65,21 @@ class MfaService {
 Robust password protection and validation:
 
 - **Hashing**: argon2 for optimal security/performance balance
-- **Validation**: Strong password requirements (minimum 8 characters)
+- **Validation (admin)**: 12 to 128 characters with a lowercase letter, an uppercase
+  letter, a digit and a special character (`passwordSchema` and `validatePasswordStrength`
+  in `apps/api/src/admin/auth/adminAuthSchemas.ts`, `passwordPolicy` in `adminAuthConfig.ts`)
+- **Validation (customer)**: 8 to 128 characters, with no character-class rule, on
+  registration and password reset (`RegisterSchema` and `ResetPasswordSchema` in
+  `apps/api/src/auth/customerAuthRoutes.ts`)
+- **Reuse prevention (admin)**: the last 5 password hashes are kept in
+  `passwordHistory`, and a new admin password matching any of them is refused
+  (`preventPasswordReuse` in `apps/api/src/admin/auth/adminAuthConfig.ts`)
 - **No Plain Text**: Passwords never stored or logged in plain text
-- **Rate Limiting**: Authentication endpoint protection with progressive blocking
-- **Secret Management**: Automatic JWT secret generation with environment variable support
+- **Login throttling**: the `AUTH` rate-limit preset on the credential endpoints (see
+  Rate Limiting under API Security), plus exponential backoff, account lockout and
+  IP blocking on repeated login failures through `BruteForceProtectionPort`
+- **Secret Management**: every JWT secret is a required environment variable, validated at
+  boot; nothing generates one (see Environment Variables below)
 
 ## Authorization & Access Control
 
@@ -202,8 +213,20 @@ throttles outbound AI provider calls (one rate-limiting canon, two instances).
 
 - **Token-bucket algorithm**: atomic refill-and-consume in a single Redis `EVAL`
   (no read-modify-write race across pods).
-- **Per-path rules**: STANDARD default + HEALTH / STRICT / UPLOAD + an expensive
-  DoS tier (5–20 req/min); capacity + window passed per call from the matched rule.
+- **Per-path rules**: the presets of `RateLimitConfigs` in
+  `apps/api/src/security/httpRateLimitPreHandler.ts`, chosen by the first rule whose
+  path prefixes the matched route pattern; capacity + window passed per call from
+  that rule.
+
+  | Preset               | Limit        | Window     | Route patterns it governs                                                                                                  |
+  | -------------------- | ------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------- |
+  | `STANDARD` (default) | 100 requests | 1 minute   | every route no rule matches                                                                                                |
+  | `HEALTH`             | 120 requests | 1 minute   | `/health*`                                                                                                                 |
+  | `AUTH`               | 5 requests   | 15 minutes | `/auth/login*`, `/auth/refresh*`, `/auth/customer/login*` (MFA step 2 included), `/auth/customer/refresh*`                 |
+  | `CRITICAL_EXPENSIVE` | 5 requests   | 1 minute   | `/analytics/project/*`, `/analytics/cross-platform*`, `/analytics/roi*`, `/admin/accounts/export*`, `/admin/audit/export*` |
+  | `HEAVY_EXPENSIVE`    | 10 requests  | 1 minute   | `/engagement/geographic*`, `/threads/:threadId/performance*`, every other `/admin/accounts/*`                              |
+  | `REDIRECT`           | 60 requests  | 1 minute   | `/r/:shortCode`, through its own route preHandler: one per-IP bucket for every short code                                  |
+
 - **Per-IP + per-resource-path bucket** (the matched route pattern with its parsed
   parameters, never the raw URL, so a query string or URL variant does not mint a
   fresh bucket); `X-RateLimit-Remaining` / `X-RateLimit-Reset` headers +
@@ -247,7 +270,6 @@ class ExternalApiCircuitBreaker {
     options?: {
       cacheEnabled?: boolean;
       fallback?: Function;
-      enableProgressiveBlocking?: boolean;
     }
   ): Promise<T>;
 }
@@ -402,7 +424,11 @@ const AuditActions = {
 
 - **Database-Backed Sessions**: Persistent session storage with metadata tracking
 - **Session Security**: Secure session tokens with proper expiration and rotation
-- **Multi-Session Support**: Multiple concurrent sessions per user with individual revocation
+- **Multi-Session Support**: Multiple concurrent sessions per user with individual revocation,
+  capped: an admin login at `AdminUser.maxConcurrentSessions` (default 3) revokes the least
+  recently active sessions as `MAX_SESSIONS_EXCEEDED` (`SessionManager.enforceMaxSessions`),
+  and a login through `apps/api/src/auth/authServiceCore.ts` with 5 active sessions is refused
+  as `TOO_MANY_SESSIONS` (counted in Redis, so the cap applies only when Redis is configured)
 - **Session Monitoring**: IP address and user agent tracking for suspicious activity
 - **Bulk Revocation**: Admin capability to revoke all sessions for security incidents
 - **Session Analytics**: Active session tracking and usage patterns
@@ -427,51 +453,22 @@ const AuditActions = {
 
 ### Environment Variables
 
-```env
-# Authentication & Session Management
-JWT_SECRET=<cryptographically-secure-256-bit-key>
-JWT_REFRESH_SECRET=<separate-refresh-token-key>
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
+Every variable is declared and validated once, in the typed env module
+[`apps/api/src/config/env.ts`](../../apps/api/src/config/env.ts); the API refuses to boot when a
+required one is missing or malformed, and no secret has a fallback. The rules for reading and
+adding a variable are in
+[SECURITY_CANON.md §Secrets and Environment](../security/SECURITY_CANON.md#secrets-and-environment).
+The security-relevant names it declares:
 
-# Multi-Factor Authentication
-MFA_SERVICE_NAME=SaaS-Prototype
-MFA_ISSUER=YourCompany
-
-# Credential Management
-CREDENTIAL_SECRET_KEY=<aes-256-key-for-encryption>
-KEY_ROTATION_DAYS=90
-MAX_ACTIVE_KEYS=10
-ENABLE_AUTO_ROTATION=true
-
-# Rate Limiting (Sliding Window)
-RATE_LIMIT_AUTH_REQUESTS=5
-RATE_LIMIT_AUTH_WINDOW=900000  # 15 minutes
-RATE_LIMIT_API_REQUESTS=60
-RATE_LIMIT_API_WINDOW=60000    # 1 minute
-
-# Circuit Breaker Configuration
-CIRCUIT_BREAKER_TIMEOUT=10000
-CIRCUIT_BREAKER_ERROR_THRESHOLD=50
-CIRCUIT_BREAKER_RESET_TIMEOUT=30000
-
-# Database & Redis
-DATABASE_URL=<postgresql-connection-with-tls>
-REDIS_URL=<redis-connection-for-rate-limiting>
-
-# Security Headers & CORS
-CORS_ORIGIN=https://your-domain.com,https://admin.your-domain.com
-ALLOWED_HOSTS=your-domain.com,*.your-domain.com
-CLIENT_URL=https://app.yourapp.com
-ADMIN_URL=https://admin.yourapp.com
-ALLOWED_MEDIA_HOSTS=cdn.yourapp.com,media.yourapp.com
-
-# Audit & Monitoring
-AUDIT_RETENTION_DAYS=90
-LOG_LEVEL=info
-ENABLE_METRICS=true
-METRICS_PORT=9090
-```
+| Concern                     | Variables                                                                                                                                                                                                                                                                      |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Token signing (required)    | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CUSTOMER_JWT_SECRET`, `ADMIN_JWT_ACCESS_SECRET`, `ADMIN_JWT_REFRESH_SECRET`                                                                                                                                                        |
+| Cookie signing (required)   | `COOKIE_SECRET`                                                                                                                                                                                                                                                                |
+| Encryption keys             | `PLATFORM_ENCRYPTION_KEY`, `OAUTH_ENCRYPTION_KEY`, `DELETION_NAME_DIGEST_KEY_RING` (required); `PLATFORM_ENCRYPTION_KEY_VERSION` (default 1) and `PLATFORM_ENCRYPTION_KEY_V1` to `_V3` (optional prior keys), spread in from `packages/shared/src/platformEncryptionKeyEnv.ts` |
+| Data stores (required)      | `DATABASE_URL`, `REDIS_URL` (the rate limiter, the brute-force counters and the cache run on Redis)                                                                                                                                                                            |
+| Client-IP trust             | `TRUSTED_PROXY_MODE`, `TRUSTED_PROXY_RANGES` (SECURITY_CANON.md, Rate Limiting)                                                                                                                                                                                                |
+| Frontends and media origins | `ADMIN_URL`, `CLIENT_URL`, `ALLOWED_MEDIA_HOSTS`                                                                                                                                                                                                                               |
+| Logging and metrics         | `LOG_LEVEL`, `METRICS_PORT`                                                                                                                                                                                                                                                    |
 
 ## Security Testing & Validation
 
@@ -480,7 +477,9 @@ METRICS_PORT=9090
 - **Security Unit Tests**: Comprehensive test suite for authentication, authorization, and input validation
 - **Integration Testing**: End-to-end security flow testing including MFA and session management
 - **Threat Detection Testing**: Validation of security pattern detection and response mechanisms
-- **Rate Limiting Tests**: Sliding window algorithm validation and progressive blocking verification
+- **Rate Limiting Tests**: token-bucket behaviour, the preset each route gets and the
+  coverage of every rule over the registered routes (`apps/api/tests/unit/security/`), and
+  login backoff and lockout (`RedisBruteForceAdapter.test.ts`)
 - **Circuit Breaker Testing**: External API failure simulation and fallback mechanism validation
 
 ### Security Monitoring Metrics
@@ -515,7 +514,9 @@ interface SecurityMetrics {
 ### Automated Threat Response ✅ IMPLEMENTED
 
 1. **Real-time Detection**: Automatic security threat detection in input validation
-2. **Progressive Blocking**: Escalating rate limit enforcement for repeated violations
+2. **Login Throttling**: exponential backoff, account lockout and IP blocking on repeated login
+   failures (`BruteForceProtectionPort`); the HTTP rate limiter applies a fixed preset and does
+   not escalate
 3. **Session Revocation**: Immediate session termination for compromised accounts
 4. **Audit Logging**: Comprehensive security event logging for forensic analysis
 5. **Alert Generation**: Prometheus metrics triggering monitoring alerts
@@ -534,7 +535,7 @@ interface SecurityMetrics {
 - ✅ JWT Authentication with refresh token rotation
 - ✅ Multi-Factor Authentication (TOTP + backup codes)
 - ✅ Role-Based Access Control (47 permissions, 3 roles)
-- ✅ Sliding Window Rate Limiting with progressive blocking
+- ✅ Token-bucket rate limiting over Redis, plus login backoff and lockout
 - ✅ Circuit Breakers with fallback strategies
 - ✅ Advanced Input Validation with threat detection
 - ✅ SQL injection protection via Prisma ORM

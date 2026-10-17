@@ -22,7 +22,7 @@ This record uses the vocabulary of [ADR-0031](ADR-0031-domain-vocabulary.md): an
 ### What exists today
 
 Measured on `main` at `bad953f2` by a read-only explorer, with path:line evidence (research
-[Report 5](../reports/research-2026-10-04-billing.md#report-5-plan-model-map)); the parent
+[Report 5](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md#report-5-plan-model-map)); the parent
 re-read `StripePaymentAdapter.ts:190-197`, the client's `pricing.ts`, `seed.ts:798-823`,
 `PricingCalculator.ts:59-82` and `projectRoutes.ts:180`.
 
@@ -69,7 +69,7 @@ current month; reduction allowed without refund; the units contracted at the sta
 until the end of the contracted term, later additions pay the current list price; a longer
 commitment buys a lower price; and leaving early costs a penalty of a percentage of the remaining
 contract value. Research
-[Report 6](../reports/research-2026-10-04-billing.md#report-6-commitment-terms-early-exit-fees-and-proration)
+[Report 6](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md#report-6-commitment-terms-early-exit-fees-and-proration)
 then established:
 
 - **A "% of the remaining value" exit fee is high-risk for consumers**: § 309 Nr. 6 BGB voids
@@ -442,7 +442,7 @@ Still open:
 
 ## References
 
-- Research: [research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md) — Report 5
+- Research: [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (removed from the repository on 2026-10-17; git history keeps it) — Report 5
   (the plan model on `main`, with path:line evidence) and Report 6 (legality of terms and exit fees,
   competitors, Stripe and Paddle feasibility).
 - Specification: [billing-gateways.md](../features/billing-gateways.md) — requirements R34–R50,

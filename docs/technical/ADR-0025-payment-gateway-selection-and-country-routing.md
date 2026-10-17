@@ -184,7 +184,7 @@ Measured on `main` at `bad953f2`:
 
 ## References
 
-- Research: [research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md) — Report 3
+- Research: [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (removed from the repository on 2026-10-17; git history keeps it) — Report 3
   Q1 (EU, UK and US registration rules), Q2 (Stripe Tax and Paddle data), Q4 (data model sketch and
   the establishment-country gap); Report 4 §3 (what Paddle and Stripe each cover).
 - Specification: [billing-gateways.md](../features/billing-gateways.md).

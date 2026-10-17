@@ -1,6 +1,6 @@
 # OmniPost — Valoración Completa del Repositorio (2026-06-29)
 
-> **Estado:** informe de auditoría read-only. Es la **base de evidencia** del spine accionable `docs/product/MASTER_PLAN_ES.md` (que consolidó y reemplazó `IMPLEMENTATION_PLAN_ES.md`, retirado 2026-06-29, y `PENDING_WORK_INVENTORY.md`, congelado 2026-07-21 en `docs/archive/PENDING_WORK_INVENTORY.md`). Las referencias `§N` de más abajo a `PENDING_WORK_INVENTORY` son al inventario ya congelado.
+> **Estado:** informe de auditoría read-only. Es la **base de evidencia** del spine accionable `docs/product/MASTER_PLAN_ES.md` (que consolidó y reemplazó `IMPLEMENTATION_PLAN_ES.md`, retirado 2026-06-29, y `PENDING_WORK_INVENTORY.md`, congelado 2026-07-21 en [`docs/archive/PENDING_WORK_INVENTORY.md`](https://github.com/edwardricardo/omni-post/blob/cb4921bda93a39e300f1bd5203985edde8055258/docs/archive/PENDING_WORK_INVENTORY.md) y borrado del repositorio el 2026-10-17; la historia de git lo conserva). Las referencias `§N` de más abajo a `PENDING_WORK_INVENTORY` son a esa versión congelada, la del enlace.
 > **Alcance temporal:** HEAD `workstream/impl-revalidation @ 07c1faa5` (2026-06-29).
 > **Owner:** Platform engineering.
 

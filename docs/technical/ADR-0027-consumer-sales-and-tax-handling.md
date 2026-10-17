@@ -15,7 +15,7 @@
 Edward asked whether OmniPost should sell only to businesses or to individuals as well. The answer
 decides which consumer-law and tax obligations apply, and on which gateway path they fall.
 
-The research ([research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md), Reports 3
+The research ([research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md), Reports 3
 and 4) established:
 
 - **Competitors split by audience.** Team and enterprise tools present themselves as business-only
@@ -179,7 +179,7 @@ of this record meet the pricing model:
 
 ## References
 
-- Research: [research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md) — Report 3
+- Research: [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (removed from the repository on 2026-10-17; git history keeps it) — Report 3
   (Q1 law, Q2 Stripe Tax and Paddle data, Q3 IP geolocation, Q4 data model), Report 4 (§1
   competitors, §2 EU and UK consumer rules, §3 Paddle and Stripe coverage, §4 business-only, §5
   options).

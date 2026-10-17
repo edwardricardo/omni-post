@@ -4,7 +4,7 @@ One page per support-facing feature: how it works today, by code path, and where
 
 ## What this directory is not
 
-Target behaviour lives in `docs/features/` and the ADRs, the endpoint reference in `docs/api/`, alert procedures in `docs/runbooks/` and legal facts in `docs/legal/`. A support page links them and never repeats them.
+Target behaviour lives in `docs/features/` and the ADRs, the endpoint reference in `docs/architecture/API.md` and the generated route table (`packages/shared/src/api-generated/types.gen.ts`), alert procedures in `docs/runbooks/` and legal facts in `docs/legal/`. A support page links them and never repeats them.
 
 ## Writing a support page
 

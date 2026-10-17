@@ -6,7 +6,7 @@
 
 Tracked as **SMELL-83** in
 [`docs/reports/roadmap-detected-smells-backlog.md`](../../docs/reports/roadmap-detected-smells-backlog.md).
-Evidence: [`docs/archive/CI_TEST_REACH_AUDIT.md`](../../docs/archive/CI_TEST_REACH_AUDIT.md) §G3.
+Evidence: [`docs/archive/CI_TEST_REACH_AUDIT.md` §G3](https://github.com/edwardricardo/omni-post/blob/f89a0f519cf37679bd9d4236e120f4b7283f71ca/docs/archive/CI_TEST_REACH_AUDIT.md#L57). The audit was removed from the repository on 2026-10-17; git history keeps it, and the link is its last version.
 
 ---
 
