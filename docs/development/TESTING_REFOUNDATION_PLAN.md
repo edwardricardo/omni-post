@@ -8,7 +8,7 @@ The plan the tracker [TESTING_REFOUNDATION.md](TESTING_REFOUNDATION.md) measures
 
 Phases 0–9 and their work units, rendered from the approved plan (held outside the repository,
 read-only). This section is FIXED: it is not edited to match what happened. A change to it is a
-re-plan, and a re-plan is recorded in [§Decisions log](TESTING_REFOUNDATION.md#decisions-log) with its date and its reason.
+re-plan, and a re-plan is recorded in the tracker's [§Decisions log](TESTING_REFOUNDATION.md#decisions-log) with its date and its reason.
 
 ### What was signed, and is not re-discussed
 
