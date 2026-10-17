@@ -193,7 +193,7 @@ customer may still do, or what happens to the posts they scheduled.
 
 ## References
 
-- Research: [research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md) — Report 2 §1
+- Research: [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (removed from the repository on 2026-10-17; git history keeps it) — Report 2 §1
   (gateway behaviour), Report 4 §3 (what each gateway covers on refunds and cancellation).
 - Specification: [billing-gateways.md](../features/billing-gateways.md).
 - Pricing model and trial: [ADR-0030](ADR-0030-pricing-model.md).

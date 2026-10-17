@@ -9,7 +9,7 @@
   (non-payment lifecycle) · [ADR-0027](../technical/ADR-0027-consumer-sales-and-tax-handling.md)
   (consumer sales and tax) · [ADR-0030](../technical/ADR-0030-pricing-model.md) (pricing model) ·
   [ADR-0031](../technical/ADR-0031-domain-vocabulary.md) (vocabulary)
-- **Research**: [research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md)
+- **Research**: [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (removed from the repository on 2026-10-17; git history keeps it)
 - **Findings this work closes**: F13 (SMELL-184), F14 (SMELL-185), F16 (SMELL-187) and the pricing
   defects SMELL-188 to SMELL-193 in
   [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md); master plan

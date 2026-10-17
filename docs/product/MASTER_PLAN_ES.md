@@ -530,7 +530,7 @@ Overrides con remove-when datados (esbuild; shell-quote se eliminó el 2026-10-0
 >
 > **Valores iniciales fijados el 2026-10-05:** tramos por canal, multiplicadores de volumen y de plazo, tokens de IA, topes de prueba y de plan gratuito, aviso y mora, como datos semilla realistas, configurables en Admin y por afinar después ([ADR-0030, «Initial values»](../technical/ADR-0030-pricing-model.md#initial-values)).
 >
-> **Fuentes:** [research-2026-10-04-billing.md](../reports/research-2026-10-04-billing.md) · [research-2026-10-04-storage.md](../reports/research-2026-10-04-storage.md). **Especificaciones:** [billing-gateways.md](../features/billing-gateways.md) · [media-storage.md](../features/media-storage.md).
+> **Fuentes:** [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (se borró del repositorio el 2026-10-17; la historia de git lo conserva) · [research-2026-10-04-storage.md](../reports/research-2026-10-04-storage.md). **Especificaciones:** [billing-gateways.md](../features/billing-gateways.md) · [media-storage.md](../features/media-storage.md).
 
 **Tajadas de pagos** (detalle y dependencias en [billing-gateways.md](../features/billing-gateways.md) §10):
 
