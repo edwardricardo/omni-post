@@ -23,6 +23,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
+import { untilValue } from "@packages/vitest-shared/determinism";
 import { ok } from "@shared/types";
 import { type PrismaClient } from "@infra/prisma";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
@@ -129,15 +130,19 @@ describe("GeneratedImage — two-tenant isolation (MERGE-BLOCKING)", () => {
   }
 
   // The usage increment is best-effort (fire-and-forget), so it may land after
-  // the HTTP response resolves. Poll until the counter reaches `expected`.
+  // the HTTP response resolves. Read until the counter reaches `expected`.
   async function waitForAiCalls(accountId: string, expected: number): Promise<number> {
-    const deadline = Date.now() + 3000;
-    let last = await readAiCalls(accountId);
-    while (last < expected && Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 25));
-      last = await readAiCalls(accountId);
-    }
-    return last;
+    let last = 0;
+    return untilValue(
+      async () => {
+        last = await readAiCalls(accountId);
+        return last >= expected ? last : null;
+      },
+      {
+        description: () => `aiCallsMade of ${accountId} to reach ${expected} (last read: ${last})`,
+        intervalMs: 25,
+      }
+    );
   }
 
   before(async () => {

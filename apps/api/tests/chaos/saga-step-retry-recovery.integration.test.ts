@@ -24,6 +24,9 @@
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { until } from "@packages/vitest-shared/determinism";
+import type { SagaManagerImpl } from "../../src/saga/SagaManager.js";
+import type { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
 import {
   createChaosHarness,
   TransientFailingStep,
@@ -31,6 +34,44 @@ import {
   type ChaosHarness,
 } from "./chaos-helpers.js";
 import { SuccessfulStep } from "../unit/sagaManager.test-helpers.js";
+
+/**
+ * The engine behind the facade, reached through a documented cast: whether a pass still holds a
+ * saga is engine state the facade does not expose, and the recovery tick drops its dispatch for
+ * a saga a pass still holds.
+ */
+function engineOf(manager: SagaManagerImpl): SagaExecutionEngine {
+  return (manager as unknown as { execution: SagaExecutionEngine }).execution;
+}
+
+/**
+ * Waits until the step has run `attempts` times, the pass that ran it has released the saga, and
+ * the retry it scheduled is due: the three conditions under which the next recovery tick
+ * dispatches a pass instead of finding nothing to do or dropping it.
+ */
+async function awaitDueRetry(
+  harness: ChaosHarness,
+  step: TransientFailingStep,
+  sagaId: string,
+  attempts: number
+): Promise<void> {
+  let nextRetryAt: Date | undefined;
+  await until(
+    async () => {
+      if (step.attempts !== attempts || engineOf(harness.manager).isAdvancerInFlight(sagaId)) {
+        return false;
+      }
+      nextRetryAt = (await harness.manager.getSaga(sagaId))?.nextRetryAt;
+      return nextRetryAt !== undefined && nextRetryAt.getTime() <= Date.now();
+    },
+    {
+      description: () =>
+        `attempt ${attempts} to release saga ${sagaId} with a due retry ` +
+        `(attempts: ${step.attempts}, nextRetryAt: ${nextRetryAt?.toISOString()})`,
+      timeoutMs: 3_000,
+    }
+  );
+}
 
 describe("Chaos: saga step transient failure → recovery scheduler retries", () => {
   let harness: ChaosHarness;
@@ -64,17 +105,18 @@ describe("Chaos: saga step transient failure → recovery scheduler retries", ()
       metadata: { accountId: harness.accountId },
     });
 
-    // After startSaga, the transient step has failed once. Saga is in RUNNING
-    // state with nextRetryAt persisted. The in-process scheduler is NoOp; we
-    // must manually trigger the recovery checker to advance the retry cycle.
+    // startSaga defers the first pass. Once it has failed the transient step,
+    // the saga is RUNNING with nextRetryAt persisted. The in-process scheduler
+    // is NoOp; we must manually trigger the recovery checker to advance the
+    // retry cycle.
+    await awaitDueRetry(harness, transientStep, instance.id, 1);
 
     // Retry 1 → step still fails (attempts=2). Recovery checker picks it up.
-    await new Promise((r) => setTimeout(r, 50));
     await harness.scheduler.triggerTask("saga-retry-recovery");
+    await awaitDueRetry(harness, transientStep, instance.id, 2);
 
     // Retry 2 → step succeeds (attempts=3). Then SuccessfulStep runs. Saga
     // should reach COMPLETED.
-    await new Promise((r) => setTimeout(r, 50));
     await harness.scheduler.triggerTask("saga-retry-recovery");
 
     // Wait for the async resume to complete the saga.

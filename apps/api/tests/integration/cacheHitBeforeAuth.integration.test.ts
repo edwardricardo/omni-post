@@ -23,6 +23,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
+import { until } from "@packages/vitest-shared/determinism";
 import type { PrismaClient } from "@infra/prisma";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { createApp } from "../../src/index.js";
@@ -185,15 +186,11 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
    * @returns Nothing; resolves once the write has landed
    */
   const awaitCacheWrite = async (cacheKey: string): Promise<void> => {
-    const startedAt = Date.now();
-    while (!(await cacheWriteLanded(cacheKey))) {
-      const waitedMs = Date.now() - startedAt;
-      assert.ok(
-        waitedMs < CACHE_WRITE_DEADLINE_MS,
-        `the MISS was never written under ${cacheKey} (waited ${waitedMs} ms of ${CACHE_WRITE_DEADLINE_MS})`
-      );
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
+    await until(() => cacheWriteLanded(cacheKey), {
+      description: `the MISS to be written under ${cacheKey}`,
+      timeoutMs: CACHE_WRITE_DEADLINE_MS,
+      intervalMs: 20,
+    });
   };
 
   /**

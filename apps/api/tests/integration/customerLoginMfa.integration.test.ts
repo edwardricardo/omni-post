@@ -33,6 +33,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "crypto";
 import path from "path";
 import dotenv from "dotenv";
+import { until } from "@packages/vitest-shared/determinism";
 
 // Load .env.test BEFORE importing modules that read the typed env at import time.
 dotenv.config({ path: path.resolve(process.cwd(), ".env.test") });
@@ -94,7 +95,15 @@ describe("RedisMfaChallengeStoreAdapter — real Redis single-use", () => {
   it("drops an expired challenge (TTL): consume after expiry is NOT_FOUND", async () => {
     const jti = randomBytes(16).toString("hex");
     await adapter.issue(jti, 1);
-    await new Promise((resolve) => setTimeout(resolve, 1300));
+    // Redis expires the key on its own clock, which no fake timer reaches, so the case reads
+    // the key until it is gone. The key spells the adapter's namespace; the TTL check first
+    // proves the spelling, or the wait below would watch a key that never existed.
+    const key = `auth:mfa-challenge:${jti}`;
+    assert.ok((await redis.pttl(key)) > 0, "the challenge is stored with a TTL under its key");
+    await until(async () => (await redis.exists(key)) === 0, {
+      description: `Redis to expire ${key}`,
+      intervalMs: 50,
+    });
 
     const consumed = await adapter.consume(jti);
     assert.ok(consumed.ok && consumed.value === "NOT_FOUND", "expired jti is gone");

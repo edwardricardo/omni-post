@@ -11,6 +11,8 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { FastifyInstance } from "fastify";
+import type { CachePort, CacheWriteOptions } from "@ports/core";
+import { until } from "@packages/vitest-shared/determinism";
 import { createApp } from "../src/index.js";
 import { createCacheManager, resetCacheManager, RedisCacheManager } from "@adapters/cache-redis";
 import { TOKENS } from "../src/infrastructure/container/types.js";
@@ -59,9 +61,31 @@ function assertDisposableRedis(url: string | undefined): void {
   }
 }
 
+/**
+ * @method recordCacheWrites
+ * @description Makes the cache port hand every write it starts to `pending` as well. The
+ *   auto-cache middleware stores a MISS without awaiting the write, and the write fills the
+ *   in-process layer first and the Redis entry and its tag index after: a tag invalidated
+ *   before the write finishes can be written back under it, so a case waits for the write
+ *   itself before its next step.
+ * @param cachePort - The port the middleware writes through
+ * @param pending - Receives the promise of each write the port starts
+ * @returns Nothing; the port's `set` is replaced on this instance only
+ */
+function recordCacheWrites(cachePort: CachePort, pending: Promise<void>[]): void {
+  const write = cachePort.set.bind(cachePort);
+  cachePort.set = <T>(key: string, value: T, options?: CacheWriteOptions): Promise<void> => {
+    const written = write(key, value, options);
+    pending.push(written);
+    return written;
+  };
+}
+
 describe("API Response Caching", { concurrency: 1 }, () => {
   let app: FastifyInstance;
   let cacheManager: RedisCacheManager;
+  /** The background cache writes started since the case last waited for them. */
+  const pendingCacheWrites: Promise<void>[] = [];
 
   beforeEach(async () => {
     assertDisposableRedis(process.env.REDIS_URL);
@@ -75,11 +99,16 @@ describe("API Response Caching", { concurrency: 1 }, () => {
     const container = app.container;
     assert.ok(container, "DI container should be decorated on the app");
     cacheManager = container.resolve<RedisCacheManager>(TOKENS.RedisCacheManager);
+    // Each app builds its own container, so the port recorded here is this case's.
+    pendingCacheWrites.length = 0;
+    recordCacheWrites(container.resolve<CachePort>(TOKENS.CachePort), pendingCacheWrites);
     // Clear cache before each test
     await cacheManager.flush();
   });
 
   afterEach(async () => {
+    // A write still in flight would land in Redis after the next case's flush.
+    await Promise.all(pendingCacheWrites.splice(0));
     try {
       await app.close();
     } catch {
@@ -88,6 +117,18 @@ describe("API Response Caching", { concurrency: 1 }, () => {
     // Reset singleton so next beforeEach creates a fresh one
     resetCacheManager();
   });
+
+  /**
+   * @method waitForCacheWrite
+   * @description Waits until every background cache write started since the last call has
+   *   finished, and fails when none was started: the case expects the request before it to
+   *   have stored a MISS.
+   * @returns Nothing; resolves once those writes have finished
+   */
+  const waitForCacheWrite = async (): Promise<void> => {
+    assert.ok(pendingCacheWrites.length > 0, "the MISS before this wait started no cache write");
+    await Promise.all(pendingCacheWrites.splice(0));
+  };
 
   describe("Cache Configuration", () => {
     it("should have cache config for provider endpoints", () => {
@@ -197,11 +238,7 @@ describe("API Response Caching", { concurrency: 1 }, () => {
 
       assert.equal(response1.headers["x-cache"], "MISS", "First request should be cache MISS");
 
-      // Wait for fire-and-forget cache.set() to complete before next request
-      await new Promise((resolve) => {
-        const t = setTimeout(resolve, 50);
-        t.unref();
-      });
+      await waitForCacheWrite();
 
       // Second request - cache hit
       const response2 = await app.inject({
@@ -244,13 +281,6 @@ describe("API Response Caching", { concurrency: 1 }, () => {
       );
     });
   });
-
-  // Helper: small delay to let fire-and-forget cache.set() complete before next request
-  const waitForCacheWrite = () =>
-    new Promise((resolve) => {
-      const t = setTimeout(resolve, 50);
-      t.unref();
-    });
 
   describe("Cache Invalidation", { concurrency: 1 }, () => {
     it("should invalidate cache after tag invalidation", async () => {
@@ -373,16 +403,16 @@ describe("API Response Caching", { concurrency: 1 }, () => {
       assert.equal(result1.ok, true, "Should retrieve successfully");
       assert.deepEqual(result1.value, { data: "test" }, "Should return correct data");
 
-      // Wait for TTL to expire
-      await new Promise((resolve) => {
-        const t = setTimeout(resolve, 1500);
-        t.unref();
-      });
-
-      // Should be expired now
-      const result2 = await shortTtlCache.get(testKey);
-      assert.equal(result2.ok, true, "Get operation should succeed");
-      assert.equal(result2.value, null, "Value should be null after expiry");
+      // Redis expires the entry on its own clock, which no fake timer reaches, so the case
+      // reads until the entry is gone instead of sleeping past the TTL.
+      await until(
+        async () => {
+          const result = await shortTtlCache.get(testKey);
+          assert.equal(result.ok, true, "Get operation should succeed");
+          return result.value === null;
+        },
+        { description: "the entry to expire after its 1 s TTL", intervalMs: 50 }
+      );
 
       await shortTtlCache.close();
       resetCacheManager();
@@ -398,11 +428,7 @@ describe("API Response Caching", { concurrency: 1 }, () => {
       });
       assert.equal(response1.headers["x-cache"], "MISS", "First request should be cache MISS");
 
-      // Wait for fire-and-forget cache.set() to complete
-      await new Promise((resolve) => {
-        const t = setTimeout(resolve, 50);
-        t.unref();
-      });
+      await waitForCacheWrite();
 
       // Second request - cached (HIT)
       const response2 = await app.inject({
@@ -501,24 +527,15 @@ describe("API Response Caching", { concurrency: 1 }, () => {
     it("should invalidate multiple tags at once", async () => {
       // Cache multiple endpoints with different tags, waiting for fire-and-forget to complete
       await app.inject({ method: "GET", url: "/posts", headers: { authorization: AUTH_HEADER } });
-      await new Promise((resolve) => {
-        const t = setTimeout(resolve, 50);
-        t.unref();
-      });
+      await waitForCacheWrite();
       await app.inject({
         method: "GET",
         url: "/posts?status=DRAFT",
         headers: { authorization: AUTH_HEADER },
       });
-      await new Promise((resolve) => {
-        const t = setTimeout(resolve, 50);
-        t.unref();
-      });
+      await waitForCacheWrite();
       await app.inject({ method: "GET", url: "/providers" });
-      await new Promise((resolve) => {
-        const t = setTimeout(resolve, 50);
-        t.unref();
-      });
+      await waitForCacheWrite();
 
       // All should be cache hits now
       const response1 = await app.inject({

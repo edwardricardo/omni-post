@@ -42,6 +42,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Redis } from "ioredis";
+import { until } from "@packages/vitest-shared/determinism";
 import pino from "pino";
 import { type PrismaClient } from "@infra/prisma";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
@@ -387,19 +388,16 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
     ]);
   }
 
+  /**
+   * Probes `predicate` every 100 ms until it holds, and fails naming `description` once
+   * `timeoutMs` has passed.
+   */
   async function waitFor(
     predicate: () => Promise<boolean>,
     description: string,
     timeoutMs = 20_000
   ): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-      if (await predicate()) return;
-      if (Date.now() > deadline) {
-        assert.fail(`timed out after ${timeoutMs}ms waiting for: ${description}`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    await until(predicate, { description, timeoutMs, intervalMs: 100 });
   }
 
   before(async () => {
