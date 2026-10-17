@@ -24,7 +24,8 @@ named transitive, no declared-absent candidate left), 10 sit below latest mature
 budget of ADR-0036, 0 past it unheld, 9 held.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
-and what moved it. A slice that moves the count appends its own line.
+and what moved it. A slice that moves the count appends its own line, re-measured with
+`node scripts/testing/holds-gate.mjs`, never edited in place; a hold row makes a lag legal, never absent.
 
 1. `2026-09-27T17:55:14Z` — **45** (39 unheld, 5 held, 1 ambiguous): the baseline, before any slice.
 2. `2026-09-27T23:10:56Z` — **41**: fifteen hold rows written; `eslint` and `@eslint/js` 9.39.5, and the `@typescript-eslint` pair 8.70.0, which left the set.
@@ -69,14 +70,6 @@ and what moved it. A slice that moves the count appends its own line.
 row is edited, and this slice's own predecessor proved it: deleting one row shifted every citation below it by
 one, silently. `rg vitest docs/security/SECURITY_CANON.md` finds the row; a line number finds whatever moved
 into that position.
-
-The correction itself: `refound/0-toolchain-holds` wrote the fifteen missing
-rows, and `refound/0-toolchain-eslint` took the first bump — `eslint` and `@eslint/js` to 9.39.5, the
-`@typescript-eslint` pair to 8.70.0, which drops the pair out of the lag set and deletes its row. The count
-falls by a bump; a row makes a lag legal, never absent.
-
-No metric moves in this slice. The lag table is measured state, not a metric: it is re-derived by
-re-running the commands below, never by editing a number in place.
 
 ### How this was measured
 
