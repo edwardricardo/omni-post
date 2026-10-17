@@ -33,7 +33,11 @@ export interface RegisteredRoute {
    * A hook added to an encapsulated plugin with `addHook` is not visible here,
    * which is why a cached rule without the caller in its key must also declare
    * itself public: the declaration is checked against what is visible, and the
-   * absence of a declaration fails closed.
+   * absence of a declaration fails closed. A false declaration on a route that
+   * authenticates through such a hook is caught by the anonymous-call case of
+   * `apps/api/tests/integration/cacheHitBeforeAuth.integration.test.ts`, which
+   * sends every public rule's route without credentials through the real app and
+   * fails on a 401 or 403.
    */
   readonly authenticated: boolean;
 }

@@ -9,7 +9,9 @@
  *              dashboard; tenant B (no access to the project) and an anonymous caller then
  *              send the identical query and must be refused by the route itself, never
  *              served A's body (CWE-639, CWE-306). A's own token, once expired, must be
- *              refused too, although the entry it filled is still cached. The last case
+ *              refused too, although the entry it filled is still cached. Every route a
+ *              cached rule declares public must answer a caller with no credentials, which
+ *              catches an authenticating hook the boot guard cannot see. The last case
  *              proves the cache key names the caller without carrying the caller's
  *              bearer token, since the key is echoed in `X-Cache-Key` and stored as a
  *              Redis key name.
@@ -26,9 +28,18 @@ import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { createApp } from "../../src/index.js";
 import { env } from "../../src/config/env.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
+import { CACHE_CONFIG } from "../../src/lib/cache/cacheConfig.js";
+import { createRedisConnection } from "../../src/lib/redis.js";
 
 /** How long a case waits for the fire-and-forget cache write of a MISS to land. */
 const CACHE_WRITE_DEADLINE_MS = 2000;
+
+/**
+ * The key prefix the composition root gives the cache manager's Redis client
+ * (`keyPrefix: "api:"` in `setupServices.ts`). A tag index `tag:<tag>` lives on the
+ * wire as `api:tag:<tag>`, and holds each cache key unprefixed as a member.
+ */
+const CACHE_WIRE_PREFIX = "api:";
 
 /** Lifetime of the token the expiry case mints: long enough to load, short enough to wait out. */
 const SHORT_TOKEN_LIFETIME_S = 3;
@@ -106,6 +117,8 @@ const seedPost = async (prisma: PrismaClient, projectId: string): Promise<string
 describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", () => {
   let app: FastifyInstance;
   let prisma: PrismaClient;
+  /** A plain connection to the cache's Redis, for the tag indexes the cache port does not expose. */
+  let redis: ReturnType<typeof createRedisConnection>;
 
   let accountAId: string;
   let accountBId: string;
@@ -113,8 +126,29 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
   let tokenA: string;
   let tokenB: string;
 
-  /** Every cache key a case caused to be written, deleted again in `after`. */
-  const writtenKeys = new Set<string>();
+  /**
+   * Every cache key a case caused to be written, with the tags it was indexed under:
+   * `after` deletes the entry and removes the key from each tag index, which a plain
+   * delete leaves behind.
+   */
+  const writtenKeys = new Map<string, readonly string[]>();
+
+  /**
+   * @method recordCacheWrite
+   * @description Records the cache key and tags a MISS response names, so `after` can
+   *   remove what the response caused to be written.
+   * @param res - A response that may carry `X-Cache-Key` and `X-Cache-Tags`
+   * @returns The cache key, or `undefined` when the response names none
+   */
+  const recordCacheWrite = (res: LightMyRequestResponse): string | undefined => {
+    const key = res.headers["x-cache-key"];
+    if (typeof key !== "string") {
+      return undefined;
+    }
+    const tags = res.headers["x-cache-tags"];
+    writtenKeys.set(key, typeof tags === "string" && tags !== "" ? tags.split(",") : []);
+    return key;
+  };
 
   /**
    * @method dashboardUrl
@@ -125,6 +159,48 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
    */
   const dashboardUrl = (): string =>
     `/analytics/dashboard?projectId=${projectAId}&timeRange=7d&metrics=case-${randomUUID()}`;
+
+  /**
+   * @method cacheWriteLanded
+   * @description Tells whether a cache write has finished: the entry is readable and its
+   *   key is a member of every tag index it names. The cache manager fills its in-process
+   *   layer first and indexes the tags last, so a readable entry alone does not mean the
+   *   write is done, and cleanup run before the indexing would leave the key behind.
+   * @param cacheKey - The key the write stored the response under
+   * @returns True once the entry and every tag membership are in place
+   */
+  const cacheWriteLanded = async (cacheKey: string): Promise<boolean> => {
+    const cache = app.cache;
+    assert.ok(cache, "the app decorates the cache port");
+    if (!(await cache.has(cacheKey))) {
+      return false;
+    }
+    for (const tag of writtenKeys.get(cacheKey) ?? []) {
+      if ((await redis.sismember(`${CACHE_WIRE_PREFIX}tag:${tag}`, cacheKey)) !== 1) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  /**
+   * @method awaitCacheWrite
+   * @description Waits until the fire-and-forget write of a MISS has finished, and fails
+   *   naming the key and the time waited when it never does.
+   * @param cacheKey - The key the write stores the response under
+   * @returns Nothing; resolves once the write has landed
+   */
+  const awaitCacheWrite = async (cacheKey: string): Promise<void> => {
+    const startedAt = Date.now();
+    while (!(await cacheWriteLanded(cacheKey))) {
+      const waitedMs = Date.now() - startedAt;
+      assert.ok(
+        waitedMs < CACHE_WRITE_DEADLINE_MS,
+        `the MISS was never written under ${cacheKey} (waited ${waitedMs} ms of ${CACHE_WRITE_DEADLINE_MS})`
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  };
 
   /**
    * @method loadAndAwaitCacheWrite
@@ -147,18 +223,9 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
     assert.equal(res.statusCode, 200, `the owner's own request must succeed: ${res.payload}`);
     assert.equal(res.headers["x-cache"], "MISS", "the first request of a case is a MISS");
 
-    const key = res.headers["x-cache-key"];
-    assert.equal(typeof key, "string", "a cached response names its cache key");
-    const cacheKey = key as string;
-    writtenKeys.add(cacheKey);
-
-    const cache = app.cache;
-    assert.ok(cache, "the app decorates the cache port");
-    const deadline = Date.now() + CACHE_WRITE_DEADLINE_MS;
-    while (!(await cache.has(cacheKey))) {
-      assert.ok(Date.now() < deadline, `the MISS was never written under ${cacheKey}`);
-      await new Promise((resolve) => setTimeout(resolve, 20));
-    }
+    const cacheKey = recordCacheWrite(res);
+    assert.ok(cacheKey, "a cached response names its cache key");
+    await awaitCacheWrite(cacheKey);
     return res;
   };
 
@@ -176,6 +243,7 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
 
   before(async () => {
     prisma = createSeedPrismaClient();
+    redis = createRedisConnection();
 
     const stamp = `${Date.now()}-${randomUUID()}`;
     const accountA = await prisma.account.create({
@@ -204,11 +272,21 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
     if (app) {
       const cache = app.cache;
       if (cache) {
-        for (const key of writtenKeys) {
+        for (const key of writtenKeys.keys()) {
           await cache.delete(key);
         }
       }
+      if (redis) {
+        for (const [key, tags] of writtenKeys) {
+          for (const tag of tags) {
+            await redis.srem(`${CACHE_WIRE_PREFIX}tag:${tag}`, key);
+          }
+        }
+      }
       await app.close();
+    }
+    if (redis) {
+      await redis.quit();
     }
     if (prisma) {
       if (projectAId) {
@@ -290,6 +368,48 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
     assert.notEqual(res.headers["x-cache"], "HIT", "an expired token never gets a cache HIT");
     assert.equal(res.statusCode, 401, `the route refuses an expired token: ${res.payload}`);
     assert.notEqual(dataJson(res), ownerData, "no byte of the dashboard reaches an expired token");
+  });
+
+  it("answers a caller with no credentials on every route a cached rule declares public", async () => {
+    // The boot guard refutes `public: true` only against hooks the route itself
+    // carries; an authenticating hook a plugin adds with `addHook` is invisible to it.
+    // A route that refuses an anonymous caller is not public, whatever its rule says,
+    // and its cached body would be shared between every caller it admits.
+    const checked: string[] = [];
+    for (const [key, rule] of Object.entries(CACHE_CONFIG)) {
+      if (!key.startsWith("GET:") || rule.enabled !== true || rule.public !== true) {
+        continue;
+      }
+      const pattern = key.slice("GET:".length);
+      if (!app.hasRoute({ method: "GET", url: pattern })) {
+        continue;
+      }
+
+      const res = await app.inject({
+        method: "GET",
+        url: pattern.replace(/:[^/]+/g, "anonymous-check"),
+      });
+      if (res.headers["x-cache"] === "MISS") {
+        const cacheKey = recordCacheWrite(res);
+        if (cacheKey !== undefined) {
+          await awaitCacheWrite(cacheKey);
+        }
+      }
+
+      assert.ok(
+        res.statusCode !== 401 && res.statusCode !== 403,
+        `${key} declares public: true, yet its route answers ${res.statusCode} to a caller ` +
+          "with no credentials: an authenticating hook the boot guard cannot see guards it, " +
+          "so one caller's cached body would reach every other caller it admits. Drop the " +
+          'declaration and vary the rule by "header:authorization".'
+      );
+      checked.push(key);
+    }
+
+    assert.ok(
+      checked.length > 0,
+      "no registered route has a public cached rule: this case read nothing"
+    );
   });
 
   it("names the caller in the cache key without carrying the caller's bearer token", async () => {
