@@ -162,7 +162,7 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 - **Verificación:** WebFetch real de las 4 (2026-05). Graça/Sairyss/Seemann = citas literales confirmadas; Nx 80/20 =
   fuente frontend-flavored (aplica el packaging, no el taxonomy feature/ui/state).
 - **Consumido por:** decisión Opción A (core→`packages/@core`) + grafo objetivo en
-  `docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md` (2026-05). Existe debate canónico legítimo: modular-monolith /
+  [`docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md`](https://github.com/edwardricardo/omni-post/blob/0086df48af32db3980680158e8b76ada41358dbf/docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md) (2026-05; deleted from `docs/` on 2026-10-17, the link is its last version). Existe debate canónico legítimo: modular-monolith /
   in-process consumers (la Opción B usada para resolver DUP-01/02) también es canon — ambos extremos del espectro
   decoupling↔simplicidad.
 
