@@ -38,7 +38,7 @@ The four canon documents are loaded into every agent session by `CLAUDE.md`.
 | [Bounded Contexts](architecture/BOUNDED_CONTEXTS.md)               | The core packages and what each context owns                      |
 | [Admin and Customer Parity](architecture/ADMIN_CUSTOMER_PARITY.md) | Ledger of admin and customer behaviour that must match            |
 | [Schema Conventions](architecture/schema-conventions.md)           | Prisma schema conventions                                         |
-| [Caching](architecture/caching.md)                                 | Why one cache port with two adapters                              |
+| [Caching](architecture/caching.md)                                 | Why one cache port with two adapters; the HTTP response cache     |
 | [Logging](architecture/logging.md)                                 | Logger threat model and redaction                                 |
 | [Secrets and Environment](architecture/secrets-and-env.md)         | Typed env modules, test environment, secret handling rationale    |
 | [OpenAPI Migration](architecture/openapi-migration.md)             | Route schemas to OpenAPI to the generated TypeScript types        |
@@ -61,7 +61,7 @@ The four canon documents are loaded into every agent session by `CLAUDE.md`.
 
 ## API
 
-The route reference is generated: [`packages/shared/src/api-generated/types.gen.ts`](../packages/shared/src/api-generated/types.gen.ts) holds every registered method and path, and the running API serves the same OpenAPI document through Swagger. Of the hand-written pages under `docs/api/`, only the saga page is indexed; the others drifted from the routes.
+The route reference is generated: [`packages/shared/src/api-generated/types.gen.ts`](../packages/shared/src/api-generated/types.gen.ts) holds every registered method and path, and the running API serves the same OpenAPI document through Swagger. `docs/api/` keeps one hand-written page, the saga page below.
 
 | Document                             | What it covers                                                                                                        |
 | ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |

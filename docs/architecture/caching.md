@@ -217,6 +217,26 @@ Hexagonal purity would suggest separate ports for "in-process cache" and "distri
 
 ---
 
+## HTTP response caching
+
+Read from the code on 2026-10-17. This section replaces the API response-caching page, [`docs/api/caching.md`](https://github.com/edwardricardo/omni-post/blob/785fe200804209ae8d8453f2667194671fce8f4f/docs/api/caching.md), which was removed from the repository that day (git history keeps it; the link is its last version). The `withCache` and `withInvalidation` decorators it described (`cacheDecorators.ts`) do not exist, and nothing records how its before-and-after timings were measured.
+
+**What runs.** `autoCachePlugin` (`apps/api/src/middleware/autoCacheMiddleware.ts`) is registered in `createApp` (`apps/api/src/index.ts`) ahead of every route plugin, with the container's `CachePort`, caching and invalidation on, `excludeRoutes: ["/health", "/metrics"]` and `logCacheOps` from `LOG_CACHE_OPS`. It adds three global hooks:
+
+- `onRequest`, on a GET whose route pattern has an enabled rule: on a hit it sends the stored body, headers and status with `X-Cache: HIT`, and the request ends there, before any `preHandler`, auth included.
+- `onSend`, on a miss: stores a 2xx response under the key computed on the way in, with the rule's TTL and tags, without waiting for the write, and sets `X-Cache: MISS`.
+- `onResponse`, on a 2xx POST, PUT, PATCH or DELETE: calls `invalidateByTag` for every tag its rule names.
+
+Both responses carry `X-Cache-Key` and `X-Cache-Tags` as well.
+
+**The rules.** `apps/api/src/lib/cache/cacheConfig.ts` holds 22 GET rules in `CACHE_CONFIG` (TTL, tags, `varyBy`) and 25 mutation rules in `CACHE_INVALIDATION_RULES`. Each key is the method and the route pattern exactly as registered, parameter names included. `apps/api/src/lib/cache/cacheRouteCoverage.ts` checks every key when the app is ready: a key whose route is registered under other parameter names fails the boot, and because `createApp` passes `assertRuleCoverage: true`, so does a key no route registers, unless `KNOWN_UNREGISTERED_CACHE_KEYS` lists it. That list may only shrink. It holds 14 GET rules and 16 mutation rules today, so 8 GET rules cache something (the five `/providers` rules, `/analytics/dashboard`, `/posts` and `/posts/:id`) and 9 mutation rules invalidate something (`DELETE /posts/:id` and the project, account and channel mutations).
+
+**The key.** `generateApiCacheKey` joins `api`, the method, the route pattern and every `varyBy` entry that has a value: `query:<name>`, `header:<name>` (the raw header value) or a path parameter. It adds `user=<id>` only when `request.user` is already set, and no global hook sets it before the read, so for an account-scoped route the account reaches the key only through `header:authorization`. `GET:/posts` and `GET:/posts/:id` list it. `GET:/analytics/dashboard` does not: its key is the route and its query, and a hit is served before `requireClientAuth` and the handler's project-access check run. Among the unregistered rules, `GET:/projects/:id` and `GET:/channels/:id` lack it too, and `cacheRouteCoverage.ts` says to add it before either is revived.
+
+**Operations.** `apps/api/src/monitoring/cacheStatsRoutes.ts`, admin only (`requireAdminAuth`): `GET /cache/stats`, `GET /cache/health` and `GET /cache/hot-keys` need `SYSTEM_MONITOR`; `POST /cache/flush`, `POST /cache/invalidate` (by tags or patterns) and `POST /cache/warm` need `SYSTEM_CONFIGURE`. They drive the `CacheAdminPort` that `createApp` passes in, the concrete `RedisCacheManager`, because the cache behind it is shared by every tenant and every pod.
+
+---
+
 ## References
 
 - [BentoCache — multi-tier canon](https://bentocache.dev/docs/introduction) — primary reference for the L1+L2 + tagging API.
