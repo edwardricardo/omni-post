@@ -8,7 +8,7 @@ This page indexes the living documents under `docs/`. [`CLAUDE.md`](../CLAUDE.md
 
 | Document                                                        | What it covers                                                                         |
 | --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [Getting Started](development/getting-started.md)               | Setup, environment, Docker services, development commands, first run, troubleshooting  |
+| [Getting Started](development/getting-started.md)               | Setup, environment, Docker services, Turborepo, git and pull requests, troubleshooting |
 | [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md)    | Variable reference by category; Master Plan DEF-97 tracks the required ones it misses  |
 | [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks and tooling, reach, CI execution, the gates that cannot fail, open findings |
 | [Coding Standards](development/CODING_STANDARDS.md)             | TypeScript, Result, error handling, testing, naming, JSDoc (canon)                     |

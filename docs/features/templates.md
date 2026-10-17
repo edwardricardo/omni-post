@@ -570,7 +570,7 @@ import { TemplateLibrary, TemplateEditor, ABTestManager } from "@/components/tem
 
 ## Contributing
 
-Please see the [contributing guide](../development/contributing.md) for guidelines on contributing to the template system.
+Please see the [contributing guide](../development/getting-started.md) for guidelines on contributing to the template system.
 
 ## Support
 
