@@ -18,8 +18,8 @@
 - **Related**: the billing code as it stands lives in `apps/api/src/billing/`,
   `apps/api/src/infrastructure/billing/` and `packages/core/billing/`, and the ADRs above govern
   its change; [the former billing API reference](https://github.com/edwardricardo/omni-post/blob/b87dc0639d0406e34d7c4681b11ce6957cdec4df/docs/api/billing.md),
-  deleted on 2026-10-17, describes a billing service that no longer exists, so read it only as
-  history
+  removed from the repository on 2026-10-17 (git history keeps it), describes a billing service
+  that no longer exists, so read it only as history
 
 ---
 

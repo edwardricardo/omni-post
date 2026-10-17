@@ -85,8 +85,9 @@ documented in [SECRETS_KMS_MIGRATION.md](https://github.com/edwardricardo/omni-p
 The further evolution to per-tenant KEKs (and optionally true BYOK) is
 documented as a feasibility study in
 [SECRETS_BYOK_FEASIBILITY.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_BYOK_FEASIBILITY.md).
-Both studies left `docs/` on 2026-10-17; every link to them in this
-document points at their last version.
+The KMS migration guide and the BYOK feasibility study were removed
+from the repository on 2026-10-17; git history keeps them, and every
+link to them in this document points at their last version.
 
 ---
 
@@ -408,8 +409,9 @@ Two sections: the current location (where the CI/CD secrets live today)
 and the target location (where they will live after deployment-time
 secret delivery is in place per the architecture in
 [SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md)).
-That study left `docs/` on 2026-10-17; every link to it in this document
-points at its last version.
+That production secrets architecture document was removed from the
+repository on 2026-10-17; git history keeps it, and every link to it in
+this document points at its last version.
 
 ### 7.1 Current state
 
@@ -428,9 +430,16 @@ are themselves not secrets and live in the repository.
 
 ### 7.2 Target state
 
-Per [SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md),
-the target is to remove static long-lived secrets from CI configuration
-and consume from the chosen target store via:
+Nothing in the tree describes the target secrets architecture any more:
+the production secrets architecture document that did was removed from
+the repository on 2026-10-17, and its last version,
+[SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md),
+is the record. In short, the target removes static long-lived secrets
+from CI configuration and has CI read them from one central secret
+store, which that document compared across six delivery patterns
+(External Secrets Operator, SOPS with age, dotenvx, Doppler, the
+1Password CLI and HashiCorp Vault) without choosing one. CI would reach
+the store via:
 
 - GitHub OIDC trust to the cloud secret manager (no static tokens in CI)
 - Or: a CI-side CLI (`doppler run`, `op run`, `vault read`) that

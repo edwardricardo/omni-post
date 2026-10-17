@@ -76,7 +76,7 @@ _Lectura: tus 4 apuestas más fuertes (contenido informado por analytics, IA mul
 | White-label de plataforma              | Agencia       | ⛔ SIN RASTRO   | Solo white-label de reportes implícito; sin branding/dominio de plataforma.                       |
 | Conector Looker Studio / API analytics | Analytics     | ⛔ SIN RASTRO   | Sin conector Looker.                                                                              |
 
-Una referencia entre corchetes como `[docs/x.md:12]` enlaza la versión de la página que midió la cita, que para una página retirada de `docs/` es su última versión; una ruta entre comillas invertidas nombra la página tal como está hoy.
+Una referencia entre corchetes como `[docs/x.md:12]` enlaza la versión de la página que midió la cita, que para una página borrada del repositorio es su última versión; cada enlace nombra el commit y la ruta, así que `git show <commit>:<ruta>` la lee sin red. Una ruta entre comillas invertidas nombra la página tal como está hoy.
 
 [docs/features/platform-expansion.md]: https://github.com/edwardricardo/omni-post/blob/d53b66a0597323a6c604f5695e39ea3078bed123/docs/features/platform-expansion.md
 [docs/features/analytics.md:100]: https://github.com/edwardricardo/omni-post/blob/d53b66a0597323a6c604f5695e39ea3078bed123/docs/features/analytics.md#L100
