@@ -21,7 +21,9 @@ import {
   buildIntegration,
   makeStartRequest,
   passthroughReply,
+  TEST_ACCOUNT_ID,
   type MockEventService,
+  type MockPrisma,
   type MockRedis,
 } from "./sagaIntegration.helpers.js";
 
@@ -38,6 +40,23 @@ const TERMINAL_STATUSES: readonly unknown[] = ["COMPLETED", "FAILED", "COMPENSAT
 interface SagaRecord {
   status: string;
   nextRetryAt?: string;
+}
+
+/** The columns of a saga's durable row these tests read. */
+interface SagaRow {
+  status: string;
+  accountId: string | null;
+  nextRetryAt: Date | null;
+}
+
+/**
+ * The saga's durable row as the Prisma double holds it, reached through a documented cast: the
+ * harness builds the double inside `buildIntegration` and hands back no reference, and the
+ * integration keeps its configuration private.
+ */
+async function durableRow(integration: SagaIntegration, sagaId: string): Promise<SagaRow | null> {
+  const prisma = (integration as unknown as { config: { prisma: MockPrisma } }).config.prisma;
+  return (await prisma.sagaInstance.findUnique({ where: { id: sagaId } })) as SagaRow | null;
 }
 
 /**
@@ -131,11 +150,17 @@ describe("SagaIntegration - Graceful Shutdown", () => {
     await awaitEverySagaParked(mockRedis);
     const parked = JSON.parse((await mockRedis.get(`saga:${result.data.sagaId}`))!) as SagaRecord;
     expect(parked.status).toBe("RUNNING");
+    expect((await durableRow(integration, result.data.sagaId))?.status).toBe("RUNNING");
 
     await integration.shutdown();
 
-    // The drain hands the saga off as PENDING and keeps its retry, which is what the next
-    // process's retry scan selects it by.
+    // The drain hands the saga off as PENDING and keeps its retry. The next process's retry scan
+    // selects it by the DURABLE row, so the hand-off must land there under the owning account; the
+    // cache is a best-effort copy written only after that row commits.
+    const row = await durableRow(integration, result.data.sagaId);
+    expect(row).toMatchObject({ status: "PENDING", accountId: TEST_ACCOUNT_ID });
+    expect(row?.nextRetryAt?.toISOString()).toBe(parked.nextRetryAt);
+
     const data = await mockRedis.get(`saga:${result.data.sagaId}`);
     expect(data).toBeTruthy();
     const handedOff = JSON.parse(data!) as SagaRecord;
