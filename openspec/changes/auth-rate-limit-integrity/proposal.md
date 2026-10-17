@@ -74,11 +74,12 @@ An anti-drift test enumerates registered route patterns via an `onRoute` collect
 Additional corrections landing with the change (not the two named, but the same class):
 
 - `SECURITY_CANON §Rate Limiting`: _"Prefer an authenticated principal over IP when one exists"_ — **not supported anywhere**; the rule type has no `keyBy` (`:24-30`). Either the dimension lands (§8 F2) or the canon states the gap honestly.
-- `docs/api/auth.md:41-53, 64-72` — six of ten Rate Limit values are transcribed from the **inert** blocks; `/auth/customer/login/mfa` is absent. Rewrite from the enforced table.
-- `docs/api/auth.md:403` — _"Applied to all public auth endpoints via Fastify `rateLimit` config"_: false twice.
-- `docs/api/auth.md:37` — documents `/auth/*` as "admin authentication" and never documents `/admin/auth/*`, the login the portal should be using.
-- `docs/security/AUTH.md:322,324` — 5/15min holds for two routes, not universally; **`X-RateLimit-Limit` is never set by the limiter** (`:168-169, 204-205`), only by the dead `rbacMiddleware.ts:217` deleted in W2.
-- `docs/security/OVERVIEW.md` is the one accurate description in the set. Keep it.
+- [`docs/api/auth.md:41-53, 64-72`](https://github.com/edwardricardo/omni-post/blob/620fa83c38f29347d878900b5cc64116e31c181e/docs/api/auth.md#L41-L72) — six of ten Rate Limit values are transcribed from the **inert** blocks; `/auth/customer/login/mfa` is absent. Rewrite from the enforced table.
+- [`docs/api/auth.md:403`](https://github.com/edwardricardo/omni-post/blob/620fa83c38f29347d878900b5cc64116e31c181e/docs/api/auth.md#L403) — _"Applied to all public auth endpoints via Fastify `rateLimit` config"_: false twice.
+- [`docs/api/auth.md:37`](https://github.com/edwardricardo/omni-post/blob/620fa83c38f29347d878900b5cc64116e31c181e/docs/api/auth.md#L37) — documents `/auth/*` as "admin authentication" and never documents `/admin/auth/*`, the login the portal should be using.
+- [`docs/security/AUTH.md:322,324`](https://github.com/edwardricardo/omni-post/blob/22112e7048ca16b8c1e9afd6144b4cd600e72511/docs/security/AUTH.md#L322-L324) — 5/15min holds for two routes, not universally; **`X-RateLimit-Limit` is never set by the limiter** (`:168-169, 204-205`), only by the dead `rbacMiddleware.ts:217` deleted in W2.
+- `docs/security/OVERVIEW.md` is the one accurate description in the set. Keep it. (On 2026-10-17 it was folded into `docs/architecture/SECURITY.md` and removed from the repository; git history keeps it, and the version this proposal read is [`docs/security/OVERVIEW.md`](https://github.com/edwardricardo/omni-post/blob/20542413c293aff3fcdbb96de7ba1d77d4a120f3/docs/security/OVERVIEW.md).)
+- **Since 2026-10-17:** `docs/api/auth.md` was removed from the repository with the other hand-copied API pages (git history keeps it), so the three bullets that name it ask for no rewrite; their links keep what it said. The auth routes' figures are stated in `docs/security/AUTH.md` §Rate Limiting, rewritten against the code the same day, and R11 holds that section to the enforced allowances.
 
 ### W9 — Fail-open telemetry that exists
 
@@ -150,7 +151,7 @@ Parity is **bidirectional and interleaved** today — which is itself the eviden
 
 **Asymmetries justified as essential:**
 
-1. **`/auth/customer/register` exists only on the customer side.** There is no public admin registration — `POST /auth/register` was removed for CWE-269 (`docs/api/auth.md:53`); admins are provisioned through `AuthService.registerAdmin` on the seed path. A `REGISTRATION` preset with one consumer is correct, not a parity gap.
+1. **`/auth/customer/register` exists only on the customer side.** There is no public admin registration — `POST /auth/register` was removed for CWE-269 ([`docs/api/auth.md:53`](https://github.com/edwardricardo/omni-post/blob/620fa83c38f29347d878900b5cc64116e31c181e/docs/api/auth.md#L53)); admins are provisioned through `AuthService.registerAdmin` on the seed path. A `REGISTRATION` preset with one consumer is correct, not a parity gap.
 2. **After W2, `/admin/auth/*` loses its dedicated mechanism.** That is convergence, not an admin downgrade: the table's caps for those three routes are equal or stricter than M3's, and unlike M3 they no longer vary by `NODE_ENV` (`adminAuthRoutes.ts:559`).
 
 **Non-essential asymmetries this change closes rather than justifies:** every remaining row above.

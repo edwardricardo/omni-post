@@ -293,7 +293,7 @@ pnpm 12.6.0.
 - Root-cause-over-workaround (vite 7/8 collapse via missing `@vitejs/plugin-react`) — engram obs 313
 - vite 8 rolldown JSX-in-SSR tracking — vitejs/vite#21505
 - Audited audit-ignores ledger — `docs/security/SECURITY_CANON.md §Audited audit-ignores`
-- Standing backlog / config-location notes (build-tool version holds) — `docs/security/SECURITY_CANON.md §Audited audit-ignores`; original inventory frozen at `docs/archive/PENDING_WORK_INVENTORY.md`
+- Standing backlog / config-location notes (build-tool version holds) — `docs/security/SECURITY_CANON.md §Audited audit-ignores`; original inventory frozen at [`docs/archive/PENDING_WORK_INVENTORY.md`](https://github.com/edwardricardo/omni-post/blob/cb4921bda93a39e300f1bd5203985edde8055258/docs/archive/PENDING_WORK_INVENTORY.md), removed from the repository on 2026-10-17 (git history keeps it)
 - SMELL-52 (GVS/`turbopack.root` sub-item, closed by this ADR) —
   `docs/reports/roadmap-detected-smells-backlog.md`
 - Production build model + `turbopack.root` history —

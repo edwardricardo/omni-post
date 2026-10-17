@@ -444,7 +444,9 @@ and `TOTAL: 818 tests, 818 pass`.
 not terminalize inside the suite's 120 s budget locally when CI's do. The local
 failure mode is the timeout itself (`did not reach terminal state within
 120000ms`, at ~120.1 s each), and the known precedent class is
-`docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §H3, which names these exact three
+[`docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §H3](https://github.com/edwardricardo/omni-post/blob/d3479d08493b2730765b48e65d66ae1021ba4d01/docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md#L5)
+(the report was removed from the repository on 2026-10-17; git history keeps it,
+and both links here are its last version), which names these exact three
 subtests: with nothing draining the publish queue the saga parks in `waiting` and
 only the 30-minute horizon terminalizes it. Here a worker WAS booted, so that is
 a lead, not a conclusion, and it is recorded as undiagnosed.
@@ -454,7 +456,7 @@ three fail on the OWNER channel with working-tree code (arm A), and again with
 HEAD (`585a01bb`) content planted in all six changed source files (arm B,
 restored byte-exact). Neither the role nor this change's diff is the variable.
 The carry-forward is binary: diagnose it, or declare the hand-driven local live
-tier an unsupported measurement surface — `SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §Fix 2
+tier an unsupported measurement surface — [`SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §Fix 2](https://github.com/edwardricardo/omni-post/blob/d3479d08493b2730765b48e65d66ae1021ba4d01/docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md#L161)
 already specifies the fail-loud consumer precondition that would have turned this
 into a named failure in seconds instead of a wrong diagnosis.
 

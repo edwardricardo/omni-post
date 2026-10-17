@@ -150,7 +150,7 @@ Two fitness functions in `.github/workflows/fitness.yml` enforce the design:
 - **#15 — No insecure secret fallbacks (CWE-798).** Greps `apps/api/src` and `apps/workers/src` for any `process.env.X_(SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL) (||/??) ...` pattern. Hard zero.
 - **#16 — No direct `process.env.*` in `apps/api/src` outside `config/env.ts`.** Forces all consumers to go through the typed `env`.
 
-The `packages/providers/*` tree still has ~25 occurrences of pattern #15 (provider adapters reading credentials directly from env). These are tracked under PR-40 in `docs/audits/POST_REMEDIATION_BACKLOG.md`; the canonical fix is constructor injection, which is a deeper refactor than this batch.
+The `packages/providers/*` tree still has ~25 occurrences of pattern #15 (provider adapters reading credentials directly from env). These are tracked under PR-40 in [`docs/audits/POST_REMEDIATION_BACKLOG.md`](https://github.com/edwardricardo/omni-post/blob/4730470a6c65ebed1b549fc31ed233a96f28e255/docs/audits/POST_REMEDIATION_BACKLOG.md), which was removed from the repository on 2026-05-10 (git history keeps it; the link is its last version); the canonical fix is constructor injection, which is a deeper refactor than this batch.
 
 ## Adding a new env var
 

@@ -570,12 +570,12 @@ import { TemplateLibrary, TemplateEditor, ABTestManager } from "@/components/tem
 
 ## Contributing
 
-Please see the [contributing guide](../development/contributing.md) for guidelines on contributing to the template system.
+Please see the [contributing guide](../development/getting-started.md) for guidelines on contributing to the template system.
 
 ## Support
 
 For questions and support:
 
-- 📖 Documentation: this file (templates.md) and the related [advanced analytics](./advanced-analytics.md) doc
+- 📖 Documentation: this file (templates.md)
 - 🐛 Issues: [GitHub Issues](https://github.com/edwardricardo/omni-post/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/edwardricardo/omni-post/discussions)

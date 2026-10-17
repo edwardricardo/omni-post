@@ -153,7 +153,7 @@ Verify: `GET <API>/auth/callback/<network>` is the URI registered in the network
 What the tree cannot answer yet. Each one is a row to fill when the decision is made.
 
 1. **Domain, TLS and DNS.** No document names the production domain, the TLS terminator, the certificate source or the DNS records.
-2. **Where the images run.** No document names the platform that pulls the GHCR images, or how runtime variables reach it; [SECRETS_PRODUCTION_ARCHITECTURE.md](../security/SECRETS_PRODUCTION_ARCHITECTURE.md) describes a target secret store that is not in place.
+2. **Where the images run.** Which platform pulls the GHCR images, and how runtime variables reach it, is not decided, and no document names either. The architecture document that described the target secret store, [SECRETS_PRODUCTION_ARCHITECTURE.md](https://github.com/edwardricardo/omni-post/blob/9fddf03d1ed40e5bda6ea1ccf7de6f25bc39fc9b/docs/security/SECRETS_PRODUCTION_ARCHITECTURE.md), was removed from the repository on 2026-10-17 (git history keeps it); that store is not in place.
 3. **Metrics and alerts in production.** The production scrape configuration and the Alertmanager routing (Master Plan §4.2.c) are not in the tree.
 4. **Role audit rows.** ADR-0022's staging and production rows read "Does not exist"; each is mandatory before that environment serves traffic.
 5. **The first admin user.** No production procedure creates it.

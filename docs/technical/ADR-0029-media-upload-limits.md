@@ -11,7 +11,7 @@
 ## Context
 
 Edward asked for upload limits that are "neither much more restrictive nor much more permissive than
-the competition". The research ([research-2026-10-04-storage.md](../reports/research-2026-10-04-storage.md),
+the competition". The research ([research-2026-10-04-storage.md](https://github.com/edwardricardo/omni-post/blob/7b3ec1ac7dd7e1d8096ef6b03ad805b9a17d5d81/docs/reports/research-2026-10-04-storage.md),
 Report 1) read the limits of 13 competitors and the official publishing-API limits of the 11
 networks OmniPost publishes to. The findings that shape this decision:
 
@@ -148,7 +148,7 @@ search of 79 lines, spot-checked here):
 
 ## References
 
-- Research: [research-2026-10-04-storage.md](../reports/research-2026-10-04-storage.md) — Report 1
+- Research: [research-2026-10-04-storage.md](https://github.com/edwardricardo/omni-post/blob/7b3ec1ac7dd7e1d8096ef6b03ad805b9a17d5d81/docs/reports/research-2026-10-04-storage.md) (removed from the repository on 2026-10-17; git history keeps it) — Report 1
   (§1 competitors, §2 the 11 networks' official API limits, §3 recommendation), Report 2
   (upload-size enforcement per provider and the `UploadTicket` contract).
 - Specification: [media-storage.md](../features/media-storage.md).

@@ -54,3 +54,13 @@ barrels). Reduce it incrementally by: correcting per-workspace `entry` in
 deleting genuinely-unused exports/types (removing an unused `type`/`interface`
 export is runtime-safe). Each reduction is a follow-up PR that shrinks the
 ledger.
+
+## The jscpd duplicate baseline
+
+Carried over on 2026-10-17 from the CI-gate burn-down ledger, [`docs/development/ci-gate-debt-burndown.md`](https://github.com/edwardricardo/omni-post/blob/2d809195912280f2d11fe17acbf977b2ccf40bd8/docs/development/ci-gate-debt-burndown.md), which was removed from the repository that day (git history keeps it; the link is its last version); its knip and override sections were stale.
+
+`pnpm check:duplicates` runs `scripts/testing/jscpd-baseline-gate.mjs`, which runs jscpd (5.4.1, a root devDependency) over `apps/` and `packages/` with `.jscpd.json`: TypeScript and TSX files, clones of at least 10 lines and 50 tokens, with tests, stories, `*.config.ts` and generated code (`**/generated/**`, `**/api-generated/**`, `**/*.generated.ts`) left out. `.jscpd-baseline.json` holds the accepted clones as fingerprints: 992 of them, with counts summing to 1,000, on 2026-10-17. With `failOnNewClones: 0` jscpd fails on any clone the baseline does not hold, and its console marks it `[NEW]`; a missing baseline fails too, and `failOnEmpty: true` fails a scan that reads no file.
+
+- **What a fingerprint is.** A hash of the raw text of a clone's two fragments. It survives line shifts and file renames, but any edit inside a duplicated fragment, whitespace included, makes the clone new. Touching duplicated code therefore means removing the duplication, or rewriting the baseline in the same pull request for a reviewer to see.
+- **Stale entries fail.** jscpd never reports a fingerprint whose committed count is above what the tree produces now, and while such an entry stays, an identical clone added back passes. So the gate runs jscpd a second time with `--update-baseline` into a scratch file, prints each stale entry by its hash with its committed and current counts, and exits 1 (Edward's decision of 2026-10-03). A current count above the committed one means the two runs disagree, and the gate fails closed.
+- **The remedy** for both is `pnpm check:duplicates:update-baseline`, then committing the rewritten `.jscpd-baseline.json`. The sum of its counts is the debt metric: a pull request that removes a clone lowers it, and it never rises to absorb a new clone.

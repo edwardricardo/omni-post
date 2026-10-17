@@ -78,4 +78,4 @@ Indica que el saga COMPLETÓ pero `nextRetryAt` no se limpió. Posibles causas:
 - Source saga engine: `apps/api/src/saga/SagaManager.ts`, `SagaManagerLifecycle.ts`, `SagaManagerExecution.ts`.
 - Contrato de outcomes: `packages/shared/src/saga.ts` (`SagaStepResult`), `docs/api/saga.md`.
 - Test helpers: `apps/api/tests/chaos/chaos-helpers.ts`, `apps/api/tests/unit/sagaManager.test-helpers.ts`.
-- Framework canon: `docs/architecture/chaos-testing.md`.
+- What exists and where it runs: [Testing Infrastructure, section 5](../development/TESTING_INFRASTRUCTURE.md#5-chaos-scenarios).

@@ -90,7 +90,10 @@ description = """
 angle-bracket placeholders in security docs. The default generic-api-key
 rule matches the `KEY=<...>` shape regardless of whether the value is
 obviously a placeholder. Sanitising further would lose the canonical
-"fill in your own AES-256 key" instruction.
+"fill in your own AES-256 key" instruction. On 2026-10-17 neither path
+holds the placeholder any more (OVERVIEW.md was removed from the
+repository that day); the entry covers their history for the
+full-repository scan that runs on push.
 """
 paths = [
   '''docs/architecture/SECURITY\.md''',
@@ -104,7 +107,9 @@ The TESTING.md command line `pnpm --filter @apps/api
 test:phase4c-integration` matches the default generic-api-key rule by the
 colon + entropy in the package-script name. The matched substring is a
 pnpm script identifier (defined in `apps/api/package.json`), not a
-credential.
+credential. TESTING.md was removed from the repository on 2026-10-17;
+the entry covers its history for the full-repository scan that runs on
+push.
 """
 paths = ['''docs/architecture/TESTING\.md''']
 regexes = ['''test:phase4c-integration''']

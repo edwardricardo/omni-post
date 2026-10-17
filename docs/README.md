@@ -1,280 +1,208 @@
 # OmniPost Documentation
 
-## Project Overview
+OmniPost is a multi-channel social media content management system: content is written once and published to the 11 platforms of the `Provider` enum in `infra/prisma/schema.prisma` (X, Instagram, Facebook, YouTube, TikTok, Snapchat, Telegram, Pinterest, LinkedIn, Bluesky, Threads), each with an adapter under `packages/providers/`.
 
-**OmniPost** is a multi-channel social media content management system (CMS) that enables users to create content once and publish it across multiple social platforms.
+This page indexes the living documents under `docs/`. [`CLAUDE.md`](../CLAUDE.md) at the repository root holds the development commands, the project structure and the fitness checks.
 
-### Key Features
+## Start here
 
-- **Multi-Platform Publishing**: X/Twitter, Instagram, Facebook, TikTok, YouTube
-- **AI Content Generation**: GPT-4, Google Gemini, Perplexity integration (rule-based heuristics for optimization)
-- **Analytics Dashboard**: Cross-platform performance metrics
-- **Scheduling**: Optimal timing with queue management
-- **Team Collaboration**: Role-based access control (RBAC)
-- **Multi-Factor Authentication**: TOTP with backup codes
+| Document                                                        | What it covers                                                                                                                      |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [Getting Started](development/getting-started.md)               | Setup, environment, Docker services, local storage, tracing and mail, Turborepo, git and pull requests, troubleshooting             |
+| [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md)    | Variable reference by category; Master Plan DEF-97 tracks the required ones it misses                                               |
+| [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks, reach, CI, the `node:test` runner, chaos, provider contract and end-to-end tests, gates that cannot fail, open findings |
+| [Coding Standards](development/CODING_STANDARDS.md)             | TypeScript, Result, error handling, testing, naming, JSDoc (canon)                                                                  |
 
-### Target Users
-
-- Social media managers
-- Marketing teams
-- Content creators
-- Agencies managing multiple clients
-
-## Documentation Index
-
-### Getting Started
-
-| Document                                                        | Description                                             |
-| --------------------------------------------------------------- | ------------------------------------------------------- |
-| [Getting Started](development/getting-started.md)               | Setup, Docker, environment, first run                   |
-| [Contributing](development/contributing.md)                     | Code standards, git workflow, testing                   |
-| [Turborepo](development/turborepo.md)                           | Build cache, CI integration                             |
-| [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks, reach, CI execution, gates that cannot fail |
-| [Testing Re-foundation](development/TESTING_REFOUNDATION.md)    | Progress tracker and fixed plan of the re-foundation    |
-| [Foundation Practices](development/FOUNDATION_PRACTICES.md)     | Practices the next app adopts from its first commit     |
-
-### Architecture
-
-| Document                                        | Description                                 |
-| ----------------------------------------------- | ------------------------------------------- |
-| [Architecture Overview](architecture/README.md) | Hexagonal, DDD, CQRS, event-driven patterns |
-| [API Reference](architecture/API.md)            | Fastify REST API, endpoints, auth           |
-| [Database](architecture/DATABASE.md)            | Prisma schema, migrations, indexes          |
-| [Security](architecture/SECURITY.md)            | JWT, MFA, RBAC, audit logging               |
-| [Providers](architecture/PROVIDERS.md)          | 10 social platform adapters                 |
-| [Testing](architecture/TESTING.md)              | Vitest, node:test, Playwright strategy      |
-| [Observability](architecture/observability.md)  | OpenTelemetry, Prometheus, Pino logging     |
-| [Client App](architecture/CLIENT-APP.md)        | Next.js, React 19, TanStack Query           |
-
-### API
-
-| Document                          | Description                             |
-| --------------------------------- | --------------------------------------- |
-| [API Overview](api/README.md)     | Health checks, response format, metrics |
-| [CQRS Guide](api/cqrs.md)         | Commands, queries, bus patterns         |
-| [Saga Orchestration](api/saga.md) | Distributed transactions, UoW, outbox   |
-| [Caching](api/caching.md)         | Redis L1/L2, auto-cache middleware      |
-
-### Apps
-
-| Document                                 | Description                      |
-| ---------------------------------------- | -------------------------------- |
-| [Admin Portal](frontend/admin-portal.md) | Admin app overview               |
-| [Admin Auth](admin/AUTH.md)              | Server Actions, httpOnly cookies |
-| [Admin E2E Tests](admin/e2e/README.md)   | Playwright test suite            |
-| [Client App](client/react-19.md)         | React 19 concurrent features     |
-| [Content Editor](client/editor.md)       | TipTap, platform previews        |
-| [Client E2E Tests](client/e2e/README.md) | Playwright test suite            |
-
-### Features
-
-| Document                                                   | Description                       |
-| ---------------------------------------------------------- | --------------------------------- |
-| [Provider Capabilities](features/provider-capabilities.md) | 10-provider matrix                |
-| [Team Workflows](features/team-workflows.md)               | Roles, approvals, notifications   |
-| [Social Inbox](features/social-inbox.md)                   | Message aggregation, replies      |
-| [Analytics](features/analytics.md)                         | Cross-platform metrics, reporting |
-| [Templates](features/templates.md)                         | A/B testing, versioning           |
-
-### Security
-
-| Document                                  | Description                   |
-| ----------------------------------------- | ----------------------------- |
-| [Security Overview](security/OVERVIEW.md) | JWT, MFA, password, audit     |
-| [Auth Architecture](security/AUTH.md)     | Cookie auth, dual-app pattern |
-
-### Legal
-
-| Document                                 | Description                                            |
-| ---------------------------------------- | ------------------------------------------------------ |
-| [Legal Facts Register](legal/README.md)  | How the register grows, inventories, pending decisions |
-| [Processing Register](legal/REGISTER.md) | Record of processing activities (GDPR art. 30)         |
-
-### Support
-
-| Document                                             | Description                                                                      |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------- |
-| [Support Documentation](support/README.md)           | One page per feature: how it works and where to look when a ticket opens         |
-| [Non-features and Coverage](support/NON_FEATURES.md) | Every capability candidate and the support page that covers it, or why none does |
-
-### Reports (Historical)
-
-| Directory / file                                               | Content                                    |
-| -------------------------------------------------------------- | ------------------------------------------ |
-| [Testing (archived)](archive/)                                 | Frozen testing audits, see development/    |
-| [Smells backlog](reports/roadmap-detected-smells-backlog.md)   | Live backlog of detected smells (SMELL-NN) |
-| [Merge campaign 2026-07](reports/merge-campaign-2026-07-21.md) | Single-main merge-campaign report          |
-| [Code duplications](reports/code-duplications.md)              | Duplication registry                       |
-
-> The former `reports/{audits,mutations,updates,planning}` snapshots were
-> adjudicated by the Pre-Fase cleanup (see `MASTER_PLAN_ES.md §P`) — deleted or
-> archived under `docs/archive/`.
-
-## Technology Stack
-
-### Backend
-
-| Technology | Version | Purpose          |
-| ---------- | ------- | ---------------- |
-| Node.js    | ES2022  | Runtime          |
-| TypeScript | 6.0.3   | Language         |
-| Fastify    | 5.12.5  | Web framework    |
-| Prisma     | 7.9.1   | Database ORM     |
-| PostgreSQL | 16      | Primary database |
-| Redis      | 7       | Caching & queues |
-| BullMQ     | 5.58.9  | Job processing   |
-
-### Frontend
-
-| Technology   | Version                    | Purpose               |
-| ------------ | -------------------------- | --------------------- |
-| Next.js      | 16.3.8                     | React framework       |
-| React        | 19.2.7                     | UI library            |
-| Tailwind CSS | 4.3.0                      | Styling               |
-| Radix UI     | 1.4.3 (unified `radix-ui`) | Component primitives  |
-| React Query  | 5.101.0                    | Data fetching         |
-| Storybook    | 10.6.1                     | Component development |
-
-### Infrastructure
-
-| Technology     | Purpose          |
-| -------------- | ---------------- |
-| Docker         | Containerization |
-| Kubernetes     | Orchestration    |
-| Prometheus     | Metrics          |
-| Grafana        | Dashboards       |
-| GitHub Actions | CI/CD            |
-
-## Project Structure
-
-```
-omni-post/
-├── apps/
-│   ├── api/          # Fastify REST API (Port 3000)
-│   ├── admin/        # Admin Dashboard (Port 3100)
-│   ├── client/       # Client App (Port 3200)
-│   └── workers/      # Background job processors
-├── packages/
-│   ├── shared/       # Shared types & utilities
-│   ├── ports/        # Interface definitions
-│   ├── adapters/     # Infrastructure adapters
-│   ├── providers/    # Social media adapters
-│   └── ui/           # Shared UI components
-├── infra/
-│   └── prisma/       # Database schema & migrations
-├── k8s/              # Kubernetes manifests
-└── docs/             # Documentation (you are here)
-```
-
-## Getting Started
+Quick start, with the versions `package.json` pins (Node `>=26.11.1 <27`, pnpm 12.6.0):
 
 ```bash
-# Clone and install
-git clone <repository-url>
-cd omni-post
 pnpm install
-
-# Start infrastructure
-docker compose up -d
-
-# Run migrations
+cp .env.example .env   # fill in every value marked (required)
+docker compose up -d   # PostgreSQL, Redis and the local services
+pnpm db:up             # preflight: reaches the PostgreSQL and Redis of .env, starts nothing
 pnpm db:migrate
-
-# Start development
-pnpm dev:api      # API server
-pnpm dev:admin    # Admin dashboard
+pnpm dev               # API (port 3000) and workers; pnpm dev:admin (3100), pnpm dev:client (3200)
 ```
 
-See [getting-started.md](./development/getting-started.md) for detailed setup instructions.
+## Canon and architecture
 
-## Performance Testing
+The four canon documents are loaded into every agent session by `CLAUDE.md`.
 
-OmniPost includes a comprehensive performance testing suite in the `performance/` directory.
+| Document                                                           | What it covers                                                    |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| [Architecture Canon](architecture/ARCHITECTURE_CANON.md)           | Hexagonal, DDD, CQRS, Unit of Work, saga, dependency injection    |
+| [Coding Standards](development/CODING_STANDARDS.md)                | TypeScript, testing, naming, JSDoc                                |
+| [Security Canon](security/SECURITY_CANON.md)                       | Secrets, environment, tenant isolation, rate limiting, CVE floors |
+| [Logging Canon](observability/LOGGING_CANON.md)                    | Logger factories, background tasks, caching                       |
+| [Normalization Roadmap](architecture/NORMALIZATION_ROADMAP.md)     | Cross-cutting architecture, security and DX work, with status     |
+| [Bounded Contexts](architecture/BOUNDED_CONTEXTS.md)               | The core packages and what each context owns                      |
+| [Admin and Customer Parity](architecture/ADMIN_CUSTOMER_PARITY.md) | Ledger of admin and customer behaviour that must match            |
+| [Schema Conventions](architecture/schema-conventions.md)           | Prisma schema conventions                                         |
+| [Caching](architecture/caching.md)                                 | Why one cache port with two adapters; the HTTP response cache     |
+| [Logging](architecture/logging.md)                                 | Logger threat model and redaction                                 |
+| [Secrets and Environment](architecture/secrets-and-env.md)         | Typed env modules, test environment, secret handling rationale    |
+| [OpenAPI Migration](architecture/openapi-migration.md)             | Route schemas to OpenAPI to the generated TypeScript types        |
+| [Service Level Objectives](observability/SLO.md)                   | SLOs and the Prometheus queries behind them                       |
+| [React Standards](frontend/REACT_STANDARDS.md)                     | Story requirement and the map to the frontend rules               |
+| [Frontend Standards](standards/frontend-standards.md)              | Detailed rules for `apps/admin` and `apps/client`                 |
 
-### Prerequisites
+## Security
 
-- Docker running (`pnpm db:up`)
-- API server running (`pnpm dev:api`)
-- k6 installed locally (for load tests without Docker)
+| Document                                                                   | What it covers                                                                 |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [Security Architecture](architecture/SECURITY.md)                          | Authentication, MFA, RBAC, encryption, rate limiting, audit                    |
+| [Authentication](security/AUTH.md)                                         | Cookie authentication for the admin and client apps                            |
+| [Multi-Tenant Guards](security/MULTI_TENANT_GUARDS.md)                     | Tenant guard, row level security and the tenant-scoped model list              |
+| [Multi-Tenant Audit 2026-05-27](security/MULTI_TENANT_AUDIT_2026-05-27.md) | Retrospective audit of the tenant-scoped adapters                              |
+| [Secrets](security/SECRETS.md)                                             | Where every secret lives, how to rotate it, the database-stored classes A to E |
+| [Secrets Rotation Runbook](security/T0A_SECRETS_ROTATION_RUNBOOK.md)       | The rotation procedure; not yet executed (SECRETS-ROTATION-GOLIVE)             |
+| [Dependency Audit Policy](security/dependency-audit-policy.md)             | When an advisory may be ignored                                                |
+| [Security Testing Framework](security/SECURITY_TESTING_FRAMEWORK.md)       | The `security/tests` suites; read its status note first                        |
 
-### Local k6 Installation
+## API
 
-```bash
-# macOS
-brew install k6
+The route reference is generated: [`packages/shared/src/api-generated/types.gen.ts`](../packages/shared/src/api-generated/types.gen.ts) holds every registered method and path, and the running API serves the same OpenAPI document through Swagger. `docs/api/` keeps one hand-written page, the saga page below.
 
-# Ubuntu/Debian
-sudo gpg -k && sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-sudo apt-get update && sudo apt-get install k6
+| Document                             | What it covers                                                                                                        |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| [API Reference](architecture/API.md) | Hand-written endpoint guide; Master Plan DEF-80 tracks the routes it describes that the generated table does not have |
+| [Saga Orchestration](api/saga.md)    | Saga API and step classes                                                                                             |
 
-# Windows
-winget install k6
-```
+## Development
 
-### Running Tests Locally
+| Document                                                                          | What it covers                                                   |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [Testing Re-foundation](development/TESTING_REFOUNDATION.md)                      | Progress tracker and fixed plan of the testing re-foundation     |
+| [Foundation Practices](development/FOUNDATION_PRACTICES.md)                       | Practices the next application adopts from its first commit      |
+| [Saga Test Suites](development/saga-test-suites.md)                               | Running the saga test suites                                     |
+| [Knip Baseline](development/knip-baseline.md)                                     | The dead-code gate and its ratchet; the jscpd duplicate baseline |
+| [Env Backup and Restore](development/ENV_BACKUP.md)                               | Backing up and restoring `.env`                                  |
+| [Admin to Client Migration Guide](development/ADMIN_TO_CLIENT_MIGRATION_GUIDE.md) | Admin fixes and patterns mapped to `apps/client`                 |
+| [Technical Stack](technical/DEPENDENCIES.md)                                      | Stack reference with measured versions, updated with each change |
 
-```bash
-# Database stress test (PostgreSQL — ~7 minutes: 3 scenarios)
-pnpm perf:db
+## Deployment
 
-# Memory leak detection (~1 minute)
-pnpm perf:memory
+| Document                                                     | What it covers                                                         |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [Deployment Checklist](deployment/DEPLOYMENT_CHECKLIST.md)   | What an operator configures before a deployment and verifies after it  |
+| [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md) | Variable reference                                                     |
+| [Image Build Model](deployment/image-build-model.md)         | How the `api` and `workers` images reach a production tree             |
+| [Container Base Images](deployment/base-images.md)           | The images' distroless bases, their digest pins and what verifies them |
 
-# Capture performance baseline (requires API running on :3000)
-pnpm perf:baseline
+## Runbooks
 
-# Compare with stored baseline (regression detection)
-pnpm perf:regression
+| Document                                                                   | What it covers                                                   |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [API Error Rate](runbooks/alert-api-error-rate.md)                         | Alert `ApiErrorRateHigh`                                         |
+| [API Latency](runbooks/alert-api-latency.md)                               | Alert `ApiLatencyP99High`                                        |
+| [Outbox Lag](runbooks/alert-outbox-lag.md)                                 | Alert `OutboxLagHigh`                                            |
+| [Saga Timeout](runbooks/alert-saga-timeout.md)                             | Alert `SagaTimeoutSpike`                                         |
+| [Admin Refresh Token Replay](runbooks/alert-admin-refresh-token-replay.md) | Alert `AdminRefreshTokenReplayRejected`                          |
+| [MFA Backup Code Reuse](runbooks/alert-mfa-backup-code-reuse.md)           | Alert `MfaBackupCodeReuseRejected`                               |
+| [Chaos: Saga Step Retry](runbooks/chaos-saga-step-retry.md)                | Chaos scenario of a transient saga step failure                  |
+| [Provider Contract Failure](runbooks/provider-contract-failure.md)         | A failing provider contract test; its nightly alert is not wired |
 
-# k6 load test via Docker (no local k6 install needed)
-pnpm perf:docker:load     # Standard load test
-pnpm perf:docker:stress   # Stress test
-pnpm perf:docker:api      # API performance scenarios
-```
+## Features
 
-### Performance Thresholds
+| Document                                                         | What it covers                                                                                                 |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [Provider Capabilities](features/provider-capabilities.md)       | Capability matrix, per-provider details, authentication, rate limits, the adapter interface, adding a provider |
+| [Billing Gateways](features/billing-gateways.md)                 | Payment gateways and country routing                                                                           |
+| [Media Storage](features/media-storage.md)                       | Storage configuration, private access, health and upload limits                                                |
+| [Bulk Scheduling Redesign](features/bulk-scheduling-redesign.md) | Post targeting model and bulk scheduling                                                                       |
+| [Templates](features/templates.md)                               | Template engine, A/B testing, versioning                                                                       |
+| [Webhook Ingest Wiring](features/WEBHOOK_INGEST_WIRING_ES.md)    | Wiring the inbound webhook ingestion pipeline                                                                  |
 
-Defined in `performance/config/performance-thresholds.json`:
+## Product and plan
 
-| Metric                | Threshold   |
-| --------------------- | ----------- |
-| API P95 response time | < 200ms     |
-| API P99 response time | < 500ms     |
-| API throughput        | > 1,000 RPS |
-| API error rate        | < 1%        |
-| DB query P95          | < 100ms     |
-| Memory heap max       | < 2 GB      |
-| Cache hit rate        | > 80%       |
+| Document                                                                           | What it covers                                                   |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [Master Plan](product/MASTER_PLAN_ES.md)                                           | The consolidated plan: every open item, its status and dashboard |
+| [Feature Trace Matrix](product/FEATURE_TRACE_MATRIX_ES.md)                         | Each feature traced to the code that implements it               |
+| [Competitive Analysis](product/COMPETITIVE_ANALYSIS_ES.md)                         | OmniPost against the 2026 market                                 |
+| Investor brief ([EN](product/INVESTOR_EN.md), [ES](product/INVESTOR_ES.md))        | Investor overview                                                |
+| Marketing ([EN](product/MARKETING_EN.md), [ES](product/MARKETING_ES.md))           | Marketing copy                                                   |
+| [Full Repository Assessment 2026-06-29](audits/FULL_REPO_ASSESSMENT_2026-06-29.md) | The audit the Master Plan is built on                            |
+| [Audit Methodology](audits/AUDIT_METHODOLOGY.md)                                   | Method of the full-repository audits                             |
 
-### CI/CD Integration
+## Reports
 
-Performance tests run automatically via GitHub Actions:
+Live ledgers, updated as work lands:
 
-- **On push to `main`** (when `apps/api/src/**` or `performance/**` changes): full suite
-- **Manual trigger**: select a specific k6 scenario from the Actions tab
+| Document                                                              | What it holds                                        |
+| --------------------------------------------------------------------- | ---------------------------------------------------- |
+| [Review Suggestions Book](reports/review-suggestions-book.md)         | Review suggestions kept for later, with their status |
+| [Detected Smells Backlog](reports/roadmap-detected-smells-backlog.md) | Detected smells (SMELL-NN) and their verdicts        |
+| [Unused Code Inventory](reports/UNUSED_CODE_INVENTORY.md)             | Unused code, classified, with its disposition        |
 
-Results are uploaded as artifacts (30-day retention) and can be downloaded from the GitHub Actions run.
+Dated evidence, cited by ADRs, fitness checks and the Master Plan:
 
-### k6 Scenarios
+| Document                                                            | What it records                                         |
+| ------------------------------------------------------------------- | ------------------------------------------------------- |
+| [CI Cache Integrity Audit](reports/CI_CACHE_INTEGRITY_AUDIT.md)     | Integrity of the CI caches                              |
+| [N-SEC-7 Disposition](reports/N_SEC_7_CLUSTER_B_MFA_DISPOSITION.md) | Disposition of the `workstream/cluster-b-mfa` commits   |
+| [RLS Posture Red Baseline](reports/RLS_POSTURE_RED_BASELINE.md)     | Row level security observed failing before the app role |
+| [Tenant RLS A/B Measurement](reports/TENANT_RLS_AB_MEASUREMENT.md)  | Tenant isolation measurement on the post trio           |
 
-Located in `performance/k6/scenarios/`:
+## Legal, compliance and support
 
-| Scenario                     | Description                                                                              |
-| ---------------------------- | ---------------------------------------------------------------------------------------- |
-| `analytics-dashboard.k6.js`  | Analytics dashboard load: dashboard, complex and aggregation queries, export operations  |
-| `api-performance.k6.js`      | General API performance: endpoints, authentication, concurrent operations and caching    |
-| `auth-flow.k6.js`            | Authentication flows: login, token validation and MFA setup                              |
-| `posting-workflow.k6.js`     | Post creation and publishing: media upload, scheduling and bulk operations               |
-| `provider-integration.k6.js` | Provider connections: response times, rate-limit compliance, circuit breakers, publishes |
-| `user-journey.k6.js`         | End-to-end journeys for the content creator, social manager and analyst roles            |
+The inventories under `legal/inventories/` and the support index and non-features pages are generated (`pnpm legal:inventory`, `pnpm support:index`) and checked in CI (`pnpm check:legal`, `pnpm check:support`); never edit them by hand.
 
-## License
+| Document                                                                            | What it covers                                                               |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| [Legal Facts Register](legal/README.md)                                             | How the register grows, its inventories and pending decisions                |
+| [Processing Register](legal/REGISTER.md)                                            | Record of processing activities (GDPR art. 30)                               |
+| [Personal Data Inventory](legal/inventories/personal-data.generated.md)             | Generated: database fields that may hold personal data                       |
+| [Cookies and Storage Inventory](legal/inventories/cookies-and-storage.generated.md) | Generated: cookies and browser storage keys                                  |
+| [OAuth Scopes Inventory](legal/inventories/oauth-scopes.generated.md)               | Generated: OAuth scopes requested per provider                               |
+| [Subprocessors Inventory](legal/inventories/subprocessors.generated.md)             | Generated: third-party services the product sends data to                    |
+| [Data Retention Calendar](compliance/RETENTION_CALENDAR.md)                         | Retention window per data type and the job that enforces it                  |
+| [Support Documentation](support/README.md)                                          | Generated index: one page per feature, and where to look when a ticket opens |
+| [Non-features and Coverage](support/NON_FEATURES.md)                                | Generated: every capability candidate and the support page that covers it    |
+| [Support Page Template](support/_TEMPLATE.md)                                       | The template every support page follows                                      |
 
-Proprietary - All rights reserved.
+## Architecture decision records
 
----
+ADRs live in [`technical/`](technical/) as `ADR-NNNN-*.md`; ADR-0001 holds the template. The number 0020 is used twice.
 
-<!-- markdownlint-disable-next-line MD036 -->
-
-_Last updated: March 2026_
+| ADR                                                                           | Decision                                                                       |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [0001](technical/ADR-0001-agent-orchestration.md)                             | Agent orchestration engine and schema-validated provider substrate             |
+| [0002](technical/ADR-0002-hexagonal-architecture.md)                          | Hexagonal architecture (ports and adapters) over modular Fastify               |
+| [0003](technical/ADR-0003-domain-driven-design.md)                            | Domain-driven design: entities, value objects, aggregates, domain events       |
+| [0004](technical/ADR-0004-cqrs-command-query-separation.md)                   | CQRS: command and query separation                                             |
+| [0005](technical/ADR-0005-unit-of-work-asynclocalstorage.md)                  | Unit of Work with `PrismaUnitOfWork` and `AsyncLocalStorage`                   |
+| [0006](technical/ADR-0006-result-type-over-throws.md)                         | `Result<T, E>` over thrown exceptions across layer boundaries                  |
+| [0007](technical/ADR-0007-di-composition-root.md)                             | Dependency injection through the composition root                              |
+| [0008](technical/ADR-0008-saga-pattern-richardson-azure.md)                   | Saga pattern aligned with Richardson and the Azure guidance                    |
+| [0009](technical/ADR-0009-permission-enum-to-core-domain.md)                  | The `Permission` enum moves to `@core/domain/auth/`                            |
+| [0010](technical/ADR-0010-ai-contracts-to-core-domain.md)                     | The AI contracts move to `@core/domain/ai/`                                    |
+| [0011](technical/ADR-0011-application-services-to-core-workstream.md)         | Closure of the application-services-to-core workstream                         |
+| [0012](technical/ADR-0012-fitness-functions-architecture-tests.md)            | Fitness functions as the architecture-test layer in CI                         |
+| [0013](technical/ADR-0013-three-logger-factory-model.md)                      | The three-logger factory model and redaction                                   |
+| [0014](technical/ADR-0014-multi-tenant-isolation-guards.md)                   | Multi-tenant isolation guards, three layers                                    |
+| [0015](technical/ADR-0015-brute-force-protection-port-canon.md)               | Brute-force protection: one port and a Redis adapter                           |
+| [0016](technical/ADR-0016-channel-canonical-post-targeting.md)                | Channel-canonical post targeting and the removal of `PublishingQueue`          |
+| [0017](technical/ADR-0017-production-build-bundler.md)                        | Production build model: transpile-only, per-package `tsc` emit                 |
+| [0018](technical/ADR-0018-dependency-freshness-canon.md)                      | Dependency freshness: latest stable, pinned exact, single version              |
+| [0019](technical/ADR-0019-pnpm-11-migration.md)                               | The pnpm 11 migration                                                          |
+| [0020](technical/ADR-0020-audit-actor-exclusive-arc.md)                       | Audit actor polymorphism through an additive exclusive arc                     |
+| [0020](technical/ADR-0020-tenant-context-at-boundaries.md)                    | Tenant context established at entry boundaries                                 |
+| [0021](technical/ADR-0021-trusted-proxy-peer-model.md)                        | Trusted-proxy peer model instead of hop counting                               |
+| [0022](technical/ADR-0022-rls-enforcement-posture.md)                         | RLS enforcement posture: a non-owner `omnipost_app` role                       |
+| [0023](technical/ADR-0023-unit-of-work-result-aware-transaction.md)           | `UnitOfWork.executeResultInTransaction`, a Result-aware transaction seam       |
+| [0024](technical/ADR-0024-billing-currency-and-price-catalog.md)              | Billing currency and the per-currency price lists                              |
+| [0025](technical/ADR-0025-payment-gateway-selection-and-country-routing.md)   | Payment gateways configured in Admin, routed by billing country                |
+| [0026](technical/ADR-0026-non-payment-lifecycle.md)                           | Non-payment lifecycle: one billing-access state machine                        |
+| [0027](technical/ADR-0027-consumer-sales-and-tax-handling.md)                 | Consumer sales and tax handling                                                |
+| [0028](technical/ADR-0028-storage-configuration-and-media-access.md)          | Media storage: configured in Admin, private buckets, signed reads              |
+| [0029](technical/ADR-0029-media-upload-limits.md)                             | Media upload limits                                                            |
+| [0030](technical/ADR-0030-pricing-model.md)                                   | Pricing model: per connected channel, per workspace, prepaid terms             |
+| [0031](technical/ADR-0031-domain-vocabulary.md)                               | Domain vocabulary: Organization, Workspace, Member, Channel                    |
+| [0032](technical/ADR-0032-architecture-gate-dependency-cruiser.md)            | One architecture gate: dependency-cruiser with a shrink-only baseline          |
+| [0033](technical/ADR-0033-layer-boundaries-and-composition-root-injection.md) | Layer boundaries: routes receive their dependencies from the composition root  |
+| [0034](technical/ADR-0034-credential-model.md)                                | Credential model: placement, one encryption seam, key custody, rotation        |
+| [0035](technical/ADR-0035-stories-part-of-creating-ui.md)                     | Stories are part of creating UI                                                |
+| [0036](technical/ADR-0036-dependency-update-cadence.md)                       | Dependency update cadence: security immediate, a Tuesday window, 30-day budget |
+| [0037](technical/ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)       | A patched `@storybook/nextjs-vite` 10.6.1 for next 16.4                        |
+| [0038](technical/ADR-0038-node-26-ahead-of-lts.md)                            | Node 26 ahead of its LTS date                                                  |

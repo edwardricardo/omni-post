@@ -44,7 +44,7 @@ The personal data the feature stores or sends (fields, tables, third parties) an
 
 ## Related documents
 
-The spec in `docs/features/`, the reference in `docs/api/`, runbooks, ADRs and Master Plan rows; write None when there are none, and keep the heading.
+The spec in `docs/features/`, the endpoint reference in `docs/architecture/API.md` or the generated route table (`packages/shared/src/api-generated/types.gen.ts`), runbooks, ADRs and Master Plan rows; write None when there are none, and keep the heading.
 
 ## Verification
 

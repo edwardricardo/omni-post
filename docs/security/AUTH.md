@@ -14,18 +14,27 @@ This architecture ensures that authentication tokens are never exposed to client
 
 ## Cookie Configuration
 
-Both applications use httpOnly cookies to store JWT access tokens securely. The cookies are identical in configuration but use different names to prevent cross-app token leakage.
+Both applications keep their tokens in httpOnly cookies, defined in each app's `lib/auth/sessionCookie.ts`.
 
-| Configuration | Client App (`apps/client`) | Admin App (`apps/admin`) |
-| ------------- | -------------------------- | ------------------------ |
-| Cookie name   | `session`                  | `admin-session`          |
-| httpOnly      | true                       | true                     |
-| secure        | true (production only)     | true (production only)   |
-| sameSite      | lax                        | lax                      |
-| maxAge        | 86400 seconds (1 day)      | 86400 seconds (1 day)    |
-| path          | /                          | /                        |
+The cookie names differ per app, so one app's token is never sent to the other.
 
-The `rememberMe` option in the client app extends maxAge to 30 days; the admin app uses a fixed 1-day expiration.
+There are five cookies: two in the client app and three in the admin app.
+
+All five carry the same attributes: `httpOnly: true`, `sameSite: "lax"`, `path: "/"`, and `secure` only when `NODE_ENV` is `production`.
+
+| Cookie        | Name (app)                  | maxAge                                       | Writer (`lib/auth/sessionCookie.ts`)        |
+| ------------- | --------------------------- | -------------------------------------------- | ------------------------------------------- |
+| Access token  | `customer-session` (client) | 15 minutes                                   | `setSessionCookie()`                        |
+| Refresh token | `customer-refresh` (client) | 7 days; 30 days when "Remember me" is ticked | `setRefreshCookie()`                        |
+| Access token  | `admin-session` (admin)     | 15 minutes (see the exception below)         | `setSessionCookie()`                        |
+| Refresh token | `admin-refresh` (admin)     | 7 days                                       | `setRefreshCookie()`, via `setAuthTokens()` |
+| CSRF token    | `admin-csrf` (admin)        | 7 days                                       | `setCsrfCookie()`, via `setAuthTokens()`    |
+
+Exception: after a `TOKEN_EXPIRED` retry, the admin backend proxy (`apps/admin/app/api/backend/[...path]/route.ts`) rewrites `admin-session` itself, with the same attributes and a 24-hour `maxAge`, so that cookie can outlive the 15-minute token it holds.
+
+Browser code never reads `admin-csrf`: the admin backend proxy copies it server-side into the `X-CSRF-Token` request header.
+
+The access-token cookie lives as long as the backend access token: 15 minutes in both apps. The customer token expires after `CUSTOMER_JWT_EXPIRY` (`15 * 60` seconds, `apps/api/src/auth/customerJwt.ts`) and the admin token after `accessTokenExpiration` (`"15m"`, `apps/api/src/admin/auth/adminAuthConfig.ts`). The admin app has no "Remember me" option.
 
 ## Authentication Flow
 
@@ -33,33 +42,30 @@ Both applications follow the same login flow:
 
 ### Client App (apps/client)
 
-1. User fills login form: email, password, optional "Remember me" checkbox
-2. Browser submits form to Server Action `loginAction()` in `app/actions/auth.ts`
-3. Server Action calls backend API: `POST http://localhost:3000/auth/login`
-4. Backend validates credentials, returns JWT tokens
-5. Server Action extracts `accessToken` from response (`response.value.accessToken`)
-6. Server Action sets httpOnly cookie with `await cookies().set("session", accessToken, {...})`
-7. Server Action calls `redirect("/dashboard")`
-8. Middleware confirms cookie is present; user is now authenticated
+1. User fills the login form at `/{locale}/login` (`app/[locale]/login/page.tsx`): email, password, optional "Remember me" checkbox
+2. The form submits through React 19 `useActionState` to the Server Action `loginAction()` in `app/actions/auth.ts`
+3. `loginAction()` sends `POST /auth/customer/login` with `{ email, password, rememberMe }`
+4. The backend validates the credentials and answers `{ ok: true, data }`, where `data` is either a session (`user`, `account`, `accessToken`, `refreshToken`) or an MFA challenge (`mfaRequired: true`, `challengeToken`, `expiresInSeconds`)
+5. On a challenge, the page shows `MfaChallengeForm`, which submits the code to `completeMfaLoginAction()`; that action sends `POST /auth/customer/login/mfa` with `{ challengeToken, code, rememberMe }` and receives the session
+6. `readAuthTokens()` (`lib/auth/sessionCookie.ts`) takes the tokens from `data`, and `setSessionCookie()` and `setRefreshCookie()` set `customer-session` and `customer-refresh`
+7. The Server Action calls `redirect("/{locale}/dashboard")`, outside its `try/catch` because `redirect()` throws `NEXT_REDIRECT`
+8. `proxy.ts` sees the `customer-session` cookie on the dashboard route and lets the request through
 
 ### Admin App (apps/admin)
 
-1. User fills login form: email, password
-2. Browser submits form to Server Action `loginAction()` in `app/actions/auth.ts`
-3. Server Action calls backend API: `POST http://localhost:3000/admin/auth/login`
-4. Backend may return `status: "mfa_required"` with `mfaSessionToken`
-   - If MFA required, login form displays OTP input field
-   - User submits OTP (stored in form state alongside email/password)
-5. If MFA provided or not required:
-   - Server Action calls `authenticateAdmin()` again with OTP token and session token
-   - Backend validates and returns success with JWT tokens
-6. Server Action sets httpOnly cookie with `await cookies().set("admin-session", accessToken, {...})`
-7. Server Action calls `redirect("/")`
-8. Middleware confirms cookie is present; user is now authenticated
+1. User fills the login form (`components/auth/login-form.tsx`) at `/{locale}/login`: email, password
+2. The form submits through React 19 `useActionState` to the Server Action `loginAction()` in `app/actions/auth.ts`; `state` holds the last `AdminAuthState` the action returned and `isPending` drives the loading UI
+3. `loginAction()` calls `authenticateAdmin()` (`lib/auth/backend-client.ts`), which sends `POST /admin/auth/login` and maps the response to a discriminated union, `AuthenticateAdminResult`:
+   - `{ status: "success", user, tokens }`
+   - `{ status: "mfa_required", mfaSessionToken }` — the form switches to an OTP input
+   - `{ status: "error", error }` — the message is shown on the form
+4. On success, `setAuthTokens()` (`lib/auth/sessionCookie.ts`) sets the `admin-session`, `admin-refresh` and `admin-csrf` cookies
+5. Server Action calls `redirect("/{locale}")`, outside its `try/catch` because `redirect()` throws `NEXT_REDIRECT`
+6. `proxy.ts` sees the cookie; the dashboard layout then verifies the token (see [Server Components and Token Verification](#server-components-and-token-verification))
 
-## MFA Flow (Admin Only)
+## MFA Flow (Admin App)
 
-The admin app supports multi-factor authentication (MFA) as a second layer of security.
+The admin app supports multi-factor authentication (MFA) as a second layer of security. The client app's two-step MFA login is steps 4 and 5 of the client flow above.
 
 ### Step 1: Initial Login Attempt
 
@@ -67,7 +73,6 @@ The admin app supports multi-factor authentication (MFA) as a second layer of se
 loginAction(prevState, formData)
   └─ authenticateAdmin({ email, password })
      └─ POST /admin/auth/login
-        └─ Backend: MFA not enabled OR credentials invalid
 ```
 
 If credentials are valid and MFA is enabled, the backend returns:
@@ -75,14 +80,14 @@ If credentials are valid and MFA is enabled, the backend returns:
 ```json
 {
   "ok": true,
-  "value": {
+  "data": {
     "requiresMfa": true,
     "mfaSessionToken": "session_token_xyz"
   }
 }
 ```
 
-The login form stores `email` and `password` in React state and displays an OTP input field.
+`loginAction()` returns `{ requiresMfa: true, mfaSessionToken }`; the login form keeps `email` and `password` in React state and displays an OTP input field.
 
 ### Step 2: OTP Submission
 
@@ -103,23 +108,28 @@ On successful MFA validation, the backend returns:
 ```json
 {
   "ok": true,
-  "value": {
-    "requiresMfa": false,
+  "data": {
     "user": { "id": "...", "email": "..." },
-    "tokens": { "accessToken": "...", "refreshToken": "..." }
+    "tokens": { "accessToken": "...", "refreshToken": "...", "expiresIn": 900, "csrfToken": "..." }
   }
 }
 ```
 
 ### Step 3: Session Creation
 
-The Server Action sets the httpOnly cookie and redirects:
+The Server Action stores the token bundle and redirects:
 
 ```typescript
-const cookieStore = await cookies();
-cookieStore.set("admin-session", accessToken, COOKIE_OPTIONS);
-redirect("/");
+await setAuthTokens({ accessToken, refreshToken, csrfToken });
+redirect(`/${await getLocale()}`);
 ```
+
+### Token Refresh
+
+The admin access token lasts 15 minutes; two places renew it with the `admin-refresh` and `admin-csrf` cookies through `POST /admin/auth/refresh` (`{ refreshToken, csrfToken }`) and rewrite `admin-session`:
+
+- **Page loads**: when the dashboard layout cannot verify the token it redirects to `GET /api/auth/refresh` (`app/api/auth/refresh/route.ts`), which refreshes and redirects back to `returnTo`, or clears every auth cookie and redirects to login.
+- **API calls**: the backend proxy retries a request once after a refresh when the backend answers 401 with error code `TOKEN_EXPIRED`; any other 401, or a failed refresh, is passed through.
 
 ## Proxy Pattern
 
@@ -134,7 +144,7 @@ All client-side API calls route through a Next.js API proxy route. This allows t
 ```
 Browser: fetch("/api/backend/posts")
    ↓
-Next.js Proxy: reads "session" cookie
+Next.js Proxy: reads "customer-session" cookie
    ↓
 Fastify Backend: GET http://localhost:3000/posts
    with Authorization: Bearer <accessToken>
@@ -143,15 +153,22 @@ Fastify Backend: GET http://localhost:3000/posts
 **Example Usage in React Components:**
 
 ```typescript
-// In a client component or Server Action
+// In a client component
 const response = await fetch("/api/backend/posts", {
   method: "GET",
   // Token is injected by proxy — no manual header injection needed
 });
 
-const data = await response.json();
-// data.value contains the post list
+const body = await response.json();
+// body.data contains the post list when body.ok is true
 ```
+
+The client proxy also handles the customer auth paths itself:
+
+- **`auth/customer/login`, `auth/customer/login/mfa`, `auth/customer/register` and `auth/customer/refresh`:** it moves the tokens from the response body into the two cookies (`persistTokensFromAuthResponse()`) and strips them from the body the browser receives.
+- **`auth/customer/refresh` and `auth/customer/logout`:** it adds the refresh token from `customer-refresh` to the request body when the body carries none.
+- **`auth/customer/logout`:** it clears both cookies.
+- **`auth/customer/refresh` answering 401:** it clears both cookies.
 
 ### Admin App Proxy
 
@@ -179,25 +196,29 @@ Fastify Backend: GET http://localhost:3000/admin/users
 
 ## Route Protection
 
-Both applications use Next.js middleware to protect routes based on cookie presence.
+Both applications gate routes on cookie presence before anything renders; the admin dashboard layout then verifies the token itself.
 
-### Client App Middleware
+### Client App Proxy Gate
 
-**File:** `apps/client/middleware.ts`
+**File:** `apps/client/proxy.ts` (Next.js 16 `proxy`, composed with next-intl locale routing)
 
-- **Public paths:** `/login`, `/register`, `/`
-- **Redirect rule:** If user is unauthenticated and accesses protected route → redirect to `/login?redirect=<original-path>`
-- **Reverse rule:** If user is authenticated and accesses `/login` or `/register` → redirect to `/dashboard`
+- **Public paths:** `/{locale}/login`, `/{locale}/register` and `/{locale}` (compared after stripping the `es` / `en` locale prefix)
+- **Redirect rule:** If the `customer-session` cookie is missing on any other route → redirect to `/{locale}/login?redirect=<original-path>`
+- **Reverse rule:** If the cookie is present on the login or register page → redirect to the `returnTo` query parameter when one is given, otherwise to `/{locale}/dashboard`
+- **Matcher:** every path except `/api`, `/_next`, `/_vercel` and files with an extension, so the backend proxy is not gated here
 
-### Admin App Middleware
+The gate checks only that the cookie exists; it never validates the token.
 
-**File:** `apps/admin/middleware.ts`
+### Admin App Proxy Gate
 
-- **Public path:** `/auth/login`
-- **Redirect rule:** If user is unauthenticated and accesses any other route → redirect to `/auth/login`
-- **Reverse rule:** If user is authenticated and accesses `/auth/login` → redirect to `/`
+**File:** `apps/admin/proxy.ts` (Next.js 16 `proxy`, composed with next-intl locale routing)
 
-Both middleware check for cookie presence at request time using `request.cookies.get("<cookie-name>")`. This validation happens before any Server Actions or Route Handlers execute.
+- **Public path:** `/{locale}/login` (compared after stripping the `en` / `es` locale prefix)
+- **Redirect rule:** If the `admin-session` cookie is missing on any other route → redirect to `/{locale}/login`
+- **Reverse rule:** If the cookie is present on the login page → redirect to `/{locale}`
+- **Matcher:** every path except `/api`, `/_next`, `/_vercel` and files with an extension, so the backend proxy and the refresh route are not gated here
+
+The gate checks only that the cookie exists; it never validates the token.
 
 ## Server Components and Token Verification
 
@@ -207,50 +228,19 @@ Dashboard layouts and other Server Components can verify token validity by readi
 
 **File:** `apps/admin/lib/auth/backend-client.ts`
 
-The `verifyAccessToken()` function is used in Server Components:
+`verifyAccessToken()` calls `GET /admin/auth/me` with the token and returns the `AdminUserProfile`, or `null` on any non-OK or malformed response. It is wrapped in React `cache()`, so one render verifies once.
+
+**Usage in the Dashboard Layout** (`app/[locale]/(dashboard)/layout.tsx`):
 
 ```typescript
-export async function verifyAccessToken(accessToken: string): Promise<AdminUserProfile | null> {
-  const response = await fetch(`${API_URL}/admin/auth/me`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-    cache: "no-store",
-  });
+const cookieStore = await cookies();
+const token = cookieStore.get("admin-session")?.value;
+if (!token) redirect(`/${await getLocale()}/login`);
 
-  if (!response.ok) {
-    return null;
-  }
-
-  const data = await response.json();
-  return data.value?.user || null;
-}
-```
-
-**Usage in Dashboard Layout:**
-
-```typescript
-export default async function DashboardLayout() {
-  const cookieStore = await cookies();
-  const session = cookieStore.get("admin-session");
-
-  if (!session) {
-    redirect("/auth/login");
-  }
-
-  const user = await verifyAccessToken(session.value);
-  if (!user) {
-    // Token is invalid or expired
-    redirect("/auth/login");
-  }
-
-  return (
-    <div>
-      <p>Logged in as {user.email}</p>
-      {/* Dashboard content */}
-    </div>
-  );
+const user = await verifyAccessToken(token);
+if (!user) {
+  // Token is invalid or expired: try a refresh before sending the user to login
+  redirect("/api/auth/refresh");
 }
 ```
 
@@ -258,47 +248,64 @@ export default async function DashboardLayout() {
 
 ### Client App (`apps/client`)
 
-| File                                 | Purpose                                                                         |
-| ------------------------------------ | ------------------------------------------------------------------------------- |
-| `app/actions/auth.ts`                | `loginAction()`, `registerAction()`, `logoutAction()` — Server Actions for auth |
-| `app/api/backend/[...path]/route.ts` | API proxy that reads `session` cookie and forwards requests                     |
-| `middleware.ts`                      | Route protection — redirects unauthenticated users to login                     |
-| `lib/auth/authContext.tsx`           | Client-side auth context (user state, login/logout triggers)                    |
-| `lib/apiClient.ts`                   | Centralized API client using `/api/backend` proxy                               |
+| File                                   | Purpose                                                                                        |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `app/actions/auth.ts`                  | `loginAction()`, `completeMfaLoginAction()`, `registerAction()` — Server Actions for auth      |
+| `app/api/backend/[...path]/route.ts`   | API proxy that reads `customer-session`, injects the Bearer token and manages the auth cookies |
+| `proxy.ts`                             | Route gate on cookie presence, composed with locale routing                                    |
+| `components/auth/MfaChallengeForm.tsx` | Client component: the MFA step-2 form, submitted to `completeMfaLoginAction()`                 |
+| `lib/auth/sessionCookie.ts`            | Cookie names and lifetimes, the setters and clearers, and token extraction from auth responses |
+| `lib/auth/authApi.ts`                  | Browser calls to `/api/backend/auth/customer/*` (`me`, login, MFA, logout, refresh)            |
+| `lib/auth/authContext.tsx`             | Client-side auth context (user state, login/logout triggers)                                   |
+| `lib/api/client.ts`                    | Centralized API client using `/api/backend` proxy                                              |
+
+`useAuth()` (`lib/auth/authContext.tsx`) exposes `user`, `isLoading`, `isAuthenticated` and `error`, and five actions: `login`, which resolves to `null` on a completed login or to an `MfaChallenge` when the account requires a second factor, `completeMfaLogin`, `register`, `logout` and `refreshSession`. It holds no token: the tokens live only in the httpOnly cookies.
 
 ### Admin App (`apps/admin`)
 
-| File                                 | Purpose                                                                      |
-| ------------------------------------ | ---------------------------------------------------------------------------- |
-| `app/actions/auth.ts`                | `loginAction()`, `logoutAction()` — Server Actions with MFA support          |
-| `app/api/backend/[...path]/route.ts` | API proxy that reads `admin-session` cookie and forwards requests            |
-| `middleware.ts`                      | Route protection — redirects unauthenticated users to `/auth/login`          |
-| `lib/auth/backend-client.ts`         | `authenticateAdmin()`, `verifyAccessToken()`, `logoutFromBackend()`          |
-| `lib/auth/types.ts`                  | `AdminAuthState`, `AuthenticateAdminResult`, `AdminUserProfile`, `TokenPair` |
-| `lib/apiClient.ts`                   | Centralized API client using `/api/backend` proxy                            |
+| File                                  | Purpose                                                                                   |
+| ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `app/actions/auth.ts`                 | `loginAction()`, `logoutAction()` — Server Actions with MFA support                       |
+| `app/api/backend/[...path]/route.ts`  | API proxy that reads `admin-session`, injects the Bearer token and retries once on expiry |
+| `app/api/auth/refresh/route.ts`       | Page-load token refresh from the `admin-refresh` and `admin-csrf` cookies                 |
+| `app/[locale]/(dashboard)/layout.tsx` | Server Component guard: verifies the token, or redirects to refresh or login              |
+| `components/auth/login-form.tsx`      | Client component: `useActionState` login form with the two-step MFA input                 |
+| `components/shared/SidebarNav.tsx`    | Calls `logoutAction()`                                                                    |
+| `proxy.ts`                            | Route gate on cookie presence, composed with locale routing                               |
+| `lib/auth/backend-client.ts`          | `authenticateAdmin()`, `verifyAccessToken()`, `logoutFromBackend()`                       |
+| `lib/auth/sessionCookie.ts`           | The only module that sets or clears the three admin auth cookies                          |
+| `lib/auth/types.ts`                   | `AdminAuthState`, `AuthenticateAdminResult`, `AdminUserProfile`, `TokenPair`              |
+| `lib/apiClient.ts`                    | Centralized API client using `/api/backend` proxy                                         |
+
+E2E tests (`tests/e2e/`) drive the real login flow; `tests/e2e/helpers.ts` reads the `admin-session` cookie through `page.context().cookies()`, because an httpOnly cookie is invisible to `document.cookie`.
 
 ## Backend Endpoints (Fastify API)
 
 ### Client Auth Endpoints
 
-| Endpoint                  | Method | Purpose                 | Request                            | Response                                     |
-| ------------------------- | ------ | ----------------------- | ---------------------------------- | -------------------------------------------- |
-| `/auth/customer/register` | POST   | Register account + user | `{ email, password, name }`        | `{ ok: true, value: { user, tokens } }`      |
-| `/auth/login`             | POST   | Authenticate user       | `{ email, password, rememberMe? }` | `{ ok: true, value: { accessToken, user } }` |
-| `/auth/me`                | GET    | Get current user        | `Authorization: Bearer <token>`    | `{ ok: true, value: { user } }`              |
-| `/auth/logout`            | POST   | Invalidate session      | `Authorization: Bearer <token>`    | `{ ok: true }`                               |
-| `/auth/refresh`           | POST   | Refresh tokens          | `{ refreshToken }`                 | `{ ok: true, value: { tokens } }`            |
+All routes are in `apps/api/src/auth/customerAuthRoutes.ts`; the client app reaches them through its backend proxy.
+
+| Endpoint                                | Method | Purpose                       | Request                                                                       | Response                                                                                                                                      |
+| --------------------------------------- | ------ | ----------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/auth/customer/register`               | POST   | Register account + user       | `{ accountName, accountEmail?, firstName, lastName, email, password, plan? }` | `{ ok: true, data: { account, user, accessToken, refreshToken } }` (201)                                                                      |
+| `/auth/customer/login`                  | POST   | Authenticate (step 1)         | `{ email, password, accountSlug? }`                                           | `{ ok: true, data: { user, account, accessToken, refreshToken } }` or `{ ok: true, data: { mfaRequired, challengeToken, expiresInSeconds } }` |
+| `/auth/customer/login/mfa`              | POST   | Complete MFA login (step 2)   | `{ challengeToken, code }`                                                    | `{ ok: true, data: { user, account, accessToken, refreshToken } }`                                                                            |
+| `/auth/customer/me`                     | GET    | Get current user              | `Authorization: Bearer <token>`                                               | `{ ok: true, data: { user } }`                                                                                                                |
+| `/auth/customer/logout`                 | POST   | Revoke the session            | `Authorization: Bearer <token>`, `{ refreshToken? }`                          | `{ ok: true, data: { message } }`                                                                                                             |
+| `/auth/customer/refresh`                | POST   | Refresh tokens                | `{ refreshToken }`                                                            | `{ ok: true, data: { accessToken, refreshToken } }`                                                                                           |
+| `/auth/customer/request-password-reset` | POST   | Send a password-reset message | `{ email }`                                                                   | `{ ok: true, data: { message } }`                                                                                                             |
+| `/auth/customer/reset-password`         | POST   | Set a new password            | `{ token, newPassword }`                                                      | `{ ok: true, data: { message } }`                                                                                                             |
 
 > **Note:** the public `POST /auth/register` admin-creation endpoint was removed for CWE-269 (privilege escalation via a client-supplied `role`; PR #126). Client-app user registration uses `POST /auth/customer/register`; admin users are provisioned only via `AuthService.registerAdmin` (seed/bootstrap), never a public route.
 
 ### Admin Auth Endpoints
 
-| Endpoint              | Method | Purpose                   | Request                                           | Response                                                                |
-| --------------------- | ------ | ------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------- |
-| `/admin/auth/login`   | POST   | Admin login (MFA support) | `{ email, password, mfaToken?, deviceId? }`       | `{ ok: true, value: { user, tokens, requiresMfa?, mfaSessionToken? } }` |
-| `/admin/auth/me`      | GET    | Get admin user            | `Authorization: Bearer <token>`                   | `{ ok: true, value: { user } }`                                         |
-| `/admin/auth/logout`  | POST   | Invalidate admin session  | `Authorization: Bearer <token>, { allSessions? }` | `{ ok: true }`                                                          |
-| `/admin/auth/refresh` | POST   | Refresh admin tokens      | `{ refreshToken, csrfToken }`                     | `{ ok: true, value: { tokens } }`                                       |
+| Endpoint              | Method | Purpose                   | Request                                           | Response                                                               |
+| --------------------- | ------ | ------------------------- | ------------------------------------------------- | ---------------------------------------------------------------------- |
+| `/admin/auth/login`   | POST   | Admin login (MFA support) | `{ email, password, mfaToken?, deviceId? }`       | `{ ok: true, data: { user, tokens, requiresMfa?, mfaSessionToken? } }` |
+| `/admin/auth/me`      | GET    | Get admin user            | `Authorization: Bearer <token>`                   | `{ ok: true, data: { user } }`                                         |
+| `/admin/auth/logout`  | POST   | Invalidate admin session  | `Authorization: Bearer <token>, { allSessions? }` | `{ ok: true }`                                                         |
+| `/admin/auth/refresh` | POST   | Refresh admin tokens      | `{ refreshToken, csrfToken }`                     | `{ ok: true, data: { tokens } }`                                       |
 
 ## Security Notes
 
@@ -319,13 +326,12 @@ export default async function DashboardLayout() {
 
 Auth endpoints are subject to rate limiting to prevent brute force attacks:
 
-- **5 login attempts per 15 minutes** per IP address
-- Rate limit headers are included in all responses:
-  - `X-RateLimit-Limit`: Max requests per window
-  - `X-RateLimit-Remaining`: Requests remaining
-  - `X-RateLimit-Reset`: Unix timestamp when limit resets
+- **Client:** `/auth/customer/login` (MFA step 2 included) and `/auth/customer/refresh` get the `AUTH` preset of the global limiter, **5 requests per 15 minutes** per client IP and route (`apps/api/src/security/httpRateLimitPreHandler.ts`)
+- **Admin:** `/admin/auth/login` carries its own route limit, 15 requests per minute per client IP (`apps/api/src/admin/auth/adminAuthRoutes.ts`)
+- The global limiter sets `X-RateLimit-Remaining` (requests left in the bucket) and `X-RateLimit-Reset` (the reset time in epoch milliseconds) on every response it governs; it sends no `X-RateLimit-Limit` header
+- An exceeded limit returns HTTP 429 (Too Many Requests) with `Retry-After` in seconds
 
-Exceeded rate limits return HTTP 429 (Too Many Requests).
+Repeated login failures are throttled separately, by backoff and account lockout (`BruteForceProtectionPort`).
 
 ### MFA Protection (Admin Only)
 
@@ -359,66 +365,63 @@ In development, the default `http://localhost:3000` usually suffices. In product
 
 ## Response Structure
 
-Backend endpoints return a consistent response structure:
+Backend endpoints return a consistent response structure (`sendSuccess` and `sendError` in `apps/api/src/lib/route-handler/BaseRouteHandler.ts`):
 
 ```typescript
 {
   ok: boolean;
-  value?: T;        // Response data (only present if ok: true)
-  error?: string;   // Error message (only present if ok: false)
+  data?: T;          // Response data (only present if ok: true)
+  error?: string;    // Error message (only present if ok: false)
+  details?: unknown; // Optional error details (only present if ok: false)
 }
 ```
 
-Client code extracts data using optional chaining:
+Client code narrows on `ok` before reading the data:
 
 ```typescript
-const data = response.value; // Safe: extracts only if ok: true
+const data = body.ok ? body.data : undefined;
 ```
 
 ## Logout Flow
 
-Both applications follow the same logout pattern:
+The two applications log out through different paths:
 
-1. Server Action reads the httpOnly cookie
-2. Server Action calls backend logout endpoint (`POST /auth/logout` or `POST /admin/auth/logout`)
-   - Backend invalidates the session/token
-   - Errors during backend call are caught and ignored
-3. Server Action deletes the httpOnly cookie using `cookieStore.delete("<cookie-name>")`
-4. Server Action redirects to login page
+- **Client:** the auth context's `logout()` calls `POST /api/backend/auth/customer/logout` (`lib/auth/authApi.ts`); the backend proxy adds the refresh token from `customer-refresh`, forwards the call to `POST /auth/customer/logout`, which revokes the session, and clears both cookies whatever the backend answered.
+- **Admin:** the Server Action `logoutAction()` calls `POST /admin/auth/logout` with the `admin-session` token and the `admin-csrf` token (the backend logout is CSRF-protected), catches and ignores a backend error, clears the three cookies with `clearAuthCookies()` and redirects to the login page.
 
-The logout is idempotent — even if the backend logout fails, the frontend cookie is still deleted, ensuring the user is logged out locally.
+Both are idempotent: even if the backend logout fails, the cookies are still deleted, so the user is logged out locally.
 
 ## Troubleshooting
 
 ### User Redirected to Login After Valid Login
 
-**Cause:** Token validation failed in Server Component or middleware detected missing cookie.
+**Cause:** The proxy gate found no session cookie, or a Server Component could not verify the token.
 
 **Solution:**
 
 1. Verify the backend API is running and returning tokens
 2. Check browser DevTools → Network tab → verify the auth request returns `ok: true`
-3. Ensure the cookie name matches the app (client uses `session`, admin uses `admin-session`)
+3. Ensure the cookie name matches the app (client uses `customer-session`, admin uses `admin-session`)
 4. Verify `secure` flag is correct (false in development, true in production with HTTPS)
 
 ### "Authentication failed - no token received"
 
-**Cause:** Backend API returned response but without expected token field.
+**Cause:** The client's `loginAction()` got a successful backend response with no access token in it.
 
 **Solution:**
 
-1. Check the backend response structure — should be `{ ok: true, value: { accessToken, ... } }`
+1. Check the backend response structure — should be `{ ok: true, data: { accessToken, ... } }`
 2. Verify the backend auth service is configured correctly
 3. Check backend logs for validation or database errors
 
 ### Token Expires Immediately
 
-**Cause:** JWT secret mismatch between backend and frontend token verification.
+**Cause:** The backend no longer verifies the token, typically because the secret that signed it changed. Only the backend verifies tokens; the frontends store and forward them.
 
 **Solution:**
 
-1. Ensure backend `JWT_SECRET` environment variable is set
-2. Restart the backend after changing JWT_SECRET
+1. Ensure the backend signing secrets are set and unchanged since the token was issued: `CUSTOMER_JWT_SECRET` for the client (access, refresh and MFA-challenge tokens, `apps/api/src/auth/customerJwt.ts`), `ADMIN_JWT_ACCESS_SECRET` and `ADMIN_JWT_REFRESH_SECRET` for the admin app (`apps/api/src/admin/auth/adminAuthConfig.ts`)
+2. Restart the backend after changing any of them; every token signed with the old value stops verifying
 3. Clear all cookies in browser DevTools and try again
 
 ### MFA Not Working (Admin App)
