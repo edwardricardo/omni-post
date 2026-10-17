@@ -58,14 +58,14 @@ and what moved it. A slice that moves the count appends its own line.
 12. `2026-10-02T20:43:59Z` — **25**: slice `0.12` took `jsdom` 29.1.1 → 30.1.1 and `isomorphic-dompurify`
     3.19.0 → 4.4.0, both the latest mature release, under human gate H1; the canon row `jsdom`, which held
     both, was deleted with them. Slice `0.13` had re-measured **27** at `18:53Z` without moving a version.
-13. `2026-10-03T06:26:08Z` — **24**: the dead-devDependency removal ([D35](#decisions-log)) took
+13. `2026-10-03T06:26:08Z` — **24**: the dead-devDependency removal ([D35](TESTING_REFOUNDATION.md#decisions-log)) took
     `@ast-grep/cli`, a held lag, out of the tree, together with `@hey-api/client-fetch` and `loadtest`, both
     at latest, so the population shrank 50 → 47 and one lag left; the canon row `knip` lost that one name.
 14. `2026-10-03T09:06:43Z` — **22**: slice (iii) took `secretlint` and its preset 12.3.1 → 13.0.6, the
-    latest mature release ([D38](#decisions-log)), so both left the set and the canon row `knip` lost
+    latest mature release ([D38](TESTING_REFOUNDATION.md#decisions-log)), so both left the set and the canon row `knip` lost
     their two names.
 15. `2026-10-03T10:03:06Z` — **21**: slice (iv) took `jscpd` 4.0.8 → 5.3.2, the latest mature release
-    ([D39](#decisions-log)), so it left the set and the canon row `knip` lost its name.
+    ([D39](TESTING_REFOUNDATION.md#decisions-log)), so it left the set and the canon row `knip` lost its name.
 16. `2026-10-04T05:07:09Z` — **15**: slice `0.14` took the build and format six to their latest mature
     releases — `vite` 8.0.16 → 8.3.1, `turbo` 2.9.16 → 2.11.4, `webpack` 5.106.2 → 5.111.1, `cross-env`
     10.0.0 → 10.1.0, `jiti` 2.6.1 → 2.7.0, `prettier` 3.9.5 → 3.9.9 — and deleted the canon row that held all
@@ -93,7 +93,7 @@ and what moved it. A slice that moves the count appends its own line.
     5.4.0 matures on `2026-10-07T18:11Z`.
 20. `2026-10-06T20:39:02Z` — **12**: the hold bump took the Storybook family, six packages, 10.6.0 → 10.6.1,
     the latest mature release, so all six left the set and the canon row `storybook` was deleted with them
-    ([D25](#decisions-log)); 10.6.1 is `latest` and only 11.0.0 prereleases are newer, so nothing is
+    ([D25](TESTING_REFOUNDATION.md#decisions-log)); 10.6.1 is `latest` and only 11.0.0 prereleases are newer, so nothing is
     pre-registered. The same gate with 10.6.0 installed measures **18** at `20:35:39Z`: the six matured
     between `17:14Z` and `17:20Z`, each held by that row until the bump. Since line 19 the population fell
     50 → 49: the admin Storybook removal (slice `0.22`, PR D) took `@storybook/nextjs` and `webpack` out,
@@ -111,13 +111,13 @@ and what moved it. A slice that moves the count appends its own line.
     `18:12:08Z`, because 5.4.0 matured at `18:11Z` and the canon row `jscpd` held it until the bump. Since
     line 21 the population and the twelve lagging packages are unchanged, and no held target moved.
     Nothing newer than 5.4.0 is published, so nothing is pre-registered: the canon row `jscpd` was deleted
-    with the bump, as [D25](#decisions-log) decided for the Storybook family.
+    with the bump, as [D25](TESTING_REFOUNDATION.md#decisions-log) decided for the Storybook family.
 23. `2026-10-07T19:20:17Z` — **12**: the hold bump took `dependency-cruiser` 18.4.0 → 18.5.0, the latest
     mature release and also `latest`, so it left the set; the same gate with 18.4.0 still installed measures
     **13** at `19:19:07Z`, because 18.5.0 matured at `19:18Z` and the canon row `dependency-cruiser` held it
     until the bump. Since line 22 the population and the twelve lagging packages are unchanged, and no held
     target moved. Nothing newer than 18.5.0 is published, so nothing is pre-registered: the canon row
-    `dependency-cruiser` was deleted with the bump, as [D25](#decisions-log) decided for the Storybook family.
+    `dependency-cruiser` was deleted with the bump, as [D25](TESTING_REFOUNDATION.md#decisions-log) decided for the Storybook family.
 24. `2026-10-08T14:58:21Z` — **12**: the CVE floor took `vite` 8.3.1 → 8.3.3, above the latest mature 8.3.2,
     so it left the set; the same gate with 8.3.1 still installed measures **13** at `14:47:26Z`, because 8.3.2
     matured at `10:17Z` and the canon row `vite` held it until the bump. 8.3.2, the release that row had
@@ -135,7 +135,7 @@ and what moved it. A slice that moves the count appends its own line.
     twelve lagging packages are unchanged; four held targets moved, each still held by its row: `@types/node`
     26.6.4 matured at `2026-10-08T22:39Z`, `turbo` 2.11.7 at `2026-10-09T14:58Z`, `eslint` 10.12.0 at `20:08Z`
     the same day and `msw` 3.0.2 at `2026-10-10T01:31Z`. Nothing newer than 13.0.7 is published, so nothing
-    is pre-registered: the canon row `secretlint` was deleted with the bump, as [D25](#decisions-log) decided
+    is pre-registered: the canon row `secretlint` was deleted with the bump, as [D25](TESTING_REFOUNDATION.md#decisions-log) decided
     for the Storybook family.
 26. `2026-10-10T04:13:21Z` — **11**: the hold bump took `turbo` 2.11.4 → 2.11.7, the latest mature release and
     also `latest`, so it left the set; the same gate with 2.11.4 still installed measures **12** at `04:08:54Z`,
@@ -144,7 +144,7 @@ and what moved it. A slice that moves the count appends its own line.
     release notes, 2.11.5 and 2.11.6 change how task inputs hash, so every turbo cache key moves once; the
     size-limit job's `turbo run build` exits 0 with 21 of 21 tasks run and none cached. Only 2.11.8 canaries are
     newer, so nothing is pre-registered: the canon row `turbo` was deleted with the bump, as
-    [D25](#decisions-log) decided for the Storybook family. From 2.11.5 turbo writes a root `AGENTS.md`
+    [D25](TESTING_REFOUNDATION.md#decisions-log) decided for the Storybook family. From 2.11.5 turbo writes a root `AGENTS.md`
     whenever it detects an AI agent, so the root `turbo.json` sets `"agentGuidance": false`, the switch
     its configuration reference documents: the repository keeps its documents under `docs/`.
 27. `2026-10-11T09:39:34Z` — **11**: the hold bump took `jsdom` 30.1.1 → 30.1.2, the latest mature release and
@@ -318,7 +318,7 @@ and what moved it. A slice that moves the count appends its own line.
     2026-10-20.
 33. `2026-10-15T02:12:05Z` — **15** (6 within budget, 9 held, 0 undocumented), the first run under Node
     26.11.1: `workstream/node-26` ([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md),
-    [D52](#decisions-log)) moved `@types/node` from 24.13.6 to 26.6.5 with the runtime, and 26.6.5 is
+    [D52](TESTING_REFOUNDATION.md#decisions-log)) moved `@types/node` from 24.13.6 to 26.6.5 with the runtime, and 26.6.5 is
     `latest`, so the package left the held set and reads `at latest`; its row stays, now holding the
     runtime major. Since line 32 the `size-limit` / `@size-limit/preset-small-lib` pair 14.2.0 matured
     (`21:53Z` / `21:54Z`) and reads `within budget (0 d of 30)`. No other lag moved.
@@ -558,14 +558,14 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 
 | dep                       | installed | latest mature (published)                                                                                          | documented hold (yes/no — where)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | CVE floor |
 | ------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `storybook`               | 10.6.1    | **10.6.1 (2026-09-29, 7.1 d) — latest mature** since 2026-10-06 (hold bump), at `2026-10-06T20:39Z`; also `latest` | **no** — no lag; the PRE-REGISTERED canon row `storybook` was DELETED with the bump, as [D25](#decisions-log) decided for this family: 10.6.1 is `latest` and only 11.0.0 prereleases are newer, so nothing is left to pre-register. 10.6.0 before it, since 2026-10-02 (slice `0.11`), whose own family row carried a remove-when that could NOT fire: `apps/admin` had zero `*.stories.*` files, its build failed identically at 10.4.6 and 10.6.0, and slice `0.22` removed it on 2026-10-06. The bump is proven by `apps/client`: build exit 0 with 77 index entries (68 stories, 9 docs), `storybook dev --smoke-test --ci` exit 0, and `test:stories` 68 of 68 over 9 files                                                                    | —         |
+| `storybook`               | 10.6.1    | **10.6.1 (2026-09-29, 7.1 d) — latest mature** since 2026-10-06 (hold bump), at `2026-10-06T20:39Z`; also `latest` | **no** — no lag; the PRE-REGISTERED canon row `storybook` was DELETED with the bump, as [D25](TESTING_REFOUNDATION.md#decisions-log) decided for this family: 10.6.1 is `latest` and only 11.0.0 prereleases are newer, so nothing is left to pre-register. 10.6.0 before it, since 2026-10-02 (slice `0.11`), whose own family row carried a remove-when that could NOT fire: `apps/admin` had zero `*.stories.*` files, its build failed identically at 10.4.6 and 10.6.0, and slice `0.22` removed it on 2026-10-06. The bump is proven by `apps/client`: build exit 0 with 77 index entries (68 stories, 9 docs), `storybook dev --smoke-test --ci` exit 0, and `test:stories` 68 of 68 over 9 files                                             | —         |
 | `@storybook/addon-a11y`   | 10.6.1    | **10.6.1 (2026-09-29, 7.1 d) — latest mature** since 2026-10-06 (hold bump), at `2026-10-06T20:39Z`; also `latest` | **no** — no lag; moved with the family, and the canon row `storybook`, which named it, was deleted with the bump                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | —         |
 | `@storybook/addon-docs`   | 10.6.1    | **10.6.1 (2026-09-29, 7.1 d) — latest mature** since 2026-10-06 (hold bump), at `2026-10-06T20:39Z`; also `latest` | **no** — no lag; moved with the family, and the canon row `storybook`, which named it, was deleted with the bump                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | —         |
 | `@storybook/addon-vitest` | 10.6.1    | **10.6.1 (2026-09-29, 7.1 d) — latest mature** since 2026-10-06 (hold bump), at `2026-10-06T20:39Z`; also `latest` | **no** — no lag; moved with the family, and the canon row `storybook`, which named it, was deleted with the bump. It runs the client stories as vitest browser tests; 10.6.1 widens its optional `vitest`, `@vitest/browser`, `@vitest/browser-playwright` and `@vitest/runner` peers to admit `^5`, still met at 4.1.11                                                                                                                                                                                                                                                                                                                                                                                                                             | —         |
 | `@storybook/nextjs`       | —         | n/a — REMOVED since 2026-10-06 (slice `0.22`)                                                                      | **no** — no lag, because the package is gone: `apps/client` moved to `@storybook/nextjs-vite` on 2026-10-05, and `apps/admin`, its last declarer, lost its Storybook on 2026-10-06 — no stories, and a build that exited 1 with `SB_BUILDER-WEBPACK5_0002` at 10.4.6 and at 10.6.0. Its removal took 305 lockfile snapshots out and added none: the webpack builder and its loaders, `node-polyfill-webpack-plugin` with the browserify crypto chain, and `memfs`. The `braces` and `elliptic` audit ignores and the `webpack-dev-middleware` override left with them, each proven orphaned (SECURITY_CANON rows); its canon row was the `storybook` family's, which dropped it and was itself deleted the same day, when the family moved to 10.6.1 | —         |
 | `@storybook/nextjs-vite`  | 10.6.1    | **10.6.1 (2026-09-29, 7.1 d) — latest mature** since 2026-10-06 (hold bump), at `2026-10-06T20:39Z`; also `latest` | **no** — no lag; moved with the family, and the canon row `storybook`, which named it, was deleted with the bump. The client's framework: 10.6.1 keeps the peers of 10.6.0, `next ^14.1.0 \|\| ^15.0.0 \|\| ^16.0.0` (16.4.1), `vite` up to `^8` (8.3.4) and `react`/`react-dom` up to `^19`; it brings the deprecated `tsconfck@3.1.6` through `vite-tsconfig-paths`, which it calls only below Vite 8 (SECURITY_CANON §"Compatibility pins")                                                                                                                                                                                                                                                                                                       | —         |
 | `@storybook/react`        | 10.6.1    | **10.6.1 (2026-09-29, 7.1 d) — latest mature** since 2026-10-06 (hold bump), at `2026-10-06T20:39Z`; also `latest` | **no** — no lag; enrolled at 10.6.0 on 2026-10-06 (slice `0.22`, PR E) and moved with the family the same day, and the canon row `storybook`, which named it, was deleted with the bump. `packages/ui` declares it beside `storybook` for the stories colocated with its components, which the client Storybook runs; 10.6.1 peers `react`/`react-dom` up to `^19` (19.2.7), `storybook ^10.6.1` and `typescript >= 4.9.x` (6.0.3)                                                                                                                                                                                                                                                                                                                   | —         |
-| `@storybook/test-runner`  | —         | n/a — REMOVED since 2026-10-02 (slice `0.11`)                                                                      | **no** — no lag, because the package is gone: no workflow and no script invoked it, and its canon row was DELETED with its own remove-when met. Its removal took `jest@30.4.2`, `nyc@15.1.0`, `jest-process-manager@0.4.0`, `wait-on@7.2.0` and `joi@17.13.8` out of the lockfile — 219 of the slice's 230 removed bare keys lie in its dependency closure, and the slice nets −195 once the 10.6.0 set adds 35. The stray `@types/node@26.0.0` keeps 19 of its 37 declarers: 17 `@types/*` packages, `jest-worker@27.5.1` and `protobufjs@7.6.5` (`@types/wait-on` left with the chain) — see [§Declared gaps](#declared-gaps)                                                                                                                      | —         |
+| `@storybook/test-runner`  | —         | n/a — REMOVED since 2026-10-02 (slice `0.11`)                                                                      | **no** — no lag, because the package is gone: no workflow and no script invoked it, and its canon row was DELETED with its own remove-when met. Its removal took `jest@30.4.2`, `nyc@15.1.0`, `jest-process-manager@0.4.0`, `wait-on@7.2.0` and `joi@17.13.8` out of the lockfile — 219 of the slice's 230 removed bare keys lie in its dependency closure, and the slice nets −195 once the 10.6.0 set adds 35. The stray `@types/node@26.0.0` keeps 19 of its 37 declarers: 17 `@types/*` packages, `jest-worker@27.5.1` and `protobufjs@7.6.5` (`@types/wait-on` left with the chain) — see [§Declared gaps](TESTING_REFOUNDATION.md#declared-gaps)                                                                                               | —         |
 | `jest` (transitive)       | —         | n/a — ABSENT from the lockfile since 2026-10-02 (slice `0.11`)                                                     | **no** — no lag, and no population entry either: the canon statement that Jest is not a framework of this repository is now TRUE IN THE TREE. Measured after removal: zero `jest@` keys, zero files importing Jest; the one jest-named package left is `jest-worker@27.5.1`, declared then by `terser-webpack-plugin` and, since 2026-10-06 (slice `0.22`), only by webpack 5.111's `minimizer-webpack-plugin@5.13.0`, under `@sentry/nextjs` > `@sentry/webpack-plugin`                                                                                                                                                                                                                                                                             | —         |
 
 ### Repository-quality gates that run in the same workflows
@@ -579,17 +579,19 @@ boundary the same morning. Others moved the other way: `size-limit@14.1.0` was p
 | `@secretlint/secretlint-rule-preset-recommend` | 13.0.7    | 13.0.7 — same band, and `latest`                               | **no** — no lag; moves with `secretlint`, whose row was deleted        | —                                                                               |
 | `size-limit`                                   | 14.2.0    | **14.2.0 (2026-10-07, 7.7 d) — latest mature**, and `latest`   | **no** — no lag; nothing newer is published, so no row                 | —                                                                               |
 | `@size-limit/preset-small-lib`                 | 14.2.0    | 14.2.0 — same band, and `latest`                               | **no** — no lag; moves with `size-limit`                               | —                                                                               |
-| `@ast-grep/cli`                                | —         | n/a — REMOVED since 2026-10-03 ([D35](#decisions-log))         | **no** — no lag, because the package is gone: nothing invoked it       | —                                                                               |
+| `@ast-grep/cli`                                | —         | n/a — REMOVED since 2026-10-03 ([D35][decisions-log])          | **no** — no lag, because the package is gone: nothing invoked it       | —                                                                               |
 | `lint-staged`                                  | 17.6.0    | **17.6.0 (2026-09-26, 8.0 d) — latest mature**, and `latest`   | **no** — no lag; its config validates on 17.6.0 (`--debug`)            | —                                                                               |
 | `@hey-api/openapi-ts`                          | 0.99.0    | **0.99.0 (2026-06-22, 104.0 d) — latest mature**, and `latest` | **no** — no lag; regenerated types are byte-identical                  | `js-yaml` 4.3.2 (CVE-floor row `js-yaml`) — that row names this package's chain |
-| `@hey-api/client-fetch`                        | —         | n/a — REMOVED since 2026-10-03 ([D35](#decisions-log))         | **no** — no lag: npm-deprecated, bundled in `@hey-api/openapi-ts`      | —                                                                               |
+| `@hey-api/client-fetch`                        | —         | n/a — REMOVED since 2026-10-03 ([D35][decisions-log])          | **no** — no lag: npm-deprecated, bundled in `@hey-api/openapi-ts`      | —                                                                               |
+
+[decisions-log]: TESTING_REFOUNDATION.md#decisions-log
 
 ### Load generators, and the one tool with no version to measure
 
 | dep                     | installed                                                                                        | latest mature (published)                                                                              | documented hold (yes/no — where) | CVE floor |
 | ----------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | -------------------------------- | --------- |
 | `autocannon`            | 8.0.0                                                                                            | 8.0.0 (2024-10-14) — no lag                                                                            | n/a                              | —         |
-| `loadtest`              | —                                                                                                | n/a — REMOVED since 2026-10-03 ([D35](#decisions-log))                                                 | **no** — removed, nothing ran it | —         |
+| `loadtest`              | —                                                                                                | n/a — REMOVED since 2026-10-03 ([D35](TESTING_REFOUNDATION.md#decisions-log))                          | **no** — removed, nothing ran it | —         |
 | k6 (container, not npm) | `grafana/k6:latest` — floating: the `k6-load` job pulls `:latest`, and its run step names no tag | **unmeasurable**: a floating tag has no version to compare, so the 7-day rule cannot be applied at all | n/a                              | —         |
 
 ### The five crossings — each its own decision, never inside a family pull request
@@ -620,7 +622,7 @@ from a published manifest or from this tree, not inferred.
      override silently wins over a later range-scoped one (floor row `:270`) — so the pin must be
      re-scoped, with the advisory re-audited against the published 6.x line (6.0.2 exists), inside
      that slice. **Nothing in the plan, the design or the earlier measurement recorded this.**
-   - **Taken 2026-10-02 by slice `0.12` ([D31](#decisions-log)), at 30.1.1 with `isomorphic-dompurify`
+   - **Taken 2026-10-02 by slice `0.12` ([D31](TESTING_REFOUNDATION.md#decisions-log)), at 30.1.1 with `isomorphic-dompurify`
      4.4.0, so one jsdom copy serves production.** The runtime floor needed no edit: slice `0.5` had
      already declared `>=24.15.0 <25` in all 98 manifests. `undici` resolves 8.11.2 naturally and its
      7.x override was deleted as inert; `tough-cookie` is range-scoped to `<4.1.3`, so jsdom 30 and msw
@@ -652,7 +654,7 @@ from a published manifest or from this tree, not inferred.
    The catalog change alone does not make "types major = runtime major" true in the store: a second
    copy, `@types/node@26.0.0`, arrives through open-range transitives. This section first said it would
    leave with `@storybook/test-runner`; slice `0.11` measured that FALSE on 2026-10-02 — 19 of its 37
-   declarers survive the removal — so it stays a declared gap (see [§Declared gaps](#declared-gaps)).
+   declarers survive the removal — so it stays a declared gap (see [§Declared gaps](TESTING_REFOUNDATION.md#declared-gaps)).
 
 ### Where each measured lag goes
 
@@ -748,9 +750,9 @@ both through each snapshot's `dependencies` and `optionalDependencies`. Today's 
 2026-09-28 `joi` arrived through `@storybook/test-runner` › `jest-process-manager` › `wait-on@7.2.0`.
 
 **Since 2026-10-06 none of these ignores remains**, and the tables above stay as measured: the
-`request` ignore left on 2026-10-02 with `jq` ([D32](#decisions-log)), the two `image-size` ignores on
-2026-10-03 with 2.0.4 ([D37](#decisions-log)), and the `elliptic` ignore, with the `braces` ignore added
-after these measurements ([D33](#decisions-log)), on 2026-10-06 with the admin Storybook (#439).
+`request` ignore left on 2026-10-02 with `jq` ([D32](TESTING_REFOUNDATION.md#decisions-log)), the two `image-size` ignores on
+2026-10-03 with 2.0.4 ([D37](TESTING_REFOUNDATION.md#decisions-log)), and the `elliptic` ignore, with the `braces` ignore added
+after these measurements ([D33](TESTING_REFOUNDATION.md#decisions-log)), on 2026-10-06 with the admin Storybook (#439).
 `auditConfig.ignoreGhsas` is `[]`; WU-3.7(b) re-measures before it decides.
 
 ### Findings named, not fixed here

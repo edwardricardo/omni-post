@@ -8,7 +8,7 @@ The plan the tracker [TESTING_REFOUNDATION.md](TESTING_REFOUNDATION.md) measures
 
 Phases 0–9 and their work units, rendered from the approved plan (held outside the repository,
 read-only). This section is FIXED: it is not edited to match what happened. A change to it is a
-re-plan, and a re-plan is recorded in [§Decisions log](#decisions-log) with its date and its reason.
+re-plan, and a re-plan is recorded in [§Decisions log](TESTING_REFOUNDATION.md#decisions-log) with its date and its reason.
 
 ### What was signed, and is not re-discussed
 
@@ -146,11 +146,11 @@ development timeline.
 
 ### Phase 0 — Baseline and tracking (Track T)
 
-**Closed 2026-10-06** ([D51](#decisions-log)). WU-T.1 to WU-T.3 landed on 2026-09-27 (#316, #317), and
+**Closed 2026-10-06** ([D51](TESTING_REFOUNDATION.md#decisions-log)). WU-T.1 to WU-T.3 landed on 2026-09-27 (#316, #317), and
 WU-T.4 closed with every Phase 0 slice of `openspec/changes/testing-refoundation/tasks.md` but `0.16`,
-the last of them `0.22` (#445, #447); [§Work units](#work-units) names each with its pull request.
-Slice `0.16`, the move to Node 26, stayed a dated unit for 2026-10-28 ([D46](#decisions-log)) until the
-owner moved it to 2026-10-15 ([D52](#decisions-log)). The text below is the plan as signed.
+the last of them `0.22` (#445, #447); [§Work units](TESTING_REFOUNDATION.md#work-units) names each with its pull request.
+Slice `0.16`, the move to Node 26, stayed a dated unit for 2026-10-28 ([D46](TESTING_REFOUNDATION.md#decisions-log)) until the
+owner moved it to 2026-10-15 ([D52](TESTING_REFOUNDATION.md#decisions-log)). The text below is the plan as signed.
 
 - **WU-T.1** Create `docs/development/TESTING_REFOUNDATION.md` (structure in §Medidor) with the
   baseline measured at the base SHA; row in `docs/README.md`. Acceptance: every metric with a
@@ -368,7 +368,7 @@ installed → a new `Test Contracts` job in `fitness.yml`.
   in the same PR; its five reds (`:1266-1270`) prove the new gate before the old one leaves.
   _Retired 2026-10-14_ by PR R10, as written: the interim step, its baseline of 3 and the interim
   wording of the `# 30.` block left in the pull request that added the `test-contracts` job, whose
-  five reds are in the [§Gates](#gates) row; the interim gate's row stays in that table as history.
+  five reds are in the [§Gates](TESTING_REFOUNDATION.md#gates) row; the interim gate's row stays in that table as history.
   U7b, which edits `fitness.yml` under its own token, also aligns two protected comments with the
   paths WU-1.5 renamed, because the rename unit held no token: the `#40` step comment at
   `fitness.yml:1455`, still naming `tenantGucTransactionBinding.test.ts` (now
@@ -471,7 +471,7 @@ false })` plus `globTestSpecifications()`, falling back to `vitest list --filesO
   and SB-116 closed with that wiring. Acceptance: test-shaped unreached outside the quarantine = 0
   (`reach: PASS`, 0 violations, 0 errors, about 3 s locally); the job's time is its first CI run on
   the pull request, held to 6 minutes by `timeout-minutes`. The five reds are in the
-  [§Gates](#gates) row. It retires the interim
+  [§Gates](TESTING_REFOUNDATION.md#gates) row. It retires the interim
   #30 (owner decision (d)), moves M7 `31/31` → `32/32`, and closes WU-1.9, whose real-tree run
   waited for this ruleset. CODE 322, over the ~90 planned: the quarantine's 26 new entries are 156 of
   it (data the spec asks for), the ruleset 44 and `fitness.yml` 122 (the new job, the deleted step
@@ -523,7 +523,7 @@ false })` plus `globTestSpecifications()`, falling back to `vitest list --filesO
   every config's resolved `exclude` to `RESERVED_TIER_EXCLUDES` (`design.md` §2a, the DD-20 note in
   `design-decisions.md`, `tasks-part-2.md` 1.2.2 and 1.17.2; the refusal of the coverage keys moves
   to WU-5.1). The reds are in the
-  [§Gates](#gates) rows of `#30`, part C and #31 A. It moves M7 `32/32` → `34/34`; M1 stays
+  [§Gates](TESTING_REFOUNDATION.md#gates) rows of `#30`, part C and #31 A. It moves M7 `32/32` → `34/34`; M1 stays
   `998 + 14`, the C1 and base cases extending `reach.test.ts`. CODE 450, over the ~40 planned:
   `reach.test.ts` 123 (the C1 and base cases), `script-contract.ts` 95, `reach.ts` 123 (the base
   status, the manifest reader, the header and the `@description` tags), `fitness.yml` 67, `rules.ts`
@@ -560,7 +560,7 @@ false })` plus `globTestSpecifications()`, falling back to `vitest list --filesO
   `tests/cli.test.ts`. It shipped as two stacked pull requests so the workflow file, which needs the
   owner's token, did not hold the code back: R12a the rule, its suites, the command and the
   query-client glob; R12b the step, the canon block and this tracker's state. The reds are in the
-  [§Gates](#gates) row of #36. R12a moved M1 `999 + 14` → `1001 + 14` (`scopes.test.ts`,
+  [§Gates](TESTING_REFOUNDATION.md#gates) row of #36. R12a moved M1 `999 + 14` → `1001 + 14` (`scopes.test.ts`,
   `cli.test.ts`) and R12b M7 `35/35` → `36/36`. CODE 870 + 149 = 1019, over the ~120 planned. R12a:
   `scopes.test.ts` 330, `lib/scopes.ts` 263, `scopes.ts` 109, `cli.test.ts` 60,
   `vitest-collector.ts` 51, `lib/cli.ts` 35, `reach.ts` 17, and 5 lines in `knip.json`, the package
@@ -852,7 +852,7 @@ status under `unshare -n`; seconds = wall time of the owner pass, node start inc
 - **WU-2.1** The assertion classifier as a **workspace package with tests**
   `packages/eslint-plugin-testing/` (`src/assertions.js`, `src/blocks.js`, ESM `// @ts-check`,
   loadable by jiti and by node; tests with `RuleTester` plus fixtures). The package already exists:
-  contract slice `0.20` creates it with `testing/no-unowned-handle-unref` ([D48](#decisions-log)),
+  contract slice `0.20` creates it with `testing/no-unowned-handle-unref` ([D48](TESTING_REFOUNDATION.md#decisions-log)),
   and this work unit extends it. It parses with
   `ts.createSourceFile` (syntactic). Blocks: `describe/it/test/suite`
   (plus `.each/.concurrent/.skip/.only/.todo/.skipIf/.runIf`), `t.test`, `{ skip: expr }`.
@@ -935,7 +935,7 @@ vitest run of the touched packages, or `run-tests.sh` for node:test.
   (the four quarantined files). CODE ~6,
   EVIDENCE ~1,223. PR `refound/2-whole-files`.
 - **WU-2.6b** The four `describe.todo` stubs (D3 — delete; the gap is already declared as roadmap
-  §3.2.c and is counted in [§Declared gaps](#declared-gaps); afterwards every run can assert an
+  §3.2.c and is counted in [§Declared gaps](TESTING_REFOUNDATION.md#declared-gaps); afterwards every run can assert an
   absolute 0 todo and 0 skipped). Acceptance: todo 43 → 0, skipped files 4 → 0. EVIDENCE 116.
   PR `refound/2-todo-stubs`.
 - **WU-2.7** Helpers, runners and dead files (0 importers re-verified): `apps/api/tests/setup/*`
@@ -960,7 +960,7 @@ vitest run of the touched packages, or `run-tests.sh` for node:test.
   slice: the real drop equals the `--area` prediction; the suppressions of the touched files are 0;
   every DELETE has a GREEN probe or Edward's confirmation. CODE 300–380 each, about 9 pull requests.
 - **WU-2.9** `git mv settingsRoutes.test.ts settingsSchemas.test.ts` plus its header; "settings route
-  contract untested" into [§Declared gaps](#declared-gaps) (owner: the Phase 9 queue). CODE ~6, inside
+  contract untested" into [§Declared gaps](TESTING_REFOUNDATION.md#declared-gaps) (owner: the Phase 9 queue). CODE ~6, inside
   2.8.4.
 - **WU-2.10** Weak but not decorative (REWRITE): `@core/webhooks` (activate `rotateFails` and assert
   the failure), `@core/compliance` (assert values in the 2 happy paths), `@core/settings` (assert the
@@ -1631,7 +1631,7 @@ maxRetries AND nextRetryAt <= now AND lease`), saga (compensation in reverse ord
   (MSW through `@test-utils/wire`), and `apps/workers` (today's 17 of 125 against its surface: the
   publish worker, mention ingest, the recorder). PRs `refound/6n-<app>-<n>`.
 - **Acceptance of 6.N**: every package of N0's order is at or above its target floor, or in
-  [§Declared gaps](#declared-gaps) with a reason; 0 blocks of a decorative class in what is new (the
+  [§Declared gaps](TESTING_REFOUNDATION.md#declared-gaps) with a reason; 0 blocks of a decorative class in what is new (the
   2.4 rules guarantee it); metric M16 into the tracker (packages at target / total; the total gap in
   unexecuted functions). Size: a coarse estimate of 150–250 new test files → 40–70 pull requests; the
   real figure is fixed by N0. Parallelism: one writer per package in isolated worktrees (D19); git
