@@ -14,8 +14,9 @@
  * @layer infrastructure
  */
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { until } from "@packages/vitest-shared/determinism";
 import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
-import type { SagaStep, SagaStepResult, SagaContext } from "@shared/types/saga.js";
+import type { SagaStep, SagaStepResult, SagaContext, SagaInstance } from "@shared/types/saga.js";
 import {
   createMockPrisma,
   createMockRedis,
@@ -40,9 +41,10 @@ export interface ChaosHarness {
 }
 
 /**
- * Builds a chaos harness with a saga manager + noop scheduler. The scheduler is
- * a no-op by design — tests call `scheduler.triggerTask("saga-retry-recovery")`
- * to force the recovery checker's iteration at deterministic moments.
+ * @description Builds a chaos harness with a saga manager + noop scheduler. The scheduler is
+ *   a no-op by design — tests call `scheduler.triggerTask("saga-retry-recovery")`
+ *   to force the recovery checker's iteration at deterministic moments.
+ * @returns The initialized harness, with the doubles it wired and its teardown.
  */
 export async function createChaosHarness(): Promise<ChaosHarness> {
   const mockPrisma = createMockPrisma();
@@ -92,6 +94,14 @@ export class TransientFailingStep implements SagaStep {
 
   constructor(private readonly failuresBeforeSuccess: number) {}
 
+  /**
+   * @method execute
+   * @description Counts the attempt, fails while the attempt count is within
+   *   `failuresBeforeSuccess`, then succeeds and records its step data.
+   * @param context - The saga context whose step data the success writes.
+   * @param _data - Unused step input.
+   * @returns A `failed` outcome for the scripted failures, then `succeeded`.
+   */
   async execute(context: SagaContext, _data?: unknown): Promise<SagaStepResult> {
     this.attempts += 1;
     if (this.attempts <= this.failuresBeforeSuccess) {
@@ -108,15 +118,28 @@ export class TransientFailingStep implements SagaStep {
     };
   }
 
+  /**
+   * @method compensate
+   * @description Compensates unconditionally: the chaos scenarios exercise the forward retry, not
+   *   the undo.
+   * @param _context - Unused saga context.
+   * @param _compensationData - Unused compensation data.
+   * @returns A `succeeded` outcome.
+   */
   async compensate(_context: SagaContext, _compensationData?: unknown): Promise<SagaStepResult> {
     return { outcome: "succeeded", data: { compensated: true } };
   }
 }
 
 /**
- * Polls `manager.getSaga(sagaId)` until it reaches `targetStatus` or the timeout
- * expires. Between polls the caller must call `scheduler.triggerTask(...)` to
- * force the recovery checker's tick — this wait helper only observes.
+ * @description Polls `manager.getSaga(sagaId)` until it reaches `targetStatus` or the timeout
+ *   expires, and on timeout names the status and the retry count it last read. Between polls the
+ *   caller must call `scheduler.triggerTask(...)` to force the recovery checker's tick: this wait
+ *   helper only observes.
+ * @param manager - The saga manager whose saga is read.
+ * @param sagaId - The saga to observe.
+ * @param targetStatus - The status the wait ends on.
+ * @param options - `timeoutMs` (default 5000) and `pollMs`, the pause between reads (default 50).
  */
 export async function waitForSagaStatus(
   manager: SagaManagerImpl,
@@ -124,19 +147,18 @@ export async function waitForSagaStatus(
   targetStatus: string,
   options: { timeoutMs?: number; pollMs?: number } = {}
 ): Promise<void> {
-  const timeoutMs = options.timeoutMs ?? 5000;
-  const pollMs = options.pollMs ?? 50;
-  const deadline = Date.now() + timeoutMs;
-
-  while (Date.now() < deadline) {
-    const saga = await manager.getSaga(sagaId);
-    if (saga?.status === targetStatus) return;
-    await new Promise((r) => setTimeout(r, pollMs));
-  }
-
-  const final = await manager.getSaga(sagaId);
-  throw new Error(
-    `Saga ${sagaId} did not reach status "${targetStatus}" within ${timeoutMs}ms. ` +
-      `Final status: ${final?.status}, retryCount: ${final?.retryCount}`
+  let last: SagaInstance | null = null;
+  await until(
+    async () => {
+      last = await manager.getSaga(sagaId);
+      return last?.status === targetStatus;
+    },
+    {
+      description: () =>
+        `saga ${sagaId} to reach status "${targetStatus}" ` +
+        `(last status: ${last?.status}, retryCount: ${last?.retryCount})`,
+      timeoutMs: options.timeoutMs ?? 5000,
+      intervalMs: options.pollMs ?? 50,
+    }
   );
 }

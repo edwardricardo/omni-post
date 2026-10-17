@@ -76,6 +76,20 @@ Versions above come from `pnpm-workspace.yaml` (the catalog); the store entries 
 
 MSW is installed and no config wires it: none of the four `setupFiles` declared by `apps/{api,admin,client,workers}/vitest.config.ts` mentions MSW, and each MSW user starts its own server (P; M: 19 files import from `msw` and 16 contain `setupServer` or `server.listen(`, both with `rg -l`). In `apps/client/tests/integration`, **9 of 24 files stub `fetch` with `vi.stubGlobal`** (M: `rg -l -U "stubGlobal\(\s*['\"]fetch['\"]"`); the plan recorded 10, which equals the number of files calling `vi.stubGlobal` for any global — the tenth stubs `EventSource`. The providers' MSW helper, `@providers/shared/test-utils/msw-helpers`, is imported by one test file, `packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts` (M; the plan counted 1 consumer of 12).
 
+### Waiting and the fixed clock: `@packages/vitest-shared/determinism`
+
+A test waits on the observable result, never on time: no `setTimeout(resolve, ms)` stands in for "the work has finished". The kit is the shared way to wait, a subpath of `@packages/vitest-shared` that imports no vitest, so vitest suites and the `node:test` tier load the same module.
+
+| Export                                                                 | What it does                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `until(predicate, { description, timeoutMs = 5000, intervalMs = 10 })` | Probes `predicate`, sync or async, until it holds. At the deadline it rejects with an `Error` naming `description` (a string, or a function called only then) and the elapsed time, which fails the test in either framework |
+| `untilValue(probe, options)`                                           | The same, resolving with the first answer that is neither `null` nor `undefined`                                                                                                                                             |
+| `createGate()`                                                         | A one-shot gate: after `arm()`, the next `pass(read)` waits until `release()`. `reached()` resolves when that call arrives and `hasReached()` reads it; a spent gate refuses `arm()`                                         |
+| `createDeferred<T>()`                                                  | `{ promise, resolve, reject, settled }`, to settle a double's pending call when the test chooses                                                                                                                             |
+| `FIXED_CLOCK_ISO`, `fixedClock()`                                      | The fixed instant `2026-01-01T00:00:00.000Z`, as a string and as a new `Date`                                                                                                                                                |
+
+The framework installs the clock, with the kit's value: vitest `vi.useFakeTimers({ now: fixedClock() })` or `vi.setSystemTime(FIXED_CLOCK_ISO)`; node:test `mock.timers.enable({ apis: ["Date", "setTimeout", "setInterval", "setImmediate"], now: fixedClock() })`. The waiters read `Date.now()` and pause with the global `setTimeout`, so under fake timers they move only as far as the test advances the clock (`await vi.advanceTimersByTimeAsync(ms)`, or `mock.timers.tick(ms)` between awaits). Pinned by `packages/vitest-shared/tests/determinism.test.ts`.
+
 ## 2. Reach
 
 | Population                                                                                            | Files | Src   |

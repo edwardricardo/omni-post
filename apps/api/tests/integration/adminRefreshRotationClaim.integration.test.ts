@@ -32,6 +32,7 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { createDeferred } from "@packages/vitest-shared/determinism";
 import type { PrismaClient } from "@infra/prisma";
 import { AuthService } from "../../src/auth/authService.js";
 import { AuthServiceCore } from "../../src/auth/authServiceCore.js";
@@ -123,10 +124,7 @@ function gateConsumingWrites(
   preClaimReadDone: Promise<void>;
   writes: Array<{ op: string; count: number | null }>;
 } {
-  let signal = (): void => {};
-  const preClaimReadDone = new Promise<void>((resolve) => {
-    signal = resolve;
-  });
+  const preClaimRead = createDeferred<void>();
   const writes: Array<{ op: string; count: number | null }> = [];
   const real = realClient.adminSession as unknown as {
     findUnique: (a: unknown) => Promise<unknown>;
@@ -138,7 +136,7 @@ function gateConsumingWrites(
     adminSession: {
       findUnique: async (a: unknown): Promise<unknown> => {
         const row = await real.findUnique(a);
-        signal();
+        preClaimRead.resolve();
         return row;
       },
       findMany: (a: unknown): Promise<unknown> => real.findMany(a),
@@ -157,7 +155,7 @@ function gateConsumingWrites(
     },
     adminUser: realClient.adminUser,
   } as unknown as PrismaClient;
-  return { client, preClaimReadDone, writes };
+  return { client, preClaimReadDone: preClaimRead.promise, writes };
 }
 
 interface SeededSession {
@@ -231,11 +229,8 @@ describe("Admin refresh-rotation claim (integration)", () => {
 
   it("staggered: a deciding read taken before the winner's rotation commits still mints one pair", async () => {
     const seeded = await seedSession(`staggered-${Date.now()}`);
-    let releaseGate = (): void => {};
-    const gate = new Promise<void>((resolve) => {
-      releaseGate = resolve;
-    });
-    const gated = gateConsumingWrites(prisma, gate);
+    const gate = createDeferred<void>();
+    const gated = gateConsumingWrites(prisma, gate.promise);
     const loser = buildRotationAttempt(gated.client);
     const winner = buildRotationAttempt(prisma);
 
@@ -247,7 +242,7 @@ describe("Admin refresh-rotation claim (integration)", () => {
       await gated.preClaimReadDone;
       const winnerResult = await winner.session.refreshTokens(seeded.refreshToken, "127.0.0.1");
       const rowAfterWinner = await rowOf(seeded.sessionId);
-      releaseGate();
+      gate.resolve();
       const loserResult = await loserRun;
 
       assert.strictEqual(
@@ -290,7 +285,7 @@ describe("Admin refresh-rotation claim (integration)", () => {
         winnerResult.value.refreshToken
       );
     } finally {
-      releaseGate();
+      gate.resolve();
     }
   });
 

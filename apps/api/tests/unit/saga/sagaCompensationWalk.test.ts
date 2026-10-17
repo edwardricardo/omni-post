@@ -16,6 +16,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import client from "prom-client";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { until } from "@packages/vitest-shared/determinism";
 import {
   defineSaga,
   type CompensableStep,
@@ -352,15 +353,8 @@ function succeededCompensation(stepId: string): SagaStepResult {
   return { outcome: "succeeded", data: { compensated: stepId } };
 }
 
-/** Waits until `probe` holds, so a detached walk is observed, never guessed. */
-async function until(probe: () => Promise<boolean>, description: string): Promise<void> {
-  const deadline = Date.now() + 3_000;
-  for (;;) {
-    if (await probe()) return;
-    if (Date.now() > deadline) throw new Error(`timed out waiting for ${description}`);
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-}
+/** The deadline and the interval of every wait on a detached walk in this file. */
+const WAIT_TIMING = { timeoutMs: 3_000, intervalMs: 5 } as const;
 
 /** Total `saga_recovery_failures_total{stage="compensation"}` right now. */
 async function compensationFailureCount(): Promise<number> {
@@ -383,10 +377,10 @@ describe("the compensation walk", () => {
     const harness = createWalkHarness({ compensableCount: 2, failingIndex: 1 });
     const started = await startProbeSaga(harness);
 
-    await until(
-      async () => harness.steps[0]!.compensateAttempts > 0,
-      "the walk to reach the first compensable step"
-    );
+    await until(async () => harness.steps[0]!.compensateAttempts > 0, {
+      description: "the walk to reach the first compensable step",
+      ...WAIT_TIMING,
+    });
 
     // The status is written AHEAD of the undo: a process that dies at any
     // point from here on leaves a row that says it was undoing itself.
@@ -399,20 +393,20 @@ describe("the compensation walk", () => {
     // reader can convert a compensation into a forward retry.
     expect(observed?.nextRetryAt ?? null).toBeNull();
 
-    await until(
-      async () => (await harness.row(started.id))?.status === "COMPENSATED",
-      "the walk to settle"
-    );
+    await until(async () => (await harness.row(started.id))?.status === "COMPENSATED", {
+      description: "the walk to settle",
+      ...WAIT_TIMING,
+    });
   });
 
   it("records each step's outcome durably before the next compensate() runs", async () => {
     const harness = createWalkHarness({ compensableCount: 4, failingIndex: 3 });
     const started = await startProbeSaga(harness);
 
-    await until(
-      async () => (await harness.row(started.id))?.status === "COMPENSATED",
-      "the walk to settle"
-    );
+    await until(async () => (await harness.row(started.id))?.status === "COMPENSATED", {
+      description: "the walk to settle",
+      ...WAIT_TIMING,
+    });
 
     // Walk order is reverse: 2, then 1, then 0 — and each one starts with its
     // successors already durable, so a crash costs at most ONE in-flight step.
@@ -461,10 +455,10 @@ describe("the compensation walk", () => {
     });
     const started = await startProbeSaga(harness);
 
-    await until(
-      async () => harness.steps[0]!.compensateAttempts > 0,
-      "the walk to run past the failing compensation"
-    );
+    await until(async () => harness.steps[0]!.compensateAttempts > 0, {
+      description: "the walk to run past the failing compensation",
+      ...WAIT_TIMING,
+    });
 
     const row = await harness.row(started.id);
     // Claiming COMPENSATED here is the dishonesty this replaces: the saga is
@@ -481,10 +475,10 @@ describe("the compensation walk", () => {
     });
     const started = await startProbeSaga(harness);
 
-    await until(
-      async () => harness.steps[0]!.compensateAttempts > 0,
-      "the walk to run past the failing compensation"
-    );
+    await until(async () => harness.steps[0]!.compensateAttempts > 0, {
+      description: "the walk to run past the failing compensation",
+      ...WAIT_TIMING,
+    });
 
     const row = await harness.row(started.id);
     // A resumed walk must be able to tell "tried and failed" from "not yet
@@ -524,10 +518,10 @@ describe("the write-ahead transition is an ORDERING, never a gate on the undo", 
     harness.failNextWriteOf("COMPENSATING", "db write failed");
 
     const started = await startProbeSaga(harness);
-    await until(
-      async () => (await harness.row(started.id))?.status === "COMPENSATED",
-      "the walk to run and settle despite the failed transition"
-    );
+    await until(async () => (await harness.row(started.id))?.status === "COMPENSATED", {
+      description: "the walk to run and settle despite the failed transition",
+      ...WAIT_TIMING,
+    });
 
     // A durable write that fails must not DELETE the rollback. Pre-change the
     // walk was always dispatched; the write-ahead reorders that, it does not
@@ -669,10 +663,10 @@ describe("one walk per saga at a time", () => {
     });
 
     void harness.engine.resumeCompensationWalk(sagaId);
-    await until(
-      async () => harness.steps[1]!.compensateAttempts === 1,
-      "the first walk to reach the hanging step"
-    );
+    await until(async () => harness.steps[1]!.compensateAttempts === 1, {
+      description: "the first walk to reach the hanging step",
+      ...WAIT_TIMING,
+    });
 
     await harness.engine.resumeCompensationWalk(sagaId);
 
@@ -702,10 +696,10 @@ describe("one walk per saga at a time", () => {
     });
 
     void harness.engine.resumeCompensationWalk(sagaId);
-    await until(
-      async () => harness.steps[1]!.compensateAttempts === 1,
-      "the walk to reach the hanging step"
-    );
+    await until(async () => harness.steps[1]!.compensateAttempts === 1, {
+      description: "the walk to reach the hanging step",
+      ...WAIT_TIMING,
+    });
 
     // The alert fires around five minutes and the horizon is thirty, so the
     // runbook actively invites a re-drive while the first walk is still in
@@ -837,10 +831,10 @@ describe("the operator re-drive", () => {
     });
 
     await expect(harness.manager.compensateSaga(sagaId)).resolves.toMatchObject({ id: sagaId });
-    await until(
-      async () => (await harness.row(sagaId))?.status === "COMPENSATED",
-      "the re-driven walk to settle"
-    );
+    await until(async () => (await harness.row(sagaId))?.status === "COMPENSATED", {
+      description: "the re-driven walk to settle",
+      ...WAIT_TIMING,
+    });
 
     // The operator's door and the automatic one are the SAME walk with the
     // same progress semantics — a re-drive is not a second code path.

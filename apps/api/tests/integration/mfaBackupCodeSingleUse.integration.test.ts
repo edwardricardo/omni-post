@@ -30,6 +30,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { authenticator } from "otplib";
+import { createDeferred } from "@packages/vitest-shared/determinism";
 import type { PrismaClient } from "@infra/prisma";
 import type { Result } from "@shared/types";
 import { PrismaCustomerMfaUserRepository } from "../../src/infrastructure/adapters/PrismaCustomerMfaUserRepository.js";
@@ -99,24 +100,18 @@ function makeMetricsSpy(): {
  * seam — production carries no test hook.
  */
 class BarrierMfaUserRepository implements MfaUserRepositoryPort {
-  readonly decidingReadDone: Promise<void>;
-  private readonly signalRead: () => void;
+  private readonly decidingRead = createDeferred<void>();
+  readonly decidingReadDone: Promise<void> = this.decidingRead.promise;
 
   constructor(
     private readonly inner: MfaUserRepositoryPort,
     private readonly gate: Promise<void>,
     private readonly pinnedUsedAt: Date
-  ) {
-    let signal = (): void => {};
-    this.decidingReadDone = new Promise<void>((resolve) => {
-      signal = resolve;
-    });
-    this.signalRead = signal;
-  }
+  ) {}
 
   async findById(userId: string): Promise<Result<MfaUserRecord, "NOT_FOUND">> {
     const found = await this.inner.findById(userId);
-    this.signalRead();
+    this.decidingRead.resolve();
     return found;
   }
 
@@ -169,10 +164,7 @@ function gateClaimSnapshot(
   prisma: PrismaClient,
   gate: Promise<void>
 ): { client: PrismaClient; snapshotTaken: Promise<void> } {
-  let signal = (): void => {};
-  const snapshotTaken = new Promise<void>((resolve) => {
-    signal = resolve;
-  });
+  const snapshot = createDeferred<void>();
   const real = prisma.customerUser as unknown as {
     findUnique: (args: {
       where: { id: string };
@@ -189,7 +181,7 @@ function gateClaimSnapshot(
       }): Promise<unknown> => {
         const row = await real.findUnique(args);
         if (args.select?.mfaBackupUsedAt === true && args.select.id === undefined) {
-          signal();
+          snapshot.resolve();
           await gate;
         }
         return row;
@@ -198,7 +190,7 @@ function gateClaimSnapshot(
       update: (args: unknown): Promise<unknown> => real.update(args),
     },
   } as unknown as PrismaClient;
-  return { client, snapshotTaken };
+  return { client, snapshotTaken: snapshot.promise };
 }
 
 /** Read the persisted used-map off a raw row. */
@@ -396,11 +388,8 @@ describe("Backup-code single-use (integration)", () => {
     const backupCode = enrolled.backupCodes[0];
     assert.ok(backupCode, "enrollment must issue at least one backup code");
 
-    let releaseGate = (): void => {};
-    const gate = new Promise<void>((resolve) => {
-      releaseGate = resolve;
-    });
-    const barrierRepo = new BarrierMfaUserRepository(plainRepo, gate, LOSER_SENTINEL);
+    const gate = createDeferred<void>();
+    const barrierRepo = new BarrierMfaUserRepository(plainRepo, gate.promise, LOSER_SENTINEL);
     // The loser holds an open transaction while it waits at the gate, so its UoW
     // gets a raised timeout: that wait is this test's own sequencing, never
     // database contention.
@@ -423,7 +412,7 @@ describe("Backup-code single-use (integration)", () => {
       const rowAfterWinner = await prisma.customerUser.findUniqueOrThrow({
         where: { id: enrolled.customerId },
       });
-      releaseGate();
+      gate.resolve();
       const loserResult = await loserRun;
 
       assert.strictEqual(
@@ -467,7 +456,7 @@ describe("Backup-code single-use (integration)", () => {
         "the security-threat counter incremented once, with the refusal's labels"
       );
     } finally {
-      releaseGate();
+      gate.resolve();
       await dropAccount(prisma, enrolled.accountId);
     }
   });
@@ -492,14 +481,11 @@ describe("Backup-code single-use (integration)", () => {
     const [firstCode, siblingCode] = enrolled.backupCodes;
     assert.ok(firstCode && siblingCode, "enrollment must issue at least two backup codes");
 
-    let releaseGate = (): void => {};
-    const gate = new Promise<void>((resolve) => {
-      releaseGate = resolve;
-    });
+    const gate = createDeferred<void>();
     // The sibling runs WITHOUT a Unit of Work on purpose: the gate lives in the
     // injected client, and a UoW would route the adapter onto the transaction
     // client instead, leaving the collision window unreachable.
-    const gated = gateClaimSnapshot(prisma, gate);
+    const gated = gateClaimSnapshot(prisma, gate.promise);
     const sibling = new MfaService(
       adminRepo,
       new PrismaCustomerMfaUserRepository(gated.client),
@@ -514,7 +500,7 @@ describe("Backup-code single-use (integration)", () => {
       // its compare-and-swap runs after — the collision window, made explicit.
       await gated.snapshotTaken;
       const firstResult = await service.verifyMfaToken(enrolled.subject, firstCode);
-      releaseGate();
+      gate.resolve();
       const siblingResult = await siblingRun;
 
       assert.strictEqual(
@@ -548,7 +534,7 @@ describe("Backup-code single-use (integration)", () => {
       });
       assert.deepStrictEqual(Object.keys(usedMapOf(after)).sort(), ["0", "1"]);
     } finally {
-      releaseGate();
+      gate.resolve();
       await dropAccount(prisma, enrolled.accountId);
     }
   });

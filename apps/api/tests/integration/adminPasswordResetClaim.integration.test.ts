@@ -30,6 +30,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { createDeferred } from "@packages/vitest-shared/determinism";
 import type { PrismaClient } from "@infra/prisma";
 import { PasswordService } from "../../src/admin/auth/PasswordService.js";
 import type { SecurityEventType } from "../../src/admin/auth/adminAuthTypes.js";
@@ -91,10 +92,7 @@ function gateConsumingWrites(
   preClaimReadDone: Promise<void>;
   writes: Array<{ op: string; count: number | null }>;
 } {
-  let signal = (): void => {};
-  const preClaimReadDone = new Promise<void>((resolve) => {
-    signal = resolve;
-  });
+  const preClaimRead = createDeferred<void>();
   const writes: Array<{ op: string; count: number | null }> = [];
   const real = prisma.adminUser as unknown as {
     findFirst: (a: unknown) => Promise<unknown>;
@@ -106,7 +104,7 @@ function gateConsumingWrites(
     adminUser: {
       findFirst: async (a: unknown): Promise<unknown> => {
         const row = await real.findFirst(a);
-        signal();
+        preClaimRead.resolve();
         return row;
       },
       // Ungated on purpose: the zero-count disambiguation must observe the row as
@@ -127,7 +125,7 @@ function gateConsumingWrites(
     },
     adminSession: prisma.adminSession,
   } as unknown as PrismaClient;
-  return { client, preClaimReadDone, writes };
+  return { client, preClaimReadDone: preClaimRead.promise, writes };
 }
 
 interface SeededAdmin {
@@ -270,11 +268,8 @@ describe("Admin password-reset claim (integration)", () => {
 
   it("service, staggered: a deciding read taken before the winner's claim commits still yields one success", async () => {
     const admin = await seedAdmin(`staggered-${Date.now()}`);
-    let releaseGate = (): void => {};
-    const gate = new Promise<void>((resolve) => {
-      releaseGate = resolve;
-    });
-    const gated = gateConsumingWrites(prisma, gate);
+    const gate = createDeferred<void>();
+    const gated = gateConsumingWrites(prisma, gate.promise);
     const loserSpy = makeEventSpy();
     const winnerSpy = makeEventSpy();
     const loser = new PasswordService(gated.client);
@@ -295,7 +290,7 @@ describe("Admin password-reset claim (integration)", () => {
         winnerSpy.onSecurityEvent
       );
       const rowAfterWinner = await rowOf(admin.id);
-      releaseGate();
+      gate.resolve();
       const loserResult = await loserRun;
 
       assert.strictEqual(winnerResult.ok, true, "the winner's confirm succeeds");
@@ -345,7 +340,7 @@ describe("Admin password-reset claim (integration)", () => {
       assert.strictEqual(sessions[0]?.isActive, false, "the winner revoked the active session");
       assert.strictEqual(sessions[0]?.revokeReason, "PASSWORD_RESET");
     } finally {
-      releaseGate();
+      gate.resolve();
     }
   });
 
@@ -417,11 +412,8 @@ describe("Admin password-reset claim (integration)", () => {
 
   it("a history move while the claim is gated is a retryable conflict, and the retry succeeds", async () => {
     const admin = await seedAdmin(`conflict-${Date.now()}`);
-    let releaseGate = (): void => {};
-    const gate = new Promise<void>((resolve) => {
-      releaseGate = resolve;
-    });
-    const gated = gateConsumingWrites(prisma, gate);
+    const gate = createDeferred<void>();
+    const gated = gateConsumingWrites(prisma, gate.promise);
     const spy = makeEventSpy();
     const gatedService = new PasswordService(gated.client);
 
@@ -438,7 +430,7 @@ describe("Admin password-reset claim (integration)", () => {
         where: { id: admin.id },
         data: { passwordHistory: [admin.priorHash] },
       });
-      releaseGate();
+      gate.resolve();
       const conflict = await run;
 
       assert.strictEqual(conflict.ok, false, "the claim is refused");
@@ -463,7 +455,7 @@ describe("Admin password-reset claim (integration)", () => {
         true
       );
     } finally {
-      releaseGate();
+      gate.resolve();
     }
   });
 
