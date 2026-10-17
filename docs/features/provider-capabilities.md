@@ -4,28 +4,28 @@ Last updated: 2026-03-27
 
 ## Supported Providers
 
-OmniPost supports 10 social media providers. Each provider adapter implements the `ProviderAdapter` interface from `@ports/core`.
+OmniPost supports 11 social media providers. Each provider adapter implements the `ProviderAdapter` interface from `@ports/core`.
 
 ## Capabilities Matrix
 
-| Capability       | X   | Instagram | Facebook | YouTube    | TikTok | LinkedIn | Telegram | Snapchat | Pinterest | Bluesky |
-| ---------------- | --- | --------- | -------- | ---------- | ------ | -------- | -------- | -------- | --------- | ------- |
-| **Publish**      | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | Yes      | Yes       | Yes     |
-| **Schedule**     | Yes | Yes       | Yes      | Yes        | No     | No       | No       | No       | No        | No      |
-| **Analytics**    | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | No       | Yes      | Yes       | No      |
-| **Comments**     | Yes | Yes       | Yes      | Yes        | No     | Yes      | No       | No       | No        | Yes     |
-| **Replies**      | Yes | Yes       | Yes      | Yes        | No     | Yes      | No       | No       | No        | Yes     |
-| **Threading**    | Yes | Yes       | No       | No         | No     | No       | No       | No       | No        | Yes     |
-| **Images**       | Yes | Yes       | Yes      | Thumbnails | Yes    | Yes      | Yes      | Yes      | Yes       | Yes     |
-| **Videos**       | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | Yes      | Yes       | Yes     |
-| **GIFs**         | Yes | No        | Yes      | No         | No     | No       | Yes      | No       | Yes       | No      |
-| **Stories**      | No  | Yes       | Yes      | No         | No     | No       | No       | Yes      | No        | No      |
-| **Reels/Shorts** | No  | Yes       | Yes      | Yes        | N/A    | No       | No       | No       | No        | No      |
-| **Carousel**     | No  | Yes       | Yes      | No         | Yes    | Yes      | Yes      | No       | No        | No      |
-| **Hashtags**     | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | No       | Yes       | Yes     |
-| **Mentions**     | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | No       | No        | Yes     |
-| **Links**        | Yes | No        | Yes      | Yes        | No     | Yes      | Yes      | No       | Yes       | Yes     |
-| **Polls**        | Yes | No        | No       | No         | No     | Yes      | Yes      | No       | No        | No      |
+| Capability       | X   | Instagram | Facebook | YouTube    | TikTok | LinkedIn | Telegram | Snapchat | Pinterest | Bluesky | Threads |
+| ---------------- | --- | --------- | -------- | ---------- | ------ | -------- | -------- | -------- | --------- | ------- | ------- |
+| **Publish**      | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | Yes      | Yes       | Yes     | Yes     |
+| **Schedule**     | Yes | Yes       | Yes      | Yes        | No     | No       | No       | No       | No        | No      | No      |
+| **Analytics**    | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | No       | Yes      | Yes       | No      | Yes     |
+| **Comments**     | Yes | Yes       | Yes      | Yes        | No     | Yes      | No       | No       | No        | Yes     | Yes     |
+| **Replies**      | Yes | Yes       | Yes      | Yes        | No     | Yes      | No       | No       | No        | Yes     | Yes     |
+| **Threading**    | Yes | Yes       | No       | No         | No     | No       | No       | No       | No        | Yes     | No      |
+| **Images**       | Yes | Yes       | Yes      | Thumbnails | Yes    | Yes      | Yes      | Yes      | Yes       | Yes     | Yes     |
+| **Videos**       | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | Yes      | Yes       | Yes     | Yes     |
+| **GIFs**         | Yes | No        | Yes      | No         | No     | No       | Yes      | No       | Yes       | No      | No      |
+| **Stories**      | No  | Yes       | Yes      | No         | No     | No       | No       | Yes      | No        | No      | No      |
+| **Reels/Shorts** | No  | Yes       | Yes      | Yes        | N/A    | No       | No       | No       | No        | No      | No      |
+| **Carousel**     | No  | Yes       | Yes      | No         | Yes    | Yes      | Yes      | No       | No        | No      | Yes     |
+| **Hashtags**     | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | No       | Yes       | Yes     | Yes     |
+| **Mentions**     | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | No       | No        | Yes     | No      |
+| **Links**        | Yes | No        | Yes      | Yes        | No     | Yes      | Yes      | No       | Yes       | Yes     | Unknown |
+| **Polls**        | Yes | No        | No       | No         | No     | Yes      | Yes      | No       | No        | No      | No      |
 
 ## Per-Provider Details
 
@@ -153,20 +153,34 @@ OmniPost supports 10 social media providers. Each provider adapter implements th
 - **Limitations**: No analytics API, no scheduling API, no polls, no stories
 - **Webhook events**: Firehose subscription via Jetstream
 
+### Threads
+
+- **Auth**: OAuth (`accessToken` and `userId` credentials)
+- **Max characters**: 500
+- **Max media per post**: 10 images or videos; more than one is published as a carousel
+- **Aspect ratios**: 1:1, 4:5, 9:16, 16:9
+- **Max hashtags**: 30
+- **Content types**: Text, image, video, carousel
+- **Threading**: No (`threadingSupported: false`)
+- **Comments/Replies**: `getComments` and `postReply`
+- **Analytics**: `fetchAnalytics`
+- **Limitations**: no scheduling (`schedule: false`), no mention ingestion (`mentions: false`), no webhook processor
+
 ## Authentication Requirements
 
-| Provider  | Auth Type        | Required Scopes                                |
-| --------- | ---------------- | ---------------------------------------------- |
-| X         | OAuth 2.0 PKCE   | `tweet.read`, `tweet.write`, `users.read`      |
-| Instagram | Facebook Login   | `instagram_basic`, `instagram_content_publish` |
-| Facebook  | Facebook Login   | `pages_manage_posts`, `pages_read_engagement`  |
-| YouTube   | Google OAuth 2.0 | `youtube.upload`, `youtube.readonly`           |
-| TikTok    | OAuth 2.0        | `video.upload`, `user.info.basic`              |
-| LinkedIn  | OAuth 2.0        | `w_member_social`, `r_liteprofile`             |
-| Telegram  | Bot Token        | N/A (bot token is the auth)                    |
-| Snapchat  | OAuth 2.0        | `snapchat-marketing-api`                       |
-| Pinterest | OAuth 2.0        | `boards:read`, `pins:read`, `pins:write`       |
-| Bluesky   | AT Protocol      | N/A (app password or OAuth session)            |
+| Provider  | Auth Type        | Required Scopes                                                                              |
+| --------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| X         | OAuth 2.0 PKCE   | `tweet.read`, `tweet.write`, `users.read`                                                    |
+| Instagram | Facebook Login   | `instagram_basic`, `instagram_content_publish`                                               |
+| Facebook  | Facebook Login   | `pages_manage_posts`, `pages_read_engagement`                                                |
+| YouTube   | Google OAuth 2.0 | `youtube.upload`, `youtube.readonly`                                                         |
+| TikTok    | OAuth 2.0        | `video.upload`, `user.info.basic`                                                            |
+| LinkedIn  | OAuth 2.0        | `w_member_social`, `r_liteprofile`                                                           |
+| Telegram  | Bot Token        | N/A (bot token is the auth)                                                                  |
+| Snapchat  | OAuth 2.0        | `snapchat-marketing-api`                                                                     |
+| Pinterest | OAuth 2.0        | `boards:read`, `pins:read`, `pins:write`                                                     |
+| Bluesky   | AT Protocol      | N/A (app password or OAuth session)                                                          |
+| Threads   | OAuth            | `threads_basic`, `threads_content_publish`, `threads_read_replies`, `threads_manage_replies` |
 
 ## Rate Limits
 
@@ -182,6 +196,7 @@ OmniPost supports 10 social media providers. Each provider adapter implements th
 | Snapchat  | 100 calls    | 1 hour     | Marketing API                  |
 | Pinterest | 1,000 calls  | 1 hour     | Per app                        |
 | Bluesky   | 3,000 calls  | 5 minutes  | AT Protocol rate limits        |
+| Threads   | 60 calls     | 24 hours   | The adapter's `rateLimitHints` |
 
 ## Webhook Processors
 
@@ -197,6 +212,7 @@ OmniPost supports 10 social media providers. Each provider adapter implements th
 | Snapchat  | `snapchatWebhookProcessor`  | HMAC-SHA256          |
 | Pinterest | N/A                         | No webhook API       |
 | Bluesky   | `blueskyWebhookProcessor`   | Firehose/Jetstream   |
+| Threads   | N/A                         | No processor         |
 
 ## The adapter interface
 
