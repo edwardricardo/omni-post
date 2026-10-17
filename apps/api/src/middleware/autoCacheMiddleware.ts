@@ -11,19 +11,63 @@ import type { FastifyRequest, FastifyReply, FastifyPluginAsync } from "fastify";
 import fp from "fastify-plugin";
 import type { CachePort } from "@ports/core";
 import {
+  CACHE_CONFIG,
   getCacheConfig,
   getInvalidationTags,
   generateApiCacheKey,
 } from "../lib/cache/cacheConfig.js";
 import {
   assertCacheRoutesCovered,
+  assertCachedResponsesVaryByPrincipal,
   cacheRuleKeysByMap,
   KNOWN_UNREGISTERED_CACHE_KEYS,
   type RegisteredRoute,
 } from "../lib/cache/cacheRouteCoverage.js";
 import { createLogger } from "../lib/logger.js";
+import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import { requireCustomerOrAdminAuth } from "../auth/customerOrAdminAuth.js";
+import { integrationAuthBind, integrationAuthResolve } from "../auth/integrationAuthMiddleware.js";
+import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 
 const logger = createLogger("auto-cache-middleware");
+
+/**
+ * The hooks that authenticate a caller, compared by identity. A route that
+ * carries one of them refuses some callers, so its cached response must be keyed
+ * by the caller: the cache answers a HIT from `onRequest`, before any of them runs.
+ */
+const AUTHENTICATING_HOOKS: ReadonlySet<unknown> = new Set<unknown>([
+  requireClientAuth,
+  requireAdminAuth,
+  requireCustomerOrAdminAuth,
+  integrationAuthResolve,
+  integrationAuthBind,
+]);
+
+/** The route lifecycle stages that run before the handler and may authenticate. */
+const PRE_HANDLER_STAGES = ["onRequest", "preParsing", "preValidation", "preHandler"] as const;
+
+/** The part of a route's options this plugin reads: its own pre-handler hooks. */
+type RoutePreHandlerHooks = Partial<Record<(typeof PRE_HANDLER_STAGES)[number], unknown>>;
+
+/**
+ * @method carriesAuthenticatingHook
+ * @description Reads a route's own pre-handler hooks, as `onRoute` receives them, and
+ *   reports whether one of them is an authenticating hook.
+ * @param routeOptions - The options of the route being registered
+ * @returns True when a route-level hook authenticates the caller
+ */
+function carriesAuthenticatingHook(routeOptions: RoutePreHandlerHooks): boolean {
+  return PRE_HANDLER_STAGES.some((stage) => {
+    const hooks: unknown = routeOptions[stage];
+    const list: readonly unknown[] = Array.isArray(hooks)
+      ? hooks
+      : hooks === undefined
+        ? []
+        : [hooks];
+    return list.some((hook) => AUTHENTICATING_HOOKS.has(hook));
+  });
+}
 
 /**
  * Auto-cache plugin options
@@ -100,11 +144,15 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
     const methods = Array.isArray(routeOptions.method)
       ? routeOptions.method
       : [routeOptions.method];
+    const authenticated = carriesAuthenticatingHook(routeOptions);
     for (const method of methods) {
-      registeredRoutes.push({ method, url: routeOptions.url });
+      registeredRoutes.push({ method, url: routeOptions.url, authenticated });
     }
   });
 
+  // The principal guard runs on every app, partial or complete: a rule whose
+  // route this app registers caches that route's responses here, so whether the
+  // key names the caller is decidable without the rest of the surface.
   fastify.addHook("onReady", async () => {
     assertCacheRoutesCovered({
       registered: registeredRoutes,
@@ -112,6 +160,7 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
       baseline: KNOWN_UNREGISTERED_CACHE_KEYS,
       checkOrphans: assertRuleCoverage,
     });
+    assertCachedResponsesVaryByPrincipal({ registered: registeredRoutes, rules: CACHE_CONFIG });
   });
 
   const cache = options.cache ?? fastify.cache;
@@ -126,7 +175,11 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
   );
 
   /**
-   * Pre-handler hook for caching GET requests
+   * Request hook that answers GET requests from the cache. It runs at `onRequest`,
+   * ahead of every route hook, so a HIT is sent without the route authenticating
+   * anyone. The principal guard above keeps such a HIT to the credential that was
+   * served the response: it refuses to boot a cached rule of an authenticated route
+   * whose key does not name the caller.
    */
   if (enableCaching) {
     fastify.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
@@ -153,10 +206,9 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
         // Generate cache key
         const params = request.params as Record<string, unknown>;
         const query = request.query as Record<string, unknown>;
-        const headers = request.headers as Record<string, string>;
         const userId = request.user?.id;
 
-        const cacheKey = generateApiCacheKey("GET", route, params, query, headers, userId);
+        const cacheKey = generateApiCacheKey("GET", route, params, query, request.headers, userId);
 
         // Try to get from cache. CachePort.get returns `T | null` — null is a miss.
         const cached = await cache.get<{

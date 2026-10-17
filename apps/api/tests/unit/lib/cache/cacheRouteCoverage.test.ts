@@ -1,9 +1,13 @@
 /**
  * @file cacheRouteCoverage.test.ts
- * @description Pins the guard that closes the "dead cache rule" class: a cache
- *              rule keyed to a path pattern no route registers is silently inert,
- *              and the tree gives no signal — the same "dead scope = infallible
- *              gate" failure fitness #36 exists to prevent, one layer down.
+ * @description Pins the two structural guards over the cache rule table. The first
+ *              closes the "dead cache rule" class: a cache rule keyed to a path
+ *              pattern no route registers is silently inert, and the tree gives no
+ *              signal — the same "dead scope = infallible gate" failure fitness #36
+ *              exists to prevent, one layer down. The second closes the "cached before
+ *              auth" class: the cache answers a HIT from `onRequest`, before any route
+ *              `preHandler`, so a cached GET rule whose key does not name the caller
+ *              serves one caller's response to every other caller.
  * @layer infrastructure
  */
 
@@ -13,17 +17,36 @@ import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 import {
   findCacheRouteViolations,
   assertCacheRoutesCovered,
+  findCachePrincipalViolations,
+  assertCachedResponsesVaryByPrincipal,
   type RegisteredRoute,
 } from "../../../../src/lib/cache/cacheRouteCoverage.js";
+import { CACHE_CONFIG, type RouteCacheOptions } from "../../../../src/lib/cache/cacheConfig.js";
 import { autoCachePlugin } from "../../../../src/middleware/autoCacheMiddleware.js";
+import { requireClientAuth } from "../../../../src/auth/customerAuthMiddleware.js";
 
 const NO_BASELINE: ReadonlySet<string> = new Set();
 
 function routes(...specs: string[]): RegisteredRoute[] {
   return specs.map((spec) => {
     const separator = spec.indexOf(":");
-    return { method: spec.slice(0, separator), url: spec.slice(separator + 1) };
+    return {
+      method: spec.slice(0, separator),
+      url: spec.slice(separator + 1),
+      authenticated: false,
+    };
   });
+}
+
+/** A route behind an authenticating hook, as the plugin's `onRoute` collector records it. */
+function authenticatedRoute(spec: string): RegisteredRoute {
+  const separator = spec.indexOf(":");
+  return { method: spec.slice(0, separator), url: spec.slice(separator + 1), authenticated: true };
+}
+
+/** A cached GET rule with the given vary parameters and nothing else of note. */
+function cachedRule(varyBy: string[], extra: Partial<RouteCacheOptions> = {}): RouteCacheOptions {
+  return { enabled: true, ttl: 60, tags: ["test"], varyBy, ...extra };
 }
 
 describe("findCacheRouteViolations", () => {
@@ -203,6 +226,151 @@ describe("autoCachePlugin route-coverage guard", () => {
     await app.register(autoCachePlugin, { enableCaching: true, enableInvalidation: true });
 
     app.get("/item/:id", async () => ({ ok: true }));
+
+    await expect(app.ready()).resolves.toBeDefined();
+    await app.close();
+  });
+});
+
+describe("findCachePrincipalViolations", () => {
+  it("reports a cached GET rule whose route authenticates but whose key does not name the caller", () => {
+    const violations = findCachePrincipalViolations({
+      registered: [authenticatedRoute("GET:/analytics/dashboard")],
+      rules: { "GET:/analytics/dashboard": cachedRule(["query:projectId", "query:timeRange"]) },
+    });
+
+    expect(violations).toEqual([
+      { kind: "unvaried-authenticated", key: "GET:/analytics/dashboard", declaredPublic: false },
+    ]);
+  });
+
+  it("refutes a public declaration on a route that carries an authenticating hook", () => {
+    const violations = findCachePrincipalViolations({
+      registered: [authenticatedRoute("GET:/providers/active")],
+      rules: { "GET:/providers/active": cachedRule([], { public: true }) },
+    });
+
+    expect(violations).toEqual([
+      { kind: "unvaried-authenticated", key: "GET:/providers/active", declaredPublic: true },
+    ]);
+  });
+
+  it("reports a cached GET rule that neither names the caller nor declares its route public", () => {
+    const violations = findCachePrincipalViolations({
+      registered: routes("GET:/users/:id"),
+      rules: { "GET:/users/:id": cachedRule(["id"]) },
+    });
+
+    expect(violations).toEqual([{ kind: "undeclared-public", key: "GET:/users/:id" }]);
+  });
+
+  it("accepts a rule that names the caller on an authenticated route", () => {
+    const violations = findCachePrincipalViolations({
+      registered: [authenticatedRoute("GET:/posts/:id")],
+      rules: { "GET:/posts/:id": cachedRule(["header:authorization", "id"]) },
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  it("accepts a public rule on a route that carries no authenticating hook", () => {
+    const violations = findCachePrincipalViolations({
+      registered: routes("GET:/providers"),
+      rules: { "GET:/providers": cachedRule([], { public: true }) },
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  it("ignores a rule whose route the app does not register, a disabled rule and a non-GET key", () => {
+    const violations = findCachePrincipalViolations({
+      registered: [authenticatedRoute("GET:/disabled"), authenticatedRoute("POST:/written")],
+      rules: {
+        "GET:/not-mounted": cachedRule([]),
+        "GET:/disabled": cachedRule([], { enabled: false }),
+        "POST:/written": cachedRule([]),
+      },
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  it("holds the production rule table against the hooks of the routes it caches", () => {
+    // Mirrors the hooks of the eight cached routes as their plugins register them
+    // (providerRoutes.ts, analyticsRoutes.ts, postRoutes.ts). The same claim is held
+    // against the real registrations by the createApp boot of
+    // tests/integration/cacheHitBeforeAuth.integration.test.ts.
+    const violations = findCachePrincipalViolations({
+      registered: [
+        ...routes("GET:/providers"),
+        authenticatedRoute("GET:/providers/active"),
+        authenticatedRoute("GET:/providers/by-capability/:capability"),
+        authenticatedRoute("GET:/providers/:id"),
+        authenticatedRoute("GET:/providers/health/all"),
+        authenticatedRoute("GET:/analytics/dashboard"),
+        authenticatedRoute("GET:/posts"),
+        authenticatedRoute("GET:/posts/:id"),
+      ],
+      rules: CACHE_CONFIG,
+    });
+
+    expect(violations).toEqual([]);
+  });
+
+  it("throws naming the rule and the discriminator it lacks", () => {
+    expect(() =>
+      assertCachedResponsesVaryByPrincipal({
+        registered: [authenticatedRoute("GET:/analytics/dashboard")],
+        rules: { "GET:/analytics/dashboard": cachedRule(["query:projectId"]) },
+      })
+    ).toThrow(/GET:\/analytics\/dashboard[\s\S]*header:authorization/);
+  });
+});
+
+describe("autoCachePlugin principal guard", () => {
+  const PLANTED_KEY = "GET:/planted/cached-before-auth";
+
+  it("refuses to boot an app that caches an authenticated route without naming the caller", async () => {
+    CACHE_CONFIG[PLANTED_KEY] = cachedRule(["query:projectId"]);
+    const app = Fastify({ logger: false });
+    try {
+      app.decorate("cache", new InMemoryCacheAdapter());
+      await app.register(autoCachePlugin, { enableCaching: true, enableInvalidation: true });
+      app.get("/planted/cached-before-auth", { preHandler: [requireClientAuth] }, async () => ({
+        secret: "account A",
+      }));
+
+      await expect(app.ready()).rejects.toThrow(
+        /GET:\/planted\/cached-before-auth[\s\S]*header:authorization/
+      );
+    } finally {
+      delete CACHE_CONFIG[PLANTED_KEY];
+      await app.close();
+    }
+  });
+
+  it("sees an authenticating hook registered at onRequest and refutes a public claim with it", async () => {
+    CACHE_CONFIG[PLANTED_KEY] = cachedRule([], { public: true });
+    const app = Fastify({ logger: false });
+    try {
+      app.decorate("cache", new InMemoryCacheAdapter());
+      await app.register(autoCachePlugin, { enableCaching: true, enableInvalidation: true });
+      app.get("/planted/cached-before-auth", { onRequest: requireClientAuth }, async () => ({
+        secret: "account A",
+      }));
+
+      await expect(app.ready()).rejects.toThrow(/unvaried-authenticated/);
+    } finally {
+      delete CACHE_CONFIG[PLANTED_KEY];
+      await app.close();
+    }
+  });
+
+  it("boots an app that caches the dashboard behind requireClientAuth with the production rule", async () => {
+    const app = Fastify({ logger: false });
+    app.decorate("cache", new InMemoryCacheAdapter());
+    await app.register(autoCachePlugin, { enableCaching: true, enableInvalidation: true });
+    app.get("/analytics/dashboard", { preHandler: [requireClientAuth] }, async () => ({}));
 
     await expect(app.ready()).resolves.toBeDefined();
     await app.close();

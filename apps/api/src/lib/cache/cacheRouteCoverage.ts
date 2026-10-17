@@ -1,19 +1,41 @@
 /**
  * @file cacheRouteCoverage.ts
- * @description Structural guard over `cacheConfig.ts`: proves every cache rule key is
- *              spelled the way a route is actually REGISTERED. A rule keyed to a pattern
- *              no route registers is silently inert — `getInvalidationTags` returns `[]`,
- *              nothing invalidates, and the tree, the tests and the review all read as if
- *              the rule were doing its job.
+ * @description Structural guards over `cacheConfig.ts`, run at boot. The first proves
+ *              every cache rule key is spelled the way a route is actually REGISTERED. A
+ *              rule keyed to a pattern no route registers is silently inert —
+ *              `getInvalidationTags` returns `[]`, nothing invalidates, and the tree, the
+ *              tests and the review all read as if the rule were doing its job. The second
+ *              proves every cached GET response is keyed by its caller unless its route is
+ *              public: the cache answers a HIT from `onRequest`, before any route
+ *              `preHandler`, so a key that leaves the caller out serves one caller's
+ *              response to every other caller, another tenant or no credentials at all
+ *              (CWE-639, CWE-306).
  * @layer infrastructure
  */
 
-import { CACHE_CONFIG, CACHE_INVALIDATION_RULES } from "./cacheConfig.js";
+import {
+  CACHE_CONFIG,
+  CACHE_INVALIDATION_RULES,
+  PRINCIPAL_VARY_PARAM,
+  type RouteCacheOptions,
+} from "./cacheConfig.js";
 
-/** A route as Fastify registered it: the method plus the prefixed path pattern. */
+/**
+ * A route as Fastify registered it: the method plus the prefixed path pattern, and
+ * whether one of its own hooks authenticates the caller.
+ */
 export interface RegisteredRoute {
   readonly method: string;
   readonly url: string;
+  /**
+   * True when a route-level `onRequest`, `preParsing`, `preValidation` or
+   * `preHandler` hook of this route is one of the API's authenticating hooks.
+   * A hook added to an encapsulated plugin with `addHook` is not visible here,
+   * which is why a cached rule without the caller in its key must also declare
+   * itself public: the declaration is checked against what is visible, and the
+   * absence of a declaration fails closed.
+   */
+  readonly authenticated: boolean;
 }
 
 /** Which of the two cache maps a key belongs to (named in the failure message). */
@@ -83,9 +105,10 @@ export interface CacheRouteCoverageInput {
  * not a rename: `GET:/projects/:id` and `GET:/channels/:id` carry
  * `varyBy: ["id"]` with NO `header:authorization`, so rekeying them to the
  * registered `:projectId` / `:channelId` would ACTIVATE an account-agnostic
- * cache on a tenant-scoped resource — the CWE-639 leak documented at
- * `cacheConfig.ts` above `GET:/posts`. Reviving any of them means adding the
- * authorization discriminator FIRST.
+ * cache on a tenant-scoped resource — the CWE-639 leak documented above
+ * `CACHE_CONFIG`. Reviving any of them means adding the authorization
+ * discriminator FIRST, and `assertCachedResponsesVaryByPrincipal` below refuses
+ * the boot of an app that registers one of them without it.
  */
 export const KNOWN_UNREGISTERED_CACHE_KEYS: ReadonlySet<string> = new Set([
   // Post mutations — no plain `POST:/posts` or `PUT:/posts/:id` route exists.
@@ -146,7 +169,12 @@ function shapeOf(method: string, path: string): string {
   return `${method.toUpperCase()}:${path.replace(/:[^/]+/g, ":*")}`;
 }
 
-/** The real cache maps, tagged for the boot-time assertion. */
+/**
+ * @method cacheRuleKeysByMap
+ * @description Lists the keys of the real cache maps, each tagged with its map, for the
+ *   boot-time route-coverage assertion.
+ * @returns The keys of `CACHE_CONFIG` and of `CACHE_INVALIDATION_RULES`
+ */
 export function cacheRuleKeysByMap(): readonly CacheRuleKeySet[] {
   return [
     { map: "CACHE_CONFIG", keys: Object.keys(CACHE_CONFIG) },
@@ -263,5 +291,118 @@ export function assertCacheRoutesCovered(input: CacheRouteCoverageInput): void {
   const violations = findCacheRouteViolations(input);
   if (violations.length > 0) {
     throw new Error(formatCacheRouteViolations(violations));
+  }
+}
+
+/**
+ * A cached GET rule whose response can reach a caller its route would refuse.
+ *
+ * - `unvaried-authenticated` — the route carries an authenticating hook and the
+ *   rule's key does not name the caller. `declaredPublic` says whether the rule
+ *   also claims the route is public, a claim the hook refutes.
+ * - `undeclared-public` — the rule's key does not name the caller and the rule
+ *   does not declare its route public. The route may authenticate through a hook
+ *   this guard cannot see, so silence is refused rather than read as public.
+ */
+export type CachePrincipalViolation =
+  | {
+      readonly kind: "unvaried-authenticated";
+      readonly key: string;
+      readonly declaredPublic: boolean;
+    }
+  | { readonly kind: "undeclared-public"; readonly key: string };
+
+/** Input of the principal guard: the routes this app registered and the rule table. */
+export interface CachePrincipalInput {
+  readonly registered: Iterable<RegisteredRoute>;
+  readonly rules: Readonly<Record<string, RouteCacheOptions>>;
+}
+
+/**
+ * @method findCachePrincipalViolations
+ * @description Checks every enabled GET rule whose route this app registers: its key
+ *   must name the caller through `PRINCIPAL_VARY_PARAM`, or the rule must declare its
+ *   route public and the route must carry no authenticating hook. A rule whose route
+ *   is not registered caches nothing here, and the route-coverage guard owns it.
+ * @param input - The registered routes, each with its authentication flag, and the rule table
+ * @returns Every violation found, in rule-table order (empty when every cached response is keyed safely)
+ */
+export function findCachePrincipalViolations(
+  input: CachePrincipalInput
+): CachePrincipalViolation[] {
+  const authenticatedByKey = new Map<string, boolean>();
+  for (const route of input.registered) {
+    const key = `${route.method.toUpperCase()}:${route.url}`;
+    authenticatedByKey.set(key, (authenticatedByKey.get(key) ?? false) || route.authenticated);
+  }
+
+  const violations: CachePrincipalViolation[] = [];
+
+  for (const [key, rule] of Object.entries(input.rules)) {
+    const parts = splitKey(key);
+    if (!parts || parts.method.toUpperCase() !== "GET" || rule.enabled !== true) {
+      continue;
+    }
+
+    const authenticated = authenticatedByKey.get(`GET:${parts.path}`);
+    if (authenticated === undefined) {
+      continue;
+    }
+
+    if (rule.varyBy?.includes(PRINCIPAL_VARY_PARAM) === true) {
+      continue;
+    }
+
+    const declaredPublic = rule.public === true;
+    if (authenticated) {
+      violations.push({ kind: "unvaried-authenticated", key, declaredPublic });
+    } else if (!declaredPublic) {
+      violations.push({ kind: "undeclared-public", key });
+    }
+  }
+
+  return violations;
+}
+
+/** Render principal violations into a failure message that names the fix. */
+function formatCachePrincipalViolations(violations: readonly CachePrincipalViolation[]): string {
+  const lines = violations.map((violation) => {
+    switch (violation.kind) {
+      case "unvaried-authenticated":
+        return (
+          `  [unvaried-authenticated] CACHE_CONFIG key "${violation.key}" caches a route that ` +
+          `carries an authenticating hook${violation.declaredPublic ? ", though it declares `public: true`," : ""} ` +
+          `and its varyBy has no "${PRINCIPAL_VARY_PARAM}". The cache answers a HIT before the ` +
+          `route's hooks run, so one caller's response reaches every other caller (CWE-639, ` +
+          `CWE-306): add "${PRINCIPAL_VARY_PARAM}" to its varyBy.`
+        );
+      case "undeclared-public":
+        return (
+          `  [undeclared-public] CACHE_CONFIG key "${violation.key}" caches a route without ` +
+          `"${PRINCIPAL_VARY_PARAM}" in its varyBy and does not declare \`public: true\`. Add ` +
+          `"${PRINCIPAL_VARY_PARAM}", or declare the route public once it serves the same ` +
+          `response to every caller.`
+        );
+    }
+  });
+
+  return (
+    `Cached GET responses are not keyed by their caller (${violations.length}):\n` +
+    `${lines.join("\n")}\n` +
+    `See apps/api/src/lib/cache/cacheRouteCoverage.ts.`
+  );
+}
+
+/**
+ * @method assertCachedResponsesVaryByPrincipal
+ * @description Throws when a cached GET response of a registered route could be served
+ *   to a caller the route would refuse.
+ * @param input - Same shape as `findCachePrincipalViolations`
+ * @returns Nothing; throws with every violation named when a cached response is not keyed by its caller
+ */
+export function assertCachedResponsesVaryByPrincipal(input: CachePrincipalInput): void {
+  const violations = findCachePrincipalViolations(input);
+  if (violations.length > 0) {
+    throw new Error(formatCachePrincipalViolations(violations));
   }
 }

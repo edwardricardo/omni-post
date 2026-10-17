@@ -4,10 +4,16 @@
  * @description Tests for autoCacheMiddleware - Invalidation, Key Variations and Config
  * @layer infrastructure
  */
+import { createHash } from "node:crypto";
 import { describe, it, expect } from "vitest";
 import Fastify from "fastify";
 import { autoCachePlugin } from "../../src/middleware/autoCacheMiddleware.js";
+import { generateApiCacheKey } from "../../src/lib/cache/cacheConfig.js";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
+
+/** The key segment a caller's credential must reduce to: a sha256 digest, never the value. */
+const principalSegment = (authorization: string): string =>
+  `authorization=sha256-${createHash("sha256").update(authorization).digest("hex").slice(0, 32)}`;
 
 describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => {
   describe("Cache Invalidation", () => {
@@ -217,15 +223,18 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
         enableCaching: true,
       });
 
-      app.get("/users/:id", async (request) => {
+      // `/providers/:id` is a cached rule that varies by its path parameter, so a key
+      // that ignored `id` would hand provider 1's response to the request for provider 2.
+      app.get("/providers/:id", async (request) => {
         const id = (request.params as any).id;
         return { id, name: `User ${id}` };
       });
 
       await app.ready();
 
-      const response1 = await app.inject({ method: "GET", url: "/users/1" });
-      const response2 = await app.inject({ method: "GET", url: "/users/2" });
+      const response1 = await app.inject({ method: "GET", url: "/providers/1" });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const response2 = await app.inject({ method: "GET", url: "/providers/2" });
 
       const data1 = JSON.parse(response1.payload);
       const data2 = JSON.parse(response2.payload);
@@ -265,6 +274,86 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
       expect(response1.statusCode).toBe(200);
       expect(response2.statusCode).toBe(200);
+
+      await app.close();
+    });
+
+    it("keys a caller by a digest of the authorization value and never by the value itself", () => {
+      const authorization = "Bearer header.payload-of-account-a.signature";
+
+      const key = generateApiCacheKey("GET", "/posts", {}, {}, { authorization });
+
+      expect(key).not.toContain("payload-of-account-a");
+      expect(key).not.toContain("Bearer");
+      expect(key).toContain(principalSegment(authorization));
+    });
+
+    it("gives two different bearer tokens two different keys", () => {
+      const query = { projectId: "p1" };
+      const keyA = generateApiCacheKey("GET", "/analytics/dashboard", {}, query, {
+        authorization: "Bearer token-of-account-a",
+      });
+      const keyB = generateApiCacheKey("GET", "/analytics/dashboard", {}, query, {
+        authorization: "Bearer token-of-account-b",
+      });
+
+      expect(keyA).not.toBe(keyB);
+      expect(keyA).toContain(principalSegment("Bearer token-of-account-a"));
+      expect(keyB).toContain(principalSegment("Bearer token-of-account-b"));
+    });
+
+    it("keys a request without credentials apart from every caller that sent some", () => {
+      const anonymous = generateApiCacheKey("GET", "/analytics/dashboard", {}, { projectId: "p1" });
+      const authenticated = generateApiCacheKey(
+        "GET",
+        "/analytics/dashboard",
+        {},
+        { projectId: "p1" },
+        { authorization: "Bearer token-of-account-a" }
+      );
+
+      expect(anonymous).toContain("authorization=absent");
+      expect(anonymous).not.toBe(authenticated);
+    });
+
+    it("escapes the key delimiter in caller-supplied values so one query cannot pose as another", () => {
+      const headers = { authorization: "Bearer token-of-account-a" };
+      const twoParams = generateApiCacheKey(
+        "GET",
+        "/analytics/dashboard",
+        {},
+        { projectId: "p1", timeRange: "7d" },
+        headers
+      );
+      const oneSmuggledParam = generateApiCacheKey(
+        "GET",
+        "/analytics/dashboard",
+        {},
+        { projectId: "p1:timeRange=7d" },
+        headers
+      );
+
+      expect(oneSmuggledParam).not.toBe(twoParams);
+      expect(oneSmuggledParam).toContain("projectId=p1%3AtimeRange%3D7d");
+    });
+
+    it("never echoes the bearer token in the X-Cache-Key response header", async () => {
+      const app = Fastify({ logger: false });
+      app.decorate("cache", new InMemoryCacheAdapter());
+      await app.register(autoCachePlugin, { enableCaching: true });
+      app.get("/posts", async () => ({ posts: [] }));
+      await app.ready();
+
+      const authorization = "Bearer header.payload-of-account-a.signature";
+      const response = await app.inject({
+        method: "GET",
+        url: "/posts",
+        headers: { authorization },
+      });
+
+      expect(response.headers["x-cache"]).toBe("MISS");
+      expect(response.headers["x-cache-key"]).not.toContain("payload-of-account-a");
+      expect(response.headers["x-cache-key"]).toContain(principalSegment(authorization));
 
       await app.close();
     });
