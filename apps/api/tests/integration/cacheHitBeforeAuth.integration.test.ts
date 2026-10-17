@@ -2,12 +2,14 @@
  * @file cacheHitBeforeAuth.integration.test.ts
  * @description Proves, over the real app, Postgres and Redis, that the HTTP response
  *              cache never hands one caller's cached response to a caller the route
- *              would refuse. The cache answers a HIT from a global `onRequest` hook, so
- *              no route `preHandler` runs on a hit: a cache key that does not name the
- *              caller turns the route's auth gate into decoration. Tenant A loads its
- *              own project dashboard; tenant B (no access to the project) and an
- *              anonymous caller then send the identical query and must be refused by the
- *              route itself, never served A's body (CWE-639, CWE-306). The last case
+ *              would refuse. A HIT skips the route's handler and the ownership check it
+ *              makes, so a cache key that does not name the caller turns the route's
+ *              access check into decoration; a HIT answered before the route's own hooks
+ *              would do the same to its authentication. Tenant A loads its own project
+ *              dashboard; tenant B (no access to the project) and an anonymous caller then
+ *              send the identical query and must be refused by the route itself, never
+ *              served A's body (CWE-639, CWE-306). A's own token, once expired, must be
+ *              refused too, although the entry it filled is still cached. The last case
  *              proves the cache key names the caller without carrying the caller's
  *              bearer token, since the key is echoed in `X-Cache-Key` and stored as a
  *              Redis key name.
@@ -17,14 +19,48 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import jwt from "jsonwebtoken";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import type { PrismaClient } from "@infra/prisma";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import { createApp } from "../../src/index.js";
+import { env } from "../../src/config/env.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 
 /** How long a case waits for the fire-and-forget cache write of a MISS to land. */
 const CACHE_WRITE_DEADLINE_MS = 2000;
+
+/** Lifetime of the token the expiry case mints: long enough to load, short enough to wait out. */
+const SHORT_TOKEN_LIFETIME_S = 3;
+
+/**
+ * @method shortLivedTokenFor
+ * @description Mints a customer access token that expires within seconds, with the claims,
+ *   issuer and audience `signCustomerAccessToken` uses, so `requireClientAuth` accepts it
+ *   until it expires and refuses it afterwards.
+ * @param accountId - The account the token authenticates
+ * @returns The raw JWT and the second at which it expires
+ */
+const shortLivedTokenFor = (accountId: string): { token: string; expiresAtSeconds: number } => {
+  const token = jwt.sign(
+    {
+      sub: `cache-auth-user-${accountId}`,
+      accountId,
+      roleId: "role-test",
+      roleName: "OWNER",
+      permissions: [],
+      type: "customer",
+    },
+    env.CUSTOMER_JWT_SECRET,
+    {
+      expiresIn: SHORT_TOKEN_LIFETIME_S,
+      issuer: "omnipost-customer",
+      audience: "omnipost-customer-api",
+    }
+  );
+  const decoded = jwt.decode(token) as { exp: number };
+  return { token, expiresAtSeconds: decoded.exp };
+};
 
 /**
  * @method tokenFor
@@ -231,6 +267,29 @@ describe("HTTP response cache versus the route auth gate (CWE-639, CWE-306)", ()
     assert.equal(res.statusCode, 401, `the route refuses a caller with no token: ${res.payload}`);
     assert.notEqual(dataJson(res), ownerData, "no byte of the owner's dashboard reaches anyone");
     assert.notEqual(res.payload, owner.payload);
+  });
+
+  it("refuses the owner's cached dashboard to the owner once the owner's token has expired", async () => {
+    const { token, expiresAtSeconds } = shortLivedTokenFor(accountAId);
+    const url = dashboardUrl();
+    const owner = await loadAndAwaitCacheWrite(url, token);
+    const ownerData = dataJson(owner);
+    assert.ok(ownerData, "the owner's dashboard carries a data payload");
+
+    // The cached entry lives 5 minutes; the token dies first, and from then on the
+    // route refuses it, so the cache must too.
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, expiresAtSeconds * 1000 - Date.now()) + 100)
+    );
+    const res = await app.inject({
+      method: "GET",
+      url,
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    assert.notEqual(res.headers["x-cache"], "HIT", "an expired token never gets a cache HIT");
+    assert.equal(res.statusCode, 401, `the route refuses an expired token: ${res.payload}`);
+    assert.notEqual(dataJson(res), ownerData, "no byte of the dashboard reaches an expired token");
   });
 
   it("names the caller in the cache key without carrying the caller's bearer token", async () => {

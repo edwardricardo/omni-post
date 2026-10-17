@@ -12,8 +12,8 @@ import { CacheTTL, type CacheOptions } from "@adapters/cache-redis";
  * The vary parameter that names the caller in a cache key. Every authenticating
  * hook of this API (`requireClientAuth`, `requireAdminAuth`,
  * `requireCustomerOrAdminAuth`, the integration-key hooks) reads the caller's
- * credential from the `Authorization` header, so this is the one value that
- * tells two callers apart before any of them has run.
+ * credential from the `Authorization` header, so its value tells two callers
+ * apart whichever of those hooks admitted the request.
  */
 export const PRINCIPAL_VARY_PARAM = "header:authorization";
 
@@ -40,16 +40,17 @@ export interface RouteCacheOptions extends CacheOptions {
 /**
  * Cache configuration for specific API endpoints.
  *
- * The cache answers a HIT from a global `onRequest` hook, so on a hit no route
- * hook runs: not `requireClientAuth`, not `requireAdminAuth`, not the ownership
- * check of the handler. A rule whose route authenticates MUST therefore carry
- * `PRINCIPAL_VARY_PARAM` (`header:authorization`) in its `varyBy` (CWE-639,
- * CWE-306): it is the only caller-discriminating value available before those
- * hooks parse the principal, and without it the key is caller-agnostic, so the
- * first caller's response is served to every other caller sending the same
- * request, another tenant or one with no credentials. A rule without it must
- * declare `public: true`. `assertCachedResponsesVaryByPrincipal` enforces both at
- * boot, and `generateApiCacheKey` stores a digest of the header, never its value.
+ * The cache answers a HIT from the last pre-handler of the route, after the
+ * route's own hooks (`requireClientAuth`, `requireAdminAuth`, validation, rate
+ * limit) have admitted the request and before its handler runs, so a hit skips
+ * every check the handler makes, the ownership check of a tenant's resource
+ * included. A rule whose route authenticates MUST therefore carry
+ * `PRINCIPAL_VARY_PARAM` (`header:authorization`) in its `varyBy` (CWE-639):
+ * without it the key is caller-agnostic, and the first caller's response is
+ * served to every other caller the route admits, another tenant included. A rule
+ * without it must declare `public: true`. `assertCachedResponsesVaryByPrincipal`
+ * enforces both at boot, and `generateApiCacheKey` stores a digest of the header,
+ * never its value.
  */
 export const CACHE_CONFIG: Record<string, RouteCacheOptions> = {
   // Provider endpoints (rarely change, cache aggressively). `/providers` is the

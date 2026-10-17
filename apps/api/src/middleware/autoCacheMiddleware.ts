@@ -33,8 +33,10 @@ const logger = createLogger("auto-cache-middleware");
 
 /**
  * The hooks that authenticate a caller, compared by identity. A route that
- * carries one of them refuses some callers, so its cached response must be keyed
- * by the caller: the cache answers a HIT from `onRequest`, before any of them runs.
+ * carries one of them answers each caller with that caller's data, so its cached
+ * response must be keyed by the caller: a HIT is sent before the route's handler
+ * runs, and with it every check the handler makes, such as the ownership of the
+ * resource, is skipped.
  */
 const AUTHENTICATING_HOOKS: ReadonlySet<unknown> = new Set<unknown>([
   requireClientAuth,
@@ -67,6 +69,115 @@ function carriesAuthenticatingHook(routeOptions: RoutePreHandlerHooks): boolean 
         : [hooks];
     return list.some((hook) => AUTHENTICATING_HOOKS.has(hook));
   });
+}
+
+/** A response as the `onSend` hook stores it under its cache key. */
+interface CachedResponse {
+  body: unknown;
+  headers?: Record<string, string>;
+  statusCode?: number;
+}
+
+/**
+ * Headers a HIT never copies from the cached response: a cookie belongs to the
+ * response that set it, never to a later one.
+ */
+const NEVER_REPLAYED_HEADERS: ReadonlySet<string> = new Set(["set-cookie"]);
+
+/**
+ * @method servesFromCache
+ * @description Tells whether the GET responses of a route are read from the cache: the
+ *   route has an enabled GET rule and no excluded fragment appears in its pattern.
+ * @param url - The route pattern as Fastify registers it
+ * @param excludeRoutes - The route fragments the plugin never caches
+ * @returns True when the route's GET responses are read from the cache
+ */
+function servesFromCache(url: string, excludeRoutes: readonly string[]): boolean {
+  if (excludeRoutes.some((excluded) => url.includes(excluded))) {
+    return false;
+  }
+  return getCacheConfig("GET", url)?.enabled === true;
+}
+
+/**
+ * @method withHookAppended
+ * @description Returns a route's hook list with one hook added at its end, whatever form
+ *   the route declared it in: absent, one function or an array.
+ * @param existing - The route's own hooks for one lifecycle stage
+ * @param hook - The hook to run after them
+ * @returns The new hook list, the given hook last
+ */
+function withHookAppended<T>(existing: T | readonly T[] | undefined, hook: T): T[] {
+  if (existing === undefined) {
+    return [hook];
+  }
+  return Array.isArray(existing) ? [...(existing as readonly T[]), hook] : [existing as T, hook];
+}
+
+/**
+ * @method createCacheReadHook
+ * @description Builds the pre-handler that answers a GET request from the cache. On a HIT
+ *   it replays the cached status, body and those cached headers the current reply does not
+ *   already carry, so the headers of this request (its correlation id, its rate-limit
+ *   state) are never replaced by the ones of the request that filled the cache. On a MISS
+ *   it leaves the key on the request for the `onSend` hook to store the response under.
+ * @param cache - The cache port to read from
+ * @param logCacheOps - Whether to log hits and read errors
+ * @returns The pre-handler hook
+ */
+function createCacheReadHook(
+  cache: CachePort,
+  logCacheOps: boolean
+): (request: FastifyRequest, reply: FastifyReply) => Promise<FastifyReply | undefined> {
+  return async (request, reply) => {
+    if (request.method !== "GET") {
+      return undefined;
+    }
+
+    const route = request.routeOptions.url ?? request.url;
+    const config = getCacheConfig("GET", route);
+    if (!config || !config.enabled) {
+      return undefined;
+    }
+
+    try {
+      const params = request.params as Record<string, unknown>;
+      const query = request.query as Record<string, unknown>;
+      const userId = request.user?.id;
+
+      const cacheKey = generateApiCacheKey("GET", route, params, query, request.headers, userId);
+
+      // CachePort.get returns `T | null`; null is a miss.
+      const cached = await cache.get<CachedResponse>(cacheKey);
+
+      if (cached === null) {
+        request._cacheKey = cacheKey;
+        request._cacheConfig = config;
+        return undefined;
+      }
+
+      if (logCacheOps) {
+        logger.debug(`Cache HIT: ${cacheKey}`);
+      }
+
+      for (const [name, value] of Object.entries(cached.headers ?? {})) {
+        if (!NEVER_REPLAYED_HEADERS.has(name.toLowerCase()) && !reply.hasHeader(name)) {
+          reply.header(name, value);
+        }
+      }
+      reply.header("X-Cache", "HIT");
+      reply.header("X-Cache-Key", cacheKey);
+      reply.header("X-Cache-Tags", config.tags?.join(",") || "");
+
+      return reply.code(cached.statusCode || 200).send(cached.body);
+    } catch (error: unknown) {
+      // A cache that cannot be read is a MISS: the route answers as if uncached.
+      if (logCacheOps) {
+        logger.debug(`Cache read error: ${error}`);
+      }
+      return undefined;
+    }
+  };
 }
 
 /**
@@ -128,7 +239,18 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
     assertRuleCoverage = false,
   } = options;
 
-  // Structural guard, wired BEFORE the cache check so it still runs when caching
+  const cache = options.cache ?? fastify.cache;
+
+  // The cache read, built only when there is a cache to read. `onRoute` appends it
+  // as the LAST pre-handler of every route a GET rule caches, so a HIT is sent only
+  // after every hook the route runs has admitted the request: its authentication,
+  // its schema validation, the rate limit, the audit. A global `onRequest` read
+  // would answer before all of them, which is how a cached response once reached
+  // callers the route refuses.
+  const readFromCache =
+    enableCaching && cache !== undefined ? createCacheReadHook(cache, logCacheOps) : undefined;
+
+  // Structural guards, wired BEFORE the cache check so they still run when caching
   // is unavailable: whether the rule keys describe real routes is a property of
   // the configuration, not of Redis being up.
   //
@@ -137,7 +259,9 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
   // route plugin, and it reads the same `routeOptions.url` spelling the
   // invalidation hook looks rules up by — so the guard compares the exact
   // strings that decide, at request time, whether a mutation invalidates
-  // anything at all.
+  // anything at all. A route registered before the plugin is neither checked nor
+  // read from the cache; the orphan check of `createApp` proves no cached rule's
+  // route is one of them.
   const registeredRoutes: RegisteredRoute[] = [];
 
   fastify.addHook("onRoute", (routeOptions) => {
@@ -147,6 +271,14 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
     const authenticated = carriesAuthenticatingHook(routeOptions);
     for (const method of methods) {
       registeredRoutes.push({ method, url: routeOptions.url, authenticated });
+    }
+
+    if (
+      readFromCache !== undefined &&
+      methods.includes("GET") &&
+      servesFromCache(routeOptions.url, excludeRoutes)
+    ) {
+      routeOptions.preHandler = withHookAppended(routeOptions.preHandler, readFromCache);
     }
   });
 
@@ -163,8 +295,6 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
     assertCachedResponsesVaryByPrincipal({ registered: registeredRoutes, rules: CACHE_CONFIG });
   });
 
-  const cache = options.cache ?? fastify.cache;
-
   if (!cache) {
     logger.warn("Cache port not available, auto-cache plugin disabled");
     return;
@@ -174,84 +304,7 @@ const autoCachePluginImpl: FastifyPluginAsync<AutoCacheOptions> = async (fastify
     `Auto-cache plugin enabled (caching: ${enableCaching}, invalidation: ${enableInvalidation})`
   );
 
-  /**
-   * Request hook that answers GET requests from the cache. It runs at `onRequest`,
-   * ahead of every route hook, so a HIT is sent without the route authenticating
-   * anyone. The principal guard above keeps such a HIT to the credential that was
-   * served the response: it refuses to boot a cached rule of an authenticated route
-   * whose key does not name the caller.
-   */
   if (enableCaching) {
-    fastify.addHook("onRequest", async (request: FastifyRequest, reply: FastifyReply) => {
-      // Only cache GET requests
-      if (request.method !== "GET") {
-        return;
-      }
-
-      const route = request.routeOptions.url || request.url;
-
-      // Check if route is excluded
-      if (excludeRoutes.some((excluded) => route.includes(excluded))) {
-        return;
-      }
-
-      // Get cache configuration
-      const config = getCacheConfig("GET", route);
-
-      if (!config || !config.enabled) {
-        return;
-      }
-
-      try {
-        // Generate cache key
-        const params = request.params as Record<string, unknown>;
-        const query = request.query as Record<string, unknown>;
-        const userId = request.user?.id;
-
-        const cacheKey = generateApiCacheKey("GET", route, params, query, request.headers, userId);
-
-        // Try to get from cache. CachePort.get returns `T | null` — null is a miss.
-        const cached = await cache.get<{
-          body: unknown;
-          headers?: Record<string, string>;
-          statusCode?: number;
-        }>(cacheKey);
-
-        if (cached !== null) {
-          if (logCacheOps) {
-            logger.debug(`Cache HIT: ${cacheKey}`);
-          }
-
-          const { body, headers: cachedHeaders, statusCode } = cached;
-
-          // Set cached headers
-          if (cachedHeaders) {
-            for (const [key, value] of Object.entries(cachedHeaders)) {
-              reply.header(key, value as string);
-            }
-          }
-
-          // Add cache metadata headers
-          reply.header("X-Cache", "HIT");
-          reply.header("X-Cache-Key", cacheKey);
-          reply.header("X-Cache-Tags", config.tags?.join(",") || "");
-
-          // Send cached response
-          reply.code(statusCode || 200).send(body);
-          return;
-        }
-
-        // Cache miss — store key for use in response hook
-        request._cacheKey = cacheKey;
-        request._cacheConfig = config;
-      } catch (error: unknown) {
-        // Continue without cache on error
-        if (logCacheOps) {
-          logger.debug(`Cache read error: ${error}`);
-        }
-      }
-    });
-
     /**
      * Response hook for caching successful GET responses.
      * Uses callback-based onSend (NOT async) to avoid Fastify 5 wrapThenable race.

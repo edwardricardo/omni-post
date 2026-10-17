@@ -6,10 +6,10 @@
  *              `getInvalidationTags` returns `[]`, nothing invalidates, and the tree, the
  *              tests and the review all read as if the rule were doing its job. The second
  *              proves every cached GET response is keyed by its caller unless its route is
- *              public: the cache answers a HIT from `onRequest`, before any route
- *              `preHandler`, so a key that leaves the caller out serves one caller's
- *              response to every other caller, another tenant or no credentials at all
- *              (CWE-639, CWE-306).
+ *              public: a HIT is sent after the route's hooks but before its handler, so a
+ *              key that leaves the caller out serves one caller's response to every other
+ *              caller the hooks admit, another tenant included, and the handler's
+ *              ownership check never sees them (CWE-639).
  * @layer infrastructure
  */
 
@@ -372,9 +372,9 @@ function formatCachePrincipalViolations(violations: readonly CachePrincipalViola
         return (
           `  [unvaried-authenticated] CACHE_CONFIG key "${violation.key}" caches a route that ` +
           `carries an authenticating hook${violation.declaredPublic ? ", though it declares `public: true`," : ""} ` +
-          `and its varyBy has no "${PRINCIPAL_VARY_PARAM}". The cache answers a HIT before the ` +
-          `route's hooks run, so one caller's response reaches every other caller (CWE-639, ` +
-          `CWE-306): add "${PRINCIPAL_VARY_PARAM}" to its varyBy.`
+          `and its varyBy has no "${PRINCIPAL_VARY_PARAM}". A HIT is sent before the route's ` +
+          `handler runs, so one caller's response reaches every other caller the route admits ` +
+          `(CWE-639): add "${PRINCIPAL_VARY_PARAM}" to its varyBy.`
         );
       case "undeclared-public":
         return (

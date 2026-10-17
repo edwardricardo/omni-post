@@ -359,6 +359,74 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
     });
   });
 
+  describe("Cache reads after the route's own hooks", () => {
+    it("serves a HIT only after the route's own preHandler admits the request", async () => {
+      const app = Fastify({ logger: false });
+      app.decorate("cache", new InMemoryCacheAdapter());
+      await app.register(autoCachePlugin, { enableCaching: true });
+
+      let revoked = false;
+      let gateRuns = 0;
+      app.get(
+        "/posts",
+        {
+          preHandler: [
+            async (_request, reply) => {
+              gateRuns += 1;
+              if (revoked) {
+                return reply.code(403).send({ error: "access revoked" });
+              }
+              return undefined;
+            },
+          ],
+        },
+        async () => ({ posts: ["owned by the caller"] })
+      );
+      await app.ready();
+      const headers = { authorization: "Bearer token-of-account-a" };
+
+      const miss = await app.inject({ method: "GET", url: "/posts", headers });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const hit = await app.inject({ method: "GET", url: "/posts", headers });
+      revoked = true;
+      const afterRevocation = await app.inject({ method: "GET", url: "/posts", headers });
+
+      expect(miss.headers["x-cache"]).toBe("MISS");
+      expect(hit.headers["x-cache"]).toBe("HIT");
+      expect(hit.payload).toBe(miss.payload);
+      expect(afterRevocation.statusCode).toBe(403);
+      expect(afterRevocation.headers["x-cache"]).not.toBe("HIT");
+      expect(gateRuns).toBe(3);
+
+      await app.close();
+    });
+
+    it("keeps the current request's headers on a HIT instead of the ones cached with it", async () => {
+      const app = Fastify({ logger: false });
+      app.decorate("cache", new InMemoryCacheAdapter());
+      await app.register(autoCachePlugin, { enableCaching: true });
+
+      let requestNumber = 0;
+      app.addHook("onRequest", async (_request, reply) => {
+        requestNumber += 1;
+        reply.header("x-request-number", String(requestNumber));
+      });
+      app.get("/posts", async () => ({ posts: [] }));
+      await app.ready();
+      const headers = { authorization: "Bearer token-of-account-a" };
+
+      await app.inject({ method: "GET", url: "/posts", headers });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const hit = await app.inject({ method: "GET", url: "/posts", headers });
+
+      expect(hit.headers["x-cache"]).toBe("HIT");
+      expect(hit.headers["x-request-number"]).toBe("2");
+      expect(hit.headers["content-type"]).toContain("application/json");
+
+      await app.close();
+    });
+  });
+
   describe("Error Handling", () => {
     it("should not cache on Redis errors", async () => {
       const failing = new Error("cache backend unavailable");

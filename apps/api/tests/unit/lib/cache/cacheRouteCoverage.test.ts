@@ -5,9 +5,9 @@
  *              pattern no route registers is silently inert, and the tree gives no
  *              signal — the same "dead scope = infallible gate" failure fitness #36
  *              exists to prevent, one layer down. The second closes the "cached before
- *              auth" class: the cache answers a HIT from `onRequest`, before any route
- *              `preHandler`, so a cached GET rule whose key does not name the caller
- *              serves one caller's response to every other caller.
+ *              auth" class: a HIT is sent before the route's handler and its ownership
+ *              check, so a cached GET rule whose key does not name the caller serves one
+ *              caller's response to every other caller the route admits.
  * @layer infrastructure
  */
 
