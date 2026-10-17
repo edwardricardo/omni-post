@@ -8,24 +8,26 @@ OmniPost supports 11 social media providers. Each provider adapter implements th
 
 ## Capabilities Matrix
 
-| Capability       | X   | Instagram | Facebook | YouTube    | TikTok | LinkedIn | Telegram | Snapchat | Pinterest | Bluesky | Threads |
-| ---------------- | --- | --------- | -------- | ---------- | ------ | -------- | -------- | -------- | --------- | ------- | ------- |
-| **Publish**      | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | Yes      | Yes       | Yes     | Yes     |
-| **Schedule**     | Yes | Yes       | Yes      | Yes        | No     | No       | No       | No       | No        | No      | No      |
-| **Analytics**    | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | No       | Yes      | Yes       | No      | Yes     |
-| **Comments**     | Yes | Yes       | Yes      | Yes        | No     | Yes      | No       | No       | No        | Yes     | Yes     |
-| **Replies**      | Yes | Yes       | Yes      | Yes        | No     | Yes      | No       | No       | No        | Yes     | Yes     |
-| **Threading**    | Yes | Yes       | No       | No         | No     | No       | No       | No       | No        | Yes     | No      |
-| **Images**       | Yes | Yes       | Yes      | Thumbnails | Yes    | Yes      | Yes      | Yes      | Yes       | Yes     | Yes     |
-| **Videos**       | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | Yes      | Yes       | Yes     | Yes     |
-| **GIFs**         | Yes | No        | Yes      | No         | No     | No       | Yes      | No       | Yes       | No      | No      |
-| **Stories**      | No  | Yes       | Yes      | No         | No     | No       | No       | Yes      | No        | No      | No      |
-| **Reels/Shorts** | No  | Yes       | Yes      | Yes        | N/A    | No       | No       | No       | No        | No      | No      |
-| **Carousel**     | No  | Yes       | Yes      | No         | Yes    | Yes      | Yes      | No       | No        | No      | Yes     |
-| **Hashtags**     | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | No       | Yes       | Yes     | Yes     |
-| **Mentions**     | Yes | Yes       | Yes      | Yes        | Yes    | Yes      | Yes      | No       | No        | Yes     | No      |
-| **Links**        | Yes | No        | Yes      | Yes        | No     | Yes      | Yes      | No       | Yes       | Yes     | Unknown |
-| **Polls**        | Yes | No        | No       | No         | No     | Yes      | Yes      | No       | No        | No      | No      |
+Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Replies, Threading and Mentions are its `capabilities` flags; Images, Videos and GIFs its `limits.allowedMedia`; Stories, Reels/Shorts, Carousel (more than one media item in one post), Hashtags, Links and Polls its publish path. Unknown means nothing in the provider's package decides the cell.
+
+| Capability       | X       | Instagram | Facebook   | YouTube | TikTok  | LinkedIn | Telegram | Snapchat | Pinterest | Bluesky | Threads |
+| ---------------- | ------- | --------- | ---------- | ------- | ------- | -------- | -------- | -------- | --------- | ------- | ------- |
+| **Publish**      | Yes     | Yes       | Yes        | Yes     | Yes     | Yes      | Yes      | Yes      | Yes       | Yes     | Yes     |
+| **Schedule**     | Yes     | No        | Yes        | Yes     | No      | Yes      | No       | No       | Yes       | No      | No      |
+| **Analytics**    | Yes     | Yes       | Yes        | Yes     | Yes     | Yes      | Yes      | Yes      | Yes       | No      | Yes     |
+| **Comments**     | Yes     | Yes       | Yes        | Yes     | No      | Yes      | No       | No       | No        | No      | Yes     |
+| **Replies**      | Yes     | Yes       | Yes        | Yes     | No      | Yes      | No       | No       | No        | No      | Yes     |
+| **Threading**    | Yes     | Yes       | No         | No      | No      | No       | No       | No       | No        | No      | No      |
+| **Images**       | Yes     | Yes       | Yes        | No      | Yes     | Yes      | Yes      | Yes      | Yes       | Yes     | Yes     |
+| **Videos**       | Yes     | Yes       | Yes        | Yes     | Yes     | Yes      | Yes      | Yes      | Yes       | No      | Yes     |
+| **GIFs**         | Yes     | No        | No         | No      | No      | No       | No       | No       | No        | No      | No      |
+| **Stories**      | No      | Yes       | Yes        | No      | No      | No       | No       | Yes      | No        | No      | No      |
+| **Reels/Shorts** | No      | Yes       | Yes        | Yes     | No      | No       | No       | No       | No        | No      | No      |
+| **Carousel**     | Yes     | Yes       | Yes        | No      | Yes     | Yes      | Yes      | No       | No        | Yes     | Yes     |
+| **Hashtags**     | Unknown | Yes       | Yes        | Unknown | Yes     | Unknown  | Unknown  | Unknown  | Unknown   | Unknown | Yes     |
+| **Mentions**     | Yes     | Yes       | Yes        | No      | No      | No       | No       | No       | No        | Yes     | No      |
+| **Links**        | Unknown | Unknown   | Unknown    | Unknown | Unknown | Unknown  | Unknown  | Unknown  | Unknown   | Yes     | Unknown |
+| **Polls**        | Yes     | No        | In stories | No      | No      | Yes      | Yes      | No       | No        | No      | No      |
 
 ## Per-Provider Details
 
