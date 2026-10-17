@@ -1,536 +1,18 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-16, a customer registration answers one `409 EMAIL_EXISTS` for every address
-something already holds (`workstream/night-cp1b-register-500`, `PR cp1b`, unit C-P1b). A live account
-with no user answered 500 and a soft-deleted account let a second account be created beside it; the
-use case now runs the same holder lookups for every address, refuses a live and a deleted holder
-with the same bytes, and sends the owner of a deleted holder's address a notice e-mail, at most one
-per address per 24 hours, and the account save joins the Unit of Work, so a failed user insert rolls
-the account back. Its integration suite
-(`apps/api/tests/integration/customerRegisterHeldEmail.integration.test.ts`), the suite of the
-deleted-user read (`apps/api/tests/unit/infrastructure/PrismaCustomerUserRepository.test.ts`) and
-the suite of the notice throttle
-(`apps/api/tests/unit/infrastructure/adapters/ThrottledDeletedAccountNoticeMailer.test.ts`) moved M1
-`1007 + 14` → `1010 + 14`.
+**As of:** 2026-10-17 — #633 (`4e73e6dc`, `workstream/docs-minimization-granular`) deleted the
+documents of rows 8.2, 8.3, 8.4 and 8.7, which the plan archived ([D53](#decisions-log)). Phase 0 is
+closed, row 0.16 aside (🔄); Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1010 + 14` · M5 `29 · 0` ·
+M7 `38/38` · M8 `1/93`. Every unit's line is in [§Log](#log).
 
-Before it, the same day, the reach engine refuses the inputs Phase 1's review suggestions named
-(`workstream/night-r2-reach-engine`, `PR reach`, book rows SB-123 to SB-146). The source-resolution
-CLI refuses a bare `--root` and an unknown argument and its suite asserts the exit code; the node:test
-collector refuses absolute and escaping paths; every listing names its output cap and reports an
-overflow by it; executed-by refuses an entry with both scopes; and one helper, `describeExit` in
-`packages/test-contracts/src/lib/child-exit.ts`, words every child that did not exit 0. Its suite
-moved M1 `1006 + 14` → `1007 + 14`.
-
-Before it, on 2026-10-15, a Prisma constraint violation is read where Prisma 7 reports it
-(`workstream/night-cp1-prisma-7-10`, `PR cp1`, unit C-P1 of `dependency-catch-up-2026-10-15`). Through
-`@prisma/adapter-pg` the violated constraint sits at `meta.driverAdapterError.cause.constraint` and
-`meta.target` is never set, so four readers of `meta.target` never matched; one reader,
-`infra/prisma/src/extensions/constraintViolation.ts`, now serves them. Its suite, the db-prisma
-unique-violation suite and the team-invite integration suite moved M1 `1003 + 14` → `1006 + 14`.
-
-Before it, the same day, every patched dependency is watched until it is resolved
-(`workstream/patched-dependencies-gate`, `PR pdeps`, unit M1 of `dependency-catch-up-2026-10-15`,
-stacked on the next 16.4.1 floor and its `@storybook/nextjs-vite` patch). Fitness #48,
-`pnpm check:patched-deps` (`scripts/testing/patched-dependencies-gate.mjs --check`, pinned by
-`apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`), holds every `patchedDependencies`
-key, its record in `scripts/testing/patched-dependencies.json`, its patch file and its ADR
-consistent, in the Dependency Consistency job of `fitness.yml` and as the battery step
-`patched-deps` (`PLANNED_STEPS` 26 → 27); its registry half, `--resolution --remind`, runs every
-6 hours in `patched-dependencies.yml` and opens a `patched-dependency` issue when the release that
-resolves a patch is published. It moved M1 `1002 + 14` → `1003 + 14` and M7 `37/37` → `38/38`,
-and left M5 at `29 · 0` and M8 at `1/93`.
-
-Before it, on 2026-10-14, every tracked vitest config's resolved `exclude` holds
-`RESERVED_TIER_EXCLUDES` (`workstream/refound-1-exclude-rule`, PR R17, unit U15, part C of WU-1.11,
-stacked on PR R12b). Rule C2 of the reach engine
-(`packages/test-contracts/src/lib/exclude-contract.ts`, pinned by `tests/exclude-contract.test.ts`)
-reads what the vitest collector's own node-API resolution holds of each config's `exclude`, the root
-config's and each declared project's, and fails when one lacks an entry of the reserved list; a
-config only the CLI fallback lists, and fewer than 80 configs, are errors. It closes SB-105:
-dropping the spread from `apps/client/vitest.config.ts` now fails the complete `#30` step, where
-R12b's engine stayed green. The owner retired the static part C clause of DD-20 the same day (no
-factory-owned key in either `mergeConfig` argument): the factory's `overrides` already is a
-`mergeConfig` argument and vite concatenates arrays, so C2 over the resolved config replaces it
-(`design.md` §2a, the DD-20 note, `tasks-part-2.md` 1.2.2 and 1.17.2). The `#30` step and the canon
-block `# 30.` name C2. It moved M1 `1001 + 14` → `1002 + 14` and M7 `36/36` → `37/37`, and left M5
-at `29 · 0` and M8 at `1/93`.
-
-Before it, on 2026-10-14, fitness #36 holds the resolved scopes of every vitest config
-(`workstream/refound-1-scopes-wire`, PR R12b, the second half of WU-1.12, stacked on PR R12a). The
-`#36` step moved from the Fitness Functions job into `test-contracts`, beside `#30`, and runs
-`pnpm --filter @packages/test-contracts scopes`, the command PR R12a landed; the canon block `# 36.`
-is rewritten for it, and the references to "the #36 slicer" and "the #36 quarantine rule" in #38,
-#39, #41 and #42 name their own referents. Four reds on the complete step each exit as they must
-and restore byte-exact. It moved M7 `35/35` → `36/36`, left M1 at the `1001 + 14` of R12a, M5 at
-`29 · 0` and M8 at `1/93`, and closed WU-1.12.
-
-Before it, on 2026-10-14, the scope rule of fitness #36 exists, with its suite and its command,
-and nothing in CI runs it yet (`workstream/refound-1-scopes`, PR R12a, the first half of WU-1.12).
-`pnpm --filter @packages/test-contracts scopes` (`packages/test-contracts/src/scopes.ts`, rule S1 in
-`src/lib/scopes.ts`, pinned by `tests/scopes.test.ts`) resolves the 93 tracked vitest configs with
-vitest's own loader, through `withVitest`, the open-read-close helper it now shares with the vitest
-collector, and holds every positive `test.include` glob of every project, and the `coverage.include`
-of each config that sets one (`apps/api` alone), to at least one tracked file; a negation is never
-checked. Over the tree it found one dead glob the textual #36 never read, `tests/**/*.test.tsx` in
-`packages/query-client/vitest.config.ts`, deleted here, so the command is green: 93 of 93 configs,
-97 positive globs, 0 violations. Both command lines of the package now start through
-`runIfInvoked` (`src/lib/cli.ts`, pinned by `tests/cli.test.ts`). The `#36` step moves into the
-`test-contracts` job in PR R12b. It moved M1 `999 + 14` → `1001 + 14` and left M5, M7 and M8 where
-they were.
-
-Before it, on 2026-10-14, the node:test collector reads Node's test events, not TAP
-(`workstream/refound-1-node-collector`, PR R16b, the second half of WU-1.16). `run-tests.sh` runs
-each suite file under `scripts/testing/node-summary-reporter.mjs`, the reporter PR R16a landed, and
-reads one anchored line of it, `@@SUMMARY tests=N pass=N fail=N cancelled=N skipped=N todo=N`,
-taken from the cumulative `test:summary` event and cross-checked against the reporter's own tally of
-the test events (design decision DD-7: no Node release ships the JSON reporter this plan once
-named). The four guards keep their verdicts, each red re-proven on the complete runner; a run that
-prints no summary line now fails too, and Node's stand-in pass for a file that registers no test is
-left out by the reporter instead of by a TAP grep. Fitness #31 B pins the reporter and forbids the
-TAP one. It moved M7 `34/34` → `35/35`, left M1 at the `999 + 14` of R16a, M5 at `29 · 0` and M8 at
-`1/93`, and closed WU-1.16.
-
-Before it, on 2026-10-14, the node:test summary reporter landed, with its suite
-(`workstream/refound-1-node-reporter`, PR R16a, the first half of WU-1.16).
-`scripts/testing/node-summary-reporter.mjs` reads Node's documented `TestsStream` events and prints
-each failure with its detail and one anchored line,
-`@@SUMMARY tests=N pass=N fail=N cancelled=N skipped=N todo=N`, taken from the cumulative
-`test:summary` event and cross-checked against its own tally of the test events (design decision
-DD-7: no Node release ships the JSON reporter this plan once named); the suite,
-`apps/api/tests/unit/scripts/nodeSummaryReporter.test.ts`, runs the real runner over eight fixture
-files and feeds six synthetic streams. Nothing reads the reporter yet: the collector switches to it
-in PR R16b. It moved M1 `998 + 14` → `999 + 14` and left M5, M7 and M8 where they were.
-
-Before it, on 2026-10-14, the script contract holds and the quarantine may only shrink
-(`workstream/refound-1-script-contract`, PR R11, WU-1.11). The reach engine's part C, rule C1, reads
-the `package.json` beside each of the 93 tracked vitest configs and fails unless its `test` script is
-exactly `vitest run`; `apps/client`, the one package on watch-mode `vitest`, moved to `vitest run`,
-so Frontend Tests runs `pnpm --filter @apps/client test` and the registry entrypoint followed it.
-Fitness #31 Part A reads every tracked `*.json`, `*.ts`, `*.mts` and `*.yml` file of the repository
-with `git grep`, 3113 files held to a floor of 2500, instead of three directories. The `#30` step
-hands the engine the base commit's quarantine (`--base`), a pull request's base or a push's
-`HEAD~1`, so R3 refuses any entry the base does not hold. It moved M7 `32/32` → `34/34`, left M1 at
-`998 + 14`, M5 at `29 · 0` and M8 at `1/93`, and closed WU-1.11.
-
-Before it, on 2026-10-14, M5 became derived (`workstream/refound-1-metrics-m5`, PR R10b, stacked on
-PR R10): `metrics.mjs --m5` runs fitness #30's command with `--json` and reads the quarantine, so its
-orphans are the quarantine's entries plus every file the engine reports unreached outside it, and
-its second figure is the files reported collected more than once. The script now computes only the
-metrics it is asked for, so `--m8` alone no longer pays for the engine's run, and the pin suite runs
-`--all` once. It moved M5 `23 · 0` → `29 · 0`.
-
-Before it, on 2026-10-14, fitness #30 became derived (`workstream/refound-1-test-contracts-job`, PR
-R10, WU-1.10): the new `test-contracts` job of `fitness.yml` (check `Test Contracts`) runs
-`pnpm --filter @packages/test-contracts reach --quarantine quarantine.json`, and every test-shaped
-tracked file must be collected exactly once by a source a required check runs, or be quarantined
-with a reason, an owner and a `since` date. The interim ratchet of owner decision (d) and its
-baseline of 3 are gone. `.github/rulesets/main.json` mirrors the 19 classic required checks plus
-`Test Contracts`, and the quarantine holds 29 files: the 3 dark live suites and the 26 the engine
-found unreached over the real tree (9 Playwright specs, 7 `security/tests` suites, 6 k6 scenarios,
-2 admin fetch scripts, `postgres-stress.test.ts`, the template sandbox test). Five reds on the
-complete step (an orphan, a double collection, a quarantined collected file, a quarantined deleted
-file, a registry entry naming no job) each exit 1 and restore byte-exact. It moved M7 `31/31` →
-`32/32`, left M1 at `998 + 14` and M8 at `1/93`, and closed WU-1.9 and WU-1.10.
-Before it, on 2026-10-11, the JSDoc gate (`workstream/jsdoc-gate`, `CODING_STANDARDS.md` §Documentation)
-holds every `.ts` and `.tsx` source file under `apps/` and `packages/` that a change adds or modifies to
-the canon's method-level JSDoc, across the whole file: `pnpm check:jsdoc`
-(`scripts/testing/jsdoc-touched-gate.mjs`, with `eslint-plugin-jsdoc` 65.1.0 in the dedicated
-`eslint.jsdoc.config.ts`, which `pnpm lint` does not load) runs in lint-staged on the staged files, as
-the new battery step `jsdoc` against the merge base with `origin/main` (`PLANNED_STEPS` 25 → 26) and,
-once its step lands, as fitness #47 in CI. A file no change touches is never read; the reconciliation
-for the end of the plan, `pnpm check:jsdoc --all`, measured 1028 of 2134 in-scope files holding 9648
-violations. Its two suites, `jsdocRules.test.ts` for the rules and `jsdocTouchedGate.test.ts` for the
-gate, and its gate row moved M1 `991 + 14` → `993 + 14` and
-M7 `29/29` → `30/30`. Pending fitness reservations renumbered after #47 landed out of the reserved
-order: WU-3.9/3.10 → #48, WU-3.13 → #49, WU-4b.7 → #50 (D24 unchanged).
-Before it, on 2026-10-10, the path filters (`workstream/phase1-u8-live-collector`, PR R8d, the last of
-the stacked pull requests of WU-1.8, which it closes) let `run-tests.sh` take the paths of the
-suites to run, `bash scripts/run-tests.sh tests/a.integration.test.ts tests/b.live.test.ts` from
-`apps/api`, in place of the subset scripts WU-1.3 deleted: each runs in its own tier, in the
-collection's order, the live one behind the probe. A path the run would not execute exits 2 before
-any suite starts — a file no tier collects, a missing one, a live suite under `TIER=pr-integration`,
-a quarantined one — and so do an unknown option and `--list` with anything beside it. The testing
-and security-testing documents show the filtered command, and the saga guide's live-suite command, a
-placeholder until now, is one. Red: the filtered run fails on the previous tip's runner; with the
-path check removed 4 refusal cases go red, with the `--list`-alone check removed 1 does (both
-restored, `cmp` equal). Live (WU-1.8's acceptance, on the tip that carries all four): red (a),
-WU-1.4's `after()` removed, `TIER=full-integration TEST_ORDER=reverse bash scripts/run-tests.sh`
-over `tests/security.live.test.ts` and `tests/providerRegistry.live.test.ts` exited 1 on
-`curl: (22) The requested URL returned error: 429`, naming the file with
-`✗ env-unready-before: tests/providerRegistry.live.test.ts (last ran: tests/security.live.test.ts)`,
-while the control, the `after()` in place, exited 0 with 54 of 54; red (b), the workers killed while
-`crisisRoutes` ran, exited 1 on `curl: (7) Failed to connect to localhost port 3300`, naming
-`env-unready-before: tests/integration/linkRoutes.live.test.ts` with
-`(last ran: tests/integration/crisisRoutes.live.test.ts)` (2026-10-10, 08:01 to 08:23 UTC;
-`security.live.test.ts` restored, `sha256sum -c` OK). WU-1.8 totals R8a–R8d 390 + 394 + 48 + 127 =
-959 CODE. It moved no metric (M1 `991 + 14`, M7 `29/29`, M8 `1/92`).
-Before it, on 2026-10-10, the saga naming slice (`workstream/phase1-u8-live-collector`, PR R8c, the
-third of the stacked pull requests of WU-1.8) changed what `sagaContextInvariants.static.test.ts`
-holds about the node:test saga suites: each one carries the suffix of the tier that collects it,
-`.integration.test.ts` or `.live.test.ts`, and whether a collected suite runs or sits in the
-quarantine is reach, which fitness #30 measures; the suite no longer starts `run-tests.sh --list`.
-`docs/development/saga-test-suites.md` says the same. Red: a planted
-`tests/integration/sagaPlanted.test.ts` fails the case (removed, the `fd` listing of `tests/`
-sha256-identical). It moved no metric (M1 `991 + 14`, M7 `29/29`, M8 `1/92`).
-Before it, on 2026-10-10, the live collector (`workstream/phase1-u8-live-collector`, PR R8b, the
-second of the stacked pull requests of WU-1.8) made `run-tests.sh` collect the live tier by its
-suffix: `collect live` lists every `*.live.test.ts` under `tests/` outside `tests/unit`, in
-`LC_ALL=C sort` order or reversed under `TEST_ORDER=reverse`, and the files run in one `live` unit
-after the services tier, each behind the probe. The hand-written live-API batches are gone, and so
-is the runner reading its own text for them: the 18 `*.integration.test.ts` suites they named join
-the services tier, which now runs 80 files, and `--list` prints 80 `integration`, 15 `live` and 3
-`quarantined`. The quarantine holds its first three entries, all live: `trendRadarRoutes` (F-9, the
-missing `dayKey`; owner WU-4.2), `universal-client-dashboard` (a test that skips without a client
-portal; owner WU-2.6a, which deletes it) and `aiLocalizedRoutes` (owner DEF-81, registered in
-`MASTER_PLAN_ES.md` §5.11: 2 of its 6 cases fail against the live stack, a glossary term and a
-style-guide rule created for `es` with a 201 missing from the `es` lists; cause not measured). The
-live tier reads the quarantine as the services tier does, so the case R7b3 added for the refusal of
-an entry a live-API batch runs now pins that a quarantined live file is printed and not run. Fitness
-#30 falls from 10 to 3, the three entries, red-proven on the COMPLETE step: an orphan without a tier
-suffix takes it to 4 and exit 1, and so does a fourth quarantine entry (both restored, the listing
-identical, `sha256sum -c` OK). The comment of `security-testing.yml` that named the deleted batches
-now names the tiers, and so do the living documents that named a batch: `security/tests/README.md`,
-`docs/security/SECURITY_TESTING_FRAMEWORK.md`, `docs/architecture/TESTING.md` (its "Batch Runner"
-section still described `CONCURRENCY=4`), `docs/development/saga-test-suites.md`, the tier sentence
-and the how-to of `docs/development/TESTING_INFRASTRUCTURE.md`, the `*.live.test.ts` row of
-`CODING_STANDARDS.md` and its twin comment in `packages/vitest-shared`, and the comment of
-`sagaCompensationRecovery.integration.test.ts` that still named `integration:saga-recovery`. Red: 5
-runner-suite cases fail on the previous tip's runner, and a `tee` pipe on the `live` unit turns the
-2 probe cases red. Live, on the tip that carries R8a–R8d, 2026-10-10 from 08:01 to 08:23 UTC, before
-`aiLocalizedRoutes` entered the quarantine: of the 10 dark live suites, the 8 not yet quarantined
-ran alone, 40 tests, 38 passing; 7 passed (34 tests) and `aiLocalizedRoutes` failed 2 of its 6.
-`TIER=full-integration` ran 1010 tests in 96 files in 385 s and exited 1: 1008 passed, the 2
-failures `aiLocalizedRoutes`' own, 0 skipped or cancelled; the services tier 824 of 824, the live
-tier 184 of 186. Its 6 tests aside, that same run passed 1004 of 1004 tests in 95 files. Reversed
-with `TEST_ORDER=reverse`, it gave the same totals and the same 2 failures in 378 s. It moved no
-metric (M1 `991 + 14`, M7 `29/29`, M8 `1/92`): it adds no test file and no gate.
-Before it, on 2026-10-10, the readiness slice (`workstream/phase1-u8-live-collector`, PR R8a, the
-first of the four stacked pull requests of WU-1.8) made `apps/api/scripts/run-tests.sh` probe the
-live environment before each file of its live-API batches. `probe_live` asks the API for
-`$TEST_API_URL/health` and the workers for `$TEST_WORKERS_READY_URL`, which answers only once a
-consumer is registered on the publish queue, one `curl -fsS` each with no retry; the first probe
-that fails records `env-unready-before: <file> (last ran: <previous>)`, stops the live tier there
-and exits 1 with its own ERROR line. The two between-batch checks it replaces left with it:
-`assert_publish_consumers` and `wait_for_api`. A run whose TIER reaches the live tier without both
-URLs exits 2 before any suite starts, and `ci.yml` exports them in the Integration Tests job (owner
-decision (a): R8 no longer waits for WU-4b.3, which later only changes who sets them, and §Global
-order puts R8 before E2 and E3). Those 4 job-env lines move the `ci.yml` steps
-`docs/security/SECURITY_TESTING_FRAMEWORK.md` cites, 533 → 537 and 652 → 656, and the citations move
-with them. Red: 7 runner-suite cases fail on the previous tip's runner, and a `tee` pipe on the
-first live batch turns 3 cases red, the two probe cases among them (restored, `cmp` equal). It added
-the readiness-probe gate row, moving M7 `28/28` → `29/29`, and left M1 at `991 + 14` and M8 at
-`1/92`: it adds no test file.
-Before it, on 2026-10-10, the reach engine's second half closed (PR R9b9, WU-1.9): `reach` runs the
-vitest, node:test, Playwright and k6 collectors, reads `packages/test-contracts/collectors.json`,
-the workflows it names and `.github/rulesets/main.json` (flags `--collectors` and `--ruleset`), and
-reports R1, R2 and R3, still not wired into CI. The registry maps vitest to Test Suite, Package
-Tests and Frontend Tests and node:test to Integration Tests, and holds Playwright and k6 empty: no
-required check runs either. Across R9b1 to R9b9, 101 new self-tests (182 in the package) plant each
-violation, and 18 planted mutants each turn the suite red. The run over the real tree waits for the
-ruleset of WU-1.10. It moved no metric (M1 `991 + 14`, M7 `28/28`, M8 `1/92`).
-Before it, on 2026-10-10, R1 and R3 read the sources a required check runs (PR R9b8, WU-1.9): a file
-collected only by a source no required check runs is unreached, and R3 no longer counts such a
-source against a quarantine entry, so a file whose collector runs nowhere can be quarantined. Given
-no run sources, the verdict is the one over the collections alone. It moved no metric (M1
-`991 + 14`, M7 `28/28`, M8 `1/92`).
-Before it, on 2026-10-10, rule R2 (PR R9b7, WU-1.9) holds each `collectors.json` entry against its
-workflow and the ruleset: the job exists, a `run` of it contains the entrypoint, and every check
-name it renders is a required context; a `packages` path that covers no source, and a collector
-missing from or extra in the registry, are violations too. A source no entry covers is not run by a
-required check. Its self-tests parse workflows with `yaml` 2.9.1, a literal of
-`packages/test-contracts` (latest and mature, OSV clean; the lockfile's other copy, 2.9.0, moved to
-2.9.1 inside its consumers' ranges), classified as a library in the legal inventory. It moved no
-metric (M1 `991 + 14`, M7 `28/28`, M8 `1/92`).
-Before it, on 2026-10-10, check-name rendering (PR R9b6, WU-1.9) renders the check names a CI job
-reports, one per matrix combination, and refuses to guess: a name with an expression other than a
-matrix value, a matrix job whose name leaves its matrix out, and a matrix with `include`, `exclude`
-or an expression are errors. It moved no metric (M1 `991 + 14`, M7 `28/28`, M8 `1/92`).
-Before it, on 2026-10-10, the readers of rule R2 (PR R9b5, WU-1.9) parse `collectors.json`, which maps
-each collector to the CI jobs that execute it (`{workflow, jobId, entrypoint, packages|exclude}`),
-and the required status checks of a ruleset in the shape GitHub's rulesets API returns. Each refuses
-its input whole when anything in it is malformed or unknown. It moved M1 `990 + 14` → `991 + 14`
-(its suite) and left M7 at `28/28` and M8 at `1/92`.
-Before it, on 2026-10-10, the Playwright collector (PR R9b4, WU-1.9) lists each tracked
-`playwright.config.*` through the Playwright CLI found in the `node_modules` above it, one source
-per config whatever its projects, and fails closed with no tracked config, a CLI it cannot find, a
-non-zero exit and a config that collects nothing. One self-test lists the admin portal's specs
-through the real CLI, which pins the report's shape to the installed Playwright. It moved no metric
-(M1 `990 + 14`, M7 `28/28`, M8 `1/92`).
-Before it, on 2026-10-10, the Playwright report reader (PR R9b3, WU-1.9) reads the JSON report of
-`playwright test --list --reporter=json`: each spec's file, resolved against the report's
-`config.rootDir` and read once however many projects repeat it. It refuses output that is not the
-report, a report with no absolute rootDir, any load error it reports and a spec with no file. It
-moved M1 `989 + 14` → `990 + 14` (its suite) and left M7 at `28/28` and M8 at `1/92`.
-Before it, on 2026-10-10, the node:test collector (PR R9b2, WU-1.9) runs
-`apps/api/scripts/run-tests.sh --list` from `apps/api` with `DATABASE_URL` and `TIER` removed from
-its environment, collects the `integration` and `live` files as one source each and leaves
-`quarantined` ones to the quarantine. It fails closed on a runner that cannot start, times out or
-exits non-zero, on a path that is not a tracked file and on a listing that collects nothing; its
-self-tests run a planted runner, never the repository's. It moved no metric (M1 `989 + 14`, M7
-`28/28`, M8 `1/92`).
-Before it, on 2026-10-10, the first slice of the reach engine's second half (PR R9b1, WU-1.9) added the
-k6 collector, which collects the tracked `*.k6.js` files as one source and fails closed when there
-are none, and the reader of the node:test runner's `--list` output, which refuses an empty listing,
-a malformed line, an unknown kind and an absolute or repeated path. The config floor and real-root
-step of the vitest collector moved to `registry.ts` as `trackedConfigs`, for the Playwright
-collector to share. Nothing is wired into CI yet. It moved M1 `987 + 14` → `989 + 14` (its two
-suites) and left M7 at `28/28` and M8 at `1/92`.
-Before it, on 2026-10-10, the order and alignment slice (`workstream/phase1-u7b-s4`, PR R7b4, the last
-of the stacked pull requests that finish WU-1.7) made the collection's order reversible and aligned
-the comments earlier units left stale, which closes WU-1.7. `TEST_ORDER=reverse` runs the collected
-services tier in reverse byte order, and any value but unset, `forward` or `reverse` exits 2; on
-this tip's runner `TIER=pr-integration` ran 572 tests in 62 files reversed, in 81 s, 0 skipped or
-cancelled, against 83 s forward. The static suite now pins the collection itself: `collect` skips
-`tests/unit`, sorts with `LC_ALL=C sort` and reverses on request, and no services suite is named by
-hand outside the live-API section. The comments that still described the env-file fallback WU-1.6
-removed (`ci.yml`, `chaos.yml`) or a path WU-1.5 renamed (`.env.test.example`, the `#40` step), and
-the #31 prose that still said "once per batch", now match the runner, in the slice's workflow patch
-and in CLAUDE.md #31, and the chaos job's step is named for the services tier. The runner's
-behaviour suite gives each case two 60 s spawn caps instead of vitest's 5 s default, which had ended
-a case on a loaded host. Red: 2 runner-suite cases fail on the previous tip's runner, and with
-`--testTimeout=200` the previous suite fails 12 of 22. It moved no metric (M1 `987 + 14`, M7
-`28/28`, M8 `1/92`): it adds no test file and no gate.
-Before it, on 2026-10-10, the services collector (`workstream/phase1-u7b-s3`, PR R7b3,
-the third of the stacked pull requests that finish WU-1.7) made `apps/api/scripts/run-tests.sh`
-collect the services tier by its suffix: `collect integration` lists every `*.integration.test.ts`
-under `tests/` outside `tests/unit` in `LC_ALL=C sort` order, and each file runs through `run_file`
-in one `integration` unit, so the 12 hand-listed DB-only batches are gone. The live-API batches stay
-as they were until WU-1.8, and the 18 `*.integration.test.ts` suites they still name stay theirs,
-read from the runner's own text, so no file runs twice. The quarantine stays empty: the 10 dark
-DB-only suites the old lists never named pass as the app role CI uses, 3 of 3 runs each with the
-API and workers up and 1 with them down (the three `bulkSchedule*` suites 10 of 10). Fitness #30
-became its interim form (owner decision (d)): membership in `run-tests.sh --list` with the
-quarantine excluded, baseline 20 → 10, the 10 dark `*.live.test.ts` suites; its CLAUDE.md block and
-the `fitness.yml` step move together. On the runner this stack ends with, which differs from this
-tip only by `TEST_ORDER`, `TIER=pr-integration` ran 572 tests in 62 files (541 plus the 31 of the
-10 newly collected suites), 0 skipped or cancelled, in 83 s against the base runner's 73 s run just
-before. Red: a planted `tests/integration/orphan.test.ts` takes the COMPLETE #30 step to 11 and exit
-1; 9 runner-suite cases fail on the previous tip's runner. It added the interim #30 gate row, moving
-M7 `27/27` → `28/28`, and left M1 at `987 + 14` and M8 at `1/92`: it adds no test file.
-Before it, on 2026-10-10, the runner-suite slice (`workstream/phase1-u7b-s2`, PR R7b2,
-the second of the stacked pull requests that finish WU-1.7) moved the runner's suites off the batch
-layout and changed no runner line. `runTestsGate.behavior.test.ts` now accounts for failures by
-file: the files a run prints as failed must equal the files it lists under `FAILED files:`, so a
-`tee` pipe on one `run_batch` call turns that case red (5 cases red on the mutation, the runner
-restored with `sha256sum -c`); `aloneFails` names the batch it expects; and the missing-path proof
-also runs on a path a live-API batch lists, under `TIER=full-integration` with a stand-in `curl`
-answering the API probes. `sagaContextInvariants.static.test.ts` finds every node:test saga suite in
-`run-tests.sh --list` instead of searching the runner's text. The WU-1.7 bullet quoted the quarantine
-as a bare array; it now gives the shape `parseQuarantine` reads, `{ "entries": [...] }`. It moved no
-metric (M1 `987 + 14`, M7 `27/27`, M8 `1/92`): it adds no test file and no gate, and fitness #30
-stays at 20.
-Before it, on 2026-10-10, the source-resolution gate (`workstream/phase1-u11-s2b`, PR R2b3, the last
-of the three stacked pull requests of WU-1.2b) holds every workspace import of a vitest-collected
-test to its package's `src/`, whatever `NODE_ENV` says. `checkSourceResolution` asks each of the 92
-tracked vitest configs, through vitest's node API, which files it collects, and resolves every
-direct workspace import those files make (850 today) through the config's own vite environment,
-`ssr` for a node test and `client` for a DOM one; it requires `<package>/src/` and fails closed
-below 80 configs or 800 checked imports. Its suite runs it over this repository twice, in-process
-in the run's own mode and in a child process under `NODE_ENV=production`, where vite's own default
-names `production`. Red: with the app configs as they were before R2b1, the production run exits 1
-on 32 imports of `apps/api` and `apps/workers` that resolve to no `src/`, and the same 32 return
-when `SOURCE_CONDITIONS` loses `development`. It added the source-resolution gate row, moving M7
-`26/26` → `27/27`, and left M1 at `987 + 14` and M8 at `1/92`.
-Before it, on 2026-10-10, the import reader (`workstream/phase1-u11-s2a`, PR R2b2, the second of
-the stacked pull requests of WU-1.2b) added `packages/test-contracts/src/lib/source-resolution.ts`
-with the two readers the source-resolution gate is built on. `runtimeSpecifiers` reads, from the
-TypeScript AST, the specifiers a module resolves at run time: value imports and re-exports,
-`import()`, `require()` and the `vi` module calls, and never a type-only import, a comment or a
-string. `owningPackage` names the workspace package a specifier or one of its subpaths belongs to,
-never a package whose name only shares a prefix with it. The first pull request, R2b1
-(`d7ade2f3`), put `SOURCE_CONDITIONS` (`development`, `node`) on `resolve.conditions` and
-`ssr.resolve.conditions` in the shared factory and in the `apps/api` and `apps/workers` configs, so
-that a workspace import resolves to `src/` whatever `NODE_ENV` says; on vitest 4.1.11 the `ssr`
-environment ignores the top-level key, and vitest's own `development|production` becomes
-`production` under `NODE_ENV=production`. The gate that holds it is the third. Red: a reader that
-keeps type-only imports fails 1 of the new suite's 4 cases, and an owner matched by bare prefix
-fails 2. Its suite moves M1 `986 + 14` → `987 + 14`; M7 stays at `26/26` and M8 at `1/92`: it
-adds no gate.
-Before it, on 2026-10-10, the inventory and quarantine slice (`workstream/phase1-u7b-services-collector`,
-PR R7b1, the first of the stacked pull requests that finish WU-1.7) gave
-`apps/api/scripts/run-tests.sh` a `--list` mode and a quarantine, over the hand-written lists, which
-stay. `--list` prints one `integration`, `live` or `quarantined` line per file and runs nothing: the
-`integration` lines are the files the DB-only batches name and the `live` lines the files the
-live-API batches name, both read from the runner's own text. It is answered above the database
-refusal, so it needs no `DATABASE_URL`, and an unknown argument now exits 2 instead of being
-ignored. The quarantine, `packages/test-contracts/quarantine.json`, takes the reach engine's shape
-(`{ "entries": [{ path, reason, owner, since }] }`, paths from the repository root) because
-`parseQuarantine` in `packages/test-contracts/src/lib/rules.ts` reads that shape and one file serves
-both readers. The runner reads it with `jq`, prints each entry `QUARANTINED (not run): <path> —
-<reason>` at the head of the DB-only batches, now named the services tier (the `TIER` comment and
-the `run_services_tier` guard), and runs it in no batch; a malformed file, an empty
-field, or an entry for a missing file or a live-batch file exits 2 before any suite starts. It is
-empty. Red: the 6 new runner-suite cases fail on the base runner. It moved no metric (M1
-`986 + 14`, M7 `26/26`, M8 `1/92`): it adds no test file and no gate, and fitness #30 stays at 20.
-Before it, on 2026-10-10, the per-file verdict (`workstream/phase1-u7a-unit-per-file`, PR R7a, the
-first half of WU-1.7) made `apps/api/scripts/run-tests.sh` run each file a batch lists in its own
-`node --test --test-concurrency=1` process and give it its own verdict line. A file fails the run,
-named with its reasons on that line and again under `FAILED files:`, when it collects zero tests
-(an emptied file included, which node:test reports as one passing test named by its path), when a
-test is cancelled or skipped under `TIER`, or when its runner exits non-zero. The batches keep their
-names, lists and summary rows, added up from their files; `CONCURRENCY` was dead and left with its
-call-site prefixes. A listed path that no longer exists now fails by name, which closes SMELL-74.
-Red: end to end, a real empty file in `integration:repositories` exits 0 on the base runner and 1
-on the new one, naming it; 8 new runner-suite cases fail on the base. It added the per-file
-verdict's gate row, moving M7 `25/25` → `26/26`, and left M1 at `986 + 14` and M8 at `1/92`: it
-adds no test file.
-Before it, on 2026-10-10, the closure of WU-1.3 (`workstream/phase1-u3-close-security-scripts`, PR
-R3b) deleted `security/scripts/security-scan.sh` and `vulnerability-report.ts` with its renderer and
-types. No workflow ran them, and they were the last callers of the `test:auth`, `test:security`,
-`test:rbac` and `test:mfa` subset scripts, which left with them: the node:test subset grep is 0 and
-WU-1.3 is done. `docs/security/SECURITY_TESTING_FRAMEWORK.md` maps each check those scripts ran to
-the CI gate that covers it, and names the two that no gate covers (the license allowlist and the
-Dockerfile rules). Removing the last `node --test` script hid the node:test tier from knip's Node.js
-plugin, so `knip.json` now names `tests/**/*.{integration,live}.test.ts` as the `apps/api` entry.
-Before it, on 2026-10-09, the runner unit (`workstream/phase1-u6-runner-collector-only`, PR R6,
-WU-1.6) made `apps/api/scripts/run-tests.sh` the integration collector only. Its Vitest phase was
-removed (`run_vitest_phase`, the `npx vitest run` start and its summary parsing), because vitest
-collects the unit tier from the tree on its own, and `test:all` became `pnpm test && pnpm
-test:integration`. Its `.env` sourcing was removed too, which closes DEF-67: the runner reads no environment file, and an empty or
-unset `DATABASE_URL` exits 2 before anything starts, with `TIER` set or unset, its stderr naming the
-variable and the remedy (export the root `.env.test`, copied from `.env.test.example` or written by
-`scripts/ci-setup-test-env.sh`). Every caller measured already exports it: the CI
-`Integration Tests` job and `chaos.yml` in their env blocks, and the battery by sourcing the main
-checkout's `.env.test` before its `tier` step. Red on the complete command: from the main checkout's
-`apps/api`, with `node` and `curl` replaced by recorders so that no suite ran, the base runner under
-`TIER=full-integration` and an unset `DATABASE_URL` exited 0 after handing all 18 batches the shared
-development database; the new one exits 2 and starts nothing. `TIER=pr-integration` ran 541 tests in the same 12 batches as U5, 0 skipped, 0 cancelled. Five static and two behaviour cases
-pin it, and all seven fail on the base runner. It added the refusal's gate row, moving M7 `24/24` →
-`25/25`, and left M1 at `985 + 14` and M8 at `1/92`: it adds no test file. Previous: the tier-rename
-unit (`workstream/phase1-u5-tier-rename`, PR R5, WU-1.5) renamed the 98 node:test files under `apps/api/tests` outside `tests/unit` and `tests/eval` by the
-tier the U5a section measured: 80 now end in `*.integration.test.ts` and 18 in `*.live.test.ts`. 83
-moved by `git mv`; the 15 already named `*.integration.test.ts` that measured integration stay, and
-the 5 named `*.integration.test.ts` that measured live (`customerLoginMfaE2e`, `mfaCustomer`,
-`sendReplyGuardrail`, `production`, `universal-client-dashboard`) became `*.live.test.ts`. The
-runner's batches, `tests/run.ts`, `tests/run-with-coverage.ts`, the saga static suites, the
-`test:auth`, `test:mfa`, `test:rbac` and `test:security` scripts, every renamed suite's `@file`
-header, CLAUDE.md, the living specs under `openspec/specs` and the living documents name the new
-paths; dated records keep the names they recorded. No batch changed membership: `TIER=pr-integration`
-ran 541 tests in the same 12 batches before and after, every count equal, and fitness #30 stays at 20
-over the same 20 files. The typecheck ledger was re-keyed with `--write`: 2135 errors, the same
-TS-code multiset per renamed path, and its `testFilesInProgram` field moved 771 → 781, the count the
-tree has held since `d75aba0f`. It moved no metric (M1 `985 + 14`, M7 `24/24`, M8 `1/92`): a rename
-keeps every count. Previous: the reach engine unit (PR R9a, the first half of WU-1.9, in four stacked
-pull requests: the scaffold, registry and disk scan; the vitest collector; the R1/R3 rules; the
-CLI) added `packages/test-contracts`, not yet wired into CI. Its `reach` script lists
-the tracked test-shaped files (`git ls-files` through the M1 expression, failing closed below 800),
-asks vitest what each tracked `vitest.config.*` collects (`createVitest` plus
-`globTestSpecifications()`, falling back to `vitest list --filesOnly --json` for that config alone;
-failing closed below 80 configs and on a config that collects nothing), and holds R1 (each file
-collected exactly once, or quarantined) and R3 (every quarantine entry tracked, none collected, the
-head a subset of the base). Its 71 self-tests plant each violation in a tree under `os.tmpdir()` and
-assert the non-zero exit naming the file; 23 planted mutants of the engine each turn the suite red.
-Over the tree of `78f40bc5` it read 994 test-shaped files and 870 files collected by the 91 configs
-in about 1.8 s (the CLI fallback alone, forced for every config, lists the same 870 in 18.9 s), found
-none collected twice, and printed 124 unreached files, the quarantine seed until PR R9b adds the
-node, Playwright and k6 collectors and R2: 98 under `apps/api/tests` (20 `*.integration.test.ts`),
-7 `security/tests`, 6 `*.k6.js`, 9 Playwright `*.spec.ts`, the 2 admin fetch scripts,
-`performance/database/postgres-stress.test.ts` and the provider template's sandbox test. It moved M1
-`980 + 14` → `985 + 14` (its five suites) and M8 `1/91` → `1/92` (its config), and left M7 at
-`24/24`: it adds no gate. Previous: the timing unit (`workstream/phase1-u4-timing-in-tests`, PR R4,
-WU-1.4) moved the per-batch timeouts of `run-tests.sh` into the nine suites that needed them: each
-declares one `TIMING = { timeout }` and passes it to every test and hook (83 tests, 26 hooks), because on
-Node 24.15.0 the runner's `--test-timeout` binds each test and hook, and a `describe` option neither
-raises that nor leaves the suite's total uncapped. The four `TIMEOUT=` prefixes left the runner. The
-"Advanced Rate Limiting" block of `tests/security.test.ts` gained an `after()` that waits for the
-full bucket the limiter announces, then for `/health` to answer 200, within that instant plus 5 s
-(cap 90 s), and throws otherwise; it adds about 60 s to the `integration:flows` batch. The
-full-integration tier ran 939 tests before and after, every batch with the same count, 0 skipped and
-0 cancelled. It added the rate-limit window gate row, moving M7 `23/23` → `24/24`, and left M1 at
-`980 + 14`: it adds no test file. Previous: the double-collection unit
-(`workstream/phase1-u3-double-collection`, PR R3,
-WU-1.3) removed the second collectors: `eval.yml` left (its `vitest run tests/eval` re-ran the 4 eval
-files the api shards already collect), and so did the `custom-security-tests` job of
-`security-testing.yml` (its `auth` and `security` files run in the `integration:flows` batch of
-`run-tests.sh`, `mfa` and `rbac` in `remaining`, its 2 rate-limit files in the vitest shards). 24
-subset scripts of `apps/api/package.json` left with them: 22 node:test ones that no workflow named,
-`test:eval` and `test:ratelimit`. `test:auth`, `test:rbac`, `test:security` and `test:mfa` stay:
-`security/scripts/security-scan.sh` and `security/scripts/vulnerability-report.ts` call them. It moved
-M5's second figure `≥10` → `0`, counted by hand over every test invocation in `.github/workflows`
-until the reach engine (WU-1.9) exists, and left M1 at `980 + 14` and M7 at `23/23`: it adds no test
-file and no gate. Before it, the U5a measurement (Phase 1, WU-1.5's precondition) recorded the
-measured tier of the 98 node:test files under `apps/api/tests` outside unit/eval in the section "U5a —
-measured tier of the node:test population": integration 80, live 18, hermetic 8, 38 disagreements with
-the runner's batches. It is a data section with no file and no gate, so it moved no metric (M1
-`980 + 14`, M7 `23/23`); the 1.5 status row flips when U5 lands. Before it, the reserved-suffixes unit (`workstream/phase1-u2-reserved-suffixes`, PR R2,
-WU-1.2) reserved the tier suffixes inside the collectors: `RESERVED_TIER_EXCLUDES` in
-`packages/vitest-shared` (`*.integration.test.*`, `*.live.test.*`, `*.spec.*`, `*.k6.js`) is set by
-`defineWorkspaceVitestConfig` in its 87 configs and spread by the four app configs, `apps/admin` and
-`apps/client` with an explicit `include: ["**/*.test.{ts,tsx}"]`, and both Playwright configs match
-`**/*.spec.ts` only. `apps/workers` gained `@packages/vitest-shared` as a devDependency to import the
-list (the lockfile adds only that workspace link), and a planted `x.integration.test.ts` there is
-listed with its old config and not with the new one. It added the reserved-suffixes gate row, moving
-M7 `22/22` → `23/23`, and left M1 at `980 + 14`: it adds no test file, and every vitest and Playwright
-list is unchanged.
-Before it, the suffix unit (`workstream/phase1-u1-suffixes`, PR R1, WU-1.1) renamed the 30
-vitest files carrying `.integration.test.*` (24 client, 4 provider, 2 in `apps/api/tests/unit`) to
-`*.test.*`, leaving the suffix to the 20 node:test files under `apps/api/tests`, and the 6 k6 scenarios
-to `*.k6.js`; it moved M1 `980 + 8` → `980 + 14` (the scenarios are test-shaped now) and left M7 at `22/22`.
-Before it, the support gate unit (`workstream/support-fitness-46`, Master Plan §5.15, SUP-1)
-wired fitness #46 (`pnpm check:support` in the `dependency-consistency` job of `fitness.yml`) with its
-canon block in `CLAUDE.md` and added the CI red to the support gate row; it moved no metric (M1
-`980 + 8`, M7 `22/22`: a modified gate, the same row).
-Pending fitness reservations renumbered on 2026-10-07 after #45 and #46 landed out of the reserved
-order: WU-3.9/3.10 → #47, WU-3.13 → #48, WU-4b.7 → #49 (D24 unchanged).
-Before it, the support non-features unit (`workstream/support-sup1-nonfeatures`, Master Plan §5.15,
-SUP-1) added the non-features generator `scripts/support/non-features.mjs`, registered in
-`scripts/support/run.mjs`, with its suite `apps/api/tests/unit/scripts/supportNonFeatures.test.ts`, and
-the battery step `support` (`pnpm check:support`) with its gate row; it moved M1 `979 + 8` → `980 + 8`
-and M7 `21/21` → `22/22`. Before it, the support index unit (`workstream/support-sup1-index`, Master
-Plan §5.15, SUP-1) added the support index generator `scripts/support/index.mjs`, its runner
-`scripts/support/run.mjs` (`pnpm support:index`, `pnpm check:support`) and the template
-`docs/support/_TEMPLATE.md`, with the suite `apps/api/tests/unit/scripts/supportIndex.test.ts`; it moved
-M1 `978 + 8` → `979 + 8` and left M7 at `21/21`. Before it, the support front-matter library unit
-(`workstream/support-sup1-lib`, Master Plan §5.15, SUP-1) added the suite of the flat front-matter
-parser and the generic checks shared by the support documentation generators,
-`apps/api/tests/unit/scripts/supportFrontMatter.test.ts`, with three cases added to
-`legalInventoryLib.test.ts` for the inventory library's new `commands`, `heading` and `optionalNote`
-options; it moved M1 `977 + 8` → `978 + 8` and left M7 at `21/21`. Before it, the legal gate unit
-(`workstream/legal-l2-gate`, Master Plan §5.10, LEGAL-3) added fitness #45 (`pnpm check:legal` in the
-`dependency-consistency` job of `fitness.yml`) and the battery step `legal` with their gate row; it
-moved M7 `20/20` → `21/21` and no M1 (no new suite). Before it, the first six code units of the legal
-facts register (`workstream/legal-l1a-lib`, `workstream/legal-l1a-generators`,
-`workstream/legal-l1b-scanner`, `workstream/legal-l1b-scanners`, `workstream/legal-l1c-oauth-scopes` and
-`workstream/legal-l1d-subprocessors`, Master Plan §5.10, numbers assigned at publication) added the
-suites of the shared inventory library, of the `personal-data` generator, of the shared source scanner
-and of the `cookies-and-storage`, `oauth-scopes` and `subprocessors` generators,
-`apps/api/tests/unit/scripts/legalInventoryLib.test.ts`, `personalDataInventory.test.ts`,
-`legalSourceScan.test.ts`, `cookiesAndStorageInventory.test.ts`, `oauthScopesInventory.test.ts` and
-`subprocessorsInventory.test.ts`; they moved M1 `971 + 8` → `977 + 8` (one file each) and left M7 at
-`20/20`. Before them, the close of Phase 0 (#449, `workstream/0-22-h-phase0-close`) under
-[D51](#decisions-log) ticked the story backfill (task 0.22.3) with PR E as its first slice, named the
-follow-up slices and kept slice `0.16` a dated unit for 2026-10-28 ([D46](#decisions-log)); it moved no
-metric. Before it, the Storybook family's 10.6.0 → 10.6.1 hold bump (#447,
-`workstream/hold-storybook-10-6-1`) moved the holds rows and the CURRENT paragraph but not this line,
-and the Tailwind `@source` fix beneath PR E (#444, `workstream/tailwind-ui-source-fix`, DEF-49) moved M1
-`969 + 8` → `971 + 8` with its two tests. This line moves with the last pull request that moved a row.
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
-The measured state of the testing re-foundation, and the fixed plan it executes. Rules live in
-[`docs/development/CODING_STANDARDS.md`](CODING_STANDARDS.md) §Testing; the measured description of
-the test system lives in `docs/development/TESTING_INFRASTRUCTURE.md`; progress lives here and
-nowhere else.
-
-**Two facts about this document, stated up front rather than discovered later.**
-
-1. **It is updated by the pull request that moves a metric**, never by a separate tracker pull
-   request. The single exception is a re-plan, which is recorded in
-   [§Decisions log](#decisions-log) with its date and its reason.
-2. **Every baseline below is measured, never predicted.** Where a number could not be derived from
-   the tree at the baseline commit, the row says so in `Re-derive with` and names the artefact or the
-   run that produced it. `scripts/testing/metrics.mjs --all` prints the whole table and marks each
-   row `derived`, `unavailable` or `pasted`, so a number that stops being derivable becomes visible
-   instead of silently stale.
-
-**Finding numbering, and why that path is not a link.**
-`docs/development/TESTING_INFRASTRUCTURE.md` (findings F-1…F-17) is not on `main` at the baseline
-commit — it sits on an unmerged pull request. Rows below cite its F-numbers anyway, because they are
-the numbering the plan was written against. The path is written as code rather than as a hyperlink on
-purpose: a link that resolves nowhere is a defect a link checker reports, and "it will exist later"
-is exactly the excuse that leaves dangling references in a tree. The pull request that merges that
-document turns this into a link and reconciles the F-numbers against the protected branch — that is
-its work unit's job, not a note left here.
+Progress lives here and nowhere else. The fixed plan is
+[TESTING_REFOUNDATION_PLAN.md](TESTING_REFOUNDATION_PLAN.md), the toolchain-lag and OSV measurements
+are [TESTING_REFOUNDATION_MEASUREMENTS.md](TESTING_REFOUNDATION_MEASUREMENTS.md), the rules are
+[`CODING_STANDARDS.md`](CODING_STANDARDS.md) §Testing, and the measured test system is
+[`TESTING_INFRASTRUCTURE.md`](TESTING_INFRASTRUCTURE.md), whose findings F-1…F-17 the rows cite.
 
 ---
 
@@ -538,80 +20,13 @@ its work unit's job, not a note left here.
 
 ### Metrics
 
-Sixteen metrics. `Baseline` is the measured value at `main` @ `6701be00`; `Now` starts equal to it
-and moves only with a pull request that moved it; `Moved by` names that pull request by the short
-alias its slice used for review — `PR B` is the `metrics.mjs` half of `refound/0-tracker`,
-`PR gate` is `refound/0-toolchain-holds-gate`, the holds-gate half of `refound/0-toolchain-holds`,
-`PR 0.21` is slice `0.21` on `workstream/eslint-boundaries-policies`, which moved M1 `949 + 8` → `950 + 8`
-and M7 `2/2` → `3/3` (before it, `workstream/hooks-battery-state` of `mental-map-hooks` had moved M1
-`947 + 8` → `948 + 8` → `949 + 8`), `PR 0.18` is slice `0.18` `refound/0-override-bands-gate` (pull
-request #326), rebased onto `0.21`, which moved M1 `950 + 8` → `951 + 8` and M7 `3/3` → `4/4`,
-`PR P.1` is slice `P.1` `refound/3-fitness-inventory` (pull request #329, the plan's `PR V1`), rebased
-onto `0.8`, which moved M1 `951 + 8` → `952 + 8` and M7 `4/4` → `5/5`, `PR P.2` is slice `P.2`
-`refound/3-reporters` (pull request #330, the plan's `PR V2`), rebased onto `P.1`, which added three
-test files (`952 + 8` → `955 + 8`) and the last vitest config (M8 `1/86` → `1/87`) and moved M7 `5/5` →
-`6/6`, `PR P.4` is slice `P.4` `refound/3-gitleaks` (pull request #331, the plan's `PR V6`), rebased
-onto `P.2`, which added a gate row (M7 `6/6` → `7/7`), `PR 0.13` is slice `0.13` on
-`workstream/refound-0-cleanup`, stacked on the post-drain docs branch and carrying tasks 0.18.6–0.18.8 of
-slice `0.18`, which added a gate row (M7 `7/7` → `8/8`), `PR 0.12` is slice `0.12` on
-`workstream/refound-0-jsdom`, branched from `main` after pull request #371, which added the sanitizer
-characterization test (M1 `955 + 8` → `956 + 8`), `PR #373` is pull request #373 on
-`workstream/refound-drop-jq`, which moved the single-version gate to `syncpack@15.3.3` and added its
-gate row (M7 `8/8` → `9/9`, [D34](#decisions-log)), `PR i-a` is slice (i-a) of the replacement plan
-on `workstream/refound-dead-devdeps` ([D35](#decisions-log)), which added the bundle-analyzer test (M1
-`956 + 8` → `957 + 8`), `PR iii` is slice (iii) on `workstream/refound-secretlint-13`
-([D38](#decisions-log)), which added the secret-scan gate row (M7 `9/9` → `10/10`), `PR iv` is slice
-(iv) on `workstream/refound-jscpd-5` ([D39](#decisions-log)), which added the duplicate-code gate row (M7
-`10/10` → `11/11`), `PR iv-b` is the stale-entry gate on `workstream/refound-jscpd-stale-gate`,
-stacked on slice (iv), which added the gate's suite (M1 `957 + 8` → `958 + 8`), `PR watch` is the
-maturity watchlist on `workstream/refound-maturity-watchlist` ([D45](#decisions-log)), which added its
-suite and its gate row (M1 `958 + 8` → `959 + 8`, M7 `11/11` → `12/12`), `PR store` is the storage
-adapters change on `workstream/storage-adapters-wiring`, which added the GCS and Azure adapter suites
-and vitest configs (M1 `959 + 8` → `961 + 8`, M8 `1/87` → `1/89`), `PR space` is the DigitalOcean
-Spaces change on `workstream/storage-do-spaces-selection`, which added that adapter's suite and config
-and moved the factory's suite (M1 `961 + 8` → `962 + 8`, M8 `1/89` → `1/90`), `PR 0.20` is slice
-`0.20` on `workstream/no-unowned-handle-unref`, which created `packages/eslint-plugin-testing` with its
-rule suite and vitest config (M1 `962 + 8` → `963 + 8`, M8 `1/90` → `1/91`) and, in its third pull
-request on `workstream/no-unowned-handle-unref-wiring`, wired the rule into `eslint.config.ts` and added
-its gate row (M7 `12/12` → `13/13`), `PR await` is the Paddle webhook fix on
-`workstream/paddle-webhook-await`, which added the adapter's suite (M1 `963 + 8` → `964 + 8`), `PR envfb` is
-the OAuth credentials change on `workstream/env-secret-fallbacks`, which added the credentials suite (M1
-`964 + 8` → `965 + 8`), `PR envbl` is the billing half on `workstream/env-secret-fallbacks-billing`,
-which added the gateway-registry suite and the fitness #15 gate row (M1 `965 + 8` → `966 + 8`, M7
-`13/13` → `14/14`), `PR v` (#408) is the first pull request of item (v) of the replacement plan
-([D43](#decisions-log)) on `workstream/item-v-cruiser`, which added the architecture and dedupe gate
-rows (M7 `14/14` → `16/16`), `PR v-b` (#411) is its layer-rules change on `workstream/item-v-rules`, which added the
-architecture ratchet suite (M1 `966 + 8` → `967 + 8`), `PR v-d` is its `LoggerPort` change in two pull
-requests, `PR v-d1` (#413) on `workstream/item-v-logger-a` and `PR v-d2` (#414) on `workstream/item-v-logger-port`,
-which added the port's contract suite and the `AiRequestService` suite (M1 `967 + 8` → `968 + 8` →
-`969 + 8`), `PR 0.22` is slice `0.22` ([D29](#decisions-log)), whose pull request B (#428) on
-`workstream/0-22-b-shared-root` added the browser-safe shared kernel's gate row (M7 `16/16` → `17/17`)
-and the cache-key equivalence suite (M1 `969 + 8` → `970 + 8`) and whose pull request C (#432) on
-`workstream/0-22-c-runner` added the story runner's gate row (M7 `17/17` → `18/18`) and whose pull request F (#441) on
-`workstream/0-22-f-story-gate` added the story-per-component gate (M1 `968 + 8` → `969 + 8`, M7 `19/19` → `20/20`) and whose pull request E's prerequisite (#444) on `workstream/tailwind-ui-source-fix` added one Tailwind `@source` test per portal (M1 `969 + 8` → `971 + 8`), and `PR aad-1` is the first pull
-request of DEF-29, the `Channel.credentials` envelope the workers could not decrypt, on
-`workstream/def-29-channel-credentials-aad`, which added the shared cipher's suite and the channel
-repository's decrypt-input suite (M1 `970 + 8` → `972 + 8`), and `PR dc-4a` is group (a) of
-dead-code unit DC-4 on `workstream/dc-4-dead-security-modules`, which deleted the unreached
-`enhancedValidator` and `credentialManager` with their four test files (M1 `972 + 8` → `968 + 8`)
-and added the fitness #11 gate row (M7 `18/18` → `19/19`, after PR C's story-runner row). `PR jsdoc` is the JSDoc gate on
-`workstream/jsdoc-gate`, which added its two suites and its gate row (M1 `991 + 14` → `993 + 14`, M7
-`29/29` → `30/30`). `PR def84` is DEF-84 on `workstream/fix-def-84-drop-bundle-analyzer`, which
-deleted the bundle analyzer with its suite (M1 `994 + 14` → `993 + 14`). `PR def86` is DEF-86 on
-`workstream/fix-def-86-sentry-instrumentation`, which added the two portals' instrumentation suites
-(M1 `993 + 14` → `995 + 14`) and the three suites of the shared `@observability/sentry-next`
-package (M1 `995 + 14` → `998 + 14`, M8 `1/92` → `1/93` for its vitest config). `PR pdeps` is the
-patched-dependencies gate, fitness #48, on `workstream/patched-dependencies-gate`, which added its
-suite and its gate row (M1 `1002 + 14` → `1003 + 14`, M7 `37/37` → `38/38`). `PR cp1` is the Prisma
-constraint reader on `workstream/night-cp1-prisma-7-10`, which added its suite, the db-prisma
-unique-violation suite and the team-invite integration suite (M1 `1003 + 14` → `1006 + 14`). `PR reach`
-is the reach-engine hardening on `workstream/night-r2-reach-engine`, which added the suite of the
-shared child-exit helper of `@packages/test-contracts` (M1 `1006 + 14` → `1007 + 14`). A `PR`
-followed by a letter and a number with no dot between them — `PR R4`, `PR V6`, `PR E2`, `PR C1`, `PR X1` — is the
-[§Plan (fixed)](TESTING_REFOUNDATION_PLAN.md#plan-fixed)'s own label for the pull request that
-closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phase 4b, `C` in Phase 5
-and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the gitleaks change. A
-`Moved by` cell that names such a label resolves through that bullet.
+Sixteen metrics. `Baseline` is measured at `main` @ `6701be00`; `Now` moves only with the pull
+request that moved it, and `Moved by` names that pull request by its review alias (`—`: not moved
+since the baseline). `PR cp1b` is unit C-P1b and `PR pdeps` the patched-dependencies gate. A `PR`
+followed by a capital letter and a number — `PR R9a`, `PR R10b` — is the
+[§Plan (fixed)](TESTING_REFOUNDATION_PLAN.md#plan-fixed)'s label for a work unit's pull request (`R`
+Phase 1, `V` Phase 3, `E` Phase 4b, `C` Phase 5, `X` the runner experiment), a trailing letter
+naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
@@ -669,32 +84,9 @@ WU-5.9 makes every package measured or listed with a reason.
 One row per work unit of [§Plan (fixed)](TESTING_REFOUNDATION_PLAN.md#plan-fixed). Status: ⬜ not started · 🔄 in progress ·
 ✅ done · ⛔ blocked. `Evidence` is a run id, a checksum, or the pull request's own evidence block.
 
-**Phase 0 closed on 2026-10-06** ([D51](#decisions-log)). Its toolchain rows were done on 2026-10-04,
-and item (v) of the replacement plan ([D43](#decisions-log)) was complete on 2026-10-05, in nine pull requests and a closing docs change. `PR v` (#408,
-`workstream/item-v-cruiser`) moved `dependency-cruiser` to 18.4.0, made it resolve every import and put its
-`no-circular` rule in place of madge; `PR v-a` (`workstream/item-v-docs`) recorded ADR-0032, ADR-0033 and
-`MASTER_PLAN_ES.md` §5.12; `PR v-b` (`workstream/item-v-rules`) made the layer rules hard behind a
-known-violations baseline that may only shrink, at 138 entries; `PR v-c` (`workstream/item-v-boundaries`) retired
-`eslint-plugin-boundaries`; `PR v-d1` (`workstream/item-v-logger-a`) and `PR v-d2`
-(`workstream/item-v-logger-port`) took `@observability/logger` out of `packages/core`, whose application services
-now log through the core's `LoggerPort`; and `PR v-e1` (`workstream/item-v-cheap-repairs`), `PR v-e2`
-(`workstream/item-v-cheap-queue`) and `PR v-e3` (`workstream/item-v-cheap-health`) hand the cache-stats, queue
-and health routes their dependencies from the composition root, which leaves the baseline at 124 entries. Each of
-the nine went through the native review, which closed the document-only `PR v-a` on its passive path, and through
-the full battery on its exact sha. The docs change (`workstream/item-v-book`) books the review suggestions
-(SB-059 to SB-070) and queues the defects the pull requests found outside their scope as DEF-16 to DEF-26 in
-`MASTER_PLAN_ES.md` §5.11. The nine pull requests and the closing docs change merged into `main` on 2026-10-05
-as #408 and #410 to #418, in the order named above, and the last left `main` at `3d295d01`. Contract slice
-`0.20` closed on 2026-10-04 and slice `0.22` on 2026-10-06, in the pull requests its rows below name:
-A (#425 to #427) and B (#428) on 2026-10-05, then C (#432), D (#439), F (#441), G (#443), the Tailwind
-fix E needed (#444), E (#445) and the family's move to 10.6.1 (#447). Task 0.22.3, the story backfill,
-is ticked with PR E as its first slice, and its follow-up slices are named rather than run inside
-Phase 0: the 34 components left in `packages/ui/src/components`, then the 160 of
-`apps/client/components`, then the 54 of `apps/admin/components` once the admin Storybook is
-re-created, under the ratchet `pnpm check:stories` and the canon row of #443. Slice `0.16`, date-gated
-to Node 26's LTS on 2026-10-28, stayed a dated maintenance unit outside the close
-([D46](#decisions-log), [D51](#decisions-log)), and landed ahead of that date on 2026-10-15 by the
-owner's decision ([D52](#decisions-log), ADR-0038; branch `workstream/node-26`).
+Phase 0 closed on 2026-10-06 ([D51](#decisions-log)); the story backfill's follow-up slices are named
+there. Row 0.16 landed ahead of Node 26's LTS date on 2026-10-15 ([D52](#decisions-log)) and stays 🔄
+until task 0.16.3 moves the homelab host and the local worktrees.
 
 | Phase | WU     | Title                                                                       | Status | PR                            | Evidence                                | Date       |
 | ----- | ------ | --------------------------------------------------------------------------- | ------ | ----------------------------- | --------------------------------------- | ---------- |
@@ -993,6 +385,7 @@ recorded in D43 (e), so the ids run D43 → D45.
 | D50 | Whether a maturity review finished before its milestone may be recorded early, and how its `date` stays honest (pnpm and memfs, both due 2026-10-06)       | wait for 2026-10-06T00:00Z, the memo's plan (A) · date the records 2026-10-06, the milestone, a day after they were written (B) · record them early, a documented exception the list bounds (C)         | **C: early, bounded and documented in the list itself** (Edward, 2026-10-05). **(a) The rule.** A review due within two days may be recorded before its milestone: it carries `early: { reason }`, precedes the milestone by at most `EARLY_DAYS = 2`, and is dated the day it is written, never after the day the list is read. `validate()` refuses a review dated after that day, a review dated before its milestone with no `early` field, an early review more than 2 days early or without a reason, and an `early` field on a review that is not early; `--check`, `--remind` and the `fitness.yml` step apply the same rules. **(b) Not taken.** (A) leaves two finished reviews out of the list until the milestone; (B) is the `date` the memo refused as dishonest, a day after the record was written, which the list had no upper bound to catch. **(c) What stays due.** An early review counts as recorded, and the later milestone still happens: memfs 4.80.0's 14-day review on 2026-10-13; pnpm 12.6.0, `flagged`, stays on the list until the `packageManager` bump takes it out of the tree. **(d) Evidence.** `maturityWatchlist.test.ts` was red on 14 of its 68 tests before the change and is green after; four mutants of `scripts/testing/maturity-watchlist.mjs` (an early review not counted as recorded, the 2-day bound made inclusive, `--check` or `--remind` reading the UTC date instead of `--today`) each turn it red; the COMPLETE step's red is in [§Gates](#gates). **(e) Recorded:** pnpm's `final` and memfs's `maturity` reviews, dated 2026-10-05, the registry and OSV re-checked at 14:05Z as they were written.                                                                                                                                                                      | Edward | 2026-10-05 |
 | D51 | Whether Phase 0 closes on 2026-10-06 while the story backfill (task 0.22.3) has 248 components left and slice 0.16 waits for 2026-10-28                    | hold Phase 0 open until the backfill and 0.16 land · close it: tick 0.22.3 with PR E as its first slice, name the follow-ups, and keep 0.16 a dated unit                                                | **Close Phase 0 on 2026-10-06** (Edward, 2026-10-06). **(a) The backfill.** Task 0.22.3 is ticked with PR E (#445) as its first slice: the Button, Card and Input stories moved beside their components, badge, label and avatar gained stories, and the `packages/ui` baseline went 40 → 34. Its follow-up slices are named, not run inside Phase 0: the 34 components left in `packages/ui/src/components`, then the 160 of `apps/client/components`, then the 54 of `apps/admin/components` once the admin Storybook is re-created. `pnpm check:stories` (baseline 34 / 160 / 54, #441) and the canon row of #443 govern them, and the alert story written for E and deferred, kept outside the tree, is the first item of the next slice. **(b) Node 26.** Slice `0.16` stays a dated maintenance unit for Node 26's LTS date, 2026-10-28, outside the close, as [D46](#decisions-log) decided; the watchlist entry `contract-0.16-node-26` opens its review issue that day. **(c) Why.** Both open boxes were calendar or scope questions, not readiness gaps: no later phase depends on Node 26 or on the 248 stories, and the ratchet fails a new component that lands without its story. **(d) Recorded.** Tasks 0.15.3, 0.22.3 and 0.22.6 are ticked in `tasks.md`; the slice's §Work units rows carry their pull request numbers; the N-TEST-1 ficha of `MASTER_PLAN_ES.md` states the close and names the follow-up slices; no metric moves (M1 `971 + 8`, M7 `20/20`)                                                                                                                                                                                                                                                                                                                                                    | Edward | 2026-10-06 |
 | D52 | Whether the runtime moves to Node 26 on its LTS date, 2026-10-28, as slice `0.16` planned, or before it, at the start of the dependency catch-up           | move on 2026-10-28, the LTS date (slice `0.16`, D46, D51) · move now, accept the risk of a Current release and re-check the move on 2026-10-28                                                          | **Move now** (Edward, 2026-10-14 18:0x EDT; landed 2026-10-15, [ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)). **(a) Why.** The dependency catch-up starts with Node: every later unit is certified once, on the runtime it ships with, not on Node 24 first and again after 2026-10-28, and Node 24 enters Maintenance on 2026-10-20. **(b) The move, in one change.** `.nvmrc` 26; `engines.node` `>=26.11.1 <27` in all 101 manifests, 26.11.1 being the latest mature 26.x and what `setup-node` installs for `"26"`; `@types/node` 26.6.5 under the owner's 72-hour rule; the four Dockerfiles on `node:26.11.1-bookworm-slim` and `distroless/nodejs26-debian13`, by digest, with pnpm 12.6.0 from its release because Node 26 ships no corepack; every workflow on 26. The engines gate refuses a process, a manifest or a `@types/node` pin on another major than `.nvmrc`, so no site could move alone; `pnpm install` itself does not refuse a Node 24 process here (no `engineStrict`, measured). **(c) The risk.** Node 26 is Current until 2026-10-28, and Prisma does not recommend Current for production; the watchlist entry `contract-0.16-node-26` re-checks the LTS promotion, the distroless digest and the pins on 2026-10-28. **(d) What it amends.** Slice `0.16`'s "the runtime follows LTS, never Current", for this move; three of its four tasks are ticked in `tasks.md` (0.16.3 waits for the homelab host and the local worktrees, moved by unit N3; the two TS7022 the `@types/node` 26 `assert.ok` overloads raised in the threading tests are fixed, ratchet 2133), and its RED (0.16.2) was run on a copy of the base tree under Node 24.15.0.                                                                                                                                        | Edward | 2026-10-15 |
+| D53 | Whether the tracker stays one page, and what rows 8.2, 8.3, 8.4 and 8.7 read once `docs/archive` is abolished                                              | one page, the §Medidor structure of design §2l · three pages: the entry, the fixed plan and the measurements                                                                                            | **Three pages** (Edward, 2026-10-17), by his rule on documents: content first, concise, no history. **(a) The split.** This page keeps the state, the metrics, the work units, the gates, the decisions, the declared gaps and [§Log](#log), one line per unit; [TESTING_REFOUNDATION_PLAN.md](TESTING_REFOUNDATION_PLAN.md) holds the fixed plan, unchanged; [TESTING_REFOUNDATION_MEASUREMENTS.md](TESTING_REFOUNDATION_MEASUREMENTS.md) holds the toolchain-lag and OSV measurements. **(b) Rows 8.2, 8.3, 8.4 and 8.7** read "deleted" where the plan says "archived": the owner abolished `docs/archive` on 2026-10-16, so #633 deleted those documents and git keeps them; this row is that re-plan. **(c) What it supersedes.** The single-page "§Medidor" structure of openspec `testing-refoundation`, `design.md` §2l (line 434) and `tasks.md` task 0.1.1 (line 81). No metric moves                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Edward | 2026-10-17 |
 
 ### Declared gaps
 
@@ -1016,6 +409,66 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 | The secret scan does not read the lines a merge commit introduces while resolving a conflict: `git log -p` shows no diff for merges                                                                                                        | found on 2026-10-02 while disposing the secret-scan findings; reading merge resolutions changes what the scan reads, and the drain (D28) takes nothing new                                                                                                                                                            | —                                  |
 | The post-edit hook reports a possible leak on workflow files for connection strings that predate the edit; the commit-time scan passes                                                                                                     | the hook is outside this workstream                                                                                                                                                                                                                                                                                   | hooks backlog                      |
 
+### Log
+
+Newest first; a line with no date or no pull request number is one whose record named none.
+
+- 2026-10-17 — rows 8.2, 8.3, 8.4 and 8.7 (`workstream/docs-minimization-granular`) — #633 (`4e73e6dc`) — their documents deleted with `docs/archive` ([D53](#decisions-log)); four rows ✅, no metric
+- 2026-10-16 — C-P1b, `PR cp1b` (`workstream/night-cp1b-register-500`) — registration answers one `409 EMAIL_EXISTS` for every held address, live or deleted, and the account save joins the Unit of Work — M1 `1007 + 14` → `1010 + 14`
+- 2026-10-16 — reach-engine hardening, `PR reach` (`workstream/night-r2-reach-engine`), book rows SB-123 to SB-146 — the CLIs refuse bad input and name their output caps; `describeExit` words every failed child — M1 `1006 + 14` → `1007 + 14`
+- 2026-10-15 — C-P1 of `dependency-catch-up-2026-10-15`, `PR cp1` (`workstream/night-cp1-prisma-7-10`) — one reader of a Prisma 7 constraint violation, `infra/prisma/src/extensions/constraintViolation.ts` — M1 `1003 + 14` → `1006 + 14`
+- 2026-10-15 — unit M1 of `dependency-catch-up-2026-10-15`, `PR pdeps` (`workstream/patched-dependencies-gate`) — fitness #48 `pnpm check:patched-deps`, battery step `patched-deps` (`PLANNED_STEPS` 26 → 27), a 6-hourly registry watch — M1 `1002 + 14` → `1003 + 14`, M7 `37/37` → `38/38`
+- 2026-10-15 — slice `0.16` (`workstream/node-26`) — Node 26 ahead of its LTS date ([D52](#decisions-log), ADR-0038); row 0.16 🔄
+- 2026-10-14 — U15, WU-1.11 part C, `PR R17` (`workstream/refound-1-exclude-rule`) — reach rule C2: each resolved vitest `exclude` holds `RESERVED_TIER_EXCLUDES`; closes SB-105; DD-20's static clause retired — M1 `1001 + 14` → `1002 + 14`, M7 `36/36` → `37/37`
+- 2026-10-14 — WU-1.12, `PR R12b` (`workstream/refound-1-scopes-wire`) — the `#36` step runs `scopes` in the `test-contracts` job; closes WU-1.12 — M7 `35/35` → `36/36`
+- 2026-10-14 — WU-1.12, `PR R12a` (`workstream/refound-1-scopes`) — `pnpm --filter @packages/test-contracts scopes` (rule S1); a dead glob deleted from `packages/query-client` — M1 `999 + 14` → `1001 + 14`
+- 2026-10-14 — WU-1.16, `PR R16b` (`workstream/refound-1-node-collector`) — `run-tests.sh` reads the reporter's `@@SUMMARY` line, not TAP; #31 B pins it; closes WU-1.16 — M7 `34/34` → `35/35`
+- 2026-10-14 — WU-1.16, `PR R16a` (`workstream/refound-1-node-reporter`) — `scripts/testing/node-summary-reporter.mjs` over Node's test events (DD-7) — M1 `998 + 14` → `999 + 14`
+- 2026-10-14 — WU-1.11, `PR R11` (`workstream/refound-1-script-contract`) — reach rule C1 (`test` is `vitest run`); #31 A reads every tracked `*.json`, `*.ts`, `*.mts` and `*.yml`; #30 refuses an entry the base quarantine lacks; closes WU-1.11 — M7 `32/32` → `34/34`
+- 2026-10-14 — `PR R10b` (`workstream/refound-1-metrics-m5`) — M5 derived from the reach engine and the quarantine — M5 `23 · 0` → `29 · 0`
+- 2026-10-14 — WU-1.10, `PR R10` (`workstream/refound-1-test-contracts-job`) — fitness #30 derived in the `Test Contracts` job, the interim ratchet retired, a quarantine of 29; closes WU-1.9 and WU-1.10 — M7 `31/31` → `32/32`
+- 2026-10-11 — JSDoc gate, `PR jsdoc` (`workstream/jsdoc-gate`) — `pnpm check:jsdoc`, battery step `jsdoc` (`PLANNED_STEPS` 25 → 26), fitness #47; reserved numbers WU-3.9/3.10 #48, WU-3.13 #49, WU-4b.7 #50 — M1 `991 + 14` → `993 + 14`, M7 `29/29` → `30/30`
+- 2026-10-10 — WU-1.8, `PR R8d` (`workstream/phase1-u8-live-collector`) — `run-tests.sh <paths>` runs those suites in their tiers and refuses a path no tier runs; closes WU-1.8 — no metric
+- 2026-10-10 — WU-1.8, `PR R8c` (`workstream/phase1-u8-live-collector`) — each saga suite carries its tier's suffix — no metric
+- 2026-10-10 — WU-1.8, `PR R8b` (`workstream/phase1-u8-live-collector`) — the live tier collected by `*.live.test.ts`; quarantined `trendRadarRoutes`, `universal-client-dashboard` and `aiLocalizedRoutes` (DEF-81); fitness #30 10 → 3 — no metric
+- 2026-10-10 — WU-1.8, `PR R8a` (`workstream/phase1-u8-live-collector`) — `probe_live` before each live file; `ci.yml` exports `TEST_API_URL` and `TEST_WORKERS_READY_URL` — M7 `28/28` → `29/29`
+- 2026-10-10 — WU-1.9, `PR R9b9` — `reach` runs the vitest, node:test, Playwright and k6 collectors and reports R1 to R3, outside CI — no metric
+- 2026-10-10 — WU-1.9, `PR R9b8` — R1 and R3 count only the sources a required check runs — no metric
+- 2026-10-10 — WU-1.9, `PR R9b7` — rule R2 holds `collectors.json` to the workflows and the ruleset; `yaml` 2.9.1 enters `packages/test-contracts` — no metric
+- 2026-10-10 — WU-1.9, `PR R9b6` — check names rendered per matrix combination — no metric
+- 2026-10-10 — WU-1.9, `PR R9b5` — readers of `collectors.json` and of a ruleset's required checks — M1 `990 + 14` → `991 + 14`
+- 2026-10-10 — WU-1.9, `PR R9b4` — the Playwright collector — no metric
+- 2026-10-10 — WU-1.9, `PR R9b3` — the Playwright JSON report reader — M1 `989 + 14` → `990 + 14`
+- 2026-10-10 — WU-1.9, `PR R9b2` — the node:test collector over `run-tests.sh --list` — no metric
+- 2026-10-10 — WU-1.9, `PR R9b1` — the k6 collector and the `--list` reader; `trackedConfigs` in `registry.ts` — M1 `987 + 14` → `989 + 14`
+- 2026-10-10 — WU-1.7, `PR R7b4` (`workstream/phase1-u7b-s4`) — `TEST_ORDER=reverse`; closes WU-1.7 — no metric
+- 2026-10-10 — WU-1.7, `PR R7b3` (`workstream/phase1-u7b-s3`) — the services tier collected by `*.integration.test.ts`; fitness #30 interim, 20 → 10 — M7 `27/27` → `28/28`
+- 2026-10-10 — WU-1.7, `PR R7b2` (`workstream/phase1-u7b-s2`) — the runner suites account for failures by file — no metric
+- 2026-10-10 — WU-1.2b, `PR R2b3` (`workstream/phase1-u11-s2b`) — source-resolution gate: each workspace import of a collected test resolves to `src/` under any `NODE_ENV` — M7 `26/26` → `27/27`
+- 2026-10-10 — WU-1.2b, `PR R2b2` (`workstream/phase1-u11-s2a`) — `runtimeSpecifiers` and `owningPackage` in `source-resolution.ts` — M1 `986 + 14` → `987 + 14`
+- WU-1.2b, `PR R2b1` (`d7ade2f3`) — `SOURCE_CONDITIONS` on `resolve.conditions` and `ssr.resolve.conditions` of the factory and the `apps/api` and `apps/workers` configs
+- 2026-10-10 — WU-1.7, `PR R7b1` (`workstream/phase1-u7b-services-collector`) — `run-tests.sh --list` and an empty quarantine, `packages/test-contracts/quarantine.json` — no metric
+- 2026-10-10 — WU-1.7, `PR R7a` (`workstream/phase1-u7a-unit-per-file`) — each listed file runs alone and fails by name; closes SMELL-74 — M7 `25/25` → `26/26`
+- 2026-10-10 — WU-1.3, `PR R3b` (`workstream/phase1-u3-close-security-scripts`) — `security-scan.sh` and `vulnerability-report.ts` deleted with the last subset scripts; closes WU-1.3
+- 2026-10-09 — WU-1.6, `PR R6` (`workstream/phase1-u6-runner-collector-only`) — `run-tests.sh` collects integration only and exits 2 without `DATABASE_URL`; closes DEF-67 — M7 `24/24` → `25/25`
+- WU-1.5, `PR R5` (`workstream/phase1-u5-tier-rename`) — 98 node:test files renamed by measured tier, 80 `*.integration.test.ts` and 18 `*.live.test.ts`; typecheck ledger re-keyed at 2135 — no metric
+- WU-1.9, `PR R9a`, four stacked pull requests — `packages/test-contracts`: the vitest collector, R1, R3 and the `reach` CLI, outside CI — M1 `980 + 14` → `985 + 14`, M8 `1/91` → `1/92`
+- WU-1.4, `PR R4` (`workstream/phase1-u4-timing-in-tests`) — per-batch timeouts moved into nine suites; the rate-limit block waits out its window — M7 `23/23` → `24/24`
+- WU-1.3, `PR R3` (`workstream/phase1-u3-double-collection`) — `eval.yml`, the `custom-security-tests` job and 24 subset scripts removed — M5 second figure `≥10` → `0`
+- U5a, WU-1.5's precondition — the measured tier of the 98 node:test files, integration 80, live 18, hermetic 8 ([plan §U5a](TESTING_REFOUNDATION_PLAN.md#u5a--measured-tier-of-the-nodetest-population-2026-10-08)) — no metric
+- WU-1.2, `PR R2` (`workstream/phase1-u2-reserved-suffixes`) — `RESERVED_TIER_EXCLUDES` in every vitest config; Playwright collects `**/*.spec.ts` only — M7 `22/22` → `23/23`
+- WU-1.1, `PR R1` (`workstream/phase1-u1-suffixes`) — 30 vitest files off `.integration.test.*`; the k6 scenarios named `*.k6.js` — M1 `980 + 8` → `980 + 14`
+- SUP-1 (§5.15), `workstream/support-fitness-46` — fitness #46, `pnpm check:support`, in CI — no metric
+- SUP-1, `workstream/support-sup1-nonfeatures` — `scripts/support/non-features.mjs`, battery step `support` — M1 `979 + 8` → `980 + 8`, M7 `21/21` → `22/22`
+- SUP-1, `workstream/support-sup1-index` — `scripts/support/index.mjs`, `run.mjs` and `docs/support/_TEMPLATE.md` — M1 `978 + 8` → `979 + 8`
+- SUP-1, `workstream/support-sup1-lib` — the support front-matter parser's suite — M1 `977 + 8` → `978 + 8`
+- LEGAL-3 (§5.10), `workstream/legal-l2-gate` — fitness #45, `pnpm check:legal`, and battery step `legal` — M7 `20/20` → `21/21`
+- §5.10, six units (`workstream/legal-l1a-lib`, `legal-l1a-generators`, `legal-l1b-scanner`, `legal-l1b-scanners`, `legal-l1c-oauth-scopes`, `legal-l1d-subprocessors`) — the inventory library, the source scanner and four generators, a suite each — M1 `971 + 8` → `977 + 8`
+- Phase 0 close (`workstream/0-22-h-phase0-close`) — #449 — task 0.22.3 ticked with PR E as its first slice ([D51](#decisions-log)) — no metric
+- Storybook 10.6.0 → 10.6.1 hold bump (`workstream/hold-storybook-10-6-1`) — #447 — the holds rows
+- DEF-49, the Tailwind `@source` fix beneath PR E (`workstream/tailwind-ui-source-fix`) — #444 — M1 `969 + 8` → `971 + 8`
+- 2026-10-05 — item (v) of the replacement plan ([D43](#decisions-log), [D49](#decisions-log)) — #408, #410 to #418 (`main` at `3d295d01`) — `PR v` (#408, `workstream/item-v-cruiser`) dependency-cruiser 18.4.0 over every import, `no-circular` for madge; `PR v-a` (#410, `item-v-docs`) ADR-0032, ADR-0033, §5.12; `PR v-b` (#411, `item-v-rules`) hard layer rules, shrink-only baseline at 138; `PR v-c` (#412, `item-v-boundaries`) `eslint-plugin-boundaries` retired; `PR v-d1` (#413, `item-v-logger-a`) and `PR v-d2` (#414, `item-v-logger-port`) the core's `LoggerPort`; `PR v-e1` to `PR v-e3` (#415 to #417, `item-v-cheap-*`) three routes wired from the composition root, baseline 124; #418 (`item-v-book`) SB-059 to SB-070 and DEF-16 to DEF-26
+
 ---
 
 ## How to extend
@@ -1031,8 +484,12 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 
 ### Move a metric
 
-1. Move it in the pull request that moved it — never in a separate tracker pull request.
-2. Update `Now`, fill `Moved by` with that pull request, and refresh the `As of` line in the header.
+1. Move it in the pull request that moved it — never in a separate tracker pull request; a
+   [re-plan](#re-plan) is the one exception.
+2. Update `Now`, fill `Moved by` with that pull request's alias, and refresh the `As of` line, which
+   moves with the last pull request that moved a row. Every unit that moves a row, a metric or a gate
+   adds one line at the top of [§Log](#log), newest first:
+   `- YYYY-MM-DD — <unit, alias, branch> — #<PR> (<merge sha>) — <what moved>`.
 3. If the value comes from a derivation, re-run `scripts/testing/metrics.mjs --m<N>` and use its output
    verbatim. If it comes from a run, name the run id in `Re-derive with`.
 4. A new metric MUST name a command that produces it. A metric with an empty `Re-derive with` is
