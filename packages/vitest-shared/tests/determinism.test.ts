@@ -114,6 +114,24 @@ describe("until", () => {
     expect(predicate).toHaveBeenCalledTimes(5);
   });
 
+  it("keeps the deadline when the interval is longer than the timeout", async () => {
+    const predicate = vi.fn(() => false);
+    const waiting = until(predicate, {
+      description: "an interval longer than the timeout",
+      timeoutMs: 50,
+      intervalMs: 100,
+    });
+    const state = track(waiting);
+
+    await vi.advanceTimersByTimeAsync(49);
+    expect(state.settled).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(waiting).rejects.toThrow("timed out after 50 ms");
+    // Probes at 0 and at the 50 ms deadline: the one pause is cut from 100 ms to 50 ms.
+    expect(predicate).toHaveBeenCalledTimes(2);
+  });
+
   it("reads a description function once, at the deadline, never while probing", async () => {
     let lastSeen = "nothing yet";
     const description = vi.fn(() => `the row to settle (last seen: ${lastSeen})`);
