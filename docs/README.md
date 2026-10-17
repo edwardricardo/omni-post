@@ -70,15 +70,17 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 
 ## Development
 
-| Document                                                                          | What it covers                                                   |
-| --------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [Testing Re-foundation](development/TESTING_REFOUNDATION.md)                      | Progress tracker and fixed plan of the testing re-foundation     |
-| [Foundation Practices](development/FOUNDATION_PRACTICES.md)                       | Practices the next application adopts from its first commit      |
-| [Saga Test Suites](development/saga-test-suites.md)                               | Running the saga test suites                                     |
-| [Knip Baseline](development/knip-baseline.md)                                     | The dead-code gate and its ratchet; the jscpd duplicate baseline |
-| [Env Backup and Restore](development/ENV_BACKUP.md)                               | Backing up and restoring `.env`                                  |
-| [Admin to Client Migration Guide](development/ADMIN_TO_CLIENT_MIGRATION_GUIDE.md) | Admin fixes and patterns mapped to `apps/client`                 |
-| [Technical Stack](technical/DEPENDENCIES.md)                                      | Stack reference with measured versions, updated with each change |
+| Document                                                                               | What it covers                                                   |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [Testing Re-foundation](development/TESTING_REFOUNDATION.md)                           | Progress tracker of the testing re-foundation                    |
+| [Testing Re-foundation Plan](development/TESTING_REFOUNDATION_PLAN.md)                 | Fixed plan of the testing re-foundation, phases 0–9              |
+| [Testing Re-foundation Measurements](development/TESTING_REFOUNDATION_MEASUREMENTS.md) | Toolchain-lag and OSV measurements of the testing re-foundation  |
+| [Foundation Practices](development/FOUNDATION_PRACTICES.md)                            | Practices the next application adopts from its first commit      |
+| [Saga Test Suites](development/saga-test-suites.md)                                    | Running the saga test suites                                     |
+| [Knip Baseline](development/knip-baseline.md)                                          | The dead-code gate and its ratchet; the jscpd duplicate baseline |
+| [Env Backup and Restore](development/ENV_BACKUP.md)                                    | Backing up and restoring `.env`                                  |
+| [Admin to Client Migration Guide](development/ADMIN_TO_CLIENT_MIGRATION_GUIDE.md)      | Admin fixes and patterns mapped to `apps/client`                 |
+| [Technical Stack](technical/DEPENDENCIES.md)                                           | Stack reference with measured versions, updated with each change |
 
 ## Deployment
 

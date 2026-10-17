@@ -15,7 +15,7 @@
 
 ## Context
 
-Measured in the week to 2026-10-14 (tracker §Toolchain lag, holds log lines 21–31):
+Measured in the week to 2026-10-14 ([TESTING_REFOUNDATION_MEASUREMENTS.md](../development/TESTING_REFOUNDATION_MEASUREMENTS.md) §Toolchain lag, the count's history, entries 21–33):
 
 1. **The gate goes red on the day a release matures.** `scripts/testing/holds-gate.mjs` compares
    each package of the **toolchain population** — the 50 packages listed in
@@ -171,8 +171,9 @@ post-deployment check is added, changed or retired`
 
 - [ADR-0018](ADR-0018-dependency-freshness-canon.md) — the freshness canon this amends
 - [ADR-0019](ADR-0019-pnpm-11-migration.md) — pnpm 11, and the `minimumReleaseAge` revisit
-- Tracker: [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) §Toolchain lag (holds
-  log lines 21–32), §Gates row "Testing toolchain holds", decisions D20, D25, D45 and D50
+- Measurements: [TESTING_REFOUNDATION_MEASUREMENTS.md](../development/TESTING_REFOUNDATION_MEASUREMENTS.md) §Toolchain lag (the
+  count's history, entries 21–33)
+- Tracker: [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) §Gates row "Testing toolchain holds", decisions D20, D25, D45 and D50
 - Canon: [SECURITY_CANON.md](../security/SECURITY_CANON.md) §"Build-tool version holds & dated-debt
   overrides"
 - Contract: `openspec/changes/testing-refoundation/specs/testing-toolchain-alignment/spec.md`,
