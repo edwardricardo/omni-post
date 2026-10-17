@@ -5,9 +5,25 @@
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
-import Fastify from "fastify";
-import { autoCachePlugin } from "../../src/middleware/autoCacheMiddleware.js";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
+import { autoCachePlugin, createCacheReadHook } from "../../src/middleware/autoCacheMiddleware.js";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
+
+/** An in-memory cache that records the key of every read. */
+class RecordingCache extends InMemoryCacheAdapter {
+  readonly reads: string[] = [];
+
+  /**
+   * @method get
+   * @description Records the key, then reads it as the in-memory adapter does.
+   * @param key - The key to read
+   * @returns The cached value, or `null` on a miss
+   */
+  override async get<T>(key: string): Promise<T | null> {
+    this.reads.push(key);
+    return super.get<T>(key);
+  }
+}
 
 describe("autoCacheMiddleware - Registration and GET Caching", () => {
   describe("Plugin Registration", () => {
@@ -43,6 +59,28 @@ describe("autoCacheMiddleware - Registration and GET Caching", () => {
 
       expect(app.printRoutes).toBeTruthy();
       await app.close();
+    });
+  });
+
+  describe("Cache read hook", () => {
+    it("never reads the cache for a request without a route pattern", async () => {
+      const cache = new RecordingCache();
+      const readFromCache = createCacheReadHook(cache, false);
+      // `/posts` is a cached rule's pattern, so a hook that fell back to the raw path
+      // would find the rule and read the cache under a key no route ever writes.
+      const request = {
+        method: "GET",
+        url: "/posts",
+        routeOptions: {},
+        params: {},
+        query: {},
+        headers: {},
+      } as unknown as FastifyRequest;
+
+      const result = await readFromCache(request, {} as unknown as FastifyReply);
+
+      expect(result).toBeUndefined();
+      expect(cache.reads).toEqual([]);
     });
   });
 

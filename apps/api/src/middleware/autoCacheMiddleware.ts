@@ -121,11 +121,12 @@ function withHookAppended<T>(existing: T | readonly T[] | undefined, hook: T): T
  *   already carry, so the headers of this request (its correlation id, its rate-limit
  *   state) are never replaced by the ones of the request that filled the cache. On a MISS
  *   it leaves the key on the request for the `onSend` hook to store the response under.
+ *   Exported for its unit tests; the plugin is its only production caller.
  * @param cache - The cache port to read from
  * @param logCacheOps - Whether to log hits and read errors
  * @returns The pre-handler hook
  */
-function createCacheReadHook(
+export function createCacheReadHook(
   cache: CachePort,
   logCacheOps: boolean
 ): (request: FastifyRequest, reply: FastifyReply) => Promise<FastifyReply | undefined> {
@@ -134,7 +135,12 @@ function createCacheReadHook(
       return undefined;
     }
 
-    const route = request.routeOptions.url ?? request.url;
+    // Without a route pattern there is no rule to look up, and the raw path would build a
+    // different key, so the request is answered as uncached.
+    const route = request.routeOptions.url;
+    if (route === undefined) {
+      return undefined;
+    }
     const config = getCacheConfig("GET", route);
     if (!config || !config.enabled) {
       return undefined;
