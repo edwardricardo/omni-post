@@ -65,10 +65,10 @@ The platform's two cryptographic roots. Both are required at boot; the
 API and workers refuse to start without them. They protect every
 encrypted-at-rest credential downstream.
 
-| Name                      | Format                  | Used by                                         | Encrypts                                                                                                                                                         | Rotation cadence  | Notes                                                                                                                                  |
-| ------------------------- | ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_ENCRYPTION_KEY` | base64-decoded 32 bytes | `EncryptionService`, `ChannelCredentialsCrypto` | Class A columns: `Channel.credentials`, `PlatformCredential.*`, `AccountCredential.*`, `OidcConfiguration.clientSecret`, `ExternalNotificationConfig.webhookUrl` | NIST 1 year (KEK) | `keyVersion` graceful-rotation window: prior keys live in `PLATFORM_ENCRYPTION_KEY_V{N}` during cutover. AAD-bound `EncryptionContext` |
-| `OAUTH_ENCRYPTION_KEY`    | hex-decoded 32 bytes    | `enhancedOAuthProvider`                         | `ProviderConnection.accessToken`, `.refreshToken`, `.apiSecret` (inline `iv:authTag:ciphertext` format)                                                          | NIST 1 year (KEK) | Single-version key today; same rotation pattern applies                                                                                |
+| Name                      | Format                  | Used by                                         | Encrypts                                                                                                                                                         | Rotation cadence  | Notes                                                                                                                                                                           |
+| ------------------------- | ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLATFORM_ENCRYPTION_KEY` | base64-decoded 32 bytes | `EncryptionService`, `ChannelCredentialsCrypto` | Class A columns: `Channel.credentials`, `PlatformCredential.*`, `AccountCredential.*`, `OidcConfiguration.clientSecret`, `ExternalNotificationConfig.webhookUrl` | NIST 1 year (KEK) | `keyVersion` graceful-rotation window: prior keys live in `PLATFORM_ENCRYPTION_KEY_V{N}` during cutover. AAD-bound `EncryptionContext`                                          |
+| `OAUTH_ENCRYPTION_KEY`    | hex-decoded 32 bytes    | No reader                                       | Nothing: no model has the `ProviderConnection` columns it was described as protecting                                                                            | NIST 1 year (KEK) | Required at boot (`apps/api/src/config/env.ts`) and named in `secretCatalog.ts`; wiring or deleting it is the owner's decision in `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16 |
 
 **Generation.** `openssl rand -base64 32` for `PLATFORM_ENCRYPTION_KEY`,
 `openssl rand -hex 32` for `OAUTH_ENCRYPTION_KEY`.
@@ -343,9 +343,8 @@ in one of five classes:
 | `ExternalNotificationConfig.webhookUrl`                  | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | URLs may carry embedded auth tokens (Slack, Teams)                        |
 | `PlatformCredential.encryptedValue` + `.iv` + `.authTag` | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | Generic platform-credential blob                                          |
 | `AccountCredential.encryptedValue` + `.iv` + `.authTag`  | `PLATFORM_ENCRYPTION_KEY` | Envelope columns                                                                                     | Per-account credential blob                                               |
-| `ProviderConnection.accessToken`                         | `OAUTH_ENCRYPTION_KEY`    | Inline `iv:authTag:ciphertext` (single column)                                                       | Per-tenant OAuth access tokens                                            |
-| `ProviderConnection.refreshToken`                        | `OAUTH_ENCRYPTION_KEY`    | Inline format                                                                                        | Per-tenant OAuth refresh tokens                                           |
-| `ProviderConnection.apiSecret`                           | `OAUTH_ENCRYPTION_KEY`    | Inline format                                                                                        | Per-tenant provider API secrets                                           |
+
+`OAUTH_ENCRYPTION_KEY` encrypts none of these: no code reads it, and the `ProviderConnection` model it was described as protecting is not in the schema (§3; `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16). Per-channel OAuth tokens live in `Channel.credentials`.
 
 Rotation = re-wrap with the new KEK version using the
 `*KeyVersion` discriminator. Procedure in
@@ -384,13 +383,12 @@ update the `WebhookSubscription` row. Detailed rotation cadence in
 
 ### 6.4 Class E — Temporary tokens
 
-| Model.field                     | Generation                        | TTL                 | Validation                                   |
-| ------------------------------- | --------------------------------- | ------------------- | -------------------------------------------- |
-| `AdminUser.passwordResetToken`  | `crypto.randomUUID()`             | 1 hour              | Plaintext lookup; UUID v4 = 122 bits entropy |
-| `AdminUser.emailVerifyToken`    | Similar                           | per-token           | Plaintext lookup                             |
-| `CustomerUser.emailVerifyToken` | Similar                           | `emailVerifyExpiry` | Plaintext lookup                             |
-| `CustomerUser.resetToken`       | `randomBytes(32).toString('hex')` | 1 hour              | Plaintext lookup; 256 bits entropy           |
-| `TeamMember.inviteToken`        | Similar                           | `inviteTokenExpiry` | Plaintext lookup                             |
+| Model.field                     | Generation                        | TTL                         | Validation                                   |
+| ------------------------------- | --------------------------------- | --------------------------- | -------------------------------------------- |
+| `AdminUser.passwordResetToken`  | `crypto.randomUUID()`             | 1 hour                      | Plaintext lookup; UUID v4 = 122 bits entropy |
+| `CustomerUser.emailVerifyToken` | None: no code issues it           | `emailVerifyExpiry`         | Plaintext lookup                             |
+| `CustomerUser.resetToken`       | `randomBytes(32).toString('hex')` | 1 hour                      | Plaintext lookup; 256 bits entropy           |
+| `CustomerUser.inviteToken`      | `crypto.randomUUID()`             | 7 days, `inviteTokenExpiry` | Plaintext lookup                             |
 
 These are not "rotated" in the traditional sense — they expire and are
 discarded. The lifecycle is: issued by API → emailed to user once →
@@ -638,7 +636,7 @@ Immediate steps:
 3. Force a global session invalidation (rotate JWT signing keys per
    §4.3 with the dual-key window).
 4. Force every tenant to reconnect every provider channel (treat all
-   `ProviderConnection` rows as compromised).
+   `Channel.credentials` rows as compromised).
 5. Engage the compliance / legal channel for breach notification.
 6. Cross-reference [T0A §6](./T0A_SECRETS_ROTATION_RUNBOOK.md#6-verification-checklist-post-rotation)
    verification checklist.
@@ -651,7 +649,7 @@ Immediate steps:
 
 1. Re-issue the client secret in the provider's developer console.
 2. Update the env var in the runtime store.
-3. Existing per-tenant OAuth tokens (`ProviderConnection.*`) remain valid
+3. Existing per-tenant OAuth tokens (`Channel.credentials`) remain valid
    because they are independent of the client secret; the client secret
    is only used during initial consent and refresh-token exchange.
 4. Watch for refresh-token failures over the next refresh cycle and
