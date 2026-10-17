@@ -169,8 +169,10 @@ class PostgresStressTest {
 
         queryCount++;
 
-        // Small delay to prevent overwhelming the database
-        await this.sleep(Math.random() * 10);
+        // fixed-wait: interleaving — random think time of up to 10 ms between one connection's
+        // queries, so the concurrent connections drift apart instead of issuing in lockstep; it
+        // shapes the generated load and waits on no result.
+        await new Promise<void>((resolve) => setTimeout(resolve, Math.random() * 10));
       } catch (error) {
         this.errors.push(`Connection ${connectionId}: ${error.message}`);
 
@@ -179,8 +181,12 @@ class PostgresStressTest {
           this.deadlocks++;
         }
 
-        // Exponential backoff on error
-        await this.sleep(Math.min(1000, Math.pow(2, this.errors.length)));
+        // fixed-wait: poll-step — exponential backoff, capped at 1 s, before this connection's
+        // next attempt after a failed query, so a failing database is not hammered by a tight
+        // error loop until the run's end time.
+        await new Promise<void>((resolve) =>
+          setTimeout(resolve, Math.min(1000, Math.pow(2, this.errors.length)))
+        );
       }
     }
 
@@ -450,11 +456,14 @@ class PostgresStressTest {
         console.log(
           `📊 Active connections: ${activeConnections[0].count}, Long queries: ${longQueries[0].count}, Waiting locks: ${locks[0].count}`
         );
-
-        await this.sleep(5000); // Check every 5 seconds
       } catch (error) {
         console.warn("Monitoring error:", error.message);
       }
+
+      // fixed-wait: poll-step — the monitor samples pg_stat_activity and pg_locks every 5 s until
+      // the run's end time, after a failed sample as after a good one; the samples are its output,
+      // there is no result to wait for.
+      await new Promise<void>((resolve) => setTimeout(resolve, 5000));
     }
   }
 
@@ -496,13 +505,6 @@ class PostgresStressTest {
     }
 
     return projects[Math.floor(Math.random() * projects.length)].id;
-  }
-
-  /**
-   * Sleep utility
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -604,9 +606,8 @@ async function runPostgresStressTest(): Promise<void> {
       if (metrics.deadlockCount > 0) {
         console.warn(`⚠️  Deadlocks detected: ${metrics.deadlockCount}`);
       }
-
-      // Wait between tests
-      await stressTest.sleep(10000);
+      // No pause before the next configuration: runStressTest awaits every connection loop and
+      // the monitor before it returns, so nothing this run started is still in flight.
     } catch (error) {
       console.error(`❌ Test failed:`, error);
     }

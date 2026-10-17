@@ -300,31 +300,40 @@ describe("DefaultBackgroundTaskScheduler", () => {
     });
 
     it("returns timedOut=true when in-flight callbacks exceed the deadline", async () => {
-      vi.useRealTimers();
       scheduler = new DefaultBackgroundTaskScheduler();
-      // Callback that never resolves — simulates a hung handler.
+      // Callback that never resolves — simulates a hung handler. `immediate` starts it inside
+      // register(), so it is in flight before shutdownAll() takes its snapshot.
       scheduler.register("hung", () => new Promise<void>(() => {}), 5, { immediate: true });
-      // Let the immediate run schedule the in-flight promise.
-      await new Promise((r) => setTimeout(r, 20));
-      const result = await scheduler.shutdownAll(50);
+      let resolved = false;
+      const shutdown = scheduler.shutdownAll(50).finally(() => {
+        resolved = true;
+      });
+
+      // The deadline is the only thing that can end the wait: one millisecond short, it holds.
+      await vi.advanceTimersByTimeAsync(49);
+      expect(resolved).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      const result = await shutdown;
+
       expect(result.timedOut).toBe(true);
       expect(result.taskCount).toBe(1);
-      expect(result.pending).toBeGreaterThanOrEqual(1);
-      vi.useFakeTimers();
+      // shutdownAll() clears the interval before the clock moves, so the immediate run is the
+      // only one ever started.
+      expect(result.pending).toBe(1);
+      expect(result.drained).toBe(0);
     });
 
     it("logs error with timeout context when shutdown times out", async () => {
-      vi.useRealTimers();
       const logger = makeLogger();
       scheduler = new DefaultBackgroundTaskScheduler({ logger });
       scheduler.register("hung", () => new Promise<void>(() => {}), 5, { immediate: true });
-      await new Promise((r) => setTimeout(r, 20));
-      await scheduler.shutdownAll(50);
+      const shutdown = scheduler.shutdownAll(50);
+      await vi.advanceTimersByTimeAsync(50);
+      await shutdown;
       expect(logger.errorCalls).toHaveLength(1);
       const data = logger.errorCalls[0]?.data as { timedOut: boolean; timeoutMs: number };
       expect(data.timedOut).toBe(true);
       expect(data.timeoutMs).toBe(50);
-      vi.useFakeTimers();
     });
   });
 

@@ -14,6 +14,7 @@
 import { describe, it, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import type { PrismaClient } from "@infra/prisma";
+import { until } from "@packages/vitest-shared/determinism";
 import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
@@ -395,18 +396,24 @@ describe("Link Tracking Routes Integration", () => {
       // and a fixed wait races that write (DEF-27: 2 of 3 clicks read on CI twice
       // in one night). Poll the stats until the three clicks arrive or the
       // deadline passes, then assert the exact count.
-      const deadline = Date.now() + 5_000;
       let totalClicks = 0;
-      for (;;) {
-        const statsResponse = await fetch(`${API_URL}/links/${linkId}/stats`, {
-          headers: { Authorization: authHeader },
-        });
-        const statsBody = await statsResponse.json();
-        totalClicks = statsBody.data.totalClicks;
-        if (totalClicks >= 3 || Date.now() >= deadline) break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      await until(
+        async () => {
+          const statsResponse = await fetch(`${API_URL}/links/${linkId}/stats`, {
+            headers: { Authorization: authHeader },
+          });
+          const statsBody = await statsResponse.json();
+          totalClicks = statsBody.data.totalClicks;
+          return totalClicks >= 3;
+        },
+        {
+          description: () => `three recorded clicks on link ${linkId} (last read ${totalClicks})`,
+          timeoutMs: 5_000,
+          intervalMs: 100,
+        }
+      );
 
+      // The wait ends at three or more; more than three would be a double-counted click.
       assert.equal(totalClicks, 3);
     });
   });

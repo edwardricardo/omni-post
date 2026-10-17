@@ -14,8 +14,10 @@ import { PUBLISH_PIPELINE_QUEUES, QUEUE_NAMES } from "@adapters/queue-bullmq";
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
 /**
- * Check if API server is running and available
- * @returns Promise<boolean> - true if API is available
+ * @description Asks the API's `/health` endpoint, with a 3 s bound, whether a server is answering
+ *   at the base URL. A 429 counts as available: the server answered and only refused the request.
+ * @returns `true` when `/health` answers 2xx or 429; `false` on any other status, a transport
+ *   failure or the timeout.
  */
 export async function checkApiAvailable(): Promise<boolean> {
   try {
@@ -34,8 +36,10 @@ export async function checkApiAvailable(): Promise<boolean> {
 }
 
 /**
- * Skip test if API is not available (for integration tests)
- * Usage in test: await skipIfApiUnavailable(t);
+ * @description Marks the calling node:test test as skipped when `checkApiAvailable` reports no
+ *   API. It does not stop the test body: the caller returns after it when the API is missing.
+ *   Usage in test: `await skipIfApiUnavailable(t);`
+ * @param t - The node:test test context whose `skip()` is called.
  */
 export async function skipIfApiUnavailable(t: any): Promise<void> {
   const available = await checkApiAvailable();
@@ -45,7 +49,8 @@ export async function skipIfApiUnavailable(t: any): Promise<void> {
 }
 
 /**
- * Get base URL for API tests
+ * @description Returns the base URL the live suites send their requests to.
+ * @returns `BASE_URL` from the environment, or `http://localhost:3000` when it is unset or empty.
  */
 export function getBaseUrl(): string {
   return BASE_URL;
@@ -187,6 +192,9 @@ async function probeQueueWithRetry(queueName: string): Promise<ProbeOutcome> {
   let outcome = await probeQueue(queueName);
   for (let attempt = 1; attempt < PROBE_ATTEMPTS; attempt++) {
     if (outcome.kind === "attached" || !outcome.retryable) return outcome;
+    // fixed-wait: poll-step — the pause between two probes of a live API, bounded by attempt count
+    // rather than by a deadline: a deadline-bound `until` would drop the second attempt whenever the
+    // first one spends its whole 2 s timeout, and the second attempt is the point of the retry.
     await new Promise<void>((resolve) => setTimeout(resolve, PROBE_RETRY_DELAY_MS));
     outcome = await probeQueue(queueName);
   }
@@ -194,11 +202,11 @@ async function probeQueueWithRetry(queueName: string): Promise<ProbeOutcome> {
 }
 
 /**
- * Verifies that every queue the publish pipeline enqueues to has a consumer
+ * @description Verifies that every queue the publish pipeline enqueues to has a consumer
  * attached, BEFORE a suite creates a fixture or starts a saga.
  *
  * Why it exists: without it, a missing consumer surfaces as three per-test
- * timeouts saying "did not reach terminal state", six minutes into the batch —
+ * timeouts waiting for a terminal state, six minutes into the batch —
  * a symptom four inference steps from the cause. The verdict here is reached in
  * seconds and names the cause.
  *
