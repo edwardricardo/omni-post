@@ -14,15 +14,27 @@ This architecture ensures that authentication tokens are never exposed to client
 
 ## Cookie Configuration
 
-Both applications keep their tokens in httpOnly cookies, defined in each app's `lib/auth/sessionCookie.ts`. The names differ per app to prevent cross-app token leakage. All five cookies carry the same attributes: `httpOnly: true`, `sameSite: "lax"`, `path: "/"`, and `secure` only when `NODE_ENV` is `production`. That includes `admin-csrf`: browser code never reads it, because the admin backend proxy copies it server-side into the `X-CSRF-Token` request header.
+Both applications keep their tokens in httpOnly cookies, defined in each app's `lib/auth/sessionCookie.ts`.
 
-| Cookie                 | Client App (`apps/client`)                         | Admin App (`apps/admin`)                                                 |
-| ---------------------- | -------------------------------------------------- | ------------------------------------------------------------------------ |
-| Access token (session) | `customer-session`, 15 minutes                     | `admin-session`, 15 minutes; 24 hours when the backend proxy rewrites it |
-| Refresh token          | `customer-refresh`, 7 days (30 with "Remember me") | `admin-refresh`, 7 days                                                  |
-| CSRF token             | none                                               | `admin-csrf`, 7 days                                                     |
+The cookie names differ per app, so one app's token is never sent to the other.
 
-The access-token cookie is set for as long as the backend access token lives: 15 minutes for both (`CUSTOMER_JWT_EXPIRY` in `apps/api/src/auth/customerJwt.ts`, `accessTokenExpiration` in `apps/api/src/admin/auth/adminAuthConfig.ts`). One writer sits outside `sessionCookie.ts`: after a `TOKEN_EXPIRED` retry, the admin backend proxy (`app/api/backend/[...path]/route.ts`) rewrites `admin-session` itself, with the same attributes but a 24-hour `maxAge`, so that cookie can outlive the 15-minute token it holds. The admin app has no "Remember me" option.
+There are five cookies: two in the client app and three in the admin app.
+
+All five carry the same attributes: `httpOnly: true`, `sameSite: "lax"`, `path: "/"`, and `secure` only when `NODE_ENV` is `production`.
+
+| Cookie        | Name (app)                  | maxAge                                       | Writer (`lib/auth/sessionCookie.ts`)        |
+| ------------- | --------------------------- | -------------------------------------------- | ------------------------------------------- |
+| Access token  | `customer-session` (client) | 15 minutes                                   | `setSessionCookie()`                        |
+| Refresh token | `customer-refresh` (client) | 7 days; 30 days when "Remember me" is ticked | `setRefreshCookie()`                        |
+| Access token  | `admin-session` (admin)     | 15 minutes (see the exception below)         | `setSessionCookie()`                        |
+| Refresh token | `admin-refresh` (admin)     | 7 days                                       | `setRefreshCookie()`, via `setAuthTokens()` |
+| CSRF token    | `admin-csrf` (admin)        | 7 days                                       | `setCsrfCookie()`, via `setAuthTokens()`    |
+
+Exception: after a `TOKEN_EXPIRED` retry, the admin backend proxy (`apps/admin/app/api/backend/[...path]/route.ts`) rewrites `admin-session` itself, with the same attributes and a 24-hour `maxAge`, so that cookie can outlive the 15-minute token it holds.
+
+Browser code never reads `admin-csrf`: the admin backend proxy copies it server-side into the `X-CSRF-Token` request header.
+
+The access-token cookie lives as long as the backend access token: 15 minutes in both apps. The customer token expires after `CUSTOMER_JWT_EXPIRY` (`15 * 60` seconds, `apps/api/src/auth/customerJwt.ts`) and the admin token after `accessTokenExpiration` (`"15m"`, `apps/api/src/admin/auth/adminAuthConfig.ts`). The admin app has no "Remember me" option.
 
 ## Authentication Flow
 
@@ -151,7 +163,12 @@ const body = await response.json();
 // body.data contains the post list when body.ok is true
 ```
 
-The client proxy also handles the customer auth paths itself: on `auth/customer/login`, `auth/customer/login/mfa`, `auth/customer/register` and `auth/customer/refresh` it moves the tokens from the response body into the two cookies and strips them from the body the browser receives; on `auth/customer/refresh` and `auth/customer/logout` it adds the refresh token from `customer-refresh` to the request body; on `auth/customer/logout` it clears both cookies; and a 401 from `auth/customer/refresh` clears them too.
+The client proxy also handles the customer auth paths itself:
+
+- **`auth/customer/login`, `auth/customer/login/mfa`, `auth/customer/register` and `auth/customer/refresh`:** it moves the tokens from the response body into the two cookies (`persistTokensFromAuthResponse()`) and strips them from the body the browser receives.
+- **`auth/customer/refresh` and `auth/customer/logout`:** it adds the refresh token from `customer-refresh` to the request body when the body carries none.
+- **`auth/customer/logout`:** it clears both cookies.
+- **`auth/customer/refresh` answering 401:** it clears both cookies.
 
 ### Admin App Proxy
 
