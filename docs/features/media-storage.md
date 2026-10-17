@@ -6,7 +6,7 @@
 - **Decisions**: [ADR-0028](../technical/ADR-0028-storage-configuration-and-media-access.md)
   (configuration, access, health) · [ADR-0029](../technical/ADR-0029-media-upload-limits.md) (upload
   limits and verification)
-- **Research**: [research-2026-10-04-storage.md](../reports/research-2026-10-04-storage.md)
+- **Research**: [research-2026-10-04-storage.md](https://github.com/edwardricardo/omni-post/blob/7b3ec1ac7dd7e1d8096ef6b03ad805b9a17d5d81/docs/reports/research-2026-10-04-storage.md) (removed from the repository on 2026-10-17; git history keeps it)
 - **Findings this work closes**: F15 (SMELL-186) in
   [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md); F3 (the
   Instagram provider's own S3 adapter); F4 (the always-unhealthy storage probe)

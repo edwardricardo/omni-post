@@ -16,7 +16,7 @@ On 2026-10-04 Edward decided that Google Cloud Storage and Azure Blob Storage jo
 DigitalOcean Spaces as selectable storage, chosen once at the initial deploy; that storage health
 must come from each platform's own API; and that moving storage between platforms is a future
 research item, not a feature now. The storage research
-([research-2026-10-04-storage.md](../reports/research-2026-10-04-storage.md), Report 2) and the code
+([research-2026-10-04-storage.md](https://github.com/edwardricardo/omni-post/blob/7b3ec1ac7dd7e1d8096ef6b03ad805b9a17d5d81/docs/reports/research-2026-10-04-storage.md), Report 2) and the code
 measured on `main` at `bad953f2` show how far the code is from that:
 
 - **Only environment variables select storage, and GCS and Azure cannot be selected.**
@@ -179,7 +179,7 @@ measured on `main` at `bad953f2` show how far the code is from that:
 
 ## References
 
-- Research: [research-2026-10-04-storage.md](../reports/research-2026-10-04-storage.md) — Report 2
+- Research: [research-2026-10-04-storage.md](https://github.com/edwardricardo/omni-post/blob/7b3ec1ac7dd7e1d8096ef6b03ad805b9a17d5d81/docs/reports/research-2026-10-04-storage.md) (removed from the repository on 2026-10-17; git history keeps it) — Report 2
   (health per provider, upload-size enforcement, migration tools and prerequisites, and where its
   open questions were answered).
 - Specification: [media-storage.md](../features/media-storage.md).
