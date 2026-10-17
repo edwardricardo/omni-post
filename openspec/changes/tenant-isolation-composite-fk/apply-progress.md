@@ -1806,7 +1806,7 @@ HEAD `585a01bb`, carries **12** `Decryption failed: invalid auth tag length` and
 why the decrypt fails — it fails everywhere — but why these three sagas do not terminalize
 inside the suite's 120 s budget here while CI's do. The local failure mode is the timeout, not
 an assertion: `Saga … did not reach terminal state within 120000ms` at 120 188 ms / 120 168 ms /
-120 135 ms. The known precedent class is `docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §H3,
+120 135 ms. The known precedent class is [`docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §H3](https://github.com/edwardricardo/omni-post/blob/d3479d08493b2730765b48e65d66ae1021ba4d01/docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md#L5) (removed from the repository on 2026-10-17; git history keeps it, and the links in this log are its last version),
 which names **these exact three** subtests (3 `runs publish-now end-to-end through the worker
 pipeline`, 4 `reports a multi-channel publish …`, 14 `does NOT compensate steps at or after the
 pivot …`): with no consumer draining the publish queue the saga parks in `waiting` and its only
@@ -1828,7 +1828,7 @@ this change's code, so it could not answer a question about it.
 
 **Carried forward (open question, named owner).** Either diagnose the local non-terminalization,
 or declare the hand-driven local live tier an unsupported measurement surface. The second exit
-is already designed: `SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §Fix 2 proposes a fail-loud consumer
+is already designed: [`SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §Fix 2](https://github.com/edwardricardo/omni-post/blob/d3479d08493b2730765b48e65d66ae1021ba4d01/docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md#L161) proposes a fail-loud consumer
 precondition (assert the publish queue has a live consumer) so a mis-wired environment fails in
 seconds with a named reason instead of burning six minutes and inviting a wrong diagnosis —
 which is exactly what it cost here.
@@ -2020,7 +2020,7 @@ runner loads, both connecting as `omnipost_app`:
 previously non-terminalizing saga-live subtests passed 14/14. One green run is evidence, not a
 closed diagnosis — but it points the diagnosis at the same env-split class (a worker whose key
 set disagrees with the seeder's can never hand the engine a decryptable outcome), consistent
-with `SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §H3's parked-in-`waiting` signature.
+with [`SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §H3](https://github.com/edwardricardo/omni-post/blob/d3479d08493b2730765b48e65d66ae1021ba4d01/docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md#L5)'s parked-in-`waiting` signature.
 
 ## Next (PR 0d-3)
 
@@ -2036,7 +2036,7 @@ spike. Four inputs carry forward from this link:
 3. **The undiagnosed local saga-live non-terminalization** (§Controls). Either diagnose why
    these three sagas miss the 120 s budget locally when CI's do not, or declare the hand-driven
    local live tier an unsupported measurement surface and implement
-   `SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §Fix 2's fail-loud consumer precondition. What is settled is
+   [`SAGA_LIVE_CI_RED_ROOT_CAUSE.md` §Fix 2](https://github.com/edwardricardo/omni-post/blob/d3479d08493b2730765b48e65d66ae1021ba4d01/docs/reports/SAGA_LIVE_CI_RED_ROOT_CAUSE.md#L161)'s fail-loud consumer precondition. What is settled is
    only the classification: arms A and B put it outside both the role and this diff.
 4. **The scheduler scan is narrower than the convention it enforces.** The new
    `schedulerTickTenantScope.test.ts` reads `scheduler.register` call sites in
