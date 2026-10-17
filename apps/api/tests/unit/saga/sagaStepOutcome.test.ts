@@ -16,9 +16,10 @@
  *              what it PERSISTS after each outcome is the whole subject.
  * @layer infrastructure
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import client from "prom-client";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { createDeferred, createGate, until, type Gate } from "@packages/vitest-shared/determinism";
 import { ok, err } from "@shared/types";
 import {
   defineSaga,
@@ -134,8 +135,12 @@ interface OutcomeHarness {
   failWritesOf?: (status: string, spare?: number) => void;
   /** How many times the pre-pivot step's compensation ran. */
   compensated?: { attempts: number };
-  /** Holds the NEXT durable read inside real I/O for `ms`. */
-  delayNextRead?: (ms: number) => void;
+}
+
+/** The harness whose scripted step is pre-pivot, which can also hold a durable read. */
+interface CompensableOutcomeHarness extends OutcomeHarness {
+  /** Arms a gate in front of the NEXT durable read and returns it; that read waits for release. */
+  holdNextRead: () => Gate;
 }
 
 /**
@@ -226,7 +231,7 @@ function createOutcomeHarness(options: {
  */
 function createCompensableOutcomeHarness(
   script: (attempt: number) => Promise<SagaStepResult>
-): OutcomeHarness {
+): CompensableOutcomeHarness {
   const prisma = createMockPrisma();
   const redis = createMockRedis();
   const events = createMockEventService();
@@ -258,19 +263,17 @@ function createCompensableOutcomeHarness(
     compensate: async () => ({ outcome: "succeeded", data: { compensated: scripted.id } }),
   };
 
-  // One slow durable read, on demand. The walk is dispatched with
-  // `setImmediate`; without a way to keep a pass inside real I/O, the in-memory
-  // doubles always let the walk win the race and the refusal path is never
-  // exercised — which is exactly how it stayed unproven.
-  let delayNextRead = 0;
+  // One held durable read, on demand. The walk is dispatched on a later
+  // macrotask; without a way to hold a pass inside its durable read, the
+  // in-memory doubles always let the pass finish first and the refusal path is
+  // never exercised — which is exactly how it stayed unproven.
+  let readGate: Gate | undefined;
   const realFindUnique = prisma.sagaInstance.findUnique.bind(prisma.sagaInstance);
   prisma.sagaInstance.findUnique = async (args: { where: { id: string } }): Promise<unknown> => {
-    if (delayNextRead > 0) {
-      const waitFor = delayNextRead;
-      delayNextRead = 0;
-      await new Promise((resolve) => setTimeout(resolve, waitFor));
-    }
-    return await realFindUnique(args);
+    const gate = readGate;
+    return gate === undefined
+      ? await realFindUnique(args)
+      : await gate.pass(() => realFindUnique(args));
   };
 
   const definition = defineSaga({
@@ -308,38 +311,61 @@ function createCompensableOutcomeHarness(
     definition,
     step: scripted,
     compensated,
-    delayNextRead: (ms: number): void => {
-      delayNextRead = ms;
+    holdNextRead: (): Gate => {
+      const gate = createGate();
+      gate.arm();
+      readGate = gate;
+      return gate;
     },
     row: async (sagaId: string): Promise<StoredRow | null> =>
       (await prisma.sagaInstance.findUnique({ where: { id: sagaId } })) as StoredRow | null,
   };
 }
 
-/** Starts a probe saga and waits for the dispatch its start defers. */
-async function startProbeSaga(harness: OutcomeHarness): Promise<string> {
-  const started = await harness.manager.startSaga(DEFINITION_ID, {
+/** The deadline and the interval of every wait on detached work in this file. */
+const WAIT_TIMING = { timeoutMs: 3_000, intervalMs: 5 } as const;
+
+/** Starts a probe saga; the engine defers its first pass, which the caller observes. */
+async function startProbe(harness: OutcomeHarness): Promise<string> {
+  const { id } = await harness.manager.startSaga(DEFINITION_ID, {
     accountId: ACCOUNT_ID,
     metadata: { accountId: ACCOUNT_ID },
   });
-  await settle();
-  return started.id;
+  return id;
 }
 
-/** Drains the deferred dispatches the engine schedules with setImmediate. */
-async function settle(): Promise<void> {
-  await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setTimeout(resolve, 20));
+/**
+ * Starts a probe saga and waits until its first pass has reached `reached` and let go of the saga.
+ * `reached` must hold only once the pass has run, because the claim is also free before it starts.
+ */
+async function startAndAwaitPass(harness: OutcomeHarness, reached: () => boolean): Promise<string> {
+  const id = await startProbe(harness);
+  await until(() => reached() && !harness.engine.isAdvancerInFlight(id), {
+    description: "the first pass to reach its outcome and release the saga",
+    ...WAIT_TIMING,
+  });
+  return id;
 }
 
-/** Waits until `probe` holds, so detached work is observed, never guessed. */
-async function until(probe: () => Promise<boolean>, description: string): Promise<void> {
-  const deadline = Date.now() + 3_000;
-  for (;;) {
-    if (await probe()) return;
-    if (Date.now() > deadline) throw new Error(`timed out waiting for ${description}`);
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
+/** Starts a probe saga whose scripted step holds, and waits until the first pass is inside it. */
+async function startAndAwaitHeldStep(harness: OutcomeHarness): Promise<string> {
+  const id = await startProbe(harness);
+  await until(() => harness.step.inFlight === 1, {
+    description: "the first pass to enter the held step",
+    ...WAIT_TIMING,
+  });
+  return id;
+}
+
+/**
+ * Waits until the passes over `sagaId` have ended and released the saga, a trailing pass included,
+ * since it runs under the same claim. Call it only once a pass is known to have started.
+ */
+async function awaitRelease(harness: OutcomeHarness, sagaId: string): Promise<void> {
+  await until(() => !harness.engine.isAdvancerInFlight(sagaId), {
+    description: `every pass over ${sagaId} to release the saga`,
+    ...WAIT_TIMING,
+  });
 }
 
 /** Total `saga_recovery_failures_total{stage=…}` right now. */
@@ -446,11 +472,10 @@ describe("a waiting outcome against the retry budget", () => {
       script: async () => ({ outcome: "waiting", reason: "publishing jobs still in progress" }),
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     // Ask again, twice, exactly as a sibling completion event would.
     await harness.engine.executeSaga(sagaId);
     await harness.engine.executeSaga(sagaId);
-    await settle();
 
     const row = await harness.row(sagaId);
     expect(harness.step.attempts).toBe(3);
@@ -467,7 +492,7 @@ describe("a waiting outcome against the retry budget", () => {
     });
 
     const before = Date.now();
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     const row = await harness.row(sagaId);
 
     // The re-arm is a POLL cadence, not an error backoff: the step is not
@@ -483,10 +508,9 @@ describe("a waiting outcome against the retry budget", () => {
       script: async () => ({ outcome: "waiting", reason: "publishing jobs still in progress" }),
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     await harness.engine.executeSaga(sagaId);
     await harness.engine.executeSaga(sagaId);
-    await settle();
 
     const stepEvents = harness.events.publishedEvents.filter(
       (event) => event.type === "saga.step.failed" || event.type === "saga.step.completed"
@@ -503,14 +527,13 @@ describe("a waiting outcome against the retry budget", () => {
           : { outcome: "failed", error: "the provider rejected the post" },
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     await harness.engine.executeSaga(sagaId);
     await harness.engine.executeSaga(sagaId);
     const waitingRow = await harness.row(sagaId);
     expect(waitingRow?.retryCount).toBe(0);
 
     await harness.engine.executeSaga(sagaId);
-    await settle();
 
     const row = await harness.row(sagaId);
     expect(row?.retryCount).toBe(1);
@@ -529,7 +552,7 @@ describe("a waiting outcome against the retry budget", () => {
       script: async () => ({ outcome: "waiting", reason: "publishing jobs still in progress" }),
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
 
     // The checker is a registered background task, so the harness has to be the
     // process that registered it — and the boot pass it runs re-reads the rows
@@ -610,23 +633,15 @@ describe("step results persisted before the three-state contract", () => {
 
 describe("one execution advances one saga at a time", () => {
   it("never overlaps two executions of the same saga, however many sources fire at once", async () => {
-    let release = (): void => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const held = createDeferred<void>();
     const harness = createOutcomeHarness({
       script: async (attempt) => {
-        if (attempt === 1) await held;
+        if (attempt === 1) await held.promise;
         return { outcome: "waiting", reason: "publishing jobs still in progress" };
       },
     });
 
-    const sagaId = await new Promise<string>((resolve) => {
-      void harness.manager
-        .startSaga(DEFINITION_ID, { accountId: ACCOUNT_ID, metadata: { accountId: ACCOUNT_ID } })
-        .then((started) => resolve(started.id));
-    });
-    await settle();
+    const sagaId = await startAndAwaitHeldStep(harness);
 
     // Three independent dispatchers, all while the first execution is inside
     // the step: the retry scan, a worker event and an operator continue.
@@ -635,9 +650,9 @@ describe("one execution advances one saga at a time", () => {
       harness.engine.executeSaga(sagaId),
       harness.engine.executeSaga(sagaId),
     ];
-    release();
+    held.resolve();
     await Promise.all(dispatches);
-    await settle();
+    await awaitRelease(harness, sagaId);
 
     expect(harness.step.maxInFlight).toBe(1);
     // NOT multiplied: three simultaneous arrivals never become three
@@ -653,7 +668,7 @@ describe("one execution advances one saga at a time", () => {
       script: async () => ({ outcome: "waiting", reason: "still going" }),
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     const first = harness.step.attempts;
     await harness.engine.executeSaga(sagaId);
 
@@ -668,7 +683,7 @@ describe("one execution advances one saga at a time", () => {
       },
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     const afterThrow = harness.step.attempts;
     await harness.engine.executeSaga(sagaId);
 
@@ -680,7 +695,7 @@ describe("one execution advances one saga at a time", () => {
       script: async () => ({ outcome: "succeeded", data: { done: true } }),
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     expect((await harness.row(sagaId))?.status).toBe("COMPLETED");
 
     // The refusal a terminal row gets is the canon re-execution guard, not a
@@ -699,60 +714,44 @@ describe("the trailing rerun decides on the durable row", () => {
     // budget and persists COMPENSATING, and the trailing pass would then
     // re-enter — rewriting COMPENSATING with RUNNING and re-running the failed
     // step over state the walk may already have undone.
-    let release = (): void => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const held = createDeferred<void>();
     const harness = createCompensableOutcomeHarness(async (attempt) => {
-      if (attempt === 1) await held;
+      if (attempt === 1) await held.promise;
       return { outcome: "failed", error: "the pre-pivot step failed" };
     });
 
-    const sagaId = await new Promise<string>((resolve) => {
-      void harness.manager
-        .startSaga(DEFINITION_ID, { accountId: ACCOUNT_ID, metadata: { accountId: ACCOUNT_ID } })
-        .then((started) => resolve(started.id));
-    });
-    await settle();
+    const sagaId = await startAndAwaitHeldStep(harness);
 
     const coalesced = harness.engine.executeSaga(sagaId);
-    release();
+    held.resolve();
     await coalesced;
-    await settle();
+    await awaitRelease(harness, sagaId);
 
     expect(harness.step.attempts).toBe(1);
     // COMPENSATED, not "either": the walk this pass handed off is guaranteed to
     // run — refused mid-pass, it is re-dispatched when the pass releases the
     // saga. A disjunction here would silently absorb a dropped walk.
-    await until(
-      async () => (await harness.row(sagaId))?.status === "COMPENSATED",
-      "the handed-off walk to finish"
-    );
+    await until(async () => (await harness.row(sagaId))?.status === "COMPENSATED", {
+      description: "the handed-off walk to finish",
+      ...WAIT_TIMING,
+    });
   });
 
   it("re-enters a saga that is still moving forward", async () => {
-    let release = (): void => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const held = createDeferred<void>();
     const harness = createOutcomeHarness({
       script: async (attempt) => {
-        if (attempt === 1) await held;
+        if (attempt === 1) await held.promise;
         return { outcome: "waiting", reason: "still going" };
       },
     });
 
-    const sagaId = await new Promise<string>((resolve) => {
-      void harness.manager
-        .startSaga(DEFINITION_ID, { accountId: ACCOUNT_ID, metadata: { accountId: ACCOUNT_ID } })
-        .then((started) => resolve(started.id));
-    });
-    await settle();
+    const sagaId = await startAndAwaitHeldStep(harness);
 
     const coalesced = harness.engine.executeSaga(sagaId, "event");
-    release();
+    held.resolve();
     await coalesced;
-    await settle();
+    await awaitRelease(harness, sagaId);
 
     expect(harness.step.attempts).toBe(2);
     expect((await harness.row(sagaId))?.status).toBe("RUNNING");
@@ -770,7 +769,7 @@ describe("every advancer is also a terminalizer", () => {
       script: async () => ({ outcome: "waiting", reason: "still going" }),
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     const attemptsBefore = harness.step.attempts;
 
     // The row is older than its horizon, and this process does not track it —
@@ -792,7 +791,6 @@ describe("every advancer is also a terminalizer", () => {
     harness.lifecycle.activeInstances.delete(sagaId);
 
     await harness.engine.executeSaga(sagaId);
-    await settle();
 
     const row = await harness.row(sagaId);
     expect(row?.status).toBe("FAILED");
@@ -809,7 +807,7 @@ describe("every advancer is also a terminalizer", () => {
       script: async () => ({ outcome: "failed", error: "the step failed for good" }),
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     const tracked = harness.lifecycle.activeInstances.get(sagaId);
     expect(tracked).toBeDefined();
 
@@ -836,14 +834,13 @@ describe("a waiting re-arm that cannot be persisted", () => {
       script: async () => ({ outcome: "waiting", reason: "still going" }),
     });
 
-    const sagaId = await startProbeSaga(harness);
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
     const armed = (await harness.row(sagaId))?.nextRetryAt;
     const before = await failureCount("wait-poll");
 
     // Spare the pass's own status write; fail the RE-ARM that follows it.
     harness.failWritesOf?.("RUNNING", 1);
     await harness.engine.executeSaga(sagaId, "scan");
-    await settle();
 
     const row = await harness.row(sagaId);
     expect(row?.status).toBe("RUNNING");
@@ -854,28 +851,20 @@ describe("a waiting re-arm that cannot be persisted", () => {
 
 describe("the dispatch that coalesces is the one that carries news", () => {
   it("coalesces a worker event into a trailing pass", async () => {
-    let release = (): void => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const held = createDeferred<void>();
     const harness = createOutcomeHarness({
       script: async (attempt) => {
-        if (attempt === 1) await held;
+        if (attempt === 1) await held.promise;
         return { outcome: "waiting", reason: "still going" };
       },
     });
 
-    const sagaId = await new Promise<string>((resolve) => {
-      void harness.manager
-        .startSaga(DEFINITION_ID, { accountId: ACCOUNT_ID, metadata: { accountId: ACCOUNT_ID } })
-        .then((started) => resolve(started.id));
-    });
-    await settle();
+    const sagaId = await startAndAwaitHeldStep(harness);
 
     const coalesced = harness.engine.executeSaga(sagaId, "event");
-    release();
+    held.resolve();
     await coalesced;
-    await settle();
+    await awaitRelease(harness, sagaId);
 
     expect(harness.step.attempts).toBe(2);
   });
@@ -886,28 +875,20 @@ describe("the dispatch that coalesces is the one that carries news", () => {
     // news turns a slow pass into back-to-back passes — a hot loop that adds
     // load precisely when the system is slow, and that carries no information
     // an event carries.
-    let release = (): void => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const held = createDeferred<void>();
     const harness = createOutcomeHarness({
       script: async (attempt) => {
-        if (attempt === 1) await held;
+        if (attempt === 1) await held.promise;
         return { outcome: "waiting", reason: "still going" };
       },
     });
 
-    const sagaId = await new Promise<string>((resolve) => {
-      void harness.manager
-        .startSaga(DEFINITION_ID, { accountId: ACCOUNT_ID, metadata: { accountId: ACCOUNT_ID } })
-        .then((started) => resolve(started.id));
-    });
-    await settle();
+    const sagaId = await startAndAwaitHeldStep(harness);
 
     const reselected = harness.engine.executeSaga(sagaId, "scan");
-    release();
+    held.resolve();
     await reselected;
-    await settle();
+    await awaitRelease(harness, sagaId);
 
     expect(harness.step.attempts).toBe(1);
   });
@@ -917,29 +898,21 @@ describe("the dispatch that coalesces is the one that carries news", () => {
     // saga did is still standing". A refusal the design calls normal must not
     // dilute it.
     const before = await failureCount("compensation");
-    let release = (): void => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const held = createDeferred<void>();
     const harness = createOutcomeHarness({
       script: async (attempt) => {
-        if (attempt === 1) await held;
+        if (attempt === 1) await held.promise;
         return { outcome: "waiting", reason: "still going" };
       },
     });
 
-    const sagaId = await new Promise<string>((resolve) => {
-      void harness.manager
-        .startSaga(DEFINITION_ID, { accountId: ACCOUNT_ID, metadata: { accountId: ACCOUNT_ID } })
-        .then((started) => resolve(started.id));
-    });
-    await settle();
+    const sagaId = await startAndAwaitHeldStep(harness);
 
     const coalesced = harness.engine.executeSaga(sagaId, "event");
     const alsoCoalesced = harness.engine.executeSaga(sagaId, "event");
-    release();
+    held.resolve();
     await Promise.all([coalesced, alsoCoalesced]);
-    await settle();
+    await awaitRelease(harness, sagaId);
 
     expect(await failureCount("compensation")).toBe(before);
   });
@@ -957,11 +930,11 @@ describe("every ending a saga can reach is measured on the duration series", () 
       error: "the pre-pivot step failed",
     }));
 
-    const sagaId = await startProbeSaga(harness);
-    await until(
-      async () => (await harness.row(sagaId))?.status === "COMPENSATED",
-      "the compensation walk to settle the row"
-    );
+    const sagaId = await startAndAwaitPass(harness, () => harness.step.attempts === 1);
+    await until(async () => (await harness.row(sagaId))?.status === "COMPENSATED", {
+      description: "the compensation walk to settle the row",
+      ...WAIT_TIMING,
+    });
 
     expect(await durationObservations("COMPENSATED")).toBe(before + 1);
   });
@@ -1072,6 +1045,22 @@ describe("step outcomes persisted in shapes nobody writes any more", () => {
 });
 
 describe("a walk refused by a forward pass is handed off, never dropped", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Whether the engine reported that the walk of `sagaId` was handed to a forward pass's release. */
+  function walkHandedOff(infos: MockInstance, sagaId: string): boolean {
+    return infos.mock.calls.some((call: unknown[]) => {
+      const [fields, message] = call as [{ sagaId?: unknown } | undefined, unknown];
+      return (
+        fields?.sagaId === sagaId &&
+        typeof message === "string" &&
+        message.includes("handed to that execution's release")
+      );
+    });
+  }
+
   it("runs the rollback the failing pass ordered, after the pass releases the saga", async () => {
     // The shape, exactly: an EVENT arrives during the final failing attempt of
     // a pre-pivot step, so the pass ends with a trailing pass pending. The
@@ -1081,39 +1070,44 @@ describe("a walk refused by a forward pass is handed off, never dropped", () => 
     // the transition nulls `nextRetryAt` so the scan cannot see the row, boot
     // only runs at startup, and the liveness horizon TERMINALIZES rather than
     // rolls back — the created post would be left standing.
-    let release = (): void => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const held = createDeferred<void>();
     const harness = createCompensableOutcomeHarness(async (attempt) => {
-      if (attempt === 1) await held;
+      if (attempt === 1) await held.promise;
       return { outcome: "failed", error: "the pre-pivot step failed" };
     });
 
-    const sagaId = await new Promise<string>((resolve) => {
-      void harness.manager
-        .startSaga(DEFINITION_ID, { accountId: ACCOUNT_ID, metadata: { accountId: ACCOUNT_ID } })
-        .then((started) => resolve(started.id));
-    });
-    await settle();
+    const infos = vi.spyOn(logger, "info").mockImplementation(() => logger);
+    const sagaId = await startAndAwaitHeldStep(harness);
 
     // News arrives mid-attempt: a trailing pass is now pending.
     const coalesced = harness.engine.executeSaga(sagaId, "event");
-    // …and that trailing pass will sit inside its durable read for long enough
-    // that the walk's deferred dispatch cannot win the race.
-    harness.delayNextRead?.(60);
-    release();
-    await coalesced;
+    // …and that trailing pass is held inside its durable read until the walk's
+    // deferred dispatch has landed and been handed off.
+    const read = harness.holdNextRead();
+    try {
+      held.resolve();
+      await coalesced;
+      await until(() => read.hasReached(), {
+        description: "the trailing pass to enter its durable read",
+        ...WAIT_TIMING,
+      });
+      await until(() => walkHandedOff(infos, sagaId), {
+        description: "the walk to be handed to the forward pass's release",
+        ...WAIT_TIMING,
+      });
+    } finally {
+      read.release();
+    }
 
-    await until(
-      async () => (harness.compensated?.attempts ?? 0) > 0,
-      "the handed-off compensation walk to run"
-    );
+    await until(async () => (harness.compensated?.attempts ?? 0) > 0, {
+      description: "the handed-off compensation walk to run",
+      ...WAIT_TIMING,
+    });
     expect(harness.compensated?.attempts).toBe(1);
-    await until(
-      async () => (await harness.row(sagaId))?.status === "COMPENSATED",
-      "the handed-off walk to settle the row"
-    );
+    await until(async () => (await harness.row(sagaId))?.status === "COMPENSATED", {
+      description: "the handed-off walk to settle the row",
+      ...WAIT_TIMING,
+    });
   });
 });
 
@@ -1126,37 +1120,37 @@ describe("the operator re-drive answers on what is really happening", () => {
     // the exact lie the sibling guard exists to prevent for the unscopable
     // case. The walk-holder direction is pinned in the compensation walk suite;
     // this is the forward one.
-    let release = (): void => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
+    const held = createDeferred<void>();
     const harness = createCompensableOutcomeHarness(async (attempt) => {
-      if (attempt === 1) await held;
+      if (attempt === 1) await held.promise;
       return { outcome: "failed", error: "the pre-pivot step failed" };
     });
 
-    const sagaId = await new Promise<string>((resolve) => {
-      void harness.manager
-        .startSaga(DEFINITION_ID, { accountId: ACCOUNT_ID, metadata: { accountId: ACCOUNT_ID } })
-        .then((started) => resolve(started.id));
-    });
-    await settle();
+    const sagaId = await startAndAwaitHeldStep(harness);
 
     const coalesced = harness.engine.executeSaga(sagaId, "event");
-    harness.delayNextRead?.(80);
-    release();
-    // The row is COMPENSATING by now and a forward pass still holds the claim.
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    const read = harness.holdNextRead();
+    try {
+      held.resolve();
+      // Once the trailing pass waits in its durable read, the row is COMPENSATING
+      // and a forward pass still holds the claim.
+      await until(() => read.hasReached(), {
+        description: "the trailing pass to enter its durable read",
+        ...WAIT_TIMING,
+      });
 
-    await expect(harness.manager.compensateSaga(sagaId)).rejects.toThrow(
-      /already being (advanced|compensated)/i
-    );
+      await expect(harness.manager.compensateSaga(sagaId)).rejects.toThrow(
+        /already being (advanced|compensated)/i
+      );
+    } finally {
+      read.release();
+    }
 
     await coalesced;
-    await until(
-      async () => (await harness.row(sagaId))?.status === "COMPENSATED",
-      "the handed-off walk to settle the row"
-    );
+    await until(async () => (await harness.row(sagaId))?.status === "COMPENSATED", {
+      description: "the handed-off walk to settle the row",
+      ...WAIT_TIMING,
+    });
   });
 });
 
@@ -1181,22 +1175,6 @@ describe("a write that loses its row to another advancer ends the pass cleanly",
       const [fields] = call as [{ sagaId?: unknown; persistedStatus?: unknown }];
       return fields.sagaId === sagaId && fields.persistedStatus === ending;
     });
-  }
-
-  /** Starts a probe saga and waits until its first pass has reached `reached` and let go. */
-  async function startAndAwaitPass(
-    harness: OutcomeHarness,
-    reached: () => boolean
-  ): Promise<string> {
-    const { id } = await harness.manager.startSaga(DEFINITION_ID, {
-      accountId: ACCOUNT_ID,
-      metadata: { accountId: ACCOUNT_ID },
-    });
-    await until(
-      async () => reached() && !harness.engine.isAdvancerInFlight(id),
-      "the first pass to reach its outcome and release the saga"
-    );
-    return id;
   }
 
   it("stops at the step's own write: one warning, no failure written, nothing tracked", async () => {

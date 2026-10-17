@@ -48,6 +48,7 @@ import { Redis } from "ioredis";
 import { type PrismaClient } from "@infra/prisma";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { untilValue } from "@packages/vitest-shared/determinism";
 import { createBullMQQueueAdapter, type BullMQQueueAdapter } from "@adapters/queue-bullmq";
 import {
   createSagaContext,
@@ -301,21 +302,8 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
       .sort((a, b) => a - b);
   }
 
-  async function pollUntil<T>(
-    probe: () => Promise<T | null>,
-    describeExpectation: () => string,
-    timeoutMs = 20_000
-  ): Promise<T> {
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-      const answer = await probe();
-      if (answer !== null) return answer;
-      if (Date.now() > deadline) {
-        assert.fail(`timed out after ${timeoutMs}ms waiting for ${describeExpectation()}`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-  }
+  /** The deadline and the interval every wait on a saga row in this suite polls with. */
+  const POLL_TIMING = { timeoutMs: 20_000, intervalMs: 100 } as const;
 
   /** Starts one probe saga through a harness, under its owning tenant. */
   async function startProbeSaga(harness: Harness, label: string): Promise<SagaInstance> {
@@ -490,7 +478,7 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
 
       // The walk runs 3, 2 and then hangs inside 1 — which is what a kill looks
       // like from the database's side: two outcomes durable, nothing after.
-      const interrupted = await pollUntil(
+      const interrupted = await untilValue(
         async () => {
           const snapshot = await sagaSnapshot(started.id);
           const recorded = recordedCompensations(snapshot);
@@ -498,7 +486,10 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
             ? snapshot
             : null;
         },
-        () => "the walk to record two compensations and stall inside the third"
+        {
+          description: "the walk to record two compensations and stall inside the third",
+          ...POLL_TIMING,
+        }
       );
 
       assert.strictEqual(
@@ -522,12 +513,12 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
       // database. This is the process that inherits the row.
       const second = await bootHarness("inheritor");
 
-      const terminal = await pollUntil(
+      const terminal = await untilValue(
         async () => {
           const snapshot = await sagaSnapshot(started.id);
           return snapshot.status === "COMPENSATED" ? snapshot : null;
         },
-        () => "the inheriting process to finish the interrupted walk"
+        { description: "the inheriting process to finish the interrupted walk", ...POLL_TIMING }
       );
 
       assert.deepStrictEqual(
@@ -566,12 +557,12 @@ describe("Saga compensation recovery (MERGE-BLOCKING)", { concurrency: 1 }, () =
       const accepted = await operatorHarness.manager.compensateSaga(sagaId);
       assert.strictEqual(accepted.id, sagaId, "a COMPENSATING row is accepted for re-drive");
 
-      const terminal = await pollUntil(
+      const terminal = await untilValue(
         async () => {
           const snapshot = await sagaSnapshot(sagaId);
           return snapshot.status === "COMPENSATED" ? snapshot : null;
         },
-        () => "the operator-driven walk to reach a terminal state"
+        { description: "the operator-driven walk to reach a terminal state", ...POLL_TIMING }
       );
 
       assert.deepStrictEqual(
