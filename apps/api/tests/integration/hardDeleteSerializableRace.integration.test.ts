@@ -30,6 +30,7 @@
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { until } from "@packages/vitest-shared/determinism";
 
 import { Container } from "../../src/infrastructure/container/Container.js";
 import { TOKENS } from "../../src/infrastructure/container/types.js";
@@ -79,22 +80,23 @@ function composeUseCase(): HardDeleteAccountUseCase {
  * that counted them would fire early and race the very window it exists to open.
  */
 async function waitUntilBlockedBy(blockerPid: number): Promise<void> {
-  const deadline = Date.now() + 20_000;
-  for (;;) {
-    const rows = await prisma.$queryRaw<{ waiting: bigint }[]>`
-      SELECT count(*) AS waiting
-      FROM pg_stat_activity
-      WHERE ${blockerPid} = ANY(pg_blocking_pids(pid))
-    `;
-    if (Number(rows[0]?.waiting ?? 0) > 0) return;
-    if (Date.now() > deadline) {
-      throw new Error(
-        `the hard delete never blocked on the racer's row lock (pid ${blockerPid}); ` +
-          "the interleaving this suite depends on did not happen, so its result would be meaningless"
-      );
+  await until(
+    async () => {
+      const rows = await prisma.$queryRaw<{ waiting: bigint }[]>`
+        SELECT count(*) AS waiting
+        FROM pg_stat_activity
+        WHERE ${blockerPid} = ANY(pg_blocking_pids(pid))
+      `;
+      return Number(rows[0]?.waiting ?? 0) > 0;
+    },
+    {
+      description:
+        `the hard delete to block on the racer's row lock (pid ${blockerPid}); without that ` +
+        "interleaving this suite's result would be meaningless",
+      timeoutMs: 20_000,
+      intervalMs: 25,
     }
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
+  );
 }
 
 /**

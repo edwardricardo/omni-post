@@ -24,6 +24,7 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { until } from "@packages/vitest-shared/determinism";
 import { ok } from "@shared/types";
 import { createPostPublishingSagaDefinition } from "@shared/types/saga.js";
 import {
@@ -197,11 +198,15 @@ describe("Publish-now promotion (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       );
       assert.ok(first.ok, "the first promotion must succeed or the retry proves nothing");
       firstPublishedAt = (await harness.postSnapshot(postId)).publishedAt;
+      const firstStamp = firstPublishedAt?.getTime();
+      assert.ok(firstStamp !== undefined, "the first promotion must record a publication time");
 
       // The second attempt starts strictly AFTER the first timestamp, so an
       // overwrite would write a LATER value and be observable. Two identical
       // values cannot tell "preserved" from "overwritten with the same thing".
-      await new Promise((resolve) => setTimeout(resolve, 25));
+      await until(() => Date.now() > firstStamp, {
+        description: "the clock to pass the first publication timestamp",
+      });
       secondAttemptStartedAt = new Date();
       const second = await harness.runScoped(() =>
         // The stale token is deliberate: the promotion advances the version
