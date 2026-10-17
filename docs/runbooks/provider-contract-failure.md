@@ -123,7 +123,7 @@ If the contract test failure represents a breaking change **already in effect** 
 
 ## Referencias
 
-- Provider testing canon: `docs/architecture/provider-testing.md`
+- Provider contract tests: [Testing Infrastructure, section 6](../development/TESTING_INFRASTRUCTURE.md#6-provider-contract-tests)
 - MSW 2.x docs: https://mswjs.io/docs/
 - Provider catalog (canonical 11): `infra/prisma/schema.prisma` (enum `Provider`)
 - Adapter pattern: `packages/providers/_template/` (canonical structure for new providers)

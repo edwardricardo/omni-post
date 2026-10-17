@@ -865,8 +865,8 @@ owner's decision ([D52](#decisions-log), ADR-0038; branch `workstream/node-26`).
 | 8     | 8.1a   | `CODING_STANDARDS.md` §Testing, part 1                                      | ⬜     | —                             | —                                       | —          |
 | 8     | 8.1b   | `CODING_STANDARDS.md` §Testing, part 2 (coverage)                           | ⬜     | —                             | —                                       | —          |
 | 8     | 8.2    | `docs/architecture/TESTING.md` → archived frozen                            | ✅     | `docs-minimization-granular`  | deleted, owner 2026-10-16; git keeps it | 2026-10-17 |
-| 8     | 8.3    | `chaos-testing.md` → folded and archived                                    | ⬜     | —                             | —                                       | —          |
-| 8     | 8.4    | `provider-testing.md` → folded and archived                                 | ⬜     | —                             | —                                       | —          |
+| 8     | 8.3    | `chaos-testing.md` → folded and archived                                    | ✅     | `docs-minimization-granular`  | deleted, owner 2026-10-16; git keeps it | 2026-10-17 |
+| 8     | 8.4    | `provider-testing.md` → folded and archived                                 | ✅     | `docs-minimization-granular`  | deleted, owner 2026-10-16; git keeps it | 2026-10-17 |
 | 8     | 8.5    | `saga-test-suites.md` → corrected                                           | ⬜     | —                             | —                                       | —          |
 | 8     | 8.6    | `SECURITY_TESTING_FRAMEWORK.md` → corrected                                 | ⬜     | —                             | —                                       | —          |
 | 8     | 8.7    | The four E2E READMEs → archived frozen                                      | ⬜     | —                             | —                                       | —          |

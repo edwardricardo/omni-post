@@ -6,12 +6,12 @@ This page indexes the living documents under `docs/`. [`CLAUDE.md`](../CLAUDE.md
 
 ## Start here
 
-| Document                                                        | What it covers                                                                         |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [Getting Started](development/getting-started.md)               | Setup, environment, Docker services, Turborepo, git and pull requests, troubleshooting |
-| [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md)    | Variable reference by category; Master Plan DEF-97 tracks the required ones it misses  |
-| [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks, reach, CI, the `node:test` runner, gates that cannot fail, open findings   |
-| [Coding Standards](development/CODING_STANDARDS.md)             | TypeScript, Result, error handling, testing, naming, JSDoc (canon)                     |
+| Document                                                        | What it covers                                                                                                          |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [Getting Started](development/getting-started.md)               | Setup, environment, Docker services, Turborepo, git and pull requests, troubleshooting                                  |
+| [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md)    | Variable reference by category; Master Plan DEF-97 tracks the required ones it misses                                   |
+| [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks, reach, CI, the `node:test` runner, chaos and provider contract tests, gates that cannot fail, open findings |
+| [Coding Standards](development/CODING_STANDARDS.md)             | TypeScript, Result, error handling, testing, naming, JSDoc (canon)                                                      |
 
 Quick start, with the versions `package.json` pins (Node `>=26.11.1 <27`, pnpm 12.6.0):
 
