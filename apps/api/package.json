@@ -149,7 +149,7 @@
     "@core/engine": "workspace:*",
     "@packages/vitest-shared": "workspace:*",
     "@faker-js/faker": "10.6.0",
-    "@fastify/rate-limit": "10.3.0",
+    "@fastify/rate-limit": "11.2.1",
     "@types/jsonwebtoken": "9.0.10",
     "@types/node": "catalog:",
     "@types/qrcode": "1.5.5",
