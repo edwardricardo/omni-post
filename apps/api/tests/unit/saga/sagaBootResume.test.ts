@@ -18,7 +18,7 @@
 import { describe, it, expect, vi, type MockInstance } from "vitest";
 import client from "prom-client";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
-import { until } from "@packages/vitest-shared/determinism";
+import { createDeferred, until } from "@packages/vitest-shared/determinism";
 import type {
   CompensableStep,
   PivotStep,
@@ -31,6 +31,7 @@ import type {
 import { defineSaga } from "@shared/types/saga.js";
 import { SagaManagerLifecycle } from "../../../src/saga/SagaManagerLifecycle.js";
 import { SagaManagerImpl } from "../../../src/saga/SagaManager.js";
+import type { SagaExecutionEngine } from "../../../src/saga/SagaManagerExecution.js";
 import { logger } from "../../../src/lib/logger.js";
 import {
   createMockEventService,
@@ -122,11 +123,18 @@ interface EngineSpy extends SagaExecutionEnginePort {
 
 /**
  * An execution engine that records what the pass asked of it, and how much of it
- * at once. `executeSaga` yields to the event loop before resolving, so a pass
- * that dispatched everything in one go would register a peak equal to the whole
- * batch.
+ * at once. Every dispatch counts itself in flight and then waits on `held` before
+ * it finishes, so a pass that dispatched everything in one go would register a
+ * peak equal to the whole batch. The default `held` is already settled, which
+ * still suspends each dispatch past the pass's synchronous launch of the next:
+ * the runner starts its concurrent dispatches before any of them can finish.
+ * A test that must observe a dispatch while it is still running passes a promise
+ * it settles itself.
  */
-function createEngineSpy(rows: SeededRow[] = []): EngineSpy {
+function createEngineSpy(
+  rows: SeededRow[] = [],
+  held: Promise<void> = Promise.resolve()
+): EngineSpy {
   const executed: string[] = [];
   const compensated: string[] = [];
   const persisted: string[] = [];
@@ -144,7 +152,7 @@ function createEngineSpy(rows: SeededRow[] = []): EngineSpy {
       inFlight++;
       spy.peakConcurrency = Math.max(spy.peakConcurrency, inFlight);
       executed.push(sagaId);
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      await held;
       inFlight--;
     },
     resumeCompensationWalkAsync: (sagaId: string): void => {
@@ -156,7 +164,7 @@ function createEngineSpy(rows: SeededRow[] = []): EngineSpy {
       inFlight++;
       spy.peakConcurrency = Math.max(spy.peakConcurrency, inFlight);
       compensated.push(sagaId);
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      await held;
       // A walk that finishes terminalizes its row. The double writes that back
       // so the level the pass re-measures afterwards is the level a real drain
       // would leave — otherwise the re-measurement could only ever confirm the
@@ -183,6 +191,8 @@ function createLifecycle(
     bootLoadLimit?: number;
     maxConcurrentSagas?: number;
     compensating?: number;
+    /** What every dispatch the engine spy records waits on before it finishes. */
+    held?: Promise<void>;
   } = {}
 ): { lifecycle: SagaManagerLifecycle; engine: EngineSpy } {
   // The double HONOURS the status predicate, because which statuses the load
@@ -229,7 +239,7 @@ function createLifecycle(
   } as unknown as SagaManagerConfig;
 
   const lifecycle = new SagaManagerLifecycle(config);
-  const engine = createEngineSpy(rows);
+  const engine = createEngineSpy(rows, options.held);
   lifecycle.executionEngine = engine;
   for (const definition of options.definitions ?? [makeDefinition()]) {
     lifecycle.registerSaga(definition);
@@ -252,14 +262,6 @@ async function scrapeCompensatingOrphans(): Promise<number | undefined> {
 
 /** The deadline and the interval of every wait on a detached dispatch in this file. */
 const WAIT_TIMING = { timeoutMs: 2_000, intervalMs: 5 } as const;
-
-/** Lets a detached dispatch and every persist it awaits drain before observing. */
-async function drain(turns = 12): Promise<void> {
-  for (let turn = 0; turn < turns; turn++) {
-    await new Promise((resolve) => setImmediate(resolve));
-    await new Promise((resolve) => setTimeout(resolve, 5));
-  }
-}
 
 /** One structured log line, as the engine emitted it. */
 interface LogRecord {
@@ -397,12 +399,24 @@ function makeCountingDefinition(): { definition: SagaDefinition; steps: Counting
 
 interface RealHarness {
   manager: SagaManagerImpl;
+  /**
+   * The engine behind the facade, reached through a documented cast for the same
+   * reason the sibling suites do it: whether a pass holds a saga, and the detached
+   * dispatch entry point, are deliberately not public API.
+   */
+  engine: SagaExecutionEngine;
   scheduler: NoopBackgroundTaskScheduler;
   steps: CountingSteps;
   prisma: MockPrismaClient;
   records: LogRecord[];
   /** The row as the durable layer holds it right now. */
   row: () => Promise<SeededRow>;
+  /**
+   * Resolves once the walk over the seeded row has ended: the row holds
+   * COMPENSATED and no pass holds the saga any longer, so nothing the engine
+   * started is still writing.
+   */
+  walkEnded: () => Promise<void>;
   teardown: () => Promise<void>;
 }
 
@@ -433,15 +447,25 @@ async function createRealHarness(seeded: SeededRow[]): Promise<RealHarness> {
   manager.registerSaga(definition);
 
   const capture = captureSagaLogs();
+  const engine = (manager as unknown as { execution: SagaExecutionEngine }).execution;
+  const sagaId = seeded[0]!.id;
+  const row = async (): Promise<SeededRow> =>
+    (await prisma.sagaInstance.findUnique({ where: { id: sagaId } })) as SeededRow;
 
   return {
     manager,
+    engine,
     scheduler,
     steps,
     prisma,
     records: capture.records,
-    row: async (): Promise<SeededRow> =>
-      (await prisma.sagaInstance.findUnique({ where: { id: seeded[0]!.id } })) as SeededRow,
+    row,
+    walkEnded: async (): Promise<void> => {
+      await until(
+        async () => (await row()).status === "COMPENSATED" && !engine.isAdvancerInFlight(sagaId),
+        { description: `the walk over ${sagaId} to end and release the saga`, ...WAIT_TIMING }
+      );
+    },
     teardown: async (): Promise<void> => {
       capture.restore();
       await manager.shutdown();
@@ -585,18 +609,22 @@ describe("saga boot recovery pass", () => {
 
   describe("the COMPENSATING level", () => {
     it("is measured at SCRAPE time, so a walk that finished stops being reported", async () => {
-      const { lifecycle, engine } = createLifecycle([
-        makeRow("saga-running"),
-        makeRow("saga-compensating", { status: "COMPENSATING" }),
-      ]);
+      // The walk is held until the first scrape has read the level, so that scrape
+      // provably sees the row before the walk terminalizes it.
+      const walk = createDeferred<void>();
+      const { lifecycle, engine } = createLifecycle(
+        [makeRow("saga-running"), makeRow("saga-compensating", { status: "COMPENSATING" })],
+        { held: walk.promise }
+      );
 
       await lifecycle.initialize();
       expect(await scrapeCompensatingOrphans()).toBe(1);
 
       await until(() => engine.executed.length === 1 && engine.compensated.length === 1, {
-        description: "the pass to drain both dispositions",
+        description: "the pass to dispatch both dispositions",
         ...WAIT_TIMING,
       });
+      walk.resolve();
 
       // Published only at boot, the level would keep reading 1 until the next
       // restart — long after the engine finished the walk — and the alert that
@@ -682,8 +710,10 @@ describe("saga boot recovery pass", () => {
         }),
       ]);
 
+      // The pass decides and dispatches before `initialize` resolves: its runner
+      // calls the engine before its first await, so a dispatched row would already
+      // be on the spy's lists here, and an empty work list schedules nothing.
       await lifecycle.initialize();
-      await drain();
 
       // The operator door accepts a FAILED saga at ANY step, so a post-pivot
       // row can and does sit in COMPENSATING. Rolling it back unattended, on
@@ -727,14 +757,18 @@ describe("saga boot recovery pass", () => {
           description: "the boot pass to resume the walk",
           ...WAIT_TIMING,
         });
-        await drain();
+        await harness.walkEnded();
 
         // Two mechanisms, both load-bearing, both proven here: the boot pass
         // reads the STATUS before the retry marker, and the retry scan cannot
         // see the row at all because its predicate is RUNNING/PENDING.
         expect(bootSummary(harness.records)?.compensationResumed).toBe(1);
+        // The scan has made its whole decision once the trigger resolves: what it
+        // selects it hands to the detached dispatch before returning, so a forward
+        // pass it scheduled would be a recorded call here, not a pass still to run.
+        const scanDispatch = vi.spyOn(harness.engine, "executeSagaAsync");
         await harness.scheduler.triggerTask("saga-retry-recovery");
-        await drain();
+        expect(scanDispatch).not.toHaveBeenCalled();
 
         expect(harness.steps.step1.executeAttempts).toBe(0);
         expect(harness.steps.pivot.executeAttempts).toBe(0);
@@ -757,7 +791,7 @@ describe("saga boot recovery pass", () => {
           description: "the boot pass to resume the walk",
           ...WAIT_TIMING,
         });
-        await drain();
+        await harness.walkEnded();
 
         expect(bootSummary(harness.records)?.compensationResumed).toBe(1);
         expect(harness.steps.step1.executeAttempts).toBe(0);
@@ -784,7 +818,8 @@ describe("saga boot recovery pass", () => {
           description: "the boot pass to dispatch the legacy row",
           ...WAIT_TIMING,
         });
-        await drain();
+        // The forward failure starts the fresh walk; this waits for that walk too.
+        await harness.walkEnded();
 
         // A row written by the OLD engine says RUNNING while a walk was under
         // way, and nothing on it distinguishes that from a saga interrupted

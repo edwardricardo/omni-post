@@ -7,6 +7,7 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { untilValue } from "@packages/vitest-shared/determinism";
 import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
 import { CreatePostStep, createSagaContext } from "@shared/types/saga.js";
 import type { Command } from "@shared/types/cqrs.js";
@@ -20,6 +21,41 @@ import {
   type MockRedis,
 } from "./sagaIntegration.helpers.js";
 
+/** The statuses a saga never leaves. */
+const TERMINAL_STATUSES: readonly unknown[] = ["COMPLETED", "FAILED", "COMPENSATED"];
+
+/**
+ * Waits until the pass the start deferred has parked the saga, a retry scheduled or an ending
+ * reached, and returns the record the hot cache then holds. Once parked, every step that pass runs
+ * has run, and over these doubles the record no longer changes.
+ */
+async function awaitParked(redis: MockRedis, sagaId: string): Promise<string> {
+  return await untilValue(
+    async () => {
+      const cached = await redis.get(`saga:${sagaId}`);
+      if (cached === null) return null;
+      const record = JSON.parse(cached) as { status?: unknown; nextRetryAt?: unknown };
+      const parked = record.nextRetryAt !== undefined || TERMINAL_STATUSES.includes(record.status);
+      return parked ? cached : null;
+    },
+    {
+      description: `the first pass over saga ${sagaId} to park it`,
+      timeoutMs: 3_000,
+      intervalMs: 5,
+    }
+  );
+}
+
+/**
+ * Waits until every saga the test started is parked. Shutting down under a running pass leaves it
+ * advancing against a stopped manager after the test ended, so no pass may outlive its test.
+ */
+async function awaitEverySagaParked(redis: MockRedis): Promise<void> {
+  for (const key of await redis.keys("saga:*")) {
+    await awaitParked(redis, key.slice("saga:".length));
+  }
+}
+
 describe("Saga — existing-post path (postId provided)", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
@@ -31,6 +67,7 @@ describe("Saga — existing-post path (postId provided)", () => {
   });
 
   afterEach(async () => {
+    await awaitEverySagaParked(mockRedis);
     await integration.shutdown();
   });
 
@@ -53,10 +90,9 @@ describe("Saga — existing-post path (postId provided)", () => {
     const result = await handler(request, passthroughReply);
     expect(result.success).toBeTruthy();
 
-    // Allow saga steps to advance.
-    await new Promise<void>((r) => setTimeout(r, 300));
-
-    const sagaData = await mockRedis.get(`saga:${result.data.sagaId}`);
+    // Once the pass is parked, the absence of a create command below is the saga's decision
+    // rather than a step that has not run yet.
+    const sagaData = await awaitParked(mockRedis, result.data.sagaId);
     expect(sagaData).toBeTruthy();
     const parsed = JSON.parse(sagaData!);
 

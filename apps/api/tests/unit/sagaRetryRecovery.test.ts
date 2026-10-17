@@ -7,6 +7,7 @@
  * @layer infrastructure
  */
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { until } from "@packages/vitest-shared/determinism";
 import {
   TEST_ACCOUNT_ID,
   createMockPrisma,
@@ -20,6 +21,9 @@ import {
   type MockEventService,
 } from "./sagaManager.test-helpers.js";
 import type { SagaManagerImpl } from "../../src/saga/SagaManager.js";
+
+/** The deadline and the interval of every wait on the pass a start defers. */
+const WAIT_TIMING = { timeoutMs: 3_000, intervalMs: 5 } as const;
 
 describe("Saga retry recovery (persisted nextRetryAt)", () => {
   let mockPrisma: MockPrismaClient;
@@ -56,7 +60,10 @@ describe("Saga retry recovery (persisted nextRetryAt)", () => {
       userId: "user-1",
     });
 
-    await new Promise((r) => setTimeout(r, 250));
+    await until(async () => (await manager.getSaga(sagaInstance.id))?.nextRetryAt !== undefined, {
+      description: "the failed step to schedule its retry",
+      ...WAIT_TIMING,
+    });
 
     const persisted = await manager.getSaga(sagaInstance.id);
     expect(persisted).toBeTruthy();
@@ -84,7 +91,10 @@ describe("Saga retry recovery (persisted nextRetryAt)", () => {
       userId: "user-2",
     });
 
-    await new Promise((r) => setTimeout(r, 250));
+    await until(async () => (await manager.getSaga(sagaInstance.id))?.status === "COMPLETED", {
+      description: "the saga to complete",
+      ...WAIT_TIMING,
+    });
 
     const persisted = await manager.getSaga(sagaInstance.id);
     expect(persisted).toBeTruthy();
