@@ -601,25 +601,22 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("should return projects in descending order by creation date", async () => {
-      // Create multiple projects
+      // The two rows carry their creation instants, 10 ms apart, so their order is set by the
+      // data rather than by how far the real clock moved between two inserts.
       const project1 = await prisma.project.create({
         data: {
           accountId: createdAccountId,
           name: `Project 1 ${Date.now()}`,
           locale: "en",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
         },
       });
-
-      await new Promise((resolve) => {
-        const timer = setTimeout(resolve, 10);
-        timer.unref();
-      }); // Small delay
-
       const project2 = await prisma.project.create({
         data: {
           accountId: createdAccountId,
           name: `Project 2 ${Date.now()}`,
           locale: "en",
+          createdAt: new Date("2026-01-01T00:00:00.010Z"),
         },
       });
 
@@ -639,6 +636,10 @@ describe("projectRoutes - Unit Tests", () => {
       for (let i = 1; i < dates.length; i++) {
         expect(dates[i - 1] >= dates[i]).toBeTruthy();
       }
+      const seeded = body.data
+        .map((p: Record<string, unknown>) => p.id)
+        .filter((id: unknown) => id === project1.id || id === project2.id);
+      expect(seeded).toEqual([project2.id, project1.id]);
 
       // Cleanup
       await prisma.project.delete({ where: { id: project1.id } });

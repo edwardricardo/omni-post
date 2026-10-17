@@ -8,7 +8,8 @@
  * @layer infrastructure
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { fixedClock } from "@packages/vitest-shared/determinism";
 import {
   Channel,
   Account,
@@ -25,6 +26,17 @@ describe("Domain Entities", () => {
   describe("Channel Entity", () => {
     const projectId = ProjectId.generate();
     const accountId = AccountId.generate();
+    // A test that compares two stamps pins the clock at T0 and moves it to T1 between the two
+    // calls, so the second stamp differs by construction rather than by however long a sleep took.
+    const T0 = fixedClock();
+    const T1 = new Date(T0.getTime() + 5);
+    const pinClockAt = (instant: Date): void => {
+      vi.useFakeTimers({ now: instant, toFake: ["Date"] });
+    };
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
 
     it("should create a new channel", () => {
       const result = Channel.create({
@@ -238,7 +250,8 @@ describe("Domain Entities", () => {
       }
     });
 
-    it("flips isPrimary via markAsPrimary and updates timestamp", async () => {
+    it("flips isPrimary via markAsPrimary and updates timestamp", () => {
+      pinClockAt(T0);
       const result = Channel.create({
         projectId,
         accountId,
@@ -249,15 +262,15 @@ describe("Domain Entities", () => {
       expect(result.ok).toBeTruthy();
       if (!result.ok) return;
       const channel = result.value;
-      const before = channel.updatedAt.getTime();
-      // Make sure the clock advances so updatedAt changes deterministically.
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      expect(channel.updatedAt).toEqual(T0);
+      vi.setSystemTime(T1);
       channel.markAsPrimary();
       expect(channel.isPrimary).toBe(true);
-      expect(channel.updatedAt.getTime()).toBeGreaterThan(before);
+      expect(channel.updatedAt).toEqual(T1);
     });
 
-    it("markAsPrimary is idempotent — does not bump updatedAt when already primary", async () => {
+    it("markAsPrimary is idempotent — does not bump updatedAt when already primary", () => {
+      pinClockAt(T0);
       const result = Channel.create({
         projectId,
         accountId,
@@ -269,14 +282,14 @@ describe("Domain Entities", () => {
       if (!result.ok) return;
       const channel = result.value;
       channel.markAsPrimary();
-      const after = channel.updatedAt.getTime();
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      vi.setSystemTime(T1);
       channel.markAsPrimary();
       expect(channel.isPrimary).toBe(true);
-      expect(channel.updatedAt.getTime()).toBe(after);
+      expect(channel.updatedAt).toEqual(T0);
     });
 
-    it("unmarkAsPrimary flips back to false and is idempotent", async () => {
+    it("unmarkAsPrimary flips back to false and is idempotent", () => {
+      pinClockAt(T0);
       const result = Channel.create({
         projectId,
         accountId,
@@ -291,11 +304,10 @@ describe("Domain Entities", () => {
       expect(channel.isPrimary).toBe(true);
       channel.unmarkAsPrimary();
       expect(channel.isPrimary).toBe(false);
-      const after = channel.updatedAt.getTime();
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      vi.setSystemTime(T1);
       // Second unmark on an already-non-primary channel must not bump updatedAt.
       channel.unmarkAsPrimary();
-      expect(channel.updatedAt.getTime()).toBe(after);
+      expect(channel.updatedAt).toEqual(T0);
     });
 
     it("toJSON exposes isPrimary", () => {
@@ -347,7 +359,8 @@ describe("Domain Entities", () => {
       expect((channel.authFailedAt as Date).getTime()).toBeGreaterThanOrEqual(before);
     });
 
-    it("markForReauth re-stamps authFailedAt on consecutive triggers", async () => {
+    it("markForReauth re-stamps authFailedAt on consecutive triggers", () => {
+      pinClockAt(T0);
       const r = Channel.create({
         projectId: ProjectId.generate(),
         accountId: AccountId.generate(),
@@ -358,10 +371,10 @@ describe("Domain Entities", () => {
       if (!r.ok) throw r.error;
       const channel = r.value;
       channel.markForReauth("first");
-      const first = (channel.authFailedAt as Date).getTime();
-      await new Promise((res) => setTimeout(res, 5));
+      expect(channel.authFailedAt).toEqual(T0);
+      vi.setSystemTime(T1);
       channel.markForReauth("second");
-      expect((channel.authFailedAt as Date).getTime()).toBeGreaterThanOrEqual(first);
+      expect(channel.authFailedAt).toEqual(T1);
       expect(channel.authFailureReason).toBe("second");
     });
 
@@ -403,7 +416,8 @@ describe("Domain Entities", () => {
       expect((channel.expiredAt as Date).getTime()).toBeGreaterThanOrEqual(before);
     });
 
-    it("recordReconnection preserves expiredAt as audit history", async () => {
+    it("recordReconnection preserves expiredAt as audit history", () => {
+      pinClockAt(T0);
       const r = Channel.create({
         projectId: ProjectId.generate(),
         accountId: AccountId.generate(),
@@ -414,20 +428,18 @@ describe("Domain Entities", () => {
       if (!r.ok) throw r.error;
       const channel = r.value;
       channel.markAsExpired();
-      const expiredAtBefore = (channel.expiredAt as Date).getTime();
       channel.markForReauth("rotation");
 
-      await new Promise((res) => setTimeout(res, 2));
+      vi.setSystemTime(T1);
       channel.recordReconnection();
 
       expect(channel.status).toBe("CONNECTED");
       expect(channel.needsReauth).toBe(false);
       expect(channel.authFailedAt).toBeUndefined();
       expect(channel.authFailureReason).toBeUndefined();
-      expect(channel.connectedAt).toBeInstanceOf(Date);
+      expect(channel.connectedAt).toEqual(T1);
       // expiredAt MUST survive — it is the audit record of the latest natural expiry.
-      expect(channel.expiredAt).toBeInstanceOf(Date);
-      expect((channel.expiredAt as Date).getTime()).toBe(expiredAtBefore);
+      expect(channel.expiredAt).toEqual(T0);
     });
 
     it("recordPublish updates lastUsedAt with the supplied timestamp", () => {

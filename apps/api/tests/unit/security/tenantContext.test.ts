@@ -8,6 +8,7 @@
  */
 import { describe, it, expect } from "vitest";
 import assert from "node:assert/strict";
+import { createDeferred } from "@packages/vitest-shared/determinism";
 import {
   withTenantContext,
   enterTenantContext,
@@ -18,6 +19,42 @@ import {
   TenantContextMissingError,
   TenantContextMismatchError,
 } from "../../../src/security/tenantContext.js";
+
+/**
+ * Runs `read` once in each scope, every scope suspended at one shared barrier until all of them
+ * have entered, so each read happens while every other context is live too. The barrier opens
+ * from the test's own chain, outside every scope, so a continuation that took its context from
+ * whoever resumed it would read none at all.
+ * @param scopes - The scope values, one concurrent chain each.
+ * @param enter - Binds one scope value around a function, as `withTenantContext` does.
+ * @param read - Reads the bound value back after the barrier.
+ * @returns What each chain read, in the order of `scopes`.
+ */
+async function readWhileAllScopesSuspended<S>(
+  scopes: readonly S[],
+  enter: (scope: S, fn: () => Promise<string | undefined>) => Promise<string | undefined>,
+  read: () => string | undefined
+): Promise<Array<string | undefined>> {
+  const barrier = createDeferred<void>();
+  let entered = 0;
+  const reads = Promise.all(
+    scopes.map((scope) =>
+      enter(scope, async () => {
+        entered += 1;
+        await barrier.promise;
+        return read();
+      })
+    )
+  );
+  // The scopes run their function synchronously up to its first await, so every chain is
+  // inside its own context and suspended at the barrier by now. The count is read before the
+  // barrier opens and asserted after, so a failed assertion leaves no chain pending.
+  const suspendedAtOpen = entered;
+  barrier.resolve();
+  const results = await reads;
+  expect(suspendedAtOpen).toBe(scopes.length);
+  return results;
+}
 
 describe("TenantContext", () => {
   describe("withTenantContext", () => {
@@ -37,32 +74,29 @@ describe("TenantContext", () => {
     });
 
     it("propagates accountId to nested async operations", async () => {
-      const observed: string[] = [];
+      const observed: Array<string | undefined> = [];
       await withTenantContext({ accountId: "acc-A" }, async () => {
-        observed.push(getTenantContext()!.accountId);
+        observed.push(getTenantContext()?.accountId);
         await Promise.resolve();
-        observed.push(getTenantContext()!.accountId);
-        await new Promise((resolve) => setTimeout(resolve, 1));
-        observed.push(getTenantContext()!.accountId);
+        observed.push(getTenantContext()?.accountId);
+        // One event-loop turn: the callback is a macrotask scheduled from inside the scope, so
+        // it reads the context itself rather than only the continuation after it.
+        observed.push(
+          await new Promise<string | undefined>((resolve) => {
+            setImmediate(() => resolve(getTenantContext()?.accountId));
+          })
+        );
+        observed.push(getTenantContext()?.accountId);
       });
-      expect(observed).toEqual(["acc-A", "acc-A", "acc-A"]);
+      expect(observed).toEqual(["acc-A", "acc-A", "acc-A", "acc-A"]);
     });
 
     it("isolates concurrent contexts (no cross-pollination)", async () => {
-      const results = await Promise.all([
-        withTenantContext({ accountId: "acc-A" }, async () => {
-          await new Promise((resolve) => setTimeout(resolve, 5));
-          return getTenantContext()?.accountId;
-        }),
-        withTenantContext({ accountId: "acc-B" }, async () => {
-          await new Promise((resolve) => setTimeout(resolve, 5));
-          return getTenantContext()?.accountId;
-        }),
-        withTenantContext({ accountId: "acc-C" }, async () => {
-          await new Promise((resolve) => setTimeout(resolve, 5));
-          return getTenantContext()?.accountId;
-        }),
-      ]);
+      const results = await readWhileAllScopesSuspended(
+        ["acc-A", "acc-B", "acc-C"],
+        (accountId, fn) => withTenantContext({ accountId }, fn),
+        () => getTenantContext()?.accountId
+      );
       expect(results).toEqual(["acc-A", "acc-B", "acc-C"]);
     });
   });
@@ -138,16 +172,11 @@ describe("SystemContext", () => {
     });
 
     it("isolates concurrent system contexts", async () => {
-      const results = await Promise.all([
-        withSystemContext("reason-A", async () => {
-          await new Promise((resolve) => setTimeout(resolve, 5));
-          return getSystemContext()?.reason;
-        }),
-        withSystemContext("reason-B", async () => {
-          await new Promise((resolve) => setTimeout(resolve, 5));
-          return getSystemContext()?.reason;
-        }),
-      ]);
+      const results = await readWhileAllScopesSuspended(
+        ["reason-A", "reason-B"],
+        withSystemContext,
+        () => getSystemContext()?.reason
+      );
       expect(results).toEqual(["reason-A", "reason-B"]);
     });
   });

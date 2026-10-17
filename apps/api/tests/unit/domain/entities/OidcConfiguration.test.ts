@@ -5,8 +5,9 @@
  * @layer infrastructure
  */
 
-import { describe, it } from "vitest";
+import { afterEach, describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
+import { fixedClock } from "@packages/vitest-shared/determinism";
 import { OidcConfiguration } from "@core/domain/entities/OidcConfiguration.js";
 
 function makeEntity(): OidcConfiguration {
@@ -19,20 +20,26 @@ function makeEntity(): OidcConfiguration {
     scopes: ["openid", "email", "profile"],
     attributeMapping: { email: "email" },
     isActive: true,
-    createdAt: new Date("2026-01-01T00:00:00Z"),
-    updatedAt: new Date("2026-01-01T00:00:00Z"),
+    createdAt: fixedClock(),
+    updatedAt: fixedClock(),
   });
 }
 
 describe("OidcConfiguration.replaceClientSecret", () => {
-  it("replaces the secret + bumps updatedAt", async () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("replaces the secret + bumps updatedAt", () => {
     const entity = makeEntity();
-    const before = entity.updatedAt.getTime();
-    await new Promise((r) => setTimeout(r, 5));
+    // The replacement happens 5 ms after the stored stamp on a pinned clock, so the bump is
+    // the exact instant the clock reads rather than whatever the real clock had reached.
+    const replacedAt = new Date(fixedClock().getTime() + 5);
+    vi.useFakeTimers({ now: replacedAt, toFake: ["Date"] });
     const result = entity.replaceClientSecret("brand-new-secret");
     assert.ok(result.ok);
     assert.equal(entity.clientSecret, "brand-new-secret");
-    assert.ok(entity.updatedAt.getTime() > before);
+    assert.deepEqual(entity.updatedAt, replacedAt);
   });
 
   it("rejects empty secret with InvalidValueError", () => {
