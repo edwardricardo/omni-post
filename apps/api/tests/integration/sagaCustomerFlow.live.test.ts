@@ -26,6 +26,7 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@infra/prisma";
+import { untilValue } from "@packages/vitest-shared/determinism";
 import { assertPublishConsumers, checkApiAvailable, getBaseUrl } from "../testUtils.js";
 import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
@@ -84,19 +85,26 @@ async function waitForTerminal(
   maxMs = 15_000
 ): Promise<{ status: string; data: Record<string, unknown> }> {
   const TERMINAL = new Set(["COMPLETED", "FAILED", "COMPENSATED"]);
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < maxMs) {
-    const result = await getSagaStatus(authHeader, sagaId);
-    if (result.status === 200) {
+  let lastRead = "no answer";
+  return untilValue(
+    async () => {
+      const result = await getSagaStatus(authHeader, sagaId);
+      if (result.status !== 200) {
+        lastRead = `HTTP ${result.status}`;
+        return null;
+      }
       const body = result.body as { data?: { status?: string } };
       const sagaStatus = body?.data?.status;
-      if (sagaStatus && TERMINAL.has(sagaStatus)) {
-        return { status: sagaStatus, data: body.data as Record<string, unknown> };
-      }
+      lastRead = sagaStatus ?? "no status";
+      if (!sagaStatus || !TERMINAL.has(sagaStatus)) return null;
+      return { status: sagaStatus, data: body.data as Record<string, unknown> };
+    },
+    {
+      description: () => `saga ${sagaId} to reach a terminal state (last read: ${lastRead})`,
+      timeoutMs: maxMs,
+      intervalMs: 200,
     }
-    await new Promise<void>((resolve) => setTimeout(resolve, 200));
-  }
-  throw new Error(`Saga ${sagaId} did not reach terminal state within ${maxMs}ms`);
+  );
 }
 
 describe("Saga customer flow integration", () => {
@@ -120,8 +128,8 @@ describe("Saga customer flow integration", () => {
     // The publish cases below start a saga and wait for a terminal state. With
     // nothing consuming the publish queue the saga correctly PARKS, and its only
     // remaining terminalizer is the 30-minute horizon — so every one of them
-    // burns its full per-test budget and then reports "did not reach terminal
-    // state", which is a symptom several inference steps away from the cause.
+    // burns its full per-test budget and then reports a timeout waiting for a
+    // terminal state, which is a symptom several inference steps away from the cause.
     // Failing here instead states the cause, in seconds.
     assert.ok(consumers.ok, consumers.message);
 

@@ -12,6 +12,7 @@
 
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
+import { createDeferred } from "@packages/vitest-shared/determinism";
 import { drainTarget } from "../../src/lib/gracefulShutdown.js";
 import type { ShutdownTarget, ShutdownLogger } from "../../src/lib/gracefulShutdown.js";
 
@@ -32,15 +33,15 @@ describe("publishWorker ShutdownTarget — drain order regression guard", () => 
   it("worker.close() resolves BEFORE notifyRedis.quit() is called", async () => {
     // Simulate an in-flight publish job: worker.close() resolves only after
     // the deferred job promise settles (mimicking BullMQ's graceful drain).
-    let resolveJob!: () => void;
-    const inFlightJob = new Promise<void>((resolve) => {
-      resolveJob = resolve;
-    });
+    const inFlightJob = createDeferred<void>();
+    // Settled when the drain calls worker.close(): the point the drain provably reached.
+    const closeEntered = createDeferred<void>();
 
     const fakeWorker = {
       close: async (): Promise<void> => {
+        closeEntered.resolve();
         // Drain in-flight job before close resolves.
-        await inFlightJob;
+        await inFlightJob.promise;
         callOrder.push("worker.close");
       },
     } as unknown as import("bullmq").Worker;
@@ -68,11 +69,11 @@ describe("publishWorker ShutdownTarget — drain order regression guard", () => 
       },
     };
 
-    // Resolve the in-flight job after a short delay to prove drain waited.
+    // Resolve the in-flight job only once the drain is awaiting worker.close(), to prove the
+    // drain waited for it.
     const drainPromise = drainTarget(target, noopLogger);
-    // Let the event loop tick so drainTarget starts awaiting worker.close()
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    resolveJob();
+    await closeEntered.promise;
+    inFlightJob.resolve();
     await drainPromise;
 
     // CRITICAL assertions:
