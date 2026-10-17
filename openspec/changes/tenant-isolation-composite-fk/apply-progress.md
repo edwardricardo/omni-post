@@ -141,7 +141,7 @@ no tenant index was involved.
 `scripts/db-up.sh` states it verbatim: infrastructure lives in the
 `omnipost-infra` LXC and `pnpm db:up` only runs a reachability preflight. Nothing
 in `package.json`, the workflows, or `scripts/` invokes docker compose;
-`docs/deployment/LOCAL.md` still describes the old behaviour and is stale.
+[`docs/deployment/LOCAL.md`](https://github.com/edwardricardo/omni-post/blob/2d46f0d2135dbd6c9bcf29af0b548a0df118e6b0/docs/deployment/LOCAL.md) still describes the old behaviour and is stale.
 
 ---
 

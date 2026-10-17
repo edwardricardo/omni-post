@@ -56,6 +56,14 @@ The `docker-compose.yml` starts these services, each bound to `127.0.0.1`:
 
 `pnpm db:up` does not start containers: it resolves, reaches and authenticates against the PostgreSQL and Redis named by `DATABASE_URL` and `REDIS_URL` in `.env`, local or shared, and fails with an actionable message when one is not usable.
 
+### Storage, tracing and mail
+
+Carried over on 2026-10-17 from the local setup guide, [`docs/deployment/LOCAL.md`](https://github.com/edwardricardo/omni-post/blob/2d46f0d2135dbd6c9bcf29af0b548a0df118e6b0/docs/deployment/LOCAL.md), which was removed from the repository that day (git history keeps it; the link is its last version), and read against `docker-compose.yml` and the API's configuration.
+
+- **Storage.** `docker compose up -d` starts MinIO with the `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` of `.env`, which compose requires, and a one-shot `minio-init` container that creates the `omni-post-media` bucket. The default `STORAGE_PROVIDER=local` builds the S3 adapter for that bucket in `us-east-1`; to point it at MinIO, set `S3_ENDPOINT=http://localhost:9000` and the MinIO root credentials as `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, both or neither (`apps/api/src/infrastructure/storage/createStorageAdapter.ts`). After wiping the volume, `docker compose up minio-init` creates the bucket again.
+- **Tracing.** The API and the workers send spans only with `TRACING_ENABLED=true` (the default is `false`), to `OTEL_EXPORTER_OTLP_ENDPOINT`, by default `http://localhost:4318`, Jaeger's OTLP receiver, under the service names `omnipost-api` and `omnipost-worker` unless `OTEL_SERVICE_NAME` sets another.
+- **Mail.** The API sends mail only through Resend (`ResendEmailAdapter`); without `RESEND_API_KEY` it logs a warning and sends nothing. No code sends over SMTP, so a local mail catcher such as Mailhog, which the old guide started, receives nothing.
+
 ### Docker Commands
 
 ```bash
