@@ -126,7 +126,7 @@ There is a real obstacle, and it is the reason this is a design fork (§8): the 
 | M5  | `roleBasedRateLimit()` `apps/api/src/auth/rbacMiddleware.ts:201` | —                                        | **zero** production call sites; 4 in `tests/unit/rbacMiddleware.test.ts:449,459,472,484`          | **dead** — sets `X-RateLimit-Limit` (`:217`) and consumes nothing       |
 | L2  | `BruteForceProtectionPort`                                       | account/email                            | `AdminAuthService.ts:67`, `LoginCustomerUseCase.ts:110`, `CompleteCustomerMfaLoginUseCase.ts:134` | **sound, separate layer, stays**                                        |
 
-M5 is the sole writer of `X-RateLimit-Limit` in the entire repo — the header `docs/security/AUTH.md:324` promises. The limiter itself sets only `Remaining` and `Reset` (`:168-169, 204-205`).
+M5 is the sole writer of `X-RateLimit-Limit` in the entire repo — the header [`docs/security/AUTH.md:324`](https://github.com/edwardricardo/omni-post/blob/22112e7048ca16b8c1e9afd6144b4cd600e72511/docs/security/AUTH.md#L324) promises. The limiter itself sets only `Remaining` and `Reset` (`:168-169, 204-205`).
 
 **Verdict.** M1's port, adapter, `resolveClientIp` and numeric `trustProxy` (`index.ts:188`) are **(A)-grade and untouched**. M1's key derivation, M1's rule table, and the M1/M2/M3/M4/M5 split are **(B)**: one capability implemented five times, three of those implementations existing solely to work around the first one's defects. Consolidation is not a follow-up change — it _is_ this change. The repo's own parity doc already ratified the direction at `ADMIN_CUSTOMER_PARITY.md:366`: _"Rate-limit consolidation. One rule source; retire `adminAuthMiddleware.rateLimit`; add rules for …"_
 
