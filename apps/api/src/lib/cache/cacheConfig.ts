@@ -5,7 +5,17 @@
  * @layer infrastructure
  */
 
+import { createHash } from "node:crypto";
 import { CacheTTL, type CacheOptions } from "@adapters/cache-redis";
+
+/**
+ * The vary parameter that names the caller in a cache key. Every authenticating
+ * hook of this API (`requireClientAuth`, `requireAdminAuth`,
+ * `requireCustomerOrAdminAuth`, the integration-key hooks) reads the caller's
+ * credential from the `Authorization` header, so its value tells two callers
+ * apart whichever of those hooks admitted the request.
+ */
+export const PRINCIPAL_VARY_PARAM = "header:authorization";
 
 /**
  * Per-route cache options consumed by `autoCacheMiddleware`. Extends the
@@ -17,42 +27,64 @@ export interface RouteCacheOptions extends CacheOptions {
   keyPattern?: string;
   varyBy?: string[];
   invalidateOn?: string[];
+  /**
+   * Declares that the route serves the same response to every caller, with or
+   * without credentials, so its key may leave the caller out. A cached GET rule
+   * that does not vary by `PRINCIPAL_VARY_PARAM` must declare it, and the boot
+   * guard in `cacheRouteCoverage.ts` refuses the declaration on a route that
+   * carries an authenticating hook.
+   */
+  public?: boolean;
 }
 
 /**
- * Cache configuration for specific API endpoints
+ * Cache configuration for specific API endpoints.
+ *
+ * The cache answers a HIT from the last pre-handler of the route, after the
+ * route's own hooks (`requireClientAuth`, `requireAdminAuth`, validation, rate
+ * limit) have admitted the request and before its handler runs, so a hit skips
+ * every check the handler makes, the ownership check of a tenant's resource
+ * included. A rule whose route authenticates MUST therefore carry
+ * `PRINCIPAL_VARY_PARAM` (`header:authorization`) in its `varyBy` (CWE-639):
+ * without it the key is caller-agnostic, and the first caller's response is
+ * served to every other caller the route admits, another tenant included. A rule
+ * without it must declare `public: true`. `assertCachedResponsesVaryByPrincipal`
+ * enforces both at boot, and `generateApiCacheKey` stores a digest of the header,
+ * never its value.
  */
 export const CACHE_CONFIG: Record<string, RouteCacheOptions> = {
-  // Provider endpoints (rarely change, cache aggressively)
+  // Provider endpoints (rarely change, cache aggressively). `/providers` is the
+  // one public route here; the others sit behind `requireClientAuth`.
   "GET:/providers": {
     enabled: true,
     ttl: CacheTTL.LONG, // 1 hour
     tags: ["providers", "static"],
     varyBy: [],
+    public: true,
   },
   "GET:/providers/active": {
     enabled: true,
     ttl: CacheTTL.LONG, // 1 hour
     tags: ["providers", "static"],
-    varyBy: [],
+    varyBy: [PRINCIPAL_VARY_PARAM],
   },
   "GET:/providers/by-capability/:capability": {
     enabled: true,
     ttl: CacheTTL.LONG, // 1 hour
     tags: ["providers", "static"],
-    varyBy: ["capability"],
+    varyBy: [PRINCIPAL_VARY_PARAM, "capability"],
   },
   "GET:/providers/:id": {
     enabled: true,
     ttl: CacheTTL.LONG, // 1 hour
     tags: ["providers", "static"],
-    varyBy: ["id"],
+    varyBy: [PRINCIPAL_VARY_PARAM, "id"],
   },
   "GET:/providers/health/all": {
     enabled: true,
     ttl: CacheTTL.SHORT, // 5 minutes (health status changes)
     tags: ["providers", "health"],
-    varyBy: [],
+    varyBy: [PRINCIPAL_VARY_PARAM],
   },
 
   // Template endpoints (moderate change frequency)
@@ -74,7 +106,7 @@ export const CACHE_CONFIG: Record<string, RouteCacheOptions> = {
     enabled: true,
     ttl: CacheTTL.SHORT, // 5 minutes
     tags: ["analytics", "dashboard"],
-    varyBy: ["query:projectId", "query:timeRange", "query:metrics"],
+    varyBy: [PRINCIPAL_VARY_PARAM, "query:projectId", "query:timeRange", "query:metrics"],
   },
   "GET:/analytics/posts/:postId": {
     enabled: true,
@@ -103,13 +135,8 @@ export const CACHE_CONFIG: Record<string, RouteCacheOptions> = {
     varyBy: ["id"],
   },
 
-  // Post endpoints (frequently accessed, moderate changes).
-  // `header:authorization` is REQUIRED in varyBy (CWE-639): the cache-read hook
-  // runs on `onRequest`, before `requireClientAuth` parses the principal, so the
-  // only account-discriminating value available is the raw bearer token. Without
-  // it the cache key is account-agnostic and the owner's cached response leaks to
-  // (and is served without re-auth to) any caller requesting the same id — which
-  // would defeat the ownership gate enforced in the query layer.
+  // Post endpoints (frequently accessed, moderate changes). Behind
+  // `requireClientAuth`, so the caller is part of the key (see above).
   "GET:/posts": {
     enabled: true,
     ttl: CacheTTL.SHORT, // 5 minutes
@@ -282,7 +309,11 @@ export const CACHE_INVALIDATION_RULES: Record<string, string[]> = {
 };
 
 /**
- * Get cache configuration for a route
+ * @method getCacheConfig
+ * @description Looks up the cache rule of a route by its method and registered pattern.
+ * @param method - The HTTP method
+ * @param route - The route pattern as Fastify registered it
+ * @returns The rule, or `undefined` when the route has none
  */
 export function getCacheConfig(method: string, route: string): RouteCacheOptions | undefined {
   const key = `${method}:${route}`;
@@ -290,7 +321,11 @@ export function getCacheConfig(method: string, route: string): RouteCacheOptions
 }
 
 /**
- * Get cache invalidation tags for a mutation operation
+ * @method getInvalidationTags
+ * @description Looks up the cache tags a successful mutation of a route invalidates.
+ * @param method - The HTTP method of the mutation
+ * @param route - The route pattern as Fastify registered it
+ * @returns The tags to invalidate, empty when the mutation has no rule
  */
 export function getInvalidationTags(method: string, route: string): string[] {
   const key = `${method}:${route}`;
@@ -298,7 +333,12 @@ export function getInvalidationTags(method: string, route: string): string[] {
 }
 
 /**
- * Check if a route should be cached
+ * @method shouldCacheRoute
+ * @description Tells whether the responses of a route are cached: only a GET route with an
+ *   enabled rule is.
+ * @param method - The HTTP method
+ * @param route - The route pattern as Fastify registered it
+ * @returns True when the route has an enabled GET rule
  */
 export function shouldCacheRoute(method: string, route: string): boolean {
   // Only cache GET requests
@@ -310,22 +350,62 @@ export function shouldCacheRoute(method: string, route: string): boolean {
   return config?.enabled === true;
 }
 
+/** Hex characters of the sha256 digest a header value is reduced to in a key. */
+const HEADER_DIGEST_HEX_LENGTH = 32;
+
+/** The key segment value of a vary header the request did not send. */
+const ABSENT_HEADER_MARK = "absent";
+
 /**
- * Cache key generator for API responses
- *
- * Generates unique cache keys based on:
- * - HTTP method
- * - Route path
- * - Query parameters (if specified in varyBy)
- * - Headers (if specified in varyBy)
- * - User context (always included for authenticated requests)
+ * @method digestHeaderValue
+ * @description Reduces a header value to the form a cache key may carry. The key is a
+ *   Redis key name, is echoed in `X-Cache-Key` and is listed by `GET /cache/hot-keys`,
+ *   so a credential written into it verbatim is a credential published to everyone who
+ *   can read any of the three. An unsalted digest is enough because the values hashed
+ *   here are bearer tokens, high-entropy signed strings nobody can enumerate; 32 hex
+ *   characters (128 bits) keep two callers' keys apart while keeping key names short.
+ *   The `sha256-` prefix names the scheme and holds no key delimiter.
+ * @param value - The raw header value
+ * @returns `sha256-` followed by the first 32 hex characters of the value's sha256 digest
+ */
+function digestHeaderValue(value: string): string {
+  const digest = createHash("sha256").update(value).digest("hex");
+  return `sha256-${digest.slice(0, HEADER_DIGEST_HEX_LENGTH)}`;
+}
+
+/**
+ * @method encodeKeyValue
+ * @description Escapes a caller-supplied query or path value before it enters a key, so
+ *   a value carrying the `:` delimiter or `=` cannot pose as further key segments and
+ *   make two different requests share one cache entry.
+ * @param value - The raw query or path parameter value
+ * @returns The value, URI-component encoded
+ */
+function encodeKeyValue(value: unknown): string {
+  return encodeURIComponent(String(value));
+}
+
+/**
+ * @method generateApiCacheKey
+ * @description Builds the cache key of a GET response from its method, its route
+ *   pattern, the vary parameters of its rule and the user context. A query or path value
+ *   enters URI-encoded; a header enters as a sha256 digest of its value, or as `absent`
+ *   when the request did not send it, so a request without credentials never shares a
+ *   key with one that sent some.
+ * @param method - The HTTP method
+ * @param route - The route pattern as Fastify registered it
+ * @param params - The parsed path parameters
+ * @param query - The parsed query string
+ * @param headers - The request headers, names lowercased as Node delivers them
+ * @param userId - The authenticated user id, when the caller already resolved one
+ * @returns The cache key; `api:<method>:<route>` for a route with no cache rule
  */
 export function generateApiCacheKey(
   method: string,
   route: string,
   params: Record<string, unknown> = {},
   query: Record<string, unknown> = {},
-  headers: Record<string, string> = {},
+  headers: Readonly<Record<string, string | string[] | undefined>> = {},
   userId?: string
 ): string {
   const config = getCacheConfig(method, route);
@@ -343,17 +423,16 @@ export function generateApiCacheKey(
         const queryParam = varyParam.replace("query:", "");
         const value = query[queryParam];
         if (value) {
-          keyParts.push(`${queryParam}=${value}`);
+          keyParts.push(`${queryParam}=${encodeKeyValue(value)}`);
         }
       } else if (varyParam.startsWith("header:")) {
         const headerName = varyParam.replace("header:", "");
-        const value = headers[headerName];
-        if (value) {
-          keyParts.push(`${headerName}=${value}`);
-        }
+        const raw = headers[headerName];
+        const value = Array.isArray(raw) ? raw.join(",") : raw;
+        keyParts.push(`${headerName}=${value ? digestHeaderValue(value) : ABSENT_HEADER_MARK}`);
       } else if (params[varyParam]) {
         // Path parameter
-        keyParts.push(`${varyParam}=${params[varyParam]}`);
+        keyParts.push(`${varyParam}=${encodeKeyValue(params[varyParam])}`);
       }
     }
   }

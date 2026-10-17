@@ -1,7 +1,19 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-16, a customer registration answers one `409 EMAIL_EXISTS` for every address
+**As of:** 2026-10-17, the HTTP response cache no longer hands a cached response to a caller the
+route would refuse (`workstream/hotfix-cache-hit-before-auth`, `PR hotfix-cache-auth`, DEF-104). The
+cache answers a hit from `onRequest`, before any route hook runs, and the dashboard rule and four
+provider rules of routes behind `requireClientAuth` were keyed without the caller, so one account's
+cached dashboard reached another account and a caller with no token. Every cached rule of an
+authenticated route now varies by `header:authorization`; a boot guard
+(`assertCachedResponsesVaryByPrincipal` in `apps/api/src/lib/cache/cacheRouteCoverage.ts`) refuses a
+cached GET rule that leaves the caller out unless it declares its route public and the route carries
+no authenticating hook; and the key carries a sha256 digest of the header, never the bearer token. Its
+integration suite (`apps/api/tests/integration/cacheHitBeforeAuth.integration.test.ts`) moved M1
+`1010 + 14` → `1011 + 14`.
+
+Before it, on 2026-10-16, a customer registration answers one `409 EMAIL_EXISTS` for every address
 something already holds (`workstream/night-cp1b-register-500`, `PR cp1b`, unit C-P1b). A live account
 with no user answered 500 and a soft-deleted account let a second account be created beside it; the
 use case now runs the same holder lookups for every address, refuses a live and a deleted holder
@@ -613,24 +625,24 @@ closes the work-unit bullet it ends: `R` in Phase 1, `V` in Phase 3, `E` in Phas
 and `X` in the node:test versus vitest experiment, so `PR V6` is WU-3.6, the gitleaks change. A
 `Moved by` cell that names such a label resolves through that bullet.
 
-| #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
-| --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1010 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR cp1b  |
-| M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
-| M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
-| M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
-| M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 29 · 0                | 0 · 0         | `metrics.mjs --m5` (derived: `test-contracts reach --json` plus the quarantine)         | PR R10b  |
-| M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —        |
-| M7  | Gates new/modified, red proven                                    | 0/0                   | 38/38                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR pdeps |
-| M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/93 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR R9a   |
-| M9  | TIER runs: skipped / cancelled · runtime `t.skip` sites           | 0/0 · 114             | 0/0 · 114             | 0/0 · 0       | `metrics.mjs --m9` (pasted: TIER run summary; sites by WU-1.13 AST scan)                | —        |
-| M10 | E2E specs in CI, required? · last verdict                         | 0 · no                | 0 · no                | ≥6 · yes      | `metrics.mjs --m10` (run id, once WU-6.E8 lands the job)                                | —        |
-| M11 | k6 runs in CI · last verdict                                      | 0                     | 0                     | every PR      | `metrics.mjs --m11` (run id, once WU-6.K4 lands the job)                                | —        |
-| M12 | Mutation: packages in scope · score min/median · floors           | none                  | none                  | per Phase 7   | `metrics.mjs --m12` (`mutation-floors.json` + `reports/mutation/*`; absent at baseline) | —        |
-| M13 | fetch stubs · local canonical builders · `PrismaClient` casts     | 44 · ≥60 · 35         | 44 · ≥60 · 35         | 0 · 0 · 0     | `metrics.mjs --m13` (`eslint-suppressions.json` per rule; absent at baseline)           | —        |
-| M14 | Coverage that was decorative (floor descents with marker)         | 0                     | 0                     | recorded      | `metrics.mjs --m14` (`ledger.json` marker slices; absent at baseline)                   | —        |
-| M15 | Open nightly alarms · Postgres identities in workflows            | 31 · 4                | 31 · 4                | ≤1 · 1        | `metrics.mjs --m15` (network: `gh issue list`; identities by WU-4b.7)                   | —        |
-| M16 | Packages at target floor / total · uncovered functions (sum)      | per 6.N0              | per 6.N0              | all / all · ↓ | `metrics.mjs --m16` (`coverage-final.json`; absent at baseline)                         | —        |
+| #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by             |
+| --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------------------- |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1011 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR hotfix-cache-auth |
+| M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —                    |
+| M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —                    |
+| M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —                    |
+| M5  | Orphan test files · files with 2 collectors                       | 23 · ≥10              | 29 · 0                | 0 · 0         | `metrics.mjs --m5` (derived: `test-contracts reach --json` plus the quarantine)         | PR R10b              |
+| M6  | Ledger rows: machine / confirmed / total                          | —                     | —                     | 0 / N / N     | `metrics.mjs --m6` (`ledger.json`; absent at baseline)                                  | —                    |
+| M7  | Gates new/modified, red proven                                    | 0/0                   | 38/38                 | n/n           | `metrics.mjs --m7` (derived: this document's [§Gates](#gates) table)                    | PR pdeps             |
+| M8  | Packages with coverage measured · floors min/median/api           | 1/86 · —/—/56.8       | 1/93 · —/—/56.8       | all / all     | `metrics.mjs --m8` (derived: tracked `vitest.config.*` thresholds)                      | PR R9a               |
+| M9  | TIER runs: skipped / cancelled · runtime `t.skip` sites           | 0/0 · 114             | 0/0 · 114             | 0/0 · 0       | `metrics.mjs --m9` (pasted: TIER run summary; sites by WU-1.13 AST scan)                | —                    |
+| M10 | E2E specs in CI, required? · last verdict                         | 0 · no                | 0 · no                | ≥6 · yes      | `metrics.mjs --m10` (run id, once WU-6.E8 lands the job)                                | —                    |
+| M11 | k6 runs in CI · last verdict                                      | 0                     | 0                     | every PR      | `metrics.mjs --m11` (run id, once WU-6.K4 lands the job)                                | —                    |
+| M12 | Mutation: packages in scope · score min/median · floors           | none                  | none                  | per Phase 7   | `metrics.mjs --m12` (`mutation-floors.json` + `reports/mutation/*`; absent at baseline) | —                    |
+| M13 | fetch stubs · local canonical builders · `PrismaClient` casts     | 44 · ≥60 · 35         | 44 · ≥60 · 35         | 0 · 0 · 0     | `metrics.mjs --m13` (`eslint-suppressions.json` per rule; absent at baseline)           | —                    |
+| M14 | Coverage that was decorative (floor descents with marker)         | 0                     | 0                     | recorded      | `metrics.mjs --m14` (`ledger.json` marker slices; absent at baseline)                   | —                    |
+| M15 | Open nightly alarms · Postgres identities in workflows            | 31 · 4                | 31 · 4                | ≤1 · 1        | `metrics.mjs --m15` (network: `gh issue list`; identities by WU-4b.7)                   | —                    |
+| M16 | Packages at target floor / total · uncovered functions (sum)      | per 6.N0              | per 6.N0              | all / all · ↓ | `metrics.mjs --m16` (`coverage-final.json`; absent at baseline)                         | —                    |
 
 **How the baselines were obtained.** M1, M5, M7 and M8 are derived from the tree and reproduced
 byte-for-byte by `scripts/testing/metrics.mjs`, pinned by
