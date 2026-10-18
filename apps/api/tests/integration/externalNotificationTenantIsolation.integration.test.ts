@@ -313,14 +313,17 @@ describe("External Notification — two-tenant isolation (Slice 1, MERGE-BLOCKIN
     });
 
     it("A can delete its OWN config", async () => {
+      // A config of its own: deleting the suite's shared A config would leave the list and
+      // test-fire cases nothing to read whenever they run after this one.
+      const ownConfigId = await seedConfig(tenantA.accountId, tenantA.projectId, sinkAUrl);
       const res = await app.inject({
         method: "DELETE",
-        url: `/external-notifications/${tenantA.configId}`,
+        url: `/external-notifications/${ownConfigId}`,
         headers: { authorization: bearerFor(tenantA.accountId) },
       });
       assert.strictEqual(res.statusCode, 200);
       const gone = await base.externalNotificationConfig.findUnique({
-        where: { id: tenantA.configId },
+        where: { id: ownConfigId },
       });
       assert.strictEqual(gone, null, "A's own config must be deleted");
     });
