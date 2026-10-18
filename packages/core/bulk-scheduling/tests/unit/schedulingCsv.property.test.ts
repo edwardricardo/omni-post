@@ -79,15 +79,34 @@ const reportedRows = (result: ParseSchedulingCsvResult): { valid: number[]; fail
 const range = (from: number, to: number): number[] =>
   Array.from({ length: to - from + 1 }, (_, index) => from + index);
 
+/** The UTF-16 surrogate halves, which are not Unicode scalar values on their own. */
+const SURROGATE_HALVES = 0x800;
+
+/**
+ * Any Unicode scalar value, drawn by the same index as fast-check's `"binary"` string unit. That
+ * unit is not used because `fc.string` derives its dangerous-name slices (`__proto__`,
+ * `constructor`, ...) through a reverse map of all 1,112,064 code points, built the first time the
+ * unit is used: 394 ms and 85 MB on an idle machine, over vitest's 5 s budget on a loaded CI
+ * runner. A plain `map` has no reverse, so it gets no slices and costs nothing; with this file's
+ * seed the built-in unit never drew one of those slices (0 of 56 inputs).
+ */
+const anyCodePoint = fc
+  .nat({ max: 0x10ffff - SURROGATE_HALVES })
+  .map((index) => String.fromCodePoint(index < 0xd800 ? index : index + SURROGATE_HALVES));
+
 describe("parseSchedulingCsv (property)", () => {
   it("never throws and reports rows inside the document for any input", () => {
+    // Arbitrary code points join the structural characters so they also reach the cells under the
+    // required header, not only single-line documents that stop at "CSV has no data rows".
+    const csvCharacter = fc.oneof(
+      fc.constantFrom("a", "1", ",", '"', " ", "|", "\n"),
+      anyCodePoint
+    );
     const arbitraryLines = fc
-      .array(fc.string({ unit: fc.constantFrom("a", "1", ",", '"', " ", "|", "\n") }), {
-        maxLength: 6,
-      })
+      .array(fc.string({ unit: csvCharacter }), { maxLength: 6 })
       .map((lines) => `content,scheduledFor\n${lines.join("\n")}`);
     fc.assert(
-      fc.property(fc.oneof(fc.string({ unit: "binary" }), arbitraryLines), (csv) => {
+      fc.property(fc.oneof(fc.string({ unit: anyCodePoint }), arbitraryLines), (csv) => {
         const result = parseSchedulingCsv(csv);
         const { totalDataRows } = result;
         assert.ok(Number.isInteger(totalDataRows) && totalDataRows >= 0);
