@@ -216,6 +216,10 @@ describe("SagaManager - Saga Failure and Compensation", () => {
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     await expect(manager.compensateSaga(instance.id)).rejects.toThrow(/not in a failed state/);
+
+    // The start dispatched a detached pass; wait for it so it never runs after teardown stops the
+    // manager.
+    await awaitSagaEnded(manager, instance.id);
   });
 
   it("should update metrics on saga failure", async () => {
@@ -388,10 +392,12 @@ describe("SagaManager - Metrics", () => {
     const metricsBefore = manager.getMetrics();
     const startedBefore = metricsBefore.sagasStarted;
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.sagasStarted).toBe(startedBefore + 1);
+
+    await awaitSagaEnded(manager, instance.id);
   });
 
   it("should track active instances count", async () => {
@@ -400,10 +406,12 @@ describe("SagaManager - Metrics", () => {
 
     const metricsBefore = manager.getMetrics();
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.activeInstances >= metricsBefore.activeInstances).toBeTruthy();
+
+    await awaitSagaEnded(manager, instance.id);
   });
 
   it("should return registered definitions in metrics", async () => {
