@@ -18,7 +18,7 @@ import {
   isAccountEmailTaken,
   type AccountRepositoryPort,
 } from "@core/domain/repositories/AccountRepository.js";
-import { Account, type SubscriptionTierValue } from "@core/domain/entities/Account.js";
+import { Account } from "@core/domain/entities/Account.js";
 import { CustomerUser } from "@core/domain/entities/CustomerUser.js";
 import { AccountId } from "@core/domain/value-objects/EntityId.js";
 import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
@@ -41,7 +41,6 @@ export interface RegisterCustomerInput {
   readonly lastName: string;
   readonly email: string;
   readonly password: string;
-  readonly plan?: SubscriptionTierValue;
 }
 
 /** Output DTO */
@@ -148,11 +147,11 @@ export class RegisterCustomerUseCase {
         return err("EMAIL_EXISTS");
       }
 
-      // Create Account domain entity
+      // Create Account domain entity. Every self-registered account starts on the BASIC tier:
+      // the tier is a billing field, which billing or an admin changes, never the registrant.
       const accountResult = Account.create({
         email: accountEmail,
         name: input.accountName || `${input.firstName} ${input.lastName}`,
-        ...(input.plan !== undefined && { subscription: input.plan }),
       });
 
       if (!accountResult.ok) {

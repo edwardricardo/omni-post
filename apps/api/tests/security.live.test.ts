@@ -3,6 +3,7 @@
  * @description Tests for Security Features
  * @layer infrastructure
  */
+import { randomUUID } from "node:crypto";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { until } from "@packages/vitest-shared/determinism";
@@ -29,19 +30,29 @@ import {
 const BASE_URL = getBaseUrl();
 
 /**
- * The tenant the validation cases run as, registered once the API answers. Customer input that
- * still validates lives in two places: the registration body, and the account name the owner
- * changes with `PUT /accounts/:accountId`, which runs the name through the security validator.
- * `/health` and `/metrics` are public and intentionally sent without its token.
+ * Registers a tenant for one case. Customer input that still validates lives in two places: the
+ * registration body, and the account name the owner changes with `PUT /accounts/:accountId`, which
+ * runs the name through the security validator. Each case that renames registers its own tenant,
+ * so no case reads a name another case wrote. `/health` and `/metrics` are public and are sent
+ * without a token.
+ * @param label - Names the case in the tenant's address and account name.
+ * @returns The registered tenant.
  */
-let tenant: LiveTenant;
+async function registerCaseTenant(label: string): Promise<LiveTenant> {
+  const unique = `${label}-${Date.now()}-${randomUUID()}`;
+  return registerLiveTenant({
+    email: `security-features-${unique}@example.com`,
+    accountName: `Security Features ${label}`,
+  });
+}
 
 /**
  * Sends a rename of the tenant's own account.
+ * @param tenant - The tenant whose account is renamed, with its owner's token.
  * @param name - The name the rename asks for.
  * @returns The route's response.
  */
-async function renameOwnAccount(name: string): Promise<Response> {
+async function renameOwnAccount(tenant: LiveTenant, name: string): Promise<Response> {
   return fetch(`${BASE_URL}/accounts/${tenant.accountId}`, {
     method: "PUT",
     headers: { Authorization: tenant.authorization, "Content-Type": "application/json" },
@@ -51,9 +62,10 @@ async function renameOwnAccount(name: string): Promise<Response> {
 
 /**
  * Reads the tenant's stored account name through its owner's own account route.
+ * @param tenant - The tenant whose account is read, with its owner's token.
  * @returns The name the account carries.
  */
-async function storedAccountName(): Promise<unknown> {
+async function storedAccountName(tenant: LiveTenant): Promise<unknown> {
   const response = await fetch(`${BASE_URL}/accounts/${tenant.accountId}`, {
     headers: { Authorization: tenant.authorization },
   });
@@ -63,16 +75,23 @@ async function storedAccountName(): Promise<unknown> {
 }
 
 /**
- * Asserts a rename is refused by validation with 400 and leaves the stored name in place.
+ * Registers a tenant for the case and asserts a rename of its account is refused by validation
+ * with 400, leaving the name registration gave it.
+ * @param label - Names the case in the tenant it registers.
  * @param name - The name the rename asks for.
  * @param message - What the refusal proves.
  */
-async function assertRenameRefused(name: string, message: string): Promise<void> {
-  const nameBefore = await storedAccountName();
-  const response = await renameOwnAccount(name);
+async function assertRenameRefused(label: string, name: string, message: string): Promise<void> {
+  const tenant = await registerCaseTenant(label);
+  const nameBefore = await storedAccountName(tenant);
+  const response = await renameOwnAccount(tenant, name);
   await response.body?.cancel();
   assert.equal(response.status, 400, message);
-  assert.equal(await storedAccountName(), nameBefore, "a refused rename leaves the name in place");
+  assert.equal(
+    await storedAccountName(tenant),
+    nameBefore,
+    "a refused rename leaves the name in place"
+  );
 }
 
 /**
@@ -185,13 +204,7 @@ describe("Security Features", { concurrency: 1 }, () => {
   // is the failure mode a security suite can least afford: the run is green
   // precisely when the server it was meant to attack is absent.
   before(async () => {
-    if (await checkApiAvailable()) {
-      tenant = await registerLiveTenant({
-        email: `security-features-${Date.now()}@example.com`,
-        accountName: `Security Features ${Date.now()}`,
-      });
-      return;
-    }
+    if (await checkApiAvailable()) return;
 
     throw new Error(
       `No API is answering at ${BASE_URL}, so no security assertion in this suite can be ` +
@@ -292,6 +305,7 @@ describe("Security Features", { concurrency: 1 }, () => {
   describe("Input Validation", { concurrency: 1 }, () => {
     it("should handle SQL injection attempts", async () => {
       await assertRenameRefused(
+        "sql",
         "Test'; DROP TABLE accounts; --",
         "SQL injection in the account name should be refused by validation"
       );
@@ -299,6 +313,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
     it("should handle XSS attempts", async () => {
       await assertRenameRefused(
+        "xss",
         "<script>alert('xss')</script>Test User",
         "Script markup in the account name should be refused by validation"
       );
@@ -306,6 +321,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
     it("should handle path traversal attempts", async () => {
       await assertRenameRefused(
+        "traversal",
         "../../etc/passwd",
         "Path traversal in the account name should be refused by validation"
       );
@@ -313,6 +329,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
     it("should handle command injection attempts", async () => {
       await assertRenameRefused(
+        "command",
         "test; ls -la /",
         "Command injection in the account name should be refused by validation"
       );
@@ -320,17 +337,19 @@ describe("Security Features", { concurrency: 1 }, () => {
 
     it("should reject excessively long input", async () => {
       await assertRenameRefused(
+        "long",
         "A".repeat(20000), // Exceeds the 256-character name limit
         "Excessive length should be rejected"
       );
     });
 
     it("should accept valid input", async () => {
-      const response = await renameOwnAccount("Valid Test User");
+      const tenant = await registerCaseTenant("valid");
+      const response = await renameOwnAccount(tenant, "Valid Test User");
       await response.body?.cancel();
 
       assert.equal(response.status, 200, `Valid input should be accepted, got ${response.status}`);
-      assert.equal(await storedAccountName(), "Valid Test User", "The valid name is stored");
+      assert.equal(await storedAccountName(tenant), "Valid Test User", "The valid name is stored");
     });
   });
 
@@ -352,6 +371,7 @@ describe("Security Features", { concurrency: 1 }, () => {
 
     it("should handle names with special characters", async () => {
       await assertRenameRefused(
+        "markup",
         "<script>alert('name')</script>",
         "A name made of script markup should be refused by validation"
       );
@@ -395,17 +415,24 @@ describe("Security Features", { concurrency: 1 }, () => {
 
   describe("Security Headers", { concurrency: 1 }, () => {
     it("should include security headers in responses", async () => {
+      // The rate-limiting block waits for the `/health` window it closed to reopen, so this
+      // request is answered, not limited. The headers are the ones `SecurityManager` sets: helmet's
+      // with the HSTS, frame and referrer options `createApp` passes, and the CSP it builds.
       const response = await fetch(`${BASE_URL}/health`);
+      await response.body?.cancel();
 
-      // Verify response is valid and content-type is set properly
-      assert.ok(
-        response.status >= 200 && response.status < 500,
-        "Response should be valid HTTP status"
+      assert.equal(response.status, 200, "/health answers once its window has reopened");
+      assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+      assert.equal(response.headers.get("x-frame-options"), "DENY");
+      assert.equal(
+        response.headers.get("strict-transport-security"),
+        "max-age=31536000; includeSubDomains; preload"
       );
-
-      // Check that content-type is set (basic security header)
-      const contentType = response.headers.get("content-type");
-      assert.ok(contentType !== null, "Response should have content-type header set");
+      assert.equal(response.headers.get("referrer-policy"), "strict-origin-when-cross-origin");
+      assert.ok(
+        response.headers.get("content-security-policy")?.includes("frame-ancestors 'none'"),
+        "the CSP forbids framing the API"
+      );
     });
   });
 

@@ -581,6 +581,23 @@ describe("projectRoutes - Unit Tests", () => {
       expect(response.statusCode).toBe(200);
     });
 
+    it("creates the project when the account's limit is negative, the stored form of unlimited", async () => {
+      // The ENTERPRISE tier stores -1 for an unlimited project count. Read as a number, -1 is
+      // below every held-slot count, so a plain comparison refused every create on that plan.
+      const account = await seedAccount({ maxProjects: -1, name: "Unlimited Plan" });
+      actAs(account.id);
+      await seedProject(account.id, { label: "Already Held" });
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${account.id}/projects`,
+        payload: { name: uniqueName("Next Project"), locale: "en" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body).data?.accountId).toBe(account.id);
+    });
+
     it("frees the slot again once the held project is permanently erased", async () => {
       // The escape hatch the 403 message promises, exercised end to end so the
       // message cannot become a lie: erasing the deleted project releases its

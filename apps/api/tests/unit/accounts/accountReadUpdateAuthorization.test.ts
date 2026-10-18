@@ -387,6 +387,7 @@ describe("POST /accounts — no customer account creation", () => {
       payload: { email, name: "Minted Tenant", maxProjects: 50 },
     });
 
+    // Fastify answers 404, not 405, to a method and path no route registers.
     expect(response.statusCode).toBe(404);
     expect(stores.account.all()).toHaveLength(accountsBefore);
     expect(stores.account.all().some((account) => account.email === email)).toBe(false);

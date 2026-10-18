@@ -92,8 +92,6 @@ function generateTestData() {
     account: {
       email: faker.internet.email({ provider: `test${timestamp}.com` }),
       name: `Production Test Account ${timestamp}`,
-      // One plan, not a random one: the quota case below asserts the limit this plan sets.
-      plan: "BASIC" as const,
     },
     project: {
       name: `Production Test Project ${timestamp}`,
@@ -193,7 +191,6 @@ describe("Comprehensive Production Integration Test", () => {
       const tenant = await registerLiveTenant({
         email: testData.account.email,
         accountName: testData.account.name,
-        plan: testData.account.plan,
       });
       accountId = tenant.accountId;
       accountToken = tenant.authorization;
@@ -536,7 +533,6 @@ describe("Comprehensive Production Integration Test", () => {
         liveRegistrationBody({
           email: testData.account.email,
           accountName: testData.account.name,
-          plan: testData.account.plan,
         })
       );
       assert.equal(duplicateResponse.status, 409, "Duplicate email rejected with 409 status");
@@ -562,7 +558,7 @@ describe("Comprehensive Production Integration Test", () => {
 
     it("should verify quota enforcement", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      // The account was registered on the BASIC plan, whose limit is one project.
+      // Every self-registered account starts on the BASIC tier, whose limit is one project.
       const getAccountResponse = await apiCall(
         "GET",
         `/accounts/${accountId}`,
@@ -590,19 +586,12 @@ describe("Comprehensive Production Integration Test", () => {
         undefined,
         authHeaders(accountToken)
       );
-      // The post was scheduled in the earlier publishing test block, so its status is SCHEDULED.
-      // The domain rule forbids deleting non-editable posts (only DRAFT,
-      // FAILED or CANCELLED can be deleted). A 403 is the correct response
-      // for a SCHEDULED post. The post will be cleaned up by account cascade.
-      assert.ok(
-        deletePostResponse.status === 200 || deletePostResponse.status === 403,
-        `Post delete returned expected status (got ${deletePostResponse.status})`
-      );
-      if (deletePostResponse.status === 403) {
-        console.error("Post delete correctly rejected (SCHEDULED status is not deletable)");
-      } else {
-        console.error("Post deleted successfully");
-      }
+      // The schedule saga queues one publish job per channel and leaves the post's own status
+      // DRAFT (measured on the live stack), and `DeletePostUseCase` deletes a DRAFT, FAILED or
+      // CANCELLED post, so the delete succeeds.
+      assert.equal(deletePostResponse.status, 200, "The DRAFT post is deleted");
+      assert.equal(deletePostResponse.data.data.deleted, true, "The delete reports the post gone");
+      console.error("Post deleted successfully");
     });
 
     it("should delete channels", async (t) => {

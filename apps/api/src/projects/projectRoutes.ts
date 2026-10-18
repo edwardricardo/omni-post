@@ -158,7 +158,10 @@ class ProjectRouteHandler extends BaseRouteHandler {
       });
       const deletedHeld = heldSlots - liveProjects;
 
-      if (heldSlots >= account.maxProjects) {
+      // A negative limit is the stored form of unlimited (the ENTERPRISE tier writes -1), so it
+      // caps nothing; zero still means no project may be created.
+      const limited = account.maxProjects >= 0;
+      if (limited && heldSlots >= account.maxProjects) {
         return this.sendError(ctx, 403, "QUOTA_EXCEEDED", {
           error: "QUOTA_EXCEEDED",
           used: heldSlots,

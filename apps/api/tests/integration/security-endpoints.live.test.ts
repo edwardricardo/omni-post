@@ -12,11 +12,13 @@
 
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
+import { RateLimitConfigs } from "../../src/security/httpRateLimitPreHandler.js";
 import {
   checkApiAvailable,
   getBaseUrl,
   liveRegistrationBody,
   registerLiveTenant,
+  requireLiveTenant,
   type LiveTenant,
 } from "../testUtils.js";
 
@@ -38,8 +40,9 @@ async function postRegistration(body: string): Promise<Response> {
 describe("Security Endpoints Integration", { concurrency: 1 }, () => {
   let apiAvailable = false;
   // The tenant whose own account name the validation cases try to write: the account name its
-  // owner changes with `PUT /accounts/:accountId` runs through the security validator.
-  let tenant: LiveTenant;
+  // owner changes with `PUT /accounts/:accountId` runs through the security validator. Every case
+  // that uses it is refused, so none changes what another reads. Unset when the API is absent.
+  let tenant: LiveTenant | undefined;
 
   before(async () => {
     apiAvailable = await checkApiAvailable();
@@ -60,9 +63,10 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
    * @returns The route's response.
    */
   async function renameOwnAccount(name: string): Promise<Response> {
-    return fetch(`${API_URL}/accounts/${tenant.accountId}`, {
+    const owner = requireLiveTenant(tenant, "Security Endpoints Integration");
+    return fetch(`${API_URL}/accounts/${owner.accountId}`, {
       method: "PUT",
-      headers: { Authorization: tenant.authorization, "Content-Type": "application/json" },
+      headers: { Authorization: owner.authorization, "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     });
   }
@@ -163,19 +167,30 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
       );
     });
 
-    it("should complete rate limit headers check", async (t) => {
+    it("should include the rate limit headers on /health", async (t) => {
       if (!apiAvailable) {
         t.skip("API not available");
         return;
       }
 
+      // The limiter charges `/health` to the HEALTH bucket and answers with what is left in it and
+      // the epoch milliseconds at which it is full again; it sends no limit header.
+      const { maxRequests, windowMs } = RateLimitConfigs.HEALTH;
       const response = await fetch(`${API_URL}/health`);
+      await response.body?.cancel();
+      const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+      const resetAtMs = Number(response.headers.get("x-ratelimit-reset"));
+      const now = Date.now();
 
-      const hasRateLimitHeaders =
-        response.headers.has("x-ratelimit-limit") || response.headers.has("ratelimit-limit");
-
-      // Rate limit headers might not be on all endpoints - just verify the check works
-      assert.ok(true, `Rate limit headers check completed (found: ${hasRateLimitHeaders})`);
+      assert.equal(response.status, 200, "/health answers inside its bucket");
+      assert.ok(
+        Number.isInteger(remaining) && remaining >= 0 && remaining < maxRequests,
+        `X-RateLimit-Remaining is a count left in the ${maxRequests}-permit bucket, got ${remaining}`
+      );
+      assert.ok(
+        Number.isInteger(resetAtMs) && resetAtMs >= now - 1_000 && resetAtMs <= now + windowMs,
+        `X-RateLimit-Reset is an epoch-milliseconds instant within one window, got ${resetAtMs}`
+      );
     });
   });
 

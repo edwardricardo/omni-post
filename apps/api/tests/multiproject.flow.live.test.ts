@@ -2,10 +2,10 @@
  * Multi-Project Flow Tests
  *
  * Tests multi-project account management including:
- * - Accounts created through customer registration, some with raised project limits
- * - Project quota enforcement
+ * - Accounts created through customer registration
+ * - Project quota enforcement, with limits written straight to the database
  * - Project name uniqueness per account
- * - A raised project limit
+ * - Creating projects after a higher limit is written to the database
  * - Account deletion cascade
  * - Backward compatibility
  *
@@ -82,11 +82,12 @@ describe("Multi-Project Flow Tests", () => {
   };
 
   /**
-   * Sets an account's project limit, then returns the limit the API reports to the account's
-   * owner. The limit is a billing field a customer cannot write. Its route,
-   * `PUT /admin/accounts/:id/settings`, takes a logged-in admin whose CSRF token the API checks
-   * against that admin's session row, and the live tier provisions no admin login, so the
-   * harness writes the value that route would through its owner channel.
+   * Writes an account's project limit straight to the database through the seed client, then
+   * returns the limit the API reports to the account's owner. This is a fixture write: it
+   * exercises no API route. The route that sets the limit, `PUT /admin/accounts/:id/settings`,
+   * requires an admin session whose CSRF token the API checks against that admin's session row,
+   * and the live tier has no admin session to log in with, so the harness writes the column that
+   * route writes. A customer cannot write it at all.
    */
   async function setProjectLimit(
     accountId: string,
@@ -99,13 +100,12 @@ describe("Multi-Project Flow Tests", () => {
     return result.data.data.maxProjects;
   }
 
-  describe("Account Creation with Project Limits", () => {
-    it("registers a BASIC account with a one-project limit", async (t) => {
+  describe("Account Creation and Project Limits", () => {
+    it("registers an account with the BASIC tier's one-project limit", async (t) => {
       if (skipIfUnavailable(t)) return;
       const tenant = await registerLiveTenant({
         email: `basic-${timestamp}@test.com`,
         accountName: "Basic Account",
-        plan: "BASIC",
       });
       basicAccountId = tenant.accountId;
       basicToken = tenant.authorization;
@@ -113,7 +113,7 @@ describe("Multi-Project Flow Tests", () => {
       assert.strictEqual(tenant.account.maxProjects, 1);
     });
 
-    it("registers an account whose project limit an admin sets to 3", async (t) => {
+    it("registers an account and writes a project limit of 3 to the database", async (t) => {
       if (skipIfUnavailable(t)) return;
       const tenant = await registerLiveTenant({
         email: `pro-${timestamp}@test.com`,
@@ -125,7 +125,7 @@ describe("Multi-Project Flow Tests", () => {
       assert.strictEqual(await setProjectLimit(proAccountId, proToken, 3), 3);
     });
 
-    it("registers an account whose project limit an admin sets to 10", async (t) => {
+    it("registers an account and writes a project limit of 10 to the database", async (t) => {
       if (skipIfUnavailable(t)) return;
       const tenant = await registerLiveTenant({
         email: `enterprise-${timestamp}@test.com`,
@@ -285,15 +285,14 @@ describe("Multi-Project Flow Tests", () => {
     });
   });
 
-  describe("Raised Project Limit", () => {
-    it("raises the BASIC account's project limit to 3", async (t) => {
+  describe("Projects After a Higher Limit Is Written to the Database", () => {
+    it("writes a project limit of 3 for the BASIC account to the database", async (t) => {
       if (skipIfUnavailable(t)) return;
-      // The customer cannot raise its own limit: `PUT /accounts/:accountId` takes the name and
-      // nothing else. An upgrade is the billing field written for the customer.
+      // A fixture write, not an upgrade through the API: see `setProjectLimit`.
       assert.strictEqual(await setProjectLimit(basicAccountId, basicToken, 3), 3);
     });
 
-    it("should allow creating more projects after upgrade", async (t) => {
+    it("lets the BASIC account create another project under the higher limit", async (t) => {
       if (skipIfUnavailable(t)) return;
       const result = await apiCall(
         "POST",
@@ -319,7 +318,7 @@ describe("Multi-Project Flow Tests", () => {
       );
 
       assert.strictEqual(result.status, 200);
-      assert.strictEqual(result.data.data.length, 2); // 1 original + 1 after upgrade
+      assert.strictEqual(result.data.data.length, 2); // 1 original + 1 under the higher limit
     });
 
     it("should list all projects for PRO account", async (t) => {
@@ -381,13 +380,14 @@ describe("Multi-Project Flow Tests", () => {
   describe("Email Uniqueness", () => {
     it("should reject duplicate email addresses", async (t) => {
       if (skipIfUnavailable(t)) return;
+      // The case registers its own holder, so it holds whatever ran before it.
+      const email = `duplicate-${timestamp}@test.com`;
+      await registerLiveTenant({ email, accountName: "Address Holder" });
+
       const result = await apiCall(
         "POST",
         "/auth/customer/register",
-        liveRegistrationBody({
-          email: `basic-${timestamp}@test.com`, // Same as first account
-          accountName: "Duplicate Email Account",
-        })
+        liveRegistrationBody({ email, accountName: "Duplicate Email Account" })
       );
 
       assert.strictEqual(result.status, 409);

@@ -13,12 +13,8 @@
  *   a worse defect than the one it replaces: the reuse must SUCCEED, and a
  *   genuinely live duplicate must still be REFUSED.
  *
- *   `Account_email_key` is partial the same way, and no route creates an account
- *   under an address a soft-deleted account holds, by design. Customer
- *   registration is the one route that creates an account for a customer, and it
- *   refuses that address and notifies its owner
- *   (`customerRegisterHeldEmail.integration.test.ts`); the customer
- *   `POST /accounts` that reused it minted userless tenants and is gone.
+ *   Account e-mails are not reusable by design: registration refuses an address a
+ *   soft-deleted account holds (`customerRegisterHeldEmail.integration.test.ts`).
  *
  *   The customer surface is driven through the REAL `requireClientAuth` with
  *   genuinely signed tokens (precedent: `accounts/accountDeleteOwnership.test.ts`).

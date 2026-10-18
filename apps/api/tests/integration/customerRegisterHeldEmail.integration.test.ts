@@ -28,6 +28,10 @@
  *   the event-loop turn the refusal settles in, and the count is final. The route is held
  *   to that same use case by the container check: the mailer it is handed is the throttled one.
  *
+ *   A registration whose body still names a tier (`plan`) registers a BASIC account with a
+ *   one-project limit: the public body carries no tier, so a registrant cannot pick a paid tier's
+ *   project limit for itself.
+ *
  *   The last case drives the use case over the real account repository and the real Unit of Work
  *   with a user insert that fails, and proves the account written before it is rolled back rather
  *   than left behind on its own connection.
@@ -409,6 +413,34 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
       "no row carries the address as the attempt typed it"
     );
   });
+
+  for (const plan of ["PRO", "ENTERPRISE"] as const) {
+    it(`registers a BASIC account with a one-project limit when the body asks for ${plan}`, async () => {
+      // The schema strips the unknown key, so the registration goes through and the tier the
+      // body named never reaches the account: PRO would have stored 5, ENTERPRISE -1.
+      const email = addressFor(`plan-${plan.toLowerCase()}`);
+
+      const res = await app.inject({
+        method: "POST",
+        url: REGISTER_URL,
+        payload: {
+          accountName: `${TAG}-plan`,
+          firstName: "Tier",
+          lastName: "Chooser",
+          email,
+          password: PASSWORD,
+          plan,
+        },
+      });
+
+      assert.equal(res.statusCode, 201, `the registration succeeds, got ${res.body}`);
+      const stored = await prisma.account.findMany({
+        where: { email },
+        select: { maxProjects: true },
+      });
+      assert.deepEqual(stored, [{ maxProjects: 1 }], "one account, on the BASIC tier's limit");
+    });
+  }
 
   it("hands the registration a notice mailer that throttles each address", () => {
     const container = app.container;
