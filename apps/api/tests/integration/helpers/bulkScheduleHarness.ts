@@ -2,8 +2,9 @@
  * @file bulkScheduleHarness.ts
  * @description Shared test harness for the bulk-scheduling integration tests.
  *   Provides a stub QueuePort (records jobs in-memory, no Redis/BullMQ), a minimal
- *   OutboxRelay wired to a real DB, a drain that polls it until one batch's events are
- *   published, a filter for the jobs of one batch, and tenant seeding/cleanup helpers.
+ *   OutboxRelay wired to a real DB, drains that poll it until one batch's events are
+ *   published or attempted, a filter for the jobs of one batch, and tenant seeding/cleanup
+ *   helpers.
  *   Keeping these in one place avoids duplicating the scaffolding across the
  *   outbox-smoke, reconciliation, media-path, and relay-retry suites.
  * @layer infrastructure
@@ -78,19 +79,93 @@ export function makeRelay(prisma: PrismaClient, dispatcher: InMemoryEventDispatc
 }
 
 /**
- * Bound on {@link pollUntilBatchDispatched}. A poll claims at most 50 rows, so rows an earlier suite
- * left unpublished only cost extra polls; the bound sits under the runner's 30 s per-test budget so a
+ * Bound on {@link pollUntilBatchEvents}. A poll claims at most 50 rows, so rows an earlier suite left
+ * unpublished only cost extra polls; the bound sits under the runner's 30 s per-test budget so a
  * drain that never ends fails with the wait's own message.
  */
 const DRAIN_TIMEOUT_MS = 20_000;
 
+/** The outbox fields a drain reads to decide whether an event of a batch has settled. */
+export interface BatchOutboxEvent {
+  id: string;
+  publishedAt: Date | null;
+  retryCount: number;
+  nextRetryAt: Date;
+  claimedAt: Date | null;
+  claimedBy: string | null;
+}
+
+/** What {@link pollUntilBatchEvents} waits for, and how its failure names it. */
+export interface BatchSettleCondition {
+  /** True once the relay has done to this event what the caller waits for. */
+  settled: (event: BatchOutboxEvent) => boolean;
+  /** The settled state as the failure message says it: "published". */
+  state: string;
+}
+
+/**
+ * @function pollUntilBatchEvents
+ * @description Polls the relay until every outbox event of the batch's items has settled, and
+ *   resolves with those events as the last poll left them. The claim takes the oldest eligible
+ *   unpublished events first, whatever suite wrote them, so a single poll can be spent entirely on
+ *   rows an earlier suite left behind and never reach the batch; polling until the batch's own
+ *   events settle keeps the caller independent of what the table held before it. The relay polls
+ *   at least once, even for a batch with no events.
+ * @param prisma - Real test PrismaClient.
+ * @param relay - The relay to drive.
+ * @param batchId - The batch whose events must all settle.
+ * @param condition - When an event has settled, and the state the failure message names.
+ * @returns The batch's outbox events once every one of them has settled.
+ */
+export async function pollUntilBatchEvents(
+  prisma: PrismaClient,
+  relay: OutboxRelay,
+  batchId: string,
+  condition: BatchSettleCondition
+): Promise<BatchOutboxEvent[]> {
+  const items = await prisma.bulkScheduleItem.findMany({
+    where: { batchId },
+    select: { id: true },
+  });
+  const itemIds = items.map((item) => item.id);
+  let polls = 0;
+  let events: BatchOutboxEvent[] = [];
+  await until(
+    async () => {
+      await relay.poll();
+      polls += 1;
+      events = await prisma.outboxEvent.findMany({
+        where: { aggregateType: "BulkScheduleItem", aggregateId: { in: itemIds } },
+        select: {
+          id: true,
+          publishedAt: true,
+          retryCount: true,
+          nextRetryAt: true,
+          claimedAt: true,
+          claimedBy: true,
+        },
+      });
+      return events.every(condition.settled);
+    },
+    {
+      description: () => {
+        const pending = events.filter((event) => !condition.settled(event)).length;
+        return (
+          `every outbox event of batch ${batchId} to be ${condition.state} (${pending} of ` +
+          `${events.length} not yet, after ${polls} polls)`
+        );
+      },
+      timeoutMs: DRAIN_TIMEOUT_MS,
+      intervalMs: 1,
+    }
+  );
+  return events;
+}
+
 /**
  * @function pollUntilBatchDispatched
- * @description Polls the relay until every outbox event of the batch's items is published. The
- *   claim takes the oldest eligible unpublished events first, whatever suite wrote them, so a
- *   single poll can be spent entirely on rows an earlier suite left behind; polling until the
- *   batch's own events are published keeps the caller independent of what the table held before
- *   it. The relay polls at least once, even for a batch with no events.
+ * @description Polls the relay until every outbox event of the batch's items is published; see
+ *   {@link pollUntilBatchEvents} for why one poll is not enough.
  * @param prisma - Real test PrismaClient.
  * @param relay - The relay to drive.
  * @param batchId - The batch whose events must all be published.
@@ -101,34 +176,10 @@ export async function pollUntilBatchDispatched(
   relay: OutboxRelay,
   batchId: string
 ): Promise<void> {
-  const items = await prisma.bulkScheduleItem.findMany({
-    where: { batchId },
-    select: { id: true },
+  await pollUntilBatchEvents(prisma, relay, batchId, {
+    settled: (event) => event.publishedAt !== null,
+    state: "published",
   });
-  const itemIds = items.map((item) => item.id);
-  let polls = 0;
-  let pending = itemIds.length;
-  await until(
-    async () => {
-      await relay.poll();
-      polls += 1;
-      pending = await prisma.outboxEvent.count({
-        where: {
-          aggregateType: "BulkScheduleItem",
-          aggregateId: { in: itemIds },
-          publishedAt: null,
-        },
-      });
-      return pending === 0;
-    },
-    {
-      description: () =>
-        `every outbox event of batch ${batchId} to be published (${pending} unpublished after ` +
-        `${polls} polls)`,
-      timeoutMs: DRAIN_TIMEOUT_MS,
-      intervalMs: 1,
-    }
-  );
 }
 
 /**
