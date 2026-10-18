@@ -11,6 +11,7 @@
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
 import { faker } from "@faker-js/faker";
+import { untilValue } from "@packages/vitest-shared/determinism";
 import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
 import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
 
@@ -82,21 +83,31 @@ async function apiCall(method: string, path: string, body?: any, headers?: Recor
 
 /**
  * Polls a saga until it reaches a terminal state (COMPLETED / FAILED /
- * COMPENSATED) or the attempt budget is exhausted. Post creation and
- * scheduling are driven by the post-publishing saga, which executes
- * asynchronously, so the test must wait for the saga to settle before
- * reading the resulting post.
+ * COMPENSATED) and returns it, or throws naming the last status read once
+ * `timeoutMs` has passed. Post creation and scheduling are driven by the
+ * post-publishing saga, which executes asynchronously, so the test must wait
+ * for the saga to settle before reading the resulting post.
  */
-async function pollSagaTerminal(sagaId: string, token: string, maxAttempts = 40): Promise<string> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const { data } = await apiCall("GET", `/sagas/${sagaId}`, undefined, authHeaders(token));
-    const status: string | undefined = data?.data?.status;
-    if (status === "COMPLETED" || status === "FAILED" || status === "COMPENSATED") {
-      return status;
+async function pollSagaTerminal(
+  sagaId: string,
+  token: string,
+  timeoutMs = 10_000
+): Promise<string> {
+  let lastRead = "no status";
+  return untilValue(
+    async () => {
+      const { data } = await apiCall("GET", `/sagas/${sagaId}`, undefined, authHeaders(token));
+      const status: string | undefined = data?.data?.status;
+      lastRead = status ?? "no status";
+      const terminal = status === "COMPLETED" || status === "FAILED" || status === "COMPENSATED";
+      return terminal ? status : null;
+    },
+    {
+      description: () => `saga ${sagaId} to reach a terminal state (last read: ${lastRead})`,
+      timeoutMs,
+      intervalMs: 250,
     }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  return "TIMEOUT";
+  );
 }
 
 // Generate test data

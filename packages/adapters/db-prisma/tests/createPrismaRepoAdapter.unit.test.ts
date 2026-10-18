@@ -9,6 +9,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import assert from "node:assert/strict";
+import { until } from "@packages/vitest-shared/determinism";
 import { createPrismaRepoAdapter } from "../src/index.js";
 import type { PrismaClient } from "@infra/prisma";
 import type { BackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -77,10 +78,12 @@ describe("createPrismaRepoAdapter — DI contract (PR1)", () => {
       // Construct without scheduler so initial check fires via void monitorConnection()
       createPrismaRepoAdapter({ prisma: mockClient });
 
-      // Give the async void call time to settle
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      // The check is fire-and-forget, so wait for its query to reach the injected client.
+      await until(() => vi.mocked(mockClient.$queryRaw).mock.calls.length > 0, {
+        description: "the initial health check to query the injected client",
+      });
 
-      expect(mockClient.$queryRaw).toHaveBeenCalled();
+      expect(mockClient.$queryRaw).toHaveBeenCalledTimes(1);
     });
 
     it("registers connection monitor with scheduler and uses INJECTED client", async () => {

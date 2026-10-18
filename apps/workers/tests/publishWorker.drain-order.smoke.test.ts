@@ -20,6 +20,7 @@
 
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert/strict";
+import { createDeferred } from "@packages/vitest-shared/determinism";
 import { drainTarget } from "../src/lib/gracefulShutdown.js";
 import type { ShutdownTarget, ShutdownLogger } from "../src/lib/gracefulShutdown.js";
 
@@ -47,16 +48,16 @@ describe("publishWorker drain-order — e2e smoke (SIGTERM drain guard)", () => 
 
   it("in-flight job settles BEFORE notifyRedis.quit() — no job loss on SIGTERM", async () => {
     // Simulate a publish job that is still running when the shutdown signal arrives.
-    let resolveInFlightJob!: () => void;
-    const inFlightJob = new Promise<void>((resolve) => {
-      resolveInFlightJob = resolve;
-    });
+    const inFlightJob = createDeferred<void>();
+    // Settled when the drain calls worker.close(): the point the drain provably reached.
+    const closeEntered = createDeferred<void>();
 
     // Fake BullMQ Worker — its close() blocks until the in-flight job settles,
     // exactly as BullMQ's real Worker.close() does during graceful shutdown.
     const fakeWorker = {
       close: async (): Promise<void> => {
-        await inFlightJob; // blocks until the job resolves
+        closeEntered.resolve();
+        await inFlightJob.promise; // blocks until the job resolves
         record("worker.close");
       },
     } as unknown as import("bullmq").Worker;
@@ -88,8 +89,8 @@ describe("publishWorker drain-order — e2e smoke (SIGTERM drain guard)", () => 
     // Start the drain. The drain is blocked on inFlightJob inside worker.close().
     const drainPromise = drainTarget(target, noopLogger);
 
-    // Let the event loop tick so drainTarget starts processing workers.
-    await new Promise<void>((resolve) => setTimeout(resolve, 5));
+    // Wait until the drain has reached worker.close(), not for an amount of time.
+    await closeEntered.promise;
 
     // At this point, worker.close() is awaiting inFlightJob.
     // notifyRedis.quit() has NOT been called yet — prove it:
@@ -101,7 +102,7 @@ describe("publishWorker drain-order — e2e smoke (SIGTERM drain guard)", () => 
     );
 
     // Now settle the in-flight job (simulating the publish handler completing).
-    resolveInFlightJob();
+    inFlightJob.resolve();
     await drainPromise;
 
     // Verify the complete drain order.
@@ -124,11 +125,14 @@ describe("publishWorker drain-order — e2e smoke (SIGTERM drain guard)", () => 
     // processes `workers` before `connections`.
     let redisQuitCalledBeforeWorkerClose = false;
     let workerCloseComplete = false;
+    // The job the worker is still draining, finished by the test once close() has begun.
+    const runningJob = createDeferred<void>();
+    const closeEntered = createDeferred<void>();
 
     const fakeWorker = {
       close: async (): Promise<void> => {
-        // Simulate a short job taking 10ms.
-        await new Promise<void>((resolve) => setTimeout(resolve, 10));
+        closeEntered.resolve();
+        await runningJob.promise;
         workerCloseComplete = true;
       },
     } as unknown as import("bullmq").Worker;
@@ -144,7 +148,12 @@ describe("publishWorker drain-order — e2e smoke (SIGTERM drain guard)", () => 
       connections: [fakeNotifyRedis],
     };
 
-    await drainTarget(target, noopLogger);
+    const drainPromise = drainTarget(target, noopLogger);
+    // The job finishes only after close() has begun, so close() is still pending while the
+    // drain decides whether it may move on to the connections.
+    await closeEntered.promise;
+    runningJob.resolve();
+    await drainPromise;
 
     assert.ok(
       !redisQuitCalledBeforeWorkerClose,

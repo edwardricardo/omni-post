@@ -5,6 +5,7 @@
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { until } from "@packages/vitest-shared/determinism";
 import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
 import { parseRetryAfterMs } from "../src/lib/retry/retryAfter.js";
 import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
@@ -37,12 +38,6 @@ const AUTH_HEADER = `Bearer ${signCustomerAccessToken({
 
 // Enable test mode for rate limiting
 process.env.RATE_LIMIT_TEST_MODE = "true";
-
-async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
 
 /** Longest the rate-limiting block waits for `/health` to answer 200 again. */
 const WINDOW_REOPEN_CAP_MS = 90_000;
@@ -99,30 +94,37 @@ async function waitForHealthWindow(announcedReopenAtMs: number | undefined): Pro
     announcedReopenAtMs === undefined
       ? capAt
       : Math.min(announcedReopenAtMs + WINDOW_REOPEN_SLACK_MS, capAt);
+  const waitedS = Math.ceil(Math.max(0, deadline - startedAt) / 1000);
   // A poll that gets 200 spends the permit it found, so polling while the bucket refills would
   // hand the next caller an empty one: nothing polls before the announced reopening.
-  await sleep(Math.max(0, reopenAt - Date.now()));
+  // fixed-wait: ttl-expiry — the live limiter's bucket refills on the server's clock, which only
+  // real time moves; the wait ends at the instant the limiter itself announced, and no observable
+  // can stand in for it without spending the permits it is waiting for.
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, Math.max(0, reopenAt - Date.now()));
+  });
   let lastAnswer = "no answer";
-  for (;;) {
-    try {
-      const response = await fetch(`${BASE_URL}/health`, {
-        signal: AbortSignal.timeout(WINDOW_POLL_REQUEST_MS),
-      });
-      await response.body?.cancel();
-      if (response.status === 200) return;
-      lastAnswer = `HTTP ${response.status}`;
-    } catch (error: unknown) {
-      lastAnswer = error instanceof Error ? error.message : String(error);
+  await until(
+    async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/health`, {
+          signal: AbortSignal.timeout(WINDOW_POLL_REQUEST_MS),
+        });
+        await response.body?.cancel();
+        if (response.status === 200) return true;
+        lastAnswer = `HTTP ${response.status}`;
+      } catch (error: unknown) {
+        lastAnswer = error instanceof Error ? error.message : String(error);
+      }
+      return false;
+    },
+    {
+      description: () =>
+        `the /health rate-limit window to reopen within ${waitedS} s (the last poll got ${lastAnswer})`,
+      timeoutMs: Math.max(0, deadline - Date.now()),
+      intervalMs: WINDOW_POLL_INTERVAL_MS,
     }
-    if (Date.now() >= deadline) {
-      const waitedS = Math.ceil(Math.max(0, deadline - startedAt) / 1000);
-      throw new Error(
-        `The /health rate-limit window did not reopen within ${waitedS} s: ` +
-          `the last poll got ${lastAnswer}.`
-      );
-    }
-    await sleep(WINDOW_POLL_INTERVAL_MS);
-  }
+  );
 }
 
 describe("Security Features", { concurrency: 1 }, () => {
@@ -165,14 +167,14 @@ describe("Security Features", { concurrency: 1 }, () => {
     });
 
     it("should accept requests within rate limit", async () => {
-      // Send a small batch of requests with delay to test rate limiting behavior.
-      // If rate limit is already exhausted (from previous tests), we accept 429 too.
+      // Send a small batch of requests, one after another, to test rate limiting behavior.
+      // If rate limit is already exhausted (from previous tests), we accept 429 too. Five
+      // requests sit far inside the `/health` bucket, so no pacing between them is needed.
       const responses: Response[] = [];
       for (let i = 0; i < 5; i++) {
         const response = await fetch(`${BASE_URL}/health`);
         noteLimited(response);
         responses.push(response);
-        await sleep(100);
       }
 
       // All responses should be valid HTTP responses (200 or 429)
@@ -185,7 +187,8 @@ describe("Security Features", { concurrency: 1 }, () => {
       const totalRequests = 120;
       const responses: Response[] = [];
 
-      // Send requests in batches to avoid overwhelming connection pool
+      // Send requests in batches to avoid overwhelming connection pool: each batch is awaited
+      // in full before the next one starts, which is what bounds the open connections.
       for (let batch = 0; batch < totalRequests / batchSize; batch++) {
         const batchPromises = [];
         for (let i = 0; i < batchSize; i++) {
@@ -194,10 +197,6 @@ describe("Security Features", { concurrency: 1 }, () => {
         const batchResponses = await Promise.all(batchPromises);
         batchResponses.forEach(noteLimited);
         responses.push(...batchResponses);
-
-        if (batch < totalRequests / batchSize - 1) {
-          await sleep(10);
-        }
       }
 
       const blockedCount = responses.filter((r) => r.status === 429).length;
