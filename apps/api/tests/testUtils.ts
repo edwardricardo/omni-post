@@ -17,13 +17,14 @@ const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
 /**
  * The bound on one request a helper here sends to the API. Registration answers in about 50 ms
- * on the live stack, so 3 s only expires on an API that has stopped answering.
+ * on the live stack, so the bound only expires on an API that has stopped answering.
  */
 const API_REQUEST_TIMEOUT_MS = 3_000;
 
 /**
- * @description Asks the API's `/health` endpoint, with a 3 s bound, whether a server is answering
- *   at the base URL. A 429 counts as available: the server answered and only refused the request.
+ * @description Asks the API's `/health` endpoint, within `API_REQUEST_TIMEOUT_MS`, whether a
+ *   server is answering at the base URL. A 429 counts as available: the server answered and only
+ *   refused the request.
  * @returns `true` when `/health` answers 2xx or 429; `false` on any other status, a transport
  *   failure or the timeout.
  */
@@ -141,9 +142,9 @@ function readRegistrationAnswer(body: unknown): RegistrationAnswer | null {
  *   token carries the seeded OWNER role's grants rather than a hand-picked list.
  * @param request - The address and account name to register.
  * @returns The created account and the `Authorization` header its owner's token fills.
- * @throws Error naming the address when registration does not answer within
- *   `API_REQUEST_TIMEOUT_MS`, and naming the status and body when it does not answer 201 with an
- *   account and an access token.
+ * @throws Error naming the address when the complete response, headers and body, does not
+ *   arrive within `API_REQUEST_TIMEOUT_MS` (the abort signal bounds the body read too), and naming
+ *   the status and body when it does not answer 201 with an account and an access token.
  */
 export async function registerLiveTenant(request: LiveTenantRequest): Promise<LiveTenant> {
   let response: Response;
@@ -159,8 +160,8 @@ export async function registerLiveTenant(request: LiveTenantRequest): Promise<Li
   } catch (error: unknown) {
     if (error instanceof Error && error.name === "TimeoutError") {
       throw new Error(
-        `Registering the live tenant ${request.email} got no answer within ` +
-          `${API_REQUEST_TIMEOUT_MS} ms from ${BASE_URL}.`,
+        `Registering the live tenant ${request.email} did not receive a complete response, ` +
+          `headers and body, within ${API_REQUEST_TIMEOUT_MS} ms from ${BASE_URL}.`,
         { cause: error }
       );
     }

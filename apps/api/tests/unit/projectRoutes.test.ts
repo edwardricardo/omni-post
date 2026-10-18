@@ -581,7 +581,7 @@ describe("projectRoutes - Unit Tests", () => {
       expect(response.statusCode).toBe(200);
     });
 
-    it("creates the project when the account's limit is negative, the stored form of unlimited", async () => {
+    it("creates the project when the account's limit is -1, the stored form of unlimited", async () => {
       // The ENTERPRISE tier stores -1 for an unlimited project count. Read as a number, -1 is
       // below every held-slot count, so a plain comparison refused every create on that plan.
       const account = await seedAccount({ maxProjects: -1, name: "Unlimited Plan" });
@@ -596,6 +596,22 @@ describe("projectRoutes - Unit Tests", () => {
 
       expect(response.statusCode).toBe(200);
       expect(JSON.parse(response.body).data?.accountId).toBe(account.id);
+    });
+
+    it("refuses the create when the account's limit is any other negative number", async () => {
+      // Only -1 means unlimited, as `Account.canAddProject` reads it. Any other negative limit is
+      // a corrupt value, and the quota fails closed on it rather than reading it as no cap.
+      const account = await seedAccount({ maxProjects: -2, name: "Corrupt Limit" });
+      actAs(account.id);
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${account.id}/projects`,
+        payload: { name: uniqueName("Refused Project"), locale: "en" },
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(JSON.parse(response.body).error).toBe("QUOTA_EXCEEDED");
     });
 
     it("frees the slot again once the held project is permanently erased", async () => {

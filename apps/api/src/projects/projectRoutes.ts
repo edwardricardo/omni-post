@@ -30,6 +30,13 @@ import type { Result } from "@shared/types";
 import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
 
+/**
+ * The stored project limit that means unlimited: the ENTERPRISE tier writes it, and
+ * `Account.canAddProject` reads it the same way. Any other negative limit is not a sentinel but a
+ * corrupt value, and the quota refuses on it.
+ */
+const UNLIMITED_PROJECT_CAP = -1;
+
 // Zod Schemas for Validation
 const CreateProjectBodySchema = z.object({
   name: SecureSchemas.userName,
@@ -158,10 +165,10 @@ class ProjectRouteHandler extends BaseRouteHandler {
       });
       const deletedHeld = heldSlots - liveProjects;
 
-      // A negative limit is the stored form of unlimited (the ENTERPRISE tier writes -1), so it
-      // caps nothing; zero still means no project may be created.
-      const limited = account.maxProjects >= 0;
-      if (limited && heldSlots >= account.maxProjects) {
+      // The unlimited sentinel caps nothing; zero still means no project may be created, and any
+      // other negative limit fails closed, since every held-slot count is at or above it.
+      const unlimited = account.maxProjects === UNLIMITED_PROJECT_CAP;
+      if (!unlimited && heldSlots >= account.maxProjects) {
         return this.sendError(ctx, 403, "QUOTA_EXCEEDED", {
           error: "QUOTA_EXCEEDED",
           used: heldSlots,

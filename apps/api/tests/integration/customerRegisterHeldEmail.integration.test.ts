@@ -434,6 +434,12 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
       });
 
       assert.equal(res.statusCode, 201, `the registration succeeds, got ${res.body}`);
+      const answered = (res.json() as { data: { account: Record<string, unknown> } }).data.account;
+      assert.equal(answered.maxProjects, 1, "the answer reports the BASIC tier's limit");
+      assert.ok(
+        !("plan" in answered) && !("subscription" in answered),
+        "the answer echoes no tier the body asked for"
+      );
       const stored = await prisma.account.findMany({
         where: { email },
         select: { maxProjects: true },
