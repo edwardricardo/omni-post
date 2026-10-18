@@ -222,6 +222,23 @@ describe("Audit System", () => {
   });
 
   describe("Audit Statistics", () => {
+    // The statistics are global, so this describe seeds one successful and one failed entry of
+    // its own: on an empty database, and in any test order, there is something to count.
+    before(async () => {
+      for (const success of [true, false]) {
+        const result = await auditService.log({
+          action: success ? AuditActions.LOGIN : AuditActions.LOGIN_FAILED,
+          resource: AuditResources.USER,
+          success,
+          ipAddress: "127.0.0.1",
+        });
+        assert.ok(result.ok, `Failed to seed an audit log: ${result.ok ? "" : result.error}`);
+        if (result.ok) {
+          testAuditLogIds.push(result.value.id);
+        }
+      }
+    });
+
     it("should retrieve audit statistics", async () => {
       const statsResult = await auditService.getStats();
 
@@ -232,9 +249,9 @@ describe("Audit System", () => {
       if (!statsResult.ok) return;
 
       const stats = statsResult.value;
-      assert.ok(stats.total > 0, "Should have total logs");
-      assert.ok(stats.successful >= 0, "Should have successful count");
-      assert.ok(stats.failed >= 0, "Should have failed count");
+      assert.ok(stats.total >= 2, "Should count at least the two seeded logs");
+      assert.ok(stats.successful >= 1, "Should count the seeded successful log");
+      assert.ok(stats.failed >= 1, "Should count the seeded failed log");
       assert.ok(Array.isArray(stats.topActions), "Should have top actions array");
       assert.ok(Array.isArray(stats.topResources), "Should have top resources array");
       assert.ok(Array.isArray(stats.topUsers), "Should have top users array");
