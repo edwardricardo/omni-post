@@ -11,6 +11,7 @@
 
 import { describe, it, beforeAll, afterAll, vi, expect } from "vitest";
 import { ok, err } from "@shared/types";
+import { createDeferred } from "@packages/vitest-shared/determinism";
 import { PrismaUnitOfWork } from "@adapters/db-prisma";
 import {
   ambientTenantContextProvider,
@@ -306,18 +307,24 @@ describe("PrismaUnitOfWork", () => {
 
       let client1: unknown;
       let client2: unknown;
+      // The two transactions hand control to each other at chosen points, so the second
+      // reads its client while the first is suspended inside its own transaction.
+      const firstInside = createDeferred<void>();
+      const secondRead = createDeferred<void>();
 
       await Promise.all([
         uow1.executeInTransaction(async () => {
           client1 = PrismaUnitOfWork.getTransactionClient();
-          // Yield control so the other transaction can run
-          await new Promise<void>((r) => setTimeout(r, 10));
-          // It must still be the same client after yielding control
+          firstInside.resolve();
+          await secondRead.promise;
+          // It must still be the same client after the other transaction ran
           const afterYield = PrismaUnitOfWork.getTransactionClient();
           expect(afterYield).toBe(client1);
         }),
         uow2.executeInTransaction(async () => {
+          await firstInside.promise;
           client2 = PrismaUnitOfWork.getTransactionClient();
+          secondRead.resolve();
         }),
       ]);
 

@@ -12,7 +12,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, afterAll, beforeEach, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, afterEach, expect, vi } from "vitest";
 import type { AIMessage } from "../../src/ai/types.js";
 import {
   createOrchestrator,
@@ -51,6 +51,10 @@ describe("AIOrchestrator — Cache & Metrics", () => {
     ({ orchestrator, mockOpenAI, mockPerplexity, mockGemini } = createOrchestrator());
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   // -------------------------------------------------------------------------
   // Cache Management
   // -------------------------------------------------------------------------
@@ -75,20 +79,30 @@ describe("AIOrchestrator — Cache & Metrics", () => {
     });
 
     it("should respect cache TTL", async () => {
+      // The cache dates its entries with Date.now(), so faking Date alone moves the TTL clock
+      // without holding the provider's response, which still arrives on the real timers.
+      vi.useFakeTimers({ toFake: ["Date"] });
       const messages: AIMessage[] = [{ role: "user", content: "TTL test message" }];
 
       // First request with 1s TTL (CachePort floor is 1 second; cacheTTL
-      // remains in milliseconds for backward-compat with callers).
-      const result1 = await orchestrator.generateContent(messages, {
-        cacheResults: true,
-        cacheTTL: 1000,
-      });
+      // remains in milliseconds for backward-compat with callers). The TTL is task config,
+      // which only executeTask takes: the second argument of generateContent is the model's
+      // generation options, so a TTL passed there would change the cache key and set no TTL.
+      // The task below is the one generateContent(messages) builds, so both share one entry.
+      const result1 = await orchestrator.executeTask<string>(
+        { type: "generate", data: { messages } },
+        { cacheTTL: 1000 }
+      );
       expect(result1.ok).toBe(true);
 
-      // Wait for cache to expire
-      await new Promise((resolve) => setTimeout(resolve, 1100));
+      // Just short of the TTL the entry still answers.
+      await vi.advanceTimersByTimeAsync(999);
+      const beforeExpiry = await orchestrator.generateContent(messages);
+      expect(beforeExpiry.metadata.cached).toBe(true);
+      expect(mockOpenAI.callCount).toBe(1);
 
-      // Second request after expiration
+      // Past the TTL it no longer does.
+      await vi.advanceTimersByTimeAsync(101);
       const result2 = await orchestrator.generateContent(messages);
       expect(result2.ok).toBe(true);
       expect(result2.metadata.cached).toBe(false);
@@ -113,8 +127,13 @@ describe("AIOrchestrator — Cache & Metrics", () => {
       expect(result2.metadata.cached).toBe(true);
       expect(mockOpenAI.callCount).toBe(1);
 
-      // Third request with cache disabled — should bypass cache and call provider
-      const result3 = await orchestrator.generateContent(messages, { cacheResults: false });
+      // Third request with cache disabled — should bypass cache and call provider. The switch is
+      // task config, so it goes through executeTask with the task generateContent(messages)
+      // builds: the same cache key, so only the disabled cache can explain the miss.
+      const result3 = await orchestrator.executeTask<string>(
+        { type: "generate", data: { messages } },
+        { cacheResults: false }
+      );
       expect(result3.ok).toBe(true);
       expect(result3.metadata.cached).toBe(false);
       expect(mockOpenAI.callCount).toBe(2);
@@ -155,9 +174,7 @@ describe("AIOrchestrator — Cache & Metrics", () => {
 
       // Make many requests to trigger rate limit
       const results = await Promise.all(
-        Array.from({ length: 60 }, () =>
-          orchestrator.generateContent(messages, { cacheResults: false })
-        )
+        Array.from({ length: 60 }, () => orchestrator.generateContent(messages))
       );
 
       // Should have successful results but potentially hit rate limit
@@ -194,7 +211,7 @@ describe("AIOrchestrator — Cache & Metrics", () => {
       const fixture = createOrchestrator(undefined, { rateLimiter: recordingLimiter });
 
       const messages: AIMessage[] = [{ role: "user", content: "Message that consumes a permit" }];
-      await fixture.orchestrator.generateContent(messages, { cacheResults: false });
+      await fixture.orchestrator.generateContent(messages);
 
       expect(keys.length > 0).toBeTruthy();
       expect(keys).toContain("openai");
@@ -251,15 +268,23 @@ describe("AIOrchestrator — Cache & Metrics", () => {
     });
 
     it("should track latency per provider", async () => {
+      // On fake timers the provider answers exactly when the clock reaches its latency, so the
+      // measured latency is that value and nothing the host's load adds to it.
+      vi.useFakeTimers();
+      const openaiLatencyMs = 50;
+      const fixture = createOrchestrator({ openai: openaiLatencyMs, perplexity: 75, gemini: 100 });
       const messages: AIMessage[] = [{ role: "user", content: "Latency test" }];
 
       const startTime = Date.now();
-      await orchestrator.generateContent(messages);
+      const call = fixture.orchestrator.generateContent(messages);
+      await vi.advanceTimersByTimeAsync(openaiLatencyMs);
+      const result = await call;
       const endTime = Date.now();
 
-      const metrics = orchestrator.getUsageMetrics();
+      const metrics = fixture.orchestrator.getUsageMetrics();
       const openaiMetrics = metrics.get("openai");
 
+      expect(result.metadata.latency).toBe(openaiLatencyMs);
       expect(openaiMetrics).toBeTruthy();
       expect(openaiMetrics.averageLatency > 0).toBeTruthy();
       expect(openaiMetrics.averageLatency <= endTime - startTime).toBeTruthy();

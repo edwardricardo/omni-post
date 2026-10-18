@@ -48,18 +48,54 @@ export class MockAIProvider implements AIProvider {
     this.lastRequest = null;
   }
 
+  /**
+   * @method isAvailable
+   * @description Answers the availability the test set, so the orchestrator skips or uses this
+   *   provider on the test's say.
+   * @returns Whether the provider reports itself available.
+   */
   async isAvailable(): Promise<boolean> {
     return this._isAvailable;
   }
 
+  /**
+   * @method setAvailable
+   * @description Sets the availability `isAvailable` answers from now on.
+   * @param available - Whether the provider reports itself available.
+   */
   setAvailable(available: boolean): void {
     this._isAvailable = available;
   }
 
+  /**
+   * @method setShouldFail
+   * @description Makes every later call throw before answering, or answer again.
+   * @param fail - Whether each call throws a provider failure.
+   */
   setShouldFail(fail: boolean): void {
     this.shouldFail = fail;
   }
 
+  /**
+   * @description Holds a call for this provider's configured latency, as a remote model API would.
+   * @returns A promise that resolves once the latency has passed.
+   */
+  private respondAfterLatency(): Promise<void> {
+    // fixed-wait: latency-injection — the double stands for a model API that takes time to answer
+    // The orchestrator measures each call with Date.now(), and the sibling suites build slow and
+    // fast providers from this latency. A suite that asserts on the measured value fakes the
+    // timers and advances them by exactly the latency, so its result never depends on the host.
+    return new Promise((resolve) => setTimeout(resolve, this.latency));
+  }
+
+  /**
+   * @method generateText
+   * @description Counts the call, records the request, and answers with text naming this
+   *   provider and the last message after its latency; throws a provider failure when set to fail.
+   * @param messages - The conversation; the last message is echoed in the answer.
+   * @param _options - Generation options; unused.
+   * @returns The generated text.
+   */
   async generateText(messages: AIMessage[], _options?: any): Promise<string> {
     this.callCount++;
     this.lastRequest = { type: "generate", messages };
@@ -68,10 +104,18 @@ export class MockAIProvider implements AIProvider {
       throw new Error(`${this.name} provider failed`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, this.latency));
+    await this.respondAfterLatency();
     return `Generated text from ${this.name}: ${messages[messages.length - 1]?.content || ""}`;
   }
 
+  /**
+   * @method analyzeContent
+   * @description Counts the call, records the request, and answers with a fixed positive
+   *   sentiment after its latency; throws a provider failure when set to fail.
+   * @param content - The content to analyze.
+   * @param analysisType - The analysis asked for, recorded with the request.
+   * @returns A partial analysis carrying the sentiment.
+   */
   async analyzeContent(
     content: string,
     analysisType: "sentiment" | "tone" | "readability" | "engagement"
@@ -83,7 +127,7 @@ export class MockAIProvider implements AIProvider {
       throw new Error(`${this.name} provider failed`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, this.latency));
+    await this.respondAfterLatency();
 
     const analysis: Partial<ContentAnalysis> = {
       sentiment: {
@@ -96,6 +140,15 @@ export class MockAIProvider implements AIProvider {
     return analysis;
   }
 
+  /**
+   * @method optimizeContent
+   * @description Counts the call, records the request, and answers with the content prefixed by
+   *   this provider's name after its latency; throws a provider failure when set to fail.
+   * @param content - The content to optimize.
+   * @param platform - The target platform, keyed in the platform-specific result.
+   * @param _brandVoice - The brand voice; unused.
+   * @returns The optimization naming this provider.
+   */
   async optimizeContent(
     content: string,
     platform: string,
@@ -108,7 +161,7 @@ export class MockAIProvider implements AIProvider {
       throw new Error(`${this.name} provider failed`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, this.latency));
+    await this.respondAfterLatency();
 
     return {
       optimizedText: `Optimized by ${this.name}: ${content}`,
@@ -133,6 +186,15 @@ export class MockAIProvider implements AIProvider {
     };
   }
 
+  /**
+   * @method predictPerformance
+   * @description Counts the call, records the request, and answers with a fixed prediction for
+   *   the platform after its latency; throws a provider failure when set to fail.
+   * @param content - The content whose performance is predicted.
+   * @param platform - The platform the prediction is for.
+   * @param _historicalData - Past performance; unused.
+   * @returns The fixed prediction.
+   */
   async predictPerformance(
     content: string,
     platform: string,
@@ -145,7 +207,7 @@ export class MockAIProvider implements AIProvider {
       throw new Error(`${this.name} provider failed`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, this.latency));
+    await this.respondAfterLatency();
 
     return {
       platform,
@@ -177,6 +239,15 @@ export class MockAIProvider implements AIProvider {
     };
   }
 
+  /**
+   * @method generateVariations
+   * @description Counts the call, records the request, and answers with `count` variations
+   *   naming this provider after its latency; throws a provider failure when set to fail.
+   * @param content - The content to vary.
+   * @param variationType - The kind of variation, named in each variation.
+   * @param count - How many variations to answer with.
+   * @returns The variations.
+   */
   async generateVariations(
     content: string,
     variationType: "tone" | "length" | "audience",
@@ -189,7 +260,7 @@ export class MockAIProvider implements AIProvider {
       throw new Error(`${this.name} provider failed`);
     }
 
-    await new Promise((resolve) => setTimeout(resolve, this.latency));
+    await this.respondAfterLatency();
 
     return Array.from(
       { length: count },
@@ -197,6 +268,11 @@ export class MockAIProvider implements AIProvider {
     );
   }
 
+  /**
+   * @method reset
+   * @description Clears the call count and the last request, and makes the provider available
+   *   and answering again.
+   */
   reset(): void {
     this.callCount = 0;
     this.lastRequest = null;
@@ -216,6 +292,13 @@ export interface OrchestratorFixture {
   mockGemini: MockAIProvider;
 }
 
+/**
+ * @description Builds an AIOrchestrator over three fresh mock providers, an in-memory cache and
+ *   a no-op scheduler, with zeroed usage metrics for each provider.
+ * @param latencies - Each mock provider's latency, in milliseconds.
+ * @param opts - The rate limiter to inject, when the test exercises throttling.
+ * @returns The orchestrator and the three mock providers behind it.
+ */
 export function createOrchestrator(
   latencies = { openai: 50, perplexity: 75, gemini: 100 },
   opts: { rateLimiter?: RateLimiterPort } = {}
@@ -258,7 +341,11 @@ export function createOrchestrator(
 // Shared env setup / teardown
 // ---------------------------------------------------------------------------
 
-/** Capture + clear AI env vars so real providers don't init during tests. */
+/**
+ * @description Captures and clears the AI provider keys, so real providers don't init during
+ *   tests.
+ * @returns The keys as they were, for restoreAIEnv().
+ */
 export function captureAndClearAIEnv(): Record<string, string | undefined> {
   const snapshot = {
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
@@ -271,7 +358,11 @@ export function captureAndClearAIEnv(): Record<string, string | undefined> {
   return snapshot;
 }
 
-/** Restore env vars saved by captureAndClearAIEnv(). */
+/**
+ * @description Restores the AI provider keys saved by captureAndClearAIEnv(), deleting any that
+ *   were unset.
+ * @param snapshot - The keys as captureAndClearAIEnv() returned them.
+ */
 export function restoreAIEnv(snapshot: Record<string, string | undefined>): void {
   for (const [key, value] of Object.entries(snapshot)) {
     if (value !== undefined) {
