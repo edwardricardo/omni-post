@@ -20,6 +20,15 @@ const testFiles = [
   "**/tests/**/*.tsx",
 ];
 
+// run.ts, run-with-coverage.ts and setup/verifyServices.ts have no importer and no runner collects
+// them. Testing Refoundation deletes them, and these three entries with them; the list may only
+// shrink. The rules that read test code skip them through this one list.
+const unrunTestFiles = [
+  "apps/api/tests/run.ts",
+  "apps/api/tests/run-with-coverage.ts",
+  "apps/api/tests/setup/verifyServices.ts",
+];
+
 // Paths that benefit from type-aware linting (no-floating-promises).
 // Scoped narrowly to keep memory usage bounded — full-monorepo projectService OOMs.
 // Backend core layers only: fire-and-forget in workers/services/webhooks is intentional,
@@ -290,18 +299,20 @@ export default defineConfig([
   // helpers they import. unit/ and eval/ are Vitest's.
   {
     files: ["apps/api/tests/**/*.ts"],
-    ignores: [
-      "apps/api/tests/unit/**",
-      "apps/api/tests/eval/**",
-      // run.ts, run-with-coverage.ts and setup/verifyServices.ts have no importer and no runner
-      // collects them. Testing Refoundation deletes them, and these three entries with them; the
-      // list may only shrink.
-      "apps/api/tests/run.ts",
-      "apps/api/tests/run-with-coverage.ts",
-      "apps/api/tests/setup/verifyServices.ts",
-    ],
+    ignores: ["apps/api/tests/unit/**", "apps/api/tests/eval/**", ...unrunTestFiles],
     plugins: { testing: testingPlugin },
     rules: { "testing/no-stdout-in-node-test": "error" },
+  },
+  // A test waits on the observable result of the work it started, never on a fixed time: a fixed
+  // wait falls short on a loaded runner and spends its whole delay on an idle one. A wait no
+  // result can replace carries a `fixed-wait: <kind> — <why>` comment on the line above. The
+  // Playwright specs under e2e/ stay out until a required check runs them: no run could verify a
+  // fix there.
+  {
+    files: [...testFiles, "**/__tests__/**"],
+    ignores: ["**/e2e/**", ...unrunTestFiles],
+    plugins: { testing: testingPlugin },
+    rules: { "testing/no-fixed-time-wait": "error" },
   },
   // Disable stylistic rules that conflict with Prettier. Must be last to override all preceding.
   prettierConfig,
