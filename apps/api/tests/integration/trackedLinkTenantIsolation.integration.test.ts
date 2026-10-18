@@ -96,23 +96,17 @@ describe("TrackedLink — two-tenant isolation (MERGE-BLOCKING)", () => {
   let tenantA: Seeded;
   let tenantB: Seeded;
 
-  async function seedTenant(name: string, withClicks: boolean): Promise<Seeded> {
-    const account = await base.account.create({
-      data: {
-        name: `${TAG}-${name}`,
-        email: `${TAG}-${name}-${randomUUID()}@test.local`,
-        slug: `${TAG}-${name}-${randomUUID()}`,
-      },
-    });
-    const project = await base.project.create({
-      data: { accountId: account.id, name: `${TAG}-${name}-project` },
-    });
+  async function seedLink(
+    owner: Pick<Seeded, "accountId" | "projectId">,
+    name: string,
+    withClicks: boolean
+  ): Promise<Seeded> {
     const shortCode = `${TAG}${name}`;
     const originalUrl = `https://example.com/${name}-destination`;
     const link = await base.trackedLink.create({
       data: {
-        accountId: account.id,
-        projectId: project.id,
+        accountId: owner.accountId,
+        projectId: owner.projectId,
         originalUrl,
         shortCode,
         utmSource: "seed",
@@ -129,13 +123,35 @@ describe("TrackedLink — two-tenant isolation (MERGE-BLOCKING)", () => {
       });
       await base.trackedLink.update({ where: { id: link.id }, data: { clicks: 2 } });
     }
-    return {
-      accountId: account.id,
-      projectId: project.id,
-      linkId: link.id,
-      shortCode,
-      originalUrl,
-    };
+    return { ...owner, linkId: link.id, shortCode, originalUrl };
+  }
+
+  async function seedTenant(name: string, withClicks: boolean): Promise<Seeded> {
+    const account = await base.account.create({
+      data: {
+        name: `${TAG}-${name}`,
+        email: `${TAG}-${name}-${randomUUID()}@test.local`,
+        slug: `${TAG}-${name}-${randomUUID()}`,
+      },
+    });
+    const project = await base.project.create({
+      data: { accountId: account.id, name: `${TAG}-${name}-project` },
+    });
+    return seedLink({ accountId: account.id, projectId: project.id }, name, withClicks);
+  }
+
+  /** Reads a link's click counter until the fire-and-forget click write lands on it. */
+  async function untilClicks(linkId: string, expected: number, description: string): Promise<void> {
+    await until(
+      async () => {
+        const now = await base.trackedLink.findUnique({
+          where: { id: linkId },
+          select: { clicks: true },
+        });
+        return now?.clicks === expected;
+      },
+      { description, intervalMs: 25 }
+    );
   }
 
   before(async () => {
@@ -297,38 +313,41 @@ describe("TrackedLink — two-tenant isolation (MERGE-BLOCKING)", () => {
 
   describe("public redirect — deliberate capability-URL bypass with compensating controls", () => {
     it("anonymous redirect to B's shortCode returns a bare 302 to the destination and leaks NO tenant data", async () => {
-      const res = await app.inject({ method: "GET", url: `/r/${tenantB.shortCode}` });
-      assert.strictEqual(
-        res.statusCode,
-        302,
-        "public redirect must resolve globally (system context)"
-      );
-      assert.strictEqual(res.headers.location, tenantB.originalUrl, "302 → destination URL only");
-      // Leaks-nothing: the response carries no tenant/accountId/analytics data.
-      assert.ok(!res.payload.includes(tenantB.accountId), "no accountId may leak in the body");
-      assert.ok(!res.payload.includes(tenantB.projectId), "no projectId may leak in the body");
-      assert.strictEqual(res.headers["x-account-id"], undefined, "no tenant header may leak");
+      // A link of B's own for this arm: the redirect records a click, and the foreign
+      // delete arm asserts the exact click rows of B's shared link in either order.
+      const link = await seedLink(tenantB, "Bredirect", false);
+      try {
+        const res = await app.inject({ method: "GET", url: `/r/${link.shortCode}` });
+        assert.strictEqual(
+          res.statusCode,
+          302,
+          "public redirect must resolve globally (system context)"
+        );
+        assert.strictEqual(res.headers.location, link.originalUrl, "302 → destination URL only");
+        // Leaks-nothing: the response carries no tenant/accountId/analytics data.
+        assert.ok(!res.payload.includes(tenantB.accountId), "no accountId may leak in the body");
+        assert.ok(!res.payload.includes(tenantB.projectId), "no projectId may leak in the body");
+        assert.strictEqual(res.headers["x-account-id"], undefined, "no tenant header may leak");
+        // recordClick is fire-and-forget; the arm waits for it so no write outlives it.
+        await untilClicks(link.linkId, 1, "the click to be recorded on B's redirect link");
+      } finally {
+        await base.trackedLink.delete({ where: { id: link.linkId } });
+      }
     });
 
     it("anonymous redirect to A's OWN shortCode works and records the click (positive control)", async () => {
-      const beforeClicks = await base.trackedLink.findUnique({
-        where: { id: tenantA.linkId },
-        select: { clicks: true },
-      });
-      const res = await app.inject({ method: "GET", url: `/r/${tenantA.shortCode}` });
-      assert.strictEqual(res.statusCode, 302);
-      assert.strictEqual(res.headers.location, tenantA.originalUrl);
-      // recordClick is fire-and-forget, so the case reads the counter until it moves.
-      await until(
-        async () => {
-          const now = await base.trackedLink.findUnique({
-            where: { id: tenantA.linkId },
-            select: { clicks: true },
-          });
-          return (now?.clicks ?? 0) > (beforeClicks?.clicks ?? 0);
-        },
-        { description: "the click to be recorded on A's own link", intervalMs: 25 }
-      );
+      // A link of A's own for this arm, so the counter it reads moves only by its own
+      // redirect: the rate-limit arm sends its own clicks to A's shared link.
+      const link = await seedLink(tenantA, "Aredirect", false);
+      try {
+        const res = await app.inject({ method: "GET", url: `/r/${link.shortCode}` });
+        assert.strictEqual(res.statusCode, 302);
+        assert.strictEqual(res.headers.location, link.originalUrl);
+        // recordClick is fire-and-forget, so the case reads the counter until it moves.
+        await untilClicks(link.linkId, 1, "the click to be recorded on A's own link");
+      } finally {
+        await base.trackedLink.delete({ where: { id: link.linkId } });
+      }
     });
 
     it("the /r namespace is rate-limited by the trusted socket peer, not a spoofable header", async () => {

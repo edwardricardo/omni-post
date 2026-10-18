@@ -155,7 +155,10 @@ describe("Post trio — data-layer tenant isolation", () => {
    * already changed. Either way a red arm would be reporting its predecessor's
    * damage rather than the defect it describes, so every mutating arm gets its
    * own row and the shared fixture stays pristine for the read and HTTP arms.
-   * Cleanup is covered by the account-level cascade in teardown.
+   * A B-owned victim is left to the account-level cascade in teardown. An A-owned
+   * post is removed by its own arm with `removeDisposablePost` in a `finally`:
+   * "A lists its own project's posts" asserts A's exact post set, and the
+   * shuffled order may run it after any arm that created one.
    */
   async function seedDisposablePost(
     owner: Seeded,
@@ -171,6 +174,13 @@ describe("Post trio — data-layer tenant isolation", () => {
       body: `${TAG}-${label}-body`,
     });
     return { postId, contentId };
+  }
+
+  /** Deletes a post and its child rows, children first; a post already gone is a no-op. */
+  async function removeDisposablePost(postId: string): Promise<void> {
+    await base.$executeRawUnsafe(`DELETE FROM "PostMedia" WHERE "postId" = $1`, postId);
+    await base.$executeRawUnsafe(`DELETE FROM "PostContent" WHERE "postId" = $1`, postId);
+    await base.$executeRawUnsafe(`DELETE FROM "Post" WHERE id = $1`, postId);
   }
 
   /** The B-owned victim the cross-tenant mutation arms aim at. */
@@ -477,37 +487,37 @@ describe("Post trio — data-layer tenant isolation", () => {
         projectId: tenantA.projectId,
         accountId: tenantA.accountId,
       });
-      await insertPostContent(base, columns, {
-        postId,
-        accountId: tenantA.accountId,
-        body: `${TAG}-inherit`,
-      });
-      await insertPostMedia(base, columns, {
-        postId,
-        accountId: tenantA.accountId,
-        url: `https://cdn.test.local/${TAG}-inherit.png`,
-      });
+      try {
+        await insertPostContent(base, columns, {
+          postId,
+          accountId: tenantA.accountId,
+          body: `${TAG}-inherit`,
+        });
+        await insertPostMedia(base, columns, {
+          postId,
+          accountId: tenantA.accountId,
+          url: `https://cdn.test.local/${TAG}-inherit.png`,
+        });
 
-      const rows = await base.$queryRawUnsafe<Array<{ table_name: string; accountId: string }>>(
-        `SELECT 'Post' AS table_name, "accountId" FROM "Post" WHERE id = $1
-         UNION ALL
-         SELECT 'PostContent', "accountId" FROM "PostContent" WHERE "postId" = $1
-         UNION ALL
-         SELECT 'PostMedia', "accountId" FROM "PostMedia" WHERE "postId" = $1`,
-        postId
-      );
-      assert.strictEqual(rows.length, 3, "expected one tenant key per trio row");
-      for (const row of rows) {
-        assert.strictEqual(
-          row.accountId,
-          tenantA.accountId,
-          `${row.table_name} must carry the parent's tenant, observed ${row.accountId}`
+        const rows = await base.$queryRawUnsafe<Array<{ table_name: string; accountId: string }>>(
+          `SELECT 'Post' AS table_name, "accountId" FROM "Post" WHERE id = $1
+           UNION ALL
+           SELECT 'PostContent', "accountId" FROM "PostContent" WHERE "postId" = $1
+           UNION ALL
+           SELECT 'PostMedia', "accountId" FROM "PostMedia" WHERE "postId" = $1`,
+          postId
         );
+        assert.strictEqual(rows.length, 3, "expected one tenant key per trio row");
+        for (const row of rows) {
+          assert.strictEqual(
+            row.accountId,
+            tenantA.accountId,
+            `${row.table_name} must carry the parent's tenant, observed ${row.accountId}`
+          );
+        }
+      } finally {
+        await removeDisposablePost(postId);
       }
-
-      await base.$executeRawUnsafe(`DELETE FROM "PostMedia" WHERE "postId" = $1`, postId);
-      await base.$executeRawUnsafe(`DELETE FROM "PostContent" WHERE "postId" = $1`, postId);
-      await base.$executeRawUnsafe(`DELETE FROM "Post" WHERE id = $1`, postId);
     });
 
     it("the create input carries no tenant field, so a client cannot supply one", () => {
@@ -629,70 +639,77 @@ describe("Post trio — data-layer tenant isolation", () => {
 
     it("A archiving its OWN post over HTTP archives exactly that post", async () => {
       const own = await seedDisposablePost(tenantA, "a-archive-own");
+      try {
+        const res = await app.inject({
+          method: "PATCH",
+          url: "/posts/batch/archive",
+          headers: {
+            authorization: bearerFor(tenantA.accountId),
+            "content-type": "application/json",
+          },
+          payload: { postIds: [own.postId] },
+        });
 
-      const res = await app.inject({
-        method: "PATCH",
-        url: "/posts/batch/archive",
-        headers: {
-          authorization: bearerFor(tenantA.accountId),
-          "content-type": "application/json",
-        },
-        payload: { postIds: [own.postId] },
-      });
+        assert.strictEqual(res.statusCode, 200, `own-tenant archive must succeed: ${res.payload}`);
+        const body = JSON.parse(res.payload) as { data?: { archived?: number } };
+        assert.strictEqual(
+          body.data?.archived,
+          1,
+          `the endpoint must report the row it archived, observed ${res.payload}. A reported 0 ` +
+            `here is the endpoint answering 200 over a write that never happened — the shape ` +
+            `the refusal arm above cannot tell apart from working isolation`
+        );
 
-      assert.strictEqual(res.statusCode, 200, `own-tenant archive must succeed: ${res.payload}`);
-      const body = JSON.parse(res.payload) as { data?: { archived?: number } };
-      assert.strictEqual(
-        body.data?.archived,
-        1,
-        `the endpoint must report the row it archived, observed ${res.payload}. A reported 0 ` +
-          `here is the endpoint answering 200 over a write that never happened — the shape the ` +
-          `refusal arm above cannot tell apart from working isolation`
-      );
-
-      const rows = await base.$queryRawUnsafe<Array<{ archivedAt: Date | null }>>(
-        `SELECT "archivedAt" FROM "Post" WHERE id = $1`,
-        own.postId
-      );
-      assert.notStrictEqual(
-        rows[0]?.archivedAt ?? null,
-        null,
-        "A's own post must carry an archivedAt after A archived it; the count alone would not " +
-          "prove the row moved"
-      );
+        const rows = await base.$queryRawUnsafe<Array<{ archivedAt: Date | null }>>(
+          `SELECT "archivedAt" FROM "Post" WHERE id = $1`,
+          own.postId
+        );
+        assert.notStrictEqual(
+          rows[0]?.archivedAt ?? null,
+          null,
+          "A's own post must carry an archivedAt after A archived it; the count alone would " +
+            "not prove the row moved"
+        );
+      } finally {
+        await removeDisposablePost(own.postId);
+      }
     });
 
     it("an admin hard-deleting A's OWN post over HTTP destroys exactly that post", async () => {
       const own = await seedDisposablePost(tenantA, "a-harddelete-own");
+      try {
+        const res = await app.inject({
+          method: "DELETE",
+          url: "/posts/batch",
+          headers: {
+            authorization: adminBearer,
+            "content-type": "application/json",
+          },
+          payload: { postIds: [own.postId], accountId: tenantA.accountId },
+        });
 
-      const res = await app.inject({
-        method: "DELETE",
-        url: "/posts/batch",
-        headers: {
-          authorization: adminBearer,
-          "content-type": "application/json",
-        },
-        payload: { postIds: [own.postId], accountId: tenantA.accountId },
-      });
+        assert.strictEqual(res.statusCode, 200, `admin hard-delete must succeed: ${res.payload}`);
+        const body = JSON.parse(res.payload) as { data?: { deleted?: number } };
+        assert.strictEqual(
+          body.data?.deleted,
+          1,
+          `the endpoint must report the row it destroyed, observed ${res.payload}`
+        );
 
-      assert.strictEqual(res.statusCode, 200, `admin hard-delete must succeed: ${res.payload}`);
-      const body = JSON.parse(res.payload) as { data?: { deleted?: number } };
-      assert.strictEqual(
-        body.data?.deleted,
-        1,
-        `the endpoint must report the row it destroyed, observed ${res.payload}`
-      );
-
-      const rows = await base.$queryRawUnsafe<Array<{ id: string }>>(
-        `SELECT id FROM "Post" WHERE id = $1`,
-        own.postId
-      );
-      assert.strictEqual(
-        rows.length,
-        0,
-        "the post must be physically gone; a 200 with the row still present is the endpoint " +
-          "reporting a delete it never performed"
-      );
+        const rows = await base.$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT id FROM "Post" WHERE id = $1`,
+          own.postId
+        );
+        assert.strictEqual(
+          rows.length,
+          0,
+          "the post must be physically gone; a 200 with the row still present is the endpoint " +
+            "reporting a delete it never performed"
+        );
+      } finally {
+        // A no-op once the endpoint destroyed the post; it removes the row when it did not.
+        await removeDisposablePost(own.postId);
+      }
     });
 
     it("bulkUpdateStatus inside a unit of work moves the caller's OWN post", async () => {
@@ -702,26 +719,30 @@ describe("Post trio — data-layer tenant isolation", () => {
       // composition root hands the batch use cases — an injected UnitOfWork and
       // a repository resolved from the same container.
       const own = await seedDisposablePost(tenantA, "a-status-own");
-      const postRepository = app.container!.resolve<PostRepository>(TOKENS.PostRepository);
-      const unitOfWork = app.container!.resolve<UnitOfWork>(TOKENS.UnitOfWork);
+      try {
+        const postRepository = app.container!.resolve<PostRepository>(TOKENS.PostRepository);
+        const unitOfWork = app.container!.resolve<UnitOfWork>(TOKENS.UnitOfWork);
 
-      const result = await withTenantContext({ accountId: tenantA.accountId }, async () =>
-        unitOfWork.executeInTransaction(async () =>
-          postRepository.bulkUpdateStatus([PostId.fromStringUnsafe(own.postId)], "SCHEDULED")
-        )
-      );
+        const result = await withTenantContext({ accountId: tenantA.accountId }, async () =>
+          unitOfWork.executeInTransaction(async () =>
+            postRepository.bulkUpdateStatus([PostId.fromStringUnsafe(own.postId)], "SCHEDULED")
+          )
+        );
 
-      assert.ok(result.ok, "the caller's own bulk status update must not fail");
-      const rows = await base.$queryRawUnsafe<Array<{ status: string }>>(
-        `SELECT status FROM "Post" WHERE id = $1`,
-        own.postId
-      );
-      assert.strictEqual(
-        rows[0]?.status,
-        "SCHEDULED",
-        "the status must ACTUALLY have moved. `bulkUpdateStatus` returns ok on an updateMany " +
-          "that matched nothing, so an ok result read alone reports success over a no-op"
-      );
+        assert.ok(result.ok, "the caller's own bulk status update must not fail");
+        const rows = await base.$queryRawUnsafe<Array<{ status: string }>>(
+          `SELECT status FROM "Post" WHERE id = $1`,
+          own.postId
+        );
+        assert.strictEqual(
+          rows[0]?.status,
+          "SCHEDULED",
+          "the status must ACTUALLY have moved. `bulkUpdateStatus` returns ok on an updateMany " +
+            "that matched nothing, so an ok result read alone reports success over a no-op"
+        );
+      } finally {
+        await removeDisposablePost(own.postId);
+      }
     });
 
     it("filterIdsByAccount inside a unit of work still returns the caller's OWN ids", async () => {
@@ -735,23 +756,29 @@ describe("Post trio — data-layer tenant isolation", () => {
       // unowned. A gate that answers "not yours" about the caller's own posts fails
       // in the safe direction and is still wrong.
       const own = await seedDisposablePost(tenantA, "a-filter-own");
-      const postRepository = app.container!.resolve<PostRepository>(TOKENS.PostRepository);
-      const unitOfWork = app.container!.resolve<UnitOfWork>(TOKENS.UnitOfWork);
+      try {
+        const postRepository = app.container!.resolve<PostRepository>(TOKENS.PostRepository);
+        const unitOfWork = app.container!.resolve<UnitOfWork>(TOKENS.UnitOfWork);
 
-      const owned = await withTenantContext<PostId[]>({ accountId: tenantA.accountId }, async () =>
-        unitOfWork.executeInTransaction<PostId[]>(async () =>
-          postRepository.filterIdsByAccount(
-            [PostId.fromStringUnsafe(own.postId)],
-            AccountId.fromStringUnsafe(tenantA.accountId)
-          )
-        )
-      );
+        const owned = await withTenantContext<PostId[]>(
+          { accountId: tenantA.accountId },
+          async () =>
+            unitOfWork.executeInTransaction<PostId[]>(async () =>
+              postRepository.filterIdsByAccount(
+                [PostId.fromStringUnsafe(own.postId)],
+                AccountId.fromStringUnsafe(tenantA.accountId)
+              )
+            )
+        );
 
-      assert.deepStrictEqual(
-        owned.map((id: PostId) => id.value),
-        [own.postId],
-        "the caller's own post must survive its own ownership filter inside a transaction"
-      );
+        assert.deepStrictEqual(
+          owned.map((id: PostId) => id.value),
+          [own.postId],
+          "the caller's own post must survive its own ownership filter inside a transaction"
+        );
+      } finally {
+        await removeDisposablePost(own.postId);
+      }
     });
 
     it("A updating B's post over HTTP is refused and B's post is unchanged", async () => {
