@@ -5,6 +5,7 @@
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { AuthService } from "../src/auth/authService.js";
 import { MfaService } from "../src/admin/auth/MfaService.js";
 import { PrismaAdminMfaUserRepository } from "../src/infrastructure/adapters/PrismaAdminMfaUserRepository.js";
@@ -84,7 +85,27 @@ const subscriptionService = new SubscriptionService(
 
 describe("Trial Period Management", () => {
   let superAdminUserId: string;
-  let testAccountId: string;
+  // Every account a test creates, deleted in `after` even when the test stops midway.
+  const accountIds: string[] = [];
+
+  /**
+   * Creates an account that has never been on trial, owned by the calling test. The trial state
+   * is the subject of every case, so each one starts from its own account: a single shared
+   * account carried one test's start or conversion into the next, and the suite passed only in
+   * declaration order.
+   */
+  async function createAccountOffTrial(label: string): Promise<string> {
+    const account = await prisma.account.create({
+      data: {
+        email: `trial-${label}-${randomUUID()}@example.com`,
+        name: `Trial ${label} Account`,
+        isOnTrial: false,
+        maxProjects: 1,
+      },
+    });
+    accountIds.push(account.id);
+    return account.id;
+  }
 
   before(async () => {
     // Create super admin user for testing
@@ -101,28 +122,15 @@ describe("Trial Period Management", () => {
     );
     if (!superAdminResult.ok) return;
     superAdminUserId = superAdminResult.value.id;
-
-    // Create test account with trial disabled initially
-    const testAccount = await prisma.account.create({
-      data: {
-        email: `trial-test-account-${Date.now()}@example.com`,
-        name: "Trial Test Account",
-        isOnTrial: false, // Start with trial disabled so we can test startTrial()
-        maxProjects: 1,
-      },
-    });
-
-    testAccountId = testAccount.id;
   });
 
   after(async () => {
-    // Cleanup test accounts
+    // Accounts go first: `processAutoRenewals` scans every account, so a failure deleting the
+    // admin must not leave this suite's accounts behind for the next scan.
     try {
+      await prisma.account.deleteMany({ where: { id: { in: accountIds } } });
       if (superAdminUserId) {
         await prisma.adminUser.delete({ where: { id: superAdminUserId } });
-      }
-      if (testAccountId) {
-        await prisma.account.delete({ where: { id: testAccountId } });
       }
     } catch (error) {
       console.warn("Cleanup warning:", error);
@@ -131,9 +139,10 @@ describe("Trial Period Management", () => {
 
   describe("Trial Start", () => {
     it("should start trial for account", async () => {
+      const accountId = await createAccountOffTrial("start");
       const result = await subscriptionService.startTrial(
         {
-          accountId: testAccountId,
+          accountId,
           tier: "PRO",
           trialDurationDays: 7,
           autoRenewal: true,
@@ -151,20 +160,12 @@ describe("Trial Period Management", () => {
     });
 
     it("should prevent duplicate trial start", async () => {
-      // Create a new test account
-      const newAccount = await prisma.account.create({
-        data: {
-          email: `trial-duplicate-test-${Date.now()}@example.com`,
-          name: "Trial Duplicate Test User",
-          isOnTrial: false,
-          maxProjects: 1,
-        },
-      });
+      const accountId = await createAccountOffTrial("duplicate");
 
       // Start trial
       const startResult = await subscriptionService.startTrial(
         {
-          accountId: newAccount.id,
+          accountId,
           tier: "PRO",
           trialDurationDays: 3,
           autoRenewal: false,
@@ -178,7 +179,7 @@ describe("Trial Period Management", () => {
       // Try to start trial again (should fail)
       const duplicateResult = await subscriptionService.startTrial(
         {
-          accountId: newAccount.id,
+          accountId,
           tier: "ENTERPRISE",
           trialDurationDays: 14,
           autoRenewal: true,
@@ -194,9 +195,6 @@ describe("Trial Period Management", () => {
         "CONFLICT",
         "Should return CONFLICT error code (mapped from ALREADY_ON_TRIAL)"
       );
-
-      // Clean up
-      await prisma.account.delete({ where: { id: newAccount.id } });
     });
 
     it("should return NOT_FOUND for non-existent account", async () => {
@@ -215,8 +213,27 @@ describe("Trial Period Management", () => {
 
   describe("Trial Conversion", () => {
     it("should convert trial to paid subscription", async () => {
+      // The conversion needs an account on trial, so the test starts that trial itself. It starts
+      // with auto-renewal off and a monthly cycle, so both assertions below observe the change the
+      // conversion makes rather than terms the trial already had.
+      const accountId = await createAccountOffTrial("convert");
+      const startResult = await subscriptionService.startTrial(
+        {
+          accountId,
+          tier: "PRO",
+          trialDurationDays: 7,
+          autoRenewal: false,
+          billingCycle: "monthly",
+        },
+        superAdminUserId
+      );
+      assert.ok(
+        startResult.ok,
+        `Failed to start the trial to convert: ${startResult.ok ? "" : startResult.error}`
+      );
+
       const result = await subscriptionService.convertTrialToPaid(
-        testAccountId,
+        accountId,
         "yearly",
         superAdminUserId
       );
@@ -239,7 +256,8 @@ describe("Trial Period Management", () => {
     });
 
     it("should return NOT_ON_TRIAL when converting account not on trial", async () => {
-      const result = await subscriptionService.convertTrialToPaid(testAccountId);
+      const accountId = await createAccountOffTrial("convert-not-on-trial");
+      const result = await subscriptionService.convertTrialToPaid(accountId);
 
       assert.ok(!result.ok, "Should fail for account not on trial");
       if (result.ok) return;
@@ -253,20 +271,12 @@ describe("Trial Period Management", () => {
 
   describe("Trial End", () => {
     it("should end trial", async () => {
-      // Create a new test account for ending trial
-      const newAccount = await prisma.account.create({
-        data: {
-          email: `trial-end-test-${Date.now()}@example.com`,
-          name: "Trial End Test User",
-          isOnTrial: false,
-          maxProjects: 1,
-        },
-      });
+      const accountId = await createAccountOffTrial("end");
 
       // Start trial first
       const startResult = await subscriptionService.startTrial(
         {
-          accountId: newAccount.id,
+          accountId,
           tier: "PRO",
           trialDurationDays: 7,
           autoRenewal: false,
@@ -282,7 +292,7 @@ describe("Trial Period Management", () => {
 
       // End trial
       const endResult = await subscriptionService.endTrial(
-        newAccount.id,
+        accountId,
         "Testing trial end functionality",
         superAdminUserId
       );
@@ -297,13 +307,11 @@ describe("Trial Period Management", () => {
         true,
         "Trial should be marked as expired"
       );
-
-      // Clean up
-      await prisma.account.delete({ where: { id: newAccount.id } });
     });
 
     it("should return NOT_ON_TRIAL when ending trial on account not on trial", async () => {
-      const result = await subscriptionService.endTrial(testAccountId, "Test reason");
+      const accountId = await createAccountOffTrial("end-not-on-trial");
+      const result = await subscriptionService.endTrial(accountId, "Test reason");
 
       assert.ok(!result.ok, "Should fail for account not on trial");
       if (result.ok) return;
@@ -318,20 +326,13 @@ describe("Trial Period Management", () => {
   describe("Expiring Trials", () => {
     it("should retrieve expiring trials within specified days", async () => {
       // Create accounts with expiring trials
-      const testAccounts = [];
+      const expiringAccountIds: string[] = [];
       for (let i = 0; i < 3; i++) {
-        const account = await prisma.account.create({
-          data: {
-            email: `expiring-trial-${i}-${Date.now()}@example.com`,
-            name: `Expiring Trial User ${i}`,
-            isOnTrial: false,
-            maxProjects: 1,
-          },
-        });
+        const accountId = await createAccountOffTrial(`expiring-${i}`);
 
-        await subscriptionService.startTrial(
+        const startResult = await subscriptionService.startTrial(
           {
-            accountId: account.id,
+            accountId,
             tier: "PRO",
             trialDurationDays: 1, // Expires in 1 day
             autoRenewal: false,
@@ -339,8 +340,12 @@ describe("Trial Period Management", () => {
           },
           superAdminUserId
         );
+        assert.ok(
+          startResult.ok,
+          `Failed to start expiring trial ${i}: ${startResult.ok ? "" : startResult.error}`
+        );
 
-        testAccounts.push(account);
+        expiringAccountIds.push(accountId);
       }
 
       const result = await subscriptionService.getExpiringTrials(1);
@@ -348,10 +353,11 @@ describe("Trial Period Management", () => {
       assert.ok(result.ok, `Failed to get expiring trials: ${result.ok ? "" : result.error}`);
       if (!result.ok) return;
       assert.ok(result.value.length >= 3, "Should find at least 3 expiring trials");
-
-      // Clean up
-      for (const account of testAccounts) {
-        await prisma.account.delete({ where: { id: account.id } });
+      // The query spans every account, so the count alone could be met by rows other suites
+      // left; each of the three trials this test started must be among the results.
+      const foundIds = new Set(result.value.map((trial) => trial.id));
+      for (const accountId of expiringAccountIds) {
+        assert.ok(foundIds.has(accountId), `Expiring trial ${accountId} should be listed`);
       }
     });
   });
@@ -371,14 +377,19 @@ describe("Trial Period Management", () => {
           billingCycle: "monthly",
         },
       });
+      accountIds.push(account.id);
 
       const result = await subscriptionService.processAutoRenewals();
 
       assert.ok(result.ok, `Failed to process auto-renewals: ${result.ok ? "" : result.error}`);
       if (!result.ok) return;
 
-      const { processed, failed: _failed } = result.value;
+      const { processed, failed: _failed, details } = result.value;
       assert.ok(processed >= 1, "Should have processed at least 1 auto-renewal");
+      // The renewal run scans every account, so the count alone could be met by another
+      // suite's expired trial; the renewal of this test's account must be the one that succeeded.
+      const ownRenewal = details.find((detail) => detail.accountId === account.id);
+      assert.strictEqual(ownRenewal?.status, "success", "This test's account should be renewed");
 
       // Check if account was properly renewed
       const updatedAccount = await prisma.account.findUnique({
@@ -393,9 +404,6 @@ describe("Trial Period Management", () => {
       );
       assert.ok(updatedAccount.lastBillingDate, "Should have last billing date");
       assert.ok(updatedAccount.nextBillingDate, "Should have next billing date");
-
-      // Clean up
-      await prisma.account.delete({ where: { id: account.id } });
     });
   });
 });
