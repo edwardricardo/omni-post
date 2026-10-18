@@ -14,9 +14,12 @@
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { createDeferred, type Deferred } from "@packages/vitest-shared/determinism";
+import { defineSaga, type PivotStep, type SagaDefinition } from "@shared/types/saga.js";
 import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 import {
   TEST_ACCOUNT_ID,
+  awaitSagaEnded,
   createMockPrisma,
   createMockRedis,
   createMockEventService,
@@ -32,6 +35,44 @@ import {
 console.log = () => {};
 console.error = () => {};
 console.warn = () => {};
+
+/** A one-step saga whose step holds until the test lets it finish. */
+interface HeldSaga {
+  /** The definition to register and start. */
+  definition: SagaDefinition;
+  /** Resolved once the engine is inside the step. */
+  entered: Deferred<void>;
+  /** Resolve it to let the step succeed. */
+  release: Deferred<void>;
+}
+
+/**
+ * Builds a saga whose only step holds inside `execute`, so a test can read what the engine
+ * persisted while that step runs.
+ */
+function createHeldSaga(): HeldSaga {
+  const entered = createDeferred<void>();
+  const release = createDeferred<void>();
+  const step: PivotStep = {
+    id: "held-step",
+    name: "Held Step",
+    class: "pivot",
+    execute: async () => {
+      entered.resolve();
+      await release.promise;
+      return { outcome: "succeeded" };
+    },
+  };
+  const definition = defineSaga({
+    id: "held-test-saga",
+    name: "Held Test Saga",
+    version: "1.0.0",
+    preCommit: [],
+    pivot: step,
+    postCommit: [],
+  });
+  return { definition, entered, release };
+}
 
 // ============================================================================
 // Persistence Round-Trip Tests
@@ -78,7 +119,7 @@ describe("SagaManager - Persistence Round-Trip", () => {
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the saga to complete
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
     expect(redisData).toBeTruthy();
@@ -98,7 +139,7 @@ describe("SagaManager - Persistence Round-Trip", () => {
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Allow the single-step saga to complete
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
     expect(redisData).toBeTruthy();
@@ -106,11 +147,10 @@ describe("SagaManager - Persistence Round-Trip", () => {
     const parsed = JSON.parse(redisData);
 
     expect(Array.isArray(parsed.stepResults)).toBeTruthy();
-    // After completion, the single step should have a result
-    if (parsed.status === "COMPLETED") {
-      expect(parsed.stepResults.length).toBe(1);
-      expect(parsed.stepResults[0].outcome).toBe("succeeded");
-    }
+    // The saga has ended, so its single step has a result
+    expect(parsed.status).toBe("COMPLETED");
+    expect(parsed.stepResults.length).toBe(1);
+    expect(parsed.stepResults[0].outcome).toBe("succeeded");
   });
 });
 
@@ -155,10 +195,9 @@ describe("SagaManager - Cache Lookup Behavior", () => {
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for completion so it gets removed from activeInstances
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
-    // After completion and cleanup, the saga might not be in memory.
-    // But it should still be retrievable from Redis.
+    // An ended saga is no longer tracked in memory, so this read is served from Redis.
     const retrieved = await manager.getSaga(instance.id);
     expect(retrieved).toBeTruthy();
     expect(retrieved.id).toBe(instance.id);
@@ -193,20 +232,20 @@ describe("SagaManager - Persistence on Status Transitions", () => {
   });
 
   it("should persist RUNNING status when saga starts executing", async () => {
-    const definition = createSimpleSagaDefinition();
-    manager.registerSaga(definition);
+    const held = createHeldSaga();
+    manager.registerSaga(held.definition);
 
-    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(held.definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    // Allow execution to begin
-    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    // The engine persists RUNNING before it runs the first step, so once the step holds, the
+    // cached copy already says RUNNING. It is read before the step is let go.
+    await held.entered.promise;
+    const cachedWhileRunning = await mockRedis.get(`saga:${instance.id}`);
+    held.release.resolve();
+    await awaitSagaEnded(manager, instance.id);
 
-    const redisData = await mockRedis.get(`saga:${instance.id}`);
-    expect(redisData).toBeTruthy();
-
-    const parsed = JSON.parse(redisData);
-    // Status should be RUNNING or COMPLETED depending on timing
-    expect(["PENDING", "RUNNING", "COMPLETED"].includes(parsed.status)).toBeTruthy();
+    expect(cachedWhileRunning).toBeTruthy();
+    expect(JSON.parse(cachedWhileRunning ?? "{}").status).toBe("RUNNING");
   });
 
   it("should persist COMPLETED status after all steps succeed", async () => {
@@ -216,7 +255,7 @@ describe("SagaManager - Persistence on Status Transitions", () => {
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the single-step saga to complete
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
     expect(redisData).toBeTruthy();
@@ -234,7 +273,7 @@ describe("SagaManager - Persistence on Status Transitions", () => {
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the failing step to execute
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
     expect(redisData).toBeTruthy();
@@ -252,7 +291,7 @@ describe("SagaManager - Persistence on Status Transitions", () => {
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     // Wait for the failing step
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance.id);
 
     // Verify it failed
     const failedSaga = await manager.getSaga(instance.id);
@@ -262,8 +301,8 @@ describe("SagaManager - Persistence on Status Transitions", () => {
     // Trigger compensation
     await manager.compensateSaga(instance.id);
 
-    // Wait for compensation to complete
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    // The row is COMPENSATING and the walk runs detached; wait for the walk's ending
+    await awaitSagaEnded(manager, instance.id);
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
     expect(redisData).toBeTruthy();
@@ -310,7 +349,8 @@ describe("SagaManager - Multiple Saga Instances", () => {
     });
 
     // Wait for both to complete
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
+    await awaitSagaEnded(manager, instance1.id);
+    await awaitSagaEnded(manager, instance2.id);
 
     // Verify both are persisted with their own data
     const data1 = await mockRedis.get(`saga:${instance1.id}`);

@@ -3,7 +3,9 @@
  * @description Test helpers for saga manager test helpers
  * @layer infrastructure
  */
+import { until } from "@packages/vitest-shared/determinism";
 import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
+import type { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
 import { SagaDefinition, SagaStep, SagaContext, SagaStepResult } from "@shared/types/saga.js";
 import { EventStoreEvent } from "@shared/types/events.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -305,6 +307,38 @@ export function createSagaManager(
   });
 }
 
+/** The statuses no pass moves a saga out of. */
+const ENDED_STATUSES: ReadonlySet<string> = new Set(["COMPLETED", "FAILED", "COMPENSATED"]);
+
+/**
+ * @function awaitSagaEnded
+ * @description Waits until the detached pass over a saga has ended it and let go of it. The
+ *   ending alone is not enough: the engine moves the status before it persists the row, appends
+ *   the event and counts the metric, and it releases its claim on the saga only after all three.
+ *   The claim is read through a cast because `isAdvancerInFlight` is deliberately not on the
+ *   facade. The deadline stays under vitest's 5 s test timeout, so the wait's own message is the
+ *   failure a reader sees.
+ * @param manager - The saga manager running the saga.
+ * @param sagaId - The saga to wait on.
+ * @returns A promise that resolves once the saga is COMPLETED, FAILED or COMPENSATED and no pass
+ *   holds it; it rejects after 3 s, naming the last status it read.
+ */
+export async function awaitSagaEnded(manager: SagaManagerImpl, sagaId: string): Promise<void> {
+  const engine = (manager as unknown as { execution: SagaExecutionEngine }).execution;
+  let lastStatus = "unread";
+  await until(
+    async () => {
+      lastStatus = (await manager.getSaga(sagaId))?.status ?? "absent";
+      return ENDED_STATUSES.has(lastStatus) && !engine.isAdvancerInFlight(sagaId);
+    },
+    {
+      description: () => `saga ${sagaId} to end and be released; last status ${lastStatus}`,
+      timeoutMs: 3_000,
+      intervalMs: 5,
+    }
+  );
+}
+
 export class SuccessfulStep implements SagaStep {
   readonly id = "successful-step";
   readonly name = "Successful Step";
@@ -374,6 +408,7 @@ export class DelayedStep implements SagaStep {
    * @returns A succeeded result.
    */
   async execute(context: SagaContext, _data?: any): Promise<SagaStepResult> {
+    // fixed-wait: latency-injection — models a slow step; callers wait on the saga's ending.
     await new Promise((resolve) => setTimeout(resolve, this.delayMs));
     context.stepData[this.id] = { executed: true };
     return { outcome: "succeeded", data: { delayed: true } };
