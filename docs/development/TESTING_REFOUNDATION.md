@@ -1,11 +1,12 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-18 — N-CI-7, the test kit, is closed (row N-CI-7): the determinism kit, both
-test-kit lint rules at `error`, `fast-check` with four property suites, and the services tier run
-every night five times in a seeded random order with one alarm (#654). Phase 2 can start. Phase 0
-is closed, row 0.16 aside (🔄); Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1018 + 14` · M5 `29 · 0`
-· M7 `42/42` · M8 `1/93`. Every unit's line is in [§Log](#log).
+**As of:** 2026-10-18 — DEF-106 (`workstream/fix-def-106-project-account-scope`) added the project account-scope suite
+`projectAccountScope.integration.test.ts`. N-CI-7, the test kit, is closed (row N-CI-7): the
+determinism kit, both test-kit lint rules at `error`, `fast-check` with four property suites, and
+the services tier run every night five times in a seeded random order with one alarm (#654). Phase
+2 can start. Phase 0 is closed, row 0.16 aside (🔄); Phase 1 has 1.13, 1.14 and 1.15 left. M1
+`1019 + 14` · M5 `29 · 0` · M7 `42/42` · M8 `1/93`. Every unit's line is in [§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -31,7 +32,7 @@ naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1018 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR wire  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1019 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR d106  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -413,6 +414,7 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 
 Newest first; a line with no date or no pull request number is one whose record named none.
 
+- 2026-10-18 — DEF-106, `PR d106` (`workstream/fix-def-106-project-account-scope`) — `POST` and `GET /accounts/:accountId/projects` admit only the caller's own account before any database read; another tenant's account gets the 404 a missing one gets, where it got 500 — M1 `1018 + 14` → `1019 + 14`
 - 2026-10-18 — N-CI-7 closing records, `PR close` (`workstream/n-ci-7-close`) — the runner's seeded random order and the randomized nightly enter [§Gates](#gates); row N-CI-7 ✅ and WU-3.12 🔄; N-CI-7 closed in the master plan with DEF-110 to DEF-112; book rows SB-327 to SB-334, and SB-193, SB-197, SB-199 and SB-200 moved to Track S; FP-017 and FP-018 — M7 `40/40` → `42/42`
 - 2026-10-18 — N-CI-7 K8 + K9, `PR k8k9` (`workstream/n-ci-7-nightly`) — #654 — `run-tests.sh` `TEST_ORDER=random` with a printed, replayable `TEST_SEED`; `nightly.yml` job `integration-randomized` (five runs, fresh services, file and test shuffle, no retries) and one `alarm` job for the marked `nightly-failure` issue; red in runs 39097507468 (#647 opened) and 39098860445 (commented on), green in run 39117721741, whose alarm closed #647; WU-3.12 keeps the forced build and test steps, `chaos.yml` and the 31 earlier issues — no metric
 - 2026-10-18 — N-CI-7 order independence, round 2, `PR order-e` (`workstream/n-ci-7-order-e`) — #655 — the audit statistics case seeds the logs it counts (the 17th order dependence, run 39111917425, seed 277150497); `OutboxRelay`, the bulk-schedule suites and the saga suites survive the rows a failed suite leaves — no metric

@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { describe, it, beforeAll, beforeEach, afterAll, expect, vi } from "vitest";
 
 // The customer principal this file's mocked `requireClientAuth` binds. Hoisted so
 // the `vi.mock` factory below (which vitest lifts above every import) can read it.
@@ -300,6 +300,32 @@ async function seedProject(
   });
 }
 
+/**
+ * Makes the mocked `requireClientAuth` bind a customer of `accountId` for the rest of the test.
+ * The account-scoped routes (`/accounts/:accountId/projects`) admit only the caller's own account,
+ * so a test that seeds an account of its own acts as that account's customer. The suite's
+ * `beforeEach` puts the default principal back before the next test.
+ * @param accountId - The tenant the caller belongs to.
+ */
+function actAs(accountId: string): void {
+  AUTH_STATE.principal = { ...CUSTOMER_PRINCIPAL, accountId };
+}
+
+/**
+ * @returns How many calls the Prisma accessors the account-scoped routes reach have received so
+ *   far, so a test can assert that a refused request reached none of them.
+ */
+function accountScopedPrismaCalls(): number {
+  return [
+    prisma.account.findFirst,
+    prisma.account.findUnique,
+    prisma.project.count,
+    prisma.project.findFirst,
+    prisma.project.findMany,
+    prisma.project.create,
+  ].reduce((sum, accessor) => sum + vi.mocked(accessor).mock.calls.length, 0);
+}
+
 // ---------------------------------------------------------------------------
 // Test suite
 // ---------------------------------------------------------------------------
@@ -319,6 +345,10 @@ describe("projectRoutes - Unit Tests", () => {
     // quota or the list seeds an account of its own instead.
     const testAccount = await seedAccount({ id: CUSTOMER_PRINCIPAL.accountId });
     createdAccountId = testAccount.id;
+  });
+
+  beforeEach(() => {
+    AUTH_STATE.principal = CUSTOMER_PRINCIPAL;
   });
 
   afterAll(async () => {
@@ -344,6 +374,7 @@ describe("projectRoutes - Unit Tests", () => {
   describe("POST /accounts/:accountId/projects", () => {
     it("should create a new project successfully", async () => {
       const account = await seedAccount();
+      actAs(account.id);
       const name = uniqueName("Test Project");
 
       const response = await app.inject({
@@ -368,6 +399,7 @@ describe("projectRoutes - Unit Tests", () => {
 
     it("should use default locale if not provided", async () => {
       const account = await seedAccount();
+      actAs(account.id);
 
       const response = await app.inject({
         method: "POST",
@@ -404,8 +436,64 @@ describe("projectRoutes - Unit Tests", () => {
       expect(body.error).toBeTruthy();
     });
 
+    it("refuses another tenant's account with the 404 a missing account gets, before any database read", async () => {
+      // This unit's Prisma double carries no tenant guard, so without the route's own comparison
+      // the caller writes a project into the foreign tenant. In production the guard was the only
+      // wall: it refused the project query as a mismatch the handler answered with 500, while a
+      // missing account answered 404, so the status told which ids name a real tenant.
+      const foreign = await seedAccount({ name: "Foreign Tenant" });
+      const callsBefore = accountScopedPrismaCalls();
+
+      const foreignResponse = await app.inject({
+        method: "POST",
+        url: `/accounts/${foreign.id}/projects`,
+        payload: { name: uniqueName("Cross Tenant"), locale: "en" },
+      });
+      const missingResponse = await app.inject({
+        method: "POST",
+        url: `/accounts/${randomUUID()}/projects`,
+        payload: { name: uniqueName("Missing Tenant"), locale: "en" },
+      });
+
+      expect(foreignResponse.statusCode).toBe(404);
+      expect(missingResponse.statusCode).toBe(404);
+      expect(foreignResponse.body).toBe(missingResponse.body);
+      expect(JSON.parse(foreignResponse.body)).toEqual({ ok: false, error: "Account not found" });
+      expect(accountScopedPrismaCalls()).toBe(callsBefore);
+      expect(stores.project.all().filter((p) => p.accountId === foreign.id)).toEqual([]);
+
+      // The caller's own account, once it no longer exists, passes the comparison and gets the
+      // handler's own 404: the refusal answers with exactly that body.
+      const goneAccountId = randomUUID();
+      actAs(goneAccountId);
+      const goneResponse = await app.inject({
+        method: "POST",
+        url: `/accounts/${goneAccountId}/projects`,
+        payload: { name: uniqueName("Gone Tenant"), locale: "en" },
+      });
+      expect(goneResponse.statusCode).toBe(404);
+      expect(goneResponse.body).toBe(foreignResponse.body);
+    });
+
+    it("fails closed with 401 and reads nothing when no principal survived authentication", async () => {
+      const account = await seedAccount();
+      AUTH_STATE.principal = undefined;
+      const callsBefore = accountScopedPrismaCalls();
+
+      const response = await app.inject({
+        method: "POST",
+        url: `/accounts/${account.id}/projects`,
+        payload: { name: uniqueName("No Principal"), locale: "en" },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(accountScopedPrismaCalls()).toBe(callsBefore);
+      expect(stores.project.all().filter((p) => p.accountId === account.id)).toEqual([]);
+    });
+
     it("should return 409 when project name already exists", async () => {
       const account = await seedAccount();
+      actAs(account.id);
       const taken = await seedProject(account.id, { label: "Taken Name" });
 
       const response = await app.inject({
@@ -426,6 +514,7 @@ describe("projectRoutes - Unit Tests", () => {
 
     it("should return 403 when quota exceeded", async () => {
       const quotaAccount = await seedAccount({ maxProjects: 0, name: "Quota Test" });
+      actAs(quotaAccount.id);
 
       const response = await app.inject({
         method: "POST",
@@ -453,6 +542,7 @@ describe("projectRoutes - Unit Tests", () => {
       // a quota-farming move: delete, create, restore, and a 2-slot tenant ends up
       // holding 3.
       const account = await seedAccount({ maxProjects: 2, name: "Quota Held" });
+      actAs(account.id);
       await seedProject(account.id, { label: "Live One" });
       await seedProject(account.id, { label: "Deleted One", deletedAt: new Date() });
 
@@ -479,6 +569,7 @@ describe("projectRoutes - Unit Tests", () => {
       // The other half: counting deleted rows must not strand a tenant below its
       // own limit. One live project against a limit of two still leaves a slot.
       const account = await seedAccount({ maxProjects: 2, name: "Quota Room" });
+      actAs(account.id);
       await seedProject(account.id, { label: "Only Live" });
 
       const response = await app.inject({
@@ -495,6 +586,7 @@ describe("projectRoutes - Unit Tests", () => {
       // message cannot become a lie: erasing the deleted project releases its
       // slot and the create that was refused now succeeds.
       const account = await seedAccount({ maxProjects: 1, name: "Quota Freed" });
+      actAs(account.id);
       const held = await seedProject(account.id, { label: "Held Slot", deletedAt: new Date() });
 
       const refused = await app.inject({
@@ -562,6 +654,7 @@ describe("projectRoutes - Unit Tests", () => {
     it("should accept valid locales", async () => {
       const locales = ["en", "es", "fr", "de", "ja"];
       const account = await seedAccount();
+      actAs(account.id);
 
       for (const locale of locales) {
         const response = await app.inject({
@@ -589,6 +682,7 @@ describe("projectRoutes - Unit Tests", () => {
   describe("GET /accounts/:accountId/projects", () => {
     it("should list all projects for an account", async () => {
       const account = await seedAccount();
+      actAs(account.id);
       const listed = await seedProject(account.id, { label: "Listed" });
 
       const response = await app.inject({
@@ -609,6 +703,7 @@ describe("projectRoutes - Unit Tests", () => {
       // The two rows carry their creation instants, 10 ms apart, so their order is set by the
       // data rather than by how far the real clock moved between two inserts.
       const account = await seedAccount();
+      actAs(account.id);
       const project1 = await seedProject(account.id, {
         label: "Project 1",
         createdAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -646,6 +741,7 @@ describe("projectRoutes - Unit Tests", () => {
 
     it("should return empty array for account with no projects", async () => {
       const emptyAccount = await seedAccount({ name: "Empty Account" });
+      actAs(emptyAccount.id);
 
       const response = await app.inject({
         method: "GET",
@@ -672,8 +768,48 @@ describe("projectRoutes - Unit Tests", () => {
       expect(response.statusCode).toBe(404);
     });
 
+    it("refuses another tenant's account with the 404 a missing account gets, before any database read", async () => {
+      // Without the route's own comparison this guard-less double lists the foreign tenant's
+      // projects; in production the guard refused the list query and the handler answered 500.
+      const foreign = await seedAccount({ name: "Foreign Tenant" });
+      const foreignProject = await seedProject(foreign.id, { label: "Foreign Listed" });
+      const callsBefore = accountScopedPrismaCalls();
+
+      const foreignResponse = await app.inject({
+        method: "GET",
+        url: `/accounts/${foreign.id}/projects`,
+      });
+      const missingResponse = await app.inject({
+        method: "GET",
+        url: `/accounts/${randomUUID()}/projects`,
+      });
+
+      expect(foreignResponse.statusCode).toBe(404);
+      expect(missingResponse.statusCode).toBe(404);
+      expect(foreignResponse.body).toBe(missingResponse.body);
+      expect(JSON.parse(foreignResponse.body)).toEqual({ ok: false, error: "Account not found" });
+      expect(foreignResponse.body).not.toContain(foreignProject.id);
+      expect(accountScopedPrismaCalls()).toBe(callsBefore);
+    });
+
+    it("fails closed with 401 and reads nothing when no principal survived authentication", async () => {
+      const account = await seedAccount();
+      await seedProject(account.id, { label: "Unlisted" });
+      AUTH_STATE.principal = undefined;
+      const callsBefore = accountScopedPrismaCalls();
+
+      const response = await app.inject({
+        method: "GET",
+        url: `/accounts/${account.id}/projects`,
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(accountScopedPrismaCalls()).toBe(callsBefore);
+    });
+
     it("should include all project fields", async () => {
       const account = await seedAccount();
+      actAs(account.id);
       await seedProject(account.id, { label: "Fields" });
 
       const response = await app.inject({

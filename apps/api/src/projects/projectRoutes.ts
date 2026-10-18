@@ -113,8 +113,64 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Create Project for Account
-   * POST /accounts/:accountId/projects
+   * @method requireCallerAccount
+   * @description The preHandler of the account-scoped routes (`/accounts/:accountId/projects`),
+   *   behind `requireClientAuth`: it admits the request only when the path's account is the
+   *   authenticated customer's own, and answers every other account before any database access.
+   *
+   *   Nothing below it refuses a foreign account id. `Account` IS the tenant, keyed by `id`, so it
+   *   is absent from the Prisma tenant guard's `TENANT_SCOPED_MODELS` and the handlers' account
+   *   read passes through untouched; the guard refuses only the later `project` query, with a
+   *   `TenantContextMismatchError` the handlers answer with 500. A foreign account therefore
+   *   answered 500 while a missing one answered 404, which told any authenticated customer which
+   *   ids name a real tenant. The guard stays behind this check as the second wall.
+   *
+   *   The refusal is the handlers' own not-found answer, the same body byte for byte, so it says
+   *   nothing about whether the id names a tenant; a 403 would confirm that it does. A malformed
+   *   id answers 400, as the handlers' validation does: no account carries one, so the 400
+   *   discloses nothing either.
+   * @param request - The request, whose `customerUser` `requireClientAuth` bound.
+   * @param reply - The reply a refusal is sent on.
+   */
+  async requireCallerAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    const ctx: RouteContext = { request, reply };
+
+    // Fastify runs the next hook and the handler unless the response has FINISHED, and an async
+    // onSend hook can hold it open after `send` returns; awaiting the reply, which resolves once
+    // the response ends, keeps a refused request from reaching the handler and its reads.
+    const principal = request.customerUser;
+    if (!principal) {
+      this.sendError(ctx, 401, "Authentication required");
+      await reply;
+      return;
+    }
+
+    const params = AccountParamsSchema.safeParse(request.params);
+    if (!params.success) {
+      this.sendError(ctx, 400, "Invalid account ID");
+      await reply;
+      return;
+    }
+
+    if (params.data.accountId !== principal.accountId) {
+      this.logError(ctx, "Cross-tenant account access refused", {
+        principalAccountId: principal.accountId,
+        requestedAccountId: params.data.accountId,
+      });
+      this.sendError(ctx, 404, "Account not found");
+      await reply;
+    }
+  }
+
+  /**
+   * @method createProject
+   * @description Creates a project in the caller's own account (POST
+   *   /accounts/:accountId/projects; `requireCallerAccount` has admitted the path's account). It
+   *   refuses with 403 once the account's held slots, live and deleted projects alike, reach its
+   *   limit, and with 409 when a live project of the account already holds the name.
+   * @param request - The request, carrying the account id in its path and the project's name and
+   *   locale in its body.
+   * @param reply - The reply the created project or the refusal is sent on.
    */
   async createProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -250,8 +306,11 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * List Projects for Account
-   * GET /accounts/:accountId/projects
+   * @method listProjects
+   * @description Lists the live projects of the caller's own account, newest first (GET
+   *   /accounts/:accountId/projects; `requireCallerAccount` has admitted the path's account).
+   * @param request - The request, carrying the account id in its path.
+   * @param reply - The reply the projects or the refusal are sent on.
    */
   async listProjects(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -304,8 +363,11 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Get Project by ID
-   * GET /projects/:projectId
+   * @method getProject
+   * @description Returns one live project (GET /projects/:projectId). The tenant guard scopes the
+   *   read to the caller's account, so another tenant's project answers 404 like a missing one.
+   * @param request - The request, carrying the project id in its path.
+   * @param reply - The reply the project or the refusal is sent on.
    */
   async getProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -347,8 +409,12 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Get Publish Logs for Project
-   * GET /projects/:projectId/publish-logs
+   * @method getPublishLogs
+   * @description Returns the 50 newest publish logs of a live project's live posts (GET
+   *   /projects/:projectId/publish-logs). The project read is tenant-guarded, so another tenant's
+   *   project answers 404 like a missing one.
+   * @param request - The request, carrying the project id in its path.
+   * @param reply - The reply the publish logs or the refusal are sent on.
    */
   async getPublishLogs(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -390,13 +456,13 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Delete Project (NORMAL path — reversible)
-   * DELETE /projects/:projectId
-   *
-   * Soft-deletes: the row keeps its data and gains `deletedAt`, so the project
-   * disappears from every read while its posts, channels and publish history
-   * survive for audit. The irreversible variant is
-   * `DELETE /projects/:projectId/hard` and is admin-only.
+   * @method deleteProject
+   * @description Soft-deletes a project, the normal and reversible path (DELETE
+   *   /projects/:projectId). The row keeps its data and gains `deletedAt`, so the project
+   *   disappears from every read while its posts, channels and publish history survive for audit.
+   *   The irreversible variant is `DELETE /projects/:projectId/hard`.
+   * @param request - The request, carrying the project id in its path and the customer principal.
+   * @param reply - The reply the confirmation or the refusal is sent on.
    */
   async deleteProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -498,23 +564,22 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Restore Project (reverse of the soft delete)
-   * POST /projects/:projectId/restore
-   *
-   * Clears `deletedAt` so a soft-deleted project is visible again — the act that
-   * makes the soft delete genuinely reversible rather than merely invisible.
-   * Reachable by the OWNER (self-service undo) or by an admin (support
-   * recovery) through the composed `requireCustomerOrAdminAuth`, so exactly one
-   * of `request.customerUser` / `request.auth` is set when the handler runs:
-   *   - customer: must hold the OWNER-only `account:delete` — the same grant as
-   *     the delete this reverses, because a capability to undo a tenant-wide
-   *     action is the same grade of authority as the action; then
-   *     ownership-gated by the use case against the soft-deleted row's account.
-   *   - admin: must hold `account:manage`, then runs under `withSystemContext`
-   *     because `Project` is tenant-guard enrolled and admin auth binds no
-   *     tenant scope.
-   * NOT_FOUND covers "no such project", "not yours" and "hard-deleted" — the use
-   * case makes them indistinguishable (anti-enumeration), mirroring the delete.
+   * @method restoreProject
+   * @description Reverses the soft delete (POST /projects/:projectId/restore): clears `deletedAt`
+   *   so a soft-deleted project is visible again — the act that makes the soft delete genuinely
+   *   reversible rather than merely invisible. Reachable by the OWNER (self-service undo) or by an
+   *   admin (support recovery) through the composed `requireCustomerOrAdminAuth`, so exactly one
+   *   of `request.customerUser` / `request.auth` is set when the handler runs:
+   *     - customer: must hold the OWNER-only `account:delete` — the same grant as the delete this
+   *       reverses, because a capability to undo a tenant-wide action is the same grade of
+   *       authority as the action; then ownership-gated by the use case against the soft-deleted
+   *       row's account.
+   *     - admin: must hold `account:manage`, then runs under `withSystemContext` because `Project`
+   *       is tenant-guard enrolled and admin auth binds no tenant scope.
+   *   NOT_FOUND covers "no such project", "not yours" and "hard-deleted" — the use case makes them
+   *   indistinguishable (anti-enumeration), mirroring the delete.
+   * @param request - The request, carrying the project id in its path and either principal.
+   * @param reply - The reply the confirmation or the refusal is sent on.
    */
   async restoreProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -610,24 +675,24 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Hard Delete Project (EXCEPTIONAL path — irreversible)
-   * DELETE /projects/:projectId/hard
+   * @method hardDeleteProject
+   * @description Erases a project, the exceptional and irreversible path (DELETE
+   *   /projects/:projectId/hard): destroys the project and every row that references it. Two
+   *   callers reach it through the composed `requireCustomerOrAdminAuth`:
+   *     - admin: `account:manage`, then the sanctioned `withSystemContext` bypass, because admin
+   *       auth binds no tenant scope and the cascade writes to tenant-guard-enrolled tables.
+   *     - customer self-purge: `account:delete` plus a `confirmName` that must be the project's
+   *       exact name. It runs WITHOUT `withSystemContext` on purpose — the composed middleware
+   *       already bound this tenant's context, and wrapping a self-purge in a cross-tenant bypass
+   *       would hand it reach it has no need for, discarding the guard on the one path a
+   *       non-staff caller can destroy data through.
    *
-   * Destroys the project and every row that references it. Two callers reach it
-   * through the composed `requireCustomerOrAdminAuth`:
-   *   - admin: `account:manage`, then the sanctioned `withSystemContext` bypass,
-   *     because admin auth binds no tenant scope and the cascade writes to
-   *     tenant-guard-enrolled tables.
-   *   - customer self-purge: `account:delete` plus a `confirmName` that must be
-   *     the project's exact name. It runs WITHOUT `withSystemContext` on
-   *     purpose — the composed middleware already bound this tenant's context,
-   *     and wrapping a self-purge in a cross-tenant bypass would hand it reach it
-   *     has no need for, discarding the guard on the one path a non-staff caller
-   *     can destroy data through.
-   *
-   * Guard rails shared by both: a mandatory written reason, the prior-soft-delete
-   * interlock in the use case, one transaction for the whole cascade
-   * (repository), and an audit record on success and failure alike.
+   *   Guard rails shared by both: a mandatory written reason, the prior-soft-delete interlock in
+   *   the use case, one transaction for the whole cascade (repository), and an audit record on
+   *   success and failure alike.
+   * @param request - The request, carrying the project id in its path, the reason and the
+   *   confirmation in its body, and either principal.
+   * @param reply - The reply the confirmation or the refusal is sent on.
    */
   async hardDeleteProject(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -788,9 +853,9 @@ class ProjectRouteHandler extends BaseRouteHandler {
 }
 
 /**
- * Project Routes Plugin
- * Registers project management endpoints.
- * Resolves PrismaClient from the DI container.
+ * @description Registers the project routes. Resolves the Prisma client, the project lifecycle
+ *   use cases, the RBAC service and the audit service from the DI container.
+ * @param fastify - The Fastify instance the routes are registered on.
  */
 export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient);
@@ -815,11 +880,16 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
     auditService
   );
 
+  // The account-scoped routes admit only the caller's own account, before any database access;
+  // the tenant guard behind them refuses the project queries but not the account read.
+  const requireCallerAccount = async (request: FastifyRequest, reply: FastifyReply) =>
+    handler.requireCallerAccount(request, reply);
+
   // Create project for account
   fastify.post(
     "/accounts/:accountId/projects",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireClientAuth, requireCallerAccount],
       schema: { tags: ["Projects"], summary: "Create project for account" },
     },
     async (request, reply) => handler.createProject(request, reply)
@@ -829,7 +899,7 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     "/accounts/:accountId/projects",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireClientAuth, requireCallerAccount],
       schema: { tags: ["Projects"], summary: "List projects for account" },
     },
     async (request, reply) => handler.listProjects(request, reply)
