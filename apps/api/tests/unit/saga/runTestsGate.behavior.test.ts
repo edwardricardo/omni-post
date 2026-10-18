@@ -4,7 +4,8 @@
  *              whenever a file is recorded failed, gives every file its own verdict
  *              from the summary reporter's `@@SUMMARY` line (a file whose run prints
  *              none fails), collects the services tier and the live tier by their
- *              suffixes (in byte order, or reversed), probes the API and the workers
+ *              suffixes (in byte order, reversed, or in the order of a seed it prints
+ *              and replays), probes the API and the workers
  *              before each live file and stops the live tier at the first probe that
  *              fails, printing that probe's error with the record, keeps a quarantined
  *              file out of the run while printing it, lists its inventory without
@@ -37,6 +38,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   mkdtempSync,
   mkdirSync,
@@ -114,6 +116,23 @@ const SERVICES_UNIT = "integration";
 /** A path the live tier collects. */
 const LIVE_TARGET = "tests/integration/crisisRoutes.live.test.ts";
 
+/** The services files of the seeded-order fixture tree, in byte order. */
+const SEEDED_FIXTURE_FILES = ["a", "b", "c", "d", "e"].map(
+  (name) => `tests/${name}.integration.test.ts`
+);
+
+/**
+ * The order `TEST_ORDER=random TEST_SEED=1` runs `SEEDED_FIXTURE_FILES` in, written
+ * out by hand so a change to how the runner keys a path is a red, not a new pin.
+ */
+const SEED_ONE_ORDER = [
+  "tests/d.integration.test.ts",
+  "tests/e.integration.test.ts",
+  "tests/a.integration.test.ts",
+  "tests/b.integration.test.ts",
+  "tests/c.integration.test.ts",
+];
+
 /** The counts a stand-in run reports on its `@@SUMMARY` line, plus the exit code it ends on. */
 interface StubShape {
   tests: number;
@@ -142,6 +161,7 @@ interface GateOptions {
   /** The quarantine the run reads; defaults to the committed one. */
   quarantineFile?: string;
   testOrder?: string;
+  testSeed?: string;
   /** A probe the stand-in `curl` refuses from a given call on; needs `callLog`. */
   failingProbe?: FailingProbe;
   /** The runner's arguments; none by default. */
@@ -273,7 +293,15 @@ afterAll(() => {
 
 /** Runs the real script with every collected or listed path served by the stub. */
 function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
-  const { callLog, realTarget, quarantineFile, testOrder, failingProbe, args = [] } = options;
+  const {
+    callLog,
+    realTarget,
+    quarantineFile,
+    testOrder,
+    testSeed,
+    failingProbe,
+    args = [],
+  } = options;
   const result = spawnSync("bash", [runnerPath, ...args], {
     cwd: options.cwd ?? apiRoot,
     encoding: "utf8",
@@ -299,6 +327,7 @@ function runGate(shape: StubShape, options: GateOptions = {}): RunResult {
       ...(callLog !== undefined && { GATE_CALL_LOG: callLog }),
       ...(quarantineFile !== undefined && { QUARANTINE_FILE: quarantineFile }),
       ...(testOrder !== undefined && { TEST_ORDER: testOrder }),
+      ...(testSeed !== undefined && { TEST_SEED: testSeed }),
       ...(failingProbe !== undefined && {
         GATE_CURL_FAIL_URL: failingProbe.url,
         GATE_CURL_FAIL_FROM: String(failingProbe.failFrom),
@@ -369,6 +398,17 @@ function listedFailedEntries(stdout: string): string[] {
  */
 function byteOrder(paths: readonly string[]): string[] {
   return [...paths].sort((left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right)));
+}
+
+/**
+ * `paths` in the order the runner takes them under `TEST_ORDER=random`: ascending by
+ * the hex sha256 of `<seed>\n<path>`. Computed here with node's crypto, apart from
+ * the runner's `sha256sum`, so the pinned order is checked against the definition too.
+ */
+function seedOrder(seed: string, paths: readonly string[]): string[] {
+  const key = (path: string): Buffer =>
+    Buffer.from(createHash("sha256").update(`${seed}\n${path}`).digest("hex"));
+  return [...paths].sort((left, right) => Buffer.compare(key(left), key(right)));
 }
 
 /** Paths the run REPORTED as failed under `FAILED files:`, in order. */
@@ -594,6 +634,77 @@ describe("run-tests.sh collects the services tier by its suffix", () => {
       reverse: byteOrder(reverse).reverse(),
       sameFiles: byteOrder(forward),
     });
+  });
+
+  it("runs every collected file once under TEST_ORDER=random, and prints the seed that replays the order", () => {
+    // Reversing the order catches a suite that passes only after the one sorted
+    // before it; a seeded order catches one that passes only after any other suite,
+    // wherever that one sorts. A red is only worth finding if it can be replayed, so
+    // the run prints its seed once, before its first file, and that seed handed back
+    // as TEST_SEED gives the same order.
+    const forwardLog = join(stubDir, "random-forward.log");
+    const randomLog = join(stubDir, "random.log");
+    const replayLog = join(stubDir, "random-replay.log");
+    for (const log of [forwardLog, randomLog, replayLog]) rmSync(log, { force: true });
+    const forwardRun = runGate(PASSING, { callLog: forwardLog });
+    const randomRun = runGate(PASSING, { callLog: randomLog, testOrder: "random" });
+    const randomLines = randomRun.stdout.split("\n");
+    const seedLines = randomLines.filter((line) => line.startsWith("TEST_ORDER="));
+    const seed = /^TEST_ORDER=random TEST_SEED=(\d+)$/.exec(seedLines[0] ?? "")?.[1] ?? "";
+    const replayRun = runGate(PASSING, { callLog: replayLog, testOrder: "random", testSeed: seed });
+    const forward = calledPaths(forwardLog);
+    const random = calledPaths(randomLog);
+
+    expect(forward.length).toBeGreaterThan(1);
+    expect({
+      exitCodes: [forwardRun.exitCode, randomRun.exitCode, replayRun.exitCode],
+      seedLines: seedLines.length,
+      seedRead: seed !== "",
+      seedBeforeFirstFile:
+        randomLines.indexOf(seedLines[0] ?? "") <
+        randomLines.findIndex((line) => line.startsWith("    ✓ ")),
+      everyFileOnce: byteOrder(random),
+      replayed: calledPaths(replayLog),
+      replaySeedLines: replayRun.stdout
+        .split("\n")
+        .filter((line) => line.startsWith("TEST_ORDER=")),
+    }).toEqual({
+      exitCodes: [0, 0, 0],
+      seedLines: 1,
+      seedRead: true,
+      seedBeforeFirstFile: true,
+      everyFileOnce: forward,
+      replayed: random,
+      replaySeedLines: [`TEST_ORDER=random TEST_SEED=${seed}`],
+    });
+  });
+
+  it("orders the files by the sha256 of the seed and the path, the same way on every run", () => {
+    // The order is a function of the seed alone: no clock, no process id and no
+    // shuffling tool decides it, so a seed found red on one machine is the same order
+    // on another. Two runs of seed 1 over a five-file tree each take the pinned order.
+    const root = mkdtempSync(join(tmpdir(), "run-tests-seeded-"));
+    try {
+      mkdirSync(join(root, "tests"));
+      for (const file of SEEDED_FIXTURE_FILES) writeFileSync(join(root, file), "export {};\n");
+      const orders = [1, 2].map((attempt) => {
+        const run = runGate(PASSING, {
+          cwd: root,
+          quarantineFile: emptyQuarantine,
+          testOrder: "random",
+          testSeed: "1",
+        });
+        return { attempt, exitCode: run.exitCode, order: passedFiles(run.stdout) };
+      });
+
+      expect(seedOrder("1", SEEDED_FIXTURE_FILES)).toEqual(SEED_ONE_ORDER);
+      expect(orders).toEqual([
+        { attempt: 1, exitCode: 0, order: SEED_ONE_ORDER },
+        { attempt: 2, exitCode: 0, order: SEED_ONE_ORDER },
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("prints a quarantined file with its reason and does not run it", () => {
@@ -993,6 +1104,48 @@ describe("run-tests.sh refuses what it cannot trust, and lists without a databas
       stdout: run.stdout,
       namesTheVariable: run.stderr.includes("DATABASE_URL"),
     }).toEqual({ exitCode: 2, started: [], stdout: "", namesTheVariable: true });
+  });
+
+  it.each(["abc", "-1", "007", "4294967296"])(
+    "exits 2 under TEST_ORDER=random before any suite starts when TEST_SEED is %s",
+    (seed) => {
+      // The seed is the only record of the order a run took, so one the runner would
+      // have to guess at is refused: a non-number, a leading zero (007 and 7 would
+      // order the files apart) and a value outside the range node's
+      // --test-random-seed takes, the flag the same seed drives inside each file.
+      const run = runRecorded({
+        TIER,
+        DATABASE_URL: UNUSED_DATABASE_URL,
+        TEST_ORDER: "random",
+        TEST_SEED: seed,
+      });
+
+      expect({
+        exitCode: run.exitCode,
+        started: run.started,
+        stdout: run.stdout,
+        namesTheValue: run.stderr.includes(`TEST_SEED='${seed}'`),
+      }).toEqual({ exitCode: 2, started: [], stdout: "", namesTheValue: true });
+    }
+  );
+
+  it("exits 2 before any suite starts when TEST_SEED is set and TEST_ORDER is not random", () => {
+    // A seed with no random order to drive would be ignored, and a replay that ran in
+    // byte order instead would read as the replay of the red it was meant to show.
+    const run = runRecorded({
+      TIER,
+      DATABASE_URL: UNUSED_DATABASE_URL,
+      TEST_ORDER: "",
+      TEST_SEED: "7",
+    });
+
+    expect({
+      exitCode: run.exitCode,
+      started: run.started,
+      stdout: run.stdout,
+      namesTheSeed: run.stderr.includes("TEST_SEED='7'"),
+      namesTheOrder: run.stderr.includes("TEST_ORDER=random"),
+    }).toEqual({ exitCode: 2, started: [], stdout: "", namesTheSeed: true, namesTheOrder: true });
   });
 
   it("exits 2 before any suite starts on a quarantine entry without a field", () => {
