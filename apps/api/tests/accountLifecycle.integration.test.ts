@@ -310,6 +310,11 @@ describe("Account Lifecycle Management", () => {
         result.value.accounts.length > 0,
         "Should find at least one account with SUPPORT role"
       );
+      // The filter is what this case proves: every account it returns has the requested role.
+      assert.ok(
+        result.value.accounts.every((acc) => acc.role === "SUPPORT"),
+        "The role filter must exclude accounts of every other role"
+      );
 
       // Find our test account
       const testAccount = result.value.accounts.find((acc) => acc.id === account.id);
