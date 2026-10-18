@@ -5,6 +5,10 @@
  *   single-image case in the outbox smoke, this covers a multi-item media row
  *   (image + video) and a text-only row (empty media) confirmed in one batch.
  *
+ *   The relay claims every eligible unpublished event oldest-first, whatever suite wrote
+ *   it, so the test polls until its batch's events are published and reads only the jobs
+ *   of its own batch.
+ *
  *   Pre-requisite: `pnpm db:up` (Postgres). Stub QueuePort (no Redis/BullMQ).
  * @layer infrastructure
  */
@@ -24,6 +28,8 @@ import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import {
   makeStubQueue,
   makeRelay,
+  pollUntilBatchDispatched,
+  jobsOfBatch,
   seedTenant,
   cleanupTenant,
   type SeededTenant,
@@ -92,14 +98,16 @@ describe("BulkSchedule media path — integration", () => {
       result.ok,
       `confirm should succeed: ${!result.ok ? String(result.error.message) : ""}`
     );
-    batchIds.push(result.value.batchId);
+    const batchId = result.value.batchId;
+    batchIds.push(batchId);
 
-    await makeRelay(prisma, dispatcher).poll();
+    await pollUntilBatchDispatched(prisma, makeRelay(prisma, dispatcher), batchId);
 
-    assert.strictEqual(jobs.length, 2, "one job per confirmed row");
+    const batchJobs = jobsOfBatch(jobs, batchId);
+    assert.strictEqual(batchJobs.length, 2, "one job per confirmed row");
 
     const findRow = (content: string): Record<string, unknown> => {
-      const job = jobs.find(
+      const job = batchJobs.find(
         (j) => (j.payload as { row: { content: string } }).row.content === content
       );
       assert.ok(job, `job for "${content}" should exist`);

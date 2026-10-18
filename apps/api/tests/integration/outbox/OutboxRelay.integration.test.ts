@@ -20,11 +20,19 @@
  *   SKIP LOCKED — the concurrency under test is real; only foreign pollers are
  *   fenced out.
  *
+ *   The fence does not work the other way round: the claim query takes every
+ *   eligible unpublished row oldest-first, whatever its event type, so rows an
+ *   earlier suite left unpublished are claimed by THIS test's relays ahead of
+ *   the backlog. The relays therefore poll in concurrent rounds until the
+ *   backlog is published, not for a fixed number of rounds, and every assertion
+ *   reads only the events this test seeded.
+ *
  *   Pre-requisite: `pnpm db:up` (Postgres + Redis) so the Prisma client can
- *   connect. The test seeds 100 events, runs both relays many poll cycles in
- *   parallel, and asserts:
- *     - total dispatch invocations >= 100 (at-least-once),
- *     - distinct dispatched eventIds == 100 (every event delivered),
+ *   connect. The test seeds 100 events, runs both relays in parallel poll
+ *   rounds until they are all published, and asserts:
+ *     - dispatch invocations of the seeded events >= 100 (at-least-once),
+ *     - the distinct seeded eventIds dispatched == the 100 seeded (every event
+ *       delivered),
  *     - every seeded row has `publishedAt IS NOT NULL` (drain terminated).
  * @layer infrastructure
  */
@@ -35,6 +43,7 @@ import { OutboxClaimService } from "../../../src/infrastructure/outbox/OutboxCla
 import { OutboxBackoff } from "../../../src/infrastructure/outbox/OutboxBackoff.js";
 import { OutboxRelay } from "../../../src/infrastructure/outbox/OutboxRelay.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { until } from "@packages/vitest-shared/determinism";
 import type { DomainEvent } from "@core/domain/events/DomainEvent.js";
 import { createSeedPrismaClient } from "../helpers/seedPrismaClient.js";
 
@@ -46,6 +55,15 @@ const prisma = createSeedPrismaClient();
 
 const EVENT_COUNT = 100;
 const TEST_TAG = "T4C_INTEGRATION";
+/** The ids of the seeded backlog: the only events the assertions read. */
+const SEEDED_IDS = Array.from({ length: EVENT_COUNT }, (_, i) => `t4c-evt-${i}`);
+const SEEDED = new Set(SEEDED_IDS);
+/**
+ * Bound on the drain. A round claims at most 50 rows, so rows an earlier suite left unpublished
+ * only cost extra rounds; the bound sits under the runner's 30 s per-test budget so a drain that
+ * never ends fails with the wait's own message.
+ */
+const DRAIN_TIMEOUT_MS = 20_000;
 /** Seed each fixture row as leased this long ago (fences out 5-min-lease relays). */
 const PRECLAIM_AGE_MS = 60_000;
 /** The test relays reclaim any lease older than this — well below PRECLAIM_AGE_MS. */
@@ -66,8 +84,8 @@ describe("OutboxRelay — concurrent drain integration", () => {
     const now = new Date();
     const preclaimedAt = new Date(now.getTime() - PRECLAIM_AGE_MS);
     await prisma.outboxEvent.createMany({
-      data: Array.from({ length: EVENT_COUNT }, (_, i) => ({
-        id: `t4c-evt-${i}`,
+      data: SEEDED_IDS.map((id, i) => ({
+        id,
         eventType: TEST_TAG,
         aggregateId: `t4c-agg-${i}`,
         aggregateType: "Post",
@@ -123,27 +141,45 @@ describe("OutboxRelay — concurrent drain integration", () => {
     const relayA = makeRelay("worker-A");
     const relayB = makeRelay("worker-B");
 
-    // Several concurrent rounds drain the queue. Both relays compete on the
-    // same rows; SKIP LOCKED ensures no double-claim of a live-leased row.
-    for (let i = 0; i < 10; i++) {
-      await Promise.all([relayA.poll(), relayB.poll()]);
-    }
+    const countUnpublished = (): Promise<number> =>
+      prisma.outboxEvent.count({ where: { eventType: TEST_TAG, publishedAt: null } });
 
-    // At-least-once: every event dispatched, no loss, no stuck rows.
-    assert.ok(
-      dispatched.length >= EVENT_COUNT,
-      `dispatch invocations should be >= ${EVENT_COUNT}, got ${dispatched.length}`
+    // Concurrent rounds drain the queue. Both relays compete on the same rows;
+    // SKIP LOCKED ensures no double-claim of a live-leased row. The rounds run
+    // until the backlog is published, because older rows another suite left
+    // unpublished are claimed first and only add rounds.
+    let rounds = 0;
+    let lastUnpublished = EVENT_COUNT;
+    await until(
+      async () => {
+        await Promise.all([relayA.poll(), relayB.poll()]);
+        rounds += 1;
+        lastUnpublished = await countUnpublished();
+        return lastUnpublished === 0;
+      },
+      {
+        description: () =>
+          `the ${EVENT_COUNT} seeded events to be published (${lastUnpublished} unpublished ` +
+          `after ${rounds} rounds)`,
+        timeoutMs: DRAIN_TIMEOUT_MS,
+        intervalMs: 1,
+      }
     );
-    const unique = new Set(dispatched);
-    assert.strictEqual(unique.size, EVENT_COUNT, "every distinct event dispatched");
 
-    const unpublished = await prisma.outboxEvent.count({
-      where: { eventType: TEST_TAG, publishedAt: null },
-    });
-    assert.strictEqual(unpublished, 0, "all rows terminal (drain terminated)");
+    // At-least-once: every seeded event dispatched, no loss, no stuck rows.
+    // Events another suite left behind are dispatched too, and are no part of
+    // this test's backlog.
+    const seededDispatches = dispatched.filter((id) => SEEDED.has(id));
+    assert.ok(
+      seededDispatches.length >= EVENT_COUNT,
+      `dispatch invocations should be >= ${EVENT_COUNT}, got ${seededDispatches.length}`
+    );
+    assert.deepStrictEqual(
+      [...new Set(seededDispatches)].sort(),
+      [...SEEDED_IDS].sort(),
+      "every distinct seeded event dispatched"
+    );
 
-    for (const id of dispatched) {
-      assert.ok(id.startsWith("t4c-evt-"), `unexpected eventId: ${id}`);
-    }
+    assert.strictEqual(await countUnpublished(), 0, "all rows terminal (drain terminated)");
   });
 });

@@ -956,20 +956,27 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       await base.post.deleteMany({ where: { id: { in: postIds } } }).catch(() => undefined);
     }
 
-    await base.sagaInstance
-      .deleteMany({
-        where: {
-          OR: [
-            { id: { in: createdSagaIds } },
-            ...(typeof accountId === "string" ? [{ accountId }] : []),
-          ],
-        },
-      })
-      .catch(() => undefined);
+    // The rows this suite wrote are found, not only remembered: the engine mints the id of every
+    // saga it starts, so a scenario that fails between the start and the id being recorded leaves
+    // a row only the account sweep reaches, and its events and cache key would outlive the run. A
+    // row left RUNNING would be loaded, and executed, by the next suite that boots a saga manager.
+    const owned = {
+      OR: [
+        { id: { in: createdSagaIds } },
+        { id: { startsWith: `${TAG}-` } },
+        ...(typeof accountId === "string" ? [{ accountId }] : []),
+      ],
+    };
+    const found = await base.sagaInstance
+      .findMany({ where: owned, select: { id: true } })
+      .catch(() => []);
+    const sagaIds = [...new Set([...createdSagaIds, ...found.map((row) => row.id)])];
+
+    await base.sagaInstance.deleteMany({ where: owned }).catch(() => undefined);
     await base.storedEvent
       .deleteMany({
         where: {
-          streamId: { in: [...createdSagaIds.map(sagaStreamId), ...postIds.map(postStreamId)] },
+          streamId: { in: [...sagaIds.map(sagaStreamId), ...postIds.map(postStreamId)] },
         },
       })
       .catch(() => undefined);
@@ -981,8 +988,8 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
       await base.account.deleteMany({ where: { id: accountId } }).catch(() => undefined);
     }
 
-    if (createdSagaIds.length > 0) {
-      await redis.del(...createdSagaIds.map((id) => `saga:${id}`)).catch(() => undefined);
+    if (sagaIds.length > 0) {
+      await redis.del(...sagaIds.map((id) => `saga:${id}`)).catch(() => undefined);
     }
     await redis.quit().catch(() => undefined);
     await queueConnection.quit().catch(() => undefined);

@@ -2,9 +2,10 @@
  * @file bulkScheduleHarness.ts
  * @description Shared test harness for the bulk-scheduling integration tests.
  *   Provides a stub QueuePort (records jobs in-memory, no Redis/BullMQ), a minimal
- *   OutboxRelay wired to a real DB, and tenant seeding/cleanup helpers. Keeping these
- *   in one place avoids duplicating the scaffolding across the outbox-smoke,
- *   reconciliation, media-path, and relay-retry suites.
+ *   OutboxRelay wired to a real DB, a drain that polls it until one batch's events are
+ *   published, a filter for the jobs of one batch, and tenant seeding/cleanup helpers.
+ *   Keeping these in one place avoids duplicating the scaffolding across the
+ *   outbox-smoke, reconciliation, media-path, and relay-retry suites.
  * @layer infrastructure
  */
 
@@ -16,6 +17,7 @@ import { OutboxRelay } from "../../../src/infrastructure/outbox/OutboxRelay.js";
 import { OutboxClaimService } from "../../../src/infrastructure/outbox/OutboxClaimService.js";
 import { OutboxBackoff } from "../../../src/infrastructure/outbox/OutboxBackoff.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { until } from "@packages/vitest-shared/determinism";
 
 /** A queue error code the stub can be told to fail with. */
 type QueueError = "CONNECTION_ERROR" | "VALIDATION_ERROR";
@@ -73,6 +75,73 @@ export function makeRelay(prisma: PrismaClient, dispatcher: InMemoryEventDispatc
     batchSize: 50,
     maxRetries: 3,
   });
+}
+
+/**
+ * Bound on {@link pollUntilBatchDispatched}. A poll claims at most 50 rows, so rows an earlier suite
+ * left unpublished only cost extra polls; the bound sits under the runner's 30 s per-test budget so a
+ * drain that never ends fails with the wait's own message.
+ */
+const DRAIN_TIMEOUT_MS = 20_000;
+
+/**
+ * @function pollUntilBatchDispatched
+ * @description Polls the relay until every outbox event of the batch's items is published. The
+ *   claim takes the oldest eligible unpublished events first, whatever suite wrote them, so a
+ *   single poll can be spent entirely on rows an earlier suite left behind; polling until the
+ *   batch's own events are published keeps the caller independent of what the table held before
+ *   it. The relay polls at least once, even for a batch with no events.
+ * @param prisma - Real test PrismaClient.
+ * @param relay - The relay to drive.
+ * @param batchId - The batch whose events must all be published.
+ * @returns A promise that resolves once none of the batch's events is unpublished.
+ */
+export async function pollUntilBatchDispatched(
+  prisma: PrismaClient,
+  relay: OutboxRelay,
+  batchId: string
+): Promise<void> {
+  const items = await prisma.bulkScheduleItem.findMany({
+    where: { batchId },
+    select: { id: true },
+  });
+  const itemIds = items.map((item) => item.id);
+  let polls = 0;
+  let pending = itemIds.length;
+  await until(
+    async () => {
+      await relay.poll();
+      polls += 1;
+      pending = await prisma.outboxEvent.count({
+        where: {
+          aggregateType: "BulkScheduleItem",
+          aggregateId: { in: itemIds },
+          publishedAt: null,
+        },
+      });
+      return pending === 0;
+    },
+    {
+      description: () =>
+        `every outbox event of batch ${batchId} to be published (${pending} unpublished after ` +
+        `${polls} polls)`,
+      timeoutMs: DRAIN_TIMEOUT_MS,
+      intervalMs: 1,
+    }
+  );
+}
+
+/**
+ * @function jobsOfBatch
+ * @description Keeps the jobs whose payload belongs to the batch. A relay dispatches every
+ *   eligible event it claims, including a `BulkScheduleRowConfirmed` event another suite left
+ *   unpublished, so a test counts only the jobs of the batch it confirmed.
+ * @param jobs - The jobs the in-memory queue recorded.
+ * @param batchId - The batch to keep.
+ * @returns The jobs whose `payload.batchId` is the batch, in the order they were enqueued.
+ */
+export function jobsOfBatch(jobs: readonly QueueJob[], batchId: string): QueueJob[] {
+  return jobs.filter((job) => job.payload.batchId === batchId);
 }
 
 /** Ids of a seeded tenant (one owned account/project/channel + a foreign account/project). */
