@@ -314,6 +314,29 @@ export default defineConfig([
     plugins: { testing: testingPlugin },
     rules: { "testing/no-fixed-time-wait": "error" },
   },
+  // A unit test starts no process: the child's start-up cost lands inside the runner's time budget
+  // and its result depends on what the machine has installed. The block reads the files Vitest
+  // collects, so the other tiers' suffixes, Playwright's e2e/ and node:test's part of
+  // apps/api/tests stay out. Three places may spawn: tests/unit/scripts/, where a test of a script
+  // that runs git, node or pnpm lives; the reach engine's suites, whose collectors spawn by
+  // design; and the runner's behaviour suite, which runs the runner itself.
+  {
+    files: [...testFiles, "**/__tests__/**"],
+    ignores: [
+      "**/*.integration.test.*",
+      "**/*.live.test.*",
+      "**/*.spec.*",
+      "**/e2e/**",
+      "apps/api/tests/**",
+      "!apps/api/tests/unit/**",
+      "!apps/api/tests/eval/**",
+      "apps/api/tests/unit/scripts/**",
+      "packages/test-contracts/tests/**",
+      "apps/api/tests/unit/saga/runTestsGate.behavior.test.ts",
+    ],
+    plugins: { testing: testingPlugin },
+    rules: { "testing/no-child-process-in-unit": "error" },
+  },
   // Disable stylistic rules that conflict with Prettier. Must be last to override all preceding.
   prettierConfig,
   // K6 performance test files
