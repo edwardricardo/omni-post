@@ -1,8 +1,8 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-17 — N-CI-7 PR B (`workstream/n-ci-7-rule-fixed-wait`) added the rule's suite.
-Phase 0 is closed, row 0.16 aside (🔄); Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1013 + 14` · M5
+**As of:** 2026-10-18 — N-CI-7 K7 (`workstream/n-ci-7-fast-check`) added four property suites.
+Phase 0 is closed, row 0.16 aside (🔄); Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1017 + 14` · M5
 `29 · 0` · M7 `38/38` · M8 `1/93`. Every unit's line is in [§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
@@ -29,7 +29,7 @@ naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1013 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR rule  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1017 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR fc    |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -406,6 +406,7 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 
 Newest first; a line with no date or no pull request number is one whose record named none.
 
+- 2026-10-18 — N-CI-7 K7, `PR fc` (`workstream/n-ci-7-fast-check`) — `fast-check` 4.10.2 in the catalog and four property suites (value objects, the scheduling CSV parser, template rendering, saga dedupe keys), each red on a mutant of the code under test — M1 `1013 + 14` → `1017 + 14`
 - 2026-10-17 — N-CI-7 PR B, `PR rule` (`workstream/n-ci-7-rule-fixed-wait`) — the rule `testing/no-fixed-time-wait`, registered and not wired; on `0d243ed4` it reports 108 waits in 49 test files and 28 `waitForTimeout` calls under e2e — M1 `1012 + 14` → `1013 + 14`
 - 2026-10-17 — N-CI-7 PR A, `PR kit` (`workstream/n-ci-7-kit`) — #639 (`0d243ed4`) — the determinism kit `@packages/vitest-shared/determinism`; DEF-82's read gate, the condition waiters and the hand-rolled deferreds move onto it; DEF-89 closed — M1 `1011 + 14` → `1012 + 14`
 - 2026-10-17 — DEF-104, `PR hfx` (`workstream/hotfix-cache-hit-before-auth`) — #634 (`f55a21a2`) — a cached response reaches only a caller the route admits: the cache read is the route's last `preHandler`, every cached rule of an authenticated route is keyed by the caller, and a boot guard refuses one that is not — M1 `1010 + 14` → `1011 + 14`

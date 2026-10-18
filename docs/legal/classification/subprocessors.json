@@ -565,6 +565,10 @@
       "status": "library",
       "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
     },
+    "fast-check": {
+      "status": "library",
+      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
+    },
     "fastify": {
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."

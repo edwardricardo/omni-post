@@ -158,6 +158,7 @@
     "@types/xml2js": "0.4.14",
     "@vitest/coverage-v8": "catalog:",
     "cross-env": "catalog:",
+    "fast-check": "catalog:",
     "msw": "catalog:",
     "tsx": "catalog:",
     "vitest": "catalog:"

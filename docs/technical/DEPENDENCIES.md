@@ -320,6 +320,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | jsdom                     | 30.1.2  | Browser environment simulation       |
 | @playwright/test          | 1.64.0  | E2E testing                          |
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
+| fast-check                | 4.10.2  | Property-based testing               |
 | yaml                      | 2.9.1   | Workflow parsing in the reach engine |
 
 Component stories run on the Storybook 10.6.1 family. `@storybook/nextjs-vite` 10.6.1 carries a patch, Storybook's merged fix for next 16.4, until 10.6.3 is published and the family moves to it ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)). Every patched dependency has a record in `scripts/testing/patched-dependencies.json`, which `scripts/testing/patched-dependencies-gate.mjs` holds consistent with `pnpm-workspace.yaml` (fitness #48) and checks against the registry every 6 hours.
