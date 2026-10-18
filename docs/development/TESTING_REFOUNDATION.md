@@ -6,7 +6,7 @@
 determinism kit, both test-kit lint rules at `error`, `fast-check` with four property suites, and
 the services tier run every night five times in a seeded random order with one alarm (#654). Phase
 2 can start. Phase 0 is closed, row 0.16 aside (🔄); Phase 1 has 1.13, 1.14 and 1.15 left. M1
-`1019 + 14` · M5 `29 · 0` · M7 `42/42` · M8 `1/93`. Every unit's line is in [§Log](#log).
+`1022 + 14` · M5 `29 · 0` · M7 `42/42` · M8 `1/93`. Every unit's line is in [§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -32,7 +32,7 @@ naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1019 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR d106  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1022 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR d106  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |

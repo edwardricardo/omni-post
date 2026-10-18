@@ -5,11 +5,12 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { describe, it, beforeAll, afterAll, afterEach, expect, vi } from "vitest";
 
 // The customer principal this file's mocked `requireClientAuth` binds. Hoisted
 // so the `vi.mock` factory below (which vitest lifts above every import) can read
-// it, and so the DELETE suite can mint its account under exactly this id.
+// it. A test that needs the principal to own a seeded account points it there
+// with `seedOwnAccount`, and the suite's `afterEach` puts it back.
 const { AUTH_STATE, CUSTOMER_PRINCIPAL } = vi.hoisted(() => {
   const CUSTOMER_PRINCIPAL = {
     id: "customer-user-1",
@@ -33,7 +34,7 @@ const { AUTH_STATE, CUSTOMER_PRINCIPAL } = vi.hoisted(() => {
   };
 });
 
-// The customer middleware stays mocked here so the POST/GET/PUT/LIST suites can
+// The customer middleware stays mocked here so the POST/GET/PUT suites can
 // run without minting a token per request — but it now binds a principal instead
 // of authenticating NOBODY. An empty `async () => {}` left `request.customerUser`
 // undefined, which is a shape production never produces after this preHandler
@@ -44,7 +45,8 @@ const { AUTH_STATE, CUSTOMER_PRINCIPAL } = vi.hoisted(() => {
 // a double that echoed the path param back as the principal would make every
 // ownership check pass by construction. Ownership under the REAL `requireClientAuth`
 // with genuinely signed tokens is proven in
-// `tests/unit/accounts/accountDeleteOwnership.test.ts`.
+// `tests/unit/accounts/accountDeleteOwnership.test.ts` and
+// `tests/unit/accounts/accountReadUpdateAuthorization.test.ts`.
 vi.mock("../../src/auth/customerAuthMiddleware.js", () => ({
   requireClientAuth: async (request: { customerUser?: unknown }) => {
     request.customerUser = { ...AUTH_STATE.principal };
@@ -284,12 +286,33 @@ const timestamp = Date.now();
 const testEmail = `test-account-${timestamp}@example.com`;
 const testName = "Test Account User";
 
+/** An address no other test in this file uses, so no test depends on another having run. */
+function uniqueEmail(label: string): string {
+  return `${label}-${Date.now()}-${Math.random().toString(36).slice(2)}@example.com`;
+}
+
+/**
+ * Seeds a live account through the store and points the mocked principal at it, so the
+ * own-account routes admit it. Every test seeds its own account: none depends on another test
+ * having created, renamed or deleted one, so the suite passes in any order.
+ */
+async function seedOwnAccount(label: string, name = `Account ${label}`): Promise<string> {
+  const account = (await mockPrisma.prisma.account.create({
+    data: { email: uniqueEmail(label), name, maxProjects: 1 },
+  })) as { id: string };
+  AUTH_STATE.principal = { ...CUSTOMER_PRINCIPAL, accountId: account.id };
+  return account.id;
+}
+
 let app: FastifyInstance;
-let testAccountId: string;
 
 describe("accountRoutes Unit Tests", () => {
   beforeAll(async () => {
     app = await createTestApp();
+  });
+
+  afterEach(() => {
+    AUTH_STATE.principal = CUSTOMER_PRINCIPAL;
   });
 
   afterAll(async () => {
@@ -298,11 +321,12 @@ describe("accountRoutes Unit Tests", () => {
 
   describe("POST /accounts", () => {
     it("should create account successfully with defaults", async () => {
+      const defaultsEmail = uniqueEmail("defaults");
       const response = await app.inject({
         method: "POST",
         url: "/accounts",
         payload: {
-          email: testEmail,
+          email: defaultsEmail,
           name: testName,
         },
       });
@@ -312,12 +336,10 @@ describe("accountRoutes Unit Tests", () => {
       expect(response.statusCode).toBe(200);
       expect(body.ok).toBe(true);
       expect(body.data?.id).toBeTruthy();
-      expect(body.data?.email).toBe(testEmail);
+      expect(body.data?.email).toBe(defaultsEmail);
       expect(body.data?.name).toBe(testName);
       expect(body.data?.maxProjects).toBe(1);
       expect(body.data?.isOnTrial).toBe(true);
-
-      testAccountId = body.data?.id || "";
     });
 
     it("should create account with custom maxProjects", async () => {
@@ -339,11 +361,19 @@ describe("accountRoutes Unit Tests", () => {
     });
 
     it("should reject duplicate email", async () => {
+      const takenEmail = uniqueEmail("duplicate");
+      const first = await app.inject({
+        method: "POST",
+        url: "/accounts",
+        payload: { email: takenEmail, name: testName },
+      });
+      expect(first.statusCode).toBe(200);
+
       const response = await app.inject({
         method: "POST",
         url: "/accounts",
         payload: {
-          email: testEmail,
+          email: takenEmail,
           name: testName,
         },
       });
@@ -444,10 +474,9 @@ describe("accountRoutes Unit Tests", () => {
   // nothing — it searches `foo@` against a row stored `Foo@`, misses, and
   // reports "available" for an address that is already taken.
   describe("POST /accounts — email is normalized identity", () => {
-    const mixedCase = `Norm-${timestamp}@Example.COM`;
-    const normalized = mixedCase.toLowerCase();
-
     it("stores the address lowercased when registration supplies mixed case", async () => {
+      const mixedCase = `Norm-Store-${timestamp}@Example.COM`;
+      const normalized = mixedCase.toLowerCase();
       const response = await app.inject({
         method: "POST",
         url: "/accounts",
@@ -466,6 +495,15 @@ describe("accountRoutes Unit Tests", () => {
     });
 
     it("refuses the case-twin of an existing address as a duplicate", async () => {
+      const mixedCase = `Norm-Twin-${timestamp}@Example.COM`;
+      const normalized = mixedCase.toLowerCase();
+      const first = await app.inject({
+        method: "POST",
+        url: "/accounts",
+        payload: { email: mixedCase, name: testName },
+      });
+      expect(first.statusCode).toBe(200);
+
       // The address differs from the row above ONLY in casing. Before the fix
       // the duplicate check compared raw bytes, so this call created a SECOND
       // account holding the same identity — the exact duplicate the check
@@ -489,20 +527,23 @@ describe("accountRoutes Unit Tests", () => {
   });
 
   describe("GET /accounts/:accountId", () => {
-    it("should get account by ID successfully", async () => {
+    it("returns the caller's own account with its live projects", async () => {
+      const accountId = await seedOwnAccount("get-own", testName);
+      stores.project.add({ accountId, name: "Live project", deletedAt: null });
+
       const response = await app.inject({
         method: "GET",
-        url: `/accounts/${testAccountId}`,
+        url: `/accounts/${accountId}`,
       });
 
       const body = JSON.parse(response.body);
 
       expect(response.statusCode).toBe(200);
       expect(body.ok).toBe(true);
-      expect(body.data?.id).toBe(testAccountId);
-      expect(body.data?.email).toBe(testEmail);
+      expect(body.data?.id).toBe(accountId);
       expect(body.data?.name).toBe(testName);
       expect(Array.isArray(body.data?.projects)).toBeTruthy();
+      expect(body.data?.projects).toHaveLength(1);
     });
 
     it("should return 404 for non-existent account", async () => {
@@ -527,52 +568,13 @@ describe("accountRoutes Unit Tests", () => {
     });
   });
 
-  describe("GET /accounts", () => {
-    it("should list all accounts successfully", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/accounts",
-      });
-
-      const body = JSON.parse(response.body);
-
-      expect(response.statusCode).toBe(200);
-      expect(body.ok).toBe(true);
-      expect(Array.isArray(body.data)).toBeTruthy();
-      expect(body.data.length > 0).toBeTruthy();
-
-      const account = body.data.find((a: Record<string, unknown>) => a.id === testAccountId);
-      expect(account).toBeTruthy();
-      expect(account.email).toBe(testEmail);
-      expect(typeof account.projectCount).toBe("number");
-    });
-
-    it("should return accounts ordered by createdAt desc", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/accounts",
-      });
-
-      const body = JSON.parse(response.body);
-
-      expect(response.statusCode).toBe(200);
-      expect(body.data.length >= 2).toBeTruthy();
-
-      // Verify descending order
-      for (let i = 0; i < body.data.length - 1; i++) {
-        const current = new Date(body.data[i].createdAt);
-        const next = new Date(body.data[i + 1].createdAt);
-        expect(current >= next).toBeTruthy();
-      }
-    });
-  });
-
   describe("PUT /accounts/:accountId", () => {
     it("should update account name successfully", async () => {
+      const accountId = await seedOwnAccount("put-name");
       const newName = "Updated Account Name";
       const response = await app.inject({
         method: "PUT",
-        url: `/accounts/${testAccountId}`,
+        url: `/accounts/${accountId}`,
         payload: {
           name: newName,
         },
@@ -583,22 +585,7 @@ describe("accountRoutes Unit Tests", () => {
       expect(response.statusCode).toBe(200);
       expect(body.ok).toBe(true);
       expect(body.data?.name).toBe(newName);
-      expect(body.data?.id).toBe(testAccountId);
-    });
-
-    it("should update maxProjects explicitly", async () => {
-      const response = await app.inject({
-        method: "PUT",
-        url: `/accounts/${testAccountId}`,
-        payload: {
-          maxProjects: 7,
-        },
-      });
-
-      const body = JSON.parse(response.body);
-
-      expect(response.statusCode).toBe(200);
-      expect(body.data?.maxProjects).toBe(7);
+      expect(body.data?.id).toBe(accountId);
     });
 
     it("should return 404 for non-existent account", async () => {
@@ -613,63 +600,48 @@ describe("accountRoutes Unit Tests", () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it("should reject negative maxProjects", async () => {
+    it("rejects an empty body with 400 and leaves the name unchanged", async () => {
+      // The name is the only field a customer writes, so a body without it asks for nothing
+      // and is malformed rather than a no-op write.
+      const accountId = await seedOwnAccount("put-empty", "Unchanged Name");
       const response = await app.inject({
         method: "PUT",
-        url: `/accounts/${testAccountId}`,
-        payload: {
-          maxProjects: -1,
-        },
-      });
-
-      expect(response.statusCode).toBe(400);
-    });
-
-    it("should handle empty update payload", async () => {
-      const response = await app.inject({
-        method: "PUT",
-        url: `/accounts/${testAccountId}`,
+        url: `/accounts/${accountId}`,
         payload: {},
       });
 
-      // Should succeed with no changes
-      expect(response.statusCode).toBe(200);
+      expect(response.statusCode).toBe(400);
+      expect(stores.account.get(accountId)?.name).toBe("Unchanged Name");
     });
   });
 
   describe("DELETE /accounts/:accountId", () => {
-    // The account under test IS the bound principal's own account: a customer may
-    // only delete their own, so the id is pinned rather than whatever POST /accounts
-    // happened to generate.
-    const deleteAccountId = CUSTOMER_PRINCIPAL.accountId;
-    let childProjectId: string;
+    interface DeletedOwnAccount {
+      accountId: string;
+      email: string;
+      childProjectId: string;
+      response: Awaited<ReturnType<FastifyInstance["inject"]>>;
+    }
 
-    beforeAll(async () => {
-      await mockPrisma.prisma.account.create({
-        data: {
-          id: deleteAccountId,
-          email: `removal-${testEmail}`,
-          name: "To Be Removed",
-          maxProjects: 1,
-        },
-      });
-      // A child the delete must NOT destroy: the soft delete stops at the
-      // account row and leaves the tenant's data in place for audit/retention.
+    /**
+     * Seeds the caller's own account with a child project the delete must NOT destroy — the soft
+     * delete stops at the account row and leaves the tenant's data in place for audit and
+     * retention — and soft-deletes the account through the route.
+     */
+    async function deleteOwnAccount(label: string): Promise<DeletedOwnAccount> {
+      const accountId = await seedOwnAccount(label, "To Be Removed");
+      const email = stores.account.get(accountId)?.email as string;
       const child = stores.project.add({
-        accountId: deleteAccountId,
+        accountId,
         name: "Surviving child project",
         deletedAt: null,
       });
-      childProjectId = child.id as string;
-    });
+      const response = await app.inject({ method: "DELETE", url: `/accounts/${accountId}` });
+      return { accountId, email, childProjectId: child.id as string, response };
+    }
 
     it("should delete account successfully", async () => {
-      noopDeleteMany.mockClear();
-
-      const response = await app.inject({
-        method: "DELETE",
-        url: `/accounts/${deleteAccountId}`,
-      });
+      const { response } = await deleteOwnAccount("delete-ok");
 
       const body = JSON.parse(response.body);
 
@@ -679,19 +651,24 @@ describe("accountRoutes Unit Tests", () => {
     });
 
     it("soft-deletes: the account row survives with deletedAt set, asserted through the store", async () => {
+      const { accountId, email } = await deleteOwnAccount("delete-soft");
+
       // The row is PRESENT and carries deletedAt — a null here is the old
       // hard-delete-by-default defect coming back.
       const survivor = (await mockPrisma.prisma.account.findUnique({
-        where: { id: deleteAccountId },
+        where: { id: accountId },
       })) as { deletedAt?: Date | null; email?: string } | null;
 
       expect(survivor).not.toBe(null);
       expect(survivor?.deletedAt).toBeInstanceOf(Date);
       // The data survives too — retention is the point of the soft path.
-      expect(survivor?.email).toBe(`removal-${testEmail}`);
+      expect(survivor?.email).toBe(email);
     });
 
     it("does NOT cascade: the account's project survives and no destructive statement was issued", async () => {
+      noopDeleteMany.mockClear();
+      const { childProjectId } = await deleteOwnAccount("delete-no-cascade");
+
       const child = stores.project.get(childProjectId) as { deletedAt?: Date | null } | undefined;
       expect(child).toBeDefined();
       expect(child?.deletedAt ?? null).toBe(null);
@@ -700,7 +677,9 @@ describe("accountRoutes Unit Tests", () => {
     });
 
     it("writes an audit record naming the customer principal and the soft mode", async () => {
-      const entry = stores.auditLog.all().find((row) => row.resourceId === deleteAccountId) as
+      const { accountId } = await deleteOwnAccount("delete-audit");
+
+      const entry = stores.auditLog.all().find((row) => row.resourceId === accountId) as
         | {
             customerUserId?: string;
             userId?: string;
@@ -721,9 +700,11 @@ describe("accountRoutes Unit Tests", () => {
     });
 
     it("should verify account is deleted", async () => {
+      const { accountId } = await deleteOwnAccount("delete-then-read");
+
       const response = await app.inject({
         method: "GET",
-        url: `/accounts/${deleteAccountId}`,
+        url: `/accounts/${accountId}`,
       });
 
       expect(response.statusCode).toBe(404);
@@ -743,9 +724,11 @@ describe("accountRoutes Unit Tests", () => {
     });
 
     it("should return 404 when deleting already deleted account", async () => {
+      const { accountId } = await deleteOwnAccount("delete-twice");
+
       const response = await app.inject({
         method: "DELETE",
-        url: `/accounts/${deleteAccountId}`,
+        url: `/accounts/${accountId}`,
       });
 
       expect(response.statusCode).toBe(404);
@@ -857,6 +840,8 @@ describe("accountRoutes Unit Tests", () => {
       // carrying `deletedAt` would be a reversal that reversed nothing.
       expect(await deletedAtOf(deleted.id)).toBe(null);
 
+      // Read back as a member of the restored account: GET admits only the caller's own.
+      AUTH_STATE.principal = { ...CUSTOMER_PRINCIPAL, accountId: deleted.id };
       const after = await app.inject({ method: "GET", url: `/accounts/${deleted.id}` });
       expect(after.statusCode).toBe(200);
     });

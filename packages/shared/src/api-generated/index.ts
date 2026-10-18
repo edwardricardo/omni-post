@@ -102,8 +102,6 @@ export type {
   GetAccountsByAccountIdResponses,
   GetAccountsByAccountIdUsageData,
   GetAccountsByAccountIdUsageResponses,
-  GetAccountsData,
-  GetAccountsResponses,
   GetActivityFeedData,
   GetActivityFeedResponses,
   GetAdminAccountsByAccountIdBillingData,

@@ -1,7 +1,7 @@
 /**
  * @file accountRoutes.ts
- * @description REST API endpoints for multi-project account management including
- *              CRUD operations, slug handling, and account settings.
+ * @description REST API endpoints for the account lifecycle: a customer reads and renames their
+ *              own account and soft-deletes or restores it; an admin restores or erases any.
  * @layer infrastructure
  */
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
@@ -12,11 +12,13 @@ import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import { requireCallerOwnsAccountParam } from "../auth/requireCallerOwnsAccountParam.js";
 import { requireAdminAuth } from "../admin/auth/adminAuthMiddleware.js";
 import { requireCustomerOrAdminAuth } from "../auth/customerOrAdminAuth.js";
 import { CustomerPermission, requireCustomerPermission } from "../auth/customerRbacMiddleware.js";
 import { requirePermission } from "../auth/rbacMiddleware.js";
 import type { RbacService } from "../auth/rbacService.js";
+import { adminHoldsPermission } from "../auth/adminHoldsPermission.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
@@ -48,13 +50,15 @@ const CreateAccountBodySchema = z.object({
   phone: z.string().min(5).max(20).optional(),
 });
 
-const UpdateAccountBodySchema = z.object({
-  name: SecureSchemas.userName.optional(),
-  maxProjects: z.number().int().min(1).optional(),
-  timezone: z.string().min(1).max(64).optional(),
-  locale: z.string().min(2).max(10).optional(),
-  slug: SlugSchema.optional(),
-  phone: z.string().min(5).max(20).optional(),
+/**
+ * Body of `PUT /accounts/:accountId`: the account's name, and nothing else. The project quota
+ * `maxProjects` is a billing field only an admin writes (`PUT /admin/accounts/:id/settings`); a
+ * customer raising their own would bypass their plan's limit. A body carrying it, or any other
+ * key, is refused whole with 400 rather than stripped, so a client that sent it is told the field
+ * was not written instead of reading a 200 as a change.
+ */
+const UpdateAccountBodySchema = z.strictObject({
+  name: SecureSchemas.userName,
 });
 
 const AccountParamsSchema = z.object({
@@ -95,36 +99,12 @@ class AccountRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * @method adminHoldsAccountManage
-   * @description Answers whether the authenticated ADMIN principal on this request holds
-   *   `account:manage`, using the same RbacService the `requirePermission` preHandler uses so the
-   *   two cannot drift apart.
-   *
-   *   It exists as an in-handler check, rather than a preHandler, because the route that needs it
-   *   is the "admin-or-owner" restore surface: its preHandler is the composed
-   *   `requireCustomerOrAdminAuth`, and stacking `requirePermission` behind it would answer 401 to
-   *   every customer — it reads `request.auth` / `request.user`, neither of which a customer token
-   *   populates. So the grant is asserted inside the admin BRANCH, where the principal kind is
-   *   already known.
-   *
-   *   Omitting it is not a smaller gate, it is no gate: an admin token by itself only proves the
-   *   holder is staff, and every staff role — SUPPORT included — could otherwise reach across
-   *   tenants through this endpoint.
-   * @param request - The incoming request, whose `request.auth` carries the admin principal.
-   * @returns True when the principal's role grants `account:manage`; false when it does not, and
-   *   false when no admin principal is bound at all (fail closed).
-   */
-  private async adminHoldsAccountManage(request: FastifyRequest): Promise<boolean> {
-    const role = request.auth?.user?.role;
-    if (!role) {
-      return false;
-    }
-    return this.rbacService.hasAnyPermission(role, [Permission.ACCOUNT_MANAGE]);
-  }
-
-  /**
-   * Create Account
-   * POST /accounts
+   * @method createAccount
+   * @description Creates an account on a 14-day trial (POST /accounts). The e-mail is reduced to
+   *   its canonical form once and that value serves both the duplicate check and the insert; a
+   *   live account already holding it answers 409.
+   * @param request - The request, carrying the e-mail, name and optional quota in its body.
+   * @param reply - The reply the created account or the refusal is sent on.
    */
   async createAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -211,8 +191,12 @@ class AccountRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Get Account
-   * GET /accounts/:accountId
+   * @method getAccount
+   * @description Returns the caller's own live account with its live projects (GET
+   *   /accounts/:accountId; `requireCallerOwnsAccountParam` has admitted the path's account).
+   *   Any authenticated member of the account may read it; a soft-deleted account answers 404.
+   * @param request - The request, carrying the account id in its path.
+   * @param reply - The reply the account or the refusal is sent on.
    */
   async getAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -265,46 +249,13 @@ class AccountRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * List Accounts
-   * GET /accounts
-   */
-  async listAccounts(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-
-    this.logInfo(ctx, "Listing accounts");
-
-    try {
-      const accounts = await this.prisma.account.findMany({
-        where: { deletedAt: null },
-        orderBy: { createdAt: "desc" },
-        include: {
-          projects: { where: { deletedAt: null } },
-        },
-      });
-
-      this.logInfo(ctx, "Accounts retrieved successfully", { count: accounts.length });
-
-      this.sendSuccess(
-        ctx,
-        accounts.map((account) => ({
-          id: account.id,
-          email: account.email,
-          name: account.name,
-          maxProjects: account.maxProjects,
-          isOnTrial: account.isOnTrial,
-          createdAt: account.createdAt,
-          projectCount: account.projects.length,
-        }))
-      );
-    } catch (error) {
-      this.logError(ctx, "Failed to list accounts", { error });
-      return this.sendError(ctx, 500, "Failed to list accounts");
-    }
-  }
-
-  /**
-   * Update Account
-   * PUT /accounts/:accountId
+   * @method updateAccount
+   * @description Renames the caller's own live account (PUT /accounts/:accountId;
+   *   `requireCallerOwnsAccountParam` has admitted the path's account and
+   *   `requireCustomerPermission` the caller's `account:manage`). The name is the only field
+   *   written; a soft-deleted account answers 404.
+   * @param request - The request, carrying the account id in its path and the new name in its body.
+   * @param reply - The reply the renamed account or the refusal is sent on.
    */
   async updateAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -324,7 +275,7 @@ class AccountRouteHandler extends BaseRouteHandler {
     }
 
     const { accountId } = validated.value.params;
-    const updates = validated.value.body;
+    const { name } = validated.value.body;
 
     try {
       // Check if account exists. A soft-deleted account is gone as far as every
@@ -337,17 +288,9 @@ class AccountRouteHandler extends BaseRouteHandler {
         return this.sendError(ctx, 404, "Account not found");
       }
 
-      // Build update data
-      const updateData: { name?: string; maxProjects?: number } = {};
-      if (updates.name !== undefined) updateData.name = updates.name;
-      if (updates.maxProjects !== undefined) {
-        updateData.maxProjects = updates.maxProjects;
-      }
-
-      // Update account
       const account = await this.prisma.account.update({
         where: { id: accountId },
-        data: updateData,
+        data: { name },
       });
 
       this.logInfo(ctx, "Account updated successfully", { accountId });
@@ -367,14 +310,14 @@ class AccountRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Delete Account (NORMAL path — reversible)
-   * DELETE /accounts/:accountId
-   *
-   * Soft-deletes: the row keeps its data and gains `deletedAt`, so the account
-   * disappears from every read while its projects, channels, posts, invoices
-   * and audit trail survive — which is what billing and legal retention
-   * require. The irreversible variant is `DELETE /accounts/:accountId/hard`
-   * and is admin-only.
+   * @method deleteAccount
+   * @description Soft-deletes the caller's own account, the normal and reversible path (DELETE
+   *   /accounts/:accountId). The row keeps its data and gains `deletedAt`, so the account
+   *   disappears from every read while its projects, channels, posts, invoices and audit trail
+   *   survive — which is what billing and legal retention require. The irreversible variant is
+   *   `DELETE /accounts/:accountId/hard` and is admin-only.
+   * @param request - The request, carrying the account id in its path and the customer principal.
+   * @param reply - The reply the confirmation or the refusal is sent on.
    */
   async deleteAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -489,23 +432,21 @@ class AccountRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Restore Account (reverse of the soft delete)
-   * POST /accounts/:accountId/restore
-   *
-   * Clears `deletedAt` so a soft-deleted account is live again — the act that
-   * makes the soft delete genuinely reversible rather than merely invisible.
-   * Reachable by the OWNER (self-service undo) or by an admin (support
-   * recovery) through the composed `requireCustomerOrAdminAuth`, so exactly one
-   * of `request.customerUser` / `request.auth` is set when the handler runs:
-   *   - customer: must hold the OWNER-only `account:delete` — the same grant as
-   *     the delete this reverses, because a capability to undo a tenant-wide
-   *     action is the same grade of authority as the action; the use case then
-   *     refuses any account but the caller's own.
-   *   - admin: must hold `account:manage`, then runs under `withSystemContext`
-   *     because the restore touches tenant-guarded reads and admin auth binds no
-   *     tenant scope.
-   * NOT_FOUND covers "no such account", "not yours" and "hard-deleted" — the use
-   * case makes them indistinguishable (anti-enumeration), mirroring the delete.
+   * @method restoreAccount
+   * @description Reverses the soft delete (POST /accounts/:accountId/restore): clears `deletedAt`
+   *   so a soft-deleted account is live again — the act that makes the soft delete genuinely
+   *   reversible rather than merely invisible. Reachable by the OWNER (self-service undo) or by an
+   *   admin (support recovery) through the composed `requireCustomerOrAdminAuth`, so exactly one
+   *   of `request.customerUser` / `request.auth` is set when the handler runs:
+   *     - customer: must hold the OWNER-only `account:delete` — the same grant as the delete this
+   *       reverses, because a capability to undo a tenant-wide action is the same grade of
+   *       authority as the action; the use case then refuses any account but the caller's own.
+   *     - admin: must hold `account:manage`, then runs under `withSystemContext` because the
+   *       restore touches tenant-guarded reads and admin auth binds no tenant scope.
+   *   NOT_FOUND covers "no such account", "not yours" and "hard-deleted" — the use case makes them
+   *   indistinguishable (anti-enumeration), mirroring the delete.
+   * @param request - The request, carrying the account id in its path and either principal.
+   * @param reply - The reply the confirmation or the refusal is sent on.
    */
   async restoreAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -541,7 +482,7 @@ class AccountRouteHandler extends BaseRouteHandler {
       // token alone only proves the holder is staff; this endpoint reaches across
       // every tenant, so without the capability check any staff role — SUPPORT
       // included — could bring back any tenant the business had removed.
-      if (!(await this.adminHoldsAccountManage(request))) {
+      if (!(await adminHoldsPermission(this.rbacService, request, Permission.ACCOUNT_MANAGE))) {
         return this.sendError(ctx, 403, "Insufficient permissions to restore this account");
       }
 
@@ -599,14 +540,16 @@ class AccountRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Hard Delete Account (EXCEPTIONAL path — irreversible)
-   * DELETE /accounts/:accountId/hard
-   *
-   * Destroys the account and every project, channel and post beneath it. Guard
-   * rails, all of them load-bearing: admin authentication plus `account:manage`,
-   * a mandatory written reason, one transaction for the whole cascade
-   * (repository), an audit record on both success and failure, and the
-   * sanctioned `withSystemContext` bypass rather than an ambient tenant context.
+   * @method hardDeleteAccount
+   * @description Erases an account, the exceptional and irreversible path (DELETE
+   *   /accounts/:accountId/hard): destroys the account and every project, channel and post
+   *   beneath it. Guard rails, all of them load-bearing: admin authentication plus
+   *   `account:manage`, a mandatory written reason, one transaction for the whole cascade
+   *   (repository), an audit record on both success and failure, and the sanctioned
+   *   `withSystemContext` bypass rather than an ambient tenant context.
+   * @param request - The request, carrying the account id in its path, the reason in its body and
+   *   the admin principal.
+   * @param reply - The reply the confirmation or the refusal is sent on.
    */
   async hardDeleteAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -692,9 +635,9 @@ class AccountRouteHandler extends BaseRouteHandler {
 }
 
 /**
- * Account Routes Plugin
- * Registers account management endpoints.
- * Resolves PrismaClient from the DI container.
+ * @description Registers the account routes. Resolves the Prisma client, the account lifecycle
+ *   use cases, the RBAC service and the audit service from the DI container.
+ * @param fastify - The Fastify instance the routes are registered on.
  */
 export const accountRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = fastify.container.resolve<PrismaClient>(TOKENS.PrismaClient);
@@ -729,31 +672,31 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => handler.createAccount(request, reply)
   );
 
-  // Get account by ID
+  // The own-account routes admit only the caller's own account, before any database access and
+  // before any grant check: `Account` is the tenant itself, so the tenant guard never refuses it.
+  const requireCallerAccount = requireCallerOwnsAccountParam("accounts");
+
+  // Read my account: any authenticated member of it.
   fastify.get(
     "/accounts/:accountId",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [requireClientAuth, requireCallerAccount],
       schema: { tags: ["Accounts"], summary: "Get account by ID" },
     },
     async (request, reply) => handler.getAccount(request, reply)
   );
 
-  // List all accounts
-  fastify.get(
-    "/accounts",
-    {
-      preHandler: [requireClientAuth],
-      schema: { tags: ["Accounts"], summary: "List all accounts" },
-    },
-    async (request, reply) => handler.listAccounts(request, reply)
-  );
-
-  // Update account
+  // Rename my account: `account:manage`, which the seed grants to OWNER alone. The account gate
+  // runs first, so a foreign id answers 404 whatever the caller holds and the 403 of a missing
+  // grant is only ever told to a member of the account it names.
   fastify.put(
     "/accounts/:accountId",
     {
-      preHandler: [requireClientAuth],
+      preHandler: [
+        requireClientAuth,
+        requireCallerAccount,
+        requireCustomerPermission(CustomerPermission.ACCOUNT_MANAGE),
+      ],
       schema: { tags: ["Accounts"], summary: "Update account" },
     },
     async (request, reply) => handler.updateAccount(request, reply)

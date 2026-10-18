@@ -12,9 +12,11 @@ import type { PrismaClient } from "@infra/prisma";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
+import { requireCallerOwnsAccountParam } from "../auth/requireCallerOwnsAccountParam.js";
 import { requireCustomerOrAdminAuth } from "../auth/customerOrAdminAuth.js";
 import { CustomerPermission, requireCustomerPermission } from "../auth/customerRbacMiddleware.js";
 import type { RbacService } from "../auth/rbacService.js";
+import { adminHoldsPermission } from "../auth/adminHoldsPermission.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
@@ -85,89 +87,12 @@ class ProjectRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * @method adminHoldsAccountManage
-   * @description Answers whether the authenticated ADMIN principal on this request holds
-   *   `account:manage`, using the same RbacService the `requirePermission` preHandler uses so the
-   *   two cannot drift apart.
-   *
-   *   It exists as an in-handler check, rather than a preHandler, because the routes that need it
-   *   are the "admin-or-owner" surfaces: their preHandler is the composed
-   *   `requireCustomerOrAdminAuth`, and stacking `requirePermission` behind it would answer 401 to
-   *   every customer — it reads `request.auth` / `request.user`, neither of which a customer token
-   *   populates. So the grant is asserted inside the admin BRANCH, where the principal kind is
-   *   already known.
-   *
-   *   Omitting it is not a smaller gate, it is no gate: an admin token by itself only proves the
-   *   holder is staff, and every staff role — SUPPORT included — could otherwise reach across
-   *   tenants through these endpoints.
-   * @param request - The incoming request, whose `request.auth` carries the admin principal.
-   * @returns True when the principal's role grants `account:manage`; false when it does not, and
-   *   false when no admin principal is bound at all (fail closed).
-   */
-  private async adminHoldsAccountManage(request: FastifyRequest): Promise<boolean> {
-    const role = request.auth?.user?.role;
-    if (!role) {
-      return false;
-    }
-    return this.rbacService.hasAnyPermission(role, [Permission.ACCOUNT_MANAGE]);
-  }
-
-  /**
-   * @method requireCallerAccount
-   * @description The preHandler of the account-scoped routes (`/accounts/:accountId/projects`),
-   *   behind `requireClientAuth`: it admits the request only when the path's account is the
-   *   authenticated customer's own, and answers every other account before any database access.
-   *
-   *   Nothing below it refuses a foreign account id. `Account` IS the tenant, keyed by `id`, so it
-   *   is absent from the Prisma tenant guard's `TENANT_SCOPED_MODELS` and the handlers' account
-   *   read passes through untouched; the guard refuses only the later `project` query, with a
-   *   `TenantContextMismatchError` the handlers answer with 500. A foreign account therefore
-   *   answered 500 while a missing one answered 404, which told any authenticated customer which
-   *   ids name a real tenant. The guard stays behind this check as the second wall.
-   *
-   *   The refusal is the handlers' own not-found answer, the same body byte for byte, so it says
-   *   nothing about whether the id names a tenant; a 403 would confirm that it does. A malformed
-   *   id answers 400, as the handlers' validation does: no account carries one, so the 400
-   *   discloses nothing either.
-   * @param request - The request, whose `customerUser` `requireClientAuth` bound.
-   * @param reply - The reply a refusal is sent on.
-   */
-  async requireCallerAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-
-    // Fastify runs the next hook and the handler unless the response has FINISHED, and an async
-    // onSend hook can hold it open after `send` returns; awaiting the reply, which resolves once
-    // the response ends, keeps a refused request from reaching the handler and its reads.
-    const principal = request.customerUser;
-    if (!principal) {
-      this.sendError(ctx, 401, "Authentication required");
-      await reply;
-      return;
-    }
-
-    const params = AccountParamsSchema.safeParse(request.params);
-    if (!params.success) {
-      this.sendError(ctx, 400, "Invalid account ID");
-      await reply;
-      return;
-    }
-
-    if (params.data.accountId !== principal.accountId) {
-      this.logError(ctx, "Cross-tenant account access refused", {
-        principalAccountId: principal.accountId,
-        requestedAccountId: params.data.accountId,
-      });
-      this.sendError(ctx, 404, "Account not found");
-      await reply;
-    }
-  }
-
-  /**
    * @method createProject
    * @description Creates a project in the caller's own account (POST
-   *   /accounts/:accountId/projects; `requireCallerAccount` has admitted the path's account). It
-   *   refuses with 403 once the account's held slots, live and deleted projects alike, reach its
-   *   limit, and with 409 when a live project of the account already holds the name.
+   *   /accounts/:accountId/projects; `requireCallerOwnsAccountParam` has admitted the path's
+   *   account). It refuses with 403 once the account's held slots, live and deleted projects
+   *   alike, reach its limit, and with 409 when a live project of the account already holds the
+   *   name.
    * @param request - The request, carrying the account id in its path and the project's name and
    *   locale in its body.
    * @param reply - The reply the created project or the refusal is sent on.
@@ -308,7 +233,8 @@ class ProjectRouteHandler extends BaseRouteHandler {
   /**
    * @method listProjects
    * @description Lists the live projects of the caller's own account, newest first (GET
-   *   /accounts/:accountId/projects; `requireCallerAccount` has admitted the path's account).
+   *   /accounts/:accountId/projects; `requireCallerOwnsAccountParam` has admitted the path's
+   *   account).
    * @param request - The request, carrying the account id in its path.
    * @param reply - The reply the projects or the refusal are sent on.
    */
@@ -615,7 +541,7 @@ class ProjectRouteHandler extends BaseRouteHandler {
       // token alone only proves the holder is staff; this endpoint reaches across
       // every tenant, so without the capability check any staff role — SUPPORT
       // included — could restore any tenant's project.
-      if (!(await this.adminHoldsAccountManage(request))) {
+      if (!(await adminHoldsPermission(this.rbacService, request, Permission.ACCOUNT_MANAGE))) {
         return this.sendError(ctx, 403, "Insufficient permissions to restore this project");
       }
 
@@ -779,7 +705,7 @@ class ProjectRouteHandler extends BaseRouteHandler {
       // The admin grant, asserted before anything is read or destroyed: an admin
       // token alone only proves the holder is staff, and this arm erases across
       // every tenant.
-      if (!(await this.adminHoldsAccountManage(request))) {
+      if (!(await adminHoldsPermission(this.rbacService, request, Permission.ACCOUNT_MANAGE))) {
         return this.sendError(ctx, 403, "Insufficient permissions to erase this project");
       }
 
@@ -882,8 +808,7 @@ export const projectRoutes: FastifyPluginAsync = async (fastify) => {
 
   // The account-scoped routes admit only the caller's own account, before any database access;
   // the tenant guard behind them refuses the project queries but not the account read.
-  const requireCallerAccount = async (request: FastifyRequest, reply: FastifyReply) =>
-    handler.requireCallerAccount(request, reply);
+  const requireCallerAccount = requireCallerOwnsAccountParam("projects");
 
   // Create project for account
   fastify.post(
