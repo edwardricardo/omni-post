@@ -97,6 +97,9 @@
       "name": "eslint-plugin-react"
     },
     {
+      "name": "fast-check"
+    },
+    {
       "name": "isomorphic-dompurify"
     },
     {
