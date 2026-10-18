@@ -110,9 +110,16 @@ interface Tenant {
   customerUserId: string;
   /** Terminal row used for the cross-tenant read/mutation proofs. */
   isolationSagaId: string;
-  /** Non-terminal row with no pending retry — boot-load population. */
+  /**
+   * Non-terminal row with no pending retry — boot-load population. One of the
+   * foreign rows the listing proof checks for; the scan proofs seed their own.
+   */
   bootSagaId: string;
-  /** Non-terminal row with an elapsed retry — retry-checker population. */
+  /**
+   * Non-terminal row with an elapsed retry — retry-checker population. One of
+   * the foreign rows the listing proof checks for; the scan proofs seed their
+   * own, because a retry tick completes every due row it claims.
+   */
   retrySagaId: string;
 }
 
@@ -290,6 +297,9 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
   let tenantA: Tenant;
   let tenantB: Tenant;
 
+  /** Every non-terminal row the fixtures seed, so the teardown removes its events and cache key. */
+  const inFlightSagaIds: string[] = [];
+
   function buildInstance(params: {
     id: string;
     accountId: string;
@@ -320,6 +330,38 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
     };
   }
 
+  /** A retry that fell due a minute ago, so the next recovery tick claims it. */
+  function elapsedRetry(): Date {
+    return new Date(Date.now() - 60_000);
+  }
+
+  /**
+   * Persists one non-terminal probe saga through the ENGINE under the tenant's
+   * own rehydrated scope, so the seeded row also proves the guarded write path
+   * for that account. With `nextRetryAt` the row belongs to the retry checker;
+   * without it, to the boot load.
+   */
+  async function seedInFlightSaga(
+    tenant: Pick<Tenant, "accountId" | "customerUserId">,
+    label: string,
+    nextRetryAt?: Date
+  ): Promise<string> {
+    const sagaId = `${TAG}-${label}-${randomUUID()}`;
+    inFlightSagaIds.push(sagaId);
+    await withTenantContext({ accountId: tenant.accountId }, async () => {
+      await requestEngine.persistSagaInstance(
+        buildInstance({
+          id: sagaId,
+          accountId: tenant.accountId,
+          userId: tenant.customerUserId,
+          status: "RUNNING",
+          ...(nextRetryAt !== undefined && { nextRetryAt }),
+        })
+      );
+    });
+    return sagaId;
+  }
+
   async function seedTenant(name: string): Promise<Tenant> {
     const account = await base.account.create({
       data: {
@@ -338,54 +380,32 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       },
     });
 
-    const tenant: Tenant = {
-      accountId: account.id,
-      customerUserId: customerUser.id,
-      isolationSagaId: `${TAG}-${name}-isolation-${randomUUID()}`,
-      bootSagaId: `${TAG}-${name}-boot-${randomUUID()}`,
-      retrySagaId: `${TAG}-${name}-retry-${randomUUID()}`,
-    };
+    const identity = { accountId: account.id, customerUserId: customerUser.id };
+    const isolationSagaId = `${TAG}-${name}-isolation-${randomUUID()}`;
 
     // Written through the ENGINE under the tenant's own rehydrated scope, so
     // every seeded row also proves the guarded write path for that account.
-    const elapsedRetry = new Date(Date.now() - 60_000);
     await withTenantContext({ accountId: account.id }, async () => {
       await requestEngine.persistSagaInstance(
         buildInstance({
-          id: tenant.isolationSagaId,
+          id: isolationSagaId,
           accountId: account.id,
           userId: customerUser.id,
           status: "COMPLETED",
         })
       );
-      await requestEngine.persistSagaInstance(
-        buildInstance({
-          id: tenant.bootSagaId,
-          accountId: account.id,
-          userId: customerUser.id,
-          status: "RUNNING",
-        })
-      );
-      await requestEngine.persistSagaInstance(
-        buildInstance({
-          id: tenant.retrySagaId,
-          accountId: account.id,
-          userId: customerUser.id,
-          status: "RUNNING",
-          nextRetryAt: elapsedRetry,
-        })
-      );
     });
 
-    return tenant;
+    return {
+      ...identity,
+      isolationSagaId,
+      bootSagaId: await seedInFlightSaga(identity, `${name}-boot`),
+      retrySagaId: await seedInFlightSaga(identity, `${name}-retry`, elapsedRetry()),
+    };
   }
 
   function allSagaIds(): string[] {
-    return [tenantA, tenantB].flatMap((tenant) => [
-      tenant.isolationSagaId,
-      tenant.bootSagaId,
-      tenant.retrySagaId,
-    ]);
+    return [...[tenantA, tenantB].map((tenant) => tenant.isolationSagaId), ...inFlightSagaIds];
   }
 
   /**
@@ -727,7 +747,29 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
   });
 
   describe("the background scans with no tenant bound", () => {
+    before(() => {
+      // Registers the retry task WITHOUT booting, the way the module setup
+      // registers the timeout task: the tick proof drives it whether or not the
+      // boot proof has run `initialize()`, which registers it again in place.
+      (
+        recoveryLifecycle as unknown as { startRetryRecoveryChecker(): void }
+      ).startRetryRecoveryChecker();
+    });
+
     it("loads both tenants' sagas at boot under the declared system reason", async () => {
+      // The rows the scan must observe are this proof's own: a retry tick
+      // completes every due retry it claims, so a row seeded once for the whole
+      // file is no longer in flight when the tick proof happens to run first.
+      const bootA = await seedInFlightSaga(tenantA, "A-boot-scan");
+      const retryA = await seedInFlightSaga(tenantA, "A-boot-scan-retry", elapsedRetry());
+      const bootB = await seedInFlightSaga(tenantB, "B-boot-scan");
+      const retryB = await seedInFlightSaga(tenantB, "B-boot-scan-retry", elapsedRetry());
+      // The seed cached B's retry row too, so that copy is dropped here: only
+      // then is the entry reappearing the boot's re-warm and not the seed's own
+      // write. The seed's cache write was issued first on this same connection,
+      // so this delete lands after it.
+      await redis.del(`saga:${retryB}`);
+
       const before = recoveryScans.length;
       const failuresBefore = recoveryLifecycle.metrics.bootLoadFailures;
 
@@ -748,12 +790,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
         "the scan declares the single saga system reason"
       );
       assert.strictEqual(scan?.tenantBound, false, "the scan runs without any tenant scope");
-      for (const expectedId of [
-        tenantA.bootSagaId,
-        tenantA.retrySagaId,
-        tenantB.bootSagaId,
-        tenantB.retrySagaId,
-      ]) {
+      for (const expectedId of [bootA, retryA, bootB, retryB]) {
         assert.ok(
           scan?.ids.includes(expectedId),
           `the boot scan must observe ${expectedId} across both accounts`
@@ -765,15 +802,24 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
         "a declared scan raises no TenantContextMissingError"
       );
 
-      // Each loaded row is re-warmed under its OWN rehydrated tenant; the cache
-      // entry reappearing is that write completing through the guard.
+      // A loaded row the boot leaves in play is re-warmed under its OWN
+      // rehydrated tenant; the cache entry reappearing is that write completing
+      // through the guard. The witness is the retry row, which the boot hands to
+      // the checker and re-warms: the probe saga's pivot is its first step, so
+      // the boot PARKS the no-retry row and writes nothing for it.
       await waitFor(
-        async () => (await redis.get(`saga:${tenantB.bootSagaId}`)) !== null,
+        async () => (await redis.get(`saga:${retryB}`)) !== null,
         "the boot re-warm to persist B's saga under B's rehydrated scope"
       );
     });
 
     it("sees both tenants' due retries in one tick and resumes each under its own tenant", async () => {
+      // The due retries this proof expects the tick to claim are its own: the
+      // tick completes every due row it finds, so a retry seeded once for the
+      // whole file belongs to whichever tick reaches it first.
+      const retryA = await seedInFlightSaga(tenantA, "A-tick", elapsedRetry());
+      const retryB = await seedInFlightSaga(tenantB, "B-tick", elapsedRetry());
+
       const before = recoveryScans.length;
       const failuresBefore = recoveryLifecycle.metrics.recoveryScanFailures;
 
@@ -786,7 +832,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
       assert.strictEqual(scan?.reason, SAGA_SYSTEM_REASON, "the tick declares the same reason");
       assert.strictEqual(scan?.tenantBound, false, "the tick runs without any tenant scope");
       assert.ok(
-        scan?.ids.includes(tenantA.retrySagaId) && scan.ids.includes(tenantB.retrySagaId),
+        scan?.ids.includes(retryA) && scan.ids.includes(retryB),
         "one tick observes the due retries of BOTH accounts"
       );
       assert.strictEqual(
@@ -797,15 +843,18 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
 
       await waitFor(async () => {
         const rows = await base.sagaInstance.findMany({
-          where: { id: { in: [tenantA.retrySagaId, tenantB.retrySagaId] } },
+          where: { id: { in: [retryA, retryB] } },
           select: { id: true, status: true },
         });
         return rows.length === 2 && rows.every((row) => row.status === "COMPLETED");
       }, "both resumed sagas reaching COMPLETED");
 
-      for (const tenant of [tenantA, tenantB]) {
-        const observed = stepObservations.find((entry) => entry.sagaId === tenant.retrySagaId);
-        assert.ok(observed, `the resumed step must have executed for ${tenant.retrySagaId}`);
+      for (const { tenant, retrySagaId } of [
+        { tenant: tenantA, retrySagaId: retryA },
+        { tenant: tenantB, retrySagaId: retryB },
+      ]) {
+        const observed = stepObservations.find((entry) => entry.sagaId === retrySagaId);
+        assert.ok(observed, `the resumed step must have executed for ${retrySagaId}`);
         assert.strictEqual(
           observed.boundAccountId,
           tenant.accountId,
@@ -813,7 +862,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
         );
 
         const row = await base.sagaInstance.findUniqueOrThrow({
-          where: { id: tenant.retrySagaId },
+          where: { id: retrySagaId },
         });
         assert.strictEqual(
           row.accountId,
@@ -1117,6 +1166,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
         resumeCompensationWalkAsync: (id) => realEngine.resumeCompensationWalkAsync(id),
         resumeCompensationWalk: (id) => realEngine.resumeCompensationWalk(id),
         isCompensationWalkInFlight: (id) => realEngine.isCompensationWalkInFlight(id),
+        isAdvancerInFlight: (id) => realEngine.isAdvancerInFlight(id),
         beginCompensation: (instance, error) => realEngine.beginCompensation(instance, error),
         persistSagaInstance: (instance, events) => realEngine.persistSagaInstance(instance, events),
         loadSagaInstance: (id) => realEngine.loadSagaInstance(id),
@@ -1305,6 +1355,7 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
         resumeCompensationWalkAsync: (id) => engine.resumeCompensationWalkAsync(id),
         resumeCompensationWalk: (id) => engine.resumeCompensationWalk(id),
         isCompensationWalkInFlight: (id) => engine.isCompensationWalkInFlight(id),
+        isAdvancerInFlight: (id) => engine.isAdvancerInFlight(id),
         beginCompensation: (instance, error) => engine.beginCompensation(instance, error),
         persistSagaInstance: async () => {
           throw new Error("durable store unreachable during shutdown");
@@ -1337,6 +1388,15 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
   });
 
   describe("a background loop whose declared context is removed", () => {
+    before(() => {
+      // Registers the retry task WITHOUT booting, as the scan proofs do: the
+      // failing tick is driven through it whether or not the boot-load proof
+      // has run `initialize()`, which registers it again in place.
+      (
+        blindedLifecycle as unknown as { startRetryRecoveryChecker(): void }
+      ).startRetryRecoveryChecker();
+    });
+
     it("counts and logs the boot-load failure instead of booting as if nothing was in flight", async () => {
       const failuresBefore = blindedLifecycle.metrics.bootLoadFailures;
 
