@@ -125,6 +125,7 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 - Zero `console.log` in test files
 - Zero `.only()` or `.skip()` committed
 - Async tests always `await` — no floating promises
+- A test waits on the observable result, never on a fixed time: `until` from `@packages/vitest-shared/determinism` or fake timers, never `setTimeout(resolve, ms)`, a `timers/promises` waiter or `waitForTimeout` (`testing/no-fixed-time-wait`, at `error`). A wait no result can replace carries `// fixed-wait: <kind> — <why>` on the line above, `<kind>` one of `latency-injection`, `clock-advance`, `interleaving`, `poll-step`, `ttl-expiry`
 
 ### Mock Factories (Required Pattern)
 

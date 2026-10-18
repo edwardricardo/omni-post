@@ -20,6 +20,15 @@ const testFiles = [
   "**/tests/**/*.tsx",
 ];
 
+// run.ts, run-with-coverage.ts and setup/verifyServices.ts have no importer and no runner collects
+// them. Testing Refoundation deletes them, and these three entries with them; the list may only
+// shrink. The rules that read test code skip them through this one list.
+const unrunTestFiles = [
+  "apps/api/tests/run.ts",
+  "apps/api/tests/run-with-coverage.ts",
+  "apps/api/tests/setup/verifyServices.ts",
+];
+
 // Paths that benefit from type-aware linting (no-floating-promises).
 // Scoped narrowly to keep memory usage bounded — full-monorepo projectService OOMs.
 // Backend core layers only: fire-and-forget in workers/services/webhooks is intentional,
@@ -290,18 +299,43 @@ export default defineConfig([
   // helpers they import. unit/ and eval/ are Vitest's.
   {
     files: ["apps/api/tests/**/*.ts"],
-    ignores: [
-      "apps/api/tests/unit/**",
-      "apps/api/tests/eval/**",
-      // run.ts, run-with-coverage.ts and setup/verifyServices.ts have no importer and no runner
-      // collects them. Testing Refoundation deletes them, and these three entries with them; the
-      // list may only shrink.
-      "apps/api/tests/run.ts",
-      "apps/api/tests/run-with-coverage.ts",
-      "apps/api/tests/setup/verifyServices.ts",
-    ],
+    ignores: ["apps/api/tests/unit/**", "apps/api/tests/eval/**", ...unrunTestFiles],
     plugins: { testing: testingPlugin },
     rules: { "testing/no-stdout-in-node-test": "error" },
+  },
+  // A test waits on the observable result of the work it started, never on a fixed time: a fixed
+  // wait falls short on a loaded runner and spends its whole delay on an idle one. A wait no
+  // result can replace carries a `fixed-wait: <kind> — <why>` comment on the line above. The
+  // Playwright specs under e2e/ stay out until a required check runs them: no run could verify a
+  // fix there.
+  {
+    files: [...testFiles, "**/__tests__/**"],
+    ignores: ["**/e2e/**", ...unrunTestFiles],
+    plugins: { testing: testingPlugin },
+    rules: { "testing/no-fixed-time-wait": "error" },
+  },
+  // A unit test starts no process: the child's start-up cost lands inside the runner's time budget
+  // and its result depends on what the machine has installed. The block reads the files Vitest
+  // collects, so the other tiers' suffixes, Playwright's e2e/ and node:test's part of
+  // apps/api/tests stay out. Three places may spawn: tests/unit/scripts/, where a test of a script
+  // that runs git, node or pnpm lives; the reach engine's suites, whose collectors spawn by
+  // design; and the runner's behaviour suite, which runs the runner itself.
+  {
+    files: [...testFiles, "**/__tests__/**"],
+    ignores: [
+      "**/*.integration.test.*",
+      "**/*.live.test.*",
+      "**/*.spec.*",
+      "**/e2e/**",
+      "apps/api/tests/**",
+      "!apps/api/tests/unit/**",
+      "!apps/api/tests/eval/**",
+      "apps/api/tests/unit/scripts/**",
+      "packages/test-contracts/tests/**",
+      "apps/api/tests/unit/saga/runTestsGate.behavior.test.ts",
+    ],
+    plugins: { testing: testingPlugin },
+    rules: { "testing/no-child-process-in-unit": "error" },
   },
   // Disable stylistic rules that conflict with Prettier. Must be last to override all preceding.
   prettierConfig,

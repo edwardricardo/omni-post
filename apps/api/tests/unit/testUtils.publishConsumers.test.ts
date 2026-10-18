@@ -2,7 +2,7 @@
  * @file testUtils.publishConsumers.test.ts
  * @description Pins the six causes `assertPublishConsumers` must tell apart. The
  *              suite it guards used to report a missing consumer as three
- *              per-test timeouts saying "did not reach terminal state" — a
+ *              per-test timeouts waiting for a terminal state — a
  *              symptom four inference steps from the cause, six minutes after the
  *              fact. Replacing that with one message that is wrong in a
  *              DIFFERENT way (naming the workers when the API is down, or when
