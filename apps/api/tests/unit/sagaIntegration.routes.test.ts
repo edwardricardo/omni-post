@@ -12,8 +12,10 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
+import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
+import type { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
 import {
   buildIntegration,
   makeStartRequest,
@@ -41,6 +43,42 @@ console.log = () => {};
 console.error = () => {};
 console.warn = () => {};
 
+/** The statuses a saga never leaves. */
+const TERMINAL_STATUSES: readonly unknown[] = ["COMPLETED", "FAILED", "COMPENSATED"];
+
+/**
+ * Records every saga the engine is asked to advance or walk detached, and returns a wait for
+ * exactly those passes: each saga parked on a scheduled retry or terminal, and no pass holding it.
+ * Shutting down under a running pass leaves it advancing against a stopped manager after the test
+ * ended, so teardown waits for the passes the test caused. Waiting on every cached saga instead
+ * would hang on the rows the control tests seed and the engine refuses to dispatch. The engine is
+ * reached through a documented cast: its dispatch entry points and its in-flight claim are not
+ * public API.
+ */
+function trackDispatchedPasses(integration: SagaIntegration): () => Promise<void> {
+  const manager = integration.getSagaManager();
+  const engine = (manager as unknown as { execution: SagaExecutionEngine }).execution;
+  const dispatches = [
+    vi.spyOn(engine, "executeSagaAsync"),
+    vi.spyOn(engine, "resumeCompensationWalkAsync"),
+  ];
+  return async (): Promise<void> => {
+    const sagaIds = new Set(dispatches.flatMap((spy) => spy.mock.calls.map(([sagaId]) => sagaId)));
+    for (const sagaId of sagaIds) {
+      await until(
+        async () => {
+          const saga = await manager.getSaga(sagaId);
+          const settled =
+            saga !== null &&
+            (saga.nextRetryAt !== undefined || TERMINAL_STATUSES.includes(saga.status));
+          return settled && !engine.isAdvancerInFlight(sagaId);
+        },
+        { description: `the passes over saga ${sagaId} to settle`, timeoutMs: 3_000, intervalMs: 5 }
+      );
+    }
+  };
+}
+
 // ============================================================================
 // Post Publishing Route Tests
 // ============================================================================
@@ -48,12 +86,15 @@ console.warn = () => {};
 describe("SagaIntegration - Post Publishing Routes", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
+  let awaitDispatchedPasses: () => Promise<void>;
 
   beforeEach(async () => {
     ({ integration, routes } = await buildIntegration());
+    awaitDispatchedPasses = trackDispatchedPasses(integration);
   });
 
   afterEach(async () => {
+    await awaitDispatchedPasses();
     await integration.shutdown();
   });
 
@@ -154,12 +195,15 @@ describe("SagaIntegration - Post Publishing Routes", () => {
 describe("SagaIntegration - Saga Status Routes", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
+  let awaitDispatchedPasses: () => Promise<void>;
 
   beforeEach(async () => {
     ({ integration, routes } = await buildIntegration());
+    awaitDispatchedPasses = trackDispatchedPasses(integration);
   });
 
   afterEach(async () => {
+    await awaitDispatchedPasses();
     await integration.shutdown();
   });
 
@@ -197,13 +241,21 @@ describe("SagaIntegration - Saga Status Routes", () => {
     const startHandler = routes.get("POST:/sagas/post-publishing/start");
     const startResult = await startHandler(makeStartRequest(), passthroughReply);
 
-    // Allow background execution to complete at least the first steps.
-    await new Promise<void>((resolve) => setTimeout(resolve, 100));
-
+    // The status reports step results once the pass the start deferred has run the first steps.
     const statusHandler = routes.get("GET:/sagas/:sagaId");
-    const statusResult = await statusHandler(
-      makeAuthedStatusRequest(startResult.data.sagaId),
-      passthroughReply
+    const statusResult = await untilValue(
+      async () => {
+        const status = await statusHandler(
+          makeAuthedStatusRequest(startResult.data.sagaId),
+          passthroughReply
+        );
+        return status.data.stepResults.length > 0 ? status : null;
+      },
+      {
+        description: "the status to report the first steps' results",
+        timeoutMs: 3_000,
+        intervalMs: 5,
+      }
     );
 
     expect(Array.isArray(statusResult.data.stepResults)).toBeTruthy();
@@ -273,12 +325,15 @@ describe("SagaIntegration - Saga Control Routes", () => {
   let integration: SagaIntegration;
   let routes: Map<string, (req: any, reply: any) => any>;
   let mockRedis: MockRedis;
+  let awaitDispatchedPasses: () => Promise<void>;
 
   beforeEach(async () => {
     ({ integration, routes, mockRedis } = await buildIntegration());
+    awaitDispatchedPasses = trackDispatchedPasses(integration);
   });
 
   afterEach(async () => {
+    await awaitDispatchedPasses();
     await integration.shutdown();
   });
 

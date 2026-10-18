@@ -4,7 +4,7 @@
  * Validates that:
  * - Starting a saga causes the SchedulePublishingJobsStep to call
  *   the job-queue function with the correct payload, including sagaId.
- * - The enqueued job data contains the expected provider and sagaId fields.
+ * - The enqueued job data carries the post, channel, account and sagaId fields.
  *
  * These tests exercise the integration between SagaIntegration, SagaManager,
  * and the SchedulePublishingJobsStep from @shared/saga.
@@ -15,21 +15,70 @@
  */
 
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { untilValue } from "@packages/vitest-shared/determinism";
 import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
 import {
   buildIntegration,
   makeStartRequest,
   passthroughReply,
+  TEST_ACCOUNT_ID,
   TEST_CHANNEL_IDS,
+  TEST_EXISTING_DRAFT_POST_ID,
   type MockEventService,
+  type MockQueue,
   type MockRedis,
 } from "./sagaIntegration.helpers.js";
+
+/**
+ * The queue double the integration enqueues on, reached through a documented cast: the harness
+ * builds it inside `buildIntegration` and hands back no reference, and the integration keeps its
+ * configuration private.
+ */
+function queueOf(integration: SagaIntegration): MockQueue {
+  return (integration as unknown as { config: { queue: MockQueue } }).config.queue;
+}
 
 // Suppress verbose background-execution logs so they don't corrupt the TAP
 // stream when this file runs as a subprocess in the full test suite.
 console.log = () => {};
 console.error = () => {};
 console.warn = () => {};
+
+/** The statuses a saga never leaves. */
+const TERMINAL_STATUSES: readonly unknown[] = ["COMPLETED", "FAILED", "COMPENSATED"];
+
+/**
+ * Waits until the pass the start deferred has parked the saga, a retry scheduled or an ending
+ * reached, and returns the record the hot cache then holds. Over these doubles the pass stops at
+ * the pivot's reread check, because the post repository knows no post the create step made, and
+ * schedules a retry that no scheduler fires, so the record no longer changes once parked.
+ */
+async function awaitParked(redis: MockRedis, sagaId: string): Promise<string> {
+  return await untilValue(
+    async () => {
+      const cached = await redis.get(`saga:${sagaId}`);
+      if (cached === null) return null;
+      const record = JSON.parse(cached) as { status?: unknown; nextRetryAt?: unknown };
+      const parked = record.nextRetryAt !== undefined || TERMINAL_STATUSES.includes(record.status);
+      return parked ? cached : null;
+    },
+    {
+      description: `the first pass over saga ${sagaId} to park it`,
+      timeoutMs: 3_000,
+      intervalMs: 5,
+    }
+  );
+}
+
+/**
+ * Waits until every saga the test started is parked. Shutting down under a running pass leaves it
+ * advancing against a stopped manager after the test ended, so no pass may outlive its test.
+ */
+async function awaitEverySagaParked(redis: MockRedis): Promise<void> {
+  for (const key of await redis.keys("saga:*")) {
+    await awaitParked(redis, key.slice("saga:".length));
+  }
+}
 
 // ============================================================================
 // Queue Integration Tests
@@ -46,6 +95,7 @@ describe("SagaIntegration - Queue Integration", () => {
   });
 
   afterEach(async () => {
+    await awaitEverySagaParked(mockRedis);
     await integration.shutdown();
   });
 
@@ -63,11 +113,8 @@ describe("SagaIntegration - Queue Integration", () => {
     expect(result.success).toBeTruthy();
     expect(result.data.sagaId).toBeTruthy();
 
-    // Allow saga steps to begin executing asynchronously
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
-
-    // Verify the saga was persisted to Redis
-    const sagaData = await mockRedis.get(`saga:${result.data.sagaId}`);
+    // Verify the saga was persisted to Redis once its first pass ran
+    const sagaData = await awaitParked(mockRedis, result.data.sagaId);
     expect(sagaData).toBeTruthy();
 
     const parsed = JSON.parse(sagaData);
@@ -85,9 +132,7 @@ describe("SagaIntegration - Queue Integration", () => {
 
     const result = await handler(request, passthroughReply);
 
-    // Allow the event to be published asynchronously
-    await new Promise<void>((resolve) => setTimeout(resolve, 200));
-
+    // The start appends the event in the transaction it commits before the handler returns.
     const startedEvents = mockEventService.publishedEvents.filter((e) => e.type === "saga.started");
 
     expect(startedEvents.length > 0).toBeTruthy();
@@ -125,10 +170,7 @@ describe("SagaIntegration - Queue Integration", () => {
 
     const result = await handler(request, passthroughReply);
 
-    // Allow saga to start executing
-    await new Promise<void>((resolve) => setTimeout(resolve, 300));
-
-    const sagaData = await mockRedis.get(`saga:${result.data.sagaId}`);
+    const sagaData = await awaitParked(mockRedis, result.data.sagaId);
     expect(sagaData).toBeTruthy();
 
     const parsed = JSON.parse(sagaData);
@@ -142,36 +184,44 @@ describe("SagaIntegration - Queue Integration", () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
     expect(handler).toBeTruthy();
 
-    const request = makeStartRequest({
-      body: "SagaId in job payload test",
+    // The existing-draft path, because the pivot's reread check confirms the post is still a
+    // DRAFT and the post repository double knows only that draft: a post the create step makes
+    // cannot be reread there, so a from-scratch saga is refused at the pivot and enqueues nothing.
+    const request = makeStartRequest({ channelIds: [TEST_CHANNEL_IDS[0]!] });
+    request.body = {
+      mode: "publish-now",
+      projectId: request.body.projectId,
+      postId: TEST_EXISTING_DRAFT_POST_ID,
       channelIds: [TEST_CHANNEL_IDS[0]!],
-    });
+    };
 
     const result = await handler(request, passthroughReply);
     const sagaId = result.data.sagaId;
+    const parsed = JSON.parse(await awaitParked(mockRedis, sagaId));
 
-    // Allow the saga to progress through validate + create + schedule steps
-    await new Promise<void>((resolve) => setTimeout(resolve, 500));
+    // The pivot (step 2) enqueued one job for the one channel, and the saga moved on to the wait
+    // step, where it parks on a retry because the queue double reports no job states.
+    expect(parsed.stepResults[2]).toMatchObject({
+      outcome: "succeeded",
+      data: { channelCount: 1 },
+    });
+    expect(parsed.stepResults[2].data.jobIds).toHaveLength(1);
+    expect(parsed.currentStep).toBe(3);
+    expect(parsed.status).toBe("RUNNING");
 
-    // The job queue function inside SagaIntegration.registerSagaDefinitions()
-    // receives the sagaId as part of the job data. We verify the saga reached
-    // at least the scheduling step by checking step results.
-    const sagaData = await mockRedis.get(`saga:${sagaId}`);
-    expect(sagaData).toBeTruthy();
-
-    const parsed = JSON.parse(sagaData);
-
-    // If the saga got past step 2 (schedule-publishing-jobs), the queueJob
-    // callback was invoked with sagaId in the payload.
-    if (parsed.currentStep >= 3) {
-      const scheduleResult = parsed.stepResults[2];
-      expect(scheduleResult).toBeTruthy();
-      expect(scheduleResult.success).toBeTruthy();
-      expect(scheduleResult.data?.jobIds?.length > 0).toBeTruthy();
-    }
-    // If the saga is still running or failed at an earlier step, that's also
-    // valid -- the important thing is no unhandled errors occurred.
-    expect(["RUNNING", "COMPLETED", "FAILED"].includes(parsed.status)).toBeTruthy();
+    // The enqueued job carries the saga, so the worker can report its completion back to it.
+    const queue = queueOf(integration);
+    expect(queue.enqueuedJobs).toHaveLength(1);
+    expect(queue.enqueuedJobs[0]).toMatchObject({
+      id: parsed.stepResults[2].data.jobIds[0],
+      payload: {
+        type: "publish-post",
+        sagaId,
+        postId: TEST_EXISTING_DRAFT_POST_ID,
+        channelId: TEST_CHANNEL_IDS[0],
+        accountId: TEST_ACCOUNT_ID,
+      },
+    });
   });
 });
 
@@ -189,6 +239,7 @@ describe("SagaIntegration - Job Payload Shape", () => {
   });
 
   afterEach(async () => {
+    await awaitEverySagaParked(mockRedis);
     await integration.shutdown();
   });
 
@@ -203,9 +254,7 @@ describe("SagaIntegration - Job Payload Shape", () => {
 
     const result = await handler(request, passthroughReply);
 
-    // Allow async execution
-    await new Promise<void>((resolve) => setTimeout(resolve, 200));
-
+    // The start caches the saga, metadata included, before the handler returns.
     const sagaData = await mockRedis.get(`saga:${result.data.sagaId}`);
     expect(sagaData).toBeTruthy();
 
@@ -231,8 +280,7 @@ describe("SagaIntegration - Job Payload Shape", () => {
 
     const result = await handler(request, passthroughReply);
 
-    await new Promise<void>((resolve) => setTimeout(resolve, 200));
-
+    // The start caches the saga, metadata included, before the handler returns.
     const sagaData = await mockRedis.get(`saga:${result.data.sagaId}`);
     expect(sagaData).toBeTruthy();
 

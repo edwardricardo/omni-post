@@ -21,6 +21,7 @@
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
+import { until } from "@packages/vitest-shared/determinism";
 import {
   defineSaga,
   type CompensableStep,
@@ -43,6 +44,8 @@ import {
 const ACCOUNT_ID = "acc-44444444-4444-4444-8444-444444444444";
 const DEFINITION_ID = "wait-poll-rearm-probe";
 const SAGA_TIMEOUT_MS = 30 * 60 * 1000;
+/** Where the waiting step sits: after the compensable step and the pivot. */
+const WAITING_STEP_INDEX = 2;
 
 /** The persisted row, as the double holds it. */
 interface StoredRow {
@@ -167,15 +170,12 @@ function createRearmHarness(): RearmHarness {
   };
 }
 
-/** Drains the deferred dispatches the engine schedules with setImmediate. */
-async function settle(): Promise<void> {
-  await new Promise((resolve) => setImmediate(resolve));
-  await new Promise((resolve) => setTimeout(resolve, 20));
-}
-
 /**
  * Starts a probe saga and waits for the dispatch its start defers, which is the
  * pass that walks it to the waiting step and arms the poll for the first time.
+ * That pass has ended once the row stands on the waiting step and no pass holds
+ * the saga; the row alone is not enough, because the pass writes the step
+ * before it runs it and re-arms.
  *
  * @param harness - The harness under test.
  * @returns The started saga's id.
@@ -185,7 +185,16 @@ async function startProbeSaga(harness: RearmHarness): Promise<string> {
     accountId: ACCOUNT_ID,
     metadata: { accountId: ACCOUNT_ID },
   });
-  await settle();
+  await until(
+    async () =>
+      (await harness.row(started.id))?.currentStep === WAITING_STEP_INDEX &&
+      !harness.engine.isAdvancerInFlight(started.id),
+    {
+      description: "the start's deferred pass to reach the waiting step and release the saga",
+      timeoutMs: 3_000,
+      intervalMs: 5,
+    }
+  );
   return started.id;
 }
 
@@ -262,8 +271,8 @@ describe("a waiting re-arm that cannot be persisted on a LATER entry", () => {
     const errors = vi.spyOn(logger, "error").mockImplementation(() => logger);
     // Spare the pass's own status write; refuse the RE-ARM that follows it.
     harness.refuseArmingWrites(Number.MAX_SAFE_INTEGER, 1);
+    // The pass resolves once it has parked the saga, and nothing else is dispatched.
     await harness.engine.executeSaga(sagaId, "scan");
-    await settle();
 
     const row = await harness.row(sagaId);
     expect(row?.nextRetryAt?.getTime()).toBe(armed?.getTime());
