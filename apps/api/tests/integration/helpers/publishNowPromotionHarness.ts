@@ -277,23 +277,25 @@ export class PublishNowPromotionHarness {
     // Swept by account as well as by id: a saga started through the HTTP route
     // mints its own id, so a run that fails between the call and the id being
     // recorded would otherwise leave a non-terminal row behind — and the next
-    // suite to boot a manager would inherit and EXECUTE it.
-    await this.base.sagaInstance
-      .deleteMany({
-        where: {
-          OR: [
-            { id: { in: this.createdSagaIds } },
-            ...(this.accountId !== "" ? [{ accountId: this.accountId }] : []),
-          ],
-        },
-      })
-      .catch(() => undefined);
+    // suite to boot a manager would inherit and EXECUTE it. The swept rows are
+    // read first, so the events and the cache key of such a saga go with it.
+    const owned = {
+      OR: [
+        { id: { in: this.createdSagaIds } },
+        ...(this.accountId !== "" ? [{ accountId: this.accountId }] : []),
+      ],
+    };
+    const found = await this.base.sagaInstance
+      .findMany({ where: owned, select: { id: true } })
+      .catch(() => []);
+    const sagaIds = [...new Set([...this.createdSagaIds, ...found.map((row) => row.id)])];
+    await this.base.sagaInstance.deleteMany({ where: owned }).catch(() => undefined);
     await this.base.storedEvent
       .deleteMany({
         where: {
           streamId: {
             in: [
-              ...this.createdSagaIds.map((id) => `stream:Saga:${id}`),
+              ...sagaIds.map((id) => `stream:Saga:${id}`),
               ...postIds.map((id) => `stream:Post:${id}`),
             ],
           },
@@ -320,8 +322,8 @@ export class PublishNowPromotionHarness {
       await this.base.project.deleteMany(scope).catch(() => undefined);
       await this.base.account.deleteMany({ where: { id: this.accountId } }).catch(() => undefined);
     }
-    if (this.createdSagaIds.length > 0) {
-      await this.redis.del(...this.createdSagaIds.map((id) => `saga:${id}`)).catch(() => undefined);
+    if (sagaIds.length > 0) {
+      await this.redis.del(...sagaIds.map((id) => `saga:${id}`)).catch(() => undefined);
     }
     await this.redis.quit().catch(() => undefined);
     await this.base.$disconnect();

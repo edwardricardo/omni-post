@@ -404,8 +404,13 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
     };
   }
 
+  /** Every id the fixtures recorded; a tenant whose seeding never finished contributes none. */
   function allSagaIds(): string[] {
-    return [...[tenantA, tenantB].map((tenant) => tenant.isolationSagaId), ...inFlightSagaIds];
+    const tenants: (Tenant | undefined)[] = [tenantA, tenantB];
+    const isolationIds = tenants.flatMap((tenant) =>
+      tenant === undefined ? [] : [tenant.isolationSagaId]
+    );
+    return [...isolationIds, ...inFlightSagaIds];
   }
 
   /**
@@ -486,14 +491,31 @@ describe("Saga engine — two-tenant isolation (MERGE-BLOCKING)", { concurrency:
   });
 
   after(async () => {
-    const sagaIds = allSagaIds();
     const accountIds = [tenantA?.accountId, tenantB?.accountId].filter(
       (id): id is string => typeof id === "string"
     );
 
-    await base.sagaInstance
-      .deleteMany({ where: { OR: [{ id: { in: sagaIds } }, { accountId: { in: accountIds } }] } })
-      .catch(() => undefined);
+    // The rows this suite wrote are found, not only remembered: the engine mints the id of every
+    // saga it starts, and a raw history row holds a user id or no account in its column, so neither
+    // the recorded ids nor the account sweep reach every one. Each carries the suite's tag in its id
+    // or one of its two accounts. A row a failed scenario left RUNNING would be loaded, and
+    // executed, by the next suite that boots a saga manager, and `sagaCompensationRecovery` refuses
+    // to start while one exists, so the sweep removes the row, its events and its cache key
+    // whatever state the scenarios ended in.
+    const recorded = allSagaIds();
+    const owned = {
+      OR: [
+        { id: { in: recorded } },
+        { id: { startsWith: `${TAG}-` } },
+        { accountId: { in: accountIds } },
+      ],
+    };
+    const found = await base.sagaInstance
+      .findMany({ where: owned, select: { id: true } })
+      .catch(() => []);
+    const sagaIds = [...new Set([...recorded, ...found.map((row) => row.id)])];
+
+    await base.sagaInstance.deleteMany({ where: owned }).catch(() => undefined);
     await base.storedEvent
       .deleteMany({ where: { streamId: { in: sagaIds.map(sagaStreamId) } } })
       .catch(() => undefined);

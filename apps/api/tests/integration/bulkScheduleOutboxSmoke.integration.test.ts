@@ -11,6 +11,11 @@
  *     3. Ownership admission: confirm with a foreign channelId is rejected before any DB
  *        write (no batch/items/events created).
  *
+ *   The relay claims every eligible unpublished event oldest-first, whatever suite wrote
+ *   it, so each scenario polls until its own batch's events are published and counts only
+ *   the jobs of its own batch: rows an earlier suite left behind neither starve nor inflate
+ *   the counts.
+ *
  *   Pre-requisite: `pnpm db:up` (Postgres + Redis). Uses real DB via
  *   `createSeedPrismaClient()` and a stub QueuePort — no BullMQ connection needed.
  * @layer infrastructure
@@ -31,6 +36,8 @@ import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 import {
   makeStubQueue,
   makeRelay,
+  pollUntilBatchDispatched,
+  jobsOfBatch,
   seedTenant,
   cleanupTenant,
   type SeededTenant,
@@ -138,11 +145,12 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
 
     // (c) Relay poll → dispatch handler → stub queue.
     const relay = makeRelay(prisma, dispatcher);
-    await relay.poll();
+    await pollUntilBatchDispatched(prisma, relay, batchId);
 
-    assert.strictEqual(jobs.length, 1, "one job enqueued per confirmed row");
+    const batchJobs = jobsOfBatch(jobs, batchId);
+    assert.strictEqual(batchJobs.length, 1, "one job enqueued per confirmed row");
 
-    const job = jobs[0];
+    const job = batchJobs[0];
     assert.ok(job);
 
     // dedupeKey format: bulk-{batchId}-{itemId}
@@ -213,18 +221,28 @@ describe("BulkSchedule outbox path — smoke e2e", () => {
       rows,
     });
     assert.ok(confirmResult.ok, "confirm should succeed");
-    batchIds.push(confirmResult.value.batchId);
+    const batchId = confirmResult.value.batchId;
+    batchIds.push(batchId);
 
     // Two relays sharing the same DB. The first dispatches and marks the event
-    // published; the second finds nothing claimable (publishedAt is now set).
+    // published; the second finds nothing of this batch claimable (publishedAt
+    // is now set).
     const relayA = makeRelay(prisma, dispatcher);
     const relayB = makeRelay(prisma, dispatcher);
 
-    await relayA.poll(); // dispatches + marks published
-    assert.strictEqual(jobs.length, 1, "first poll enqueues exactly one job");
+    await pollUntilBatchDispatched(prisma, relayA, batchId); // dispatches + marks published
+    assert.strictEqual(
+      jobsOfBatch(jobs, batchId).length,
+      1,
+      "relay A enqueues exactly one job for the batch"
+    );
 
     await relayB.poll(); // row excluded by publishedAt IS NULL predicate — no re-dispatch
-    assert.strictEqual(jobs.length, 1, "second poll must not produce a duplicate job");
+    assert.strictEqual(
+      jobsOfBatch(jobs, batchId).length,
+      1,
+      "second relay's poll must not produce a duplicate job"
+    );
   });
 
   // --------------------------------------------------------------------------

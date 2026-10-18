@@ -7,6 +7,10 @@
  *   BullMQ job from the surviving DLQ payload, with the original deterministic
  *   dedupeKey; a RESOLVED DLQ row is left alone.
  *
+ *   The sweep reads every unresolved `BulkScheduleItem` DLQ row in the table, whatever
+ *   suite wrote it, so each test counts only the jobs of the batches it inserted and the
+ *   teardown removes only the rows this suite inserted.
+ *
  *   Pre-requisite: `pnpm db:up` (Postgres). Stub QueuePort (no Redis/BullMQ).
  * @layer infrastructure
  */
@@ -17,7 +21,7 @@ import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@infra/prisma";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { BulkScheduleReconciliationService } from "../../src/bulk-scheduling/BulkScheduleReconciliationService.js";
-import { makeStubQueue } from "./helpers/bulkScheduleHarness.js";
+import { makeStubQueue, jobsOfBatch } from "./helpers/bulkScheduleHarness.js";
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 const RECONCILE_TASK_ID = "bulk-schedule-reconciliation";
@@ -55,13 +59,23 @@ async function insertDlqRow(
 
 describe("BulkSchedule reconciliation sweep — integration", () => {
   let prisma: PrismaClient;
+  /** The item of every DLQ row this suite inserts, recorded before the insert. */
+  const insertedItemIds: string[] = [];
+
+  /** Records the row's item for the teardown, then inserts it. */
+  async function insertOwnDlqRow(args: Parameters<typeof insertDlqRow>[1]): Promise<void> {
+    insertedItemIds.push(args.itemId);
+    await insertDlqRow(prisma, args);
+  }
 
   before(() => {
     prisma = createSeedPrismaClient();
   });
 
   after(async () => {
-    await prisma.outboxDeadLetter.deleteMany({ where: { aggregateType: "BulkScheduleItem" } });
+    await prisma.outboxDeadLetter.deleteMany({
+      where: { aggregateType: "BulkScheduleItem", aggregateId: { in: insertedItemIds } },
+    });
     await prisma.$disconnect();
   });
 
@@ -69,7 +83,7 @@ describe("BulkSchedule reconciliation sweep — integration", () => {
     const batchId = randomUUID();
     const itemId = randomUUID();
     const channelId = randomUUID();
-    await insertDlqRow(prisma, { batchId, itemId, channelId, resolved: false });
+    await insertOwnDlqRow({ batchId, itemId, channelId, resolved: false });
 
     const scheduler = new NoopBackgroundTaskScheduler();
     const { queue, jobs } = makeStubQueue();
@@ -78,8 +92,9 @@ describe("BulkSchedule reconciliation sweep — integration", () => {
 
     await scheduler.triggerTask(RECONCILE_TASK_ID);
 
-    assert.strictEqual(jobs.length, 1, "one job re-enqueued for the stuck row");
-    const job = jobs[0];
+    const batchJobs = jobsOfBatch(jobs, batchId);
+    assert.strictEqual(batchJobs.length, 1, "one job re-enqueued for the stuck row");
+    const job = batchJobs[0];
     assert.ok(job);
     assert.strictEqual(job.dedupeKey, `bulk-${batchId}-${itemId}`);
 
@@ -96,12 +111,22 @@ describe("BulkSchedule reconciliation sweep — integration", () => {
   });
 
   it("does NOT re-enqueue a DLQ row that has already been resolved", async () => {
-    await prisma.outboxDeadLetter.deleteMany({ where: { aggregateType: "BulkScheduleItem" } });
-    await insertDlqRow(prisma, {
-      batchId: randomUUID(),
+    const resolvedBatchId = randomUUID();
+    await insertOwnDlqRow({
+      batchId: resolvedBatchId,
       itemId: randomUUID(),
       channelId: randomUUID(),
       resolved: true,
+    });
+    // An unresolved row swept in the same tick: its job proves the sweep ran and read this
+    // test's rows, so the resolved row's missing job is the sweep's selection and not a
+    // tick that never reached it.
+    const unresolvedBatchId = randomUUID();
+    await insertOwnDlqRow({
+      batchId: unresolvedBatchId,
+      itemId: randomUUID(),
+      channelId: randomUUID(),
+      resolved: false,
     });
 
     const scheduler = new NoopBackgroundTaskScheduler();
@@ -110,6 +135,15 @@ describe("BulkSchedule reconciliation sweep — integration", () => {
 
     await scheduler.triggerTask(RECONCILE_TASK_ID);
 
-    assert.strictEqual(jobs.length, 0, "resolved DLQ rows are skipped");
+    assert.strictEqual(
+      jobsOfBatch(jobs, unresolvedBatchId).length,
+      1,
+      "the unresolved row swept in the same tick is re-enqueued"
+    );
+    assert.strictEqual(
+      jobsOfBatch(jobs, resolvedBatchId).length,
+      0,
+      "resolved DLQ rows are skipped"
+    );
   });
 });
