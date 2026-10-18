@@ -10,12 +10,15 @@ import {
   MockRedis,
   MockEventService,
   TEST_ACCOUNT_ID,
+  awaitSagaEnded,
+  awaitSagaParked,
   createMockPrisma,
   createMockRedis,
   createMockEventService,
   createSagaManager,
   createSimpleSagaDefinition,
   createMultiStepSagaDefinition,
+  createParkingSagaDefinition,
 } from "./sagaManager.test-helpers.js";
 import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 
@@ -97,6 +100,10 @@ describe("SagaManager - Saga Lifecycle", () => {
     expect(instance.retryCount).toBe(0);
     expect(instance.context.correlationId).toBe("test-corr-123");
     expect(instance.context.userId).toBe("user-456");
+
+    // The start dispatched a detached pass; wait for it so it never runs after teardown stops the
+    // manager.
+    await awaitSagaEnded(manager, instance.id);
   });
 
   it("should throw error when starting saga with unknown definition", async () => {
@@ -107,7 +114,7 @@ describe("SagaManager - Saga Lifecycle", () => {
     const definition = createSimpleSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, {
+    const instance = await manager.startSaga(definition.id, {
       accountId: TEST_ACCOUNT_ID,
       correlationId: "test-corr-123",
     });
@@ -119,6 +126,8 @@ describe("SagaManager - Saga Lifecycle", () => {
     expect(startedEvents.length).toBe(1);
     expect(startedEvents[0]!.data.definitionId).toBe(definition.id);
     expect(startedEvents[0]!.data.correlationId).toBe("test-corr-123");
+
+    await awaitSagaEnded(manager, instance.id);
   });
 
   it("should increment active instances metric on saga start", async () => {
@@ -128,10 +137,12 @@ describe("SagaManager - Saga Lifecycle", () => {
     const metricsBefore = manager.getMetrics();
     const activeInstancesBefore = metricsBefore.activeInstances;
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.activeInstances).toBe(activeInstancesBefore + 1);
+
+    await awaitSagaEnded(manager, instance.id);
   });
 });
 
@@ -167,6 +178,8 @@ describe("SagaManager - State Persistence", () => {
     const parsed = JSON.parse(data!);
     expect(parsed.id).toBe(instance.id);
     expect(parsed.definitionId).toBe(definition.id);
+
+    await awaitSagaEnded(manager, instance.id);
   });
 
   it("should retrieve saga instance from Redis", async () => {
@@ -180,6 +193,8 @@ describe("SagaManager - State Persistence", () => {
     expect(retrieved).toBeTruthy();
     expect(retrieved.id).toBe(instance.id);
     expect(retrieved.definitionId).toBe(instance.definitionId);
+
+    await awaitSagaEnded(manager, instance.id);
   });
 
   it("should return null for non-existent saga", async () => {
@@ -214,14 +229,24 @@ describe("SagaManager - Shutdown", () => {
   });
 
   it("should persist running sagas as pending on shutdown", async () => {
-    const definition = createMultiStepSagaDefinition();
+    const definition = createParkingSagaDefinition();
     manager.registerSaga(definition);
 
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+
+    // The start's pass leaves the saga RUNNING and parked on its next poll: the state a shutdown
+    // hands off. Shutting down before that pass ran would find the saga still PENDING, hand off
+    // nothing, and leave the pass to run against the stopped manager.
+    const armed = await awaitSagaParked(manager, instance.id);
 
     await manager.shutdown();
 
     const data = await mockRedis.get(`saga:${instance.id}`);
     expect(data).toBeTruthy();
+    const handedOff = JSON.parse(data!);
+    expect(handedOff.status).toBe("PENDING");
+    expect(handedOff.nextRetryAt).toBe(armed.toISOString());
+    const row = await mockPrisma.sagaInstance.findUnique({ where: { id: instance.id } });
+    expect(row).toMatchObject({ status: "PENDING", nextRetryAt: armed });
   });
 });

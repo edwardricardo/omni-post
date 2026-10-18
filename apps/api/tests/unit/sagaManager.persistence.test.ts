@@ -20,11 +20,13 @@ import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 import {
   TEST_ACCOUNT_ID,
   awaitSagaEnded,
+  awaitSagaParked,
   createMockPrisma,
   createMockRedis,
   createMockEventService,
   createSagaManager,
   createSimpleSagaDefinition,
+  createParkingSagaDefinition,
   type MockPrismaClient,
   type MockRedis,
   type MockEventService,
@@ -110,6 +112,10 @@ describe("SagaManager - Persistence Round-Trip", () => {
     const parsed = JSON.parse(redisData);
     expect(parsed.id).toBe(instance.id);
     expect(parsed.definitionId).toBe(definition.id);
+
+    // The start dispatched a detached pass; wait for it so it never runs after teardown stops the
+    // manager.
+    await awaitSagaEnded(manager, instance.id);
   });
 
   it("should serialize and deserialize dates correctly", async () => {
@@ -186,6 +192,8 @@ describe("SagaManager - Cache Lookup Behavior", () => {
     const retrieved = await manager.getSaga(instance.id);
     expect(retrieved).toBeTruthy();
     expect(retrieved.id).toBe(instance.id);
+
+    await awaitSagaEnded(manager, instance.id);
   });
 
   it("should fall back to Redis when saga is not in memory", async () => {
@@ -372,12 +380,16 @@ describe("SagaManager - Multiple Saga Instances", () => {
     const metricsBefore = manager.getMetrics();
     const startedBefore = metricsBefore.sagasStarted;
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const started = [
+      await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID }),
+      await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID }),
+      await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID }),
+    ];
 
     const metricsAfter = manager.getMetrics();
     expect(metricsAfter.sagasStarted).toBe(startedBefore + 3);
+
+    await Promise.all(started.map((saga) => awaitSagaEnded(manager, saga.id)));
   });
 });
 
@@ -399,29 +411,45 @@ describe("SagaManager - Shutdown Persistence", () => {
     await manager.initialize();
   });
 
+  /** The drain's hand-off of one parked saga: PENDING in the row and in the cache, retry kept. */
+  async function expectHandedOff(sagaId: string, armed: Date): Promise<void> {
+    const row = await mockPrisma.sagaInstance.findUnique({ where: { id: sagaId } });
+    expect(row).toMatchObject({ status: "PENDING", nextRetryAt: armed });
+    const cached = JSON.parse((await mockRedis.get(`saga:${sagaId}`)) ?? "{}");
+    expect(cached).toMatchObject({ status: "PENDING", nextRetryAt: armed.toISOString() });
+  }
+
   it("should persist in-flight sagas as PENDING during shutdown", async () => {
-    const definition = createSimpleSagaDefinition();
+    const definition = createParkingSagaDefinition();
     manager.registerSaga(definition);
 
     const instance = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
 
-    // Immediately shut down before the saga completes
+    // Shut down while the saga is RUNNING and parked on its next poll, with no pass holding it:
+    // the in-flight state the drain hands off, with nothing left to run after the shutdown.
+    const armed = await awaitSagaParked(manager, instance.id);
     await manager.shutdown();
 
     const redisData = await mockRedis.get(`saga:${instance.id}`);
     expect(redisData).toBeTruthy();
 
-    const parsed = JSON.parse(redisData);
+    const parsed = JSON.parse(redisData ?? "{}");
     // On shutdown, RUNNING sagas are set to PENDING for restart
-    expect(["PENDING", "COMPLETED"].includes(parsed.status)).toBeTruthy();
+    expect(parsed.status).toBe("PENDING");
+    await expectHandedOff(instance.id, armed);
   });
 
   it("should clear activeInstances map during shutdown", async () => {
-    const definition = createSimpleSagaDefinition();
+    const definition = createParkingSagaDefinition();
     manager.registerSaga(definition);
 
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
-    await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const first = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const second = await manager.startSaga(definition.id, { accountId: TEST_ACCOUNT_ID });
+    const [firstArmed, secondArmed] = await Promise.all([
+      awaitSagaParked(manager, first.id),
+      awaitSagaParked(manager, second.id),
+    ]);
+    expect(manager.getMetrics().activeInstances).toBe(2);
 
     // Shutdown clears all active instances
     await manager.shutdown();
@@ -429,5 +457,7 @@ describe("SagaManager - Shutdown Persistence", () => {
     const metrics = manager.getMetrics();
     // After shutdown, definitions are cleared
     expect(metrics.definitions.length).toBe(0);
+    await expectHandedOff(first.id, firstArmed);
+    await expectHandedOff(second.id, secondArmed);
   });
 });

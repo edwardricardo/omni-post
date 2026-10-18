@@ -3,10 +3,17 @@
  * @description Test helpers for saga manager test helpers
  * @layer infrastructure
  */
-import { until } from "@packages/vitest-shared/determinism";
+import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { SagaManagerImpl } from "../../src/saga/SagaManager.js";
 import type { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
-import { SagaDefinition, SagaStep, SagaContext, SagaStepResult } from "@shared/types/saga.js";
+import {
+  SagaDefinition,
+  SagaStep,
+  SagaContext,
+  SagaStepResult,
+  defineSaga,
+  type PivotStep,
+} from "@shared/types/saga.js";
 import { EventStoreEvent } from "@shared/types/events.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 
@@ -339,6 +346,36 @@ export async function awaitSagaEnded(manager: SagaManagerImpl, sagaId: string): 
   );
 }
 
+/**
+ * @function awaitSagaParked
+ * @description Waits until the detached pass over a saga has parked it and let go of it: the saga
+ *   is RUNNING, carries the retry time its waiting step armed, and no pass holds it. That is the
+ *   state a shutdown hands off as PENDING, and once it is reached no pass is left to run against
+ *   the stopped manager. The claim is read through the same cast as in `awaitSagaEnded`, and the
+ *   deadline stays under vitest's 5 s test timeout for the same reason.
+ * @param manager - The saga manager running the saga.
+ * @param sagaId - The saga to wait on.
+ * @returns The retry time the parked saga carries; the promise rejects after 3 s, naming the last
+ *   status it read.
+ */
+export async function awaitSagaParked(manager: SagaManagerImpl, sagaId: string): Promise<Date> {
+  const engine = (manager as unknown as { execution: SagaExecutionEngine }).execution;
+  let lastStatus = "unread";
+  return await untilValue(
+    async () => {
+      const saga = await manager.getSaga(sagaId);
+      lastStatus = saga?.status ?? "absent";
+      const parked = lastStatus === "RUNNING" && !engine.isAdvancerInFlight(sagaId);
+      return parked ? saga?.nextRetryAt : undefined;
+    },
+    {
+      description: () => `saga ${sagaId} to park and be released; last status ${lastStatus}`,
+      timeoutMs: 3_000,
+      intervalMs: 5,
+    }
+  );
+}
+
 export class SuccessfulStep implements SagaStep {
   readonly id = "successful-step";
   readonly name = "Successful Step";
@@ -486,4 +523,29 @@ export function createFailingSagaDefinition(): SagaDefinition {
     version: "1.0.0",
     steps: [new SuccessfulStep(), new FailingStep()],
   };
+}
+
+/**
+ * @function createParkingSagaDefinition
+ * @description One step that answers `waiting` on every run, so the start's pass leaves the saga
+ *   RUNNING with the retry time of its next poll and lets go of it: the parked state a shutdown
+ *   hands off. Nothing advances the saga afterwards, because the no-op scheduler runs no retry
+ *   checker, so a test can shut down without a pass left to run against the stopped manager.
+ * @returns The `parking-test-saga` definition.
+ */
+export function createParkingSagaDefinition(): SagaDefinition {
+  const step: PivotStep = {
+    id: "parking-step",
+    name: "Parking Step",
+    class: "pivot",
+    execute: async () => ({ outcome: "waiting", reason: "the awaited work has not finished" }),
+  };
+  return defineSaga({
+    id: "parking-test-saga",
+    name: "Parking Test Saga",
+    version: "1.0.0",
+    preCommit: [],
+    pivot: step,
+    postCommit: [],
+  });
 }
