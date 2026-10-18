@@ -8,8 +8,9 @@
  * @layer infrastructure
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import pino from "pino";
+import { fixedClock } from "@packages/vitest-shared/determinism";
 import {
   createLogger,
   createChildLogger,
@@ -187,17 +188,29 @@ describe("Logger Factory", () => {
   });
 
   describe("createTimingLogger", () => {
-    it("should measure and log operation duration", async () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+    });
+
+    it("should measure and log operation duration", () => {
+      const startedAt = fixedClock().getTime();
+      vi.useFakeTimers({ now: startedAt, toFake: ["Date"] });
       const testLogger = createLogger("timing-test");
+      const info = vi.spyOn(testLogger, "info").mockImplementation(() => undefined);
       const timing = createTimingLogger(testLogger, "test-operation");
 
-      // Simulate some work
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // The operation takes 10 ms on the pinned clock.
+      vi.setSystemTime(startedAt + 10);
 
       // Verify timing object has an end method and returns void (does not throw)
       expect(typeof timing.end).toBe("function");
       const result = timing.end(true, { extra: "data" });
       expect(result).toBe(undefined);
+      expect(info).toHaveBeenCalledWith(
+        { operation: "test-operation", duration: 10, success: true, extra: "data" },
+        "test-operation completed"
+      );
     });
 
     it("should handle failed operations", () => {

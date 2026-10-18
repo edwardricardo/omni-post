@@ -4,6 +4,7 @@
  * @layer infrastructure
  */
 import { afterEach, describe, it, expect, vi } from "vitest";
+import { fixedClock } from "@packages/vitest-shared/determinism";
 import { createUserActionEvent, createAnalyticsEvent } from "../../src/events/EventService.js";
 import { AnalyticsCollectedEventSchema, EVENT_TYPES, validateEvent } from "@shared/types/events.js";
 
@@ -318,26 +319,32 @@ describe("createAnalyticsEvent", () => {
       expect(period.end.getTime() - period.start.getTime()).toBe(24 * 60 * 60 * 1000);
     });
 
-    it("should create different periods for events created at different times", async () => {
+    it("should create different periods for events created at different times", () => {
+      // The second event is collected 10 ms after the first on a pinned clock, so each window
+      // ends at the exact instant its event was created.
+      const firstAt = fixedClock().getTime();
+      const secondAt = firstAt + 10;
+      const day = 24 * 60 * 60 * 1000;
+      vi.useFakeTimers({ now: firstAt });
+
       const event1 = createAnalyticsEvent("post-123", "ch-456", "twitter", {
         views: 100,
         likes: 10,
         comments: 5,
         shares: 2,
       });
-
-      // Wait 10ms to ensure timestamp difference
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
+      vi.setSystemTime(secondAt);
       const event2 = createAnalyticsEvent("post-123", "ch-456", "twitter", {
         views: 110,
         likes: 11,
         comments: 5,
         shares: 2,
       });
+      const first = AnalyticsCollectedEventSchema.parse(event1.data).period;
+      const second = AnalyticsCollectedEventSchema.parse(event2.data).period;
 
-      expect(event1.data.period.start.getTime()).not.toBe(event2.data.period.start.getTime());
-      expect(event1.data.period.end.getTime()).not.toBe(event2.data.period.end.getTime());
+      expect([first.start.getTime(), first.end.getTime()]).toEqual([firstAt - day, firstAt]);
+      expect([second.start.getTime(), second.end.getTime()]).toEqual([secondAt - day, secondAt]);
     });
   });
 

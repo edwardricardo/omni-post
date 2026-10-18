@@ -4,6 +4,7 @@
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { until } from "@packages/vitest-shared/determinism";
 import { RegisterCustomerUseCase } from "@core/customer-auth/RegisterCustomerUseCase.js";
 import { Argon2PasswordHasher } from "../../../src/infrastructure/adapters/Argon2PasswordHasher.js";
 import { CustomerTokenServiceAdapter } from "../../../src/infrastructure/adapters/CustomerTokenServiceAdapter.js";
@@ -52,6 +53,19 @@ function makeMockNoticeMailer(): DeletedAccountNoticeMailer {
       .fn()
       .mockResolvedValue({ ok: true, value: undefined }),
   };
+}
+
+/**
+ * Waits until `fn` has been called. The use case starts its e-mails without waiting for them
+ * and returns first, so a call it makes is only visible some turns after `execute` resolves.
+ * @param fn - The double the fire-and-forget dispatch reaches.
+ * @param description - What the call means, for the timeout message.
+ */
+async function untilCalled(
+  fn: { readonly mock: { readonly calls: readonly unknown[] } },
+  description: string
+): Promise<void> {
+  await until(() => fn.mock.calls.length > 0, { description });
 }
 
 function makeMockCredentialService(): PlatformCredentialReader {
@@ -127,8 +141,7 @@ describe("Welcome email on registration", () => {
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBe(true);
-    // Wait for async email send (fire-and-forget)
-    await new Promise((r) => setTimeout(r, 50));
+    await untilCalled(vi.mocked(welcomeMailer.sendWelcome), "the welcome e-mail to be sent");
     expect(welcomeMailer.sendWelcome).toHaveBeenCalledWith(
       "john@test.com",
       expect.objectContaining({ accountName: "Test Account" })
@@ -146,8 +159,8 @@ describe("Welcome email on registration", () => {
     const result = await useCase.execute(validInput);
 
     expect(result.ok).toBe(true);
-    // Wait for async catch
-    await new Promise((r) => setTimeout(r, 50));
+    // The log call is the last thing the dispatch does, after the mailer's rejection.
+    await untilCalled(logger.error, "the failed welcome e-mail to be logged");
     expect(failingMailer.sendWelcome).toHaveBeenCalled();
     // The failure is logged, not swallowed, and the log carries no address.
     expect(logger.error).toHaveBeenCalledWith(
@@ -161,7 +174,7 @@ describe("Welcome email on registration", () => {
     const useCase = registrationWith(makeMockLogger(), welcomeMailer);
 
     await useCase.execute(validInput);
-    await new Promise((r) => setTimeout(r, 50));
+    await untilCalled(vi.mocked(welcomeMailer.sendWelcome), "the welcome e-mail to be sent");
 
     expect(credService.getPlatformCredentials).toHaveBeenCalled();
     expect(welcomeMailer.sendWelcome).toHaveBeenCalledWith(

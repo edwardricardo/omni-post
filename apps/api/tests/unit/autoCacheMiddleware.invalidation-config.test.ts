@@ -6,7 +6,8 @@
  */
 import { createHash } from "node:crypto";
 import { describe, it, expect } from "vitest";
-import Fastify from "fastify";
+import Fastify, { type LightMyRequestResponse } from "fastify";
+import { until } from "@packages/vitest-shared/determinism";
 import { autoCachePlugin } from "../../src/middleware/autoCacheMiddleware.js";
 import { generateApiCacheKey } from "../../src/lib/cache/cacheConfig.js";
 import { InMemoryCacheAdapter } from "@adapters/cache-redis";
@@ -15,11 +16,50 @@ import { InMemoryCacheAdapter } from "@adapters/cache-redis";
 const principalSegment = (authorization: string): string =>
   `authorization=sha256-${createHash("sha256").update(authorization).digest("hex").slice(0, 32)}`;
 
+/**
+ * @param response - A response the plugin cached, which says so in its X-Cache-Key header.
+ * @returns The key the onSend hook stored the response under.
+ */
+function cacheKeyOf(response: LightMyRequestResponse): string {
+  const key = response.headers["x-cache-key"];
+  if (typeof key !== "string") {
+    throw new Error(`the response carries no X-Cache-Key header (status ${response.statusCode})`);
+  }
+  return key;
+}
+
+/**
+ * Waits until `response` is in the cache. The onSend hook starts the write and sends the reply
+ * without waiting for it, so the next request can only HIT once the write has landed.
+ * @param cache - The cache the plugin writes to.
+ * @param response - The response the plugin is storing.
+ */
+async function untilCached(
+  cache: InMemoryCacheAdapter,
+  response: LightMyRequestResponse
+): Promise<void> {
+  const key = cacheKeyOf(response);
+  await until(() => cache.has(key), { description: `the response to be cached under ${key}` });
+}
+
+/**
+ * Waits until the entry under `key` is gone. The onResponse hook invalidates after the
+ * mutation's reply has been sent, so the request that answered does not show it.
+ * @param cache - The cache the plugin invalidates.
+ * @param key - The key of the entry the mutation invalidates.
+ */
+async function untilInvalidated(cache: InMemoryCacheAdapter, key: string): Promise<void> {
+  await until(async () => !(await cache.has(key)), {
+    description: `the entry under ${key} to be invalidated`,
+  });
+}
+
 describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => {
   describe("Cache Invalidation", () => {
     it("should invalidate cache on POST requests", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new InMemoryCacheAdapter());
+      const cache = new InMemoryCacheAdapter();
+      app.decorate("cache", cache);
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -40,17 +80,13 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
       const get1 = await app.inject({ method: "GET", url: "/posts" });
       expect(JSON.parse(get1.payload).count).toBe(1);
-
-      // Allow time for the onSend cache write to complete
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await untilCached(cache, get1);
 
       const get2 = await app.inject({ method: "GET", url: "/posts" });
       expect(JSON.parse(get2.payload).count).toBe(1);
 
       await app.inject({ method: "POST", url: "/posts", payload: {} });
-
-      // Wait for the onResponse hook to complete its async cache invalidation
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await untilInvalidated(cache, cacheKeyOf(get1));
 
       const get3 = await app.inject({ method: "GET", url: "/posts" });
       expect(JSON.parse(get3.payload).count).toBe(2);
@@ -217,7 +253,8 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("should cache with different route parameters separately", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new InMemoryCacheAdapter());
+      const cache = new InMemoryCacheAdapter();
+      app.decorate("cache", cache);
 
       await app.register(autoCachePlugin, {
         enableCaching: true,
@@ -233,7 +270,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
       await app.ready();
 
       const response1 = await app.inject({ method: "GET", url: "/providers/1" });
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await untilCached(cache, response1);
       const response2 = await app.inject({ method: "GET", url: "/providers/2" });
 
       const data1 = JSON.parse(response1.payload);
@@ -362,7 +399,8 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
   describe("Cache reads after the route's own hooks", () => {
     it("serves a HIT only after the route's own preHandler admits the request", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new InMemoryCacheAdapter());
+      const cache = new InMemoryCacheAdapter();
+      app.decorate("cache", cache);
       await app.register(autoCachePlugin, { enableCaching: true });
 
       let revoked = false;
@@ -386,7 +424,7 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
       const headers = { authorization: "Bearer token-of-account-a" };
 
       const miss = await app.inject({ method: "GET", url: "/posts", headers });
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await untilCached(cache, miss);
       const hit = await app.inject({ method: "GET", url: "/posts", headers });
       revoked = true;
       const afterRevocation = await app.inject({ method: "GET", url: "/posts", headers });
@@ -403,7 +441,8 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
 
     it("keeps the current request's headers on a HIT instead of the ones cached with it", async () => {
       const app = Fastify({ logger: false });
-      app.decorate("cache", new InMemoryCacheAdapter());
+      const cache = new InMemoryCacheAdapter();
+      app.decorate("cache", cache);
       await app.register(autoCachePlugin, { enableCaching: true });
 
       let requestNumber = 0;
@@ -415,8 +454,8 @@ describe("autoCacheMiddleware - Invalidation, Key Variations and Config", () => 
       await app.ready();
       const headers = { authorization: "Bearer token-of-account-a" };
 
-      await app.inject({ method: "GET", url: "/posts", headers });
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      const miss = await app.inject({ method: "GET", url: "/posts", headers });
+      await untilCached(cache, miss);
       const hit = await app.inject({ method: "GET", url: "/posts", headers });
 
       expect(hit.headers["x-cache"]).toBe("HIT");

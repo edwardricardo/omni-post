@@ -5,6 +5,7 @@
  * @layer infrastructure
  */
 
+import { randomUUID } from "node:crypto";
 import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
 
 // The customer principal this file's mocked `requireClientAuth` binds. Hoisted so
@@ -249,17 +250,63 @@ async function createTestApp(): Promise<FastifyInstance> {
   return app;
 }
 
+/**
+ * @param label - What the name is for, kept readable in a failure message.
+ * @returns A name no other row carries, so no test can collide with a name another test used.
+ */
+function uniqueName(label: string): string {
+  return `${label} ${randomUUID()}`;
+}
+
+/**
+ * Seeds an account for one test. A test that reads a quota or a project list gets an account of
+ * its own, so what it reads is what it arranged and never rows another test left behind.
+ * @param options - The slot limit (5 unless given), a display name, and a fixed id for the
+ *   principal's own tenant, which the ownership-gated routes compare against.
+ * @returns The stored account.
+ */
+async function seedAccount(
+  options: { maxProjects?: number; name?: string; id?: string } = {}
+): Promise<{ id: string }> {
+  return prisma.account.create({
+    data: {
+      ...(options.id !== undefined && { id: options.id }),
+      email: `account-${randomUUID()}@example.com`,
+      name: options.name ?? "Test Account",
+      maxProjects: options.maxProjects ?? 5,
+    },
+  });
+}
+
+/**
+ * Seeds a project row straight into the store, so the route is only what the test acts on.
+ * @param accountId - The account the project belongs to.
+ * @param fields - The label its unique name starts with, and the creation or deletion instant
+ *   when the test reads one.
+ * @returns The stored project.
+ */
+async function seedProject(
+  accountId: string,
+  fields: { label: string; createdAt?: Date; deletedAt?: Date }
+): Promise<{ id: string; name: string }> {
+  return prisma.project.create({
+    data: {
+      accountId,
+      name: uniqueName(fields.label),
+      locale: "en",
+      ...(fields.createdAt !== undefined && { createdAt: fields.createdAt }),
+      ...(fields.deletedAt !== undefined && { deletedAt: fields.deletedAt }),
+    },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Test suite
 // ---------------------------------------------------------------------------
 
-const timestamp = Date.now();
-const testProjectName = `Test Project ${timestamp}`;
-
 describe("projectRoutes - Unit Tests", () => {
   let app: FastifyInstance;
   let createdAccountId: string;
-  let _createdProjectId: string;
 
   beforeAll(async () => {
     app = await createTestApp();
@@ -268,15 +315,9 @@ describe("projectRoutes - Unit Tests", () => {
     // binds as the principal's tenant: the soft-delete path is ownership-gated
     // against `customerUser.accountId`, so a randomly-generated account id would
     // make every DELETE in this file answer 404 for a reason it does not test.
-    const testAccount = await prisma.account.create({
-      data: {
-        id: CUSTOMER_PRINCIPAL.accountId,
-        email: `test-project-${timestamp}@example.com`,
-        name: "Test Account",
-        subscription: "BASIC",
-        maxProjects: 5,
-      },
-    });
+    // Only the ownership-gated suites use it, and each seeds the rows it reads; a test of the
+    // quota or the list seeds an account of its own instead.
+    const testAccount = await seedAccount({ id: CUSTOMER_PRINCIPAL.accountId });
     createdAccountId = testAccount.id;
   });
 
@@ -302,11 +343,14 @@ describe("projectRoutes - Unit Tests", () => {
 
   describe("POST /accounts/:accountId/projects", () => {
     it("should create a new project successfully", async () => {
+      const account = await seedAccount();
+      const name = uniqueName("Test Project");
+
       const response = await app.inject({
         method: "POST",
-        url: `/accounts/${createdAccountId}/projects`,
+        url: `/accounts/${account.id}/projects`,
         payload: {
-          name: testProjectName,
+          name,
           locale: "en",
         },
       });
@@ -316,20 +360,20 @@ describe("projectRoutes - Unit Tests", () => {
       const body = JSON.parse(response.body);
       expect(body.ok).toBe(true);
       expect(body.data?.id).toBeTruthy();
-      expect(body.data?.accountId).toBe(createdAccountId);
-      expect(body.data?.name).toBe(testProjectName);
+      expect(body.data?.accountId).toBe(account.id);
+      expect(body.data?.name).toBe(name);
       expect(body.data?.locale).toBe("en");
       expect(body.data?.createdAt).toBeTruthy();
-
-      _createdProjectId = body.data?.id;
     });
 
     it("should use default locale if not provided", async () => {
+      const account = await seedAccount();
+
       const response = await app.inject({
         method: "POST",
-        url: `/accounts/${createdAccountId}/projects`,
+        url: `/accounts/${account.id}/projects`,
         payload: {
-          name: `Default Locale Project ${timestamp}`,
+          name: uniqueName("Default Locale Project"),
         },
       });
 
@@ -361,11 +405,14 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("should return 409 when project name already exists", async () => {
+      const account = await seedAccount();
+      const taken = await seedProject(account.id, { label: "Taken Name" });
+
       const response = await app.inject({
         method: "POST",
-        url: `/accounts/${createdAccountId}/projects`,
+        url: `/accounts/${account.id}/projects`,
         payload: {
-          name: testProjectName,
+          name: taken.name,
           locale: "en",
         },
       });
@@ -378,15 +425,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("should return 403 when quota exceeded", async () => {
-      // Create account with maxProjects = 0
-      const quotaAccount = await prisma.account.create({
-        data: {
-          email: `quota-test-${timestamp}@example.com`,
-          name: "Quota Test",
-          subscription: "BASIC",
-          maxProjects: 0,
-        },
-      });
+      const quotaAccount = await seedAccount({ maxProjects: 0, name: "Quota Test" });
 
       const response = await app.inject({
         method: "POST",
@@ -413,30 +452,14 @@ describe("projectRoutes - Unit Tests", () => {
       // on delete, which — since the delete is soft and reversible — made deletion
       // a quota-farming move: delete, create, restore, and a 2-slot tenant ends up
       // holding 3.
-      const account = await prisma.account.create({
-        data: {
-          email: `quota-held-${Date.now()}@example.com`,
-          name: "Quota Held",
-          subscription: "BASIC",
-          maxProjects: 2,
-        },
-      });
-      await prisma.project.create({
-        data: { accountId: account.id, name: `Live One ${Date.now()}`, locale: "en" },
-      });
-      await prisma.project.create({
-        data: {
-          accountId: account.id,
-          name: `Deleted One ${Date.now()}`,
-          locale: "en",
-          deletedAt: new Date(),
-        },
-      });
+      const account = await seedAccount({ maxProjects: 2, name: "Quota Held" });
+      await seedProject(account.id, { label: "Live One" });
+      await seedProject(account.id, { label: "Deleted One", deletedAt: new Date() });
 
       const response = await app.inject({
         method: "POST",
         url: `/accounts/${account.id}/projects`,
-        payload: { name: `Third Project ${Date.now()}`, locale: "en" },
+        payload: { name: uniqueName("Third Project"), locale: "en" },
       });
 
       expect(response.statusCode).toBe(403);
@@ -455,22 +478,13 @@ describe("projectRoutes - Unit Tests", () => {
     it("still allows creation while the held slots — live and deleted — are under the limit", async () => {
       // The other half: counting deleted rows must not strand a tenant below its
       // own limit. One live project against a limit of two still leaves a slot.
-      const account = await prisma.account.create({
-        data: {
-          email: `quota-room-${Date.now()}@example.com`,
-          name: "Quota Room",
-          subscription: "BASIC",
-          maxProjects: 2,
-        },
-      });
-      await prisma.project.create({
-        data: { accountId: account.id, name: `Only Live ${Date.now()}`, locale: "en" },
-      });
+      const account = await seedAccount({ maxProjects: 2, name: "Quota Room" });
+      await seedProject(account.id, { label: "Only Live" });
 
       const response = await app.inject({
         method: "POST",
         url: `/accounts/${account.id}/projects`,
-        payload: { name: `Second Project ${Date.now()}`, locale: "en" },
+        payload: { name: uniqueName("Second Project"), locale: "en" },
       });
 
       expect(response.statusCode).toBe(200);
@@ -480,27 +494,13 @@ describe("projectRoutes - Unit Tests", () => {
       // The escape hatch the 403 message promises, exercised end to end so the
       // message cannot become a lie: erasing the deleted project releases its
       // slot and the create that was refused now succeeds.
-      const account = await prisma.account.create({
-        data: {
-          email: `quota-freed-${Date.now()}@example.com`,
-          name: "Quota Freed",
-          subscription: "BASIC",
-          maxProjects: 1,
-        },
-      });
-      const held = await prisma.project.create({
-        data: {
-          accountId: account.id,
-          name: `Held Slot ${Date.now()}`,
-          locale: "en",
-          deletedAt: new Date(),
-        },
-      });
+      const account = await seedAccount({ maxProjects: 1, name: "Quota Freed" });
+      const held = await seedProject(account.id, { label: "Held Slot", deletedAt: new Date() });
 
       const refused = await app.inject({
         method: "POST",
         url: `/accounts/${account.id}/projects`,
-        payload: { name: `Blocked ${Date.now()}`, locale: "en" },
+        payload: { name: uniqueName("Blocked"), locale: "en" },
       });
       expect(refused.statusCode).toBe(403);
 
@@ -515,7 +515,7 @@ describe("projectRoutes - Unit Tests", () => {
       const allowed = await app.inject({
         method: "POST",
         url: `/accounts/${account.id}/projects`,
-        payload: { name: `Allowed ${Date.now()}`, locale: "en" },
+        payload: { name: uniqueName("Allowed"), locale: "en" },
       });
       expect(allowed.statusCode).toBe(200);
     });
@@ -561,13 +561,14 @@ describe("projectRoutes - Unit Tests", () => {
 
     it("should accept valid locales", async () => {
       const locales = ["en", "es", "fr", "de", "ja"];
+      const account = await seedAccount();
 
       for (const locale of locales) {
         const response = await app.inject({
           method: "POST",
-          url: `/accounts/${createdAccountId}/projects`,
+          url: `/accounts/${account.id}/projects`,
           payload: {
-            name: `Project ${locale} ${Date.now()}`,
+            name: uniqueName(`Project ${locale}`),
             locale,
           },
         });
@@ -587,9 +588,12 @@ describe("projectRoutes - Unit Tests", () => {
 
   describe("GET /accounts/:accountId/projects", () => {
     it("should list all projects for an account", async () => {
+      const account = await seedAccount();
+      const listed = await seedProject(account.id, { label: "Listed" });
+
       const response = await app.inject({
         method: "GET",
-        url: `/accounts/${createdAccountId}/projects`,
+        url: `/accounts/${account.id}/projects`,
       });
 
       expect(response.statusCode).toBe(200);
@@ -598,34 +602,25 @@ describe("projectRoutes - Unit Tests", () => {
       expect(body.ok).toBe(true);
       expect(Array.isArray(body.data)).toBeTruthy();
       expect(body.data.length >= 1).toBeTruthy();
+      expect(body.data.map((p: Record<string, unknown>) => p.id)).toEqual([listed.id]);
     });
 
     it("should return projects in descending order by creation date", async () => {
-      // Create multiple projects
-      const project1 = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Project 1 ${Date.now()}`,
-          locale: "en",
-        },
+      // The two rows carry their creation instants, 10 ms apart, so their order is set by the
+      // data rather than by how far the real clock moved between two inserts.
+      const account = await seedAccount();
+      const project1 = await seedProject(account.id, {
+        label: "Project 1",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
       });
-
-      await new Promise((resolve) => {
-        const timer = setTimeout(resolve, 10);
-        timer.unref();
-      }); // Small delay
-
-      const project2 = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Project 2 ${Date.now()}`,
-          locale: "en",
-        },
+      const project2 = await seedProject(account.id, {
+        label: "Project 2",
+        createdAt: new Date("2026-01-01T00:00:00.010Z"),
       });
 
       const response = await app.inject({
         method: "GET",
-        url: `/accounts/${createdAccountId}/projects`,
+        url: `/accounts/${account.id}/projects`,
       });
 
       const body = JSON.parse(response.body);
@@ -639,6 +634,10 @@ describe("projectRoutes - Unit Tests", () => {
       for (let i = 1; i < dates.length; i++) {
         expect(dates[i - 1] >= dates[i]).toBeTruthy();
       }
+      const seeded = body.data
+        .map((p: Record<string, unknown>) => p.id)
+        .filter((id: unknown) => id === project1.id || id === project2.id);
+      expect(seeded).toEqual([project2.id, project1.id]);
 
       // Cleanup
       await prisma.project.delete({ where: { id: project1.id } });
@@ -646,14 +645,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("should return empty array for account with no projects", async () => {
-      const emptyAccount = await prisma.account.create({
-        data: {
-          email: `empty-${timestamp}@example.com`,
-          name: "Empty Account",
-          subscription: "BASIC",
-          maxProjects: 5,
-        },
-      });
+      const emptyAccount = await seedAccount({ name: "Empty Account" });
 
       const response = await app.inject({
         method: "GET",
@@ -681,9 +673,12 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("should include all project fields", async () => {
+      const account = await seedAccount();
+      await seedProject(account.id, { label: "Fields" });
+
       const response = await app.inject({
         method: "GET",
-        url: `/accounts/${createdAccountId}/projects`,
+        url: `/accounts/${account.id}/projects`,
       });
 
       const body = JSON.parse(response.body);
@@ -711,13 +706,7 @@ describe("projectRoutes - Unit Tests", () => {
   describe("DELETE /projects/:projectId", () => {
     it("soft-deletes: the row survives with deletedAt set, asserted through the store", async () => {
       // Create project to delete
-      const projectToDelete = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `To Delete ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const projectToDelete = await seedProject(createdAccountId, { label: "To Delete" });
 
       const response = await app.inject({
         method: "DELETE",
@@ -741,13 +730,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("answers the second delete of the same project with 404", async () => {
-      const doomed = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Twice Deleted ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const doomed = await seedProject(createdAccountId, { label: "Twice Deleted" });
 
       const first = await app.inject({ method: "DELETE", url: `/projects/${doomed.id}` });
       expect(first.statusCode).toBe(200);
@@ -781,13 +764,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("should return success message after deletion", async () => {
-      const projectToDelete = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Delete Message Test ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const projectToDelete = await seedProject(createdAccountId, { label: "Delete Message Test" });
 
       const response = await app.inject({
         method: "DELETE",
@@ -800,13 +777,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("does NOT cascade: the project's posts and channels survive the soft delete untouched", async () => {
-      const projectWithData = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `No Cascade ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const projectWithData = await seedProject(createdAccountId, { label: "No Cascade" });
       const post = postStore.add({
         projectId: projectWithData.id,
         title: "Surviving post",
@@ -847,20 +818,8 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("refuses to delete a project of another tenant and leaves it live (404, anti-enumeration)", async () => {
-      const foreignAccount = await prisma.account.create({
-        data: {
-          email: `foreign-${Date.now()}@example.com`,
-          name: "Foreign Tenant",
-          maxProjects: 5,
-        },
-      });
-      const foreignProject = await prisma.project.create({
-        data: {
-          accountId: foreignAccount.id,
-          name: `Foreign Project ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const foreignAccount = await seedAccount({ name: "Foreign Tenant" });
+      const foreignProject = await seedProject(foreignAccount.id, { label: "Foreign Project" });
 
       const response = await app.inject({
         method: "DELETE",
@@ -877,13 +836,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("fails closed with 401 and deletes nothing when no principal survived authentication", async () => {
-      const survivorProject = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `No Principal ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const survivorProject = await seedProject(createdAccountId, { label: "No Principal" });
 
       AUTH_STATE.principal = undefined;
       try {
@@ -904,13 +857,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("writes an audit record naming the customer principal and the soft mode", async () => {
-      const audited = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Audited Soft Delete ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const audited = await seedProject(createdAccountId, { label: "Audited Soft Delete" });
 
       const response = await app.inject({
         method: "DELETE",
@@ -939,13 +886,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("refuses a member without account:delete with 403 and the project stays live", async () => {
-      const survivor = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Member Cannot Delete ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const survivor = await seedProject(createdAccountId, { label: "Member Cannot Delete" });
 
       // A real, broad member permission set — everything a MEMBER legitimately
       // holds — minus the OWNER-only grant. A soft delete still shuts the project
@@ -973,13 +914,7 @@ describe("projectRoutes - Unit Tests", () => {
       // The other half of the gate above: it must refuse by CAPABILITY, not
       // refuse everyone. A gate that denies the owner too is not a stricter gate,
       // it is a broken endpoint.
-      const doomed = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Owner Can Delete ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const doomed = await seedProject(createdAccountId, { label: "Owner Can Delete" });
 
       const response = await app.inject({
         method: "DELETE",
@@ -994,13 +929,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("no longer serves a soft-deleted project on GET (read sweep)", async () => {
-      const readSwept = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Read Swept ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const readSwept = await seedProject(createdAccountId, { label: "Read Swept" });
 
       const before = await app.inject({ method: "GET", url: `/projects/${readSwept.id}` });
       expect(before.statusCode).toBe(200);
@@ -1022,14 +951,7 @@ describe("projectRoutes - Unit Tests", () => {
      * asserting the very defect the interlock closes.
      */
     async function seedErasableProject(name: string): Promise<{ id: string }> {
-      return prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `${name} ${Date.now()}`,
-          locale: "en",
-          deletedAt: new Date(),
-        },
-      });
+      return seedProject(createdAccountId, { label: name, deletedAt: new Date() });
     }
 
     it("destroys the project row, unlike the soft path", async () => {
@@ -1077,13 +999,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("rejects the hard delete with 401 and destroys nothing when no admin token is present", async () => {
-      const survivor = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `No Token ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const survivor = await seedProject(createdAccountId, { label: "No Token" });
 
       const response = await app.inject({
         method: "DELETE",
@@ -1097,13 +1013,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("refuses without a written reason, so the audit record can never be empty", async () => {
-      const survivor = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Needs Reason ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const survivor = await seedProject(createdAccountId, { label: "Needs Reason" });
 
       const noBody = await app.inject({
         method: "DELETE",
@@ -1141,13 +1051,7 @@ describe("projectRoutes - Unit Tests", () => {
       // not replace it. Without the interlock this same request destroyed a live
       // project outright, so the reversible step a mistaken erasure is caught by
       // could be skipped entirely.
-      const live = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Still Live ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const live = await seedProject(createdAccountId, { label: "Still Live" });
 
       const response = await app.inject({
         method: "DELETE",
@@ -1191,15 +1095,7 @@ describe("projectRoutes - Unit Tests", () => {
       name: string,
       accountId: string = createdAccountId
     ): Promise<{ id: string; name: string }> {
-      const row = await prisma.project.create({
-        data: {
-          accountId,
-          name: `${name} ${Date.now()}`,
-          locale: "en",
-          deletedAt: new Date(),
-        },
-      });
-      return row as { id: string; name: string };
+      return seedProject(accountId, { label: name, deletedAt: new Date() });
     }
 
     /** Reads `deletedAt` through the store, never through a read path that filters it. */
@@ -1232,13 +1128,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("answers 404 for another tenant's soft-deleted project, which stays deleted", async () => {
-      const foreignAccount = await prisma.account.create({
-        data: {
-          email: `restore-foreign-${Date.now()}@example.com`,
-          name: "Foreign Tenant",
-          maxProjects: 5,
-        },
-      });
+      const foreignAccount = await seedAccount({ name: "Foreign Tenant" });
       const foreign = await seedDeletedProject("Foreign Restorable", foreignAccount.id);
 
       const response = await app.inject({
@@ -1301,7 +1191,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("answers 409 naming the active project that already holds the name", async () => {
-      const contestedName = `Contested Name ${Date.now()}`;
+      const contestedName = uniqueName("Contested Name");
       // A soft delete does NOT confiscate a name — the unique is partial — so the
       // account is free to reuse it while the old project sits deleted. Restoring
       // the old one would then put two live projects on one name.
@@ -1349,15 +1239,7 @@ describe("projectRoutes - Unit Tests", () => {
   describe("DELETE /projects/:projectId/hard — owner self-purge", () => {
     /** A soft-deleted project owned by the bound customer principal's own account. */
     async function seedOwnDeletedProject(name: string): Promise<{ id: string; name: string }> {
-      const row = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `${name} ${Date.now()}`,
-          locale: "en",
-          deletedAt: new Date(),
-        },
-      });
-      return row as { id: string; name: string };
+      return seedProject(createdAccountId, { label: name, deletedAt: new Date() });
     }
 
     it("destroys the owner's own soft-deleted project when confirmName matches exactly", async () => {
@@ -1457,13 +1339,7 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("refuses a LIVE project with 409 even for its owner, and it survives", async () => {
-      const live = await prisma.project.create({
-        data: {
-          accountId: createdAccountId,
-          name: `Self Purge Live ${Date.now()}`,
-          locale: "en",
-        },
-      });
+      const live = await seedProject(createdAccountId, { label: "Self Purge Live" });
 
       const response = await app.inject({
         method: "DELETE",
@@ -1481,20 +1357,10 @@ describe("projectRoutes - Unit Tests", () => {
     });
 
     it("answers 404 for another tenant's project even with the right confirmName", async () => {
-      const foreignAccount = await prisma.account.create({
-        data: {
-          email: `purge-foreign-${Date.now()}@example.com`,
-          name: "Foreign Tenant",
-          maxProjects: 5,
-        },
-      });
-      const foreign = await prisma.project.create({
-        data: {
-          accountId: foreignAccount.id,
-          name: `Foreign Purge ${Date.now()}`,
-          locale: "en",
-          deletedAt: new Date(),
-        },
+      const foreignAccount = await seedAccount({ name: "Foreign Tenant" });
+      const foreign = await seedProject(foreignAccount.id, {
+        label: "Foreign Purge",
+        deletedAt: new Date(),
       });
 
       const response = await app.inject({
