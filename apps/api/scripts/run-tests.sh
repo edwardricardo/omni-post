@@ -99,7 +99,9 @@ TEST_SEED="${TEST_SEED:-}"
 SEED_PATTERN='^(0|[1-9][0-9]{0,9})$'
 if [ "$TEST_ORDER" = "random" ]; then
   if [ -z "$TEST_SEED" ]; then
-    TEST_SEED=$((RANDOM * 32768 + RANDOM))
+    # Three 15-bit draws give 45 bits; keeping the low 32 is uniform over exactly the
+    # range accepted below, so an unseeded run can land on any seed a replay can name.
+    TEST_SEED=$((((RANDOM << 30) | (RANDOM << 15) | RANDOM) & 0xFFFFFFFF))
   elif ! [[ "$TEST_SEED" =~ $SEED_PATTERN ]] || [ "$TEST_SEED" -gt 4294967295 ]; then
     echo "run-tests.sh: TEST_SEED='$TEST_SEED' is not an integer from 0 to 4294967295 written without leading zeros, the seeds node's --test-random-seed takes." >&2
     exit 2
