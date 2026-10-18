@@ -1,8 +1,9 @@
 /**
  * @file setup.ts
  * @description Shared setup of the `*.flow.integration.test.ts` suites, which run under node:test:
- *   one repository adapter and one `publish` queue adapter per process, per-test and final
- *   teardown, and timeout helpers. Its progress lines go to stderr, never stdout (DEF-83).
+ *   one repository adapter and one `publish` queue adapter per process, a separate repository
+ *   adapter for a test that fails on purpose, per-test and final teardown, and timeout helpers.
+ *   Its progress lines go to stderr, never stdout (DEF-83).
  * @layer infrastructure
  */
 import dotenv from "dotenv";
@@ -183,6 +184,20 @@ export async function setupTest(): Promise<TestContext> {
     globalQueue = null;
     throw error;
   }
+}
+
+/**
+ * @description Creates a repository adapter of its own over the seed client, for a test that
+ *   makes the adapter fail on purpose. Each adapter owns its circuit breakers, and the database
+ *   breaker counts every rejected operation, a refused domain write included, so a deliberate
+ *   failure on the shared adapter would open its breaker and fail the calls of every test that
+ *   runs after it in the same process. The shared adapters of `setupTest` are not touched. Never
+ *   call `close()` on the returned adapter: it disconnects the seed client the shared adapter
+ *   also runs on, which `finalCleanup` owns.
+ * @returns A new repository adapter, never the shared one.
+ */
+export function createIsolatedRepo(): ReturnType<typeof createPrismaRepoAdapter> {
+  return createPrismaRepoAdapter({ prisma });
 }
 
 /**

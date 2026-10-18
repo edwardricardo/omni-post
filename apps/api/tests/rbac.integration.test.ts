@@ -214,6 +214,20 @@ describe("RBAC System", () => {
   });
 
   describe("Role Management", () => {
+    // The users-by-role case reads every ADMIN in the database. Sibling describes run in random
+    // order, so this describe registers its own ADMIN instead of relying on one another describe
+    // created, or on rows an earlier suite left behind.
+    before(async () => {
+      const adminResult = await authService.registerAdmin(
+        `rbac-role-mgmt-admin-${Date.now()}@test.com`,
+        "password123",
+        "Role Management Admin",
+        "ADMIN"
+      );
+      assert.ok(adminResult.ok);
+      testUsers.push(adminResult.value.id);
+    });
+
     it("should retrieve role information", async () => {
       const adminRoleInfo = await rbacService.getRoleInfo("ADMIN");
 

@@ -376,17 +376,29 @@ describe("Publish worker — two-tenant isolation (MERGE-BLOCKING)", { concurren
     });
 
     it("flips the reauth flag and emits the event for the owning tenant", async () => {
-      await recorder.record(tenantA.channelId, "X", "revoked by provider", tenantA.accountId);
+      // A channel of its own: the foreign publish job asserts that tenant A's shared
+      // channel carries no reauth flag, the foreign no-op arm asserts that and no
+      // outbox event, and the shuffled order may run either of them after this arm.
+      const channelId = await seedChannel(
+        tenantA,
+        "A-reauth",
+        `tok-A-reauth-${randomUUID()}`,
+        apiCredentialsCrypto
+      );
+      try {
+        await recorder.record(channelId, "X", "revoked by provider", tenantA.accountId);
 
-      const row = await base.channel.findUniqueOrThrow({ where: { id: tenantA.channelId } });
-      assert.strictEqual(row.needsReauth, true);
-      assert.strictEqual(row.authFailureReason, "revoked by provider");
-      assert.notStrictEqual(row.authFailedAt, null);
-      const events = await base.outboxEvent.findMany({
-        where: { aggregateId: tenantA.channelId },
-      });
-      assert.strictEqual(events.length, 1, "exactly one outbox event must be emitted");
-      assert.strictEqual(events[0]?.eventType, "ChannelAuthFailed");
+        const row = await base.channel.findUniqueOrThrow({ where: { id: channelId } });
+        assert.strictEqual(row.needsReauth, true);
+        assert.strictEqual(row.authFailureReason, "revoked by provider");
+        assert.notStrictEqual(row.authFailedAt, null);
+        const events = await base.outboxEvent.findMany({ where: { aggregateId: channelId } });
+        assert.strictEqual(events.length, 1, "exactly one outbox event must be emitted");
+        assert.strictEqual(events[0]?.eventType, "ChannelAuthFailed");
+      } finally {
+        await base.outboxEvent.deleteMany({ where: { aggregateId: channelId } });
+        await base.channel.delete({ where: { id: channelId } });
+      }
     });
   });
 });

@@ -21,9 +21,9 @@ import { PrismaCustomerMfaUserRepository } from "../../src/infrastructure/adapte
 import { createSeedPrismaClient } from "./helpers/seedPrismaClient.js";
 
 interface Fixture {
+  tag: string;
   accountId: string;
   customerId: string;
-  adminId: string;
   roleId: string;
 }
 
@@ -32,6 +32,26 @@ describe("TOTP single-use claim (integration)", () => {
   let fixture: Fixture;
   let adminRepo: PrismaAdminMfaUserRepository;
   let customerRepo: PrismaCustomerMfaUserRepository;
+  const adminIds: string[] = [];
+
+  /**
+   * Creates an admin row with no claimed step, owned by the calling test. A claim moves the row's
+   * stored step forward, so on one shared row the concurrency test's step made the fresh claim of
+   * the admin test ALREADY_USED whenever the concurrency test ran first.
+   */
+  async function createAdmin(label: string): Promise<string> {
+    const admin = await prisma.adminUser.create({
+      data: {
+        name: `TOTP Single-Use Admin (${label})`,
+        email: `admin-${label}-${fixture.tag}@test.com`,
+        passwordHash: "ignored-for-test",
+        roleId: fixture.roleId,
+        isActive: true,
+      },
+    });
+    adminIds.push(admin.id);
+    return admin.id;
+  }
 
   before(async () => {
     prisma = createSeedPrismaClient();
@@ -56,49 +76,42 @@ describe("TOTP single-use claim (integration)", () => {
       update: {},
       create: { name: "ADMIN" },
     });
-    const admin = await prisma.adminUser.create({
-      data: {
-        name: "TOTP Single-Use Admin",
-        email: `admin-${tag}@test.com`,
-        passwordHash: "ignored-for-test",
-        roleId: role.id,
-        isActive: true,
-      },
-    });
 
     fixture = {
+      tag,
       accountId: account.id,
       customerId: customer.id,
-      adminId: admin.id,
       roleId: role.id,
     };
   });
 
   after(async () => {
     if (!fixture) return;
-    await prisma.adminUser.deleteMany({ where: { id: fixture.adminId } });
+    await prisma.adminUser.deleteMany({ where: { id: { in: adminIds } } });
     await prisma.customerUser.deleteMany({ where: { accountId: fixture.accountId } });
     await prisma.account.deleteMany({ where: { id: fixture.accountId } });
     await prisma.$disconnect();
   });
 
   it("admin: claims a fresh step, rejects the replay, then accepts a strictly-greater step", async () => {
-    const first = await adminRepo.claimTotpStep(fixture.adminId, 1000);
+    const adminId = await createAdmin("claim");
+
+    const first = await adminRepo.claimTotpStep(adminId, 1000);
     assert.strictEqual(first.ok, true);
     assert.strictEqual(first.ok && first.value, "CLAIMED");
 
-    const replay = await adminRepo.claimTotpStep(fixture.adminId, 1000);
+    const replay = await adminRepo.claimTotpStep(adminId, 1000);
     assert.strictEqual(replay.ok, false);
     assert.strictEqual(!replay.ok && replay.error, "ALREADY_USED");
 
-    const older = await adminRepo.claimTotpStep(fixture.adminId, 999);
+    const older = await adminRepo.claimTotpStep(adminId, 999);
     assert.strictEqual(!older.ok && older.error, "ALREADY_USED");
 
-    const next = await adminRepo.claimTotpStep(fixture.adminId, 1001);
+    const next = await adminRepo.claimTotpStep(adminId, 1001);
     assert.strictEqual(next.ok, true);
     assert.strictEqual(next.ok && next.value, "CLAIMED");
 
-    const row = await prisma.adminUser.findUniqueOrThrow({ where: { id: fixture.adminId } });
+    const row = await prisma.adminUser.findUniqueOrThrow({ where: { id: adminId } });
     assert.strictEqual(row.mfaLastUsedTotpStep, 1001);
   });
 
@@ -127,12 +140,13 @@ describe("TOTP single-use claim (integration)", () => {
   });
 
   it("two concurrent claims of the same step resolve to exactly one CLAIMED", async () => {
-    // Use a step strictly greater than any prior claim on the admin row so both
-    // racers start from an eligible state.
+    // A fresh admin row has no claimed step, so both racers start from an
+    // eligible state whatever the other tests claimed.
+    const adminId = await createAdmin("race");
     const step = 5000;
     const [a, b] = await Promise.all([
-      adminRepo.claimTotpStep(fixture.adminId, step),
-      adminRepo.claimTotpStep(fixture.adminId, step),
+      adminRepo.claimTotpStep(adminId, step),
+      adminRepo.claimTotpStep(adminId, step),
     ]);
 
     const claimed = [a, b].filter((r) => r.ok).length;
@@ -140,7 +154,7 @@ describe("TOTP single-use claim (integration)", () => {
     assert.strictEqual(claimed, 1, "exactly one concurrent claim wins");
     assert.strictEqual(alreadyUsed, 1, "the loser sees ALREADY_USED");
 
-    const row = await prisma.adminUser.findUniqueOrThrow({ where: { id: fixture.adminId } });
+    const row = await prisma.adminUser.findUniqueOrThrow({ where: { id: adminId } });
     assert.strictEqual(row.mfaLastUsedTotpStep, step);
   });
 });

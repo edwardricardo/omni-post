@@ -706,6 +706,81 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     });
   }
 
+  /**
+   * Removes the row of a saga a scenario leaves non-terminal, and its hot-cache copy, once the
+   * scenario's harnesses are down. Every boot loads each non-terminal row in the table, and the
+   * production-order scenario counts exactly the rows its boot inherits, so a row left in flight
+   * would be counted, and dispatched, by whichever scenario boots next. The suite's teardown
+   * still removes the saga's events and its post.
+   */
+  async function discardSaga(sagaId: string): Promise<void> {
+    await base.sagaInstance.deleteMany({ where: { id: sagaId } });
+    await redis.del(`saga:${sagaId}`);
+  }
+
+  /**
+   * Parks one pivot-interrupted saga on a restarted process and ages it past the ordinary timeout
+   * horizon. The two operator-window scenarios each arrange their own row: one ends it and the
+   * other asserts it is still RUNNING, so a row they shared would decide the second by which one
+   * the runner scheduled first.
+   */
+  async function arrangeAgedParkedRow(
+    label: string
+  ): Promise<{ sagaId: string; restarted: Harness }> {
+    const { harness: crashed } = await bootHarness(`${label}-crashed`);
+    const interrupted = await seedPivotInterruptedSaga(crashed, label);
+    const sagaId = interrupted.sagaId;
+
+    const booted = await bootHarness(`${label}-restarted`);
+    const restarted = booted.harness;
+    assert.ok(
+      booted.logLines.some((line) => line.sagaId === sagaId && line.reason === "parked"),
+      "the scenario's premise: this boot parked the row it is about to time-check"
+    );
+
+    // The saga was interrupted long ago — which is exactly why the ORDINARY
+    // timeout sweep would already be past its horizon. The parked contract
+    // says the horizon that applies is the one that opened at PARKING, so the
+    // row is aged well past the ordinary one on purpose.
+    const longAgo = new Date(Date.now() - (SAGA_TIMEOUT_MS + 60 * 60 * 1000));
+    await base.sagaInstance.update({ where: { id: sagaId }, data: { startedAt: longAgo } });
+    const tracked = restarted.lifecycle.activeInstances.get(sagaId);
+    assert.ok(tracked, "the timeout checker only sees rows this process is tracking");
+    tracked.startedAt = longAgo;
+
+    return { sagaId, restarted };
+  }
+
+  /**
+   * A composition schedules a retry (the publish job is rejected, so the post-pivot wait step
+   * fails), then shuts down gracefully. The drain flips RUNNING to PENDING while the persist keeps
+   * the pending retry, so the row is handed off to the retry checker rather than to a boot pass
+   * that owns rows with NO pending retry; a second composition then inherits it. The two hand-off
+   * scenarios each arrange their own saga: one asserts the hand-off left it PENDING and the other
+   * drives it to a terminal state, so a saga they shared would decide the first by which one the
+   * runner scheduled first.
+   */
+  async function arrangeHandedOffSaga(
+    label: string
+  ): Promise<{ sagaId: string; restarted: Harness }> {
+    const { harness: draining } = await bootHarness(`${label}-draining`);
+    const started = await startPublishNowSaga(draining, rejectingChannelId, label);
+    const sagaId = started.id;
+
+    await until(
+      async () => {
+        const snapshot = await sagaSnapshot(sagaId);
+        return snapshot.nextRetryAt !== null && snapshot.status === "RUNNING";
+      },
+      { description: `${sagaId} to schedule a retry before the drain`, ...POLL_TIMING }
+    );
+
+    await shutdownHarness(draining);
+
+    const booted = await bootHarness(`${label}-restarted`);
+    return { sagaId, restarted: booted.harness };
+  }
+
   before(async () => {
     base = createSeedPrismaClient();
     guarded = base.$extends(
@@ -1226,33 +1301,20 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
     );
   });
 
-  describe("a parked row and its operator window", () => {
-    after(shutdownScenarioHarnesses, TIMING);
-
+  describe("a parked row inside its operator window", () => {
     let sagaId: string;
     let restarted: Harness;
 
     before(async () => {
-      const { harness: crashed } = await bootHarness("window-crashed");
-      const interrupted = await seedPivotInterruptedSaga(crashed, "window");
-      sagaId = interrupted.sagaId;
+      ({ sagaId, restarted } = await arrangeAgedParkedRow("window-open"));
+    }, TIMING);
 
-      const booted = await bootHarness("window-restarted");
-      restarted = booted.harness;
-      assert.ok(
-        booted.logLines.some((line) => line.sagaId === sagaId && line.reason === "parked"),
-        "the scenario's premise: this boot parked the row it is about to time-check"
-      );
-
-      // The saga was interrupted long ago — which is exactly why the ORDINARY
-      // timeout sweep would already be past its horizon. The parked contract
-      // says the horizon that applies is the one that opened at PARKING, so the
-      // row is aged well past the ordinary one on purpose.
-      const longAgo = new Date(Date.now() - (SAGA_TIMEOUT_MS + 60 * 60 * 1000));
-      await base.sagaInstance.update({ where: { id: sagaId }, data: { startedAt: longAgo } });
-      const tracked = restarted.lifecycle.activeInstances.get(sagaId);
-      assert.ok(tracked, "the timeout checker only sees rows this process is tracking");
-      tracked.startedAt = longAgo;
+    after(async () => {
+      await shutdownScenarioHarnesses();
+      // This scenario leaves its row parked, and nothing else ends it.
+      if (typeof sagaId === "string") {
+        await discardSaga(sagaId);
+      }
     }, TIMING);
 
     it(
@@ -1275,6 +1337,17 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         );
       }
     );
+  });
+
+  describe("a parked row past its operator window", () => {
+    after(shutdownScenarioHarnesses, TIMING);
+
+    let sagaId: string;
+    let restarted: Harness;
+
+    before(async () => {
+      ({ sagaId, restarted } = await arrangeAgedParkedRow("window-expired"));
+    }, TIMING);
 
     it(
       "terminalizes the parked row once its operator window expires, exactly once and as parked-expired",
@@ -1850,38 +1923,24 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
   });
 
   describe("a retry-pending saga handed off by a graceful shutdown", () => {
-    after(shutdownScenarioHarnesses, TIMING);
-
     let sagaId: string;
-    let restarted: Harness;
 
     before(async () => {
-      // A composition schedules a retry (the publish job is rejected, so the
-      // post-pivot wait step fails), then shuts down gracefully. The drain flips
-      // RUNNING to PENDING while the persist keeps the pending retry, so the row
-      // is handed off to the retry checker rather than to a boot pass that owns
-      // rows with NO pending retry.
-      const { harness: draining } = await bootHarness("draining");
-      const started = await startPublishNowSaga(draining, rejectingChannelId, "handoff");
-      sagaId = started.id;
+      ({ sagaId } = await arrangeHandedOffSaga("handoff-pending"));
+    }, TIMING);
 
-      await until(
-        async () => {
-          const snapshot = await sagaSnapshot(sagaId);
-          return snapshot.nextRetryAt !== null && snapshot.status === "RUNNING";
-        },
-        { description: `${sagaId} to schedule a retry before the drain`, ...POLL_TIMING }
-      );
-
-      await shutdownHarness(draining);
-
-      const booted = await bootHarness("handoff-restarted");
-      restarted = booted.harness;
+    after(async () => {
+      await shutdownScenarioHarnesses();
+      // This scenario leaves its row PENDING with a retry that falls due later,
+      // which the next scenario's recovery tick would claim and run.
+      if (typeof sagaId === "string") {
+        await discardSaga(sagaId);
+      }
     }, TIMING);
 
     it("leaves the saga PENDING with its pending retry intact", TIMING, async () => {
-      // The premise of the hand-off class. Without it the next assertion could
-      // pass for the wrong reason — a RUNNING row is claimed by today's
+      // The premise of the hand-off class. Without it the claim scenario below
+      // could pass for the wrong reason — a RUNNING row is claimed by today's
       // checker, so the gap would never be exercised.
       const snapshot = await sagaSnapshot(sagaId);
 
@@ -1896,6 +1955,24 @@ describe("Saga crash recovery (MERGE-BLOCKING)", { concurrency: 1 }, () => {
         "the row keeps its pending retry, which is what puts it outside a boot pass that owns rows with none"
       );
     });
+  });
+
+  describe("a handed-off retry-pending saga inherited by the next process", () => {
+    after(shutdownScenarioHarnesses, TIMING);
+
+    let sagaId: string;
+    let restarted: Harness;
+
+    before(async () => {
+      ({ sagaId, restarted } = await arrangeHandedOffSaga("handoff-claimed"));
+      // The premise the scenario above proves, held on THIS row as well: the
+      // claim below exercises the gap only when the row it drives is PENDING.
+      assert.strictEqual(
+        (await sagaSnapshot(sagaId)).status,
+        "PENDING",
+        "the scenario's premise: the drain handed this saga off as PENDING"
+      );
+    }, TIMING);
 
     it("is claimed by the retry checker and reaches a terminal state", TIMING, async () => {
       const snapshot = await driveToTerminal(
