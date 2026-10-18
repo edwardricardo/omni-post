@@ -12,17 +12,6 @@
   },
   {
     "type": "dependency",
-    "from": "apps/api/src/accounts/accountRoutes.ts",
-    "to": "packages/core/domain/src/value-objects/EmailAddress.ts",
-    "unresolvedTo": "@core/domain/value-objects/EmailAddress.js",
-    "dependencyTypes": ["aliased", "aliased-tsconfig", "aliased-tsconfig-paths", "local", "import"],
-    "rule": {
-      "severity": "error",
-      "name": "routes-domain-types-only"
-    }
-  },
-  {
-    "type": "dependency",
     "from": "apps/api/src/admin/auth/adminAuthRoutes.ts",
     "to": "packages/core/domain/src/value-objects/EmailAddress.ts",
     "unresolvedTo": "@core/domain/value-objects/EmailAddress.js",

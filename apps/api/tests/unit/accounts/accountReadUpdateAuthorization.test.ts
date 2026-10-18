@@ -1,7 +1,8 @@
 /**
  * @file accountReadUpdateAuthorization.test.ts
  * @description Authorization tests for the customer's "my account" surface: `GET` and
- *   `PUT /accounts/:accountId`, and the absence of the tenant listing `GET /accounts`.
+ *   `PUT /accounts/:accountId`, and the absence of the tenant listing `GET /accounts` and of
+ *   customer account creation `POST /accounts`.
  *
  *   `Account` IS the tenant: it is keyed by `id`, not `accountId`, so it is absent from the
  *   Prisma tenant guard's `TENANT_SCOPED_MODELS` and every `account` query passes the guard
@@ -367,5 +368,27 @@ describe("GET /accounts — no tenant listing", () => {
     expect(response.statusCode).toBe(404);
     expect(response.body).not.toContain(other.email);
     expect(response.body).not.toContain(caller.email);
+  });
+});
+
+describe("POST /accounts — no customer account creation", () => {
+  it("returns 404 and creates no account when an authenticated customer posts one", async () => {
+    // The route minted a userless tenant with a quota the caller chose, and its address then
+    // refused the real owner's self-registration. Customer registration is the one way an
+    // account comes into being for a customer.
+    const caller = await makeTenant("create-caller", "OWNER");
+    const email = `minted-${Date.now()}-${Math.random()}@example.com`;
+    const accountsBefore = stores.account.all().length;
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/accounts",
+      headers: bearer(caller.token),
+      payload: { email, name: "Minted Tenant", maxProjects: 50 },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(stores.account.all()).toHaveLength(accountsBefore);
+    expect(stores.account.all().some((account) => account.email === email)).toBe(false);
   });
 });

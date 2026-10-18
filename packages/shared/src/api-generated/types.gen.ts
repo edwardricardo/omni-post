@@ -2823,20 +2823,6 @@ export type DeleteAiCacheResponses = {
   200: unknown;
 };
 
-export type PostAccountsData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/accounts";
-};
-
-export type PostAccountsResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
 export type DeleteAccountsByAccountIdData = {
   body?: never;
   path: {

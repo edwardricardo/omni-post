@@ -579,8 +579,6 @@ export type {
   PostAccountsByAccountIdProjectsResponses,
   PostAccountsByAccountIdRestoreData,
   PostAccountsByAccountIdRestoreResponses,
-  PostAccountsData,
-  PostAccountsResponses,
   PostAdminAccountsBulkReactivateData,
   PostAdminAccountsBulkReactivateResponses,
   PostAdminAccountsBulkSuspendData,

@@ -1,6 +1,6 @@
 /**
  * Comprehensive Production Integration Test
- * Tests the complete flow from account creation to content publication
+ * Tests the complete flow from customer registration to content publication
  * Covers the customer-facing API surface end to end
  *
  * @file production.live.test.ts
@@ -12,8 +12,12 @@ import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
 import { faker } from "@faker-js/faker";
 import { untilValue } from "@packages/vitest-shared/determinism";
-import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
-import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
+import {
+  checkApiAvailable,
+  getBaseUrl,
+  liveRegistrationBody,
+  registerLiveTenant,
+} from "./testUtils.js";
 
 const PRODUCTION_API = getBaseUrl();
 /**
@@ -25,41 +29,6 @@ const PRODUCTION_API = getBaseUrl();
  */
 const WORKERS_METRICS = `http://localhost:${process.env.METRICS_PORT ?? 3300}`;
 const _CLIENT_APP = "http://localhost:3000"; // Will need to be adjusted when client runs
-
-/**
- * The grants this suite's principal claims. `roleName: "OWNER"` with an EMPTY
- * permission array is a principal the seeded system cannot produce: the OWNER
- * CustomerRole in `infra/prisma/seed.ts` carries `account:delete` among its
- * grants (mirrored verbatim in `tests/unit/helpers/seedCustomerRoles.ts`), so a
- * token labelled OWNER that holds nothing contradicts the seed it claims to
- * represent. It went unnoticed while `DELETE /accounts/:accountId` checked
- * ownership alone; now that the route also asserts the destructive grant, the
- * empty array makes the cleanup step fail for a reason this suite does not test.
- *
- * Only the account-lifecycle grants are listed, not the full seeded set: this
- * suite exercises no other permission-gated route, and copying 118 literals here
- * would create a second place for the seed to drift away from.
- *
- * This is the positive principal. That a member WITHOUT `account:delete` is
- * refused, and destroys nothing, is pinned separately under the real middleware
- * in `tests/unit/accounts/accountDeletePermission.test.ts`.
- */
-const OWNER_PERMISSIONS: readonly string[] = ["account:manage", "account:delete"];
-
-/**
- * Mints a customer Bearer token bound to `accountId`. Gated routes sit behind
- * `requireClientAuth`; tenant-scoped writes (projects, channels, posts) also
- * require the token's accountId to match the resource's accountId via the
- * tenant guard, so the chain threads a token bound to the created account.
- */
-const bearer = (accountId: string): string =>
-  `Bearer ${signCustomerAccessToken({
-    sub: `prod-test-${accountId}`,
-    accountId,
-    roleId: "role-test",
-    roleName: "OWNER",
-    permissions: OWNER_PERMISSIONS,
-  })}`;
 
 /** Builds the Authorization header object for `apiCall`. */
 const authHeaders = (token: string): Record<string, string> => ({ Authorization: token });
@@ -123,7 +92,8 @@ function generateTestData() {
     account: {
       email: faker.internet.email({ provider: `test${timestamp}.com` }),
       name: `Production Test Account ${timestamp}`,
-      subscription: faker.helpers.arrayElement(["BASIC", "PRO", "ENTERPRISE"] as const),
+      // One plan, not a random one: the quota case below asserts the limit this plan sets.
+      plan: "BASIC" as const,
     },
     project: {
       name: `Production Test Project ${timestamp}`,
@@ -166,16 +136,13 @@ describe("Comprehensive Production Integration Test", () => {
   let projectId: string;
   let postId: string;
   let channelIds: string[] = [];
-  // Token for un-scoped account creation (POST /accounts is not tenant-scoped).
-  let bootstrapToken: string;
-  // Token bound to the created account — threads through every tenant-scoped op.
+  // The owner's access token registration issued — threads through every tenant-scoped op.
   let accountToken: string;
   let apiAvailable = false;
   let workerAvailable = false;
 
   before(async () => {
     testData = generateTestData();
-    bootstrapToken = bearer("prod-integration-bootstrap");
     // stdout is the node:test runner's message channel; diagnostics go to stderr (DEF-83).
     console.error("Starting Comprehensive Production Integration Test");
     console.error("=".repeat(60));
@@ -221,16 +188,15 @@ describe("Comprehensive Production Integration Test", () => {
       console.error("\nPHASE 1: Account Management");
       console.error("-".repeat(40));
 
-      const accountResponse = await apiCall(
-        "POST",
-        "/accounts",
-        testData.account,
-        authHeaders(bootstrapToken)
-      );
-      assert.equal(accountResponse.status, 200, "Account created successfully");
-      assert.equal(accountResponse.data.ok, true, "Account creation returned ok status");
-      accountId = accountResponse.data.data.id;
-      accountToken = bearer(accountId);
+      // Customer registration is the one route that creates an account for a customer; it
+      // answers with the account and its owner's access token.
+      const tenant = await registerLiveTenant({
+        email: testData.account.email,
+        accountName: testData.account.name,
+        plan: testData.account.plan,
+      });
+      accountId = tenant.accountId;
+      accountToken = tenant.authorization;
       assert.ok(accountId, `Account ID received: ${accountId}`);
       console.error(`Account created successfully: ${accountId}`);
     });
@@ -280,21 +246,6 @@ describe("Comprehensive Production Integration Test", () => {
         "Account name matches"
       );
       console.error("Account details verified");
-    });
-
-    it("should list all accounts", async (t) => {
-      if (skipIfApiUnavailable(t)) return;
-      const listAccountsResponse = await apiCall(
-        "GET",
-        "/accounts",
-        undefined,
-        authHeaders(accountToken)
-      );
-      assert.equal(listAccountsResponse.status, 200, "Accounts listed successfully");
-      assert.ok(Array.isArray(listAccountsResponse.data.data), "Accounts list is an array");
-      const foundAccount = listAccountsResponse.data.data.find((acc: any) => acc.id === accountId);
-      assert.ok(foundAccount, "Created account found in list");
-      console.error("Account found in list");
     });
   });
 
@@ -577,16 +528,21 @@ describe("Comprehensive Production Integration Test", () => {
       console.error("\nPHASE 8: Error Handling & Edge Cases");
       console.error("-".repeat(40));
 
+      // The same submitted address again: registration stored its canonical form, so this
+      // also proves the duplicate check reads the address the way the account holds it.
       const duplicateResponse = await apiCall(
         "POST",
-        "/accounts",
-        testData.account,
-        authHeaders(bootstrapToken)
+        "/auth/customer/register",
+        liveRegistrationBody({
+          email: testData.account.email,
+          accountName: testData.account.name,
+          plan: testData.account.plan,
+        })
       );
       assert.equal(duplicateResponse.status, 409, "Duplicate email rejected with 409 status");
       assert.equal(
         duplicateResponse.data.error,
-        "EMAIL_TAKEN",
+        "Email already exists",
         "Correct error message for duplicate"
       );
       console.error("Duplicate email rejected correctly");
@@ -606,7 +562,7 @@ describe("Comprehensive Production Integration Test", () => {
 
     it("should verify quota enforcement", async (t) => {
       if (skipIfApiUnavailable(t)) return;
-      // Verify the account has correct maxProjects based on subscription
+      // The account was registered on the BASIC plan, whose limit is one project.
       const getAccountResponse = await apiCall(
         "GET",
         `/accounts/${accountId}`,
@@ -614,18 +570,11 @@ describe("Comprehensive Production Integration Test", () => {
         authHeaders(accountToken)
       );
       assert.equal(getAccountResponse.status, 200, "Account should be retrievable");
-
-      const subscription = getAccountResponse.data.data.subscription;
-      const maxProjects = getAccountResponse.data.data.maxProjects;
-
-      assert.ok(typeof maxProjects === "number", "maxProjects should be a number");
-      if (subscription === "BASIC") {
-        assert.equal(maxProjects, 1, "Basic account should have max 1 project");
-      } else if (subscription === "PRO") {
-        assert.equal(maxProjects, 3, "Pro account should have max 3 projects");
-      } else if (subscription === "ENTERPRISE") {
-        assert.ok(maxProjects >= 10, "Enterprise account should have at least 10 projects");
-      }
+      assert.equal(
+        getAccountResponse.data.data.maxProjects,
+        1,
+        "A BASIC account should have max 1 project"
+      );
     });
   });
 

@@ -6,35 +6,87 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { until } from "@packages/vitest-shared/determinism";
-import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
 import { parseRetryAfterMs } from "../src/lib/retry/retryAfter.js";
-import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
+import {
+  checkApiAvailable,
+  getBaseUrl,
+  liveRegistrationBody,
+  registerLiveTenant,
+  type LiveTenant,
+} from "./testUtils.js";
 
 /**
  * Security Features Test Suite
  * Tests enhanced rate limiting, input validation, and security metrics
  *
  * These tests require a running API server. They do NOT require workers or a
- * queue consumer: every case here drives `/health`, `/accounts` and `/metrics`
- * over HTTP and asserts on the response, with nothing enqueued and no saga
- * started. The precondition below therefore checks for the API and nothing else.
+ * queue consumer: every case here drives `/health`, customer registration, the
+ * tenant's own account (`GET` and `PUT /accounts/:accountId`) and `/metrics` over
+ * HTTP and asserts on the response, with nothing enqueued and no saga started.
+ * The precondition below therefore checks for the API and nothing else.
  */
 
 const BASE_URL = getBaseUrl();
 
 /**
- * The `/accounts` endpoint sits behind `requireClientAuth`. The Account model
- * is NOT tenant-scoped (see TENANT_SCOPED_MODELS in the tenant guard), so any
- * valid customer token authorizes the request. `/health` and `/metrics` are
- * public and intentionally sent without this header.
+ * The tenant the validation cases run as, registered once the API answers. Customer input that
+ * still validates lives in two places: the registration body, and the account name the owner
+ * changes with `PUT /accounts/:accountId`, which runs the name through the security validator.
+ * `/health` and `/metrics` are public and intentionally sent without its token.
  */
-const AUTH_HEADER = `Bearer ${signCustomerAccessToken({
-  sub: "security-features-user",
-  accountId: "security-features-account",
-  roleId: "role-test",
-  roleName: "OWNER",
-  permissions: [],
-})}`;
+let tenant: LiveTenant;
+
+/**
+ * Sends a rename of the tenant's own account.
+ * @param name - The name the rename asks for.
+ * @returns The route's response.
+ */
+async function renameOwnAccount(name: string): Promise<Response> {
+  return fetch(`${BASE_URL}/accounts/${tenant.accountId}`, {
+    method: "PUT",
+    headers: { Authorization: tenant.authorization, "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
+/**
+ * Reads the tenant's stored account name through its owner's own account route.
+ * @returns The name the account carries.
+ */
+async function storedAccountName(): Promise<unknown> {
+  const response = await fetch(`${BASE_URL}/accounts/${tenant.accountId}`, {
+    headers: { Authorization: tenant.authorization },
+  });
+  assert.equal(response.status, 200, "the owner reads their own account");
+  const body = await response.json();
+  return body.data.name;
+}
+
+/**
+ * Asserts a rename is refused by validation with 400 and leaves the stored name in place.
+ * @param name - The name the rename asks for.
+ * @param message - What the refusal proves.
+ */
+async function assertRenameRefused(name: string, message: string): Promise<void> {
+  const nameBefore = await storedAccountName();
+  const response = await renameOwnAccount(name);
+  await response.body?.cancel();
+  assert.equal(response.status, 400, message);
+  assert.equal(await storedAccountName(), nameBefore, "a refused rename leaves the name in place");
+}
+
+/**
+ * Sends a registration body exactly as given, so a case can send one that is not valid JSON.
+ * @param body - The raw request body.
+ * @returns The route's response.
+ */
+async function postRegistration(body: string): Promise<Response> {
+  return fetch(`${BASE_URL}/auth/customer/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+  });
+}
 
 // Enable test mode for rate limiting
 process.env.RATE_LIMIT_TEST_MODE = "true";
@@ -133,7 +185,13 @@ describe("Security Features", { concurrency: 1 }, () => {
   // is the failure mode a security suite can least afford: the run is green
   // precisely when the server it was meant to attack is absent.
   before(async () => {
-    if (await checkApiAvailable()) return;
+    if (await checkApiAvailable()) {
+      tenant = await registerLiveTenant({
+        email: `security-features-${Date.now()}@example.com`,
+        accountName: `Security Features ${Date.now()}`,
+      });
+      return;
+    }
 
     throw new Error(
       `No API is answering at ${BASE_URL}, so no security assertion in this suite can be ` +
@@ -233,156 +291,69 @@ describe("Security Features", { concurrency: 1 }, () => {
 
   describe("Input Validation", { concurrency: 1 }, () => {
     it("should handle SQL injection attempts", async () => {
-      const sqlPayload = {
-        email: `test${Date.now()}@test.com`,
-        name: "Test'; DROP TABLE accounts; --",
-        subscription: "BASIC",
-      };
-
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(sqlPayload),
-      });
-
-      // Should either sanitize (200) or reject (400)
-      assert.ok(
-        response.status === 200 || response.status === 400,
-        "SQL injection should be handled gracefully"
+      await assertRenameRefused(
+        "Test'; DROP TABLE accounts; --",
+        "SQL injection in the account name should be refused by validation"
       );
     });
 
     it("should handle XSS attempts", async () => {
-      const xssPayload = {
-        email: `test${Date.now()}@test.com`,
-        name: "<script>alert('xss')</script>Test User",
-        subscription: "BASIC",
-      };
-
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(xssPayload),
-      });
-
-      assert.ok(
-        response.status === 200 || response.status === 400,
-        "XSS attempt should be handled gracefully"
+      await assertRenameRefused(
+        "<script>alert('xss')</script>Test User",
+        "Script markup in the account name should be refused by validation"
       );
     });
 
     it("should handle path traversal attempts", async () => {
-      const pathTraversalPayload = {
-        email: `test${Date.now()}@test.com`,
-        name: "../../etc/passwd",
-        subscription: "BASIC",
-      };
-
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(pathTraversalPayload),
-      });
-
-      assert.ok(
-        response.status === 200 || response.status === 400,
-        "Path traversal should be handled gracefully"
+      await assertRenameRefused(
+        "../../etc/passwd",
+        "Path traversal in the account name should be refused by validation"
       );
     });
 
     it("should handle command injection attempts", async () => {
-      const cmdPayload = {
-        email: `test${Date.now()}@test.com`,
-        name: "test; ls -la /",
-        subscription: "BASIC",
-      };
-
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(cmdPayload),
-      });
-
-      assert.ok(
-        response.status === 200 || response.status === 400,
-        "Command injection should be handled gracefully"
+      await assertRenameRefused(
+        "test; ls -la /",
+        "Command injection in the account name should be refused by validation"
       );
     });
 
     it("should reject excessively long input", async () => {
-      const longPayload = {
-        email: `test${Date.now()}@test.com`,
-        name: "A".repeat(20000), // Exceeds reasonable name length
-        subscription: "BASIC",
-      };
-
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(longPayload),
-      });
-
-      assert.ok(
-        response.status === 400 || response.status === 413,
+      await assertRenameRefused(
+        "A".repeat(20000), // Exceeds the 256-character name limit
         "Excessive length should be rejected"
       );
     });
 
     it("should accept valid input", async () => {
-      const validPayload = {
-        email: `validtest${Date.now()}@example.com`,
-        name: "Valid Test User",
-        subscription: "BASIC",
-      };
+      const response = await renameOwnAccount("Valid Test User");
+      await response.body?.cancel();
 
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(validPayload),
-      });
-
-      assert.ok(
-        response.status === 200 || response.status === 201,
-        `Valid input should be accepted, got status ${response.status}`
-      );
+      assert.equal(response.status, 200, `Valid input should be accepted, got ${response.status}`);
+      assert.equal(await storedAccountName(), "Valid Test User", "The valid name is stored");
     });
   });
 
   describe("Account Validation", { concurrency: 1 }, () => {
     it("should reject malicious email formats", async () => {
-      const badEmailPayload = {
-        email: "user+'; DROP TABLE accounts; --@evil.com",
-        name: "Test User",
-        subscription: "BASIC",
-      };
-
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(badEmailPayload),
-      });
+      const response = await postRegistration(
+        JSON.stringify(
+          liveRegistrationBody({
+            email: "user+'; DROP TABLE accounts; --@evil.com",
+            accountName: "Test User",
+          })
+        )
+      );
+      await response.body?.cancel();
 
       // Email validation should reject this format
       assert.equal(response.status, 400, "Malicious email format should be rejected by validation");
     });
 
     it("should handle names with special characters", async () => {
-      const specialNamePayload = {
-        email: `test${Date.now()}@example.com`,
-        name: "<script>alert('name')</script>",
-        subscription: "BASIC",
-      };
-
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(specialNamePayload),
-      });
-
-      // Should either sanitize (200) or block (400)
-      assert.ok(
-        response.status === 200 || response.status === 400,
-        "Name with special characters should be handled"
+      await assertRenameRefused(
+        "<script>alert('name')</script>",
+        "A name made of script markup should be refused by validation"
       );
     });
   });
@@ -440,24 +411,15 @@ describe("Security Features", { concurrency: 1 }, () => {
 
   describe("Error Handling", { concurrency: 1 }, () => {
     it("should handle malformed JSON gracefully", async () => {
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: "{ invalid json }",
-      });
+      const response = await postRegistration("{ invalid json }");
+      await response.body?.cancel();
 
-      assert.ok(
-        response.status === 400 || response.status === 500,
-        "Malformed JSON should be rejected"
-      );
+      assert.equal(response.status, 400, "Malformed JSON should be rejected with 400");
     });
 
     it("should handle missing required fields", async () => {
-      const response = await fetch(`${BASE_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
+      const response = await postRegistration(JSON.stringify({}));
+      await response.body?.cancel();
 
       assert.equal(response.status, 400, "Missing required fields should return 400");
     });

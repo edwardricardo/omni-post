@@ -5,7 +5,8 @@
  *
  * @file testUtils.ts
  * @description Shared helpers for suites that talk to a running API, including
- *              the fail-loud precondition for suites that also depend on a
+ *              the registration of a tenant through the customer route and the
+ *              fail-loud precondition for suites that also depend on a
  *              background consumer.
  * @layer infrastructure
  */
@@ -54,6 +55,101 @@ export async function skipIfApiUnavailable(t: any): Promise<void> {
  */
 export function getBaseUrl(): string {
   return BASE_URL;
+}
+
+/** The password every tenant a live suite registers signs up with; no suite logs in with it. */
+const LIVE_TENANT_PASSWORD = "live-tier-tenant-password";
+
+/** What a live suite asks customer registration for. */
+export interface LiveTenantRequest {
+  /** The address the account and its owner sign up with. */
+  readonly email: string;
+  /** The account's name. */
+  readonly accountName: string;
+  /** The subscription tier; registration answers BASIC when it is left out. */
+  readonly plan?: "BASIC" | "PRO" | "ENTERPRISE";
+}
+
+/** A tenant created through the customer registration route. */
+export interface LiveTenant {
+  /** The id of the account registration created. */
+  readonly accountId: string;
+  /** The account as registration returned it. */
+  readonly account: Readonly<Record<string, unknown>>;
+  /** The `Authorization` header value: the owner's access token registration issued. */
+  readonly authorization: string;
+}
+
+/** The part of a registration answer a live suite reads. */
+interface RegistrationAnswer {
+  readonly account: Readonly<Record<string, unknown>> & { readonly id: string };
+  readonly accessToken: string;
+}
+
+/**
+ * @description Builds the body of `POST /auth/customer/register` for a live tenant, so a suite
+ *   that asserts a refused registration sends exactly what a successful one would.
+ * @param request - The address, account name and optional plan to register.
+ * @returns The registration body: the account, its owner's name and the fixed password.
+ */
+export function liveRegistrationBody(request: LiveTenantRequest): Record<string, string> {
+  return {
+    accountName: request.accountName,
+    firstName: "Live",
+    lastName: "Tenant",
+    email: request.email,
+    password: LIVE_TENANT_PASSWORD,
+    ...(request.plan !== undefined && { plan: request.plan }),
+  };
+}
+
+/**
+ * @description Reads the account and the access token out of a registration answer.
+ * @param body - The parsed JSON body of a registration response.
+ * @returns The account and token, or null when the body is not a successful registration.
+ */
+function readRegistrationAnswer(body: unknown): RegistrationAnswer | null {
+  if (typeof body !== "object" || body === null || !("data" in body)) return null;
+  const data: unknown = body.data;
+  if (typeof data !== "object" || data === null) return null;
+  if (!("account" in data) || !("accessToken" in data)) return null;
+  const { account, accessToken } = data;
+  if (typeof accessToken !== "string" || typeof account !== "object" || account === null) {
+    return null;
+  }
+  if (!("id" in account) || typeof account.id !== "string") return null;
+  return { account: { ...account, id: account.id }, accessToken };
+}
+
+/**
+ * @description Registers a tenant through `POST /auth/customer/register`, the one route that
+ *   creates an account for a customer, and returns the account with the owner's access token
+ *   registration issued. A suite that needs a tenant gets it the way a customer does, so the
+ *   token carries the seeded OWNER role's grants rather than a hand-picked list.
+ * @param request - The address, account name and optional plan to register.
+ * @returns The created account and the `Authorization` header its owner's token fills.
+ * @throws Error naming the status and body when registration does not answer 201 with an
+ *   account and an access token.
+ */
+export async function registerLiveTenant(request: LiveTenantRequest): Promise<LiveTenant> {
+  const response = await fetch(`${BASE_URL}/auth/customer/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(liveRegistrationBody(request)),
+  });
+  const body: unknown = await response.json();
+  const answer = readRegistrationAnswer(body);
+  if (response.status !== 201 || answer === null) {
+    throw new Error(
+      `Registering the live tenant ${request.email} answered ${response.status}: ` +
+        JSON.stringify(body)
+    );
+  }
+  return {
+    accountId: answer.account.id,
+    account: answer.account,
+    authorization: `Bearer ${answer.accessToken}`,
+  };
 }
 
 /**

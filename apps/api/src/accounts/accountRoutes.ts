@@ -22,7 +22,6 @@ import { adminHoldsPermission } from "../auth/adminHoldsPermission.js";
 import { Permission } from "@core/domain/auth/Permission.js";
 import { withSystemContext } from "../security/tenantContext.js";
 import { toAdminActorId } from "@core/domain/value-objects/AdminActorId.js";
-import { normalizeEmail } from "@core/domain/value-objects/EmailAddress.js";
 import type {
   DeleteAccountUseCase,
   HardDeleteAccountUseCase,
@@ -32,23 +31,6 @@ import { USE_CASE_ERRORS, type UseCaseError } from "@core/application/UseCase.js
 import type { Result } from "@shared/types";
 import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
-
-// Zod Schemas for Validation with security enhancement
-const SlugSchema = z
-  .string()
-  .min(3)
-  .max(30)
-  .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, "Slug must be lowercase letters, numbers, and hyphens");
-
-const CreateAccountBodySchema = z.object({
-  email: SecureSchemas.userEmail,
-  name: SecureSchemas.userName,
-  maxProjects: z.number().int().min(1).optional(),
-  timezone: z.string().min(1).max(64).optional(),
-  locale: z.string().min(2).max(10).optional(),
-  slug: SlugSchema.optional(),
-  phone: z.string().min(5).max(20).optional(),
-});
 
 /**
  * Body of `PUT /accounts/:accountId`: the account's name, and nothing else. The project quota
@@ -74,7 +56,6 @@ const HardDeleteAccountBodySchema = z.object({
   reason: z.string().min(8).max(500),
 });
 
-type _CreateAccountBody = z.infer<typeof CreateAccountBodySchema>;
 type _UpdateAccountBody = z.infer<typeof UpdateAccountBodySchema>;
 
 /**
@@ -96,98 +77,6 @@ class AccountRouteHandler extends BaseRouteHandler {
     private readonly auditService: AuditService
   ) {
     super();
-  }
-
-  /**
-   * @method createAccount
-   * @description Creates an account on a 14-day trial (POST /accounts). The e-mail is reduced to
-   *   its canonical form once and that value serves both the duplicate check and the insert; a
-   *   live account already holding it answers 409.
-   * @param request - The request, carrying the e-mail, name and optional quota in its body.
-   * @param reply - The reply the created account or the refusal is sent on.
-   */
-  async createAccount(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const ctx: RouteContext = { request, reply };
-
-    this.logInfo(ctx, "Creating account");
-
-    // Validate request body
-    const validated = await this.validateRequest<{ body: z.infer<typeof CreateAccountBodySchema> }>(
-      ctx,
-      {
-        body: CreateAccountBodySchema,
-      }
-    );
-    if (!validated.ok) {
-      return this.sendError(ctx, 400, "Invalid request body");
-    }
-
-    const { email: submittedEmail, name, maxProjects } = validated.value.body;
-
-    // `Foo@Example.com` and `foo@example.com` are the SAME registration
-    // identity, so the address is reduced to its canonical form ONCE, here, and
-    // that single value is used for both the duplicate check and the insert.
-    // Normalizing only one of the two is the defect this replaced: the check
-    // compared raw bytes while `PrismaAccountRepository.findByEmail` searched
-    // the lowercased form, so a mixed-case registration was invisible to every
-    // later lookup AND its case-twin could be registered as a second account.
-    const email = normalizeEmail(submittedEmail);
-
-    try {
-      // Check whether a LIVE account already holds this address.
-      //
-      // `Account_email_key` is PARTIAL (`WHERE "deletedAt" IS NULL`): a
-      // soft-deleted account keeps its row, and a check that still sees that row
-      // confiscates the address forever — the database would accept the reuse
-      // and only this line refuses it. `findUnique` cannot carry the predicate,
-      // so the check has to be a `findFirst` filtered to live rows.
-      //
-      // Comparing the NORMALIZED value is sound only because the insert below
-      // stores that same value and the backfill migration
-      // (20260905000000_normalize_identity_emails) rewrote the rows that predate
-      // it. The lookup, the stored row and the constraint therefore still
-      // compare the same bytes — the property the previous verbatim comparison
-      // was protecting, now held on the normalized form instead of the raw one.
-      const existingAccount = await this.prisma.account.findFirst({
-        where: { email, deletedAt: null },
-      });
-
-      if (existingAccount) {
-        return this.sendError(ctx, 409, "EMAIL_TAKEN", { error: "EMAIL_TAKEN" });
-      }
-
-      const finalMaxProjects = maxProjects ?? 1;
-
-      // Create account
-      const account = await this.prisma.account.create({
-        data: {
-          email,
-          name,
-          maxProjects: finalMaxProjects,
-          isOnTrial: true,
-          trialStartDate: new Date(),
-          trialEndDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days trial
-        },
-      });
-
-      this.logInfo(ctx, "Account created successfully", { accountId: account.id });
-
-      this.sendSuccess(
-        ctx,
-        {
-          id: account.id,
-          email: account.email,
-          name: account.name,
-          maxProjects: account.maxProjects,
-          isOnTrial: account.isOnTrial,
-          createdAt: account.createdAt,
-        },
-        200
-      );
-    } catch (error) {
-      this.logError(ctx, "Failed to create account", { error });
-      return this.sendError(ctx, 500, "Failed to create account");
-    }
   }
 
   /**
@@ -660,16 +549,6 @@ export const accountRoutes: FastifyPluginAsync = async (fastify) => {
     hardDeleteAccountUseCase,
     rbacService,
     auditService
-  );
-
-  // Create account
-  fastify.post(
-    "/accounts",
-    {
-      preHandler: [requireClientAuth],
-      schema: { tags: ["Accounts"], summary: "Create a new account" },
-    },
-    async (request, reply) => handler.createAccount(request, reply)
   );
 
   // The own-account routes admit only the caller's own account, before any database access and
