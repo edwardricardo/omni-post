@@ -41,6 +41,11 @@ let testChannelId: string;
 let testPostIds: string[] = [];
 
 async function setupTestData() {
+  // Every describe seeds its own posts here and reads this list back, and the runner may run
+  // the describes in any order: the list starts empty so it holds only the current describe's
+  // posts, never those an earlier describe seeded and already deleted.
+  testPostIds = [];
+
   // Create test account with unique email
   const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
   const account = await prisma.account.create({

@@ -370,6 +370,12 @@ describe("a repository write inside a unit of work runs on the transaction's con
   });
 
   it("persists a project through the unit of work instead of failing the tenant policy", async () => {
+    // The project starts out of crisis mode whichever test of this describe ran before.
+    await seedClient.project.update({
+      where: { id: projectId },
+      data: { isInCrisisMode: false, crisisStartedAt: null, crisisReason: null },
+    });
+
     const repository = new PrismaProjectRepository(guardedClient);
 
     await withTenantContext({ accountId }, async () => {
@@ -398,6 +404,20 @@ describe("a repository write inside a unit of work runs on the transaction's con
   });
 
   it("persists a crisis-mode change through the unit of work instead of failing the tenant policy", async () => {
+    // The project is put in crisis mode here rather than by the write of the test above, which
+    // the runner may schedule after this one. Exiting needs both the flag and its start time.
+    const crisisStartedAt = new Date();
+    const crisisReason = "seeded crisis for the exit write";
+    await seedClient.project.update({
+      where: { id: projectId },
+      data: {
+        isInCrisisMode: true,
+        crisisStartedAt,
+        crisisReason,
+        crisisModeHistory: [{ reason: crisisReason, startedAt: crisisStartedAt.toISOString() }],
+      },
+    });
+
     const repository = new PrismaCrisisProjectRepository(guardedClient);
 
     await withTenantContext({ accountId }, async () => {

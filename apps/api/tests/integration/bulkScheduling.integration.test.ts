@@ -25,7 +25,6 @@ describe("Bulk scheduling manifest integration", () => {
   let projectAId: string;
   let accountBId: string;
   const tag = `bulk-int-${Date.now()}`;
-  const batchIds: string[] = [];
 
   before(async () => {
     prisma = createSeedPrismaClient();
@@ -58,7 +57,6 @@ describe("Bulk scheduling manifest integration", () => {
 
   it("persists a per-row manifest where a bad row does not abort the batch", async () => {
     const batchId = randomUUID();
-    batchIds.push(batchId);
     await batchRepo.createBatch({
       id: batchId,
       accountId: accountAId,
@@ -88,7 +86,6 @@ describe("Bulk scheduling manifest integration", () => {
 
   it("settles the batch to COMPLETED once the last pending row is terminal", async () => {
     const batchId = randomUUID();
-    batchIds.push(batchId);
     const pendingId = randomUUID();
     await batchRepo.createBatch({
       id: batchId,
@@ -114,8 +111,22 @@ describe("Bulk scheduling manifest integration", () => {
   });
 
   it("does not leak a batch across tenants", async () => {
-    const batchId = batchIds[0];
-    assert.ok(batchId);
+    // The batch is this test's own: the runner may run it before any other test of the file.
+    const batchId = randomUUID();
+    await batchRepo.createBatch({
+      id: batchId,
+      accountId: accountAId,
+      projectId: projectAId,
+      totalRows: 1,
+      status: "PROCESSING",
+      items: [{ id: randomUUID(), rowNumber: 1, status: "PENDING" }],
+    });
+
+    // The owner reads it first, so the null below is a refusal and not a batch that never
+    // landed.
+    const own = await queryRepo.getBatch(accountAId, batchId);
+    assert.ok(own, "account A must read its own batch");
+
     const foreign = await queryRepo.getBatch(accountBId, batchId);
     assert.strictEqual(foreign, null, "account B must not read account A's batch");
   });

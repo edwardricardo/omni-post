@@ -5,7 +5,7 @@
  */
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { setupTest, TestContext, makeFlowCleanup } from "./setup.js";
+import { setupTest, TestContext, makeFlowCleanup, createIsolatedRepo } from "./setup.js";
 
 /**
  * Budget for every test and hook in this file, passed to each call: the runner's
@@ -208,7 +208,10 @@ describe("Media Flow", { concurrency: 1 }, () => {
   });
 
   it("should handle post creation failure for media flow", TIMING, async () => {
-    ctx = await setupTest();
+    // An adapter of its own: the refused write below counts as a failure on the adapter's
+    // database circuit breaker, and on the shared adapter that opens the breaker for every test
+    // the runner schedules after this one.
+    const repo = createIsolatedRepo();
 
     // Try to create post with invalid project ID
     const postInput = {
@@ -217,7 +220,7 @@ describe("Media Flow", { concurrency: 1 }, () => {
       body: "This should fail",
     };
 
-    const createResult = await ctx.repo.createPost(postInput);
+    const createResult = await repo.createPost(postInput);
     assert.ok(!createResult.ok, "Expected post creation to fail with invalid project ID");
   });
 

@@ -12,7 +12,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, after } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { setupTest, TestContext } from "./setup.js";
 import { PublishHandler } from "../../../apps/workers/src/publishHandler.js";
@@ -111,7 +111,7 @@ function buildHandler(ctx: TestContext, provider: PublishProvider): PublishHandl
 }
 
 // ---------------------------------------------------------------------------
-// Shared state — created once, cleaned up in after()
+// Shared state — created once in before(), cleaned up in after()
 // ---------------------------------------------------------------------------
 
 let accountId: string;
@@ -167,7 +167,10 @@ describe("Publish Flow", { concurrency: 1 }, () => {
     }
   }, TIMING);
 
-  it("setup: create account, project, and channel", TIMING, async () => {
+  // A hook, not a test: the runner may shuffle the tests of this file, and every one of them
+  // publishes into the account, project and channel created here, so the rows have to exist
+  // before whichever test runs first.
+  before(async () => {
     ctx = await setupTest();
 
     const account = await ctx.repo.createAccount({
@@ -200,7 +203,7 @@ describe("Publish Flow", { concurrency: 1 }, () => {
       },
     });
     channelId = channel.id;
-  });
+  }, TIMING);
 
   it("happy path: publish single post and verify PublishLog OK", TIMING, async () => {
     ctx = await setupTest();
