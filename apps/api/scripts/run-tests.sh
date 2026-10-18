@@ -76,15 +76,42 @@ run_live_tier() {
 }
 
 # TEST_ORDER=reverse runs each collected tier in reverse byte order, so a suite
-# that only passes after another one has run shows up as a red.
+# that only passes after another one has run shows up as a red. TEST_ORDER=random
+# runs each tier in an order drawn from TEST_SEED (order_by_seed), which catches a
+# suite that only passes after any other one, wherever that one sorts.
 TEST_ORDER="${TEST_ORDER:-}"
 case "$TEST_ORDER" in
-  "" | forward | reverse) ;;
+  "" | forward | reverse | random) ;;
   *)
-    echo "Unknown TEST_ORDER='$TEST_ORDER' (expected: unset, forward, reverse)" >&2
+    echo "Unknown TEST_ORDER='$TEST_ORDER' (expected: unset, forward, reverse, random)" >&2
     exit 2
     ;;
 esac
+
+# The seed is the only record of the order a random run took, printed before the
+# first file so a red replays with TEST_SEED=<seed> instead of being hunted for.
+# Unset, it is drawn here. It is held to the range node's --test-random-seed takes,
+# because the same seed is meant to drive that flag inside each file, and to one
+# spelling, because order_by_seed keys on its text, so 007 would not replay 7. A
+# seed with no random order to drive is refused rather than ignored: the run would
+# go in byte order and still read as the replay.
+TEST_SEED="${TEST_SEED:-}"
+SEED_PATTERN='^(0|[1-9][0-9]{0,9})$'
+if [ "$TEST_ORDER" = "random" ]; then
+  if [ -z "$TEST_SEED" ]; then
+    TEST_SEED=$((RANDOM * 32768 + RANDOM))
+  elif ! [[ "$TEST_SEED" =~ $SEED_PATTERN ]] || [ "$TEST_SEED" -gt 4294967295 ]; then
+    echo "run-tests.sh: TEST_SEED='$TEST_SEED' is not an integer from 0 to 4294967295 written without leading zeros, the seeds node's --test-random-seed takes." >&2
+    exit 2
+  fi
+  if ! command -v sha256sum >/dev/null; then
+    echo "run-tests.sh: TEST_ORDER=random orders the suites with sha256sum, which is not on PATH." >&2
+    exit 2
+  fi
+elif [ -n "$TEST_SEED" ]; then
+  echo "run-tests.sh: TEST_SEED='$TEST_SEED' is set, but only TEST_ORDER=random reads a seed (TEST_ORDER='$TEST_ORDER'); set TEST_ORDER=random to replay it." >&2
+  exit 2
+fi
 
 # The arguments are `--list` alone, or the paths, from apps/api, of the suites a
 # run is narrowed to (`bash scripts/run-tests.sh tests/a.integration.test.ts`):
@@ -122,16 +149,34 @@ SUMMARY_REPORTER="$(CDPATH='' cd -- "$(dirname "$RUNNER_PATH")/../../.." && pwd)
 SUMMARY_LINE='^@@SUMMARY tests=([0-9]+) pass=([0-9]+) fail=([0-9]+) cancelled=([0-9]+) skipped=([0-9]+) todo=([0-9]+)$'
 
 # Prints every `*.<suffix>.test.ts` under tests/, outside tests/unit (the unit
-# tier, collected elsewhere), one per line in byte order, or in reverse byte
-# order under TEST_ORDER=reverse. The order reaches `sort` as an array, so the
-# forward order passes it no argument rather than an empty word.
+# tier, collected elsewhere), one per line in byte order, in reverse byte order
+# under TEST_ORDER=reverse, or in TEST_SEED's order under TEST_ORDER=random. The
+# order reaches `sort` as an array, so the forward order passes it no argument
+# rather than an empty word.
 collect() {
   local suffix="$1"
   local -a sort_args=()
   case "$TEST_ORDER" in
     reverse) sort_args=(-r) ;;
   esac
-  find tests -path tests/unit -prune -o -type f -name "*.$suffix.test.ts" -print | LC_ALL=C sort "${sort_args[@]}"
+  find tests -path tests/unit -prune -o -type f -name "*.$suffix.test.ts" -print | LC_ALL=C sort "${sort_args[@]}" | order_by_seed
+}
+
+# Under TEST_ORDER=random, prints the paths it reads ascending by the sha256 of
+# "<TEST_SEED>\n<path>", so the order is a function of the seed and the paths
+# alone: the same seed gives the same order on any machine, and no clock, process
+# id or shuffling tool has a say. Any other order passes the paths through as
+# they came.
+order_by_seed() {
+  local path digest
+  if [ "$TEST_ORDER" != "random" ]; then
+    cat
+    return
+  fi
+  while IFS= read -r path; do
+    digest=$(printf '%s\n%s' "$TEST_SEED" "$path" | sha256sum)
+    printf '%s %s\n' "${digest%% *}" "$path"
+  done | LC_ALL=C sort | cut -d ' ' -f 2-
 }
 
 # The quarantine: suites known not to pass yet, each with the reason, the owner
@@ -522,6 +567,11 @@ echo ""
 # ─────────────────────────────────────────────────────────────────────────────
 echo "── Integration tests (node:test) ──"
 
+# The one line a random run is replayed from, before its first file runs.
+if [ "$TEST_ORDER" = "random" ]; then
+  echo "TEST_ORDER=random TEST_SEED=$TEST_SEED"
+fi
+
 # The quarantined suites of both tiers are printed on every run, whichever tier
 # it runs, and run nowhere.
 printf '%s\n' "$QUARANTINE" | while IFS=$'\t' read -r file reason; do
@@ -531,11 +581,11 @@ printf '%s\n' "$QUARANTINE" | while IFS=$'\t' read -r file reason; do
 done
 
 # The services tier: every collected `*.integration.test.ts` (select_files above),
-# each in its own node:test process through run_batch, in byte order or in
-# reverse under TEST_ORDER=reverse. The files run one after another, so no two
-# suites share the database at once: the suites that race one credential on
-# purpose, or park a row lock while polling for it, measure only their own
-# interleaving.
+# each in its own node:test process through run_batch, in the order collect
+# gives: byte order, or the one TEST_ORDER names. The files run one after
+# another, so no two suites share the database at once: the suites that race one
+# credential on purpose, or park a row lock while polling for it, measure only
+# their own interleaving.
 if run_services_tier; then
   run_batch "integration" "${SERVICES_FILES[@]}"
 fi

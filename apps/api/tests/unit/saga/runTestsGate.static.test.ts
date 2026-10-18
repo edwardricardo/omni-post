@@ -7,7 +7,8 @@
  *              captures, the script must refuse to start without a test database
  *              rather than read an environment file, it must never start vitest,
  *              both tiers must be collected by their suffixes rather than listed by
- *              hand, `--list` must answer above the database refusal, a bash older
+ *              hand, a random order must be a function of its seed alone, `--list`
+ *              must answer above the database refusal, a bash older
  *              than the one it needs must be refused by name, and the header must not
  *              carry a count that rots.
  *
@@ -461,7 +462,9 @@ describe("run-tests.sh is a gate that can go red", () => {
         reversible: codeLinesContaining('"$TEST_ORDER"').length > 0,
         // `sort` takes its order from a quoted array, so the forward order passes it no
         // argument at all rather than an empty word that word splitting happens to drop.
-        sortArgumentsQuoted: /LC_ALL=C sort "\$\{[a-z_]+\[@\]\}"$/.test(collectLine.trimEnd()),
+        sortArgumentsQuoted: /LC_ALL=C sort "\$\{[a-z_]+\[@\]\}" \| order_by_seed$/.test(
+          collectLine.trimEnd()
+        ),
       }).toEqual({
         collectsTheServicesTier: true,
         collectsTheLiveTier: true,
@@ -470,6 +473,43 @@ describe("run-tests.sh is a gate that can go red", () => {
         byteOrder: true,
         reversible: true,
         sortArgumentsQuoted: true,
+      });
+    });
+
+    it("orders a random run by the sha256 of its seed and each path, with no shuffling tool", () => {
+      // A random order is only worth running if its red replays, so the order must be
+      // a function of TEST_SEED and the paths alone. `shuf` and `$RANDOM` per path draw
+      // a new order on every run whatever the seed says; a key hashed from the seed and
+      // the path draws the same one wherever the seed is given back.
+      const start = codeLines.findIndex((line) => line.trim() === "order_by_seed() {");
+      const end = codeLines.findIndex((line, index) => index > start && line === "}");
+      const body = codeLines.slice(start, end + 1).join("\n");
+      const seedLine = 'echo "TEST_ORDER=random TEST_SEED=$TEST_SEED"';
+      const seedLineIndex = codeLines.findIndex((line) => line.includes(seedLine));
+      const firstBatchIndex = codeLines.findIndex((line) =>
+        /^\s*run_batch "integration"/.test(line)
+      );
+
+      expect({
+        found: start >= 0 && end > start,
+        randomizable: code.includes('"" | forward | reverse | random)'),
+        collectPipesThroughIt: codeLinesContaining("| order_by_seed").length,
+        keysOnSeedAndPath: body.includes(`printf '%s\\n%s' "$TEST_SEED" "$path" | sha256sum`),
+        sortsTheKeysByByte: body.includes("LC_ALL=C sort |"),
+        drawsNothingPerPath: !/\bshuf\b|\bRANDOM\b/.test(body),
+        noShuf: codeLinesContaining("shuf").length,
+        printsTheSeedOnce: codeLinesContaining(seedLine).length,
+        beforeTheFirstBatch: seedLineIndex >= 0 && seedLineIndex < firstBatchIndex,
+      }).toEqual({
+        found: true,
+        randomizable: true,
+        collectPipesThroughIt: 1,
+        keysOnSeedAndPath: true,
+        sortsTheKeysByByte: true,
+        drawsNothingPerPath: true,
+        noShuf: 0,
+        printsTheSeedOnce: 1,
+        beforeTheFirstBatch: true,
       });
     });
 

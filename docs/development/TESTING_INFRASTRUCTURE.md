@@ -333,6 +333,8 @@ A file fails on any failed or cancelled test, on a skipped test or zero tests wh
 
 **Tiers, and the order CI runs them in.** `TIER` picks what one run executes: unset runs both tiers (the local default, without the tier-only skip and zero-collection guards), `pr-integration` runs the services tier alone and `live-integration` the live tier alone. The `Integration Tests` job of `ci.yml` runs `pr-integration` before it starts the API and the workers, and `live-integration` after them. The order matters: a running API advances every tenant's sagas from its own retry scan, so a services suite that shares the database with one races a saga engine it never booted (DEF-82). The battery's `tier` step runs `pr-integration` with no API running.
 
+**Order.** Each tier runs in byte order, and `TEST_ORDER=reverse` reverses it. `TEST_ORDER=random` orders it by the sha256 of `<TEST_SEED>\n<path>`, so the order depends only on the seed, and the run prints `TEST_ORDER=random TEST_SEED=<n>` once, before its first file. `TEST_SEED` is an integer from 0 to 4294967295 with no leading zeros, the range of Node's `--test-random-seed`; it is drawn when unset, and setting it without `TEST_ORDER=random` exits 2. Pass the same seed to Node through `EXTRA_FLAGS` to shuffle the tests inside each file too.
+
 ```bash
 # From apps/api. Unit and eval suites (vitest):
 pnpm test
@@ -344,6 +346,9 @@ pnpm test:integration
 # The two halves CI runs apart
 TIER=pr-integration bash scripts/run-tests.sh
 TIER=live-integration bash scripts/run-tests.sh
+# The services tier in a seeded order, the tests inside each file shuffled by the same seed
+TIER=pr-integration TEST_ORDER=random TEST_SEED=7 \
+  EXTRA_FLAGS="--test-randomize --test-random-seed=7" bash scripts/run-tests.sh
 # Only the named suites, each in its own tier and with its tier's guards
 bash scripts/run-tests.sh tests/auth.integration.test.ts tests/security.live.test.ts
 # What the collector runs for one file; SUMMARY_REPORTER is the absolute path of
