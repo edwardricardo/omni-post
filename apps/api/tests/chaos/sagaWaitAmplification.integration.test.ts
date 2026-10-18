@@ -27,16 +27,35 @@
  */
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
+import { until } from "@packages/vitest-shared/determinism";
 import { createPostPublishingSagaDefinition } from "@shared/types/saga.js";
 import { ok } from "@shared/types";
+import type { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
 import { createChaosHarness, type ChaosHarness } from "./chaos-helpers.js";
 
-const flushDispatch = async (): Promise<void> => {
-  // executeSagaAsync defers via setImmediate; one macrotask turn plus slack
-  // drains the dispatch and its awaited persists against in-memory doubles.
-  await new Promise((r) => setImmediate(r));
-  await new Promise((r) => setTimeout(r, 25));
-};
+/**
+ * Waits until the pass a start or an event dispatched has run and released the saga. The
+ * dispatch is deferred with `setImmediate`, and every pass reads the channels' progress exactly
+ * once, so the read count says the dispatched pass has run. Whether a pass still holds the saga
+ * is engine state the facade does not expose, reached through a documented cast.
+ * @param harness - The harness whose engine runs the pass.
+ * @param sagaId - The saga the pass advances.
+ * @param progressReads - Reads how many times the progress reader has answered so far.
+ * @param expectedReads - The read count once the dispatched pass has run.
+ */
+async function awaitDispatchedPass(
+  harness: ChaosHarness,
+  sagaId: string,
+  progressReads: () => number,
+  expectedReads: number
+): Promise<void> {
+  const engine = (harness.manager as unknown as { execution: SagaExecutionEngine }).execution;
+  await until(() => progressReads() === expectedReads && !engine.isAdvancerInFlight(sagaId), {
+    description: () =>
+      `progress read ${expectedReads} and the release of saga ${sagaId} by its pass ` +
+      `(reads so far: ${progressReads()})`,
+  });
+}
 
 describe("a four-channel publish whose channels all succeed", () => {
   let harness: ChaosHarness;
@@ -78,7 +97,7 @@ describe("a four-channel publish whose channels all succeed", () => {
         },
       },
     });
-    await flushDispatch();
+    await awaitDispatchedPass(harness, instance.id, () => waitCalls, 1);
     let saga = await harness.manager.getSaga(instance.id);
     assert.equal(saga?.currentStep, 3, "the saga is parked on its wait step");
     assert.equal(
@@ -91,13 +110,14 @@ describe("a four-channel publish whose channels all succeed", () => {
     // Each sibling completion re-dispatches the wait step, which still finds
     // channels outstanding. Before the outcome contract this cost one retry per
     // event and the budget was gone by the third.
-    for (const _job of ["J1", "J2", "J3"]) {
+    // J1, J2 and J3: each event's pass reads the progress once more.
+    for (const expectedReads of [2, 3, 4]) {
       pending -= 1;
       await harness.manager.handleEvent({
         type: "publish.job.completed",
         metadata: { sagaId: instance.id },
       } as never);
-      await flushDispatch();
+      await awaitDispatchedPass(harness, instance.id, () => waitCalls, expectedReads);
       saga = await harness.manager.getSaga(instance.id);
       assert.equal(saga?.retryCount, 0, "a sibling's completion event consumes no retry budget");
       assert.equal(saga?.status, "RUNNING", "and leaves the saga non-terminal");
@@ -111,7 +131,7 @@ describe("a four-channel publish whose channels all succeed", () => {
       type: "publish.job.completed",
       metadata: { sagaId: instance.id },
     } as never);
-    await flushDispatch();
+    await awaitDispatchedPass(harness, instance.id, () => waitCalls, 5);
 
     saga = await harness.manager.getSaga(instance.id);
     assert.equal(
@@ -131,6 +151,7 @@ describe("a four-channel publish whose channels all succeed", () => {
 
 describe("a four-channel publish in which one channel genuinely errors", () => {
   let harness: ChaosHarness;
+  let progressReads = 0;
   before(async () => {
     harness = await createChaosHarness();
     const definition = createPostPublishingSagaDefinition(
@@ -138,7 +159,10 @@ describe("a four-channel publish in which one channel genuinely errors", () => {
       async (job) => `probe-fail-${String(job.channelId)}`,
       // Nothing outstanding, one job ended in error: a real failure, not a
       // step that has not finished.
-      async () => ok({ completed: 3, failed: 1, pending: 0 })
+      async () => {
+        progressReads += 1;
+        return ok({ completed: 3, failed: 1, pending: 0 });
+      }
     );
     harness.manager.registerSaga(definition);
   });
@@ -160,7 +184,7 @@ describe("a four-channel publish in which one channel genuinely errors", () => {
         },
       },
     });
-    await flushDispatch();
+    await awaitDispatchedPass(harness, instance.id, () => progressReads, 1);
     let saga = await harness.manager.getSaga(instance.id);
     assert.equal(saga?.retryCount, 1, "a real failure spends exactly one retry");
 
@@ -169,7 +193,7 @@ describe("a four-channel publish in which one channel genuinely errors", () => {
         type: "publish.job.completed",
         metadata: { sagaId: instance.id },
       } as never);
-      await flushDispatch();
+      await awaitDispatchedPass(harness, instance.id, () => progressReads, expected);
       saga = await harness.manager.getSaga(instance.id);
       assert.equal(saga?.retryCount, expected, "each further failure spends one more");
     }
@@ -178,7 +202,7 @@ describe("a four-channel publish in which one channel genuinely errors", () => {
       type: "publish.job.completed",
       metadata: { sagaId: instance.id },
     } as never);
-    await flushDispatch();
+    await awaitDispatchedPass(harness, instance.id, () => progressReads, 4);
 
     saga = await harness.manager.getSaga(instance.id);
     assert.equal(saga?.status, "FAILED", "the exhausted budget still ends the saga");

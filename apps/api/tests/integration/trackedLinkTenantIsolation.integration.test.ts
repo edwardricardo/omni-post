@@ -20,6 +20,7 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { until } from "@packages/vitest-shared/determinism";
 import Fastify, { type FastifyInstance } from "fastify";
 import type { RateLimiterPort, RateLimitDecision, RateLimitOptions } from "@ports/core";
 import { type PrismaClient } from "@infra/prisma";
@@ -317,17 +318,17 @@ describe("TrackedLink — two-tenant isolation (MERGE-BLOCKING)", () => {
       const res = await app.inject({ method: "GET", url: `/r/${tenantA.shortCode}` });
       assert.strictEqual(res.statusCode, 302);
       assert.strictEqual(res.headers.location, tenantA.originalUrl);
-      // recordClick is fire-and-forget — poll briefly for the increment.
-      let recorded = false;
-      for (let i = 0; i < 20 && !recorded; i++) {
-        await new Promise((r) => setTimeout(r, 25));
-        const now = await base.trackedLink.findUnique({
-          where: { id: tenantA.linkId },
-          select: { clicks: true },
-        });
-        recorded = (now?.clicks ?? 0) > (beforeClicks?.clicks ?? 0);
-      }
-      assert.ok(recorded, "the click must be recorded on A's own link");
+      // recordClick is fire-and-forget, so the case reads the counter until it moves.
+      await until(
+        async () => {
+          const now = await base.trackedLink.findUnique({
+            where: { id: tenantA.linkId },
+            select: { clicks: true },
+          });
+          return (now?.clicks ?? 0) > (beforeClicks?.clicks ?? 0);
+        },
+        { description: "the click to be recorded on A's own link", intervalMs: 25 }
+      );
     });
 
     it("the /r namespace is rate-limited by the trusted socket peer, not a spoofable header", async () => {

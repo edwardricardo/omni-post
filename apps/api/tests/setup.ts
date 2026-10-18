@@ -201,8 +201,8 @@ export async function teardownTest(): Promise<void> {
 /**
  * @description Closes the shared adapters; call it once, at the end of the whole suite. It calls
  *   `close()` on the queue adapter and on the repository adapter when they exist, waits for both
- *   or for 2 s, whichever comes first, and then drops them, so a later `setupTest` creates new
- *   ones. A failed close is logged as a warning and never thrown.
+ *   to settle, for at most 2 s, and then drops them, so a later `setupTest` creates new ones. A
+ *   failed close, and a close still pending after 2 s, is logged as a warning and never thrown.
  */
 export async function finalCleanup(): Promise<void> {
   try {
@@ -226,21 +226,20 @@ export async function finalCleanup(): Promise<void> {
       );
     }
 
-    // Wait for cleanup with timeout
-    await Promise.race([
+    // The 2 s bound rejects instead of resolving, so a close still pending is reported as such
+    // rather than taken for a finished one.
+    await withTimeout(
       Promise.all(cleanupPromises),
-      new Promise((resolve) => {
-        const t = setTimeout(resolve, 2000);
-        t.unref();
-      }), // 2s cleanup timeout
-    ]);
-
-    globalRepo = null;
-    globalQueue = null;
+      2000,
+      "Final cleanup: a close was still pending after 2 s"
+    );
 
     console.error("✓ Final cleanup completed");
   } catch (error) {
     console.warn("Final cleanup warning:", error);
+  } finally {
+    globalRepo = null;
+    globalQueue = null;
   }
 }
 
@@ -371,18 +370,6 @@ export function makeFlowCleanup(
       await teardownTest();
     }
   };
-}
-
-/**
- * @description Resolves after `ms` milliseconds. Its timer is unref'd, so a pending sleep does
- *   not keep the process alive.
- * @param ms - How long to wait, in milliseconds.
- */
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(resolve, ms);
-    timer.unref();
-  });
 }
 
 /**

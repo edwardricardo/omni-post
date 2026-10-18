@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyInstance } from "fastify";
 import { Redis } from "ioredis";
+import { untilValue } from "@packages/vitest-shared/determinism";
 import { type PrismaClient } from "@infra/prisma";
 import { tenantGuardExtension } from "@infra/prisma/extensions/tenantGuard.js";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
@@ -535,23 +536,25 @@ export class PublishNowPromotionHarness {
    * @description Polls the DURABLE row until the saga ends.
    * @param sagaId - The saga to watch.
    * @param timeoutMs - How long to wait before failing.
-   * @returns The terminal status; on timeout it fails naming the row's own error.
+   * @returns The terminal status; a timeout fails naming the row's last status, step and error.
    */
   async waitForTerminal(sagaId: string, timeoutMs = 20_000): Promise<string> {
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-      const row = await this.base.sagaInstance.findUniqueOrThrow({
-        where: { id: sagaId },
-        select: { status: true, currentStep: true, error: true },
-      });
-      if (TERMINAL_STATES.includes(row.status as SagaInstance["status"])) return row.status;
-      if (Date.now() > deadline) {
-        assert.fail(
-          `saga ${sagaId} never terminalized: status=${row.status} step=${row.currentStep} error=${String(row.error)}`
-        );
+    let lastSeen = "no row read yet";
+    return untilValue(
+      async () => {
+        const row = await this.base.sagaInstance.findUniqueOrThrow({
+          where: { id: sagaId },
+          select: { status: true, currentStep: true, error: true },
+        });
+        lastSeen = `status=${row.status} step=${row.currentStep} error=${String(row.error)}`;
+        return TERMINAL_STATES.includes(row.status as SagaInstance["status"]) ? row.status : null;
+      },
+      {
+        description: () => `saga ${sagaId} to terminalize (last read: ${lastSeen})`,
+        timeoutMs,
+        intervalMs: 100,
       }
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+    );
   }
 
   /**
