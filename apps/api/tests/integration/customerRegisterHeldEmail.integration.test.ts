@@ -4,7 +4,8 @@
  *   it claims is already held, by what holds it:
  *
  *   - nothing, because the holder was HARD-deleted: the registration succeeds;
- *   - a LIVE account, with or without a live user: 409 "Email already exists", no notice;
+ *   - a LIVE account, with or without a live user: 409 "Email already exists", no notice, also
+ *     when the attempt types the address in another casing;
  *   - a SOFT-deleted account (whatever its user's state) or a live account whose user was
  *     soft-deleted: the same 409, byte for byte, and a notice to the owner of the address.
  *
@@ -26,6 +27,10 @@
  *   without I/O and the notice mailer records synchronously, so every notice is in by the end of
  *   the event-loop turn the refusal settles in, and the count is final. The route is held
  *   to that same use case by the container check: the mailer it is handed is the throttled one.
+ *
+ *   A registration whose body still names a tier (`plan`) registers a BASIC account with a
+ *   one-project limit: the public body carries no tier, so a registrant cannot pick a paid tier's
+ *   project limit for itself.
  *
  *   The last case drives the use case over the real account repository and the real Unit of Work
  *   with a user insert that fails, and proves the account written before it is rolled back rather
@@ -376,6 +381,70 @@ describe("POST /auth/customer/register with an e-mail something already holds", 
         before,
         "the refused registration must neither add nor change a row"
       );
+    });
+  }
+
+  it("answers the EMAIL_EXISTS refusal when a live account holds the address in another casing, and writes nothing", async () => {
+    // `foo@example.com` and `FOO@EXAMPLE.COM` are one registration identity. The holder carries
+    // the canonical form registration stores; the attempt types the same address in capitals. A
+    // check that compared raw bytes would miss the holder and give one person a second account.
+    const held = addressFor("case-twin");
+    const twin = held.toUpperCase();
+    assert.notEqual(
+      twin,
+      held,
+      "the attempt must differ from the holder's bytes or it proves nothing"
+    );
+    await seedHolder(held, { accountDeleted: false, user: "live" });
+    const before = await rowsFor(held);
+
+    const res = await register(twin);
+
+    assert.equal(res.statusCode, 409, `expected the refusal for ${twin}, got ${res.body}`);
+    assert.equal(res.body, EMAIL_EXISTS_BODY, "the case-twin gets the one refusal, byte for byte");
+    assert.deepEqual(
+      await rowsFor(held),
+      before,
+      "the refused registration must neither add nor change a row of the holder"
+    );
+    assert.deepEqual(
+      await rowsFor(twin),
+      { accounts: [], users: [] },
+      "no row carries the address as the attempt typed it"
+    );
+  });
+
+  for (const plan of ["PRO", "ENTERPRISE"] as const) {
+    it(`registers a BASIC account with a one-project limit when the body asks for ${plan}`, async () => {
+      // The schema strips the unknown key, so the registration goes through and the tier the
+      // body named never reaches the account: PRO would have stored 5, ENTERPRISE -1.
+      const email = addressFor(`plan-${plan.toLowerCase()}`);
+
+      const res = await app.inject({
+        method: "POST",
+        url: REGISTER_URL,
+        payload: {
+          accountName: `${TAG}-plan`,
+          firstName: "Tier",
+          lastName: "Chooser",
+          email,
+          password: PASSWORD,
+          plan,
+        },
+      });
+
+      assert.equal(res.statusCode, 201, `the registration succeeds, got ${res.body}`);
+      const answered = (res.json() as { data: { account: Record<string, unknown> } }).data.account;
+      assert.equal(answered.maxProjects, 1, "the answer reports the BASIC tier's limit");
+      assert.ok(
+        !("plan" in answered) && !("subscription" in answered),
+        "the answer echoes no tier the body asked for"
+      );
+      const stored = await prisma.account.findMany({
+        where: { email },
+        select: { maxProjects: true },
+      });
+      assert.deepEqual(stored, [{ maxProjects: 1 }], "one account, on the BASIC tier's limit");
     });
   }
 

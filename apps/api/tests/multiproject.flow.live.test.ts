@@ -2,10 +2,10 @@
  * Multi-Project Flow Tests
  *
  * Tests multi-project account management including:
- * - Account creation with different subscription tiers
- * - Project quota enforcement
+ * - Accounts created through customer registration
+ * - Project quota enforcement, with limits written straight to the database
  * - Project name uniqueness per account
- * - Account upgrade scenarios
+ * - Creating projects after a higher limit is written to the database
  * - Account deletion cascade
  * - Backward compatibility
  *
@@ -14,48 +14,18 @@
  * @layer infrastructure
  */
 
-import { describe, it, before } from "node:test";
+import { describe, it, before, after } from "node:test";
 import * as assert from "node:assert/strict";
-import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
-import { checkApiAvailable, getBaseUrl } from "./testUtils.js";
+import type { PrismaClient } from "@infra/prisma";
+import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+import {
+  checkApiAvailable,
+  getBaseUrl,
+  liveRegistrationBody,
+  registerLiveTenant,
+} from "./testUtils.js";
 
 const API_BASE = getBaseUrl();
-
-/**
- * The grants this suite's principal claims. `roleName: "OWNER"` with an EMPTY
- * permission array is a principal the seeded system cannot produce: the OWNER
- * CustomerRole in `infra/prisma/seed.ts` carries `account:delete` among its
- * grants (mirrored verbatim in `tests/unit/helpers/seedCustomerRoles.ts`), so a
- * token labelled OWNER that holds nothing contradicts the seed it claims to
- * represent. It went unnoticed while `DELETE /accounts/:accountId` checked
- * ownership alone; now that the route also asserts the destructive grant, the
- * empty array makes the deletion-cascade suite below fail for a reason it does
- * not test.
- *
- * Only the account-lifecycle grants are listed, not the full seeded set: this
- * suite exercises no other permission-gated route, and copying 118 literals here
- * would create a second place for the seed to drift away from.
- *
- * This is the positive principal. That a member WITHOUT `account:delete` is
- * refused, and destroys nothing, is pinned separately under the real middleware
- * in `tests/unit/accounts/accountDeletePermission.test.ts`.
- */
-const OWNER_PERMISSIONS: readonly string[] = ["account:manage", "account:delete"];
-
-/**
- * Mints a customer Bearer token bound to `accountId`. Account-scoped routes
- * (`/accounts/:id/projects`, `/projects/:id`, ...) sit behind `requireClientAuth`
- * and the tenant guard rejects a write whose path accountId mismatches the
- * token's accountId, so each account must be operated with a token bound to it.
- */
-const bearer = (accountId: string): string =>
-  `Bearer ${signCustomerAccessToken({
-    sub: `prod-test-${accountId}`,
-    accountId,
-    roleId: "role-test",
-    roleName: "OWNER",
-    permissions: OWNER_PERMISSIONS,
-  })}`;
 
 // Helper function to make API calls
 async function apiCall(method: string, path: string, body?: any, token?: string) {
@@ -80,13 +50,13 @@ describe("Multi-Project Flow Tests", () => {
   let proAccountId: string;
   let enterpriseAccountId: string;
   let project3Id: string; // Store for deletion test
-  // Per-account tokens — minted after each account is created so tenant-scoped
-  // operations carry a token whose accountId matches the resource's accountId.
+  // Each account is operated with the access token its own registration issued, so every
+  // account-scoped call carries a token whose account is the one in the path.
   let basicToken: string;
   let proToken: string;
   let enterpriseToken: string;
-  // Token for un-scoped account creation (POST /accounts is not tenant-scoped).
-  let bootstrapToken: string;
+  // The owner channel the harness writes fixtures through; see `setProjectLimit`.
+  let seedPrisma: PrismaClient;
   let apiAvailable = false;
 
   before(async () => {
@@ -96,7 +66,11 @@ describe("Multi-Project Flow Tests", () => {
     }
 
     timestamp = Date.now();
-    bootstrapToken = bearer("prod-multiproject-bootstrap");
+    seedPrisma = createSeedPrismaClient();
+  });
+
+  after(async () => {
+    await seedPrisma?.$disconnect();
   });
 
   const skipIfUnavailable = (t: any): boolean => {
@@ -107,71 +81,60 @@ describe("Multi-Project Flow Tests", () => {
     return false;
   };
 
-  describe("Account Creation with Different Tiers", () => {
-    it("should create BASIC account with max 1 project", async (t) => {
+  /**
+   * Writes an account's project limit straight to the database through the seed client, then
+   * returns the limit the API reports to the account's owner. This is a fixture write: it
+   * exercises no API route. The route that sets the limit, `PUT /admin/accounts/:id/settings`,
+   * requires an admin session whose CSRF token the API checks against that admin's session row,
+   * and the live tier has no admin session to log in with, so the harness writes the column that
+   * route writes. A customer cannot write it at all.
+   */
+  async function setProjectLimit(
+    accountId: string,
+    ownerToken: string,
+    maxProjects: number
+  ): Promise<unknown> {
+    await seedPrisma.account.update({ where: { id: accountId }, data: { maxProjects } });
+    const result = await apiCall("GET", `/accounts/${accountId}`, undefined, ownerToken);
+    assert.strictEqual(result.status, 200, `reading the account answered ${result.status}`);
+    return result.data.data.maxProjects;
+  }
+
+  describe("Account Creation and Project Limits", () => {
+    it("registers an account with the BASIC tier's one-project limit", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const result = await apiCall(
-        "POST",
-        "/accounts",
-        {
-          email: `basic-${timestamp}@test.com`,
-          name: "Basic Account",
-          subscription: "BASIC",
-        },
-        bootstrapToken
-      );
+      const tenant = await registerLiveTenant({
+        email: `basic-${timestamp}@test.com`,
+        accountName: "Basic Account",
+      });
+      basicAccountId = tenant.accountId;
+      basicToken = tenant.authorization;
 
-      assert.strictEqual(result.status, 200);
-      assert.strictEqual(result.data.ok, true);
-      assert.strictEqual(result.data.data.maxProjects, 1);
-
-      basicAccountId = result.data.data.id;
-      basicToken = bearer(basicAccountId);
+      assert.strictEqual(tenant.account.maxProjects, 1);
     });
 
-    it("should create PRO account with max 3 projects", async (t) => {
+    it("registers an account and writes a project limit of 3 to the database", async (t) => {
       if (skipIfUnavailable(t)) return;
-      // Project quota is governed solely by the account's `maxProjects` field;
-      // there is no subscription-tier → quota mapping on the account route, so
-      // a PRO-tier limit of 3 is expressed by passing maxProjects explicitly.
-      const result = await apiCall(
-        "POST",
-        "/accounts",
-        {
-          email: `pro-${timestamp}@test.com`,
-          name: "Pro Account",
-          maxProjects: 3,
-        },
-        bootstrapToken
-      );
+      const tenant = await registerLiveTenant({
+        email: `pro-${timestamp}@test.com`,
+        accountName: "Pro Account",
+      });
+      proAccountId = tenant.accountId;
+      proToken = tenant.authorization;
 
-      assert.strictEqual(result.status, 200);
-      assert.strictEqual(result.data.ok, true);
-      assert.strictEqual(result.data.data.maxProjects, 3);
-
-      proAccountId = result.data.data.id;
-      proToken = bearer(proAccountId);
+      assert.strictEqual(await setProjectLimit(proAccountId, proToken, 3), 3);
     });
 
-    it("should create ENTERPRISE account with custom project limit", async (t) => {
+    it("registers an account and writes a project limit of 10 to the database", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const result = await apiCall(
-        "POST",
-        "/accounts",
-        {
-          email: `enterprise-${timestamp}@test.com`,
-          name: "Enterprise Account",
-          maxProjects: 10,
-        },
-        bootstrapToken
-      );
+      const tenant = await registerLiveTenant({
+        email: `enterprise-${timestamp}@test.com`,
+        accountName: "Enterprise Account",
+      });
+      enterpriseAccountId = tenant.accountId;
+      enterpriseToken = tenant.authorization;
 
-      assert.strictEqual(result.status, 200);
-      assert.strictEqual(result.data.ok, true);
-      assert.strictEqual(result.data.data.maxProjects, 10);
-
-      enterpriseAccountId = result.data.data.id;
-      enterpriseToken = bearer(enterpriseAccountId);
+      assert.strictEqual(await setProjectLimit(enterpriseAccountId, enterpriseToken, 10), 10);
     });
   });
 
@@ -322,26 +285,14 @@ describe("Multi-Project Flow Tests", () => {
     });
   });
 
-  describe("Account Upgrade Scenarios", () => {
-    it("should upgrade BASIC account to PRO", async (t) => {
+  describe("Projects After a Higher Limit Is Written to the Database", () => {
+    it("writes a project limit of 3 for the BASIC account to the database", async (t) => {
       if (skipIfUnavailable(t)) return;
-      // "Upgrading to PRO" is modelled by raising the account's project quota;
-      // the account has no `subscription` field, so the upgrade asserts the new
-      // maxProjects rather than a tier label.
-      const result = await apiCall(
-        "PUT",
-        `/accounts/${basicAccountId}`,
-        {
-          maxProjects: 3,
-        },
-        basicToken
-      );
-
-      assert.strictEqual(result.status, 200);
-      assert.strictEqual(result.data.data.maxProjects, 3);
+      // A fixture write, not an upgrade through the API: see `setProjectLimit`.
+      assert.strictEqual(await setProjectLimit(basicAccountId, basicToken, 3), 3);
     });
 
-    it("should allow creating more projects after upgrade", async (t) => {
+    it("lets the BASIC account create another project under the higher limit", async (t) => {
       if (skipIfUnavailable(t)) return;
       const result = await apiCall(
         "POST",
@@ -367,7 +318,7 @@ describe("Multi-Project Flow Tests", () => {
       );
 
       assert.strictEqual(result.status, 200);
-      assert.strictEqual(result.data.data.length, 2); // 1 original + 1 after upgrade
+      assert.strictEqual(result.data.data.length, 2); // 1 original + 1 under the higher limit
     });
 
     it("should list all projects for PRO account", async (t) => {
@@ -390,24 +341,14 @@ describe("Multi-Project Flow Tests", () => {
 
     it("should create test account with project", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const accountResult = await apiCall(
-        "POST",
-        "/accounts",
-        {
-          email: `testuser${timestamp}@example.com`,
-          name: "Test User",
-          subscription: "BASIC",
-        },
-        bootstrapToken
-      );
+      const tenant = await registerLiveTenant({
+        email: `testuser${timestamp}@example.com`,
+        accountName: "Test User",
+      });
+      deleteAccountId = tenant.accountId;
+      deleteToken = tenant.authorization;
 
-      assert.strictEqual(accountResult.status, 200);
-      assert.strictEqual(accountResult.data.ok, true);
-      deleteAccountId = accountResult.data.data.id;
-      deleteToken = bearer(deleteAccountId);
-
-      // Create a project
-      const _projectResult = await apiCall(
+      const projectResult = await apiCall(
         "POST",
         `/accounts/${deleteAccountId}/projects`,
         {
@@ -415,6 +356,7 @@ describe("Multi-Project Flow Tests", () => {
         },
         deleteToken
       );
+      assert.strictEqual(projectResult.status, 200);
     });
 
     it("should delete account successfully", async (t) => {
@@ -438,18 +380,18 @@ describe("Multi-Project Flow Tests", () => {
   describe("Email Uniqueness", () => {
     it("should reject duplicate email addresses", async (t) => {
       if (skipIfUnavailable(t)) return;
+      // The case registers its own holder, so it holds whatever ran before it.
+      const email = `duplicate-${timestamp}@test.com`;
+      await registerLiveTenant({ email, accountName: "Address Holder" });
+
       const result = await apiCall(
         "POST",
-        "/accounts",
-        {
-          email: `basic-${timestamp}@test.com`, // Same as first account
-          name: "Duplicate Email Account",
-        },
-        bootstrapToken
+        "/auth/customer/register",
+        liveRegistrationBody({ email, accountName: "Duplicate Email Account" })
       );
 
       assert.strictEqual(result.status, 409);
-      assert.strictEqual(result.data.error, "EMAIL_TAKEN");
+      assert.strictEqual(result.data.error, "Email already exists");
     });
   });
 
@@ -459,21 +401,13 @@ describe("Multi-Project Flow Tests", () => {
 
     it("should create demo account for compatibility testing", async (t) => {
       if (skipIfUnavailable(t)) return;
-      const result = await apiCall(
-        "POST",
-        "/accounts",
-        {
-          email: `demo-${timestamp}@example.com`,
-          name: "Demo Account",
-          subscription: "PRO",
-        },
-        bootstrapToken
-      );
+      const tenant = await registerLiveTenant({
+        email: `demo-${timestamp}@example.com`,
+        accountName: "Demo Account",
+      });
 
-      assert.strictEqual(result.status, 200);
-      assert.strictEqual(result.data.ok, true);
-      demoAccountId = result.data.data.id;
-      demoToken = bearer(demoAccountId);
+      demoAccountId = tenant.accountId;
+      demoToken = tenant.authorization;
     });
 
     it("should create demo project", async (t) => {

@@ -1,11 +1,12 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-18 — N-CI-7, the test kit, is closed (row N-CI-7): the determinism kit, both
-test-kit lint rules at `error`, `fast-check` with four property suites, and the services tier run
-every night five times in a seeded random order with one alarm (#654). Phase 2 can start. Phase 0
-is closed, row 0.16 aside (🔄); Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1018 + 14` · M5 `29 · 0`
-· M7 `42/42` · M8 `1/93`. Every unit's line is in [§Log](#log).
+**As of:** 2026-10-18 — N-AUTH-1 with DEF-106 (`workstream/fix-n-auth-1-account-authority`) added
+five account-authority suites, and the live tier registers its tenants. N-CI-7, the test kit, is
+closed (row N-CI-7): the determinism kit, both test-kit lint rules at `error`, `fast-check` with
+four property suites, and the services tier run every night five times in a seeded random order
+with one alarm (#654). Phase 2 can start. Phase 0 is closed, row 0.16 aside (🔄); Phase 1 has 1.13, 1.14 and 1.15 left. M1
+`1023 + 14` · M5 `29 · 0` · M7 `42/42` · M8 `1/93`. Every unit's line is in [§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
 
@@ -31,7 +32,7 @@ naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1018 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR wire  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1023 + 14             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR nauth |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -408,11 +409,13 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 | Nothing typechecks the portals' E2E tree: both `tsconfig.json` exclude the Playwright config and specs (admin `:30`, client `:41`); a probe over the client E2E tree reports 644 pre-existing errors, 0 from 1.63.0 (1.61.1 control: 647)  | outside a version-bump slice, which validates the API it moves and not a tree nothing has ever typechecked; what covers the E2E tree is a config decision                                                                                                                                                             | 6.E (config slice 6.E4)            |
 | The secret scan does not read the lines a merge commit introduces while resolving a conflict: `git log -p` shows no diff for merges                                                                                                        | found on 2026-10-02 while disposing the secret-scan findings; reading merge resolutions changes what the scan reads, and the drain (D28) takes nothing new                                                                                                                                                            | —                                  |
 | The post-edit hook reports a possible leak on workflow files for connection strings that predate the edit; the commit-time scan passes                                                                                                     | the hook is outside this workstream                                                                                                                                                                                                                                                                                   | hooks backlog                      |
+| No live suite drives an admin mutation route: the live tier has no admin login, and `csrfMiddleware.ts:39-66` refuses a state-changing `/admin/*` request without an `X-CSRF-Token` matching an active `AdminSession`                      | found by N-AUTH-1 (findings R4-001 and R3-setProjectLimit of `76b42872`): `setProjectLimit` in `multiproject.flow.live.test.ts` writes `maxProjects` through the seed client, not `PUT /admin/accounts/:accountId/settings`; a live admin session is its own change                                                   | 9 (queue)                          |
 
 ### Log
 
 Newest first; a line with no date or no pull request number is one whose record named none.
 
+- 2026-10-18 — N-AUTH-1 + DEF-106, `PR nauth` (`workstream/fix-n-auth-1-account-authority`) — customers read, rename and see the usage of their own account only, `GET` and `POST /accounts` are gone, registration takes no `plan`, and the account-scoped project routes refuse another tenant's account with the 404 a missing one gets (DEF-106); new suites `projectAccountScope.integration`, `accountReadUpdateAuthorization`, `adminHoldsPermission`, `requireCallerOwnsAccountParam` and `usageRoutesOwnership`; the four live suites register their tenants through `registerLiveTenant` (180 → 179 tests, 179/179); one declared gap, the live tier's missing admin session — M1 `1018 + 14` → `1023 + 14`
 - 2026-10-18 — N-CI-7 closing records, `PR close` (`workstream/n-ci-7-close`) — the runner's seeded random order and the randomized nightly enter [§Gates](#gates); row N-CI-7 ✅ and WU-3.12 🔄; N-CI-7 closed in the master plan with DEF-110 to DEF-112; book rows SB-327 to SB-334, and SB-193, SB-197, SB-199 and SB-200 moved to Track S; FP-017 and FP-018 — M7 `40/40` → `42/42`
 - 2026-10-18 — N-CI-7 K8 + K9, `PR k8k9` (`workstream/n-ci-7-nightly`) — #654 — `run-tests.sh` `TEST_ORDER=random` with a printed, replayable `TEST_SEED`; `nightly.yml` job `integration-randomized` (five runs, fresh services, file and test shuffle, no retries) and one `alarm` job for the marked `nightly-failure` issue; red in runs 39097507468 (#647 opened) and 39098860445 (commented on), green in run 39117721741, whose alarm closed #647; WU-3.12 keeps the forced build and test steps, `chaos.yml` and the 31 earlier issues — no metric
 - 2026-10-18 — N-CI-7 order independence, round 2, `PR order-e` (`workstream/n-ci-7-order-e`) — #655 — the audit statistics case seeds the logs it counts (the 17th order dependence, run 39111917425, seed 277150497); `OutboxRelay`, the bulk-schedule suites and the saga suites survive the rows a failed suite leaves — no metric

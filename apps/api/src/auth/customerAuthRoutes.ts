@@ -32,6 +32,11 @@ import type {
 
 // ---- Zod schemas ----
 
+/**
+ * The public registration body. It names no tier: every self-registered account starts on BASIC,
+ * and a tier is billing's or an admin's to change. Unknown keys are stripped, so a body that still
+ * sends `plan` registers a BASIC account rather than the tier it asked for.
+ */
 const RegisterSchema = z.object({
   accountName: z.string().min(1).max(100),
   accountEmail: z.string().email().optional(),
@@ -39,7 +44,6 @@ const RegisterSchema = z.object({
   lastName: z.string().min(1).max(100),
   email: z.string().email(),
   password: z.string().min(8).max(128),
-  plan: z.enum(["BASIC", "PRO", "ENTERPRISE"]).optional(),
 });
 
 const LoginSchema = z.object({
@@ -69,6 +73,12 @@ const MfaLoginSchema = z.object({
   // Consumed by the Next proxy/action cookie layer; the API ignores it.
   rememberMe: z.boolean().optional(),
 });
+
+/** The status and message a handler answers one use-case error code with. */
+interface MappedErrorAnswer {
+  readonly code: number;
+  readonly message: string;
+}
 
 /**
  * @class CustomerAuthRouteHandler
@@ -103,8 +113,29 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
+   * @method sendMappedError
+   * @description Answers a use-case error with the status and message the handler's map gives
+   *   that code, through `sendError`, so every mapped refusal is the same `{ ok: false, error }`
+   *   body.
+   * @param ctx - The route context the refusal is sent on.
+   * @param errorMap - The status and message each error code of the use case answers with.
+   * @param error - The error code the use case returned.
+   */
+  private sendMappedError<E extends string>(
+    ctx: RouteContext,
+    errorMap: Readonly<Record<E, MappedErrorAnswer>>,
+    error: E
+  ): void {
+    const mapped = errorMap[error];
+    this.sendError(ctx, mapped.code, mapped.message);
+  }
+
+  /**
    * @method register
-   * @description POST /auth/customer/register - Creates account + user, returns tokens.
+   * @description POST /auth/customer/register - Creates account + user, returns tokens. The
+   *   account starts on the BASIC tier.
+   * @param request - The registration body: account and owner names, e-mail and password.
+   * @param reply - The reply the created account and tokens, or the refusal, are sent on.
    */
   async register(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -134,7 +165,6 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
         lastName: body.lastName,
         email: body.email,
         password: body.password,
-        ...(body.plan !== undefined && { plan: body.plan }),
       })
     );
 
@@ -144,8 +174,7 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
         VALIDATION_ERROR: { code: 400, message: "Invalid input data" },
         INTERNAL_ERROR: { code: 500, message: "Internal server error" },
       };
-      const mapped = errorMap[result.error];
-      return this.sendError(ctx, mapped.code, mapped.message);
+      return this.sendMappedError(ctx, errorMap, result.error);
     }
 
     return this.sendSuccess(ctx, result.value, 201);
@@ -154,6 +183,8 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
   /**
    * @method login
    * @description POST /auth/customer/login - Authenticates and returns tokens.
+   * @param request - The login body: e-mail, password and an optional account slug.
+   * @param reply - The reply the session or the MFA challenge, or the refusal, is sent on.
    */
   async login(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -217,8 +248,7 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
         },
         INTERNAL_ERROR: { code: 500, message: "Internal server error" },
       };
-      const mapped = errorMap[result.error];
-      return this.sendError(ctx, mapped.code, mapped.message);
+      return this.sendMappedError(ctx, errorMap, result.error);
     }
 
     // Success is EITHER a session (non-MFA) OR a challenge (`mfaRequired`).
@@ -237,6 +267,8 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
    *   challenge step (retry) instead of dropping them back to the password step.
    *   Every challenge-invalid sub-case (and binding mismatch) returns a
    *   BYTE-IDENTICAL 401 — no oracle.
+   * @param request - The MFA body: the challenge token and the TOTP or backup code.
+   * @param reply - The reply the session or the refusal is sent on.
    */
   async completeMfaLogin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -350,6 +382,8 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
   /**
    * @method refresh
    * @description POST /auth/customer/refresh - Issues new token pair.
+   * @param request - The refresh body carrying the refresh token.
+   * @param reply - The reply the new token pair or the refusal is sent on.
    */
   async refresh(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -385,8 +419,7 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
         USER_INACTIVE: { code: 403, message: "Account is inactive" },
         INTERNAL_ERROR: { code: 500, message: "Internal server error" },
       };
-      const mapped = errorMap[result.error];
-      return this.sendError(ctx, mapped.code, mapped.message);
+      return this.sendMappedError(ctx, errorMap, result.error);
     }
 
     return this.sendSuccess(ctx, result.value, 200);
@@ -399,6 +432,8 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
    *   from the request body (Next.js proxy forwards it from the
    *   `customer-refresh` httpOnly cookie). Missing token still returns 200
    *   so the frontend can always finalize logout client-side.
+   * @param request - The logout body, carrying the refresh token when the proxy forwarded one.
+   * @param reply - The reply the logout confirmation is sent on.
    */
   async logout(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -418,6 +453,8 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
   /**
    * @method requestPasswordReset
    * @description POST /auth/customer/request-password-reset
+   * @param request - The body carrying the e-mail a reset link is asked for.
+   * @param reply - The reply the constant confirmation is sent on.
    */
   async requestPasswordReset(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -471,6 +508,8 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
   /**
    * @method resetPassword
    * @description POST /auth/customer/reset-password
+   * @param request - The body carrying the reset token and the new password.
+   * @param reply - The reply the confirmation or the refusal is sent on.
    */
   async resetPassword(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -509,8 +548,7 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
         VALIDATION_ERROR: { code: 400, message: "Invalid input data" },
         INTERNAL_ERROR: { code: 500, message: "Internal server error" },
       };
-      const mapped = errorMap[result.error];
-      return this.sendError(ctx, mapped.code, mapped.message);
+      return this.sendMappedError(ctx, errorMap, result.error);
     }
 
     return this.sendSuccess(ctx, result.value, 200);
@@ -519,6 +557,8 @@ class CustomerAuthRouteHandler extends BaseRouteHandler {
   /**
    * @method me
    * @description GET /auth/customer/me - Returns the authenticated customer user.
+   * @param request - The authenticated request, carrying the customer principal.
+   * @param reply - The reply the customer user or the refusal is sent on.
    */
   async me(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };

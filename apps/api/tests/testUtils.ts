@@ -5,24 +5,33 @@
  *
  * @file testUtils.ts
  * @description Shared helpers for suites that talk to a running API, including
- *              the fail-loud precondition for suites that also depend on a
+ *              the registration of a tenant through the customer route and the
+ *              fail-loud precondition for suites that also depend on a
  *              background consumer.
  * @layer infrastructure
  */
+import { randomUUID } from "node:crypto";
 import { PUBLISH_PIPELINE_QUEUES, QUEUE_NAMES } from "@adapters/queue-bullmq";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
 /**
- * @description Asks the API's `/health` endpoint, with a 3 s bound, whether a server is answering
- *   at the base URL. A 429 counts as available: the server answered and only refused the request.
+ * The bound on one request a helper here sends to the API. Registration answers in about 50 ms
+ * on the live stack, so the bound only expires on an API that has stopped answering.
+ */
+const API_REQUEST_TIMEOUT_MS = 3_000;
+
+/**
+ * @description Asks the API's `/health` endpoint, within `API_REQUEST_TIMEOUT_MS`, whether a
+ *   server is answering at the base URL. A 429 counts as available: the server answered and only
+ *   refused the request.
  * @returns `true` when `/health` answers 2xx or 429; `false` on any other status, a transport
  *   failure or the timeout.
  */
 export async function checkApiAvailable(): Promise<boolean> {
   try {
     const response = await fetch(`${BASE_URL}/health`, {
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(API_REQUEST_TIMEOUT_MS),
     });
     // 429 counts as AVAILABLE: the API answered, it just refused this request.
     // The `/health` bucket is deliberately exhausted by the rate-limiting suite
@@ -54,6 +63,140 @@ export async function skipIfApiUnavailable(t: any): Promise<void> {
  */
 export function getBaseUrl(): string {
   return BASE_URL;
+}
+
+/** What a live suite asks customer registration for. */
+export interface LiveTenantRequest {
+  /** The address the account and its owner sign up with. */
+  readonly email: string;
+  /** The account's name. */
+  readonly accountName: string;
+}
+
+/** The fields of the registered account a live suite reads. */
+export interface LiveTenantAccount {
+  /** The account's id. */
+  readonly id: string;
+  /** The account's project limit; every self-registered account starts on the BASIC tier's 1. */
+  readonly maxProjects: number;
+}
+
+/** A tenant created through the customer registration route. */
+export interface LiveTenant {
+  /** The id of the account registration created. */
+  readonly accountId: string;
+  /** The account fields registration returned that a suite reads. */
+  readonly account: LiveTenantAccount;
+  /** The `Authorization` header value: the owner's access token registration issued. */
+  readonly authorization: string;
+}
+
+/** The part of a registration answer a live suite reads. */
+interface RegistrationAnswer {
+  readonly account: LiveTenantAccount;
+  readonly accessToken: string;
+}
+
+/**
+ * @description Builds the body of `POST /auth/customer/register` for a live tenant, so a suite
+ *   that asserts a refused registration sends exactly what a successful one would. It names no
+ *   tier, as the public body does not, and each call carries its own random password, so no
+ *   two tenants share a credential and none is written in a test file.
+ * @param request - The address and account name to register.
+ * @returns The registration body: the account, its owner's name and a fresh password.
+ */
+export function liveRegistrationBody(request: LiveTenantRequest): Record<string, string> {
+  return {
+    accountName: request.accountName,
+    firstName: "Live",
+    lastName: "Tenant",
+    email: request.email,
+    password: `live-${randomUUID()}`,
+  };
+}
+
+/**
+ * @description Reads the account fields a live suite uses and the access token out of a
+ *   registration answer, checking the type of every field it returns.
+ * @param body - The parsed JSON body of a registration response.
+ * @returns The account and token, or null when the body is not a successful registration.
+ */
+function readRegistrationAnswer(body: unknown): RegistrationAnswer | null {
+  if (typeof body !== "object" || body === null || !("data" in body)) return null;
+  const data: unknown = body.data;
+  if (typeof data !== "object" || data === null) return null;
+  if (!("account" in data) || !("accessToken" in data)) return null;
+  const { account, accessToken } = data;
+  if (typeof accessToken !== "string" || typeof account !== "object" || account === null) {
+    return null;
+  }
+  if (!("id" in account) || typeof account.id !== "string") return null;
+  if (!("maxProjects" in account) || typeof account.maxProjects !== "number") return null;
+  return { account: { id: account.id, maxProjects: account.maxProjects }, accessToken };
+}
+
+/**
+ * @description Registers a tenant through `POST /auth/customer/register`, the one route that
+ *   creates an account for a customer, and returns the account with the owner's access token
+ *   registration issued. A suite that needs a tenant gets it the way a customer does, so the
+ *   token carries the seeded OWNER role's grants rather than a hand-picked list.
+ * @param request - The address and account name to register.
+ * @returns The created account and the `Authorization` header its owner's token fills.
+ * @throws Error naming the address when the complete response, headers and body, does not
+ *   arrive within `API_REQUEST_TIMEOUT_MS` (the abort signal bounds the body read too), and naming
+ *   the status and body when it does not answer 201 with an account and an access token.
+ */
+export async function registerLiveTenant(request: LiveTenantRequest): Promise<LiveTenant> {
+  let response: Response;
+  let body: unknown;
+  try {
+    response = await fetch(`${BASE_URL}/auth/customer/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(liveRegistrationBody(request)),
+      signal: AbortSignal.timeout(API_REQUEST_TIMEOUT_MS),
+    });
+    body = await response.json();
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === "TimeoutError") {
+      throw new Error(
+        `Registering the live tenant ${request.email} did not receive a complete response, ` +
+          `headers and body, within ${API_REQUEST_TIMEOUT_MS} ms from ${BASE_URL}.`,
+        { cause: error }
+      );
+    }
+    throw error;
+  }
+  const answer = readRegistrationAnswer(body);
+  if (response.status !== 201 || answer === null) {
+    throw new Error(
+      `Registering the live tenant ${request.email} answered ${response.status}: ` +
+        JSON.stringify(body)
+    );
+  }
+  return {
+    accountId: answer.account.id,
+    account: answer.account,
+    authorization: `Bearer ${answer.accessToken}`,
+  };
+}
+
+/**
+ * @description Returns the tenant a suite's setup registered, failing with a message that names
+ *   the suite when the setup never did, so a case reads a setup failure rather than a TypeError.
+ * @param tenant - The tenant the setup stored, or undefined when it registered none.
+ * @param suite - The suite's name, for the message.
+ * @returns The registered tenant.
+ * @throws Error naming the suite when no tenant was registered.
+ */
+export function requireLiveTenant(tenant: LiveTenant | undefined, suite: string): LiveTenant {
+  if (tenant === undefined) {
+    throw new Error(
+      `${suite}: the suite's setup registered no tenant, so this case has no account to act on; ` +
+        `read the setup's failure above.`
+    );
+  }
+  return tenant;
 }
 
 /**

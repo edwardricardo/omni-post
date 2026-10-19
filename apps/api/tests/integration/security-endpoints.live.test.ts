@@ -12,35 +12,64 @@
 
 import { describe, it, before } from "node:test";
 import assert from "node:assert/strict";
-import { checkApiAvailable, getBaseUrl } from "../testUtils.js";
-import { signCustomerAccessToken } from "../../src/auth/customerJwt.js";
+import { RateLimitConfigs } from "../../src/security/httpRateLimitPreHandler.js";
+import {
+  checkApiAvailable,
+  getBaseUrl,
+  liveRegistrationBody,
+  registerLiveTenant,
+  requireLiveTenant,
+  type LiveTenant,
+} from "../testUtils.js";
 
 const API_URL = getBaseUrl();
 
 /**
- * The `/accounts` endpoint sits behind `requireClientAuth`. The Account model
- * is NOT tenant-scoped (see TENANT_SCOPED_MODELS in the tenant guard), so any
- * valid customer token authorizes the request; the accountId carried here does
- * not constrain which account gets created.
+ * Sends a registration body exactly as given, so a case can send one that is not valid JSON.
+ * @param body - The raw request body.
+ * @returns The route's response.
  */
-const AUTH_HEADER = `Bearer ${signCustomerAccessToken({
-  sub: "security-endpoints-user",
-  accountId: "security-endpoints-account",
-  roleId: "role-test",
-  roleName: "OWNER",
-  permissions: [],
-})}`;
+async function postRegistration(body: string): Promise<Response> {
+  return fetch(`${API_URL}/auth/customer/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+  });
+}
 
 describe("Security Endpoints Integration", { concurrency: 1 }, () => {
   let apiAvailable = false;
+  // The tenant whose own account name the validation cases try to write: the account name its
+  // owner changes with `PUT /accounts/:accountId` runs through the security validator. Every case
+  // that uses it is refused, so none changes what another reads. Unset when the API is absent.
+  let tenant: LiveTenant | undefined;
 
   before(async () => {
     apiAvailable = await checkApiAvailable();
     if (!apiAvailable) {
       // stdout is the node:test runner's message channel; diagnostics go to stderr (DEF-83).
       console.error("API server not running - security endpoint tests will be skipped");
+      return;
     }
+    tenant = await registerLiveTenant({
+      email: `security-endpoints-${Date.now()}@example.com`,
+      accountName: `Security Endpoints ${Date.now()}`,
+    });
   });
+
+  /**
+   * Sends a rename of the tenant's own account.
+   * @param name - The name the rename asks for.
+   * @returns The route's response.
+   */
+  async function renameOwnAccount(name: string): Promise<Response> {
+    const owner = requireLiveTenant(tenant, "Security Endpoints Integration");
+    return fetch(`${API_URL}/accounts/${owner.accountId}`, {
+      method: "PUT",
+      headers: { Authorization: owner.authorization, "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+  }
 
   // ==========================================================================
   // Test Group 1: Health Check
@@ -72,22 +101,20 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
         return;
       }
 
-      const validData = {
-        email: `test-security-${Date.now()}@example.com`,
-        name: "Test User",
-      };
-
-      const response = await fetch(`${API_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(validData),
-      });
+      const response = await postRegistration(
+        JSON.stringify(
+          liveRegistrationBody({
+            email: `test-security-${Date.now()}@example.com`,
+            accountName: "Test User",
+          })
+        )
+      );
 
       const data = await response.json();
 
-      assert.equal(response.status, 200, "Valid account creation returns 200");
+      assert.equal(response.status, 201, "Valid registration returns 201");
       assert.equal(data.ok, true, "Response ok is true");
-      assert.ok(data.data?.id, "Account creation returns account ID in {ok, data} format");
+      assert.ok(data.data?.account?.id, "Registration returns the account ID in {ok, data} format");
     });
 
     it("should reject duplicate email with 409", async (t) => {
@@ -99,20 +126,20 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
       const duplicateEmail = `duplicate-sec-${Date.now()}@example.com`;
 
       // Create first account
-      await fetch(`${API_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: duplicateEmail, name: "First" }),
-      });
+      const first = await postRegistration(
+        JSON.stringify(liveRegistrationBody({ email: duplicateEmail, accountName: "First" }))
+      );
+      await first.body?.cancel();
+      assert.equal(first.status, 201, "The first registration of the address succeeds");
 
       // Try to create duplicate
-      const response = await fetch(`${API_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify({ email: duplicateEmail, name: "Second" }),
-      });
+      const response = await postRegistration(
+        JSON.stringify(liveRegistrationBody({ email: duplicateEmail, accountName: "Second" }))
+      );
+      const data = await response.json();
 
       assert.equal(response.status, 409, "Duplicate email returns 409 Conflict");
+      assert.equal(data.error, "Email already exists", "The refusal names the held address");
     });
   });
 
@@ -140,19 +167,30 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
       );
     });
 
-    it("should complete rate limit headers check", async (t) => {
+    it("should include the rate limit headers on /health", async (t) => {
       if (!apiAvailable) {
         t.skip("API not available");
         return;
       }
 
+      // The limiter charges `/health` to the HEALTH bucket and answers with what is left in it and
+      // the epoch milliseconds at which it is full again; it sends no limit header.
+      const { maxRequests, windowMs } = RateLimitConfigs.HEALTH;
       const response = await fetch(`${API_URL}/health`);
+      await response.body?.cancel();
+      const remaining = Number(response.headers.get("x-ratelimit-remaining"));
+      const resetAtMs = Number(response.headers.get("x-ratelimit-reset"));
+      const now = Date.now();
 
-      const hasRateLimitHeaders =
-        response.headers.has("x-ratelimit-limit") || response.headers.has("ratelimit-limit");
-
-      // Rate limit headers might not be on all endpoints - just verify the check works
-      assert.ok(true, `Rate limit headers check completed (found: ${hasRateLimitHeaders})`);
+      assert.equal(response.status, 200, "/health answers inside its bucket");
+      assert.ok(
+        Number.isInteger(remaining) && remaining >= 0 && remaining < maxRequests,
+        `X-RateLimit-Remaining is a count left in the ${maxRequests}-permit bucket, got ${remaining}`
+      );
+      assert.ok(
+        Number.isInteger(resetAtMs) && resetAtMs >= now - 1_000 && resetAtMs <= now + windowMs,
+        `X-RateLimit-Reset is an epoch-milliseconds instant within one window, got ${resetAtMs}`
+      );
     });
   });
 
@@ -177,16 +215,10 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
         return;
       }
 
-      const response = await fetch(`${API_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: "{ this is not valid json }",
-      });
+      const response = await postRegistration("{ this is not valid json }");
+      await response.body?.cancel();
 
-      assert.ok(
-        response.status === 400 || response.status === 415 || response.status === 500,
-        `Malformed JSON returns error (status: ${response.status})`
-      );
+      assert.equal(response.status, 400, "Malformed JSON is refused with 400");
     });
   });
 
@@ -201,22 +233,18 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
         return;
       }
 
-      const sqlInjectionData = {
-        email: `test@example.com'; DROP TABLE accounts; --`,
-        name: "Malicious' OR '1'='1",
-      };
-
-      const response = await fetch(`${API_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(sqlInjectionData),
-      });
-
-      // Server should reject or sanitize - Prisma uses parameterized queries
-      assert.ok(
-        response.status >= 200 && response.status < 500,
-        "SQL injection attempt handled safely (Prisma parameterized queries protect us)"
+      const response = await postRegistration(
+        JSON.stringify(
+          liveRegistrationBody({
+            email: `test@example.com'; DROP TABLE accounts; --`,
+            accountName: "Malicious' OR '1'='1",
+          })
+        )
       );
+      await response.body?.cancel();
+
+      // The injected address is not an e-mail, so validation refuses it before any query runs.
+      assert.equal(response.status, 400, "SQL injection in the e-mail is refused by validation");
     });
   });
 
@@ -231,16 +259,7 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
         return;
       }
 
-      const xssData = {
-        email: `xss-test-${Date.now()}@example.com`,
-        name: "<script>alert('XSS')</script>",
-      };
-
-      const response = await fetch(`${API_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(xssData),
-      });
+      const response = await renameOwnAccount("<script>alert('XSS')</script>");
 
       const data = await response.json();
 
@@ -260,21 +279,11 @@ describe("Security Endpoints Integration", { concurrency: 1 }, () => {
         return;
       }
 
-      const largeData = {
-        email: `large-${Date.now()}@example.com`,
-        name: "A".repeat(10000), // 10KB name
-      };
+      const response = await renameOwnAccount("A".repeat(10000)); // 10KB name
+      await response.body?.cancel();
 
-      const response = await fetch(`${API_URL}/accounts`, {
-        method: "POST",
-        headers: { Authorization: AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify(largeData),
-      });
-
-      assert.ok(
-        response.status === 400 || response.status === 413 || response.status === 200,
-        `Large payload handled appropriately (status: ${response.status})`
-      );
+      // The name limit is 256 characters, far below the body limit, so validation refuses it.
+      assert.equal(response.status, 400, "An oversized account name is refused with 400");
     });
 
     it("should handle 10 concurrent requests successfully", async (t) => {

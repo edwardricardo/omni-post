@@ -1,18 +1,20 @@
 /**
  * @file softDeletedIdentifierReuse.test.ts
- * @description Pins the anti-confiscation contract at the ONLY layer a user can
- *   observe it: the create routes. Two uniques are partial in the database
- *   (`Project_accountId_name_key` and `Account_email_key`, both
- *   `WHERE "deletedAt" IS NULL`) so that soft-deleting a project named
- *   "Marketing" — or an account addressed `x@y.z` — does not confiscate that
- *   identifier for the rest of the tenant's life. The database permits the
- *   reuse. If the route's own duplicate check still sees the soft-deleted row it
- *   answers 409 anyway and the user-visible behaviour is unchanged: the partial
- *   index is then a constraint nobody can reach.
+ * @description Pins the anti-confiscation contract for project names at the ONLY
+ *   layer a user can observe it: the project create route.
+ *   `Project_accountId_name_key` is partial in the database (`WHERE "deletedAt" IS
+ *   NULL`) so that soft-deleting a project named "Marketing" does not confiscate
+ *   that name for the rest of the tenant's life. The database permits the reuse.
+ *   If the route's own duplicate check still sees the soft-deleted row it answers
+ *   409 anyway and the user-visible behaviour is unchanged: the partial index is
+ *   then a constraint nobody can reach.
  *
  *   Both halves are asserted, because a check that stops refusing everything is
  *   a worse defect than the one it replaces: the reuse must SUCCEED, and a
  *   genuinely live duplicate must still be REFUSED.
+ *
+ *   Account e-mails are not reusable by design: registration refuses an address a
+ *   soft-deleted account holds (`customerRegisterHeldEmail.integration.test.ts`).
  *
  *   The customer surface is driven through the REAL `requireClientAuth` with
  *   genuinely signed tokens (precedent: `accounts/accountDeleteOwnership.test.ts`).
@@ -84,7 +86,6 @@ vi.mock("../../src/lib/logger.js", () => {
 // ---------------------------------------------------------------------------
 
 const Fastify = (await import("fastify")).default;
-const { accountRoutes } = await import("../../src/accounts/accountRoutes.js");
 const { projectRoutes } = await import("../../src/projects/projectRoutes.js");
 const { createRouteTestContainer } = await import("./helpers/testContainer.js");
 const { signCustomerAccessToken } = await import("../../src/auth/customerJwt.js");
@@ -101,7 +102,6 @@ const unique = (label: string): string => `${label}-${Date.now()}-${(seq += 1)}`
 async function createTestApp(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
   app.decorate("container", createRouteTestContainer({ prisma: mockPrisma.prisma as never }));
-  await app.register(accountRoutes);
   await app.register(projectRoutes);
   return app;
 }
@@ -157,19 +157,6 @@ async function postProject(
     url: `/accounts/${tenant.accountId}/projects`,
     headers: bearer(tenant.token),
     payload: { name, locale: "en" },
-  });
-  return { statusCode: response.statusCode, body: JSON.parse(response.body) };
-}
-
-async function postAccount(
-  tenant: { token: string },
-  email: string
-): Promise<{ statusCode: number; body: Record<string, unknown> }> {
-  const response = await app.inject({
-    method: "POST",
-    url: "/accounts",
-    headers: bearer(tenant.token),
-    payload: { email, name: "Reused Address" },
   });
   return { statusCode: response.statusCode, body: JSON.parse(response.body) };
 }
@@ -239,61 +226,6 @@ describe("soft-deleted identifiers are reusable, live ones are not", () => {
 
       expect(result.statusCode).toBe(200);
       expect(result.body.data).toMatchObject({ name });
-    });
-  });
-
-  describe("POST /accounts — account email", () => {
-    it("accepts an address whose only holder was soft-deleted", async () => {
-      const caller = await makeTenant("email-reuse");
-      const email = `${unique("reused")}@example.com`;
-      await mockPrisma.prisma.account.create({
-        data: { email, name: "Gone", maxProjects: 1, deletedAt: new Date() },
-      });
-
-      const result = await postAccount(caller, email);
-
-      expect(result.statusCode).toBe(200);
-      expect(result.body.data).toMatchObject({ email });
-    });
-
-    it("still refuses an address held by a LIVE account", async () => {
-      const caller = await makeTenant("email-conflict");
-      const email = `${unique("held")}@example.com`;
-      await mockPrisma.prisma.account.create({
-        data: { email, name: "Still Here", maxProjects: 1, deletedAt: null },
-      });
-
-      const result = await postAccount(caller, email);
-
-      expect(result.statusCode).toBe(409);
-      expect(result.body.error).toBe("EMAIL_TAKEN");
-    });
-
-    it("refuses an address held by a LIVE account whatever casing the caller types", async () => {
-      // This replaced an assertion that the lookup matched the address VERBATIM.
-      // That property was real while the route stored what it was given, but it
-      // is no longer reachable: registration now reduces the address to its
-      // canonical form before both the duplicate check and the insert, and the
-      // backfill migration rewrote the rows that predate that. So no live
-      // account can hold a mixed-case address any more, and a test that plants
-      // one directly through the store asserts behaviour over a state the system
-      // cannot produce.
-      //
-      // The property that replaces it is strictly STRONGER. The old test only
-      // proved raw bytes match raw bytes; this one proves the case-twin — the
-      // duplicate that used to slip through and mint a second account for one
-      // human — is refused. It fails against the pre-fix route, which compared
-      // verbatim and would answer 200 here.
-      const caller = await makeTenant("email-casefold");
-      const stored = `${unique("mixed")}@example.com`;
-      await mockPrisma.prisma.account.create({
-        data: { email: stored, name: "Still Here", maxProjects: 1, deletedAt: null },
-      });
-
-      const result = await postAccount(caller, stored.toUpperCase());
-
-      expect(result.statusCode).toBe(409);
-      expect(result.body.error).toBe("EMAIL_TAKEN");
     });
   });
 
