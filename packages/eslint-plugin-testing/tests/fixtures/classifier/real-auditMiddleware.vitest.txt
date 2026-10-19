@@ -1,0 +1,32 @@
+// Classifier fixture, a real case: apps/api/tests/unit/auditMiddleware.test.ts at b053ba58, its
+// describe "Action Detection from Request" cut to lines 261-285, where line 274 promises
+// undefined and asserts presence. Read as text by tests/classify.test.ts.
+import { describe, it, expect } from "vitest";
+
+  describe("Action Detection from Request", () => {
+    it("should detect CACHE_CLEARED action from admin cache routes", async () => {
+      const request = createMockRequest({
+        url: "/admin/cache/flush",
+        method: "POST",
+      });
+      const reply = createMockReply();
+
+      await auditMiddleware(request, reply);
+      reply.send({ success: true });
+
+      expect(request.auditLog).toBeTruthy();
+    });
+
+    it("should return undefined for GET requests on unknown routes", async () => {
+      const request = createMockRequest({
+        url: "/api/unknown",
+        method: "GET",
+      });
+      const reply = createMockReply();
+
+      await auditMiddleware(request, reply);
+      reply.send({ success: true });
+
+      expect(request.auditLog).toBeTruthy();
+    });
+  });

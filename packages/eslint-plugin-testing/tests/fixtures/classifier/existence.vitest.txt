@@ -1,0 +1,38 @@
+// Classifier fixture, vitest: EXISTENCE-ONLY and its negatives. Read as text by tests/classify.test.ts.
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+
+describe("existence", () => {
+  it("returns the user", async () => {
+    const user = await findUser("u1");
+    expect(user).toBeDefined();
+    expect(user).not.toBeNull();
+    expect(user).toBeInstanceOf(User);
+    expect(user).toHaveProperty("email");
+    expect(typeof user.name).toBe("string");
+    expect(Array.isArray(user.roles)).toBe(true);
+    expect(user.id).toEqual(expect.any(String));
+  });
+
+  it("renders the form", () => {
+    const { container } = render(<Form />);
+    expect(container.querySelector("form")).toBeInTheDocument();
+    expect(screen.getByRole("button")).toBeInTheDocument();
+  });
+
+  it("returns the user's email", async () => {
+    const user = await findUser("u1");
+    expect(user).toBeDefined();
+    expect(user).toHaveProperty("email", "a@b.c");
+  });
+
+  it("renders the save button", () => {
+    render(<Form />);
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("marks the comment deleted", () => {
+    comment.delete();
+    expect(comment.isDeleted()).toBeTruthy();
+  });
+});

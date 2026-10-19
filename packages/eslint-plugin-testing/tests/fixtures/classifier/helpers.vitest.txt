@@ -1,0 +1,41 @@
+// Classifier fixture, vitest: OPAQUE helpers and same-file helpers inlined one level, with their
+// negatives. Read as text by tests/classify.test.ts.
+import { describe, expect, it } from "vitest";
+import { expectValidPost } from "./helpers/assertions.js";
+import { checkRateLimit } from "../src/rateLimit.js";
+import * as helpers from "@test-utils/assertions";
+
+function expectStatus(response, status) {
+  expect(response.statusCode).toBe(status);
+}
+
+function assertPublished(post) {
+  expectStatus(post.response, 201);
+}
+
+describe("helpers", () => {
+  it("creates a valid post", async () => {
+    expectValidPost(await createPost());
+  });
+
+  it("creates a post the namespace helper accepts", async () => {
+    helpers.expectCreated(await createPost());
+  });
+
+  it("limits the rate", () => {
+    checkRateLimit(request);
+  });
+
+  it("responds with 201", async () => {
+    expectStatus(await create(), 201);
+  });
+
+  it("publishes the post", async () => {
+    assertPublished(await publish());
+  });
+
+  it("shows the login form", async () => {
+    await authPage.open();
+    await authPage.expectLoginFormVisible();
+  });
+});

@@ -1,0 +1,25 @@
+// Classifier fixture, vitest: TAUTOLOGY-ONLY and its negatives. Read as text by tests/classify.test.ts.
+import { describe, expect, it } from "vitest";
+
+describe("tautology", () => {
+  it("handles alerts", () => {
+    recordAlert("warning");
+    expect(true).toBeTruthy();
+    expect({ level: "warning" }).toEqual({ level: "warning" });
+  });
+
+  it("counts retried events", async () => {
+    const retriedCount = await handler.retryFailedEvents();
+    expect(retriedCount >= 0).toBeTruthy();
+    expect(handler.queue.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("retries one event", async () => {
+    const retriedCount = await handler.retryFailedEvents();
+    expect(retriedCount).toBe(1);
+  });
+
+  it("keeps at least one event queued", () => {
+    expect(handler.queue.length).toBeGreaterThan(0);
+  });
+});

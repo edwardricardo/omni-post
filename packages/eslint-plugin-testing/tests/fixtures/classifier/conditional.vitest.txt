@@ -1,0 +1,41 @@
+// Classifier fixture, vitest: CONDITIONAL-ONLY, the CONDITIONAL and GUARDED-RETURN flags, and
+// their negatives. Read as text by tests/classify.test.ts.
+import { describe, expect, it } from "vitest";
+
+describe("conditional", () => {
+  it("parses the year", () => {
+    const result = parse("2024");
+    if (result.ok) {
+      expect(result.value.year).toBe(2024);
+    }
+  });
+
+  it("creates the asset", () => {
+    const result = MediaAsset.create(input);
+    if (!result.ok) return;
+    expect(result.value.kind).toBe("image");
+  });
+
+  it("reports the load error", async () => {
+    try {
+      await load();
+    } catch (error) {
+      expect(error).toBeInstanceOf(LoadError);
+    }
+  });
+
+  it("creates the asset after asserting success", () => {
+    const result = MediaAsset.create(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.kind).toBe("image");
+  });
+
+  it("parses the year after asserting success", () => {
+    const result = parse("2024");
+    expect(result.ok).toBeTruthy();
+    if (result.ok) {
+      expect(result.value.year).toBe(2024);
+    }
+  });
+});

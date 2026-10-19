@@ -1,0 +1,21 @@
+// Classifier fixture, vitest: EMPTY and its negative. Read as text by tests/classify.test.ts.
+import { describe, expect, it } from "vitest";
+import { createPost } from "../src/posts.js";
+
+describe("empty", () => {
+  it("creates a post", async () => {
+    await createPost({ title: "x" });
+  });
+
+  it("creates a post with its title", async () => {
+    const post = await createPost({ title: "x" });
+    expect(post.title).toBe("x");
+  });
+
+  it("creates a post with an id", async () => {
+    const post = await createPost({ title: "x" });
+    if (post.id === undefined) {
+      throw new Error("the post has no id");
+    }
+  });
+});
