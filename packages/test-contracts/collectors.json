@@ -44,7 +44,7 @@
     },
     "k6": {
       "executedBy": [],
-      "note": "performance.yml's k6-load job runs one scenario per run, on push to main and on dispatch, with a name that is an expression of the dispatch input; it is no required check."
+      "note": "performance.yml's k6-load job runs one scenario per run, on dispatch only, with a name that is an expression of the dispatch input; it is no required check."
     }
   }
 }
