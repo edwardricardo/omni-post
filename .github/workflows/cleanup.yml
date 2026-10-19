@@ -17,7 +17,6 @@ on:
           - artifacts
           - images
           - caches
-          - preview-envs
           - all
 
 concurrency:
@@ -492,84 +491,11 @@ jobs:
               core.setFailed(failureReasons.join('; '));
             }
 
-  # ===== CLEANUP PREVIEW ENVIRONMENTS =====
-  cleanup-preview-environments:
-    name: Cleanup Preview Environments
-    runs-on: ubuntu-latest
-    if: github.event.inputs.cleanup_type == 'preview-envs' || github.event.inputs.cleanup_type == 'all' || github.event.inputs.cleanup_type == ''
-
-    timeout-minutes: 15
-
-    # The PR-state lookup is the only GITHUB_TOKEN use in this job; AWS and
-    # kubectl authenticate through their own credentials.
-    permissions:
-      pull-requests: read
-
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-west-2
-
-      - name: Setup kubectl
-        run: |
-          aws eks update-kubeconfig --name omni-post-preview
-
-      - name: Cleanup stale preview environments
-        env:
-          # Bound as env instead of interpolated into the script body so the
-          # secret never becomes part of the generated shell text.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "🧹 Cleaning up stale preview environments..."
-
-          # Get all preview namespaces
-          PREVIEW_NAMESPACES=$(kubectl get namespaces -l type=preview -o name | sed 's/namespace\///')
-
-          for namespace in $PREVIEW_NAMESPACES; do
-            if [[ $namespace =~ ^preview-([0-9]+)$ ]]; then
-              PR_NUMBER="${BASH_REMATCH[1]}"
-              echo "Checking PR #${PR_NUMBER}..."
-
-              # Check if PR still exists and is open
-              PR_STATE=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" \
-                "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" \
-                | jq -r '.state // "closed"')
-
-              if [ "$PR_STATE" != "open" ]; then
-                echo "PR #${PR_NUMBER} is ${PR_STATE}, cleaning up preview environment..."
-                kubectl delete namespace "$namespace" --ignore-not-found=true
-                echo "✅ Cleaned up preview environment: $namespace"
-              else
-                # Check if environment is older than 7 days
-                CREATED_DATE=$(kubectl get namespace "$namespace" -o jsonpath='{.metadata.annotations.preview/created-at}' 2>/dev/null || echo "")
-
-                if [ -n "$CREATED_DATE" ]; then
-                  CREATED_TIMESTAMP=$(date -d "$CREATED_DATE" +%s)
-                  CURRENT_TIMESTAMP=$(date +%s)
-                  AGE_DAYS=$(( (CURRENT_TIMESTAMP - CREATED_TIMESTAMP) / 86400 ))
-
-                  if [ $AGE_DAYS -gt 7 ]; then
-                    echo "Preview environment $namespace is ${AGE_DAYS} days old, cleaning up..."
-                    kubectl delete namespace "$namespace" --ignore-not-found=true
-                    echo "✅ Cleaned up old preview environment: $namespace"
-                  else
-                    echo "Preview environment $namespace is ${AGE_DAYS} days old, keeping it"
-                  fi
-                fi
-              fi
-            fi
-          done
-
-          echo "🎉 Preview environment cleanup completed"
-
   # ===== CLEANUP REPORT =====
   cleanup-report:
     name: Generate Cleanup Report
     runs-on: ubuntu-latest
-    needs: [cleanup-artifacts, cleanup-images, cleanup-caches, cleanup-preview-environments]
+    needs: [cleanup-artifacts, cleanup-images, cleanup-caches]
     if: always()
 
     timeout-minutes: 10
@@ -587,7 +513,6 @@ jobs:
           echo "| Workflow Artifacts | ${{ needs.cleanup-artifacts.result == 'success' && '✅ Completed' || needs.cleanup-artifacts.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | Retention: ${{ env.RETENTION_DAYS_ARTIFACTS }} days |" >> $GITHUB_STEP_SUMMARY
           echo "| Container Images | ${{ needs.cleanup-images.result == 'success' && '✅ Completed' || needs.cleanup-images.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | Retention: ${{ env.RETENTION_DAYS_IMAGES }} days |" >> $GITHUB_STEP_SUMMARY
           echo "| Build Caches | ${{ needs.cleanup-caches.result == 'success' && '✅ Completed' || needs.cleanup-caches.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | Retention: ${{ env.RETENTION_DAYS_CACHES }} days |" >> $GITHUB_STEP_SUMMARY
-          echo "| Preview Environments | ${{ needs.cleanup-preview-environments.result == 'success' && '✅ Completed' || needs.cleanup-preview-environments.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} | Automatic cleanup |" >> $GITHUB_STEP_SUMMARY
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🎯 Benefits" >> $GITHUB_STEP_SUMMARY
@@ -596,75 +521,13 @@ jobs:
           echo "- Cleaner resource management" >> $GITHUB_STEP_SUMMARY
           echo "- Automated maintenance" >> $GITHUB_STEP_SUMMARY
 
-      - name: Compute aggregate cleanup outcome
-        id: outcome
+      - name: Fail when a cleanup job failed
         env:
-          # Aggregated across ALL needed jobs so the notification cannot
-          # report green while any cleanup job failed or was cancelled.
+          # Aggregated across ALL needed jobs, so the report cannot end green
+          # while any cleanup job failed or was cancelled.
           ANY_FAILED: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'true' || 'false' }}
         run: |
-          echo "any_failed=${ANY_FAILED}" >> "$GITHUB_OUTPUT"
-          echo "completed_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
-
-      # Fires only on the weekly schedule (manual dispatches are watched by
-      # whoever dispatched them) but reports the TRUE aggregate outcome:
-      # danger color + failure header when any needed job failed or was
-      # cancelled, instead of unconditionally announcing green.
-      - name: Notify team about cleanup
-        if: github.event_name == 'schedule'
-        uses: 8398a7/action-slack@v3
-        with:
-          status: custom
-          custom_payload: |
-            {
-              "channel": "#devops",
-              "attachments": [
-                {
-                  "color": "${{ steps.outcome.outputs.any_failed == 'true' && 'danger' || 'good' }}",
-                  "blocks": [
-                    {
-                      "type": "header",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "${{ steps.outcome.outputs.any_failed == 'true' && 'Cleanup FAILED — inspect run' || '🧹 Weekly Cleanup Completed' }}"
-                      }
-                    },
-                    {
-                      "type": "section",
-                      "text": {
-                        "type": "mrkdwn",
-                        "text": "${{ steps.outcome.outputs.any_failed == 'true' && 'At least one cleanup job failed or was cancelled — open the run below and inspect it.' || 'Automated cleanup has been performed on the repository.' }}"
-                      }
-                    },
-                    {
-                      "type": "section",
-                      "fields": [
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Repository:*\n${{ github.repository }}"
-                        },
-                        {
-                          "type": "mrkdwn",
-                          "text": "*Completed:*\n${{ steps.outcome.outputs.completed_at }}"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "actions",
-                      "elements": [
-                        {
-                          "type": "button",
-                          "text": {
-                            "type": "plain_text",
-                            "text": "View Report"
-                          },
-                          "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          if [ "$ANY_FAILED" = "true" ]; then
+            echo "::error title=Cleanup failed::at least one cleanup job failed or was cancelled; the table above names it"
+            exit 1
+          fi
