@@ -115,12 +115,6 @@
       "since": "2026-10-14"
     },
     {
-      "path": "performance/database/postgres-stress.test.ts",
-      "reason": "a tsx script behind perf:db that no runner collects: 624 lines, no assertion, always exits 0; decision D10 retires it",
-      "owner": "WU-6.P2",
-      "since": "2026-10-14"
-    },
-    {
       "path": "apps/admin/tests/apiClient.smoke.test.ts",
       "reason": "a fetch script against a running API with no test case, excluded from apps/admin/vitest.config.ts, so no runner collects it; deleted together with its exclude",
       "owner": "WU-2.6a",

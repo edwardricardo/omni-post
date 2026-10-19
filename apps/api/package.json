@@ -20,7 +20,6 @@
     "test:unit:coverage": "vitest run --coverage",
     "test:all": "pnpm test && pnpm test:integration",
     "test:integration": "bash scripts/run-tests.sh",
-    "perf:postgres": "cross-env NODE_ENV=test tsx ../../performance/database/postgres-stress.test.ts",
     "perf:memory": "cross-env NODE_ENV=test tsx ../../performance/monitoring/memory-leak-detector.ts",
     "perf:baseline": "cross-env NODE_ENV=test tsx ../../performance/scripts/baseline-capture.ts",
     "perf:regression": "cross-env NODE_ENV=test tsx ../../performance/monitoring/regression-detector.ts"

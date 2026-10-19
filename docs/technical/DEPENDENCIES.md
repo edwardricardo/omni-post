@@ -400,7 +400,7 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 
 1. **ci.yml** — Main CI: lint, test, build, security, provider tests, frontend tests
 2. **security-testing.yml** — SAST (CodeQL), DAST, dependency scanning (daily at 2 AM UTC)
-3. **performance.yml** — Performance testing: database and memory stress (`perf:db`, `perf:memory`) and a k6 load test
+3. **performance.yml** — Performance testing: one k6 load-test job (`k6-load`), one scenario per run, on dispatch only, because its scenarios call `/api/...` routes the API does not register
 4. **nightly.yml** — Nightly builds
 5. **production-ci.yml** — Production deployment checks
 6. **dependency-updates.yml** — Automated dependency management

@@ -168,7 +168,7 @@ check_dependencies() {
 # Create the output directories every stage writes into. Separate from
 # setup_environment because reporting needs the directories but not a live API.
 prepare_output_dirs() {
-    mkdir -p "$OUTPUT_DIR"/{k6,database,memory,reports}
+    mkdir -p "$OUTPUT_DIR"/{k6,memory,reports}
     mkdir -p "$OUTPUT_DIR"/baselines
 }
 
@@ -236,16 +236,6 @@ run_k6_tests() {
         # Brief pause between tests
         sleep 5
     done
-}
-
-# Run database performance tests
-run_database_tests() {
-    log "Running database performance tests..."
-
-    log "Running PostgreSQL stress test..."
-    run_tsx_stage "PostgreSQL stress test" \
-        "$PERFORMANCE_DIR/database/postgres-stress.test.ts" \
-        "$OUTPUT_DIR/database/postgres-$(date +%Y%m%d-%H%M%S).log"
 }
 
 # Run memory leak detection
@@ -344,10 +334,6 @@ run_all_tests() {
         run_k6_tests
     fi
 
-    if [[ "${SKIP_DATABASE:-false}" != "true" ]]; then
-        run_database_tests
-    fi
-
     if [[ "${SKIP_MEMORY:-false}" != "true" ]]; then
         run_memory_tests
     fi
@@ -382,7 +368,6 @@ Usage: $0 [options] [command]
 Commands:
     all              Run all performance tests (default)
     k6               Run only k6 load tests
-    database         Run only database performance tests
     memory           Run only memory leak detection
     baseline         Capture performance baseline
     regression       Run regression detection
@@ -397,7 +382,6 @@ Environment Variables:
     CAPTURE_BASELINE Set to 'true' to capture baseline before tests
     RUN_REGRESSION   Set to 'true' to run regression detection after tests
     SKIP_K6          Set to 'true' to skip k6 tests
-    SKIP_DATABASE    Set to 'true' to skip database tests
     SKIP_MEMORY      Set to 'true' to skip memory tests
     SKIP_REPORT      Set to 'true' to skip report generation
 
@@ -429,12 +413,6 @@ case "${1:-all}" in
         setup_environment
         run_k6_tests
         finish "k6 load tests"
-        ;;
-    "database")
-        check_dependencies
-        setup_environment
-        run_database_tests
-        finish "Database performance tests"
         ;;
     "memory")
         check_dependencies
