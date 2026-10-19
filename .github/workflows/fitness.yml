@@ -994,7 +994,10 @@ jobs:
           # Fail-closed on BOTH sides: head ambiguity and base ambiguity exit 1,
           # absent-on-base still passes by metric. A descent ships with a
           # `// canon-exception: <scenario>` marker on or above the lowered
-          # literal, which this step honours and logs. Mirrors CLAUDE.md #37.
+          # literal, which this step honours and logs. A scenario in SUBJECTS
+          # names its subject after a colon (ADR-0039), and a marker the base
+          # already carries on that metric accepts no new descent. Mirrors
+          # CLAUDE.md #37.
           set -uo pipefail
           BASE_REF="${FITNESS_BASE_REF:-origin/main}"
           if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
@@ -1014,7 +1017,11 @@ jobs:
           const METRICS = ["lines", "functions", "branches", "statements"];
           // Scenarios from CLAUDE.md §Pragmatic Exceptions. A descent marked with anything
           // else is not a canon exception, it is an unlabelled one.
-          const SCENARIOS = new Set(["migration", "prototype", "hotfix", "spike", "test-fixture"]);
+          const SCENARIOS = new Set(["migration", "prototype", "hotfix", "spike", "test-fixture", "decorative-demolition"]);
+          // A scenario whose marker names its subject after a colon, and the subject's
+          // grammar: decorative-demolition names the demolition slice the committed ledger
+          // lists (ADR-0039), so each descent it accepts is attributable to one slice.
+          const SUBJECTS = new Map([["decorative-demolition", /^[0-9]+(?:\.[0-9]+)+[a-z]?$/]]);
 
           // Split every line into its code half and its line-comment half: block-comment
           // bytes are dropped (a commented-out block must not keep answering for a floor
@@ -1060,9 +1067,12 @@ jobs:
             return lines;
           };
           const markerOf = (comment) => {
-            const m = /canon-exception:\s*([a-z-]+)/.exec(comment ?? "");
+            const m = /canon-exception:\s*([a-z-]+)(?::(\S+))?/.exec(comment ?? "");
             if (m === null) return null;
-            return { scenario: m[1], valid: SCENARIOS.has(m[1]) };
+            const id = m[2] === undefined ? m[1] : `${m[1]}:${m[2]}`;
+            const grammar = SUBJECTS.get(m[1]);
+            const why = !SCENARIOS.has(m[1]) ? "unlisted" : grammar !== undefined && !grammar.test(m[2] ?? "") ? "subject" : null;
+            return { scenario: m[1], id, valid: why === null, why };
           };
           // Reads the GLOBAL thresholds block only. A metric is accepted only at the top
           // level of `thresholds: {`, so a per-scope block — which CODING_STANDARDS
@@ -1129,12 +1139,19 @@ jobs:
             }
             if (Number(headHits[0].value) >= Number(baseHits[0].value)) continue;
             const marker = headHits[0].marker;
-            if (marker !== null && marker.valid) {
-              console.error(`fitness #37: coverage.thresholds.${metric} lowered ${baseHits[0].value} -> ${headHits[0].value}, ACCEPTED under the 'canon-exception: ${marker.scenario}' marker on or above that line. The marker ships in the diff for a human to approve and carries its own follow-up per CLAUDE.md §Pragmatic Exceptions.`);
+            // A marker the base already carries on this metric accepted an earlier descent;
+            // it accepts no new one, so every descent ships with a marker of its own.
+            const inherited = marker !== null && marker.valid && baseHits[0].marker?.id === marker.id;
+            if (marker !== null && marker.valid && !inherited) {
+              console.error(`fitness #37: coverage.thresholds.${metric} lowered ${baseHits[0].value} -> ${headHits[0].value}, ACCEPTED under the 'canon-exception: ${marker.id}' marker on or above that line. The marker ships in the diff for a human to approve and carries its own follow-up per CLAUDE.md §Pragmatic Exceptions.`);
               continue;
             }
-            if (marker !== null) {
-              console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.scenario}', which is not a scenario from the CLAUDE.md §Pragmatic Exceptions allowed list (${[...SCENARIOS].join(", ")}) — not honoured.`);
+            if (inherited) {
+              console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.id}', which the base already carries on that metric: it accepted an earlier descent and accepts no new one — not honoured.`);
+            } else if (marker !== null && marker.why === "subject") {
+              console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.id}', whose subject after the colon is missing or outside its scenario's grammar (${SUBJECTS.get(marker.scenario)}) — not honoured.`);
+            } else if (marker !== null) {
+              console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.id}', which is not a scenario from the CLAUDE.md §Pragmatic Exceptions allowed list (${[...SCENARIOS].join(", ")}) — not honoured.`);
             }
             violations.push(`coverage.thresholds.${metric} lowered: ${baseHits[0].value} (base) -> ${headHits[0].value} (head)`);
           }

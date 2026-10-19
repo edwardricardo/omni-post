@@ -50,7 +50,15 @@ CANON_CHECK_RE = re.compile(
 )
 
 # Allowed canon-exception scenarios from CLAUDE.md §Pragmatic Exceptions.
-ALLOWED_EXCEPTION_SCENARIOS = ("migration", "prototype", "hotfix", "spike", "test-fixture", "generated")
+ALLOWED_EXCEPTION_SCENARIOS = (
+    "migration",
+    "prototype",
+    "hotfix",
+    "spike",
+    "test-fixture",
+    "decorative-demolition",
+    "generated",
+)
 
 # Whitelist for cross-bounded-context imports (transversal infra/shared).
 CROSS_CONTEXT_WHITELIST = frozenset({"domain", "embeddings", "application"})
@@ -93,7 +101,10 @@ TRIPWIRE_PATTERNS: list[dict] = [
             + r")\S",
         ),
         "canon_ref": "CLAUDE.md §Pragmatic-Exceptions",
-        "description": "canon-exception marker without allowed scenario (migration/prototype/hotfix/spike/test-fixture/generated)",
+        "description": (
+            "canon-exception marker without allowed scenario "
+            "(migration/prototype/hotfix/spike/test-fixture/decorative-demolition/generated)"
+        ),
     },
     {
         "id": "plan-phase-reference-in-comment",

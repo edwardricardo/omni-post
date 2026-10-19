@@ -188,14 +188,17 @@ CLAUDE.md + the 4 canon children are intentionally prescriptive. Real projects h
 
 ### Allowed scenarios
 
-| Scenario                         | What you can skip                                                   | Marker form                                | Follow-up                                                     |
-| -------------------------------- | ------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------- |
-| One-off migration script         | UoW + ports + DI (use `prisma` direct)                              | `// canon-exception: migration:<ts>`       | None (script is throwaway; lives under `scripts/migrations/`) |
-| Prototype branch (`prototype/*`) | TDD strict (write tests after, not before)                          | `// canon-exception: prototype:<branch>`   | ADR before merging to main, OR delete the branch              |
-| Bug-fix hotpatch (P0/P1)         | Coverage gate, fitness count for the patch line                     | `// canon-exception: hotfix:<incident-id>` | **Mandatory** ADR within 5 working days of merge              |
-| Spike work                       | `any`, missing JSDoc, `@ts-ignore` on the spike file                | `// canon-exception: spike:<branch>`       | TTL ≤ 2 weeks; if it survives, ADR + remove markers           |
-| Test fixture coercion            | `as any` / `as never` to construct invalid state for negative tests | `// canon-exception: test-fixture`         | None (fixtures are not production code)                       |
-| Generated code                   | All canon (file is regenerated; commenting is futile)               | Header comment in generated file           | None (file is in `.gitattributes` `linguist-generated=true`)  |
+| Scenario                         | What you can skip                                                            | Marker form                                                | Follow-up                                                                                                                                                                                                               |
+| -------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| One-off migration script         | UoW + ports + DI (use `prisma` direct)                                       | `// canon-exception: migration:<ts>`                       | None (script is throwaway; lives under `scripts/migrations/`)                                                                                                                                                           |
+| Prototype branch (`prototype/*`) | TDD strict (write tests after, not before)                                   | `// canon-exception: prototype:<branch>`                   | ADR before merging to main, OR delete the branch                                                                                                                                                                        |
+| Bug-fix hotpatch (P0/P1)         | Coverage gate, fitness count for the patch line                              | `// canon-exception: hotfix:<incident-id>`                 | **Mandatory** ADR within 5 working days of merge                                                                                                                                                                        |
+| Spike work                       | `any`, missing JSDoc, `@ts-ignore` on the spike file                         | `// canon-exception: spike:<branch>`                       | TTL ≤ 2 weeks; if it survives, ADR + remove markers                                                                                                                                                                     |
+| Test fixture coercion            | `as any` / `as never` to construct invalid state for negative tests          | `// canon-exception: test-fixture`                         | None (fixtures are not production code)                                                                                                                                                                                 |
+| Decorative-test demolition       | The `apps/api/vitest.config.ts` floor descent fitness #37 refuses, only that | `// canon-exception: decorative-demolition:<ledger-slice>` | The slice is listed in the committed ledger (`ledger.json`); M14 of `docs/development/TESTING_REFOUNDATION.md` reconciles the descent ([ADR-0039](docs/technical/ADR-0039-decorative-demolition-coverage-exception.md)) |
+| Generated code                   | All canon (file is regenerated; commenting is futile)                        | Header comment in generated file                           | None (file is in `.gitattributes` `linguist-generated=true`)                                                                                                                                                            |
+
+`<ledger-slice>` is the demolition slice's work-unit id as the committed ledger lists it (`2.6a`, `2.8.1a`), grammar `[0-9]+(\.[0-9]+)+[a-z]?`. Fitness #37 refuses the bare scenario, a malformed id, and a marker the base already carries on that metric, so each descent ships with its own.
 
 ### Forbidden — never use as escape hatch
 
@@ -1057,7 +1060,15 @@ pnpm --filter @packages/test-contracts scopes   # expect exit 0 and:
 # review. The first form named this path in its `::error` without implementing
 # it: the step is a REQUIRED context, so the only real exit was an admin
 # override, and a guard whose stated remedy does not work teaches people to
-# delete the guard. Hard-zero.
+# delete the guard. A scenario listed in SUBJECTS names its subject after a
+# colon, in that grammar: `decorative-demolition:2.8.1a` names the demolition
+# slice the committed ledger lists (ADR-0039), and the bare scenario is not
+# honoured. A marker already on the base for that metric is refused; each descent
+# carries its own. Remove-when: never — a marker answers for the one descent it
+# shipped with, and one left above a literal would otherwise wave every later
+# drop through. Whether the slice is in the ledger is review's to check,
+# and M14's to reconcile (docs/development/TESTING_REFOUNDATION.md), not this
+# guard's. Hard-zero.
 set -uo pipefail
 BASE_REF="${FITNESS_BASE_REF:-origin/main}"
 if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
@@ -1077,7 +1088,11 @@ const HEAD_FILE = "apps/api/vitest.config.ts";
 const METRICS = ["lines", "functions", "branches", "statements"];
 // Scenarios from CLAUDE.md §Pragmatic Exceptions. A descent marked with anything
 // else is not a canon exception, it is an unlabelled one.
-const SCENARIOS = new Set(["migration", "prototype", "hotfix", "spike", "test-fixture"]);
+const SCENARIOS = new Set(["migration", "prototype", "hotfix", "spike", "test-fixture", "decorative-demolition"]);
+// A scenario whose marker names its subject after a colon, and the subject's
+// grammar: decorative-demolition names the demolition slice the committed ledger
+// lists (ADR-0039), so each descent it accepts is attributable to one slice.
+const SUBJECTS = new Map([["decorative-demolition", /^[0-9]+(?:\.[0-9]+)+[a-z]?$/]]);
 
 // Split every line into its code half and its line-comment half: block-comment
 // bytes are dropped (a commented-out block must not keep answering for a floor
@@ -1123,9 +1138,12 @@ const scanLines = (source) => {
   return lines;
 };
 const markerOf = (comment) => {
-  const m = /canon-exception:\s*([a-z-]+)/.exec(comment ?? "");
+  const m = /canon-exception:\s*([a-z-]+)(?::(\S+))?/.exec(comment ?? "");
   if (m === null) return null;
-  return { scenario: m[1], valid: SCENARIOS.has(m[1]) };
+  const id = m[2] === undefined ? m[1] : `${m[1]}:${m[2]}`;
+  const grammar = SUBJECTS.get(m[1]);
+  const why = !SCENARIOS.has(m[1]) ? "unlisted" : grammar !== undefined && !grammar.test(m[2] ?? "") ? "subject" : null;
+  return { scenario: m[1], id, valid: why === null, why };
 };
 // Reads the GLOBAL thresholds block only. A metric is accepted only at the top
 // level of `thresholds: {`, so a per-scope block — which CODING_STANDARDS
@@ -1192,12 +1210,19 @@ for (const metric of METRICS) {
   }
   if (Number(headHits[0].value) >= Number(baseHits[0].value)) continue;
   const marker = headHits[0].marker;
-  if (marker !== null && marker.valid) {
-    console.error(`fitness #37: coverage.thresholds.${metric} lowered ${baseHits[0].value} -> ${headHits[0].value}, ACCEPTED under the 'canon-exception: ${marker.scenario}' marker on or above that line. The marker ships in the diff for a human to approve and carries its own follow-up per CLAUDE.md §Pragmatic Exceptions.`);
+  // A marker the base already carries on this metric accepted an earlier descent;
+  // it accepts no new one, so every descent ships with a marker of its own.
+  const inherited = marker !== null && marker.valid && baseHits[0].marker?.id === marker.id;
+  if (marker !== null && marker.valid && !inherited) {
+    console.error(`fitness #37: coverage.thresholds.${metric} lowered ${baseHits[0].value} -> ${headHits[0].value}, ACCEPTED under the 'canon-exception: ${marker.id}' marker on or above that line. The marker ships in the diff for a human to approve and carries its own follow-up per CLAUDE.md §Pragmatic Exceptions.`);
     continue;
   }
-  if (marker !== null) {
-    console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.scenario}', which is not a scenario from the CLAUDE.md §Pragmatic Exceptions allowed list (${[...SCENARIOS].join(", ")}) — not honoured.`);
+  if (inherited) {
+    console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.id}', which the base already carries on that metric: it accepted an earlier descent and accepts no new one — not honoured.`);
+  } else if (marker !== null && marker.why === "subject") {
+    console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.id}', whose subject after the colon is missing or outside its scenario's grammar (${SUBJECTS.get(marker.scenario)}) — not honoured.`);
+  } else if (marker !== null) {
+    console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.id}', which is not a scenario from the CLAUDE.md §Pragmatic Exceptions allowed list (${[...SCENARIOS].join(", ")}) — not honoured.`);
   }
   violations.push(`coverage.thresholds.${metric} lowered: ${baseHits[0].value} (base) -> ${headHits[0].value} (head)`);
 }

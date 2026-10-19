@@ -15,13 +15,16 @@ offline = true
 
 no_progress = true
 
-# Exclude common build/cache dirs from path traversal.
+# Exclude common build/cache dirs from path traversal. lychee reads each entry
+# as an unanchored regex, so each one names a whole path segment followed by a
+# slash: a bare `coverage` skipped every file whose name holds the word, and a
+# bare `.next` every path holding "next" after any character.
 exclude_path = [
-  "node_modules",
-  ".next",
-  "dist",
-  "coverage",
-  "storybook-static",
+  '(^|/)node_modules/',
+  '(^|/)\.next/',
+  '(^|/)dist/',
+  '(^|/)coverage/',
+  '(^|/)storybook-static/',
 ]
 
 # Skip URLs matching this regex. Source-code paths are workspace-relative
