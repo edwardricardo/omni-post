@@ -1,0 +1,26 @@
+// Classifier fixture, vitest: containers, describe paths, kinds, modifiers and a callback passed by
+// name. Read as text by the classifier suites under tests/.
+import { beforeEach, describe, expect, it, test } from "vitest";
+
+describe("outer", () => {
+  beforeEach(() => {
+    reset();
+  });
+
+  describe("inner", () => {
+    it.each([1, 2])("doubles %i", (n) => {
+      expect(double(n)).toBe(n * 2);
+    });
+
+    it.concurrent("runs concurrently", async () => {
+      expect(await one()).toBe(1);
+    });
+  });
+
+  test("sits at the outer level", () => {
+    // a comment the body hash ignores
+    expect(one()).toBe(1);
+  });
+});
+
+describe("shared", sharedSuite);

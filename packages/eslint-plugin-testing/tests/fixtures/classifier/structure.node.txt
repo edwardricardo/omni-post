@@ -1,0 +1,19 @@
+// Classifier fixture, node:test: subtests, suites and kinds. Read as text by the classifier suites under tests/.
+import { it, suite, test } from "node:test";
+import { strict as assert } from "node:assert";
+
+test("publishing", async (t) => {
+  await t.test("schedules", () => {
+    assert.equal(schedule(), "SCHEDULED");
+  });
+
+  await t.test("publishes", () => {
+    assert.equal(publish(), "PUBLISHED");
+  });
+});
+
+suite("suite level", () => {
+  it("works", () => {
+    assert.equal(one(), 1);
+  });
+});
