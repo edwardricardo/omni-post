@@ -1,6 +1,7 @@
 # ADR-0037: A patched `@storybook/nextjs-vite` 10.6.1 for next 16.4, until Storybook 10.6.3
 
-- **Status**: Accepted
+- **Status**: Accepted (resolved 2026-10-21 — the Storybook family moved to 10.6.3, which carries
+  #36732, and the patch, its record and the Dockerfiles' `COPY patches/` left with it; issue #666)
 - **Date**: 2026-10-15
 - **Deciders**: Edward (owner)
 - **Supersedes**: —

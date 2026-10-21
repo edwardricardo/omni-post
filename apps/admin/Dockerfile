@@ -45,7 +45,6 @@ ENV CI=true
 # this image fail to build at all: `pnpm --filter @shared/types... build` runs
 # `tsc -b` against `packages/shared/tsconfig.build.json`, which extends it.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.base.json tsconfig.build.base.json ./
-COPY patches/ ./patches/
 COPY ${SERVICE_PATH}/package.json ./${SERVICE_PATH}/
 COPY packages/ ./packages/
 COPY infra/ ./infra/
