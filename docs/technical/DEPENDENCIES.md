@@ -312,8 +312,8 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 
 | Package                   | Version | Purpose                              |
 | ------------------------- | ------- | ------------------------------------ |
-| vitest                    | 4.1.11  | Test runner (Vite-based, native ESM) |
-| @vitest/coverage-v8       | 4.1.11  | Coverage provider                    |
+| vitest                    | 4.1.12  | Test runner (Vite-based, native ESM) |
+| @vitest/coverage-v8       | 4.1.12  | Coverage provider                    |
 | @testing-library/react    | 16.3.3  | Component testing                    |
 | @testing-library/dom      | 10.4.2  | DOM utilities                        |
 | @testing-library/jest-dom | 7.0.1   | Custom matchers                      |
