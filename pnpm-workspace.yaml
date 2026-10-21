@@ -148,7 +148,7 @@ catalog:
   "@testing-library/react": 16.3.3 # published 2026-08-27T17:41Z. peers react/react-dom "^18 || ^19" (catalog 19.2.7) and @testing-library/dom "^10.0.0"; @types/react and @types/react-dom are optional peers
   "@testing-library/user-event": 14.6.8 # published 2026-10-13T06:41Z, mature since 2026-10-20T06:41Z; one fix, a programmatic null input value is treated as an empty string; OSV lists nothing. No dependencies; peers @testing-library/dom ">=7.21.4". Was 14.6.7
   # Vitest JSX transform (apps/admin + apps/client) — required for vite 8 (ADR-0019).
-  "@vitejs/plugin-react": 5.1.4
+  "@vitejs/plugin-react": 6.1.2 # latest stable AND latest mature, re-measured 2026-10-21T22:20Z: published 2026-10-05T10:08Z, mature since 2026-10-12T10:08Z; OSV lists nothing. MAJOR 5 -> 6: Babel is no longer a dependency, because Vite 8's Oxc runs the React Refresh transform, and the `babel` option is gone; both vitest configs call react() with no options, so they pass nothing the major removed. Peers vite ^8.0.0 (8.3.4 here); its other peers, oxc-transform-react, @rolldown/plugin-babel and babel-plugin-react-compiler, are optional and unused. Was 5.1.4, whose own vite peer stopped at ^7.0.0
   # @vitest/* family (peer = vitest 4.1.12, held below vitest 5 with it: SECURITY_CANON
   # §"Build-tool version holds", row `vitest`). 4.1.12 since 2026-10-21, with vitest (the
   # @vitest/mocker CVE floor); the family's 4.1.12 releases were published 2026-10-15 between
