@@ -256,7 +256,7 @@ overrides:
   "@opentelemetry/propagator-jaeger@<2.9.0": 2.9.0
   "deepmerge-ts@<8.0.0": 8.0.0
   "mysql2@<3.23.1": 3.23.1
-  dompurify: 3.4.16 # raised 2026-10-01 for GHSA-p98j-92pf-mc4p (low, OSV introduced 3.4.13 fixed 3.4.16); monaco-editor pins 3.2.7 exactly, so the floor stays an override
+  dompurify: 3.4.17 # raised 2026-10-21 for GHSA-c6gr-qvv4-5v3f, GHSA-mrv2-3pqr-j5jr and GHSA-cg2g-xh64-v4q7 (all low, cure53/DOMPurify repository advisories of 2026-10-12, <=3.4.16 fixed 3.4.17; OSV and GitHub's global database list none of them, so pnpm audit cannot see them); 3.4.16 since 2026-10-01 for GHSA-p98j-92pf-mc4p. monaco-editor pins 3.2.7 exactly, so the floor stays an override
   js-yaml: 4.3.2
 
 # Audited audit-ignores: GHSAs accepted as non-exploitable in our context, each with
