@@ -18,9 +18,9 @@ At the baseline (2026-09-27T17:55:14Z) the 52 rows below accounted for themselve
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-21T22:04:31Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
+**CURRENT, re-measured 2026-10-21T22:07:10Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
 exit 0 with EMPTY stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (51 direct, 1
-named transitive, no declared-absent candidate left), 15 sit below latest mature: 6 within the 30-day
+named transitive, no declared-absent candidate left), 14 sit below latest mature: 5 within the 30-day
 budget of ADR-0036, 0 past it unheld, 9 held.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
@@ -67,6 +67,7 @@ and what moved it. A slice that moves the count appends its own line, re-measure
 38. `2026-10-21T22:00:01Z` — **18** (9 within budget, 9 held, 0 undocumented): no population package moved: the `dompurify` CVE floor 3.4.16 → 3.4.17 is outside it. Since entry 37 the population went 51 → 52 with `fast-check`, the Storybook family went 10.6.1 → 10.6.3, and eight newer releases matured inside the budget, each taken by a later move of this unit: `@playwright/test` and `playwright` 1.64.1, `@testing-library/user-event` 14.6.8, the `@typescript-eslint` pair 8.71.2, `dependency-cruiser` 18.6.0, `eslint-plugin-jsdoc` 65.3.4 and `turbo` 2.11.8.
 39. `2026-10-21T22:02:13Z` — **16** (7 within budget, 9 held, 0 undocumented): the `@typescript-eslint` pair 8.71.1 → 8.71.2, two lags matured at once (parser and plugin).
 40. `2026-10-21T22:04:31Z` — **15** (6 within budget, 9 held, 0 undocumented): `eslint-plugin-jsdoc` 65.2.4 → 65.3.4.
+41. `2026-10-21T22:07:10Z` — **14** (5 within budget, 9 held, 0 undocumented): `dependency-cruiser` 18.5.0 → 18.6.0.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
