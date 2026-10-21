@@ -13,7 +13,7 @@
 | Tool       | Version | Purpose                                   |
 | ---------- | ------- | ----------------------------------------- |
 | pnpm       | 12.6.0  | Package manager with workspace support    |
-| Turbo      | 2.11.7  | Monorepo build orchestration with caching |
+| Turbo      | 2.11.8  | Monorepo build orchestration with caching |
 | Node.js    | 26      | Runtime (LTS from 2026-10-28; ADR-0038)   |
 | TypeScript | 6.0.3   | Language — strict mode throughout         |
 
