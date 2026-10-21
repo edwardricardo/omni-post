@@ -281,10 +281,11 @@
       "kind": "date",
       "id": "storybook-11-dep0205",
       "title": "Storybook 11 stable? Move the family and drop --disable-warning=DEP0205 from apps/client test:stories (ADR-0038)",
-      "due": "2026-10-20",
+      "due": "2026-10-27",
       "refs": [
         "docs/technical/ADR-0038-node-26-ahead-of-lts.md, Consequences (the story run's DEP0205) and Revisit if: read npm for a stable storybook 11.x (`pnpm view storybook dist-tags`); if published and mature, move the Storybook family to it, remove the flag, and measure the story run free of DEP0205 without it; if not, move `due` to the next Tuesday window",
-        "apps/client/package.json, script test:stories"
+        "apps/client/package.json, script test:stories",
+        "Read 2026-10-21, a day after the 2026-10-20 due date (reminder #665): npm dist-tags at 18:31Z are latest 10.6.3 and next 11.0.0-alpha.7, so no stable 11.x is published; the family moved to 10.6.3 the same day, and its `storybook build` still prints `[DEP0205] DeprecationWarning: module.register() is deprecated`, so the flag stays; `due` moved from 2026-10-20 to 2026-10-27, the next Tuesday window. Recorded here and not under `reviews.due`, because a `due` review dated 2026-10-21 against the moved date would be 6 days early and the check refuses more than 2"
       ],
       "reviews": {}
     },
@@ -303,7 +304,13 @@
         "maturity": "2026-10-17",
         "final": "2026-10-24"
       },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-21",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-21, four days after the 2026-10-17 milestone and one day past the check's 3-day grace, which turned main's watchlist check red; the reminder opened #637 at 2026-10-17T16:09Z, the milestone day. Registry, read 2026-10-21T18:26Z: 65.2.4 matured 2026-10-17T04:55Z, and 20 releases follow it, 65.2.5 (2026-10-11T12:58Z) to 65.4.0 (latest, 2026-10-20T11:56Z); the latest mature is 65.3.4 (2026-10-14T11:37:41Z, mature since 2026-10-21T11:37Z), and the holds gate reads the lag as within budget (3 d of 30), so the Tuesday window of 2026-10-27 takes it, the day 65.4.0 matures (11:56Z). OSV: nothing for eslint-plugin-jsdoc at any version; GitHub: no global advisory affects 65.2.4 or 65.3.4, and gajus/eslint-plugin-jsdoc publishes no repository advisory. Release notes 65.2.5 to 65.4.0: rule fixes only, none a security fix. Of the rules eslint.jsdoc.config.ts names (check-tag-names, no-restricted-syntax, require-description, require-jsdoc, require-param, require-returns, require-tags), the mature releases change only check-tag-names under its typed option (65.3.3), which the config does not set; the younger ones change require-jsdoc with publicOnly (65.3.5, not set) and its contexts errors (65.3.14), no-restricted-syntax contexts (65.3.10) and check-tag-names @prop descriptions (65.4.0), for the window's bump to measure. Upstream issues opened since 2026-10-10: #1802, #1816, #1820 and #1822, all closed, about no-undefined-types, no-unnecessary-type-assertion and computed property names, none in a rule the config enables, and #1805, a contributor question. Works here: pnpm check:jsdoc --all runs on 65.2.4 and lists 9243 violations in 987 of 2155 in-scope files (2026-10-21T18:28Z), and the touched-files mode is a clean pass against origin/main. Clean; the 14-day review is due 2026-10-24."
+        }
+      }
     },
     {
       "kind": "package",
@@ -353,7 +360,13 @@
         "maturity": "2026-10-17",
         "final": "2026-10-24"
       },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-21",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-21, four days after the 2026-10-17 milestone and one day past the check's 3-day grace, which turned main's watchlist check red; the reminder opened #638 at 2026-10-17T16:09Z, the milestone day. Registry, read 2026-10-21T18:26Z: 3.9.10 is latest and matured 2026-10-17T08:35Z; nothing newer is published apart from the next tag 4.0.0-alpha.13 (2025-11-18). Advisories: GHSA-4cm8-f57v-mqm6, the floor this version holds, is still only a prettier/prettier repository advisory (2026-10-11T01:01:55Z, medium); GitHub's global endpoint and OSV answer 404 for it at 18:27Z, so pnpm audit still cannot see it. OSV lists nothing for prettier at any version, no global advisory affects 3.9.10, and the repository has published no newer advisory. Release notes: no release after 3.9.10. Upstream issues opened since 2026-10-10 that name 3.9.10: #20306 and #20307, non-idempotent output (a delete of a JSDoc-cast member; a member chain with an object argument at printWidth 100, this repository's width), #20293, a YAML block-scalar regression on main and unreleased, and #20303, an SCSS regression from 3.7 where the tree has no .scss file; none is a security report. Works here: pnpm format:check (prettier -c .) passes on the whole tree (2026-10-21T18:28Z), so every file is a fixed point under 3.9.10 and neither non-idempotent case occurs here; pnpm check:legal and pnpm check:support, which render their pages through prettier's API, find every page current. Lockfile: one prettier, 3.9.10. Clean; the 14-day review is due 2026-10-24."
+        }
+      }
     },
     {
       "kind": "package",
