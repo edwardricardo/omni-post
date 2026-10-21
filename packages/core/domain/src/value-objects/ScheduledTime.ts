@@ -68,9 +68,17 @@ export class ScheduledTime {
   }
 
   /**
-   * Create a new ScheduledTime with validation
+   * @method create
+   * @description Creates a ScheduledTime after validating the date, its lead time of at least five
+   *   minutes and its horizon of at most one year, both measured from `now`, and the timezone.
+   * @param props - The date and time to schedule, and its timezone (UTC when omitted)
+   * @param now - The instant the lead time and the horizon are measured from; the current time when omitted
+   * @returns Result containing the ScheduledTime on success, InvalidValueError on failure
    */
-  static create(props: ScheduledTimeProps): Result<ScheduledTime, InvalidValueError> {
+  static create(
+    props: ScheduledTimeProps,
+    now: Date = new Date()
+  ): Result<ScheduledTime, InvalidValueError> {
     const { dateTime, timezone = "UTC" } = props;
 
     // Validate dateTime is a valid Date object
@@ -78,8 +86,13 @@ export class ScheduledTime {
       return err(new InvalidValueError("dateTime", dateTime, "Invalid date"));
     }
 
+    // An invalid reference instant turns every comparison below into one against NaN, and each of
+    // those is false, so any date at all would pass.
+    if (!(now instanceof Date) || isNaN(now.getTime())) {
+      return err(new InvalidValueError("now", now, "Invalid date"));
+    }
+
     // Validate dateTime is in the future
-    const now = new Date();
     if (dateTime.getTime() <= now.getTime()) {
       return err(
         new InvalidValueError(
@@ -124,7 +137,12 @@ export class ScheduledTime {
   }
 
   /**
-   * Create a ScheduledTime from an ISO string
+   * @method fromISOString
+   * @description Creates a ScheduledTime from an ISO 8601 string, validated against the current
+   *   time as `create` validates it.
+   * @param isoString - The date and time to schedule, as an ISO 8601 string
+   * @param timezone - The timezone of the scheduled time; UTC when omitted
+   * @returns Result containing the ScheduledTime on success, InvalidValueError on failure
    */
   static fromISOString(
     isoString: string,
@@ -138,7 +156,11 @@ export class ScheduledTime {
   }
 
   /**
-   * Create a ScheduledTime for now + specified minutes
+   * @method fromNowPlusMinutes
+   * @description Creates a ScheduledTime the given number of minutes after the current time.
+   * @param minutes - How many minutes from now to schedule; at least 5
+   * @param timezone - The timezone of the scheduled time; UTC when omitted
+   * @returns Result containing the ScheduledTime on success, InvalidValueError on failure
    */
   static fromNowPlusMinutes(
     minutes: number,
@@ -148,13 +170,20 @@ export class ScheduledTime {
       return err(new InvalidValueError("minutes", minutes, "Minutes must be at least 5"));
     }
 
-    const dateTime = new Date(Date.now() + minutes * 60 * 1000);
-    return ScheduledTime.create({ dateTime, timezone });
+    // One clock read: the date and its lead-time check measure from the same instant, so a
+    // millisecond that passes between two reads cannot leave exactly five minutes one short.
+    const now = new Date();
+    const dateTime = new Date(now.getTime() + minutes * 60 * 1000);
+    return ScheduledTime.create({ dateTime, timezone }, now);
   }
 
   /**
-   * Reconstitute a ScheduledTime from persistence (bypasses validation)
-   * Use this only when loading from database where the time may be in the past.
+   * @method reconstitute
+   * @description Rebuilds a ScheduledTime loaded from persistence without validation, because a
+   *   stored time may already be in the past.
+   * @param dateTime - The stored date and time
+   * @param timezone - The stored timezone; UTC when omitted
+   * @returns The ScheduledTime holding a copy of the given date
    */
   static reconstitute(dateTime: Date, timezone: Timezone = "UTC"): ScheduledTime {
     return new ScheduledTime(new Date(dateTime.getTime()), timezone);
@@ -180,14 +209,19 @@ export class ScheduledTime {
   }
 
   /**
-   * Get ISO string representation
+   * @method toISOString
+   * @description Returns the scheduled time as an ISO 8601 string in UTC.
+   * @returns The ISO 8601 representation of the scheduled time
    */
   toISOString(): string {
     return this._dateTime.toISOString();
   }
 
   /**
-   * Get formatted string in the specified timezone
+   * @method toFormattedString
+   * @description Formats the scheduled time for the en-US locale in its own timezone.
+   * @param options - Intl formatting options that override the default date, time and timezone name
+   * @returns The formatted scheduled time
    */
   toFormattedString(options?: Intl.DateTimeFormatOptions): string {
     const defaultOptions: Intl.DateTimeFormatOptions = {
@@ -204,14 +238,19 @@ export class ScheduledTime {
   }
 
   /**
-   * Check if the scheduled time has passed
+   * @method hasPassed
+   * @description Tells whether the scheduled time is before the current time.
+   * @returns True when the scheduled time has passed
    */
   hasPassed(): boolean {
     return this._dateTime.getTime() < Date.now();
   }
 
   /**
-   * Check if the scheduled time is within the next N minutes
+   * @method isWithinMinutes
+   * @description Tells whether the scheduled time falls within the next given number of minutes.
+   * @param minutes - The window, in minutes from the current time
+   * @returns True when the scheduled time is in the future and at most `minutes` away
    */
   isWithinMinutes(minutes: number): boolean {
     const now = Date.now();
@@ -242,15 +281,21 @@ export class ScheduledTime {
   }
 
   /**
-   * Create a new ScheduledTime with a different time (immutable update)
-   * Note: Must still be in the future
+   * @method reschedule
+   * @description Creates a ScheduledTime at a new date in the same timezone, validated against the
+   *   current time as `create` validates it.
+   * @param newDateTime - The new date and time to schedule
+   * @returns Result containing the new ScheduledTime on success, InvalidValueError on failure
    */
   reschedule(newDateTime: Date): Result<ScheduledTime, InvalidValueError> {
     return ScheduledTime.create({ dateTime: newDateTime, timezone: this._timezone });
   }
 
   /**
-   * Delay the scheduled time by specified minutes (immutable update)
+   * @method delay
+   * @description Creates a ScheduledTime the given number of minutes later, in the same timezone.
+   * @param minutes - How many minutes to move the scheduled time later; must be positive
+   * @returns Result containing the delayed ScheduledTime on success, InvalidValueError on failure
    */
   delay(minutes: number): Result<ScheduledTime, InvalidValueError> {
     if (minutes <= 0) {
@@ -262,7 +307,10 @@ export class ScheduledTime {
   }
 
   /**
-   * Equality check
+   * @method equals
+   * @description Compares two scheduled times by instant and timezone.
+   * @param other - The scheduled time to compare with
+   * @returns True when both the instant and the timezone match
    */
   equals(other: ScheduledTime): boolean {
     return (
@@ -271,8 +319,10 @@ export class ScheduledTime {
   }
 
   /**
-   * Compare to another ScheduledTime
-   * Returns -1 if this is before, 0 if equal, 1 if this is after
+   * @method compareTo
+   * @description Orders this scheduled time against another by instant, ignoring the timezone.
+   * @param other - The scheduled time to compare with
+   * @returns `-1` when this is before `other`, `0` when they are at the same instant, `1` when this is after it
    */
   compareTo(other: ScheduledTime): -1 | 0 | 1 {
     const diff = this._dateTime.getTime() - other._dateTime.getTime();
@@ -281,6 +331,11 @@ export class ScheduledTime {
     return 0;
   }
 
+  /**
+   * @method toJSON
+   * @description Serializes the scheduled time as its ISO string, timezone and timestamp.
+   * @returns A plain object with `dateTime`, `timezone` and `timestamp`
+   */
   toJSON(): Record<string, unknown> {
     return {
       dateTime: this._dateTime.toISOString(),
