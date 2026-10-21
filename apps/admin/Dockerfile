@@ -108,7 +108,7 @@ RUN pnpm --filter @apps/admin exec next build ${NEXT_BUILD_FLAGS}
 # updates an ALREADY-pinned digest and does not add one to a bare reference.
 # The measurements, the glibc-direction reading and what the CI smoke proves:
 # docs/deployment/base-images.md
-FROM gcr.io/distroless/nodejs26-debian13@sha256:746f728c8b61c9beb5d0350f054b4049c4cef0ae71d5b3f8f33bc57904bbc37e AS production
+FROM gcr.io/distroless/nodejs26-debian13@sha256:41cdcba2d935003b9efbdaa29c7a2a1fdf79539a914ca0d5d026c03d42580d68 AS production
 
 WORKDIR /app
 
