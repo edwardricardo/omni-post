@@ -158,14 +158,17 @@ catalog:
   "@vitest/browser-playwright": 4.1.11
   "@vitest/coverage-v8": 4.1.11
   "@vitest/ui": 4.1.11
-  # Storybook family (atomic). 10.6.1 since 2026-10-06 (hold bump): `latest` AND the latest MATURE
-  # release, published 2026-09-29 between 17:14Z and 17:20Z and mature since 2026-10-06T17:20Z;
-  # only 11.0.0 prereleases are newer, so no hold row is left in SECURITY_CANON.md. 10.6.0 before
-  # it, since 2026-10-02 (slice 0.11); the family moves as one. Since 2026-10-05 (slice 0.22)
-  # @apps/client runs on @storybook/nextjs-vite, and @storybook/addon-vitest runs its stories as
-  # vitest browser tests; OSV lists nothing for the family at 10.6.0 or 10.6.1.
-  # @storybook/nextjs-vite@10.6.1 peers next "^14.1.0 || ^15.0.0 || ^16.0.0" (repo 16.4.1), vite
-  # ^5 to ^8 (8.3.4) and react/react-dom up to ^19 (19.2.7); @storybook/addon-vitest@10.6.1 peers
+  # Storybook family (atomic). 10.6.3 since 2026-10-21: `latest`, published 2026-10-20 between
+  # 09:47Z and 11:11Z, taken inside the 7-day buffer as a security-tied deviation (mature from
+  # 2026-10-27T11:11Z; maturity watchlist). It carries storybookjs/storybook#36732, the next 16.4
+  # fix ADR-0037 had patched into 10.6.1, and is above 10.6.2, the fix of GHSA-f2ph-cmg5-wxc8
+  # (critical, storybook and @storybook/addon-vitest >=10.0.0 <10.6.2; SECURITY_CANON CVE-floor
+  # row `storybook`). 10.6.1 before it, since 2026-10-06 (hold bump), and 10.6.0 since 2026-10-02
+  # (slice 0.11); the family moves as one. Since 2026-10-05 (slice 0.22) @apps/client runs on
+  # @storybook/nextjs-vite, and @storybook/addon-vitest runs its stories as vitest browser tests;
+  # OSV lists nothing for the family at 10.6.3.
+  # @storybook/nextjs-vite@10.6.3 peers next "^14.1.0 || ^15.0.0 || ^16.0.0" (repo 16.4.1), vite
+  # ^5 to ^8 (8.3.4) and react/react-dom up to ^19 (19.2.7); @storybook/addon-vitest@10.6.3 peers
   # vitest, @vitest/browser and @vitest/browser-playwright ^4 or ^5, all optional (4.1.11 here).
   # The admin Storybook left on 2026-10-06 with its webpack framework @storybook/nextjs: it had no
   # stories and its build exited 1 with SB_BUILDER-WEBPACK5_0002 at 10.4.6 and at 10.6.0
@@ -173,15 +176,13 @@ catalog:
   # storybook, the framework and the addons; since 2026-10-06 (slice 0.22) @packages/ui declares
   # storybook and @storybook/react for the stories colocated with its components, which the client
   # Storybook runs. @storybook/react has that one declarer and is a catalog member anyway, because
-  # the family moves as one; 10.6.1 peers react/react-dom up to ^19 (19.2.7) and storybook ^10.6.1.
-  # @storybook/nextjs-vite 10.6.1 carries the patch of `patchedDependencies` below (ADR-0037): the
-  # family stays here until 10.6.3 is published, then moves to it at once and drops the patch.
-  storybook: 10.6.1
-  "@storybook/addon-a11y": 10.6.1
-  "@storybook/addon-docs": 10.6.1
-  "@storybook/addon-vitest": 10.6.1
-  "@storybook/nextjs-vite": 10.6.1
-  "@storybook/react": 10.6.1
+  # the family moves as one; 10.6.3 peers react/react-dom up to ^19 (19.2.7) and storybook ^10.6.3.
+  storybook: 10.6.3
+  "@storybook/addon-a11y": 10.6.3
+  "@storybook/addon-docs": 10.6.3
+  "@storybook/addon-vitest": 10.6.3
+  "@storybook/nextjs-vite": 10.6.3
+  "@storybook/react": 10.6.3
   "@types/opossum": 8.1.9
 
 catalogs:
@@ -264,7 +265,3 @@ overrides:
 # chains carried either, so neither suppressed anything any more.
 auditConfig:
   ignoreGhsas: []
-
-patchedDependencies:
-  # Storybook's merged fix for next 16.4 (storybookjs/storybook#36732), absent from 10.6.1; leaves when 10.6.3 is published (ADR-0037)
-  "@storybook/nextjs-vite@10.6.1": patches/@storybook__nextjs-vite@10.6.1.patch

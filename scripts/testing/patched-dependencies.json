@@ -1,23 +1,4 @@
 {
   "description": "One record per patched dependency: a package whose installed files pnpm changes at install time, through `patchedDependencies` in pnpm-workspace.yaml and a file under patches/. Each patch exists only by an owner's decision recorded in its own ADR (docs/security/SECURITY_CANON.md, section Patched dependencies). Every field is required: `version` is the exact version the key names; `patch` is the file under patches/; `upstream` is the merged change the patch reproduces (its pull request, its merge commit, the release pull request that carries it); `resolvedBy` is the package and the version range whose first stable release ends the patch; `adr` records the decision; `since` is the day the patch entered; `why` and `removeWhen` are one sentence each. Read by scripts/testing/patched-dependencies-gate.mjs: `--check` (fitness #48 and the battery step patched-deps) holds every key, record, patch file and ADR consistent; `--resolution --remind` (the patched-dependencies workflow, every 6 hours) reads the registry and opens or updates one issue per patch whose resolving release is published.",
-  "entries": [
-    {
-      "package": "@storybook/nextjs-vite",
-      "version": "10.6.1",
-      "patch": "patches/@storybook__nextjs-vite@10.6.1.patch",
-      "upstream": {
-        "pr": "https://github.com/storybookjs/storybook/pull/36732",
-        "commit": "8d47b13d65ae9fc0544e9852073dd0eae3f6b959",
-        "release": "https://github.com/storybookjs/storybook/pull/36762"
-      },
-      "resolvedBy": {
-        "package": "@storybook/nextjs-vite",
-        "range": ">=10.6.3"
-      },
-      "adr": "docs/technical/ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md",
-      "since": "2026-10-15",
-      "why": "next 16.4, the 16.4.1 security floor, reads the router's bfcacheId from parentRenderTree.data, which the App Router mock of @storybook/nextjs-vite 10.6.1 does not provide, so every client story fails without Storybook's merged fix, storybookjs/storybook#36732.",
-      "removeWhen": "@storybook/nextjs-vite 10.6.3 is published carrying #36732: the Storybook family's six catalog members move to it immediately, in one change that deletes the patch file, its patchedDependencies entry and this record, and runs the client stories and storybook build on the unpatched release."
-    }
-  ]
+  "entries": []
 }
