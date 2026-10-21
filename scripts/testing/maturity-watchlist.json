@@ -350,6 +350,30 @@
         "final": "2026-11-03"
       },
       "reviews": {}
+    },
+    {
+      "kind": "package",
+      "name": "vitest",
+      "version": "4.1.12",
+      "published": "2026-10-15T14:51:24.991Z",
+      "members": [
+        "@vitest/browser@4.1.12",
+        "@vitest/browser-playwright@4.1.12",
+        "@vitest/coverage-v8@4.1.12",
+        "@vitest/ui@4.1.12",
+        "@vitest/mocker@4.1.12"
+      ],
+      "entered": {
+        "date": "2026-10-21",
+        "commit": "b524e57e",
+        "pr": 674,
+        "via": "the catalog family move that is the CVE floor for GHSA-qxg6-89mg-rqv8 (moderate, CVE-2026-112949, @vitest/mocker >=2.1.0-beta.7 <4.1.12) and GHSA-xp26-3454-mjgp (moderate, CVE-2026-112950, @vitest/mocker >=4.1.11 <4.1.12), whose minimal patched version is 4.1.12; a security-tied deviation the owner pre-agreed on 2026-10-21, taken about 6.3 days after publication and about 17 hours before the 2026-10-22T14:51:25Z maturity, once the advisories turned pnpm audit red; dev-only (every vitest tier; @vitest/mocker's browser path in the apps/client stories)"
+      },
+      "milestones": {
+        "maturity": "2026-10-22",
+        "final": "2026-10-29"
+      },
+      "reviews": {}
     }
   ]
 }
