@@ -58,4 +58,23 @@ describe("helpers", () => {
     const mention = makeMention({ id: "m1" });
     await repository.save(mention);
   });
+
+  describe("with an inner value of the same name", () => {
+    const expectStatus = 42;
+
+    it("calls the value", async () => {
+      expectStatus(await create());
+    });
+  });
+
+  function expectLoadFailure() {
+    load().catch((error) => {
+      expect(error.code).toBe("LOAD_FAILED");
+    });
+  }
+
+  it("reports the load error through a helper, counted", async () => {
+    expect.hasAssertions();
+    expectLoadFailure();
+  });
 });

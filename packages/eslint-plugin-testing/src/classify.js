@@ -7,13 +7,13 @@
  *
  *   Assertions are read by `assertions.js`, plus a `throw` statement written in the block's own
  *   body, outside any function nested in it: a throw in an inlined helper or in a stub's method
- *   checks nothing of the block's. A same-file helper the block calls, resolved lexically to the
- *   nearest declaration of its name in scope (a parameter of that name hides it), is inlined one
- *   level, with the call site's conditions; one level further down a helper that asserts is
- *   OPAQUE. An imported helper named
- *   `expect*`, `assert*`, `verify*` or `check*` is OPAQUE when its module is test code (a relative
- *   path outside `src/`, or a path that names `test`); so is a method named `expect…` or `assert…`
- *   on any receiver (a page object's), and a callback passed by name.
+ *   checks nothing of the block's. A call is resolved lexically, to the nearest declaration of its
+ *   name in scope. A same-file function is inlined one level, with the call site's conditions; one
+ *   level further down a helper that asserts is OPAQUE. A name bound to any other value, or a
+ *   parameter, is a callable the classifier cannot see into, OPAQUE when it is named `expect*`,
+ *   `assert*`, `verify*` or `check*`. An imported helper of such a name is OPAQUE when its module is
+ *   test code (a relative path outside `src/`, or a path that names `test`); so is a method named
+ *   `expect…` or `assert…` on any receiver (a page object's), and a callback passed by name.
  *
  *   An assertion is CONDITIONAL inside an `if` branch, a `?:` branch, the right side of `&&`, `||`
  *   or `??`, a `switch` case, a `catch` clause or a `.catch(...)` callback, and GUARDED-RETURN
@@ -24,7 +24,8 @@
  *   through `!`, `&&` and `||`, `=== null`, `== null`, `!== undefined` and the like over a value
  *   asserted present, and `typeof x === "..."` over a value whose type was asserted. A block that
  *   calls `expect.assertions(n)` or `expect.hasAssertions()` fails when its catch path does not
- *   run, so its `catch` and `.catch(...)` assertions are not CONDITIONAL.
+ *   run, so the `catch` and `.catch(...)` assertions of its own body are not CONDITIONAL; those of
+ *   an inlined helper stay CONDITIONAL.
  *
  *   Block classes, the first that applies: SELF-SKIP (any skip marker `blocks.js` reports); with no
  *   assertion, PRINTS-SUCCESS when it prints success, else EMPTY; TITLE-CONTRADICTION;
@@ -35,13 +36,13 @@
  *   tests/i, with `pass` read as a word (`passed`, not `password`) and `success` at a word start
  *   (`successfully`, not `unsuccessful`).
  *
- *   Output is deterministic: blocks and assertions in source order, no timestamps. A file the
- *   classifier cannot read (its syntax nests deeper than the call stack) is never a throw: it
- *   comes back with no block and its error as a string.
+ *   Output is deterministic: blocks and assertions in source order, no timestamps. A file whose
+ *   syntax nests deeper than the call stack comes back with no block and its `RangeError` as a
+ *   string; any other error is thrown.
  * @layer infrastructure
  */
 import ts from "typescript";
-import { ASSERTION_CLASS, readAssertion, readFact } from "./assertions.js";
+import { ASSERTION_CLASS, expectPath, readAssertion, readFact } from "./assertions.js";
 import { discoverBlocks } from "./blocks.js";
 
 /** The class of a reported block. */
@@ -268,20 +269,21 @@ function binds(name, wanted) {
  * @param {ts.CallExpression} call
  * @param {string} name
  * @param {FileContext} context
- * @returns {FunctionNode | null} The same-file function the name resolves to where it is called:
- *   the nearest enclosing scope that declares it wins, a parameter of that name hides every outer
- *   declaration, and a declaration of anything but a function resolves to none.
+ * @returns {FunctionNode | "value" | null} What the name resolves to where it is called: the
+ *   nearest enclosing scope that declares it wins. A function literal or declaration resolves to
+ *   that function; any other value, and a parameter of that name, to `"value"`, a callable the
+ *   classifier cannot see into; no same-file declaration to `null`.
  */
 function resolveHelper(call, name, context) {
   const declarations = context.helpers.get(name) ?? [];
   for (let node = call.parent; node !== undefined; node = node.parent) {
     const here = declarations.find((declaration) => declaration.scope === node);
-    if (here !== undefined) return here.fn;
+    if (here !== undefined) return here.fn ?? "value";
     if (
       ts.isFunctionLike(node) &&
       node.parameters.some((parameter) => binds(parameter.name, name))
     ) {
-      return null;
+      return "value";
     }
   }
   return null;
@@ -360,11 +362,12 @@ function decided(condition, before, facts) {
       operator === ts.SyntaxKind.EqualsEqualsEqualsToken ||
       operator === ts.SyntaxKind.EqualsEqualsToken;
     if (!equal) return null;
-    for (const [side, other] of [
+    /** @type {Array<[ts.Expression, ts.Expression]>} */
+    const orders = [
       [node.left, node.right],
       [node.right, node.left],
-    ]) {
-      if (side === undefined || other === undefined) continue;
+    ];
+    for (const [side, other] of orders) {
       if (isNothing(other)) return value(side) === true ? negated : null;
       const typeOf = withoutParentheses(side);
       const literal = withoutParentheses(other);
@@ -506,10 +509,13 @@ function checkOf(statement) {
  * @param {FileContext} context
  * @param {Site | null} site Where the owner is called from, when it is an inlined helper.
  * @param {boolean} catchesRun Whether the block counts its assertions, so a catch path must run.
+ *   It holds for the catch paths written in the block's own body only: the count says the block's
+ *   assertions ran, not that a helper's catch path did.
  * @returns {Collected[]} Every assertion in source order.
  */
 function collect(root, owner, context, site, catchesRun) {
   const { sourceFile, assertNames } = context;
+  const counted = catchesRun && site === null;
   /** @type {Collected[]} */
   const found = [];
   /** @type {PositionedFact[]} */
@@ -520,7 +526,7 @@ function collect(root, owner, context, site, catchesRun) {
    * @param {boolean} throwEvidence
    */
   const record = (node, reading, throwEvidence) => {
-    const { flags, inCatch } = conditionsOf(node, owner, facts, catchesRun);
+    const { flags, inCatch } = conditionsOf(node, owner, facts, counted);
     const fact = flags.size === 0 && ts.isCallExpression(node) ? readFact(node, assertNames) : null;
     if (fact !== null) facts.push({ ...fact, position: node.getStart(sourceFile) });
     for (const flag of site?.flags ?? []) flags.add(flag);
@@ -553,14 +559,17 @@ function collect(root, owner, context, site, catchesRun) {
     if (ts.isCallExpression(node)) {
       const reading = readAssertion(node, assertNames);
       const callee = node.expression;
-      const helper = ts.isIdentifier(callee) ? resolveHelper(node, callee.text, context) : null;
+      const resolved = ts.isIdentifier(callee) ? resolveHelper(node, callee.text, context) : null;
+      const helper = resolved === "value" ? null : resolved;
       if (reading !== null) {
         const { throwEvidence, ...rest } = reading;
         record(node, rest, throwEvidence);
+      } else if (resolved === "value" && ts.isIdentifier(callee)) {
+        if (HELPER_NAME.test(callee.text)) opaque(node, callee.text);
       } else if (helper !== null && helper !== owner && ts.isIdentifier(callee)) {
         const named = HELPER_NAME.test(callee.text);
         if (site === null) {
-          const { flags, inCatch } = conditionsOf(node, owner, facts, catchesRun);
+          const { flags, inCatch } = conditionsOf(node, owner, facts, counted);
           const position = node.getStart(sourceFile);
           const at = { position, flags, inCatch, text: node.getText(sourceFile), via: callee.text };
           const inlined =
@@ -725,14 +734,16 @@ function classOf(skips, collected, prints, contradiction) {
 
 /**
  * @param {ts.Node} body
- * @returns {boolean} Whether the body calls `expect.assertions(n)` or `expect.hasAssertions()`.
+ * @returns {boolean} Whether the body calls `expect.assertions(n)` or `expect.hasAssertions()`,
+ *   read structurally by `expectPath`: on the `expect` binding by name, not on an alias of it and
+ *   not on another object's `assertions` method.
  */
 function countsAssertions(body) {
   /** @param {ts.Node} node @returns {true | undefined} */
   const visit = (node) => {
     if (ts.isCallExpression(node)) {
-      const callee = node.expression.getText();
-      if (callee === "expect.assertions" || callee === "expect.hasAssertions") return true;
+      const path = expectPath(node.expression);
+      if (path === "expect.assertions" || path === "expect.hasAssertions") return true;
     }
     return ts.forEachChild(node, visit);
   };
@@ -821,9 +832,10 @@ function classifyReadable(text, fileName) {
 }
 
 /**
- * @description Classifies every test block of one file, syntactically. It never throws: a file it
- *   cannot read, such as one whose syntax nests deeper than the call stack, comes back with no
- *   block, `framework` and `fileContextHash` `null`, and the error as `<name>: <message>`.
+ * @description Classifies every test block of one file, syntactically. A file whose syntax nests
+ *   deeper than the call stack (a `RangeError` from the recursive walks) comes back with no block,
+ *   `framework` and `fileContextHash` `null`, and the error as `<name>: <message>`; any other
+ *   error is a defect of the classifier and is thrown, never reported as an unreadable file.
  * @param {string} text The file's source.
  * @param {string} fileName The path its block ids carry; its extension picks the parser (`.tsx`,
  *   `.jsx`, `.js`, else TypeScript).
@@ -834,13 +846,14 @@ export function classifyFile(text, fileName) {
   try {
     return classifyReadable(text, fileName);
   } catch (error) {
+    if (!(error instanceof RangeError)) throw error;
     return {
       path: fileName,
       framework: null,
       blocks: [],
       opaqueHelpers: [],
       fileContextHash: null,
-      error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+      error: `${error.name}: ${error.message}`,
     };
   }
 }

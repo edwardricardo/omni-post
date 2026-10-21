@@ -356,8 +356,26 @@ function classifyAssert(method, args) {
 }
 
 /**
+ * @description Reads an expression as the `expect` binding or one member of it, by its syntax:
+ *   `expect`, `expectTypeOf`, `expect.soft`, `expect . assertions`; whitespace and line breaks
+ *   between the parts do not matter. The binding is matched by its name, as vitest's global and
+ *   its import of that name are written; an alias (`const e = expect`, `import { expect as e }`)
+ *   is not followed.
+ * @param {ts.Expression} node
+ * @returns {string | null} The dotted path (`expect.assertions`), or `null` for anything else.
+ */
+export function expectPath(node) {
+  if (ts.isIdentifier(node)) {
+    return node.text === "expect" || node.text === "expectTypeOf" ? node.text : null;
+  }
+  const member = ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression);
+  return member && node.expression.text === "expect" ? `expect.${node.name.text}` : null;
+}
+
+/**
  * @param {ts.CallExpression} call
- * @returns {ExpectChain | null} The call read as `<opener>(subject)[.modifier]*.matcher(args)`.
+ * @returns {ExpectChain | null} The call read as `<opener>(subject)[.modifier]*.matcher(args)`,
+ *   where the opener is `expect`, one of its members or `expectTypeOf`.
  */
 function expectChain(call) {
   const callee = call.expression;
@@ -370,8 +388,10 @@ function expectChain(call) {
     current = current.expression;
   }
   if (!ts.isCallExpression(current)) return null;
+  const opener = expectPath(current.expression);
+  if (opener === null) return null;
   return {
-    opener: current.expression.getText(),
+    opener,
     subject: current.arguments[0],
     modifiers,
     matcher: callee.name.text,
@@ -393,17 +413,14 @@ function readExpect(call) {
       throwEvidence: false,
     };
   }
-  const ender = ts.isPropertyAccessExpression(callee) ? callee.name.text : "";
-  if (ts.isPropertyAccessExpression(callee) && callee.expression.getText() === "expect") {
-    if (ender === "fail" || ender === "unreachable") {
-      const name = `expect.${ender}`;
-      return {
-        form: "expect",
-        name,
-        assertionClass: ASSERTION_CLASS.BEHAVIOURAL,
-        throwEvidence: true,
-      };
-    }
+  const path = expectPath(callee);
+  if (path === "expect.fail" || path === "expect.unreachable") {
+    return {
+      form: "expect",
+      name: path,
+      assertionClass: ASSERTION_CLASS.BEHAVIOURAL,
+      throwEvidence: true,
+    };
   }
   const chain = expectChain(call);
   if (chain === null) return null;
@@ -486,20 +503,21 @@ function factAbout(subject, truthy) {
 }
 
 /**
- * @param {ts.Expression | undefined} value
- * @param {ts.Expression | undefined} other
+ * @param {ts.Expression} value
+ * @param {ts.Expression} other
  * @returns {Fact | null} `{ subject, type }` when one side is `typeof <subject>` and the other a
  *   string literal, else `null`.
  */
 function typeFact(value, other) {
-  for (const [side, literal] of [
+  /** @type {Array<[ts.Expression, ts.Expression]>} */
+  const orders = [
     [value, other],
     [other, value],
-  ]) {
-    const node = side === undefined ? undefined : unwrap(side);
-    const text = literal === undefined ? undefined : unwrap(literal);
-    if (node === undefined || text === undefined || !ts.isTypeOfExpression(node)) continue;
-    if (!ts.isStringLiteralLike(text)) continue;
+  ];
+  for (const [side, literal] of orders) {
+    const node = unwrap(side);
+    const text = unwrap(literal);
+    if (!ts.isTypeOfExpression(node) || !ts.isStringLiteralLike(text)) continue;
     return { subject: unwrap(node.expression).getText().replace(/\s+/g, ""), type: text.text };
   }
   return null;
@@ -524,7 +542,7 @@ export function readFact(call, names) {
         return { subject: unwrap(chain.subject).getText().replace(/\s+/g, ""), type: literal.text };
       }
     }
-    if (!chain.negated && equality) {
+    if (!chain.negated && equality && expected !== undefined) {
       const type = typeFact(chain.subject, expected);
       if (type !== null) return type;
     }
@@ -545,7 +563,7 @@ export function readFact(call, names) {
   const [actual, expected] = call.arguments;
   if (method === null || actual === undefined) return null;
   if (method === "ok") return factAbout(actual, true);
-  if (ASSERT_EQUALITY.has(method)) {
+  if (ASSERT_EQUALITY.has(method) && expected !== undefined) {
     const type = typeFact(actual, expected);
     if (type !== null) return type;
   }

@@ -95,4 +95,32 @@ describe("conditional", () => {
       expect(error.code).toBe("LOAD_FAILED");
     });
   });
+
+  it("reports the load error, counted with spaces", async () => {
+    expect . assertions(1);
+    try {
+      await load();
+    } catch (error) {
+      expect(error.code).toBe("LOAD_FAILED");
+    }
+  });
+
+  it("reports the load error, counted by another object", async () => {
+    tracker.assertions(1);
+    try {
+      await load();
+    } catch (error) {
+      expect(error.code).toBe("LOAD_FAILED");
+    }
+  });
+
+  it("reports the load error, counted through an alias", async () => {
+    const check = expect;
+    check.assertions(1);
+    try {
+      await load();
+    } catch (error) {
+      expect(error.code).toBe("LOAD_FAILED");
+    }
+  });
 });

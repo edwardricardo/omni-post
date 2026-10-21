@@ -17,7 +17,7 @@
 import { readFileSync } from "node:fs";
 import { once } from "node:events";
 import { Worker } from "node:worker_threads";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BLOCK_CLASS, CRITERIA, classifyFile } from "../src/index.js";
 
 type Expected = {
@@ -140,6 +140,21 @@ const FIXTURES: Fixture[] = [
       ),
       row(83, "reports the load error, counted", BEHAV, [BEHAV]),
       row(92, "reports the load error through catch, counted", BEHAV, [BEHAV]),
+      row(99, "reports the load error, counted with spaces", BEHAV, [BEHAV]),
+      row(
+        108,
+        "reports the load error, counted by another object",
+        "CONDITIONAL-ONLY",
+        [BEHAV],
+        ["CONDITIONAL"]
+      ),
+      row(
+        117,
+        "reports the load error, counted through an alias",
+        "CONDITIONAL-ONLY",
+        [BEHAV],
+        ["CONDITIONAL"]
+      ),
     ],
   },
   {
@@ -273,6 +288,14 @@ const FIXTURES: Fixture[] = [
       row(37, "shows the login form", BEHAV, [OPAQUE]),
       row(47, "creates a response", "EXISTENCE-ONLY", [EXISTS]),
       row(57, "saves a built mention", "EMPTY"),
+      row(65, "calls the value", BEHAV, [OPAQUE]),
+      row(
+        76,
+        "reports the load error through a helper, counted",
+        "CONDITIONAL-ONLY",
+        [BEHAV],
+        ["CONDITIONAL"]
+      ),
     ],
   },
   {
@@ -485,6 +508,8 @@ describe("classifyFile", () => {
         [null],
         ["expectStatus"],
         [],
+        [null],
+        ["expectLoadFailure"],
       ]);
       expect(result.blocks.map((block) => block.opaque)).toEqual([
         true,
@@ -494,6 +519,8 @@ describe("classifyFile", () => {
         true,
         true,
         false,
+        false,
+        true,
         false,
       ]);
     });
@@ -530,22 +557,57 @@ describe("classifyFile", () => {
       expect(result.error).toBeNull();
     });
 
-    it("returns an error, never a throw, for a file it cannot read: 20,000 nested ifs", () => {
-      const depth = 20_000;
-      const text = `it("nests", () => {\n${"if (a) {\n".repeat(depth)}expect(1).toBe(1);\n${"}\n".repeat(depth)}});\n`;
+    it("returns the error of a file whose syntax nests deeper than the call stack, the same each run", () => {
+      // About 1,000 nested ifs already overflow Node's default stack; twenty times that keeps the
+      // case an overflow under a larger --stack-size too.
+      const DEPTH = 20_000;
+      const text = `it("nests", () => {\n${"if (a) {\n".repeat(DEPTH)}expect(1).toBe(1);\n${"}\n".repeat(DEPTH)}});\n`;
 
       const first = classifyFile(text, "deep.test.ts");
       const second = classifyFile(text, "deep.test.ts");
 
-      expect(first).toEqual({
-        path: "deep.test.ts",
+      expect(typeof first.error).toBe("string");
+      expect(first.error).not.toBe("");
+      expect(first.blocks).toEqual([]);
+      expect(second).toEqual(first);
+    });
+  });
+
+  describe("what classifyFile catches and what it does not", () => {
+    afterEach(() => {
+      vi.doUnmock("../src/blocks.js");
+      vi.resetModules();
+    });
+
+    /** `classifyFile` from a fresh module graph in which block discovery throws `error`. */
+    const classifyThrowing = async (error: Error) => {
+      vi.resetModules();
+      vi.doMock("../src/blocks.js", () => ({
+        discoverBlocks: () => {
+          throw error;
+        },
+      }));
+      const fresh = await import("../src/classify.js");
+      return fresh.classifyFile;
+    };
+
+    it("turns a RangeError into the file's error, as `<name>: <message>`", async () => {
+      const classifyStubbed = await classifyThrowing(new RangeError("stack exhausted"));
+
+      expect(classifyStubbed("x", "x.test.ts")).toEqual({
+        path: "x.test.ts",
         framework: null,
         blocks: [],
         opaqueHelpers: [],
         fileContextHash: null,
-        error: "RangeError: Maximum call stack size exceeded",
+        error: "RangeError: stack exhausted",
       });
-      expect(second).toEqual(first);
+    });
+
+    it("lets any other error through: a defect is never read as an unreadable file", async () => {
+      const classifyStubbed = await classifyThrowing(new TypeError("defect"));
+
+      expect(() => classifyStubbed("x", "x.test.ts")).toThrow(TypeError);
     });
   });
 
