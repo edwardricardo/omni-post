@@ -2133,8 +2133,10 @@ JSDOC_BASE_REF="${FITNESS_BASE_REF:-origin/main}" pnpm check:jsdoc   # expect ex
 # review reads; (3) the resolution half proves a release inside the range is published, not that it
 # carries the fix, and between two scheduled runs, up to 6 hours, a resolvable patch is not yet
 # reported.
-pnpm check:patched-deps   # expect exit 0, one line per patch and a summary:
-#   @storybook/nextjs-vite@10.6.1  patch  consistent   (tab-separated)
+pnpm check:patched-deps   # expect exit 0 and, with no patch, this one line:
+#   0 patched dependencies: none in patchedDependencies, none recorded, no file under patches/ (a clean pass)
+# With a patch, one line per patch (tab-separated) and a summary:
+#   <package>@<version>  patch  consistent
 #   1 patched dependency checked against patchedDependencies, patches/ and the ADRs: 1 consistent, 0 violation(s)
 ````
 

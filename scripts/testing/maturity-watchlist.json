@@ -131,86 +131,6 @@
     },
     {
       "kind": "package",
-      "name": "vite",
-      "version": "8.3.3",
-      "published": "2026-10-06T04:10:19.326Z",
-      "entered": {
-        "date": "2026-10-08",
-        "commit": "29cf002c",
-        "pr": 487,
-        "via": "the catalog CVE floor, 2.4 days after publication and about 4.5 days before the 2026-10-13T04:10Z maturity: the latest mature 8.3.2 is inside the range >=8.3.0 <=8.3.2 of GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg and GHSA-9jrq-w75r-8gcw (vitejs/vite repository advisories of 2026-10-06, not yet in OSV or the GitHub global database), and 8.3.3 is the minimal patched version; dev-only, the devDependencies of apps/admin and apps/client"
-      },
-      "milestones": {
-        "maturity": "2026-10-13",
-        "final": "2026-10-20"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-14",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-14, one day after the 2026-10-13 milestone, inside the check's 3-day grace; the reminder opened #562 at 2026-10-13T19:45Z. 8.3.3 left the 7-day buffer at 2026-10-13T04:10Z (published 2026-10-06T04:10:19Z). Registry, read 2026-10-14T18:07Z: 8.3.4 is latest (2026-10-08T12:07:04Z) and matures 2026-10-15T12:07Z; nothing newer is published on any line (8.2.4, 8.1.6, 7.3.7 and 6.4.4, the backports of 2026-10-06, are the newest of theirs). 8.3.4 keeps 8.3.3's peers, optional dependencies and engines and raises two dependency ranges, postcss ^8.5.28 to ^8.5.29 and rolldown ~1.2.11 to ~1.2.12. The lockfile, parsed with yaml.safe_load_all, holds one vite, 8.3.3, one postcss, 8.5.28, and rolldown 1.2.12 with its bindings, so only postcss must move with 8.3.4: 8.5.29 (2026-10-05T09:28Z) is mature, and 8.5.30, latest since 2026-10-12T20:38Z, matures 2026-10-19T20:38Z. OSV, at 18:07Z: nothing for vite 8.3.2, 8.3.3 or 8.3.4. The three vitejs/vite repository advisories this floor closes, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg and GHSA-9jrq-w75r-8gcw, still answer 404 on OSV and on GitHub's global endpoint and still carry no CVE id, so pnpm audit still cannot see them; the repository lists them unchanged since 2026-10-06T14:15Z, fixed in 8.3.3, with nothing newer, and no global advisory affects vite@8.3.3 or 8.3.4. Release notes of 8.3.4 (2026-10-08): one feature (import.meta.hot.acceptExports in bundled dev), sixteen bug fixes, a performance change and a refactor; none names an advisory. One fixes a regression of 8.3.3: #23689 stops a transformIndexHtml call with a query-bearing root URL from adding the filesystem root to the watcher (#23679, introduced by 8.3.3's #23653, the GHSA-9jrq-w75r-8gcw fix). It needs that URL shape and an inline style, and neither caller here passes one: @vitest/browser 4.1.11 calls it with /@fs/ and the tester file path, @storybook/builder-vite 10.6.1 with /iframe.html. Upstream issues: besides #23679 (closed 2026-10-08), four more name 8.3.3, a Yarn nodeLinker pnpm cache (#23666), a dev client rewriting server-rendered CSS (#23696), a Svelte dependency scan (#23669) and a Windows watch path (#23670, a duplicate), all closed, and two older issues match the string only; no issue opened since 2026-10-06 carries the regression label, and none of the ten that name 8.3.4 does. Reachability: dev-only; no production dependency of any importer reaches vite (canon CVE-floor row vite). Works here, on the installed 8.3.3 (apps/admin and apps/client): main b5773184's CI run 38593155624 (push, 2026-10-14T15:52Z) passed Storybook Stories, pnpm --filter @apps/client test:stories in Chromium (9 files, 68 tests), Frontend Tests (the admin's 129 and the client's 556 vitest tests), both API test shards and Package Tests. The holds gate on vite alone exits 0 now and at --instant 2026-10-15T12:08Z, where the lag against 8.3.4 is held by the canon row vite; the move to 8.3.4, with postcss 8.5.29, is the date entry hold-vite-8.3.4, due 2026-10-15. Clean; the 14-day review is due 2026-10-20."
-        }
-      }
-    },
-    {
-      "kind": "package",
-      "name": "handlebars",
-      "version": "4.7.10",
-      "published": "2026-10-05T22:37:37.837Z",
-      "entered": {
-        "date": "2026-10-08",
-        "commit": "ca30b066",
-        "pr": 492,
-        "via": "the catalog CVE floor, 2.9 days after publication and about 4.1 days before the 2026-10-12T22:37Z maturity: 4.7.9 is inside the range >=4.0.0 <=4.7.9 of GHSA-8r5x-fm3f-whwj and GHSA-p8wg-vrv2-v86f (critical) and GHSA-xw65-4hp5-5hc7 (moderate), published to the GitHub global database on 2026-10-08T17:52Z, and 4.7.10 is the minimal patched version and latest; production, packages/shared BaseTemplateEngine under the API's tenant template compile route and the client preview"
-      },
-      "milestones": {
-        "maturity": "2026-10-12",
-        "final": "2026-10-19"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-14",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-14, two days after the 2026-10-12 milestone, inside the check's 3-day grace; the reminder opened #560 at 2026-10-12T00:14Z and the review was taken up late. 4.7.10 left the 7-day buffer at 2026-10-12T22:37Z (published 2026-10-05T22:37:37Z). Registry, read 2026-10-14T17:57Z: 4.7.10 is latest, legacy is 3.0.8, and nothing newer is published (the document was last modified at 4.7.10's own publication). OSV, the same instant: nothing for 4.7.10; 4.7.9 carries the three advisories this floor closes. One of them changed after the floor was taken: GHSA-p8wg-vrv2-v86f now reads >=3.0.0 <=4.7.9 (the repository advisory updated 2026-10-09T20:56Z, GitHub's global record 2026-10-12T14:33Z, OSV 14:45Z), while the other two keep >=4.0.0; the fix is still 4.7.10, and the lockfile, parsed with yaml.safe_load_all, holds one copy, 4.7.10, consumed only by packages/shared, so no 3.x copy is reached. The canon CVE-floor row handlebars said all three start at 4.0.0 and is corrected in this change. GitHub: no global advisory affects handlebars@4.7.10, and the repository's newest advisories are those three, published there 2026-10-05. Upstream: v4.7.10 (2026-10-05T23:07Z) is the newest release, and the 4.x branch has no commit after its tag (45ce1525). Nothing opened since is an issue: the five entries are pull requests, #2185 the 4.7.10 security work merged into 4.x, and four against master, the 5.x line: #2186 ports those fixes there, #2187 sets @first for sparse arrays with leading holes, #2188 keeps the first character of CLI template names when --root ends in a separator, and #2189 calls function partials from another realm or with a null prototype; a search for 4.7.10 finds nothing. None reports a regression in 4.7.10, and none reaches this code: template contexts are JSON, which has no sparse arrays, no partial is registered, and no script runs the handlebars CLI. The 4.7.10 compatibility notes (#each iterating a Map, Set or generator lazily, partials only from strings or functions) reach nothing for the same reasons. Works here, on the installed 4.7.10: the four files that compile templates pass, apps/api tests/unit/ServerTemplateEngine.test.ts and templateEngine.test.ts 40 of 40 (17:58:35Z), and apps/client lib/templates/__tests__/ClientTemplateEngine.test.ts and templateEngine.test.ts 75 of 75 (17:58:41Z); main b5773184's CI run 38593155624 (push, 2026-10-14T15:52Z) passed both API test shards and, in Frontend Tests, the same client template files. Clean; the 14-day review is due 2026-10-19."
-        }
-      }
-    },
-    {
-      "kind": "package",
-      "name": "@typescript-eslint/parser",
-      "version": "8.71.1",
-      "published": "2026-10-05T17:08:12.507Z",
-      "members": [
-        "@typescript-eslint/eslint-plugin@8.71.1",
-        "@typescript-eslint/project-service@8.71.1",
-        "@typescript-eslint/scope-manager@8.71.1",
-        "@typescript-eslint/tsconfig-utils@8.71.1",
-        "@typescript-eslint/type-utils@8.71.1",
-        "@typescript-eslint/types@8.71.1",
-        "@typescript-eslint/typescript-estree@8.71.1",
-        "@typescript-eslint/utils@8.71.1",
-        "@typescript-eslint/visitor-keys@8.71.1"
-      ],
-      "entered": {
-        "date": "2026-10-11",
-        "commit": "23b926bc",
-        "pr": 557,
-        "via": "the catalog entry of @typescript-eslint/parser and the root literal of @typescript-eslint/eslint-plugin, 6.1 days after publication and about 22 hours before the 2026-10-12T17:08Z maturity (17:09Z for the plugin), on Edward's instruction of 2026-10-11, so the holds gate would not go red on every pull request and on main at that instant; #557 owed this entry once it had a pull request number, and it was recorded on 2026-10-14"
-      },
-      "milestones": {
-        "maturity": "2026-10-12",
-        "final": "2026-10-19"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-14",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-14, two days after the 2026-10-12 milestone, inside the check's 3-day grace: the entry was recorded only on 2026-10-14 (18dfbd12), so the reminder first saw it that day and opened #575 at 17:47Z. 8.71.1 left the 7-day buffer between 2026-10-12T17:08Z and 17:10Z (the ten published 2026-10-05 between 17:08:04Z and 17:09:59Z). Registry, read 2026-10-14T17:58Z: 8.71.1 is no longer latest: 8.71.2 is latest for all ten, published 2026-10-12 between 17:08:00Z and 17:11:57Z, and the canary is 8.71.3-alpha.4 (2026-10-13T13:36Z). 8.71.2 keeps every dependency, peer and engines range of 8.71.1 but its own version: typescript >=4.8.4 <6.1.0, so TypeScript 7 stays held (canon row typescript; the canary keeps the same peer), eslint ^8.57.0 || ^9.0.0 || ^10.0.0, node ^18.18.0 || ^20.9.0 || >=21.1.0. OSV, which carries the GitHub database, at 17:59Z: nothing for any of the ten at 8.71.1, at 8.71.2 or at any version; GitHub's global advisories and the repository's security advisories list none. Release notes of 8.71.2 (2026-10-12): six fixes, nothing on security: no-unused-vars without the typescript-eslint parser (#12989, the fix of #12980, the 8.71.1 regression the 8.71.0 final review found unreachable here), no-unused-vars type-only references under args after-used (#12977, closing #12975), two no-unnecessary-type-parameters fixes (#12974, #12995), prefer-optional-chain (#12805) and type-utils TypeOrValueSpecifier matching (#12948). One reaches this configuration: eslint.config.ts runs @typescript-eslint/no-unused-vars as a warning with the default args after-used and pnpm lint allows no warning, so #12977 can report a parameter 8.71.1 left silent; that is a false negative fixed, for the move to measure, not a defect of 8.71.1. Upstream issues: fifteen opened from 2026-10-05, the search API listing them all, and the eight that name 8.71.1 are among them. The three opened after the 8.71.0 final review are #13012 (prefer-readonly-parameter-types allow option, open), #13013 (typescript-estree to reject abstract export class, closed 2026-10-13) and #13023 (await-thenable false negatives, open): none is a regression, and none names a rule enabled here. #12993 closed 2026-10-12 with #12995; #13002, a request for TypeScript 7 support, was closed as a duplicate, and the TypeScript 7 issue #10940 is open. #12980 remains the only regression reported against 8.71.1. Reachability, the lockfile parsed with yaml.safe_load_all and walked uncut: no production dependency of the 101 importers reaches any of the ten; one copy each, 8.71.1, from the root devDependencies, the devDependencies of packages/eslint-plugin-testing, eslint-plugin-jsdoc 65.1.0, @es-joy/jsdoccomment 0.98.0 and @vitest/eslint-plugin 1.6.27. Works here: main b5773184's CI run 38593155624 (push, 2026-10-14T15:52Z) passed Run ESLint, pnpm lint (eslint . --ext .ts,.tsx --max-warnings 0), and the full monorepo type check, and its Package Tests ran @packages/eslint-plugin-testing, whose RuleTester parses TypeScript, past the turbo cache: 107 of 107. The holds gate on the pair alone with --instant exits 0 at 2026-10-19T17:09:51Z and 1 at 17:09:53Z, naming @typescript-eslint/eslint-plugin against 8.71.2 (both packages at 17:12:30Z), so the move to 8.71.2, or a pre-registered hold row, is owed by 2026-10-19T17:09Z, the final milestone's day. Clean; the 14-day review is due 2026-10-19."
-        }
-      }
-    },
-    {
-      "kind": "package",
       "name": "fastify",
       "version": "5.12.6",
       "published": "2026-10-13T06:50:58.498Z",
@@ -224,7 +144,13 @@
         "maturity": "2026-10-20",
         "final": "2026-10-27"
       },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-21",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-21, one day after the 2026-10-20 milestone, inside the check's 3-day grace; the reminder opened #664 at 2026-10-20T00:07Z. 5.12.6 left the 7-day buffer at 2026-10-20T06:50:58Z (published 2026-10-13T06:50:58Z). Registry, read 2026-10-21T18:42Z: 5.12.7 (2026-10-13T08:07:53Z) is latest and mature since 2026-10-20T08:07Z, and it is one commit, Bumped v5.12.7, which sets the VERSION constant 5.12.6 left at '5.12.5' (compare v5.12.6...v5.12.7); the next tag is 6.0.0-alpha.5. The lag against 5.12.7 is inside ADR-0036's 30-day budget until 2026-11-19T08:07Z, fastify is outside the holds gate's population, and the weekly window takes it. Advisories: the fastify/fastify repository lists nothing newer than GHSA-389g-gv7q-r4x8, the advisory this floor closes, and GitHub's global endpoint still answers 404 for it. OSV updated CVE-2026-107832 at 2026-10-21T02:52Z: its GIT range now fixes at 16469b9a, the v5.12.6 tag commit, instead of v5.12.5's ba235fdc, but the record still carries no npm range, so OSV's npm query lists nothing for 5.12.5, 5.12.6 or 5.12.7 and pnpm audit stays blind to it. The 5.x branch holds eight unreleased commits after v5.12.7 (an error statusCode clamped to 400 to 599, #7089; synchronous throws from custom content-type parsers contained, #7118; stream trailers, onClose disposables, a find-my-way compiler option, types and docs), none tied to an advisory. Upstream issues opened since 2026-10-15: one, #7126 (a README typo), and none names 5.12.6 or 5.12.7 (search API, total 0); the open pull requests #7131, #7135 and #7137 fix auto-HEAD routes that answer 500 to a web Response payload, and no source file of apps/api or packages/api-common constructs a web Response. Reachability, as measured on 2026-10-15 (canon CVE-floor row fastify): production, apps/api's dependencies, the advisory not reachable; the lockfile holds one fastify, 5.12.6. Works here: main ee794524's CI run 39189953529 (push, 2026-10-19T02:26Z, success) passed both API test shards and Integration Tests, and the Nightly Full Test Suite run 39567991067 on the same commit (2026-10-21T08:16Z to 08:34Z) passed with the cache bypassed and the services tier run five times in random order. Clean; the 14-day review is due 2026-10-27."
+        }
+      }
     },
     {
       "kind": "package",
@@ -252,7 +178,13 @@
         "maturity": "2026-10-21",
         "final": "2026-10-28"
       },
-      "reviews": {}
+      "reviews": {
+        "maturity": {
+          "date": "2026-10-21",
+          "outcome": "clean",
+          "note": "Reviewed 2026-10-21, the milestone day, after 16.4.1 left the 7-day buffer at 17:43:55Z (published 2026-10-14T17:43:55Z; @next/env and the swc binaries at 17:29Z); the reminder opened #671 at 17:54Z. Registry, read 2026-10-21T18:42Z: 16.4.2 is latest since 2026-10-15T20:57:24Z and matures 2026-10-22T20:57Z; it keeps every dependency, peer, optional and engines range of 16.4.1 apart from its own family's version, and its release notes list eight backports (turbo-tasks and Turbopack fixes, documentation), nothing on security; the canary is 16.5.0-canary.21. Advisories: the vercel/next.js repository lists nothing newer than the three of 2026-10-14 this floor closes (GHSA-673q-mjm6-r5xr, GHSA-2464-fhr4-w9xw, GHSA-p3m5-59mp-jv5r); OSV and GitHub's global endpoint still answer 404 for all three at 18:46Z, so pnpm audit still cannot see them. OSV lists nothing for next, @next/env or @next/swc-linux-x64-gnu at 16.4.1, nor for next 16.4.2, and no global advisory affects next@16.4.1. Upstream issues: seventeen opened since 2026-10-14 name 16.4.1. One bears on this floor: #100299 (reopened from #100298, closed 2026-10-16) shows that next's detectContentType types an SVG that begins with <!--ftypavif--> as AVIF, so under the default config (dangerouslyAllowSVG false) /_next/image hands it to sharp and librsvg; the reporter's file fires on sharp 0.35.4 and is rasterized on 0.35.5, the fix (#100347, require a valid ftyp box size) is open and unmerged, and 16.4.2 does not carry it. The client's images.remotePatterns admits any https host, so the vector is reachable, and the sharp floor, whose one copy in the lockfile is 0.35.5, is what keeps GHSA-2464-fhr4-w9xw closed, as the canon CVE-floor row sharp records. Two closed reports of braces 3.0.3 under next's ESLint tooling (#100497, #100531) reach nothing here: the lockfile holds no braces. The rest are Turbopack, cacheComponents and 'use cache' defects, none a security report; #100260 (open) reports standalone output and server RSS growing on 16.4, and both portals set output: 'standalone'; no file of apps/admin, apps/client or packages/ui names 'use cache' or cacheComponents. Works here: main ee794524's CI run 39189953529 (push, 2026-10-19T02:26Z, success) passed Build Check (the admin build), Frontend Tests and Storybook Stories on 16.4.1, and its Production CI/CD run 39189953574 passed Test and Build and Container Security for the admin and client images. Clean; the 14-day review is due 2026-10-28, when 16.4.2 is mature."
+        }
+      }
     },
     {
       "kind": "package",
@@ -390,6 +322,34 @@
           "note": "Reviewed 2026-10-16, the milestone day, about 14.7 hours after 6.41.0 left the 7-day buffer at 07:57:03Z (published 2026-10-09T07:57:03Z); the reminder opened #627 at 17:10:35Z. Registry, read 2026-10-16T22:38Z: 6.41.0 is latest, and nothing is published after it (the document was last modified at its own publication). OSV, at 22:39Z: nothing for knip 6.41.0 or for knip at any version. GitHub: no global advisory affects knip, and webpro-nl/knip lists no repository security advisory. Release notes: no release after knip@6.41.0 (GitHub release 2026-10-09T07:50Z); the default branch holds 24 unreleased commits since, plugin features and fixes (among them Next Turbopack alias targets #2156, framework-entry re-exports #2154, a trailing-slash cwd #2139, a GitHub Actions working-directory nested under a checkout path #2136 and Nx run-commands paths #2151), none of them a security fix. Upstream issues: seven opened in webpro-nl/knip since 2026-10-09, and GitHub's search for 6.41.0 matches five: #2130 (bun check reported as an unlisted binary, closed not planned), #2132 (the GitHub Actions plugin with a working-directory under an actions/checkout path, fixed on the default branch by #2136), #2153 (--production dropping a file a plugin registers as config, closed not planned), #2138 (documentation) and #2160 (a feature request); the other two, #2133 (@knip/create-config on a CRLF pnpm-workspace.yaml) and #2135 (a trailing slash in --directory, fixed by #2139), name no version. None reports a regression of 6.41.0, and none reaches this tree: scripts/knip-ratchet.mjs runs npx knip --reporter json from the repository root with no --production and no --directory, no workflow under .github sets an actions/checkout path or a working-directory, nothing runs bun, and @knip/create-config is not used. Reachability: dev-only; the lockfile, parsed with yaml.safe_load_all, holds one knip, 6.41.0, the root devDependency, and the production closure of the 101 importers does not reach it. Works here: pnpm check:dead-code exits 0 on knip 6.41.0 at 2026-10-16T22:40:21Z with 0 regressions against the 290-key baseline (308 when 6.41.0 was taken; eaddd360 and 2fe6d7a8 removed 18 on 2026-10-16), main be1fa16a's CI run 38976529186 (push, 2026-10-16T22:34Z) passed Dead code check (knip) at 22:35:04Z, and pnpm audit --audit-level low finds no known vulnerability at 22:48:16Z. Clean; the 14-day review is due 2026-10-23."
         }
       }
+    },
+    {
+      "kind": "package",
+      "name": "storybook",
+      "version": "10.6.3",
+      "published": "2026-10-20T09:52:08.416Z",
+      "members": [
+        "@storybook/addon-a11y@10.6.3",
+        "@storybook/addon-docs@10.6.3",
+        "@storybook/addon-vitest@10.6.3",
+        "@storybook/nextjs-vite@10.6.3",
+        "@storybook/react@10.6.3",
+        "@storybook/builder-vite@10.6.3",
+        "@storybook/react-dom-shim@10.6.3",
+        "@storybook/react-vite@10.6.3",
+        "vite-plugin-storybook-nextjs@10.6.3"
+      ],
+      "entered": {
+        "date": "2026-10-21",
+        "commit": "a9f5801e",
+        "pr": 672,
+        "via": "the catalog family move that retires the ADR-0037 patch (#36732) and the CVE floor for GHSA-f2ph-cmg5-wxc8 (critical, storybook and @storybook/addon-vitest >=10.0.0 <10.6.2; minimal patched 10.6.2 lacks #36732), a security-tied deviation approved by the owner on 2026-10-21, about 1.3 days after publication; dev-only (apps/client, packages/ui)"
+      },
+      "milestones": {
+        "maturity": "2026-10-27",
+        "final": "2026-11-03"
+      },
+      "reviews": {}
     }
   ]
 }
