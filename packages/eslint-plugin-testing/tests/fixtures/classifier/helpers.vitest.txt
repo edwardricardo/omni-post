@@ -38,4 +38,24 @@ describe("helpers", () => {
     await authPage.open();
     await authPage.expectLoginFormVisible();
   });
+
+  describe("with an inner helper of the same name", () => {
+    const expectStatus = (response) => {
+      expect(response).toBeDefined();
+    };
+
+    it("creates a response", async () => {
+      expectStatus(await create());
+    });
+  });
+
+  function makeMention(overrides) {
+    if (!overrides.id) throw new Error("a mention needs an id");
+    return { ...overrides };
+  }
+
+  it("saves a built mention", async () => {
+    const mention = makeMention({ id: "m1" });
+    await repository.save(mention);
+  });
 });

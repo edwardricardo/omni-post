@@ -17,17 +17,19 @@
  *   it is one), and `>= 0` or `> -1` over a value named length, size or count.
  *   EXISTENCE: `toBeDefined`; `not.toBeUndefined`, `not.toBeNull` and `not.toBe(undefined|null)`;
  *   `toBeTruthy`, `not.toBeFalsy` and `assert.ok` over an identifier, a member, a call or a `new`;
- *   `toBeInstanceOf`; `toHaveProperty` with one argument; `toBeTypeOf`, `expectTypeOf`,
- *   `assertType`; a `typeof`, `Array.isArray`, `instanceof`, `in`, `!!` or `!== undefined|null`
- *   test asserted true; an `expect.any` or `expect.anything` as the whole expected value;
- *   `toBeInTheDocument()` over a `querySelector` call or a `*ByRole` query with no options.
+ *   `toBeInstanceOf`; `toHaveProperty` with one argument; `toBeTypeOf`; a `typeof`,
+ *   `Array.isArray`, `instanceof`, `in`, `!!` or `!== undefined|null` test asserted true; an
+ *   `expect.any` or `expect.anything` as the whole expected value; `toBeInTheDocument()` over a
+ *   `querySelector` call or a `*ByRole` query with no options. `expectTypeOf` and `assertType`
+ *   are type contracts the compiler holds, not runtime presence checks: BEHAVIOURAL.
  *   One deliberate narrowing: a value named as a boolean predicate asserts a state, not a presence,
  *   and its truthiness is BEHAVIOURAL: a call of `includes`, `startsWith`, `has`, `some`, `test`
  *   and the like, and an identifier, member or call named `is…`, `has…`, `can…`, `should…`, ...
  *   (`comment.isDeleted()`, `notification.isRead`). `result.ok` stays EXISTENCE.
  *
- *   `readFact` reads what an assertion establishes when it passes, `result.ok` truthy after
- *   `expect(result.ok).toBe(true)`, so the block reader can tell a type-narrowing
+ *   `readFact` reads what an assertion establishes when it passes: `result.ok` truthy after
+ *   `expect(result.ok).toBe(true)`, `name` a string after `expect(name).toBeTypeOf("string")` or
+ *   `assert.equal(typeof name, "string")`, so the block reader can tell a type-narrowing
  *   `if (!result.ok) return` from a guard.
  * @layer infrastructure
  */
@@ -57,9 +59,11 @@ export const ASSERTION_CLASS = Object.freeze(
  * @property {string[]} modifiers
  * @property {string} matcher
  * @property {boolean} negated
- * @typedef {object} Fact What an assertion establishes about an expression, if it passes.
+ * @typedef {object} Fact What an assertion establishes about an expression, if it passes: its
+ *   truthiness or its `typeof`, never both.
  * @property {string} subject The expression's source with whitespace and `!` removed.
- * @property {boolean} truthy
+ * @property {boolean} [truthy]
+ * @property {string} [type] What `typeof` the expression evaluates to.
  * @typedef {object} AssertNames The local names under which assertions are imported.
  * @property {Set<string>} roots Names called directly or through a member: `assert`, `strict`.
  * @property {Map<string, string>} methods A method imported by name: local name to method.
@@ -385,7 +389,7 @@ function readExpect(call) {
     return {
       form: "type",
       name: callee.text,
-      assertionClass: ASSERTION_CLASS.EXISTENCE,
+      assertionClass: ASSERTION_CLASS.BEHAVIOURAL,
       throwEvidence: false,
     };
   }
@@ -405,7 +409,12 @@ function readExpect(call) {
   if (chain === null) return null;
   const name = [...chain.modifiers, chain.matcher].join(".");
   if (chain.opener === "expectTypeOf") {
-    return { form: "type", name, assertionClass: ASSERTION_CLASS.EXISTENCE, throwEvidence: false };
+    return {
+      form: "type",
+      name,
+      assertionClass: ASSERTION_CLASS.BEHAVIOURAL,
+      throwEvidence: false,
+    };
   }
   if (!EXPECT_OPENERS.has(chain.opener)) return null;
   const throwEvidence = chain.matcher.startsWith("toThrow") || chain.modifiers.includes("rejects");
@@ -477,8 +486,29 @@ function factAbout(subject, truthy) {
 }
 
 /**
- * @description Reads what an assertion establishes about the truthiness of an expression, so a
- *   later `if (!result.ok) return` that only narrows a type can be told from a real guard.
+ * @param {ts.Expression | undefined} value
+ * @param {ts.Expression | undefined} other
+ * @returns {Fact | null} `{ subject, type }` when one side is `typeof <subject>` and the other a
+ *   string literal, else `null`.
+ */
+function typeFact(value, other) {
+  for (const [side, literal] of [
+    [value, other],
+    [other, value],
+  ]) {
+    const node = side === undefined ? undefined : unwrap(side);
+    const text = literal === undefined ? undefined : unwrap(literal);
+    if (node === undefined || text === undefined || !ts.isTypeOfExpression(node)) continue;
+    if (!ts.isStringLiteralLike(text)) continue;
+    return { subject: unwrap(node.expression).getText().replace(/\s+/g, ""), type: text.text };
+  }
+  return null;
+}
+
+/**
+ * @description Reads what an assertion establishes about the truthiness or the type of an
+ *   expression, so a later `if (!result.ok) return` that only narrows a type can be told from a
+ *   real guard.
  * @param {ts.CallExpression} call
  * @param {AssertNames} names
  * @returns {Fact | null} The fact, or `null` when the call establishes none.
@@ -488,6 +518,16 @@ export function readFact(call, names) {
   if (chain !== null && EXPECT_OPENERS.has(chain.opener) && chain.subject !== undefined) {
     const [expected] = call.arguments;
     const equality = EQUALITY_MATCHERS.has(chain.matcher);
+    if (!chain.negated && chain.matcher === "toBeTypeOf" && expected !== undefined) {
+      const literal = unwrap(expected);
+      if (ts.isStringLiteralLike(literal)) {
+        return { subject: unwrap(chain.subject).getText().replace(/\s+/g, ""), type: literal.text };
+      }
+    }
+    if (!chain.negated && equality) {
+      const type = typeFact(chain.subject, expected);
+      if (type !== null) return type;
+    }
     /** @type {boolean | null} */
     let truthy = null;
     if (TRUTHY_MATCHERS.has(chain.matcher) || (equality && isWord(expected, ["true"])))
@@ -505,6 +545,10 @@ export function readFact(call, names) {
   const [actual, expected] = call.arguments;
   if (method === null || actual === undefined) return null;
   if (method === "ok") return factAbout(actual, true);
+  if (ASSERT_EQUALITY.has(method)) {
+    const type = typeFact(actual, expected);
+    if (type !== null) return type;
+  }
   if (ASSERT_EQUALITY.has(method) && isWord(expected, ["true"])) return factAbout(actual, true);
   if (ASSERT_EQUALITY.has(method) && isWord(expected, ["false"])) return factAbout(actual, false);
   if (ASSERT_INEQUALITY.has(method) && isWord(expected, ["undefined", "null"]))

@@ -6,16 +6,25 @@
  *   Syntactic only, like the modules it builds on: a call is judged by its name.
  *
  *   Assertions are read by `assertions.js`, plus a `throw` statement written in the block's own
- *   body. A same-file helper the block calls is inlined one level, with the call site's
- *   conditions; one level further down a helper that asserts is OPAQUE. An imported helper named
+ *   body, outside any function nested in it: a throw in an inlined helper or in a stub's method
+ *   checks nothing of the block's. A same-file helper the block calls, resolved lexically to the
+ *   nearest declaration of its name in scope (a parameter of that name hides it), is inlined one
+ *   level, with the call site's conditions; one level further down a helper that asserts is
+ *   OPAQUE. An imported helper named
  *   `expect*`, `assert*`, `verify*` or `check*` is OPAQUE when its module is test code (a relative
  *   path outside `src/`, or a path that names `test`); so is a method named `expect…` or `assert…`
  *   on any receiver (a page object's), and a callback passed by name.
  *
  *   An assertion is CONDITIONAL inside an `if` branch, a `?:` branch, the right side of `&&`, `||`
- *   or `??`, a `switch` case or a `catch`, and GUARDED-RETURN after an `if` that can return early.
- *   An `if` whose condition an earlier unconditional assertion already decided is neither: after
- *   `expect(result.ok).toBe(true)`, `if (!result.ok) return` only narrows a type.
+ *   or `??`, a `switch` case, a `catch` clause or a `.catch(...)` callback, and GUARDED-RETURN
+ *   after an `if` that can return early at the block's own control level (a `return` inside a
+ *   nested function, method or class is not one). An `if` whose condition earlier unconditional
+ *   assertions already decided is neither: after `expect(result.ok).toBe(true)`,
+ *   `if (!result.ok) return` only narrows a type. A condition is decided operand by operand
+ *   through `!`, `&&` and `||`, `=== null`, `== null`, `!== undefined` and the like over a value
+ *   asserted present, and `typeof x === "..."` over a value whose type was asserted. A block that
+ *   calls `expect.assertions(n)` or `expect.hasAssertions()` fails when its catch path does not
+ *   run, so its `catch` and `.catch(...)` assertions are not CONDITIONAL.
  *
  *   Block classes, the first that applies: SELF-SKIP (any skip marker `blocks.js` reports); with no
  *   assertion, PRINTS-SUCCESS when it prints success, else EMPTY; TITLE-CONTRADICTION;
@@ -26,7 +35,9 @@
  *   tests/i, with `pass` read as a word (`passed`, not `password`) and `success` at a word start
  *   (`successfully`, not `unsuccessful`).
  *
- *   Output is deterministic: blocks and assertions in source order, no timestamps.
+ *   Output is deterministic: blocks and assertions in source order, no timestamps. A file the
+ *   classifier cannot read (its syntax nests deeper than the call stack) is never a throw: it
+ *   comes back with no block and its error as a string.
  * @layer infrastructure
  */
 import ts from "typescript";
@@ -103,16 +114,24 @@ export const CRITERIA = Object.freeze({
  *
  * @typedef {object} FileClassification
  * @property {string} path
- * @property {Framework} framework
+ * @property {Framework | null} framework `null` when the file could not be read.
  * @property {BlockFinding[]} blocks
  * @property {string[]} opaqueHelpers
- * @property {string} fileContextHash sha256 of the file with every reported block's body removed.
+ * @property {string | null} fileContextHash sha256 of the file with every reported block's body
+ *   removed; `null` when the file could not be read.
+ * @property {string | null} error Why the file could not be read (`RangeError: Maximum call stack
+ *   size exceeded`), else `null`.
  *
  * @typedef {object} FileContext
  * @property {ts.SourceFile} sourceFile
  * @property {AssertNames} assertNames
  * @property {Map<string, string>} imports Every other imported local name to its module.
- * @property {Map<string, FunctionNode>} helpers Same-file functions by name, the first declared.
+ * @property {Map<string, Declaration[]>} helpers Every same-file declaration of each name.
+ *
+ * @typedef {object} Declaration A same-file binding a helper call may resolve to.
+ * @property {ts.Node} scope The block, clause, statement or file whose code the binding is
+ *   visible in.
+ * @property {FunctionNode | null} fn The function it binds, or `null` for any other value.
  *
  * @typedef {object} Site Where a same-file helper is called from, and the flags it is called under.
  * @property {number} position
@@ -186,25 +205,28 @@ function contextOf(sourceFile, bindings) {
       } else context.assertNames.methods.set(local, imported);
     } else context.imports.set(local, from);
   }
+  /**
+   * @param {string} name
+   * @param {Declaration} declaration
+   */
+  const declare = (name, declaration) => {
+    const known = context.helpers.get(name) ?? [];
+    context.helpers.set(name, [...known, declaration]);
+  };
   /** @param {ts.Node} node */
   const findHelpers = (node) => {
-    if (
-      ts.isFunctionDeclaration(node) &&
-      node.name !== undefined &&
-      !context.helpers.has(node.name.text)
-    ) {
-      context.helpers.set(node.name.text, node);
+    if (ts.isFunctionDeclaration(node) && node.name !== undefined) {
+      declare(node.name.text, { scope: node.parent, fn: node });
     }
-    if (
-      ts.isVariableDeclaration(node) &&
-      ts.isIdentifier(node.name) &&
-      node.initializer !== undefined
-    ) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
       const value = node.initializer;
-      const fn = ts.isArrowFunction(value) || ts.isFunctionExpression(value) ? value : null;
-      if (fn !== null && !context.helpers.has(node.name.text)) {
-        context.helpers.set(node.name.text, fn);
-      }
+      const fn =
+        value !== undefined && (ts.isArrowFunction(value) || ts.isFunctionExpression(value))
+          ? value
+          : null;
+      const list = node.parent;
+      const scope = ts.isVariableStatement(list.parent) ? list.parent.parent : list.parent;
+      declare(node.name.text, { scope, fn });
     }
     ts.forEachChild(node, findHelpers);
   };
@@ -214,20 +236,75 @@ function contextOf(sourceFile, bindings) {
 
 /**
  * @param {ts.Node} node
- * @returns {node is FunctionNode}
+ * @returns {boolean} Whether the node opens a code body of its own: a function, a method, an
+ *   accessor, a constructor or a class.
  */
-const isFunctionNode = (node) =>
-  ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isFunctionDeclaration(node);
+const opensBody = (node) => ts.isFunctionLike(node) || ts.isClassLike(node);
 
 /**
  * @param {ts.Node} node
- * @returns {boolean} Whether the node can return from its function: a `return` outside any
- *   function nested in it.
+ * @returns {boolean} Whether the node can return from the function it is written in: a `return`
+ *   outside any function, method or class nested in it.
  */
 function canReturn(node) {
   if (ts.isReturnStatement(node)) return true;
-  if (isFunctionNode(node)) return false;
+  if (opensBody(node)) return false;
   return ts.forEachChild(node, (child) => (canReturn(child) ? true : undefined)) === true;
+}
+
+/**
+ * @param {ts.BindingName} name
+ * @param {string} wanted
+ * @returns {boolean} Whether the binding, destructured or not, binds `wanted`.
+ */
+function binds(name, wanted) {
+  if (ts.isIdentifier(name)) return name.text === wanted;
+  return name.elements.some(
+    (element) => !ts.isOmittedExpression(element) && binds(element.name, wanted)
+  );
+}
+
+/**
+ * @param {ts.CallExpression} call
+ * @param {string} name
+ * @param {FileContext} context
+ * @returns {FunctionNode | null} The same-file function the name resolves to where it is called:
+ *   the nearest enclosing scope that declares it wins, a parameter of that name hides every outer
+ *   declaration, and a declaration of anything but a function resolves to none.
+ */
+function resolveHelper(call, name, context) {
+  const declarations = context.helpers.get(name) ?? [];
+  for (let node = call.parent; node !== undefined; node = node.parent) {
+    const here = declarations.find((declaration) => declaration.scope === node);
+    if (here !== undefined) return here.fn;
+    if (
+      ts.isFunctionLike(node) &&
+      node.parameters.some((parameter) => binds(parameter.name, name))
+    ) {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * @param {ts.Expression} node
+ * @returns {ts.Expression}
+ */
+function withoutParentheses(node) {
+  return ts.isParenthesizedExpression(node) ? withoutParentheses(node.expression) : node;
+}
+
+/**
+ * @param {ts.Expression} node
+ * @returns {boolean} Whether the expression is `null` or `undefined`.
+ */
+function isNothing(node) {
+  const inner = withoutParentheses(node);
+  return (
+    inner.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(inner) && inner.text === "undefined")
+  );
 }
 
 /**
@@ -236,21 +313,69 @@ function canReturn(node) {
  * @param {PositionedFact[]} facts What earlier unconditional assertions established.
  * @returns {boolean | null} The condition's value when the facts decide it, else `null`: after
  *   `expect(result.ok).toBe(true)`, `!result.ok` is false, so `if (!result.ok) return` only
- *   narrows a type and guards nothing.
+ *   narrows a type and guards nothing. Read through parentheses, `!`, `&&` and `||` operand by
+ *   operand; `x === null`, `x == undefined`, `x !== null` and the like are decided when `x` was
+ *   asserted present; `typeof x === "string"` when the type of `x` was asserted.
  */
 function decided(condition, before, facts) {
-  let node = condition;
-  let negated = false;
-  for (;;) {
-    if (ts.isParenthesizedExpression(node)) node = node.expression;
-    else if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
-      node = node.operand;
-      negated = !negated;
-    } else break;
-  }
-  const subject = node.getText().replace(/\s+/g, "");
-  const fact = facts.filter((f) => f.subject === subject && f.position < before).at(-1);
-  return fact === undefined ? null : fact.truthy !== negated;
+  const known = facts.filter((fact) => fact.position < before);
+  /**
+   * @param {ts.Expression} node
+   * @param {"truthy" | "type"} key
+   * @returns {PositionedFact | undefined} The latest fact of that kind about the expression.
+   */
+  const factAbout = (node, key) => {
+    const subject = node.getText().replace(/\s+/g, "");
+    return known.filter((fact) => fact.subject === subject && fact[key] !== undefined).at(-1);
+  };
+  /**
+   * @param {ts.Expression} node
+   * @returns {boolean | null}
+   */
+  const value = (node) => {
+    const whole = factAbout(node, "truthy")?.truthy;
+    if (whole !== undefined) return whole;
+    if (ts.isParenthesizedExpression(node)) return value(node.expression);
+    if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.ExclamationToken) {
+      const operand = value(node.operand);
+      return operand === null ? null : !operand;
+    }
+    if (!ts.isBinaryExpression(node)) return null;
+    const operator = node.operatorToken.kind;
+    if (
+      operator === ts.SyntaxKind.AmpersandAmpersandToken ||
+      operator === ts.SyntaxKind.BarBarToken
+    ) {
+      const and = operator === ts.SyntaxKind.AmpersandAmpersandToken;
+      const left = value(node.left);
+      const right = value(node.right);
+      if (left === !and || right === !and) return !and;
+      return left === and && right === and ? and : null;
+    }
+    const negated =
+      operator === ts.SyntaxKind.ExclamationEqualsEqualsToken ||
+      operator === ts.SyntaxKind.ExclamationEqualsToken;
+    const equal =
+      negated ||
+      operator === ts.SyntaxKind.EqualsEqualsEqualsToken ||
+      operator === ts.SyntaxKind.EqualsEqualsToken;
+    if (!equal) return null;
+    for (const [side, other] of [
+      [node.left, node.right],
+      [node.right, node.left],
+    ]) {
+      if (side === undefined || other === undefined) continue;
+      if (isNothing(other)) return value(side) === true ? negated : null;
+      const typeOf = withoutParentheses(side);
+      const literal = withoutParentheses(other);
+      if (ts.isTypeOfExpression(typeOf) && ts.isStringLiteralLike(literal)) {
+        const type = factAbout(typeOf.expression, "type")?.type;
+        return type === undefined ? null : (type === literal.text) !== negated;
+      }
+    }
+    return null;
+  };
+  return value(condition);
 }
 
 /**
@@ -270,9 +395,10 @@ function guards(statement, facts) {
  * @param {ts.Node} node An assertion, or a call of a helper.
  * @param {ts.Node} stop The function whose body the walk stays inside.
  * @param {PositionedFact[]} facts What earlier unconditional assertions in that body established.
+ * @param {boolean} catchesRun Whether the block counts its assertions, so a catch path must run.
  * @returns {{ flags: Set<Flag>, inCatch: boolean }} The conditions it runs under.
  */
-function conditionsOf(node, stop, facts) {
+function conditionsOf(node, stop, facts, catchesRun) {
   /** @type {Set<Flag>} */
   const flags = new Set();
   let inCatch = false;
@@ -290,7 +416,7 @@ function conditionsOf(node, stop, facts) {
       flags.add("CONDITIONAL");
     } else if (ts.isCaseClause(parent) || ts.isDefaultClause(parent)) flags.add("CONDITIONAL");
     else if (ts.isCatchClause(parent)) {
-      flags.add("CONDITIONAL");
+      if (!catchesRun) flags.add("CONDITIONAL");
       inCatch = true;
     } else if (
       ts.isCallExpression(parent) &&
@@ -298,6 +424,7 @@ function conditionsOf(node, stop, facts) {
       ts.isPropertyAccessExpression(parent.expression) &&
       parent.expression.name.text === "catch"
     ) {
+      if (!catchesRun) flags.add("CONDITIONAL");
       inCatch = true;
     }
     if (ts.isBlock(parent) || ts.isCaseClause(parent) || ts.isDefaultClause(parent)) {
@@ -315,12 +442,12 @@ function conditionsOf(node, stop, facts) {
 /**
  * @param {ts.Node} root
  * @param {AssertNames} names
- * @returns {boolean} Whether the subtree asserts anything by itself, helpers not followed.
+ * @returns {boolean} Whether the subtree asserts anything by itself, helpers not followed; a
+ *   `throw` is no assertion outside the block's own body.
  */
 function assertsDirectly(root, names) {
   /** @param {ts.Node} node @returns {true | undefined} */
   const visit = (node) => {
-    if (ts.isThrowStatement(node)) return true;
     if (ts.isCallExpression(node) && readAssertion(node, names) !== null) return true;
     return ts.forEachChild(node, visit);
   };
@@ -378,10 +505,11 @@ function checkOf(statement) {
  * @param {FunctionNode} owner The function the body belongs to.
  * @param {FileContext} context
  * @param {Site | null} site Where the owner is called from, when it is an inlined helper.
+ * @param {boolean} catchesRun Whether the block counts its assertions, so a catch path must run.
  * @returns {Collected[]} Every assertion in source order.
  */
-function collect(root, owner, context, site) {
-  const { sourceFile, assertNames, helpers } = context;
+function collect(root, owner, context, site, catchesRun) {
+  const { sourceFile, assertNames } = context;
   /** @type {Collected[]} */
   const found = [];
   /** @type {PositionedFact[]} */
@@ -392,7 +520,7 @@ function collect(root, owner, context, site) {
    * @param {boolean} throwEvidence
    */
   const record = (node, reading, throwEvidence) => {
-    const { flags, inCatch } = conditionsOf(node, owner, facts);
+    const { flags, inCatch } = conditionsOf(node, owner, facts, catchesRun);
     const fact = flags.size === 0 && ts.isCallExpression(node) ? readFact(node, assertNames) : null;
     if (fact !== null) facts.push({ ...fact, position: node.getStart(sourceFile) });
     for (const flag of site?.flags ?? []) flags.add(flag);
@@ -415,7 +543,7 @@ function collect(root, owner, context, site) {
     record(call, { form: "helper", name, assertionClass: ASSERTION_CLASS.OPAQUE }, false);
   /** @param {ts.Node} node @param {boolean} nested */
   const visit = (node, nested) => {
-    if (ts.isThrowStatement(node) && !nested) {
+    if (ts.isThrowStatement(node) && !nested && site === null) {
       record(
         checkOf(node),
         { form: "throw", name: "throw", assertionClass: ASSERTION_CLASS.BEHAVIOURAL },
@@ -425,18 +553,18 @@ function collect(root, owner, context, site) {
     if (ts.isCallExpression(node)) {
       const reading = readAssertion(node, assertNames);
       const callee = node.expression;
-      const helper = ts.isIdentifier(callee) ? helpers.get(callee.text) : undefined;
+      const helper = ts.isIdentifier(callee) ? resolveHelper(node, callee.text, context) : null;
       if (reading !== null) {
         const { throwEvidence, ...rest } = reading;
         record(node, rest, throwEvidence);
-      } else if (helper !== undefined && helper !== owner && ts.isIdentifier(callee)) {
+      } else if (helper !== null && helper !== owner && ts.isIdentifier(callee)) {
         const named = HELPER_NAME.test(callee.text);
         if (site === null) {
-          const { flags, inCatch } = conditionsOf(node, owner, facts);
+          const { flags, inCatch } = conditionsOf(node, owner, facts, catchesRun);
           const position = node.getStart(sourceFile);
           const at = { position, flags, inCatch, text: node.getText(sourceFile), via: callee.text };
           const inlined =
-            helper.body === undefined ? [] : collect(helper.body, helper, context, at);
+            helper.body === undefined ? [] : collect(helper.body, helper, context, at, catchesRun);
           found.push(...inlined);
           if (inlined.length === 0 && named) opaque(node, callee.text);
         } else if (
@@ -450,7 +578,7 @@ function collect(root, owner, context, site) {
         if (name !== null) opaque(node, name);
       }
     }
-    ts.forEachChild(node, (child) => visit(child, nested || isFunctionNode(child)));
+    ts.forEachChild(node, (child) => visit(child, nested || opensBody(child)));
   };
   visit(root, false);
   return found;
@@ -596,6 +724,22 @@ function classOf(skips, collected, prints, contradiction) {
 }
 
 /**
+ * @param {ts.Node} body
+ * @returns {boolean} Whether the body calls `expect.assertions(n)` or `expect.hasAssertions()`.
+ */
+function countsAssertions(body) {
+  /** @param {ts.Node} node @returns {true | undefined} */
+  const visit = (node) => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression.getText();
+      if (callee === "expect.assertions" || callee === "expect.hasAssertions") return true;
+    }
+    return ts.forEachChild(node, visit);
+  };
+  return visit(body) === true;
+}
+
+/**
  * @param {LeafBlock} block
  * @param {FileContext} context
  * @returns {BlockFinding}
@@ -603,7 +747,10 @@ function classOf(skips, collected, prints, contradiction) {
 function classifyBlock(block, context) {
   const { sourceFile } = context;
   const { callback, external } = block;
-  const collected = callback === null ? [] : collect(callback.body, callback, context, null);
+  const collected =
+    callback === null
+      ? []
+      : collect(callback.body, callback, context, null, countsAssertions(callback.body));
   if (external !== null) {
     const start = sourceFile.getLineAndCharacterOfPosition(external.getStart(sourceFile));
     collected.push({
@@ -646,14 +793,11 @@ function classifyBlock(block, context) {
 }
 
 /**
- * @description Classifies every test block of one file, syntactically.
- * @param {string} text The file's source.
- * @param {string} fileName The path its block ids carry; its extension picks the parser (`.tsx`,
- *   `.jsx`, `.js`, else TypeScript).
- * @returns {FileClassification} The reported blocks in source order, the opaque helpers they call,
- *   and the file-context hash of `blocks.js`.
+ * @param {string} text
+ * @param {string} fileName
+ * @returns {FileClassification}
  */
-export function classifyFile(text, fileName) {
+function classifyReadable(text, fileName) {
   const file = discoverBlocks(text, fileName);
   const context = contextOf(file.sourceFile, file.bindings);
   const blocks = file.blocks.map((block) => classifyBlock(block, context));
@@ -672,5 +816,31 @@ export function classifyFile(text, fileName) {
     blocks,
     opaqueHelpers,
     fileContextHash: file.fileContextHash,
+    error: null,
   };
+}
+
+/**
+ * @description Classifies every test block of one file, syntactically. It never throws: a file it
+ *   cannot read, such as one whose syntax nests deeper than the call stack, comes back with no
+ *   block, `framework` and `fileContextHash` `null`, and the error as `<name>: <message>`.
+ * @param {string} text The file's source.
+ * @param {string} fileName The path its block ids carry; its extension picks the parser (`.tsx`,
+ *   `.jsx`, `.js`, else TypeScript).
+ * @returns {FileClassification} The reported blocks in source order, the opaque helpers they call,
+ *   the file-context hash of `blocks.js`, and `error`, `null` unless the file could not be read.
+ */
+export function classifyFile(text, fileName) {
+  try {
+    return classifyReadable(text, fileName);
+  } catch (error) {
+    return {
+      path: fileName,
+      framework: null,
+      blocks: [],
+      opaqueHelpers: [],
+      fileContextHash: null,
+      error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+    };
+  }
 }

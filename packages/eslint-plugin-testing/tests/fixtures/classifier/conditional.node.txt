@@ -22,3 +22,32 @@ test("creates the asset after asserting success", () => {
   if (!result.ok) return;
   assert.equal(result.value.kind, "image");
 });
+
+test("reads the profile after asserting it is present", () => {
+  const profile = load();
+  assert.notEqual(profile, null);
+  if (profile == null) return;
+  assert.equal(profile.name, "Ada");
+});
+
+test("reads the name after asserting its type", () => {
+  const name = read();
+  assert.equal(typeof name, "string");
+  if (typeof name === "string") {
+    assert.equal(name.trim(), "Ada");
+  }
+});
+
+test("reads the first result, the only one asserted", () => {
+  const first = parse("1");
+  const second = parse("2");
+  assert.ok(first.ok);
+  if (!first.ok || !second.ok) return;
+  assert.equal(first.value, 1);
+});
+
+test("reports the load error through catch", async () => {
+  await load().catch((error) => {
+    assert.equal(error.code, "LOAD_FAILED");
+  });
+});

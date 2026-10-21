@@ -21,3 +21,13 @@ test("saves the record with its id", async () => {
   expectOk(result);
   assert.equal(result.value.id, "1");
 });
+
+function buildSubscription(id) {
+  if (!id) throw new Error("a subscription needs an id");
+  return { id };
+}
+
+test("delivers to the subscription", async () => {
+  const result = await deliver(buildSubscription("s1"));
+  assert.ok(result);
+});

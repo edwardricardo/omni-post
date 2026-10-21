@@ -38,4 +38,61 @@ describe("conditional", () => {
       expect(result.value.year).toBe(2024);
     }
   });
+
+  it("reads the profile after asserting it is present", () => {
+    const profile = load();
+    expect(profile).toBeDefined();
+    if (profile === undefined) return;
+    expect(profile.name).toBe("Ada");
+  });
+
+  it("reads the name after asserting its type", () => {
+    const name = read();
+    expect(name).toBeTypeOf("string");
+    if (typeof name !== "string") return;
+    expect(name.trim()).toBe("Ada");
+  });
+
+  it("adds both results after asserting each", () => {
+    const first = parse("1");
+    const second = parse("2");
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (first.ok && second.ok) {
+      expect(first.value + second.value).toBe(3);
+    }
+  });
+
+  it("serves the stubbed post", async () => {
+    if (useStub) {
+      server.use({
+        resolve() {
+          return { id: "p1" };
+        },
+      });
+    }
+    expect(await fetchPost("p1")).toEqual({ id: "p1" });
+  });
+
+  it("reports the load error through catch", async () => {
+    await load().catch((error) => {
+      expect(error).toBeInstanceOf(LoadError);
+    });
+  });
+
+  it("reports the load error, counted", async () => {
+    expect.assertions(1);
+    try {
+      await load();
+    } catch (error) {
+      expect(error.code).toBe("LOAD_FAILED");
+    }
+  });
+
+  it("reports the load error through catch, counted", async () => {
+    expect.hasAssertions();
+    await load().catch((error) => {
+      expect(error.code).toBe("LOAD_FAILED");
+    });
+  });
 });

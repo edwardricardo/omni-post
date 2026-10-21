@@ -35,4 +35,8 @@ describe("existence", () => {
     comment.delete();
     expect(comment.isDeleted()).toBeTruthy();
   });
+
+  it("types the user", () => {
+    expectTypeOf(user).toEqualTypeOf<User>();
+  });
 });

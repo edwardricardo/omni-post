@@ -104,6 +104,7 @@ const FIXTURES: Fixture[] = [
       row(23, "returns the user's email", BEHAV, [EXISTS, BEHAV]),
       row(29, "renders the save button", BEHAV, [BEHAV]),
       row(34, "marks the comment deleted", BEHAV, [BEHAV]),
+      row(39, "types the user", BEHAV, [BEHAV]),
     ],
   },
   {
@@ -126,6 +127,19 @@ const FIXTURES: Fixture[] = [
       row(19, "reports the load error", "CONDITIONAL-ONLY", [EXISTS], ["CONDITIONAL"]),
       row(27, "creates the asset after asserting success", BEHAV, [BEHAV, BEHAV]),
       row(34, "parses the year after asserting success", BEHAV, [EXISTS, BEHAV]),
+      row(42, "reads the profile after asserting it is present", BEHAV, [EXISTS, BEHAV]),
+      row(49, "reads the name after asserting its type", BEHAV, [EXISTS, BEHAV]),
+      row(56, "adds both results after asserting each", BEHAV, [BEHAV, BEHAV, BEHAV]),
+      row(66, "serves the stubbed post", BEHAV, [BEHAV]),
+      row(
+        77,
+        "reports the load error through catch",
+        "CONDITIONAL-ONLY",
+        [EXISTS],
+        ["CONDITIONAL"]
+      ),
+      row(83, "reports the load error, counted", BEHAV, [BEHAV]),
+      row(92, "reports the load error through catch, counted", BEHAV, [BEHAV]),
     ],
   },
   {
@@ -136,6 +150,16 @@ const FIXTURES: Fixture[] = [
       row(6, "parses the year", "CONDITIONAL-ONLY", [BEHAV], ["CONDITIONAL"]),
       row(11, "creates the asset", "CONDITIONAL-ONLY", [BEHAV], ["GUARDED-RETURN"]),
       row(19, "creates the asset after asserting success", BEHAV, [EXISTS, BEHAV]),
+      row(26, "reads the profile after asserting it is present", BEHAV, [EXISTS, BEHAV]),
+      row(33, "reads the name after asserting its type", BEHAV, [EXISTS, BEHAV]),
+      row(
+        41,
+        "reads the first result, the only one asserted",
+        "EXISTENCE-ONLY",
+        [EXISTS, BEHAV],
+        ["GUARDED-RETURN"]
+      ),
+      row(49, "reports the load error through catch", "CONDITIONAL-ONLY", [BEHAV], ["CONDITIONAL"]),
     ],
   },
   {
@@ -247,6 +271,8 @@ const FIXTURES: Fixture[] = [
       row(29, "responds with 201", BEHAV, [BEHAV]),
       row(33, "publishes the post", BEHAV, [OPAQUE]),
       row(37, "shows the login form", BEHAV, [OPAQUE]),
+      row(47, "creates a response", "EXISTENCE-ONLY", [EXISTS]),
+      row(57, "saves a built mention", "EMPTY"),
     ],
   },
   {
@@ -257,6 +283,7 @@ const FIXTURES: Fixture[] = [
       row(11, "isolates tenants", BEHAV, [OPAQUE]),
       row(15, "saves the record", "EXISTENCE-ONLY", [EXISTS]),
       row(19, "saves the record with its id", BEHAV, [EXISTS, BEHAV]),
+      row(30, "delivers to the subscription", "EXISTENCE-ONLY", [EXISTS]),
     ],
   },
   {
@@ -300,6 +327,46 @@ const FIXTURES: Fixture[] = [
     blocks: [
       row(7, "should not retry events not yet due", "TAUTOLOGY-ONLY", [TAUT]),
       row(28, "should filter retry events by max age", "TAUTOLOGY-ONLY", [TAUT]),
+    ],
+  },
+  {
+    fixture: "real-auditFilter.node.txt",
+    fileName: "apps/api/tests/audit.integration.test.ts",
+    framework: "node",
+    blocks: [
+      row(8, "should filter logs by success status", BEHAV, [
+        EXISTS,
+        EXISTS,
+        BEHAV,
+        BEHAV,
+        BEHAV,
+        BEHAV,
+      ]),
+    ],
+  },
+  {
+    fixture: "real-fitnessInventoryGate.vitest.txt",
+    fileName: "apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts",
+    framework: "vitest",
+    blocks: [
+      row(7, "states the derived count and lists every check by number, in numeric order", BEHAV, [
+        EXISTS,
+        BEHAV,
+        BEHAV,
+      ]),
+    ],
+  },
+  {
+    fixture: "real-customerAuthUseCases.vitest.txt",
+    fileName: "apps/api/tests/unit/customerAuthUseCases.test.ts",
+    framework: "vitest",
+    blocks: [
+      row(
+        7,
+        "takes the deleted-account notice mailer as a required dependency, right after the logger",
+        BEHAV,
+        [BEHAV]
+      ),
     ],
   },
 ];
@@ -351,7 +418,7 @@ describe("classifyFile", () => {
       ]);
     });
 
-    it("names webhookHandler.stats.test.ts:355 a tautology: `retriedCount >= 0` cannot fail", () => {
+    it("names webhookHandler.stats.test.ts:337 a tautology: `retriedCount >= 0` (line 355) cannot fail", () => {
       const block = blockAt(
         "real-webhookHandler.vitest.txt",
         "apps/api/tests/unit/webhookHandler.stats.test.ts",
@@ -409,7 +476,16 @@ describe("classifyFile", () => {
         "expectValidPost",
         "helpers.expectCreated",
       ]);
-      expect(via).toEqual([[null], [null], [], ["expectStatus"], ["assertPublished"], [null]]);
+      expect(via).toEqual([
+        [null],
+        [null],
+        [],
+        ["expectStatus"],
+        ["assertPublished"],
+        [null],
+        ["expectStatus"],
+        [],
+      ]);
       expect(result.blocks.map((block) => block.opaque)).toEqual([
         true,
         true,
@@ -417,6 +493,8 @@ describe("classifyFile", () => {
         false,
         true,
         true,
+        false,
+        false,
       ]);
     });
 
@@ -449,6 +527,25 @@ describe("classifyFile", () => {
       expect(result.path).toBe("st.test.ts");
       expect(result.fileContextHash).toMatch(/^[0-9a-f]{64}$/);
       expect(result.opaqueHelpers).toEqual(["sharedSuite"]);
+      expect(result.error).toBeNull();
+    });
+
+    it("returns an error, never a throw, for a file it cannot read: 20,000 nested ifs", () => {
+      const depth = 20_000;
+      const text = `it("nests", () => {\n${"if (a) {\n".repeat(depth)}expect(1).toBe(1);\n${"}\n".repeat(depth)}});\n`;
+
+      const first = classifyFile(text, "deep.test.ts");
+      const second = classifyFile(text, "deep.test.ts");
+
+      expect(first).toEqual({
+        path: "deep.test.ts",
+        framework: null,
+        blocks: [],
+        opaqueHelpers: [],
+        fileContextHash: null,
+        error: "RangeError: Maximum call stack size exceeded",
+      });
+      expect(second).toEqual(first);
     });
   });
 
