@@ -1,0 +1,22 @@
+// Classifier fixture, node:test: EMPTY and its negative. Read as text by the classifier suites under tests/.
+import { describe, it, test } from "node:test";
+import assert from "node:assert/strict";
+import { createPost } from "../src/posts.js";
+
+describe("empty", () => {
+  it("creates a post", async () => {
+    await createPost({ title: "x" });
+  });
+
+  it("creates a post with its title", async () => {
+    const post = await createPost({ title: "x" });
+    assert.equal(post.title, "x");
+  });
+});
+
+test("is planned");
+
+test("saves the record", async () => {
+  const saved = await save();
+  if (!saved) throw new Error("the record was not saved");
+});

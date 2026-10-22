@@ -1,0 +1,16 @@
+// Classifier fixture, Playwright: `test.describe` containers and Playwright's own skip modifier.
+// Read as text by tests/blocks.test.ts.
+import { expect, test } from "@playwright/test";
+
+test.describe("auth", () => {
+  test("logs in", async ({ page }) => {
+    await page.goto("/login");
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  });
+
+  test.describe.serial("sign-up", () => {
+    test.fixme("signs up", async ({ page }) => {
+      await page.goto("/signup");
+    });
+  });
+});

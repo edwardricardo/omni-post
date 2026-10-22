@@ -1,0 +1,33 @@
+// Classifier fixture, vitest: SELF-SKIP and its negatives. Read as text by the classifier suites under tests/.
+import { describe, expect, it } from "vitest";
+
+describe("self-skip", () => {
+  it.skip("publishes", () => {
+    expect(publish()).toBe(true);
+  });
+
+  it.skipIf(!process.env.API_URL)("calls the API", async () => {
+    expect(await call()).toBe(200);
+  });
+
+  it("is planned");
+
+  it.todo("handles retries");
+
+  it("reads the cache", (ctx) => {
+    if (!redisUp) ctx.skip();
+    expect(read()).toBe(1);
+  });
+
+  it("publishes when enabled", { skip: false }, () => {
+    expect(publish()).toBe(true);
+  });
+});
+
+describe.skip("legacy", () => {
+  it("still works", () => {
+    expect(legacy()).toBe(1);
+  });
+});
+
+describe.todo("billing");
