@@ -55,7 +55,11 @@ jobs:
     if: github.event_name != 'schedule'
     name: dependency-cruiser (hexagonal)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Sized from the runs since 2026-10-08: the job takes 41-59 s, but on 2026-10-22 the pnpm
+    # self-installer of setup-node-pnpm-cache (an `npm install` of the pnpm bootstrap) held that
+    # step for 271-303 s while the npm registry was slow, and the 5-minute budget cancelled the job
+    # inside it twice. 10 minutes holds one such stall plus an install with no pnpm store cache.
+    timeout-minutes: 10
     # Prisma's postinstall config loader requires DATABASE_URL to be defined.
     # We never connect — depcruise scans source files — so a dummy URL is fine.
     env:
@@ -250,7 +254,10 @@ jobs:
     if: github.event_name != 'schedule'
     name: secretlint (rule-based secrets)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Sized like dependency-cruiser above: the job takes 36-56 s, and the 5-minute budget cancelled
+    # it five times on 2026-10-21 and 2026-10-22 after 298-304 s in setup-node-pnpm-cache, inside
+    # the pnpm self-installer in every log read.
+    timeout-minutes: 10
     # `pnpm install` triggers `infra/prisma postinstall` which runs
     # `prisma generate` and resolves env via Prisma's config loader. Without
     # DATABASE_URL the loader throws PrismaConfigEnvError and install exits 1

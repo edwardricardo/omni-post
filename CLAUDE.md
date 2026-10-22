@@ -766,7 +766,7 @@ grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-
 # Playwright specs, 6 k6 scenarios, 7 security/tests suites, the 3 dark live suites, 2 admin fetch
 # scripts, postgres-stress.test.ts and the provider template's sandbox test. An entry leaves in the
 # pull request that gives its file a collector; none enters, because R3 refuses it against the base.
-# WHERE IT RUNS, and why: the `test-contracts` job of fitness.yml (check `Test Contracts`, 6-minute
+# WHERE IT RUNS, and why: the `test-contracts` job of fitness.yml (check `Test Contracts`, 10-minute
 # timeout), not the Fitness Functions job: the collectors load every vitest and Playwright config,
 # so they need the installed tree, which the Fitness Functions job never installs.
 # FAIL-CLOSED, exit 1: an input the engine cannot read in full is an error, never an empty answer:

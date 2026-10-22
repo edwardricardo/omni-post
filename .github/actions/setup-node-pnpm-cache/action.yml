@@ -22,7 +22,41 @@ runs:
         node-version-file: .nvmrc
 
     - name: Setup pnpm (from package.json packageManager)
-      uses: pnpm/action-setup@v6
+      # pnpm/setup downloads pnpm's self-contained binary from the npm registry and checks npm's
+      # signature over it: no npm CLI and no bootstrap. pnpm/action-setup, used until 2026-10-22,
+      # ran `npm ci` of a bootstrap pnpm and then `pnpm self-update`, and that `npm ci` held this
+      # step for 228-304 s while the registry was slow on 2026-10-21 and 2026-10-22 (runs
+      # 39667472766, 39710751700, 39712476313, 39712476430, 39712476571), long enough for a
+      # 5-minute job budget to cancel the job inside it. The download still depends on
+      # registry.npmjs.org: each metadata request is cut at 30 s and each tarball at 15 minutes,
+      # with no retry, so a stalled registry fails the attempt instead of holding it; the step
+      # below makes one second attempt.
+      # `version` is left out, so the action reads `packageManager` from the package.json in
+      # `working-directory`. `node-version-file: false` and no `runtime`: Node comes from
+      # actions/setup-node above, and with .nvmrc present the action would otherwise install a
+      # second Node. `cache: false` and `install: false` leave the store cache and the install to
+      # the steps below.
+      id: pnpm-setup
+      continue-on-error: true
+      uses: pnpm/setup@v3
+      with:
+        working-directory: .
+        node-version-file: false
+        cache: false
+        install: false
+
+    - name: Setup pnpm, second attempt (the first failed)
+      # One bounded second attempt, identical to the first. The action deletes `dest` before it
+      # downloads, so whatever the failed attempt left in ~/setup-pnpm is gone, and it exports
+      # PATH and PNPM_HOME only after a download succeeds. If this attempt fails too, the job
+      # fails here.
+      if: steps.pnpm-setup.outcome == 'failure'
+      uses: pnpm/setup@v3
+      with:
+        working-directory: .
+        node-version-file: false
+        cache: false
+        install: false
 
     - name: Get pnpm store directory
       shell: bash
