@@ -1,0 +1,14 @@
+// Classifier fixture, node:test: PRINTS-SUCCESS and its negative. Read as text by tests/classify.test.ts.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+test("creates the account", async () => {
+  await createAccount();
+  console.log("Test " + "passed");
+});
+
+test("checks health", async () => {
+  const health = await check();
+  console.log("✅ passed");
+  assert.equal(health.status, "ok");
+});

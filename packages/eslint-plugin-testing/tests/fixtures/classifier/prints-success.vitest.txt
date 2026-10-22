@@ -1,0 +1,30 @@
+// Classifier fixture, vitest: PRINTS-SUCCESS and its negatives. Read as text by tests/classify.test.ts.
+import { describe, expect, it } from "vitest";
+
+describe("prints success", () => {
+  it("creates the account", async () => {
+    try {
+      await createAccount();
+      console.log("✅ Account created successfully");
+    } catch (error) {
+      console.log("Account creation failed", error);
+    }
+  });
+
+  it("verifies the system is operational", async () => {
+    const health = await check();
+    expect(health).toBeDefined();
+    console.log(`🎉 System fully functional: ${health.version}`);
+  });
+
+  it("requests a password reset", async () => {
+    await reset();
+    console.log("password reset requested");
+  });
+
+  it("checks health after printing", async () => {
+    console.log("all tests passing so far");
+    const health = await check();
+    expect(health.status).toBe("ok");
+  });
+});

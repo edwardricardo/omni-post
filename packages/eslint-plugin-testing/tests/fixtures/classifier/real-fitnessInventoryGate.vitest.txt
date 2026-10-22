@@ -1,0 +1,22 @@
+// Classifier fixture, a real case: apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts at
+// b053ba58, lines 540-556, whose line 548 narrows an asserted value with `=== null`. Read as text
+// by the classifier suites under tests/.
+import { describe, expect, it } from "vitest";
+
+  describe("the job summary", () => {
+    it("states the derived count and lists every check by number, in numeric order", async () => {
+      const gate = await loadGate();
+      const verdict = await evaluate(
+        renderWorkflow(['"#2 Second | piped"', stepName(1)]),
+        renderCanon({ headings: [1, 2] })
+      );
+      expect(verdict.inventory).not.toBeNull();
+      if (verdict.inventory === null) return;
+
+      const summary = gate.renderSummary(verdict.inventory);
+
+      expect(summary).toContain("2 checks (#1-#2), derived from the numbered steps");
+      expect(summary.indexOf("| 1 | Check number 1 |")).toBeLessThan(
+        summary.indexOf("| 2 | Second \\| piped |")
+      );
+    });

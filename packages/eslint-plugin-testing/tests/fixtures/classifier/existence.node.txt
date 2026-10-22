@@ -1,0 +1,22 @@
+// Classifier fixture, node:test: EXISTENCE-ONLY and its negatives. Read as text by tests/classify.test.ts.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+test("returns the user", async (t) => {
+  const user = await findUser("u1");
+  assert.ok(user);
+  assert.notEqual(user, undefined);
+  assert.equal(typeof user.name, "string");
+  t.assert.ok(user.roles instanceof Array);
+});
+
+test("returns the user's email", async () => {
+  const user = await findUser("u1");
+  assert.ok(user);
+  assert.equal(user.email, "a@b.c");
+});
+
+test("grants the admin role", async () => {
+  const roles = await rolesOf("u1");
+  assert.ok(roles.includes("admin"));
+});

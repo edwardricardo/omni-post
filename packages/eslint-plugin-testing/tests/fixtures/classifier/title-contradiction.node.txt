@@ -1,0 +1,40 @@
+// Classifier fixture, node:test: TITLE-CONTRADICTION, one positive per reason, and the negative of
+// each. Read as text by tests/classify.test.ts.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+test("returns null when no bundle matches", () => {
+  const bundle = match(["X"]);
+  assert.ok(bundle);
+});
+
+test("returns null when no bundle is cheaper", () => {
+  assert.strictEqual(match(["X", "IG"]), null);
+});
+
+test("throws when the key is missing", (t) => {
+  const config = load({});
+  t.assert.ok(config);
+});
+
+test("throws when the secret is missing", () => {
+  assert.throws(() => load({ key: "k" }), /secret/);
+});
+
+test("returns 401 without a token", async () => {
+  const response = await call({});
+  assert.equal(response.body.error, "UNAUTHORIZED");
+});
+
+test("returns 401 with an expired token", async () => {
+  const response = await call({ token: "old" });
+  assert.equal(response.status, 401);
+});
+
+test("does not expose the secret", () => {
+  assert.ok(config.secret);
+});
+
+test("never exposes the hash", () => {
+  assert.equal(user.hash, undefined);
+});

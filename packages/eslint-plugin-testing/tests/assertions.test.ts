@@ -81,8 +81,7 @@ const TABLE: Record<string, Row[]> = {
     ['expect(container.querySelector("form")).toBeInTheDocument()', EXISTENCE, "toBeInTheDocument"],
     ['expect(screen.getByRole("button")).toBeInTheDocument()', EXISTENCE, "toBeInTheDocument"],
     ["expect.soft(user).toBeDefined()", EXISTENCE, "toBeDefined"],
-    ["expectTypeOf(user).toEqualTypeOf<User>()", EXISTENCE, "toEqualTypeOf", "type"],
-    ["assertType<User>(user)", EXISTENCE, "assertType", "type"],
+    ["expect . soft(user) . toBeDefined()", EXISTENCE, "toBeDefined"],
     ["assert.ok(user)", EXISTENCE, "ok", "assert"],
     ["assert(result.ok)", EXISTENCE, "ok", "assert"],
     ["assert.notEqual(user, null)", EXISTENCE, "notEqual", "assert"],
@@ -115,6 +114,10 @@ const TABLE: Record<string, Row[]> = {
     ['expect(text.includes("x")).toBeTruthy()', BEHAVIOURAL, "toBeTruthy"],
     ["expect(isValid(token)).toBe(true)", BEHAVIOURAL, "toBe"],
     ["expect.poll(() => queue.size()).toBe(1)", BEHAVIOURAL, "toBe"],
+    ["expectTypeOf(user).toEqualTypeOf<User>()", BEHAVIOURAL, "toEqualTypeOf", "type"],
+    ["expectTypeOf(user).toMatchTypeOf<{ id: string }>()", BEHAVIOURAL, "toMatchTypeOf", "type"],
+    ["expectTypeOf(handler).toBeFunction()", BEHAVIOURAL, "toBeFunction", "type"],
+    ["assertType<User>(user)", BEHAVIOURAL, "assertType", "type"],
     ['assert.ok(roles.includes("admin"))', BEHAVIOURAL, "ok", "assert"],
     ["assert.ok(!result.ok)", BEHAVIOURAL, "ok", "assert"],
     ["assert.ok(rows.length > 0)", BEHAVIOURAL, "ok", "assert"],
@@ -142,6 +145,7 @@ const TABLE: Record<string, Row[]> = {
     ],
     ['expect.fail("expected a throw")', BEHAVIOURAL, "expect.fail", "expect", true],
     ["expect.unreachable()", BEHAVIOURAL, "expect.unreachable", "expect", true],
+    ['expect\n  .fail("expected a throw")', BEHAVIOURAL, "expect.fail", "expect", true],
     ["assert.throws(() => run(), /secret/)", BEHAVIOURAL, "throws", "assert", true],
     ["await assert.rejects(load())", BEHAVIOURAL, "rejects", "assert", true],
     ['assert.fail("expected a throw")', BEHAVIOURAL, "fail", "assert", true],
@@ -212,11 +216,21 @@ describe("readFact", () => {
   });
 
   it.each([
+    ['expect(name).toBeTypeOf("string")', "name", "string"],
+    ['expect(typeof name).toBe("string")', "name", "string"],
+    ['expect(typeof user.age).toEqual("number")', "user.age", "number"],
+    ['assert.equal(typeof name, "string")', "name", "string"],
+    ['assert.strictEqual("string", typeof name)', "name", "string"],
+  ])("%s establishes the type of %s, %s", (code, subject, type) => {
+    expect(readFact(callOf(code), DEFAULT_NAMES)).toEqual({ subject, type });
+  });
+
+  it.each([
     'expect(user.email).toBe("a@b.c")',
     "assert.equal(a, b)",
     "expect(html).toMatchSnapshot()",
     "service.check(user)",
-  ])("%s establishes nothing about truthiness", (code) => {
+  ])("%s establishes nothing about truthiness or type", (code) => {
     expect(readFact(callOf(code), DEFAULT_NAMES)).toBeNull();
   });
 });

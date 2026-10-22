@@ -1,0 +1,13 @@
+// Classifier fixture, vitest: the SNAPSHOT assertion class and its negative. Read as text by
+// tests/classify.test.ts.
+import { describe, expect, it } from "vitest";
+
+describe("snapshot", () => {
+  it("renders the welcome email", () => {
+    expect(renderEmail("welcome")).toMatchSnapshot();
+  });
+
+  it("renders the welcome subject", () => {
+    expect(renderEmail("welcome")).toMatchObject({ subject: "Welcome" });
+  });
+});

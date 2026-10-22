@@ -1,0 +1,59 @@
+// Classifier fixture, vitest: TITLE-CONTRADICTION, one positive per reason, and the negative of
+// each. Read as text by tests/classify.test.ts.
+import { describe, expect, it } from "vitest";
+
+describe("title contradiction", () => {
+  it("returns undefined for unknown routes", async () => {
+    await middleware(request);
+    expect(request.auditLog).toBeTruthy();
+  });
+
+  it("returns undefined for unknown ids", async () => {
+    expect(await find("x")).toBeUndefined();
+  });
+
+  it("throws on an invalid token", async () => {
+    const result = await verify("bad");
+    expect(result).toBeDefined();
+  });
+
+  it("throws on an expired token", async () => {
+    await expect(verify("old")).rejects.toThrow(TokenExpired);
+  });
+
+  it("responds with 404 for a missing post", async () => {
+    const response = await app.inject({ url: "/posts/x" });
+    expect(response.json().error).toBe("NOT_FOUND");
+  });
+
+  it("responds with 404 for a missing draft", async () => {
+    const response = await app.inject({ url: "/drafts/x" });
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("does not start twice", () => {
+    relay.start();
+    relay.start();
+    expect(relay.running).toBeTruthy();
+  });
+
+  it("does not start a stopped relay", () => {
+    relay.stop();
+    expect(relay.running).toBe(false);
+  });
+
+  it("rejects an empty name", () => {
+    const result = validate("");
+    expect(result).toBeDefined();
+  });
+
+  it("rejects a long name", () => {
+    const result = validate("x".repeat(300));
+    expect(result.success).toBe(false);
+  });
+
+  it("falls back when the provider throws", async () => {
+    provider.fail();
+    expect(await describePost()).toBe("plain");
+  });
+});

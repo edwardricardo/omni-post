@@ -1,0 +1,12 @@
+// Classifier fixture, a real case: apps/api/tests/unit/customerAuthUseCases.test.ts at b053ba58,
+// lines 263-267, a type contract asserted with `expectTypeOf`. Read as text by the classifier
+// suites under tests/.
+import { describe, it, expect, expectTypeOf, vi, beforeEach } from "vitest";
+
+describe("RegisterCustomerUseCase", () => {
+  it("takes the deleted-account notice mailer as a required dependency, right after the logger", () => {
+    expectTypeOf<
+      ConstructorParameters<typeof RegisterCustomerUseCase>[6]
+    >().toEqualTypeOf<DeletedAccountNoticeMailer>();
+  });
+});

@@ -1,0 +1,28 @@
+// Classifier fixture, a real case: apps/api/tests/audit.integration.test.ts at b053ba58, lines 182-201,
+// whose line 188 narrows two asserted results with one `||` guard. Read as text by the classifier
+// suites under tests/.
+import { describe, it, before, after } from "node:test";
+import assert from "node:assert/strict";
+
+describe("Audit filters", () => {
+    it("should filter logs by success status", async () => {
+      const successLogsResult = await auditService.getLogs({ success: true, limit: 100 });
+      const failedLogsResult = await auditService.getLogs({ success: false, limit: 100 });
+
+      assert.ok(successLogsResult.ok, "Should retrieve successful logs");
+      assert.ok(failedLogsResult.ok, "Should retrieve failed logs");
+      if (!successLogsResult.ok || !failedLogsResult.ok) return;
+
+      assert.ok(successLogsResult.value.length > 0, "Should have successful logs");
+      assert.ok(failedLogsResult.value.length > 0, "Should have failed logs");
+
+      // Verify all results match the filter
+      successLogsResult.value.forEach((log) => {
+        assert.strictEqual(log.success, true, "All logs should be successful");
+      });
+
+      failedLogsResult.value.forEach((log) => {
+        assert.strictEqual(log.success, false, "All logs should be failed");
+      });
+    });
+});

@@ -1,0 +1,11 @@
+// Classifier fixture, node:test: the SNAPSHOT assertion class and its negative. Read as text by
+// tests/classify.test.ts.
+import { test } from "node:test";
+
+test("renders the welcome email", (t) => {
+  t.assert.snapshot(renderEmail("welcome"));
+});
+
+test("renders the welcome subject", (t) => {
+  t.assert.deepStrictEqual(renderEmail("welcome").subject, "Welcome");
+});

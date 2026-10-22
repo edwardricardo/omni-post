@@ -1,0 +1,19 @@
+// Classifier fixture, node:test: TAUTOLOGY-ONLY and its negative. Read as text by tests/classify.test.ts.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+test("handles alerts", () => {
+  recordAlert("warning");
+  assert.ok(true);
+  assert.equal(1, 1);
+});
+
+test("counts retried events", async (t) => {
+  const count = await handler.retryFailedEvents();
+  t.assert.ok(count >= 0);
+});
+
+test("retries one event", async (t) => {
+  const count = await handler.retryFailedEvents();
+  t.assert.strictEqual(count, 1);
+});

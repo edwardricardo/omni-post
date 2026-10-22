@@ -1,0 +1,33 @@
+// Classifier fixture, node:test: OPAQUE helpers and same-file helpers inlined one level, with their
+// negatives. Read as text by tests/classify.test.ts.
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { assertTenantIsolated } from "./support/tenancy.js";
+
+const expectOk = (result) => {
+  assert.ok(result.ok);
+};
+
+test("isolates tenants", async () => {
+  await assertTenantIsolated(db);
+});
+
+test("saves the record", async () => {
+  expectOk(await save());
+});
+
+test("saves the record with its id", async () => {
+  const result = await save();
+  expectOk(result);
+  assert.equal(result.value.id, "1");
+});
+
+function buildSubscription(id) {
+  if (!id) throw new Error("a subscription needs an id");
+  return { id };
+}
+
+test("delivers to the subscription", async () => {
+  const result = await deliver(buildSubscription("s1"));
+  assert.ok(result);
+});

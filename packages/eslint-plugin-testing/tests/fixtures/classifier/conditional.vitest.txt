@@ -1,0 +1,126 @@
+// Classifier fixture, vitest: CONDITIONAL-ONLY, the CONDITIONAL and GUARDED-RETURN flags, and
+// their negatives. Read as text by tests/classify.test.ts.
+import { describe, expect, it } from "vitest";
+
+describe("conditional", () => {
+  it("parses the year", () => {
+    const result = parse("2024");
+    if (result.ok) {
+      expect(result.value.year).toBe(2024);
+    }
+  });
+
+  it("creates the asset", () => {
+    const result = MediaAsset.create(input);
+    if (!result.ok) return;
+    expect(result.value.kind).toBe("image");
+  });
+
+  it("reports the load error", async () => {
+    try {
+      await load();
+    } catch (error) {
+      expect(error).toBeInstanceOf(LoadError);
+    }
+  });
+
+  it("creates the asset after asserting success", () => {
+    const result = MediaAsset.create(input);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.kind).toBe("image");
+  });
+
+  it("parses the year after asserting success", () => {
+    const result = parse("2024");
+    expect(result.ok).toBeTruthy();
+    if (result.ok) {
+      expect(result.value.year).toBe(2024);
+    }
+  });
+
+  it("reads the profile after asserting it is present", () => {
+    const profile = load();
+    expect(profile).toBeDefined();
+    if (profile === undefined) return;
+    expect(profile.name).toBe("Ada");
+  });
+
+  it("reads the name after asserting its type", () => {
+    const name = read();
+    expect(name).toBeTypeOf("string");
+    if (typeof name !== "string") return;
+    expect(name.trim()).toBe("Ada");
+  });
+
+  it("adds both results after asserting each", () => {
+    const first = parse("1");
+    const second = parse("2");
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    if (first.ok && second.ok) {
+      expect(first.value + second.value).toBe(3);
+    }
+  });
+
+  it("serves the stubbed post", async () => {
+    if (useStub) {
+      server.use({
+        resolve() {
+          return { id: "p1" };
+        },
+      });
+    }
+    expect(await fetchPost("p1")).toEqual({ id: "p1" });
+  });
+
+  it("reports the load error through catch", async () => {
+    await load().catch((error) => {
+      expect(error).toBeInstanceOf(LoadError);
+    });
+  });
+
+  it("reports the load error, counted", async () => {
+    expect.assertions(1);
+    try {
+      await load();
+    } catch (error) {
+      expect(error.code).toBe("LOAD_FAILED");
+    }
+  });
+
+  it("reports the load error through catch, counted", async () => {
+    expect.hasAssertions();
+    await load().catch((error) => {
+      expect(error.code).toBe("LOAD_FAILED");
+    });
+  });
+
+  it("reports the load error, counted with spaces", async () => {
+    expect . assertions(1);
+    try {
+      await load();
+    } catch (error) {
+      expect(error.code).toBe("LOAD_FAILED");
+    }
+  });
+
+  it("reports the load error, counted by another object", async () => {
+    tracker.assertions(1);
+    try {
+      await load();
+    } catch (error) {
+      expect(error.code).toBe("LOAD_FAILED");
+    }
+  });
+
+  it("reports the load error, counted through an alias", async () => {
+    const check = expect;
+    check.assertions(1);
+    try {
+      await load();
+    } catch (error) {
+      expect(error.code).toBe("LOAD_FAILED");
+    }
+  });
+});
