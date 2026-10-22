@@ -18,11 +18,13 @@ stage:
 FROM gcr.io/distroless/nodejs26-debian13@sha256:<digest> AS production
 ```
 
-The build chain stays on Debian bookworm, `node:26.11.1-bookworm-slim`, pinned by
+The build chain stays on Debian bookworm, `node:26.12.1-bookworm-slim`, pinned by
 digest as well. That asymmetry is deliberate and is explained under §"The glibc
 direction" below. The Node 26 line arrived on 2026-10-15, ahead of its LTS date
 ([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)); §"Moved to Node 26
-on 2026-10-15" below holds the measurements.
+on 2026-10-15" below holds the measurements. Both stages moved to 26.12.1, the
+security release of 2026-10-21, on 2026-10-22 (§"Moved to Node 26.12.1 on
+2026-10-22").
 
 ---
 
@@ -122,10 +124,58 @@ API image, and both portal images answer 200 on `/api/health` and `/` and pass
 `podman healthcheck run`. The re-check of 2026-10-28 re-reads the `latest` index
 digest, because Google rebuilds it as Node 26 releases land.
 
+### Moved to Node 26.12.1 on 2026-10-22
+
+Node 26.12.1, released on 2026-10-21, fixes ten advisories on the 26.x line, four
+of them High; one, a Brotli decoder out-of-bounds write, is reached by any
+outbound `fetch` that reads a `br`-encoded body. The Node.js
+[security releases of 2026-10-21](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)
+list them. The owner took it on 2026-10-22, inside the 7-day buffer (it matures
+on 2026-10-28), in both stages of all four Dockerfiles:
+
+| Stage      | Before                                          | After                                                                                                            |
+| ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| build      | `node:26.11.1-bookworm-slim@sha256:86f07bc9…`   | `node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe`             |
+| production | `distroless/nodejs26-debian13@sha256:746f728c…` | `distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7`, `latest` |
+
+Both are multi-arch indexes, as before. The `latest` index of the distroless
+repository moved to `456bd22a` on 2026-10-21T16:39Z, after three root-index
+uploads in two days, and still pointed there when it was re-read on
+2026-10-22T15:09:30Z; the tag `node:26.12.1-bookworm-slim` resolved to `28147155`
+at the same instant.
+
+Measured on 2026-10-22 from the `linux/amd64` image of each digest (production
+manifest `26bc1224…`, build manifest `1884ec27…`):
+
+|                       | `746f728c` (2026-10-15)      | `456bd22a` (2026-10-22)           |
+| --------------------- | ---------------------------- | --------------------------------- |
+| openssl               | `libssl3t64` 3.5.7-1~deb13u3 | `libssl3t64` 3.5.7-1~deb13u3      |
+| glibc                 | `libc6` 2.41-12+deb13u4      | `libc6` 2.41-12+deb13u4           |
+| ca-certificates       | 20250419                     | **20250419+deb13u1** (DSA-6572-1) |
+| node                  | v26.12.0 (undici 8.11.2)     | **v26.12.1** (undici 8.12.2)      |
+| Trivy `HIGH,CRITICAL` | 0 (debian 13.7)              | 0 (debian 13.7)                   |
+
+Trivy 0.76.1, with the gate's flags and its database of 2026-10-22T13:15Z,
+produced the last row. The build stage moved from v26.11.1 to v26.12.1 and kept
+glibc 2.36-9+deb12u14 and npm 11.20.0, and it still ships no corepack. Build and
+runtime now run the same release, which ends the one-minor difference of
+2026-10-15. The four images built with `podman` from this change each run
+`/nodejs/bin/node` v26.12.1 as `nonroot`; argon2 round-trips in the API image;
+the API and workers `CMD` entries resolve their whole module graph and stop at
+the environment validation, which this smoke does not satisfy; both portal
+images answer 200 on `/api/health` and `/` and pass `podman healthcheck run`;
+and Trivy, with the gate's flags, finds no HIGH or CRITICAL
+vulnerability in any of the four (`debian 13.7` and 865, 542, 26 and 26
+`node-pkg` targets for `api`, `workers`, `admin` and `client`).
+
+The Trivy row stays at 0 because Trivy reports an image's Debian packages and the
+`package.json` of each module under `node_modules`, never the `node` executable:
+no gate saw that the images ran v26.12.0 after its advisories were published.
+
 ### pnpm in the build stage
 
 Node 26 ships no corepack: it is "no longer distributed as of Node.js v25.0.0"
-(nodejs/node#61207), and `node:26.11.1-bookworm-slim` carries `node`, `npm` and
+(nodejs/node#61207), and `node:26.12.1-bookworm-slim` carries `node`, `npm` and
 `npx` only. Each build stage therefore installs pnpm 12.6.0 itself:
 
 1. **The source** is pnpm's own GitHub release `v12.6.0`, an immutable release,
@@ -148,7 +198,7 @@ Node 26 ships no corepack: it is "no longer distributed as of Node.js v25.0.0"
    the image builds with the release it verified.
 
 The asset is pnpm's single executable, which embeds its own Node runtime. pnpm
-runs lifecycle scripts with the `node` on `PATH`, the image's 26.11.1, and
+runs lifecycle scripts with the `node` on `PATH`, the image's 26.12.1, and
 compares `engines` against that same `node` when `engineStrict` asks it to
 (measured on 2026-10-15: under Node 24.15.0 it reports `current:
 {"node":"24.15.0"}`).
@@ -174,7 +224,7 @@ that day, with no record of what changed or when.
 
 The build stage read `node:24-bookworm-slim`, a floating tag, until 2026-10-15.
 Since then it names an exact release and its index digest,
-`node:26.11.1-bookworm-slim@sha256:…`, so Dependabot tracks both `FROM` lines of
+`node:26.12.1-bookworm-slim@sha256:…`, so Dependabot tracks both `FROM` lines of
 every Dockerfile.
 
 ---
@@ -182,7 +232,7 @@ every Dockerfile.
 ## The glibc direction
 
 `argon2` ships a prebuilt native binary that must match the runtime ABI. The
-build chain stays on `node:26.11.1-bookworm-slim` (glibc 2.36) while the runtime
+build chain stays on `node:26.12.1-bookworm-slim` (glibc 2.36) while the runtime
 is trixie (glibc 2.41).
 
 That is the **safe** direction: glibc is forward-compatible, so a binary built
