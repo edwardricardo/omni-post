@@ -11,7 +11,7 @@ import type {
   TemplateCompilationResult,
 } from "@/lib/templates/templateEngine";
 
-export type EditorMode = "textarea" | "monaco" | "tiptap";
+export type EditorMode = "textarea" | "tiptap";
 export type EditorTab = "editor" | "preview" | "variables" | "docs";
 
 export interface TemplateEditorProps {
@@ -45,7 +45,6 @@ export interface TemplateEditorCanvasProps {
     typeof import("@/lib/templates/templateEngine").templateEngine.generateDocumentation
   > | null;
   onContentChange: (content: string) => void;
-  onMonacoContentChange: (value: string | undefined) => void;
   onVariableInsert: (variable: string) => void;
   onPreview: () => void;
   onGenerateSampleContext: () => void;

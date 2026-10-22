@@ -235,12 +235,11 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 ### Utilities
 
-| Package              | Version | Purpose                         |
-| -------------------- | ------- | ------------------------------- |
-| date-fns             | 4.1.0   | Date manipulation               |
-| cronstrue            | 3.13.0  | Human-readable cron expressions |
-| papaparse            | 5.5.3   | CSV parsing (bulk upload)       |
-| @monaco-editor/react | 4.6.0   | Code editor (template editing)  |
+| Package   | Version | Purpose                         |
+| --------- | ------- | ------------------------------- |
+| date-fns  | 4.1.0   | Date manipulation               |
+| cronstrue | 3.13.0  | Human-readable cron expressions |
+| papaparse | 5.5.3   | CSV parsing (bulk upload)       |
 
 ---
 

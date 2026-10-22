@@ -3,8 +3,8 @@
 /**
  * @file TemplateEditorCanvas.tsx
  * @description Main editing area for the TemplateEditor, handling the editor tabs (editor,
- * preview, variables, docs), editor mode switching, and content editing via textarea,
- * Monaco, or TipTap.
+ * preview, variables, docs), editor mode switching, and content editing via textarea or
+ * TipTap.
  * @component TemplateEditorCanvas
  * @layer infrastructure
  */
@@ -35,10 +35,13 @@ import {
 } from "lucide-react";
 import { VariableInserter } from "./VariableInserter";
 
-const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 const TipTapEditor = dynamic(() => import("./TipTapEditor"), { ssr: false });
-import type { EditorTab, TemplateEditorCanvasProps } from "./templateEditorTypes";
+import type { EditorMode, EditorTab, TemplateEditorCanvasProps } from "./templateEditorTypes";
 
+/**
+ * Renders the template's editing area: the editor, preview, variables and documentation
+ * tabs, the auto-preview switch, and the selector between the textarea and TipTap editors.
+ */
 export function TemplateEditorCanvas({
   formData,
   activeTab,
@@ -49,7 +52,6 @@ export function TemplateEditorCanvas({
   previewContext,
   documentation,
   onContentChange,
-  onMonacoContentChange,
   onVariableInsert,
   onPreview,
   onGenerateSampleContext,
@@ -151,16 +153,13 @@ export function TemplateEditorCanvas({
               <Label className="text-sm">{t("editorLabel")}</Label>
               <Select
                 value={editorMode}
-                onValueChange={(value) =>
-                  onEditorModeChange(value as "textarea" | "monaco" | "tiptap")
-                }
+                onValueChange={(value) => onEditorModeChange(value as EditorMode)}
               >
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="textarea">{t("editorModeBasic")}</SelectItem>
-                  <SelectItem value="monaco">{t("editorModeCode")}</SelectItem>
                   <SelectItem value="tiptap">{t("editorModeRichText")}</SelectItem>
                 </SelectContent>
               </Select>
@@ -192,27 +191,6 @@ export function TemplateEditorCanvas({
           <TabsContent value="editor" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <div className="lg:col-span-3">
-                {editorMode === "monaco" && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <Editor
-                      height="400px"
-                      language="handlebars"
-                      theme="vs-dark"
-                      value={formData.content || ""}
-                      onChange={onMonacoContentChange}
-                      options={{
-                        minimap: { enabled: false },
-                        lineNumbers: "on",
-                        wordWrap: "on",
-                        automaticLayout: true,
-                        scrollBeyondLastLine: false,
-                        fontSize: 14,
-                        tabSize: 2,
-                      }}
-                    />
-                  </div>
-                )}
-
                 {editorMode === "tiptap" && (
                   <TipTapEditor
                     content={convertPlainTextToHtml(formData.content || "")}
