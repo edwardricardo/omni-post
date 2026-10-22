@@ -42,7 +42,12 @@ class AuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Login user
+   * @method login
+   * @description POST /auth/login - Verifies the credentials, and the MFA token when one is
+   *   sent, then sets the refresh token as an HTTP-only cookie and returns the user and its
+   *   access token; an account that needs a second factor gets the MFA challenge instead.
+   * @param request - The login body: e-mail, password and an optional MFA token.
+   * @param reply - The reply the session, the MFA challenge or the refusal is sent on.
    */
   async login(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -125,7 +130,12 @@ class AuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Refresh access tokens
+   * @method refresh
+   * @description POST /auth/refresh - Rotates the session's refresh token, read from the
+   *   cookie first and the body second, and returns a new access token; a refused token
+   *   clears the cookie so the client stops presenting it.
+   * @param request - The request carrying the refresh token in its cookie or its body.
+   * @param reply - The reply the rotated cookie and access token, or the refusal, are sent on.
    */
   async refresh(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -196,7 +206,11 @@ class AuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Logout user
+   * @method logout
+   * @description POST /auth/logout - Ends the session the refresh token names and clears the
+   *   cookie; a session that no longer exists still logs out successfully.
+   * @param request - The request carrying the refresh token in its cookie or its body.
+   * @param reply - The reply the confirmation or the refusal is sent on.
    */
   async logout(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -240,7 +254,10 @@ class AuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Get current authenticated user
+   * @method me
+   * @description GET /auth/me - Returns the user `requireClientAuth` attached to the request.
+   * @param request - The authenticated request.
+   * @param reply - The reply the user is sent on.
    */
   async me(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = {
@@ -254,7 +271,11 @@ class AuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Get user sessions
+   * @method getSessions
+   * @description GET /auth/sessions - Lists the caller's sessions, each reduced to its id, IP
+   *   address, user agent and dates.
+   * @param request - The authenticated request whose user's sessions are listed.
+   * @param reply - The reply the sessions or the refusal are sent on.
    */
   async getSessions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = {
@@ -287,7 +308,11 @@ class AuthRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Revoke all user sessions
+   * @method revokeAllSessions
+   * @description POST /auth/revoke-all - Revokes every session of the caller and clears the
+   *   refresh cookie.
+   * @param request - The authenticated request whose user's sessions are revoked.
+   * @param reply - The reply the revoked count or the refusal is sent on.
    */
   async revokeAllSessions(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = {
@@ -326,36 +351,33 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   const authService = fastify.container!.resolve<AuthService>(TOKENS.AuthService);
   const authHandler = new AuthRouteHandler(authService);
 
-  // Login (rate limited: 5 per 15 minutes)
+  // Login
   fastify.post(
     "/auth/login",
     {
       schema: { tags: ["Auth"], summary: "Login user" },
-      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await authHandler.login(request, reply);
     }
   );
 
-  // Refresh tokens (rate limited: 20 per 15 minutes)
+  // Refresh tokens
   fastify.post(
     "/auth/refresh",
     {
       schema: { tags: ["Auth"], summary: "Refresh access tokens" },
-      config: { rateLimit: { max: 20, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await authHandler.refresh(request, reply);
     }
   );
 
-  // Logout (rate limited: 20 per 15 minutes)
+  // Logout
   fastify.post(
     "/auth/logout",
     {
       schema: { tags: ["Auth"], summary: "Logout user" },
-      config: { rateLimit: { max: 20, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await authHandler.logout(request, reply);

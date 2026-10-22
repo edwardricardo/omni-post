@@ -1,13 +1,15 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-19 — Phase 2 started: WU-2.0 adds the canon scenario `decorative-demolition`
+**As of:** 2026-10-22 — Dependabot #588 is not taken: `authRateLimit.test.ts`, which asserted a
+limiter production never registers, leaves with the `@fastify/rate-limit` devDependency only it
+kept ([§Log](#log)). Phase 2 started: WU-2.0 adds the canon scenario `decorative-demolition`
 (ADR-0039), the marker under which a demolition slice lowers an `apps/api` coverage floor, and
 fitness #37 admits it. WU-2.1 adds the assertion classifier, `classifyFile` in
 `packages/eslint-plugin-testing`, in three stacked slices (row 2.1 🔄; its deviations in D55).
 WU-6.P2 retired `perf:db` and its suite (row 6.P2 🔄 until its siblings are
 adjudicated). N-CI-7, the test kit, is closed (row N-CI-7). Phase 0 is closed, row 0.16 aside (🔄);
-Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1026 + 13` · M5 `28 · 0` · M7 `43/43` · M8 `1/93`. Every
+Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1025 + 13` · M5 `28 · 0` · M7 `43/43` · M8 `1/93`. Every
 unit's line is in [§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
@@ -34,7 +36,7 @@ naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1026 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR 2cls  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1025 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR rl588 |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -420,6 +422,7 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 
 Newest first; a line with no date or no pull request number is one whose record named none.
 
+- 2026-10-22 — Dependabot #588 not taken, `PR rl588` (`workstream/api-drop-rate-limit-decorative`) — `apps/api/tests/unit/authRateLimit.test.ts` deleted (12 tests that registered `@fastify/rate-limit`, which production never registers, and asserted the inert `config.rateLimit` blocks of `authRoutes.ts`), with those three blocks, the four of `customerAuthRoutes.ts` and the `@fastify/rate-limit` devDependency only that file kept; the live caps stay in `httpRateLimitPreHandler` and its rule-coverage suite — M1 `1026 + 13` → `1025 + 13`
 - 2026-10-19 — WU-2.1, `PR 2cls` (`workstream/refound-2-wu21`), three stacked slices — `classifyFile` in `packages/eslint-plugin-testing`: 2.1a `src/assertions.js` reads a call as a TAUTOLOGY, EXISTENCE, SNAPSHOT or BEHAVIOURAL assertion and what it establishes; 2.1b `src/blocks.js` finds the leaf test blocks of a file, vitest, node:test or Playwright, with their skips and hashes; 2.1c `src/classify.js` gives each block its assertions, flags, class and criterion, with eight deviations from the plan's literal text ([D55](#decisions-log)); 275 cases in three suites over 26 fixtures, the named real cases among them (`auditMiddleware.test.ts:274` TITLE-CONTRADICTION, `webhookHandler.stats.test.ts:337/358` TAUTOLOGY-ONLY), red on five planted mutations; a correction after independent verification (fact-decided `&&`, `||`, `=== null` and `typeof` guards, lexical helpers, returns and throws at the block's own level only, `.catch` callbacks conditional unless `expect.assertions` counts them, `expectTypeOf` a type contract, a `RangeError` returned as the file's `error`), red on 28 cases first, rescues 3 blocks and catches 3, and a review follow-up (`expect` read structurally, counted catches at the block's own level, a non-function binding of a helper name OPAQUE, any other error thrown) red on 5; on `b053ba58` it reads 1,030 test files in 2.2 s and names 1,052 of 14,591 blocks decorative in 262 files, against Appendix C's upper bound of 272 in 105, the difference WU-2.2 explains — M1 `1023 + 13` → `1026 + 13`
 - 2026-10-19 — WU-2.0, `PR 2cov` (`workstream/refound-2-wu20`) — scenario `decorative-demolition` in CLAUDE.md §Pragmatic Exceptions, marker `// canon-exception: decorative-demolition:<ledger-slice>`, ADR-0039; fitness #37 admits it, refuses the bare scenario or a malformed slice id, and refuses for every scenario a marker its base already carries on that metric; the pre-edit tripwire hook admits it, with its first suite — M7 `42/42` → `43/43`
 - 2026-10-19 — WU-6.P2 + DEF-101, `PR 6p2` (`workstream/ci-retire-always-red`) — `postgres-stress.test.ts`, `perf:db`, its quarantine entry and the `Database & Memory Stress` job deleted (its `perf:memory` step, never reached past `perf:db`, goes with it; `k6-load` loses its `needs`); `perf:baseline`, `perf:regression` and `perf:test` wait for ledger adjudication; `Performance Tests` runs only on dispatch until its k6 scenarios target real routes ([§Declared gaps](#declared-gaps)); `cleanup.yml` loses the preview-environment job and the Slack notice (DEF-101) — M1 `1023 + 14` → `1023 + 13`, M5 `29 · 0` → `28 · 0`
