@@ -36,7 +36,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=27
+PLANNED_STEPS=29
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -195,6 +195,11 @@ step stories bash -c "pnpm --filter @apps/client exec node -e '$STORIES_PREFLIGH
 step scripts pnpm --filter @apps/api exec vitest run tests/unit/scripts/
 step api-common pnpm --filter @packages/api-common test
 step workers pnpm --filter @apps/workers test
+# The two portals' unit suites (vitest + jsdom), the commands of CI's Frontend
+# Tests job in its order: admin, then client. Without them a commit this battery
+# certifies GREEN had run neither portal's unit tests, only their stories.
+step admin pnpm --filter @apps/admin test
+step client pnpm --filter @apps/client test
 # The api suite runs twice in a row: a test that passes once and fails once is a
 # failure, and only a second run can see it.
 for n in 1 2; do
