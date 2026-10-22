@@ -23,7 +23,11 @@ jobs:
   security-audit:
     name: Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The same budget as ci.yml's `security` job, for the same reasons (see the comment there): a
+    # pnpm self-installer stall of 304 s that held the setup step for 326 s, measured here on
+    # 2026-10-22 (run 39712476313, both attempts), plus the audit step's bounded worst case of 7
+    # minutes.
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -33,35 +37,106 @@ jobs:
 
       - name: Audit dependencies
         run: |
-          # Mirrors ci.yml "Run security audit" — same classification, same
-          # rationale (see the comment there): a required gate must distinguish
-          # "measured and found advisories" from "could not measure", failing
-          # closed in both cases but SAYING which one happened. Keep the two
-          # copies in lockstep when editing either.
+          # This body is byte-identical in ci.yml (job `security`, step "Run security
+          # audit") and production-ci.yml (job `security-audit`, step "Audit
+          # dependencies"). Edit both together.
+          #
+          # A required gate has two ways to lie: failing as if it FOUND something
+          # after measuring nothing (npm's bulk advisory endpoint answered error 23,
+          # then 503, for hours on 2026-09-04), and passing after measuring nothing.
+          # Passing unmeasured (`|| true`) stays forbidden; this step keeps the first
+          # lie out by reading the verdict from the audit report, never from pnpm's
+          # prose.
+          # `pnpm audit --json` prints the report on stdout, and only a document that
+          # parses as the report (an object with an `advisories` map and
+          # `metadata.vulnerabilities`) counts as a measurement:
+          #   - CLEAN: exit 0 and an empty `advisories` map. The step passes.
+          #   - FOUND: a report whose `advisories` map is not empty. The step fails
+          #     and names them. The map holds the advisories at or above
+          #     --audit-level that auditConfig.ignoreGhsas does not ignore;
+          #     `metadata.vulnerabilities` counts every advisory, the ignored and
+          #     below-level ones too, so it is printed but never decides.
+          #   - COULD NOT MEASURE: anything else. No JSON on stdout (a request error
+          #     such as ERR_PNPM_AUDIT_BAD_RESPONSE goes to stderr), JSON that is not
+          #     the report, a non-zero exit whose report names no advisory, or an
+          #     attempt the per-attempt timeout killed. It is retried with backoff,
+          #     and after the last attempt the step fails under its own title.
+          # On 2026-10-22 an attempt hung 250 s and ended in pnpm's "operation timed
+          # out", which the previous classifier, a text match on network error
+          # signatures, read as a finding; the per-attempt timeout bounds that hang.
+          # AUDIT_RETRY_BASE_SLEEP and AUDIT_ATTEMPT_TIMEOUT exist so the red-path
+          # harness can run the loop in seconds; CI uses the defaults.
           set -uo pipefail
           ATTEMPTS=4
           BASE_SLEEP="${AUDIT_RETRY_BASE_SLEEP:-30}"
-          NET_SIG='error \(23\)|error \(5[0-9][0-9]\)|ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN|aborted due to timeout|TimeoutError'
+          ATTEMPT_TIMEOUT="${AUDIT_ATTEMPT_TIMEOUT:-60}"
+          WORK=$(mktemp -d)
+          trap 'rm -rf "$WORK"' EXIT
+          cat > "$WORK/classify.cjs" <<'NODE'
+          const fs = require("node:fs");
+          const isObject = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+          const say = (lines) => process.stdout.write(`${lines.join("\n")}\n`);
+          let report;
+          try {
+            report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          } catch (error) {
+            say(["UNMEASURED", `stdout is not JSON (${error instanceof Error ? error.message : String(error)})`]);
+            process.exit(0);
+          }
+          if (!isObject(report) || !isObject(report.advisories) || !isObject(report.metadata) || !isObject(report.metadata.vulnerabilities)) {
+            say(["UNMEASURED", "stdout is JSON but not an audit report: no advisories map and metadata.vulnerabilities"]);
+            process.exit(0);
+          }
+          const counts = `metadata.vulnerabilities ${JSON.stringify(report.metadata.vulnerabilities)}, ignored and below-level advisories included`;
+          const found = Object.values(report.advisories);
+          if (found.length === 0) {
+            say(["CLEAN", counts]);
+            process.exit(0);
+          }
+          say([
+            "FOUND",
+            `${found.length} advisories: ${found.map((a) => `${a.module_name} ${a.github_advisory_id} (${a.severity})`).join(", ")}`,
+            counts,
+            ...found.map((a) => `${a.severity} ${a.module_name} ${a.github_advisory_id}, vulnerable ${a.vulnerable_versions}, patched ${a.patched_versions}: ${a.title}`),
+          ]);
+          NODE
           for i in $(seq 1 "$ATTEMPTS"); do
             set +e
-            OUT=$(pnpm audit --audit-level moderate 2>&1)
+            timeout "$ATTEMPT_TIMEOUT" pnpm audit --audit-level moderate --json >"$WORK/report.json" 2>"$WORK/stderr.txt"
             CODE=$?
+            VERDICT=$(node "$WORK/classify.cjs" "$WORK/report.json")
+            NODE_CODE=$?
             set -e
-            if [ "$CODE" -eq 0 ]; then
-              printf '%s\n' "$OUT" | tail -12
+            KIND=$(printf '%s\n' "$VERDICT" | head -n 1)
+            SUMMARY=$(printf '%s\n' "$VERDICT" | sed -n '2p')
+            if [ "$NODE_CODE" -ne 0 ]; then
+              KIND=UNMEASURED
+              SUMMARY="the report classifier exited $NODE_CODE"
+            elif [ "$KIND" = CLEAN ] && [ "$CODE" -ne 0 ]; then
+              KIND=UNMEASURED
+              SUMMARY="pnpm exited $CODE with a report that names no advisory"
+            fi
+            if [ "$KIND" = CLEAN ]; then
+              printf '%s\n' "$SUMMARY"
               echo "Security audit measured CLEAN on attempt $i/$ATTEMPTS."
               exit 0
             fi
-            if ! printf '%s' "$OUT" | grep -qE "$NET_SIG"; then
-              printf '%s\n' "$OUT"
-              echo "::error title=Security audit: vulnerabilities found::pnpm audit MEASURED the tree (attempt $i/$ATTEMPTS) and found advisories at moderate or above. Raise the CVE floors per docs/security/SECURITY_CANON.md §Audited audit-ignores — never ignore a reachable, un-mitigated advisory."
+            if [ "$KIND" = FOUND ]; then
+              printf '%s\n' "$VERDICT" | tail -n +3
+              echo "::error title=Security audit: vulnerabilities found::pnpm audit MEASURED the tree (attempt $i/$ATTEMPTS) and found $SUMMARY. Raise the CVE floors per docs/security/SECURITY_CANON.md §Audited audit-ignores — never ignore a reachable, un-mitigated advisory."
               exit 1
             fi
-            echo "attempt $i/$ATTEMPTS: advisory endpoint unreachable (network signature matched), retrying in $((i * BASE_SLEEP))s"
-            printf '%s\n' "$OUT" | tail -4
-            [ "$i" -lt "$ATTEMPTS" ] && sleep $((i * BASE_SLEEP))
+            if [ "$CODE" -eq 124 ]; then
+              SUMMARY="the attempt ran past ${ATTEMPT_TIMEOUT}s and was killed"
+            fi
+            echo "attempt $i/$ATTEMPTS: COULD NOT MEASURE (pnpm exit $CODE): $SUMMARY"
+            tail -n 6 "$WORK/stderr.txt"
+            if [ "$i" -lt "$ATTEMPTS" ]; then
+              echo "retrying in $((i * BASE_SLEEP))s"
+              sleep $((i * BASE_SLEEP))
+            fi
           done
-          echo "::error title=Security audit COULD NOT MEASURE::npm's bulk advisory endpoint was unreachable on all $ATTEMPTS attempts. This is NOT a clean result and NOT a vulnerability finding — nothing was measured, so a required security gate fails closed rather than passing on silence. Re-run when the endpoint recovers."
+          echo "::error title=Security audit COULD NOT MEASURE::pnpm audit produced no measurement on any of $ATTEMPTS attempts (the last: $SUMMARY). This is NOT a clean result and NOT a vulnerability finding — nothing was measured, so a required security gate fails closed rather than passing on silence. Re-run when the advisory endpoint recovers."
           exit 1
 
   # Code Quality and Testing
