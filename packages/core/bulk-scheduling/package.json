@@ -36,7 +36,7 @@
     "@core/domain": "workspace:*",
     "@ports/core": "workspace:*",
     "@shared/types": "workspace:*",
-    "csv-parse": "7.0.2",
+    "csv-parse": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

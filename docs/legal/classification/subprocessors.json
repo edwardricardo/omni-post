@@ -394,10 +394,6 @@
       "status": "library",
       "note": "Type declarations for the compiler; no runtime code."
     },
-    "@types/papaparse": {
-      "status": "library",
-      "note": "Type declarations for the compiler; no runtime code."
-    },
     "@types/qrcode": {
       "status": "library",
       "note": "Type declarations for the compiler; no runtime code."
@@ -750,10 +746,6 @@
     "otplib": {
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
-    },
-    "papaparse": {
-      "status": "library",
-      "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
     },
     "pgvector": {
       "status": "library",

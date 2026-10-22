@@ -1,7 +1,8 @@
 /**
  * @file bulkScheduleRoutes.test.ts
  * @description Unit tests for the bulk-scheduling routes:
- *   POST /bulk-scheduling/parse — returns parsed rows, no DB write.
+ *   POST /bulk-scheduling/parse — returns parsed rows, no DB write; its body limit
+ *     admits every CSV within the core's byte cap and refuses one byte more with 413.
  *   POST /bulk-scheduling/confirm — returns batchId, asserts auth + validation.
  *   GET  /bulk-scheduling/batches/:batchId — manifest poll, unchanged.
  *   POST /bulk-scheduling/imports — 410 Gone (legacy endpoint retired).
@@ -34,7 +35,11 @@ import { ok, err } from "@shared/types";
 import { UseCaseError, USE_CASE_ERRORS } from "@core/application/UseCase.js";
 import { createTestContainer } from "../../../src/infrastructure/container/setup.js";
 import { TOKENS } from "../../../src/infrastructure/container/types.js";
-import { bulkScheduleRoutes } from "../../../src/bulk-scheduling/bulkScheduleRoutes.js";
+import { MAX_BULK_SCHEDULE_CSV_BYTES } from "@core/bulk-scheduling/schedulingCsvSchema.js";
+import {
+  IMPORT_BODY_LIMIT_BYTES,
+  bulkScheduleRoutes,
+} from "../../../src/bulk-scheduling/bulkScheduleRoutes.js";
 
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
 const AUTH = { authorization: "Bearer test-token" };
@@ -152,6 +157,51 @@ describe("bulkScheduleRoutes", () => {
         payload: { projectId: UUID, csv: "content,scheduledFor\nHi,2030-01-01" },
       });
       expect(createBatchCalled).toBe(false);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Body limit: every CSV within the core's byte cap fits, wrapped in the envelope
+  // ---------------------------------------------------------------------------
+  describe("POST /bulk-scheduling/parse — body limit", () => {
+    it("passes a CSV at the core's byte cap whose every byte JSON escapes to two to the handler", async () => {
+      app = await makeApp({
+        parseExecute: async () => ok({ validRows: [], errors: [], totalDataRows: 0 }),
+      });
+      const payload = JSON.stringify({
+        projectId: UUID,
+        csv: '"'.repeat(MAX_BULK_SCHEDULE_CSV_BYTES),
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/bulk-scheduling/parse",
+        headers: { ...AUTH, "content-type": "application/json" },
+        payload,
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).data.totalDataRows).toBe(0);
+      expect(Buffer.byteLength(payload)).toBe(IMPORT_BODY_LIMIT_BYTES);
+    });
+
+    it("refuses a body one byte over the limit with 413", async () => {
+      app = await makeApp({});
+      const envelope = JSON.stringify({ projectId: UUID, csv: "" }).length;
+      const payload = JSON.stringify({
+        projectId: UUID,
+        csv: "x".repeat(IMPORT_BODY_LIMIT_BYTES + 1 - envelope),
+      });
+
+      const res = await app.inject({
+        method: "POST",
+        url: "/bulk-scheduling/parse",
+        headers: { ...AUTH, "content-type": "application/json" },
+        payload,
+      });
+
+      expect(Buffer.byteLength(payload)).toBe(IMPORT_BODY_LIMIT_BYTES + 1);
+      expect(res.statusCode).toBe(413);
     });
   });
 

@@ -234,11 +234,11 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 ### Utilities
 
-| Package   | Version | Purpose                         |
-| --------- | ------- | ------------------------------- |
-| date-fns  | 4.1.0   | Date manipulation               |
-| cronstrue | 3.13.0  | Human-readable cron expressions |
-| papaparse | 5.5.3   | CSV parsing (bulk upload)       |
+| Package   | Version | Purpose                                                                                                  |
+| --------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| date-fns  | 4.1.0   | Date manipulation                                                                                        |
+| cronstrue | 3.13.0  | Human-readable cron expressions                                                                          |
+| csv-parse | 7.0.2   | CSV parsing (bulk upload): the browser build here, the Node build in `@core/bulk-scheduling` for the API |
 
 ---
 

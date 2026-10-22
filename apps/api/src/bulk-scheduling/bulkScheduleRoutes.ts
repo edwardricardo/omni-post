@@ -16,9 +16,38 @@ import { TOKENS } from "../infrastructure/container/types.js";
 import type { ParseBulkScheduleCsvUseCase } from "@core/bulk-scheduling/ParseBulkScheduleCsvUseCase.js";
 import type { ConfirmBulkScheduleUseCase } from "@core/bulk-scheduling/ConfirmBulkScheduleUseCase.js";
 import type { GetBulkScheduleBatchQuery } from "@core/bulk-scheduling/GetBulkScheduleBatchQuery.js";
+import { MAX_BULK_SCHEDULE_CSV_BYTES } from "@core/bulk-scheduling/schedulingCsvSchema.js";
 
-/** Generous 16 MB cap for the CSV body (default Fastify limit is 1 MB). */
-const IMPORT_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
+/**
+ * The most bytes `JSON.stringify` writes per UTF-8 byte of a CSV the core accepts:
+ * `"`, `\`, tab, line feed and carriage return become two-byte escapes, a lone
+ * surrogate (3 UTF-8 bytes, measured as U+FFFD) a six-byte `\uXXXX`, and every other
+ * character is written as its own UTF-8 bytes. The other C0 control characters, which
+ * it writes as six-byte `\uXXXX`, are refused by the core's parser, so they never
+ * reach this bound.
+ */
+const JSON_BYTES_PER_CSV_BYTE = 2;
+
+/**
+ * The `/parse` body around the CSV, `{"projectId":"<uuid>","csv":""}` as
+ * `JSON.stringify` writes it (the client's encoder): a UUID is always 36 characters.
+ */
+const IMPORT_ENVELOPE_ALLOWANCE_BYTES = JSON.stringify({
+  projectId: "00000000-0000-0000-0000-000000000000",
+  csv: "",
+}).length;
+
+/**
+ * Body limit of `/parse` and `/confirm` (Fastify's default is 1 MB), derived from the
+ * core's CSV cap. The route bounds JSON bytes and the core bounds CSV bytes: every
+ * CSV within `MAX_BULK_SCHEDULE_CSV_BYTES`, written by `JSON.stringify` into the
+ * `/parse` envelope, is at most this many bytes, so it reaches the parser and gets
+ * its typed answer, and a body over this limit is a 413 by construction. `/confirm`
+ * carries the parsed rows rather than the CSV and shares the limit; this derivation
+ * does not bound its body.
+ */
+export const IMPORT_BODY_LIMIT_BYTES =
+  JSON_BYTES_PER_CSV_BYTE * MAX_BULK_SCHEDULE_CSV_BYTES + IMPORT_ENVELOPE_ALLOWANCE_BYTES;
 
 // ============================================================================
 // Zod Validation Schemas
@@ -86,6 +115,8 @@ class BulkScheduleRouteHandler extends BaseRouteHandler {
    * @method parseCsv
    * @description POST /bulk-scheduling/parse — stateless CSV parse. Returns row
    *   preview without writing to the database.
+   * @param request - The request; its body carries `projectId` and the CSV text.
+   * @param reply - The reply the parse result or the error is sent on.
    */
   async parseCsv(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -116,6 +147,8 @@ class BulkScheduleRouteHandler extends BaseRouteHandler {
    * @description POST /bulk-scheduling/confirm — confirm a parsed upload.
    *   Persists the lean manifest batch + one outbox event per row atomically.
    *   accountId is taken from the authenticated user, NOT from the request body.
+   * @param request - The request; its body carries `projectId`, `channelIds` and the parsed rows.
+   * @param reply - The reply the batch id (202) or the error is sent on.
    */
   async confirmBulkSchedule(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -158,6 +191,8 @@ class BulkScheduleRouteHandler extends BaseRouteHandler {
    * @method getBatch
    * @description GET /bulk-scheduling/batches/:batchId — returns the batch and
    *   its per-row manifest (status / postId / errorMessage), account-scoped.
+   * @param request - The request; its params carry `batchId`.
+   * @param reply - The reply the batch manifest or the error is sent on.
    */
   async getBatch(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
