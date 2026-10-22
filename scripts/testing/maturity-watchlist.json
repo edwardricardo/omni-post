@@ -125,7 +125,8 @@
       "refs": [
         "docs/technical/ADR-0038-node-26-ahead-of-lts.md, Revisit if: the 2026-10-28 re-check of the move made on 2026-10-15 (LTS promotion, distroless digest, build stage, setup-node resolution, engines floor and @types/node, Prisma's statement)",
         "branch workstream/node-26, the change that made the move; docs/development/TESTING_REFOUNDATION.md, decision D52",
-        "openspec/changes/testing-refoundation/tasks.md, task 0.16"
+        "openspec/changes/testing-refoundation/tasks.md, task 0.16",
+        "2026-10-22, branch workstream/runtime-node-26-12-1 (ADR-0038, Amendment of 2026-10-22): Node 26.12.1, the security release of 2026-10-21, was taken inside the 7-day buffer as the engines floor and in both image stages; this review also confirms that 26.12.1 is mature (it matures 2026-10-28), that nodejs.org/dist/index.json lists no newer 26.x release with security: true (one would be taken at once, ADR-0036), and that CI's setup-node and both FROM lines of the four Dockerfiles still run 26.12.1 or a later 26.x"
       ],
       "reviews": {}
     },

@@ -13,7 +13,7 @@ This page indexes the living documents under `docs/`. [`CLAUDE.md`](../CLAUDE.md
 | [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks, reach, CI, the `node:test` runner, chaos, provider contract and end-to-end tests, gates that cannot fail, open findings |
 | [Coding Standards](development/CODING_STANDARDS.md)             | TypeScript, Result, error handling, testing, naming, JSDoc (canon)                                                                  |
 
-Quick start, with the versions `package.json` pins (Node `>=26.11.1 <27`, pnpm 12.6.0):
+Quick start, with the versions `package.json` pins (Node `>=26.12.1 <27`, pnpm 12.6.0):
 
 ```bash
 pnpm install

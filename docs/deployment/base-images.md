@@ -130,7 +130,9 @@ Node 26.12.1, released on 2026-10-21, fixes ten advisories on the 26.x line, fou
 of them High; one, a Brotli decoder out-of-bounds write, is reached by any
 outbound `fetch` that reads a `br`-encoded body. The Node.js
 [security releases of 2026-10-21](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases)
-list them. The owner took it on 2026-10-22, inside the 7-day buffer (it matures
+list them, and [ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)
+§"Amendment of 2026-10-22: Node 26.12.1" gives the reach of each in this
+repository. The owner took it on 2026-10-22, inside the 7-day buffer (it matures
 on 2026-10-28), in both stages of all four Dockerfiles:
 
 | Stage      | Before                                          | After                                                                                                            |
@@ -170,7 +172,8 @@ vulnerability in any of the four (`debian 13.7` and 865, 542, 26 and 26
 
 The Trivy row stays at 0 because Trivy reports an image's Debian packages and the
 `package.json` of each module under `node_modules`, never the `node` executable:
-no gate saw that the images ran v26.12.0 after its advisories were published.
+no gate saw that the images ran v26.12.0 after its advisories were published
+(SMELL-207 in `docs/reports/roadmap-detected-smells-backlog.md`).
 
 ### pnpm in the build stage
 

@@ -4,7 +4,7 @@
 
 Ensure you have installed:
 
-- **Node.js** 26 (`>=26.11.1 <27`, from `engines.node` in `package.json`; `.nvmrc` pins the major, so `fnm use` or `nvm use` selects it). The floor is 26.11.1 because it is the release CI installs for Node 26, adopted ahead of Node 26's LTS date so every change is measured on the runtime it ships with ([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md))
+- **Node.js** 26 (`>=26.12.1 <27`, from `engines.node` in `package.json`; `.nvmrc` pins the major, so `fnm use` or `nvm use` selects it). The floor is 26.12.1, the security release of 2026-10-21, which CI installs for Node 26 and both image stages run; the line was adopted ahead of Node 26's LTS date so every change is measured on the runtime it ships with ([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md))
 - **pnpm** 12 (`packageManager` in `package.json` pins `pnpm@12.6.0`; `corepack enable` installs that exact version)
 - **Docker** & **Docker Compose** (`docker --version`), for the local infrastructure stack
 - **Git** (`git --version`)

@@ -5,6 +5,8 @@
 - **Deciders**: Edward (owner)
 - **Supersedes**: —
 - **Superseded by**: —
+- **Amended**: 2026-10-22, §"Amendment of 2026-10-22: Node 26.12.1" (the `engines.node` floor and
+  both image stages move to 26.12.1, the security release of 2026-10-21)
 - **Amends**: slice `0.16` of `openspec/changes/testing-refoundation/tasks.md` ("the runtime follows
   LTS, never Current") and its dating to 2026-10-28 by tracker decisions D46 and D51
 - **Related**: [ADR-0017](ADR-0017-production-build-bundler.md) (the image build model);
@@ -63,13 +65,16 @@ The owner, 2026-10-14 (18:0x EDT): move to Node 26 now, document the early move,
 package state on 2026-10-28.
 
 1. **Runtime.** `.nvmrc` holds `26`; `engines.node` is `>=26.11.1 <27` in the root `package.json` and
-   in the other 100 workspace manifests.
+   in the other 100 workspace manifests. Amended on 2026-10-22: `>=26.12.1 <27`
+   (§"Amendment of 2026-10-22: Node 26.12.1").
 2. **Types.** `@types/node` moves to the 26 line: 26.6.5, `latest`, taken inside the 7-day buffer under
    the owner's 72-hour rule (it matures 2026-10-16T18:46Z), with a maturity watchlist entry.
 3. **Images.** The build stage of all four Dockerfiles is
    `node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567`; the production stage is
    `gcr.io/distroless/nodejs26-debian13@sha256:746f728c8b61c9beb5d0350f054b4049c4cef0ae71d5b3f8f33bc57904bbc37e`, the `latest` index (v26.12.0), still run
-   as `USER nonroot`.
+   as `USER nonroot`. Amended on 2026-10-22: `node:26.12.1-bookworm-slim@sha256:28147155…`
+   and `nodejs26-debian13@sha256:456bd22a…`, both v26.12.1 (§"Amendment of 2026-10-22: Node
+   26.12.1").
 4. **pnpm in the images.** Each build stage installs pnpm 12.6.0 from its immutable GitHub release,
    checked against the sha256 GitHub records for the asset of the image's architecture, downloaded
    with node's own `fetch` (`docs/deployment/base-images.md` §"pnpm in the build stage").
@@ -90,6 +95,7 @@ package state on 2026-10-28.
   resolves for `"26"`, so CI, local work and the build stage run the same release, and the floor
   admits nothing older. It also carries nodejs/node#66273, released in 26.11.0: the node:test parser
   no longer crashes on child stdout that mimics a V8 frame, the class of DEF-83 in `MASTER_PLAN_ES.md`.
+  Since 2026-10-22 the floor is 26.12.1, the security release CI and both image stages run.
 - **The release asset, not npm.** pnpm 12's npm package is a launcher whose install step places the
   same native executable from its `@pnpm/exe.<platform>` optional dependencies, so both routes run
   one binary. The release route pins it by digest in the Dockerfile; the npm route trusts the
@@ -128,13 +134,15 @@ package state on 2026-10-28.
 - **Operators** need Node 26 and pnpm 12.6.0 wherever they run `pnpm` (migrations, the app role):
   a new Infrastructure row in `docs/deployment/DEPLOYMENT_CHECKLIST.md`.
 - **Build and runtime differ by one minor**: 26.11.1 builds, 26.12.0 runs. The distroless repository
-  has no version tags, and the N-API addons do not depend on the minor.
+  has no version tags, and the N-API addons do not depend on the minor. That held until 2026-10-22,
+  when both stages moved to 26.12.1 (§"Amendment of 2026-10-22: Node 26.12.1").
 - **Production runs a release Prisma does not test** until 2026-10-28. The re-check reads Prisma's
   statement again. Every install under Node 26 prints Prisma's preinstall notice, "Prisma only
   supports Node.js versions 20.19+, 22.12+, 24.0+. Please use a supported Node.js version.", and
   continues: `prisma generate` runs after it (measured on 2026-10-15, exit 0).
 - **`setup-node` follows the 26 line.** When the `actions/node-versions` manifest lists 26.12.0, CI
-  moves to it inside the major; the floor stays 26.11.1 until a change raises it.
+  moves to it inside the major; the floor stays 26.11.1 until a change raises it. The amendment of
+  2026-10-22 raised it to 26.12.1, the release CI had installed since 2026-10-21.
 - **Two watchlist reviews** for `@types/node` 26.6.5: 2026-10-16, at its maturity, and 2026-10-23, entered by the follow-up commit once this change has its sha and PR number, the convention of every entry in that file.
 - **The build stage is pinned by digest**, so Dependabot now tracks both `FROM` lines of each
   Dockerfile.
@@ -205,6 +213,79 @@ vitest.stories.config.ts`, which appends to the caller's `NODE_OPTIONS` and keep
   `MASTER_PLAN_ES.md`; the `tailwindcss` row of `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, and the
   `@tailwindcss/node` consumer named in the canon row `source-map-js`.
 
+## Amendment of 2026-10-22: Node 26.12.1
+
+The owner, 2026-10-22: take Node 26.12.1, the security release of 2026-10-21, now, in both stages of
+the four images and as the `engines.node` floor. It is the case "A 26.x security release" of
+§"Revisit if", and a deviation inside the 7-day buffer, as ADR-0036 takes every security floor:
+26.12.1 was published on 2026-10-21 and matures on 2026-10-28, the day of Node 26's LTS promotion
+and of this ADR's re-check.
+
+**What 26.12.1 fixes on the 26.x line** (the Node.js security releases of 2026-10-21: 26.12.1,
+24.22.1 and 22.23.4; the highest severity on 26.x is High):
+
+| CVE                              | Severity     | Subsystem                                                                                          | Reach in this repository                                                                                                                                                                                                                                               |
+| -------------------------------- | ------------ | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CVE-2026-111497                  | High         | Brotli decoder out-of-bounds write                                                                 | The global `fetch` (bundled undici) decodes a `content-encoding: br` response body, so every outbound fetch whose body is read; some targets are tenant-chosen (`apps/api/src/video/uploadPipeline.ts:692`, `fetch(webhook.url, …)`). No direct `node:zlib` Brotli use |
+| CVE-2026-106069, CVE-2026-106072 | High, Medium | TLS hostname check: non-canonical IP addresses; a DNS SAN authenticating an IP endpoint            | Every outbound TLS connection (provider APIs, webhooks, CRM adapters); no `checkServerIdentity` or `servername` override in the tree                                                                                                                                   |
+| CVE-2026-105483                  | High         | TLS normalization of IP addresses written in fullwidth digits                                      | The same surface                                                                                                                                                                                                                                                       |
+| CVE-2026-105482                  | High         | `dns.resolve` truncates a name at NUL                                                              | No `node:dns` import in `apps/`, `packages/` or `infra/`; dependencies not measured                                                                                                                                                                                    |
+| CVE-2026-105481                  | Medium       | The `http` keep-alive agent processes a response written before the request                        | Outbound `http.Agent` users (axios in `providers/tiktok`, gaxios, the SDKs)                                                                                                                                                                                            |
+| CVE-2026-106074                  | Medium       | `crypto.randomUUID()` and `randomInt()` caches saved into startup snapshots and single executables | Not reachable: no snapshot or single-executable build                                                                                                                                                                                                                  |
+| CVE-2026-106070                  | Low          | zlib `ZipFile`                                                                                     | Not reachable: not used                                                                                                                                                                                                                                                |
+| CVE-2026-106071, CVE-2026-106073 | Low          | The permission model (wildcard radix, `realpathSync`)                                              | Not reachable: no `--permission`                                                                                                                                                                                                                                       |
+
+The release also moves the bundled undici from 8.11.2 to 8.12.2, c-ares to 1.34.9 and the root
+certificates to NSS 3.131.1, rejects certificate chains that contain a blocked public key, and
+reverts a change that shipped in 26.12.0 only: with it, `require(esm)` inside a module that
+`module.register()` loads fails with `ERR_INTERNAL_ASSERTION` (nodejs/node#66767, reverted by
+nodejs/node#66786). The upstream reproduction exits 1 on `746f728c` (v26.12.0) and prints `ok` on
+`456bd22a` (v26.12.1); the one hook this repository registers in production, Sentry's
+`import-in-the-middle` hook (with a DSN), did not trigger it in a reproduction on either digest.
+
+**What moved.**
+
+| Site                                | Before                                                            | After                                                                                                                                                                    |
+| ----------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Build stage of the four Dockerfiles | `node:26.11.1-bookworm-slim@sha256:86f07bc9…`                     | `node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe`                                                                     |
+| Production stage                    | `gcr.io/distroless/nodejs26-debian13@sha256:746f728c…` (v26.12.0) | `gcr.io/distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7` (v26.12.1; the `latest` index, uploaded 2026-10-21T16:39Z) |
+| `engines.node`, 101 manifests       | `>=26.11.1 <27`                                                   | `>=26.12.1 <27`                                                                                                                                                          |
+
+`.nvmrc` stays `26`. `@types/node` stays 26.6.5, the newest 26.x types, which do not track the Node
+minor. No workflow changes: `setup-node` reads `.nvmrc`, and every job of CI and Production CI/CD on
+`487be6b5` already installed 26.12.1, which `actions/node-versions` listed from 2026-10-21T14:44Z.
+The lockfile does not move.
+
+**Measured on 2026-10-22.**
+
+- At 15:09:30Z the `latest` index of `gcr.io/distroless/nodejs26-debian13` and the tag
+  `node:26.12.1-bookworm-slim` resolved to the two digests above, and both images ran v26.12.1.
+  Google uploaded three root indexes in the two days before, so the re-check of 2026-10-28 reads
+  it again.
+- Trivy 0.76.1 (database of 2026-10-22T13:15Z) with the gate's flags finds 0 HIGH or CRITICAL
+  vulnerabilities in `456bd22a`, as in `746f728c` (debian 13.7). `ca-certificates` moved to
+  20250419+deb13u1 (DSA-6572-1); `libssl3t64` 3.5.7-1~deb13u3 and `libc6` 2.41-12+deb13u4 did not.
+  The build stage keeps glibc 2.36-9+deb12u14 and npm 11.20.0.
+- The four images build with `podman` from this change; each runs `/nodejs/bin/node` v26.12.1 as
+  `nonroot`; argon2 round-trips in the API image; the API and workers `CMD` entries resolve their
+  module graph and stop at the environment validation; both portal images answer 200 on
+  `/api/health` and `/` and pass `podman healthcheck run`; and Trivy, with the gate's flags, finds
+  no HIGH or CRITICAL vulnerability in any of them.
+- Build and runtime both run 26.12.1, so the Consequence "Build and runtime differ by one minor" no
+  longer holds (SB-237 in `docs/reports/review-suggestions-book.md`).
+- The engines gate reads 101 manifests at `>=26.12.1 <27`, runtime 26 and `@types/node` 26.6.5;
+  `pnpm install --frozen-lockfile --offline` exits 0 under Node 26.11.1, below the new floor, with
+  no warning and no lockfile change, as Context item 5 measured for Node 24; `pnpm check:legal`,
+  `pnpm check:support`, the holds gate (52 packages, 0 undocumented) and the watchlist check pass.
+
+**What no gate saw.** Trivy reports an image's Debian packages and its `node_modules` manifests,
+never the `node` executable, so the `Container Security` gate stayed green from 2026-10-21 over
+images that ran v26.12.0 (SMELL-207 in `docs/reports/roadmap-detected-smells-backlog.md`).
+
+**The re-check.** The watchlist's date entry `contract-0.16-node-26`, still due 2026-10-28,
+carries a dated reference to this amendment: that review also confirms that 26.12.1 is mature,
+that no newer 26.x security release is out, and that CI and both image stages run it.
+
 ## Legal impact
 
 None: the runtime version changes. No personal data, cookie or storage key, OAuth scope, recipient,
@@ -224,13 +305,19 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
   `docs/deployment/base-images.md` (§"Moved to Node 26 on 2026-10-15", §"pnpm in the build stage").
   The `Container Security` job builds, runs and scans the new images on every pull request; no
   repository variable or secret, runtime variable or external account changes.
+- The amendment of 2026-10-22:
+  `docs/deployment/DEPLOYMENT_CHECKLIST.md — updated: Node.js 26 and pnpm 12.6.0` (operators need
+  v26.12.1 or a later 26.x; `engines.node` `>=26.12.1 <27`); both stages of the four Dockerfiles,
+  recorded in `docs/deployment/base-images.md` (§"Moved to Node 26.12.1 on 2026-10-22"). No
+  repository variable or secret, runtime variable or external account changes.
 
 ## Revisit if
 
 - **2026-10-28**, the watchlist's date entry: confirm Node 26's promotion to Active LTS; re-read the
   `gcr.io/distroless/nodejs26-debian13` `latest` index digest and its `var/lib/dpkg/status.d`
-  against `746f728c`; re-measure the build stage's 26.x, the `setup-node` resolution, the
-  `engines.node` floor and `@types/node`; read Prisma's support statement.
+  against `456bd22a` (the pin since 2026-10-22; `746f728c` before); re-measure the build stage's
+  26.x, the `setup-node` resolution, the `engines.node` floor and `@types/node`; read Prisma's
+  support statement.
 - A 26.x security release: a floor, taken immediately (ADR-0036), in the build stage, the distroless
   digest and, when CI must not resolve below it, the `engines.node` floor.
 - Prisma, or a production dependency, states Node 26 unsupported, or fails on it.
@@ -262,7 +349,12 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
 - pnpm: [release v12.6.0](https://github.com/pnpm/pnpm/releases/tag/v12.6.0), immutable, asset
   digests `3f4c66f6…` (`pnpm-linux-x64.tar.gz`) and `973af2b3…` (`pnpm-linux-arm64.tar.gz`)
 - Images: `docker.io/library/node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567`;
-  `gcr.io/distroless/nodejs26-debian13@sha256:746f728c8b61c9beb5d0350f054b4049c4cef0ae71d5b3f8f33bc57904bbc37e`
+  `gcr.io/distroless/nodejs26-debian13@sha256:746f728c8b61c9beb5d0350f054b4049c4cef0ae71d5b3f8f33bc57904bbc37e`;
+  since 2026-10-22, `docker.io/library/node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe`
+  and `gcr.io/distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7`
+- Node.js 26.12.1: [release notes](https://nodejs.org/en/blog/release/v26.12.1);
+  [security releases of 2026-10-21](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases);
+  nodejs/node#66767 and its revert, nodejs/node#66786
 - Map: the surface map of the dependency catch-up, explorer N0, 2026-10-15; this change is its unit
   N2
 - Docs: [base-images.md](../deployment/base-images.md); [DEPLOYMENT_CHECKLIST.md](../deployment/DEPLOYMENT_CHECKLIST.md);
@@ -273,4 +365,4 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
 - Upstream: Tailwind CSS 4.3.1 changelog, "Remove deprecation warnings by using
   `Module#registerHooks` instead of `Module#register` on Node 26+"; Node.js CLI,
   [`--no-experimental-webstorage`](https://nodejs.org/docs/latest-v26.x/api/cli.html)
-- Branch: `workstream/node-26`
+- Branch: `workstream/node-26`; the amendment of 2026-10-22, `workstream/runtime-node-26-12-1`
