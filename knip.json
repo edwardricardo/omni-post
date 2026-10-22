@@ -24,9 +24,7 @@
       "ignore": ["performance/**", "security/**", "scripts/migrations/**", "scripts/depscan.mjs"],
       "ignoreBinaries": ["du"],
       "ignoreDependencies": [
-        "@types/react-dom",
         "react",
-        "react-dom",
         "@secretlint/secretlint-rule-preset-recommend",
         "msw",
         "@t3-oss/env-core",

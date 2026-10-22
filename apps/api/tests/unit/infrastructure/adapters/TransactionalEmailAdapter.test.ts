@@ -14,6 +14,15 @@ import { TransactionalEmailAdapter } from "../../../../src/infrastructure/adapte
 
 const CLIENT_URL = "https://app.test";
 
+/** The targets of every link of an email, with the character references a mail client decodes. */
+function linkTargets(html: string): string[] {
+  return [...html.matchAll(/href="([^"]*)"/g)].map((match) =>
+    (match[1] ?? "")
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+      .replaceAll("&amp;", "&")
+  );
+}
+
 function makeEmailPort() {
   return { send: vi.fn().mockResolvedValue(ok(undefined)) };
 }
@@ -72,7 +81,9 @@ describe("TransactionalEmailAdapter", () => {
     expect(emailPort.send).toHaveBeenCalledOnce();
     const call = emailPort.send.mock.calls[0]?.[0];
     assert.deepStrictEqual(call?.to, ["invitee@test.com"]);
-    assert.ok((call?.html ?? "").includes("https://app.test/accept-invitation?token=tok"));
+    assert.deepStrictEqual(linkTargets(call?.html ?? ""), [
+      "https://app.test/accept-invitation?token=tok",
+    ]);
   });
 
   it("renders APPROVAL_REQUESTED notification with the review link", async () => {
@@ -163,5 +174,43 @@ describe("TransactionalEmailAdapter", () => {
     const call = emailPort.send.mock.calls[0]?.[0];
     assert.strictEqual(call?.subject, "A title");
     assert.ok((call?.html ?? "").includes("Some body"));
+  });
+
+  it("escapes the body of an unmapped notification instead of sending it as markup", async () => {
+    await adapter.sendNotification({
+      recipientId: "m-1",
+      recipientEmail: "user@test.com",
+      type: "COMMENT_ADDED" as never,
+      title: "A title",
+      body: '<a href="https://evil.test">click</a>',
+      accountName: "Acme Corp",
+    });
+
+    const call = emailPort.send.mock.calls[0]?.[0];
+    assert.strictEqual(
+      call?.html,
+      "<p>&lt;a href&#x3D;&quot;https://evil.test&quot;&gt;click&lt;/a&gt;</p>"
+    );
+    assert.strictEqual(
+      call?.body,
+      '<a href="https://evil.test">click</a>',
+      "the text part is not HTML"
+    );
+  });
+
+  it.each([
+    ["a javascript: link", "javascript:alert(1)"],
+    ["a data: link", "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg=="],
+    ["a relative link", "/accept-invitation?token=tok"],
+  ])("refuses to send an email whose call to action is %s", async (_label, acceptUrl) => {
+    const result = await adapter.sendTeamInvitation("invitee@test.com", {
+      inviterName: "An admin",
+      accountName: "acc-1",
+      role: "EDITOR",
+      acceptUrl,
+    });
+
+    assert.strictEqual(result.ok, false, "the adapter reports the refusal as a Result error");
+    expect(emailPort.send).not.toHaveBeenCalled();
   });
 });

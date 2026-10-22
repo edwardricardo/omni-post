@@ -3,7 +3,7 @@
  * @description Infrastructure adapter implementing the transactional-email role
  *              ports (referral reward, welcome, team invitation, notification,
  *              deleted-account notice).
- *              Renders the @react-email templates, builds the plain-text body,
+ *              Renders the Handlebars email templates, builds the plain-text body,
  *              and sends via the EmailPort. For notification emails it maps the
  *              notification type to a template and builds links from the
  *              configured client URL. Application use cases depend on the role
@@ -37,8 +37,10 @@ import {
   welcomeEmail,
   teamInvitationEmail,
   deletedAccountNoticeEmail,
+  referralRewardEmail,
+  plainNotificationEmail,
+  type RenderedEmail,
 } from "../email/templates/emailTemplates.js";
-import { referralRewardEmail } from "../email/templates/referralRewardEmail.js";
 
 /**
  * @class TransactionalEmailAdapter
@@ -62,19 +64,17 @@ export class TransactionalEmailAdapter
    * @description Renders and sends the referral-reward email.
    * @param to - The referrer's address.
    * @param data - The reward the email describes.
-   * @returns Ok, or the transport's failure.
+   * @returns Ok, the reason the email was refused, or the transport's failure.
    */
   async sendReferralReward(
     to: string,
     data: ReferralRewardEmailData
   ): Promise<Result<void, Error>> {
-    const { subject, html } = await referralRewardEmail(data);
-    return this.emailPort.send({
-      to: [to],
-      subject,
-      body: `You earned ${data.rewardDays} free days from your referral of ${data.referredCompanyName}.`,
-      html,
-    });
+    return this.deliver(
+      to,
+      await referralRewardEmail(data),
+      `You earned ${data.rewardDays} free days from your referral of ${data.referredCompanyName}.`
+    );
   }
 
   /**
@@ -82,16 +82,14 @@ export class TransactionalEmailAdapter
    * @description Renders and sends the welcome email.
    * @param to - The new customer's address.
    * @param data - The account name and the links the email points at.
-   * @returns Ok, or the transport's failure.
+   * @returns Ok, the reason the email was refused, or the transport's failure.
    */
   async sendWelcome(to: string, data: WelcomeEmailData): Promise<Result<void, Error>> {
-    const { subject, html } = await welcomeEmail(data);
-    return this.emailPort.send({
-      to: [to],
-      subject,
-      body: `Welcome to OmniPost! Get started at ${data.onboardingUrl}`,
-      html,
-    });
+    return this.deliver(
+      to,
+      await welcomeEmail(data),
+      `Welcome to OmniPost! Get started at ${data.onboardingUrl}`
+    );
   }
 
   /**
@@ -99,30 +97,27 @@ export class TransactionalEmailAdapter
    * @description Renders and sends the team-invitation email.
    * @param to - The invitee's address.
    * @param data - The inviter, account, role and accept link.
-   * @returns Ok, or the transport's failure.
+   * @returns Ok, the reason the email was refused, or the transport's failure.
    */
   async sendTeamInvitation(
     to: string,
     data: TeamInvitationEmailData
   ): Promise<Result<void, Error>> {
-    const { subject, html } = await teamInvitationEmail(data);
-    return this.emailPort.send({
-      to: [to],
-      subject,
-      body: `You've been invited to join a team on OmniPost. Visit ${data.acceptUrl}`,
-      html,
-    });
+    return this.deliver(
+      to,
+      await teamInvitationEmail(data),
+      `You've been invited to join a team on OmniPost. Visit ${data.acceptUrl}`
+    );
   }
 
   /**
    * @method sendNotification
    * @description Maps a notification to its template, renders it and sends it.
    * @param ctx - The notification and its recipient.
-   * @returns Ok, or the transport's failure.
+   * @returns Ok, the reason the email was refused, or the transport's failure.
    */
   async sendNotification(ctx: EmailNotificationContext): Promise<Result<void, Error>> {
-    const { subject, html } = await this.renderNotification(ctx);
-    return this.emailPort.send({ to: [ctx.recipientEmail], subject, body: ctx.body, html });
+    return this.deliver(ctx.recipientEmail, await this.renderNotification(ctx), ctx.body);
   }
 
   /**
@@ -132,21 +127,33 @@ export class TransactionalEmailAdapter
    *   complete the deletion.
    * @param to - The address that belongs to the deleted account or deleted user.
    * @param data - The support address the notice names.
-   * @returns Ok, or the transport's failure.
+   * @returns Ok, the reason the email was refused, or the transport's failure.
    */
   async notifyRegistrationAttemptOnDeletedAccount(
     to: string,
     data: DeletedAccountNoticeData
   ): Promise<Result<void, Error>> {
-    const { subject, html, text } = await deletedAccountNoticeEmail({
-      supportEmail: data.supportEmail,
-    });
-    return this.emailPort.send({ to: [to], subject, body: text, html });
+    const rendered = await deletedAccountNoticeEmail({ supportEmail: data.supportEmail });
+    return this.deliver(to, rendered, rendered.ok ? rendered.value.text : "");
+  }
+
+  /**
+   * Sends a rendered email, or returns the reason it was refused without sending anything: an
+   * email the templates refuse never reaches the transport.
+   */
+  private async deliver(
+    to: string,
+    rendered: Result<RenderedEmail, Error>,
+    body: string
+  ): Promise<Result<void, Error>> {
+    if (!rendered.ok) return rendered;
+    const { subject, html } = rendered.value;
+    return this.emailPort.send({ to: [to], subject, body, html });
   }
 
   private async renderNotification(
     ctx: EmailNotificationContext
-  ): Promise<{ subject: string; html: string }> {
+  ): Promise<Result<RenderedEmail, Error>> {
     const meta = (ctx.metadata ?? {}) as Record<string, string>;
 
     switch (ctx.type) {
@@ -189,7 +196,7 @@ export class TransactionalEmailAdapter
         });
 
       default:
-        return { subject: ctx.title, html: `<p>${ctx.body}</p>` };
+        return plainNotificationEmail({ title: ctx.title, body: ctx.body });
     }
   }
 }

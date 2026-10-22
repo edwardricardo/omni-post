@@ -132,11 +132,11 @@ The domain layer imports nothing external — no Prisma, no Fastify, no Redis. A
 
 ### Email
 
-| Package                 | Version | Purpose                                 |
-| ----------------------- | ------- | --------------------------------------- |
-| @react-email/components | 1.0.10  | Email template components (React-based) |
-| @react-email/render     | 2.0.4   | Server-side HTML rendering              |
-| (Resend via REST)       | —       | Email delivery (native fetch, no SDK)   |
+| Package           | Version | Purpose                               |
+| ----------------- | ------- | ------------------------------------- |
+| (Resend via REST) | —       | Email delivery (native fetch, no SDK) |
+
+Transactional email bodies are Handlebars templates rendered by `EmailTemplateEngine`, a subclass of the `BaseTemplateEngine` in `packages/shared` (handlebars 4.7.10), so email rendering adds no dependency of its own.
 
 ### Payment
 
