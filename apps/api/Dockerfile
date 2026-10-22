@@ -12,7 +12,7 @@
 # docs/deployment/image-build-model.md and is not restated in either.
 # ==============================================================================
 
-FROM node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567 AS base
+FROM node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe AS base
 # Node 26 ships no corepack, so pnpm comes from its immutable v12.6.0 GitHub
 # release, checked against the sha256 GitHub records for the asset; the slim
 # image has no curl, so node's own fetch downloads it, three attempts 5 s then
@@ -111,7 +111,7 @@ WORKDIR /app
 # updates an ALREADY-pinned digest and does not add one to a bare reference.
 # The measurements, the glibc-direction reading and what the CI smoke proves:
 # docs/deployment/base-images.md
-FROM gcr.io/distroless/nodejs26-debian13@sha256:746f728c8b61c9beb5d0350f054b4049c4cef0ae71d5b3f8f33bc57904bbc37e AS production
+FROM gcr.io/distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7 AS production
 WORKDIR /app
 
 # ONE copy. The deploy tree is already the whole runtime: `dist`, its own
