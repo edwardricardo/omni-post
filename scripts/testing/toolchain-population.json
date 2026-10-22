@@ -173,6 +173,11 @@
       "name": "size-limit",
       "members": ["size-limit", "@size-limit/preset-small-lib"],
       "note": "The preset is size-limit's plugin bundle, published at the same version minutes apart (14.2.0 on 2026-10-07), and the two root literals move together; declaring the family turns that convention into a check (review-suggestions-book SB-212)."
+    },
+    {
+      "name": "typescript-eslint",
+      "members": ["@typescript-eslint/parser", "@typescript-eslint/eslint-plugin"],
+      "note": "The parser and the plugin are published together from one repository at one version, the plugin peers the parser at its own version (^8.71.2 at 8.71.2, read from the registry), and ADR-0018 keeps the parser in the catalog (two manifests) while the plugin stays a root literal (one manifest), so their lockstep was a convention the hold rows describe; declaring the family turns it into a check (review p12, R3-catalog-literal-drift, 2026-10-21)."
     }
   ]
 }

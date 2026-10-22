@@ -13,7 +13,7 @@
 | Tool       | Version | Purpose                                   |
 | ---------- | ------- | ----------------------------------------- |
 | pnpm       | 12.6.0  | Package manager with workspace support    |
-| Turbo      | 2.11.7  | Monorepo build orchestration with caching |
+| Turbo      | 2.11.8  | Monorepo build orchestration with caching |
 | Node.js    | 26      | Runtime (LTS from 2026-10-28; ADR-0038)   |
 | TypeScript | 6.0.3   | Language — strict mode throughout         |
 
@@ -318,7 +318,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @testing-library/dom      | 10.4.2  | DOM utilities                        |
 | @testing-library/jest-dom | 7.0.1   | Custom matchers                      |
 | jsdom                     | 30.1.2  | Browser environment simulation       |
-| @playwright/test          | 1.64.0  | E2E testing                          |
+| @playwright/test          | 1.64.1  | E2E testing                          |
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
 | fast-check                | 4.10.2  | Property-based testing               |
 | yaml                      | 2.9.1   | Workflow parsing in the reach engine |
@@ -359,18 +359,18 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 
 ## Code Quality
 
-| Tool                             | Version | Purpose                                                                                                       |
-| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
-| eslint                           | 9.39.5  | Static analysis (flat config, v9)                                                                             |
-| eslint-plugin-jsdoc              | 65.2.4  | JSDoc rules for the touched-files gate (`pnpm check:jsdoc`)                                                   |
-| @typescript-eslint/parser        | 8.71.1  | TypeScript parser for ESLint; 8.71.1 taken a day before maturity on Edward's instruction (maturity watchlist) |
-| @typescript-eslint/eslint-plugin | 8.71.1  | TypeScript lint rules; moves with the parser, taken early with it (same watchlist entry)                      |
-| prettier                         | 3.9.10  | Code formatting                                                                                               |
-| husky                            | 9.1.7   | Git hooks                                                                                                     |
-| lint-staged                      | 17.6.0  | Pre-commit staged file linting                                                                                |
-| knip                             | 6.41.0  | Dead code detection                                                                                           |
-| dependency-cruiser               | 18.5.0  | Architecture rules and circular dependency detection                                                          |
-| jscpd                            | 5.4.1   | Copy-paste detection                                                                                          |
+| Tool                             | Version | Purpose                                                     |
+| -------------------------------- | ------- | ----------------------------------------------------------- |
+| eslint                           | 9.39.5  | Static analysis (flat config, v9)                           |
+| eslint-plugin-jsdoc              | 65.3.4  | JSDoc rules for the touched-files gate (`pnpm check:jsdoc`) |
+| @typescript-eslint/parser        | 8.71.2  | TypeScript parser for ESLint                                |
+| @typescript-eslint/eslint-plugin | 8.71.2  | TypeScript lint rules; moves with the parser as one pair    |
+| prettier                         | 3.9.10  | Code formatting                                             |
+| husky                            | 9.1.7   | Git hooks                                                   |
+| lint-staged                      | 17.6.0  | Pre-commit staged file linting                              |
+| knip                             | 6.41.0  | Dead code detection                                         |
+| dependency-cruiser               | 18.6.0  | Architecture rules and circular dependency detection        |
+| jscpd                            | 5.4.1   | Copy-paste detection                                        |
 
 ### Standards
 

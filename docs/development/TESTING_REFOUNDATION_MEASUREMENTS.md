@@ -14,14 +14,14 @@ inside a family pull request, and one of them is larger than the plan recorded: 
 implementation's major is blocked by a _blanket_ `tough-cookie` override that nobody had connected to
 it.**
 
-The 52 rows below account for themselves: 45 lags (39 unheld + 5 held + 1 ambiguous), 5 packages
+At the baseline (2026-09-27T17:55:14Z) the 52 rows below accounted for themselves: 45 lags (39 unheld + 5 held + 1 ambiguous), 5 packages
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-15T18:47:25Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
-exit 0 with EMPTY stderr: of the 51 packages in `scripts/testing/toolchain-population.json` (50 direct, 1
-named transitive, no declared-absent candidate left), 10 sit below latest mature: 1 within the 30-day
-budget of ADR-0036, 0 past it unheld, 9 held.**
+**CURRENT, re-measured 2026-10-21T22:15:17Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
+exit 0 with EMPTY stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (51 direct, 1
+named transitive, no declared-absent candidate left), 9 sit below latest mature: 1 within the 30-day
+budget of ADR-0036, 0 past it unheld, 8 held.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line, re-measured with
@@ -64,6 +64,13 @@ and what moved it. A slice that moves the count appends its own line, re-measure
 35. `2026-10-15T15:54:20Z` — **10** (1 within budget, 9 held, 0 undocumented): `vite` 8.3.3 → 8.3.4 with `postcss` 8.5.29; under the 72-hour rule `eslint-plugin-jsdoc` 65.2.4, `jscpd` 5.4.1 and `prettier` 3.9.10, a CVE floor for GHSA-4cm8-f57v-mqm6.
 36. `2026-10-15T16:32:47Z` — **10** (1 within budget, 9 held, 0 undocumented): `knip` 6.40.0 → 6.41.0 under the 72-hour rule, with `zod` 4.4.3 → 4.6.5.
 37. `2026-10-15T18:47:25Z` — **10** (1 within budget, 9 held, 0 undocumented): population 50 → 51 with `prisma`; the Prisma family 7.9.1 → 7.10.0, held to one version by the new family check.
+38. `2026-10-21T22:00:01Z` — **18** (9 within budget, 9 held, 0 undocumented): no population package moved: the `dompurify` CVE floor 3.4.16 → 3.4.17 is outside it. Since entry 37 the population went 51 → 52 with `fast-check`, the Storybook family went 10.6.1 → 10.6.3, and eight newer releases matured inside the budget, each taken by a later move of this unit: `@playwright/test` and `playwright` 1.64.1, `@testing-library/user-event` 14.6.8, the `@typescript-eslint` pair 8.71.2, `dependency-cruiser` 18.6.0, `eslint-plugin-jsdoc` 65.3.4 and `turbo` 2.11.8.
+39. `2026-10-21T22:02:13Z` — **16** (7 within budget, 9 held, 0 undocumented): the `@typescript-eslint` pair 8.71.1 → 8.71.2, two lags matured at once (parser and plugin).
+40. `2026-10-21T22:04:31Z` — **15** (6 within budget, 9 held, 0 undocumented): `eslint-plugin-jsdoc` 65.2.4 → 65.3.4.
+41. `2026-10-21T22:07:10Z` — **14** (5 within budget, 9 held, 0 undocumented): `dependency-cruiser` 18.5.0 → 18.6.0.
+42. `2026-10-21T22:10:38Z` — **11** (2 within budget, 9 held, 0 undocumented): `@playwright/test` and `playwright` 1.64.0 → 1.64.1, `@testing-library/user-event` 14.6.7 → 14.6.8.
+43. `2026-10-21T22:13:23Z` — **10** (1 within budget, 9 held, 0 undocumented): `turbo` 2.11.7 → 2.11.8.
+44. `2026-10-21T22:15:17Z` — **9** (1 within budget, 8 held, 0 undocumented): `@vitejs/plugin-react` 5.1.4 → 6.1.2, and its hold row left; `msw` is the one lag within budget.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
