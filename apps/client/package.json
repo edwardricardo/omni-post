@@ -36,7 +36,6 @@
     "@core/bulk-scheduling": "workspace:*",
     "@git-diff-view/file": "0.1.4",
     "@git-diff-view/react": "0.1.4",
-    "@monaco-editor/react": "4.6.0",
     "@observability/browser-logger": "workspace:*",
     "@observability/sentry-next": "workspace:*",
     "@packages/api-errors": "workspace:*",

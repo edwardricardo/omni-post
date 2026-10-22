@@ -16,7 +16,7 @@ The Enhanced Template System provides a comprehensive solution for creating, man
 
 ### 📝 Template Editor
 
-- **Monaco Editor**: Professional code editor with syntax highlighting
+- **Editor Modes**: A basic textarea and a rich-text (TipTap) editor
 - **Live Preview**: Real-time template compilation and preview
 - **Variable Auto-completion**: Intelligent variable suggestions
 - **Syntax Validation**: Real-time error detection and validation
@@ -547,7 +547,7 @@ import { TemplateLibrary, TemplateEditor, ABTestManager } from "@/components/tem
 ### Phase 1: Core Features ✅
 
 - [x] Handlebars template engine
-- [x] Template editor with Monaco
+- [x] Template editor (textarea and TipTap modes)
 - [x] Variable auto-completion
 - [x] Basic A/B testing
 - [x] Version control

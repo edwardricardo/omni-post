@@ -165,15 +165,6 @@
       "productionPath": "yes",
       "note": "The Admin `reset-password` page renders the widget; the API verifies its token (`fetch:cloudflare-turnstile`)."
     },
-    "@monaco-editor/react": {
-      "status": "service",
-      "vendor": "jsDelivr (public CDN)",
-      "purpose": "Loads the Monaco code editor for the client portal's template editor",
-      "envToggle": "always, when a user opens the template editor in code mode",
-      "dataSent": "the browser's requests for the editor files: the visitor's IP address and request headers",
-      "productionPath": "yes",
-      "note": "`TemplateEditorCanvas` loads the editor through `next/dynamic`; no `loader.config` replaces the loader's default path on `cdn.jsdelivr.net`."
-    },
     "@node-saml/node-saml": {
       "status": "service",
       "vendor": "The SAML identity provider an account configures",

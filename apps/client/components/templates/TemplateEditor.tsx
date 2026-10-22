@@ -30,6 +30,10 @@ import { TemplateEditorToolbar } from "./TemplateEditorToolbar";
 import { TemplateEditorSidebar } from "./TemplateEditorSidebar";
 import { TemplateEditorCanvas } from "./TemplateEditorCanvas";
 
+/**
+ * Edits a Handlebars template: holds the form data, the editor mode and the preview
+ * context, compiles the preview, validates the syntax and saves through `onSave`.
+ */
 export function TemplateEditor({
   template,
   onSave,
@@ -123,15 +127,6 @@ export function TemplateEditor({
       setFormData((prev) => ({ ...prev, content: processedContent }));
     },
     [convertHtmlToPlainText]
-  );
-
-  const handleMonacoContentChange = useCallback(
-    (value: string | undefined) => {
-      if (value !== undefined) {
-        handleContentChange(value);
-      }
-    },
-    [handleContentChange]
   );
 
   const handleVariableInsert = useCallback(
@@ -303,7 +298,6 @@ export function TemplateEditor({
           previewContext={previewContext}
           documentation={documentation}
           onContentChange={handleContentChange}
-          onMonacoContentChange={handleMonacoContentChange}
           onVariableInsert={handleVariableInsert}
           onPreview={handlePreview}
           onGenerateSampleContext={generateSampleContext}
