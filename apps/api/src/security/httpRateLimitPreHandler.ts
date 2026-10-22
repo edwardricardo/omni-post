@@ -79,9 +79,10 @@ export const EXPENSIVE_ENDPOINT_RULES: readonly HttpRateLimitRule[] = [
  *     add a separate (redundant) rule for it. These
  *     do NOT prefix-match `/auth/login` / `/auth/refresh` under `startsWith`,
  *     so they need their own rules or they fall through to the 100/min default
- *     and client login stays brute-forceable. The route-level
- *     `config.rateLimit` on those Fastify routes is inert (@fastify/rate-limit
- *     is never registered), so this table is the only real cap.
+ *     and client login stays brute-forceable. A route declares no cap of its
+ *     own: this table is the only one, because the limit has to key on the
+ *     trusted client IP of `resolveClientIp` and hold its buckets in the
+ *     shared `RateLimiterPort`, so every pod counts the same requests.
  *  The full-path prefixes replace the historical `/accounts$` rule, whose
  *  literal `$` never prefix-matched a real URL — so the AUTH preset was DEAD.
  *  Each prefix stays scoped to its own endpoint (no cross-shadowing). */

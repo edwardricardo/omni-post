@@ -100,9 +100,11 @@ NODE_ENV=test node --conditions development --import tsx --test --test-force-exi
 # The same suite through the runner, with the services tier's guards
 bash scripts/run-tests.sh tests/auth.integration.test.ts
 
-# The two rate-limit unit suites run in the Vitest collector; naming their paths
-# fails loudly ("No test files found") if either file is renamed or moved
-pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts
+# The rate-limit suites run in the Vitest collector: httpRateLimitPreHandler.test.ts drives
+# the limiter the API registers (rule matching, keying, headers, the 429), and
+# httpRateLimitRuleCoverage.test.ts holds every rule to a registered route. The `test`
+# script is `vitest run`, so the path is a filter that selects both files
+pnpm --filter @apps/api test tests/unit/security/httpRateLimit
 ```
 
 #### Container images
@@ -287,7 +289,9 @@ intent for the SMELL-83 rewrite.
   workflow: `tests/auth.integration.test.ts`, `tests/rbac.integration.test.ts`,
   `tests/security.live.test.ts` and `tests/mfa.integration.test.ts` run in the
   node:test tiers of `apps/api/scripts/run-tests.sh` (the Integration Tests job
-  of `ci.yml`), and the rate-limit suites under `apps/api/tests/unit` run in the
+  of `ci.yml`), and the rate-limit suites,
+  `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts` and
+  `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts`, run in the
   Vitest shards
 
 #### 2. Container Security (`container-security.yml`)
@@ -420,8 +424,9 @@ NODE_ENV=test node --conditions development --import tsx --test --test-force-exi
 # MFA
 NODE_ENV=test node --conditions development --import tsx --test --test-force-exit tests/mfa.integration.test.ts
 
-# Rate limiting (the two Vitest unit suites, named by path)
-pnpm --filter @apps/api exec vitest run tests/unit/security/httpRateLimitPreHandler.test.ts tests/unit/authRateLimit.test.ts
+# Rate limiting (httpRateLimitPreHandler.test.ts and httpRateLimitRuleCoverage.test.ts,
+# selected by their shared path prefix)
+pnpm --filter @apps/api test tests/unit/security/httpRateLimit
 ```
 
 ### Debugging Tests

@@ -52,7 +52,6 @@
 | @fastify/helmet               | 13.0.1  | Security headers        |                                                               |
 | @fastify/swagger              | 9.7.0   | OpenAPI spec generation |                                                               |
 | @fastify/websocket            | 11.2.0  | WebSocket support       | SSE notifications                                             |
-| @fastify/rate-limit           | 10.3.0  | Rate limiting           | Per-route configurable                                        |
 | @scalar/fastify-api-reference | 1.49.5  | API documentation UI    | Interactive Scalar docs                                       |
 
 ### Architecture

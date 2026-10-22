@@ -84,10 +84,6 @@
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
     },
-    "@fastify/rate-limit": {
-      "status": "library",
-      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
-    },
     "@fastify/swagger": {
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."

@@ -608,18 +608,15 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     "/auth/customer/register",
     {
       schema: { tags: ["Customer Auth"], summary: "Register new customer account" },
-      config: { rateLimit: { max: 10, timeWindow: "1 hour" } },
     },
     async (request, reply) => {
       await handler.register(request, reply);
     }
   );
 
-  // POST /auth/customer/login — public. The real brute-force cap (AUTH preset,
-  // 5 / 15 min) is enforced by the global httpRateLimit preHandler via the
-  // `/auth/customer/login` rule in STANDARD_ROUTE_RULES. The route-level
-  // `config.rateLimit` was inert (@fastify/rate-limit is never registered in
-  // apps/api/src), so it is removed here to avoid overstating protection.
+  // POST /auth/customer/login — public. Its brute-force cap (AUTH preset,
+  // 5 / 15 min) is the `/auth/customer/login` rule of STANDARD_ROUTE_RULES, which
+  // the global httpRateLimit preHandler enforces.
   fastify.post(
     "/auth/customer/login",
     {
@@ -660,7 +657,6 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     "/auth/customer/refresh",
     {
       schema: { tags: ["Customer Auth"], summary: "Refresh customer tokens" },
-      config: { rateLimit: { max: 20, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await handler.refresh(request, reply);
@@ -675,7 +671,6 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
         tags: ["Customer Auth"],
         summary: "Request customer password reset",
       },
-      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await handler.requestPasswordReset(request, reply);
@@ -687,7 +682,6 @@ const customerAuthRoutes: FastifyPluginAsync = async (fastify) => {
     "/auth/customer/reset-password",
     {
       schema: { tags: ["Customer Auth"], summary: "Reset customer password" },
-      config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
     },
     async (request, reply) => {
       await handler.resetPassword(request, reply);
