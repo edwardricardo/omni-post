@@ -1,6 +1,6 @@
 import path from "node:path";
 import createNextIntlPlugin from "next-intl/plugin";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 

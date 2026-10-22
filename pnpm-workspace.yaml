@@ -118,10 +118,13 @@ catalog:
 
   # ── Shared direct deps (T1.11 completion — declared in ≥2 manifests; reconcile-UP, structure-only) ──
   # @sentry/node has one declaring manifest (apps/api) since 2026-10-16 but stays here, beside
-  # @sentry/nextjs, so the Sentry SDK family moves as one; both are held at 10.48.0
-  # (SECURITY_CANON.md §"Blocked floors").
-  "@sentry/node": 10.48.0
-  "@sentry/nextjs": 10.48.0
+  # @sentry/nextjs, so the Sentry SDK family moves as one. CVE floor 10.75.2, the 10.x fix of
+  # GHSA-mchm-gjx6-7h55 (@sentry/nextjs, middleware bypass through the tunnel route); 10.76.2 is the
+  # latest 10.x and mature. Taken with the API's db.user-stripping beforeSendSpan, because Sentry's
+  # vendored database instrumentations set db.user; 11.x waits as its own unit (SECURITY_CANON.md,
+  # row `@sentry/node` + `@sentry/nextjs`). Was 10.48.0.
+  "@sentry/node": 10.76.2
+  "@sentry/nextjs": 10.76.2
   "@t3-oss/env-core": 0.13.11
   "@t3-oss/env-nextjs": 0.13.11
   argon2: 0.44.0
@@ -219,32 +222,26 @@ catalogs:
 # pins nothing too and leaves with DC-3 and DC-4, which own it (MASTER_PLAN_ES.md).
 # `form-data` and `postcss` left the same day by the owner's decision: each forced one
 # version on a consumer whose own range resolves a patched one (form-data 2.5.6 under
-# @types/request, postcss 8.5.23 under next), so neither held a floor.
+# @types/request, postcss 8.5.23 under next), so neither held a floor. `@opentelemetry/core`
+# left on 2026-10-22 with @sentry/node 10.48.0, whose instrumentation-http 0.214.0 was its one
+# consumer below the 2.8.0 floor (SECURITY_CANON.md, row `@opentelemetry/core`).
 overrides:
   validator: "catalog:"
   uuid: "catalog:"
-  # CVE floor, dual-role (ADR-0018), measured 2026-10-03 (decision D47): without it,
-  # @sentry/node 10.48.0's @opentelemetry/instrumentation-http 0.214.0, which declares core 2.6.1
-  # exactly, resolves 2.6.1, inside GHSA-8988-4f7v-96qf (moderate, unbounded W3C Baggage
-  # allocation, fixed 2.8.0), and `pnpm audit` exits 1. The catalog:otel value 2.8.0 is the
-  # minimal patched version. See SECURITY_CANON §"CVE-floor pins", row `@opentelemetry/core`.
-  "@opentelemetry/core": "catalog:otel"
   # CVE floor added 2026-10-06 for GHSA-qqmp-wf37-98f9 (moderate, CWE-532): these eight
   # instrumentations set the database username as an unconditional `db.user` span attribute. OSV,
   # GitHub's first_patched_version and the upstream repository advisory agree on every target, all
   # published 2026-07-23 with open-telemetry/opentelemetry-js-contrib#3585; each band is the minimal
-  # patched version. Neither consumer reaches them by its own range: @sentry/node 10.48.0 pins six
-  # of them EXACTLY, and @opentelemetry/auto-instrumentations-node 0.77.0 declares 0.x caret ranges
-  # two minors short of all eight. A Sentry bump is not the fix: from 10.54.0 these are no longer
-  # Sentry dependencies, and the copies Sentry vendors instead still set db.user (read in 10.75.3
-  # and 11.4.0), so the advisory would leave the audit while the attribute stayed. The patched
-  # releases emit only stable semantic conventions: Sentry 10.48.0 still marks their spans op `db`,
-  # but describes a query by its span name, since it reads `db.statement` and they write
-  # `db.query.text`. pg 0.73.0 and mongoose 0.67.0 declare @opentelemetry/core ^2.9.0 and run on the
-  # 2.8.0 the override above holds; the five core exports they reach, @opentelemetry/sql-common's
-  # included, exist in 2.8.0. Measured with pg loaded through @prisma/adapter-pg: db.user on 4 of 4
-  # Sentry spans and 4 of 6 SDK spans before, on none after. See SECURITY_CANON §"CVE-floor pins",
-  # row `@opentelemetry/instrumentation-*`.
+  # patched version. Their one consumer, @opentelemetry/auto-instrumentations-node 0.77.0, declares
+  # 0.x caret ranges two minors short of all eight. The bands cover the OpenTelemetry SDK the API
+  # starts under TRACING_ENABLED, never Sentry: from 10.54.0 Sentry vendors its own copies, which
+  # still set db.user (read in 10.76.2), and the API's beforeSendSpan strips the attribute from
+  # Sentry's spans. Until 2026-10-22 @sentry/node 10.48.0 pinned six of the eight EXACTLY and these
+  # bands held them too. The patched releases emit only stable semantic conventions
+  # (`db.query.text`, not `db.statement`); pg 0.73.0 and mongoose 0.67.0 run on @opentelemetry/core
+  # 2.12.0, inside their ^2.9.0. Measured with pg loaded through @prisma/adapter-pg: db.user on
+  # 4 of 4 Sentry spans and 4 of 6 SDK spans before, on none after. See SECURITY_CANON
+  # §"CVE-floor pins", row `@opentelemetry/instrumentation-*`.
   "@opentelemetry/instrumentation-cassandra-driver@<0.66.0": 0.66.0
   "@opentelemetry/instrumentation-knex@<0.65.0": 0.65.0
   "@opentelemetry/instrumentation-mongoose@<0.67.0": 0.67.0

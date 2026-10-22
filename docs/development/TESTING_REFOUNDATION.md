@@ -9,7 +9,7 @@ fitness #37 admits it. WU-2.1 adds the assertion classifier, `classifyFile` in
 `packages/eslint-plugin-testing`, in three stacked slices (row 2.1 🔄; its deviations in D55).
 WU-6.P2 retired `perf:db` and its suite (row 6.P2 🔄 until its siblings are
 adjudicated). N-CI-7, the test kit, is closed (row N-CI-7). Phase 0 is closed, row 0.16 aside (🔄);
-Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1025 + 13` · M5 `28 · 0` · M7 `43/43` · M8 `1/93`. Every
+Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1026 + 13` · M5 `28 · 0` · M7 `43/43` · M8 `1/93`. Every
 unit's line is in [§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
@@ -36,7 +36,7 @@ naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1025 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR rl588 |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1026 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR sntry |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -502,6 +502,7 @@ Newest first; a line with no date or no pull request number is one whose record 
 - Storybook 10.6.0 → 10.6.1 hold bump (`workstream/hold-storybook-10-6-1`) — #447 — the holds rows
 - DEF-49, the Tailwind `@source` fix beneath PR E (`workstream/tailwind-ui-source-fix`) — #444 — M1 `969 + 8` → `971 + 8`
 - 2026-10-05 — item (v) of the replacement plan ([D43](#decisions-log), [D49](#decisions-log)) — #408, #410 to #418 (`main` at `3d295d01`) — `PR v` (#408, `workstream/item-v-cruiser`) dependency-cruiser 18.4.0 over every import, `no-circular` for madge; `PR v-a` (#410, `item-v-docs`) ADR-0032, ADR-0033, §5.12; `PR v-b` (#411, `item-v-rules`) hard layer rules, shrink-only baseline at 138; `PR v-c` (#412, `item-v-boundaries`) `eslint-plugin-boundaries` retired; `PR v-d1` (#413, `item-v-logger-a`) and `PR v-d2` (#414, `item-v-logger-port`) the core's `LoggerPort`; `PR v-e1` to `PR v-e3` (#415 to #417, `item-v-cheap-*`) three routes wired from the composition root, baseline 124; #418 (`item-v-book`) SB-059 to SB-070 and DEF-16 to DEF-26
+- 2026-10-22 — Sentry SDK family 10.48.0 → 10.76.2 with the `db.user`-stripping `beforeSendSpan` (`workstream/sentry-family-floor`, the GHSA-mchm-gjx6-7h55 floor) — `PR sntry` — M1 `1025 + 13` → `1026 + 13` (`apps/api/tests/unit/observability/sentryInit.test.ts`)
 
 ---
 
