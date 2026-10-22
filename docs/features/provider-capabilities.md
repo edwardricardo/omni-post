@@ -149,9 +149,9 @@ Read from each adapter on 2026-10-17: Publish, Schedule, Analytics, Comments, Re
 - **Content types**: Post, with up to 4 images
 - **Threading**: No (`threading: false`, `maxPostsPerThread: 1`)
 - **Comments/Replies**: No (`comments: false`, `replies: false`)
-- **Mentions**: ingested through `searchMentions`; in a post, the facets `detectFacets` finds
+- **Mentions**: ingested through `searchMentions`; in a post, the facets `detectFacets` finds, minus any mention whose handle did not resolve (an empty DID, which the lexicon rejects), dropped before posting as the official app does
 - **Links**: link facets from `detectFacets` (`linkCards: true`); no external card embed is built
-- **Hashtags**: Unknown (decided by `@atproto/api`'s `detectFacets`, not by the package)
+- **Hashtags**: hashtag and cashtag tag facets from `detectFacets` are published (`#omnipost` as tag `omnipost`, `$aapl` as tag `$AAPL`), pinned by `packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts`
 - **Limitations**: No analytics API, no scheduling API, no polls, no stories
 - **Webhook events**: none; there is no webhook processor and no firehose client
 

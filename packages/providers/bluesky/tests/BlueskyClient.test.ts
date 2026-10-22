@@ -17,7 +17,10 @@ const mockPost = vi.fn();
 const mockUploadBlob = vi.fn();
 const mockDetectFacets = vi.fn();
 
-vi.mock("@atproto/api", () => {
+vi.mock("@atproto/api", async () => {
+  // The facet lexicon namespace is pure data validation, so the real one is kept.
+  const actual = await vi.importActual<typeof import("@atproto/api")>("@atproto/api");
+
   class FakeCredentialSession {
     session: Record<string, string> | undefined = undefined;
     constructor(_url: URL) {}
@@ -50,6 +53,7 @@ vi.mock("@atproto/api", () => {
   }
 
   return {
+    AppBskyRichtextFacet: actual.AppBskyRichtextFacet,
     AtpAgent: FakeAtpAgent,
     CredentialSession: FakeCredentialSession,
     RichText: FakeRichText,
@@ -467,7 +471,12 @@ describe("BlueskyClient", () => {
 
     it("detects facets in text when publishing with images", async () => {
       const client = makeClient();
-      const fakeFacets = [{ index: { byteStart: 0, byteEnd: 5 } }];
+      const fakeFacets = [
+        {
+          index: { byteStart: 5, byteEnd: 18 },
+          features: [{ $type: "app.bsky.richtext.facet#link", uri: "https://x.com" }],
+        },
+      ];
       mockDetectFacets.mockResolvedValue({ facets: fakeFacets });
 
       await client.publishWithImages("link https://x.com", [smallBuffer], ["alt"]);

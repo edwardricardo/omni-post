@@ -1,12 +1,13 @@
 /**
  * @file BlueskyClient.ts
- * @description Wrapper around AT Protocol Agent for Bluesky authentication and post publishing.
- * Uses the recommended Agent + CredentialSession pattern (AtpAgent is heading toward deprecation).
- * Handles App Password login, image blob uploads with aspectRatio, and link facet detection.
+ * @description Wrapper around the AT Protocol agent for Bluesky authentication, post publishing
+ * and post search. An App Password logs in through an explicit `CredentialSession`, and an
+ * `AtpAgent` bound to that session sends every call. Handles image blob uploads with aspectRatio
+ * and rich-text facet detection.
  * @layer infrastructure
  */
 
-import { AtpAgent, CredentialSession, RichText } from "@atproto/api";
+import { AppBskyRichtextFacet, AtpAgent, CredentialSession, RichText } from "@atproto/api";
 import { imageSize } from "image-size";
 import { err, ok, type Result } from "@shared/types";
 
@@ -116,21 +117,50 @@ function getImageDimensions(buffer: Uint8Array): { width: number; height: number
 }
 
 /**
+ * Drops every facet that holds a mention whose handle did not resolve. `RichText.detectFacets`
+ * leaves such a mention with an empty `did`, which the app.bsky.richtext.facet lexicon refuses,
+ * so the service would reject the whole post. The Bluesky app drops them the same way before it
+ * posts (`stripInvalidMentions` in bluesky-social/social-app). Every other facet is kept as
+ * detected; the text is not touched, so the remaining byte ranges stay valid.
+ * @param facets - The facets `detectFacets` produced, if any
+ * @returns The facets without unresolved mentions, or undefined when none is left
+ */
+function withoutUnresolvedMentions(
+  facets: AppBskyRichtextFacet.Main[] | undefined
+): AppBskyRichtextFacet.Main[] | undefined {
+  const kept = facets?.filter(
+    (facet) =>
+      !facet.features.some((feature) => AppBskyRichtextFacet.isMention(feature) && !feature.did)
+  );
+  return kept !== undefined && kept.length > 0 ? kept : undefined;
+}
+
+/**
  * @class BlueskyClient
- * @description Low-level AT Protocol client. Each instance represents one authenticated session.
- * Uses Agent + CredentialSession (recommended pattern for @atproto/api v0.13+).
+ * @description Low-level AT Protocol client. Each instance represents one authenticated session:
+ * a `CredentialSession` holds the App Password session, and an `AtpAgent` bound to it sends the
+ * authenticated calls.
  */
 export class BlueskyClient {
-  private session: CredentialSession;
+  private readonly session: CredentialSession;
   /**
-   * AtpAgent wraps Agent + CredentialSession. Using AtpAgent(session) instead of
-   * AtpAgent({ service }) makes the session explicit and ready for future migration
-   * to Agent(session) once the TypeScript structural typing issue in @atproto/api
-   * is resolved upstream.
+   * `AtpAgent` rather than the `new Agent(session)` the @atproto/api README documents: with
+   * `exactOptionalPropertyTypes`, a `CredentialSession` (whose `did` getter returns
+   * `string | undefined`) does not satisfy the `SessionManager` the `Agent` constructor takes
+   * (`readonly did?: string`) and fails with TS2345. The upstream typing gap is
+   * bluesky-social/atproto#3102, open and present through 0.27.0. `AtpAgent` accepts a
+   * `CredentialSession` by type and is the same `Agent` underneath; this field moves to `Agent`
+   * once `SessionManager.did` admits `undefined`.
    */
-  private agent: AtpAgent;
-  private credentials: BlueskyCredentials;
+  private readonly agent: AtpAgent;
+  private readonly credentials: BlueskyCredentials;
 
+  /**
+   * @method constructor
+   * @description Binds a new `AtpAgent` to a `CredentialSession` on the bsky.social service. No
+   *   request is sent until `login()` is called.
+   * @param credentials - The account handle and App Password to log in with
+   */
   constructor(credentials: BlueskyCredentials) {
     this.credentials = credentials;
     this.session = new CredentialSession(BSKY_SERVICE);
@@ -140,6 +170,8 @@ export class BlueskyClient {
   /**
    * @method login
    * @description Authenticates with App Password via CredentialSession and establishes a session.
+   * @returns The session's tokens, DID and handle, or `AUTH` when the service rejects the
+   *   credentials or returns no session
    */
   async login(): Promise<Result<BlueskySession, "AUTH">> {
     try {
@@ -166,8 +198,11 @@ export class BlueskyClient {
 
   /**
    * @method publishText
-   * @description Publishes a plain text post with auto-detected link facets.
-   * Returns the AT-URI and CID of the created record.
+   * @description Publishes a plain text post with the rich-text facets the SDK detects in it:
+   *   links, mentions, hashtags and cashtags.
+   * @param text - The post text, at most 300 characters
+   * @returns The AT-URI and CID of the created record, `VALIDATION` when the text is longer than
+   *   300 characters, or `PUBLISH` when the service refuses the record
    */
   async publishText(text: string): Promise<Result<BlueskyPostResult, "PUBLISH" | "VALIDATION">> {
     if (text.length > 300) {
@@ -177,10 +212,11 @@ export class BlueskyClient {
     try {
       const rt = new RichText({ text });
       await rt.detectFacets(this.agent);
+      const facets = withoutUnresolvedMentions(rt.facets);
 
       const response = await this.agent.post({
         text: rt.text,
-        ...(rt.facets !== undefined && { facets: rt.facets }),
+        ...(facets !== undefined && { facets }),
         createdAt: new Date().toISOString(),
       });
 
@@ -194,7 +230,12 @@ export class BlueskyClient {
    * @method publishWithImages
    * @description Uploads image blobs and publishes a post with an embed.images record.
    * Includes aspectRatio for each image (strongly recommended by Bluesky for correct rendering).
-   * Maximum 4 images per post. Images must be < 1,000,000 bytes each.
+   * Maximum 4 images per post, each at most 1,000,000 bytes.
+   * @param text - The post text, at most 300 characters
+   * @param imageBuffers - The image bytes, one buffer per image
+   * @param altTexts - The alt text of each image, by position; a missing entry is published empty
+   * @returns The AT-URI and CID of the created record, `VALIDATION` when the text, the image count
+   *   or an image size is over its limit, or `PUBLISH` when an upload or the record is refused
    */
   async publishWithImages(
     text: string,
@@ -209,7 +250,9 @@ export class BlueskyClient {
       return err("VALIDATION");
     }
 
-    // Validate image sizes before uploading (1,000,000 bytes limit per Bluesky spec)
+    // At most 1,000,000 bytes per image: the limit of the app.bsky.embed.images lexicon until
+    // @atproto/api 0.19.7 raised it to 2,000,000 (bluesky-social/atproto#4823). The provider keeps
+    // the 1,000,000-byte limit, which the 2,000,000-byte lexicon still accepts.
     for (const buf of imageBuffers) {
       if (buf.byteLength > 1_000_000) {
         return err("VALIDATION");
@@ -219,6 +262,7 @@ export class BlueskyClient {
     try {
       const rt = new RichText({ text });
       await rt.detectFacets(this.agent);
+      const facets = withoutUnresolvedMentions(rt.facets);
 
       const uploadedImages = await Promise.all(
         imageBuffers.map(async (buffer, i) => {
@@ -243,7 +287,7 @@ export class BlueskyClient {
 
       const response = await this.agent.post({
         text: rt.text,
-        ...(rt.facets !== undefined && { facets: rt.facets }),
+        ...(facets !== undefined && { facets }),
         embed: {
           $type: "app.bsky.embed.images",
           images: uploadedImages,
@@ -266,6 +310,8 @@ export class BlueskyClient {
    * @param limit - Max results per page (1-100, default 25)
    * @param since - ISO timestamp lower bound
    * @param cursor - Pagination cursor from a previous response
+   * @returns The matching posts with the next page's cursor, `RATE_LIMIT` when the service
+   *   answers 429, or `NETWORK` for any other failure
    */
   async searchPosts(
     query: string,
