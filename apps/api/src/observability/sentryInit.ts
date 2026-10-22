@@ -15,6 +15,36 @@ const sentryLogger = createLogger("sentry");
 
 let initialized = false;
 
+/** The span attribute Sentry's database instrumentations write the connection's user name to. */
+const DB_USER_ATTRIBUTE = "db.user";
+
+/** A span as Sentry serializes it for `beforeSendSpan`; `@sentry/node` exports no name for it. */
+type SentrySpanJson = Parameters<NonNullable<Sentry.NodeOptions["beforeSendSpan"]>>[0];
+
+/**
+ * @function stripDatabaseUser
+ * @description The `beforeSendSpan` hook: removes the `db.user` attribute from a span before
+ *   Sentry sends it, and changes nothing else. Sentry's own database instrumentations write the
+ *   connection's user name there on every pg connect and query span: `@sentry/node` 10.76.2
+ *   vendors the pg instrumentation that sets it (`build/esm/integrations/tracing/postgres/
+ *   vendored/utils.js`, lines 50 and 71), and its channel-based pg integration in
+ *   `@sentry/server-utils` 10.76.2 does too. The overrides that hold
+ *   `@opentelemetry/instrumentation-pg` and its siblings at releases without the attribute cover
+ *   only the OpenTelemetry SDK this API starts when tracing is enabled, never the copies Sentry
+ *   vendors. The boot order is not a control either: `pg` loads with `@infra/prisma` before
+ *   `initSentry` runs, so Sentry instruments nothing today, but nothing holds that order, and an
+ *   init moved earlier, where Sentry's setup guide places it, puts the name on every pg span.
+ *   The hook never drops a span: Sentry no longer honours `null` here.
+ * @param span - A root or child span, as Sentry serializes it immediately before sending.
+ * @returns The span itself when it carries no `db.user`; otherwise a copy whose `data` lacks
+ *   only that key.
+ */
+export function stripDatabaseUser(span: SentrySpanJson): SentrySpanJson {
+  if (!Object.hasOwn(span.data, DB_USER_ATTRIBUTE)) return span;
+  const { [DB_USER_ATTRIBUTE]: _dbUser, ...data } = span.data;
+  return { ...span, data };
+}
+
 /**
  * @function initSentry
  * @description Initializes Sentry error tracking. Skips in test environment.
@@ -49,6 +79,7 @@ export function initSentry(
       }
       return event;
     },
+    beforeSendSpan: stripDatabaseUser,
   });
 
   initialized = true;
