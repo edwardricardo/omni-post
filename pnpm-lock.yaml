@@ -318,6 +318,9 @@ catalogs:
     cross-env:
       specifier: 10.1.0
       version: 10.1.0
+    csv-parse:
+      specifier: 7.0.2
+      version: 7.0.2
     date-fns:
       specifier: 4.1.0
       version: 4.1.0
@@ -1185,6 +1188,9 @@ importers:
       cronstrue:
         specifier: 3.13.0
         version: 3.13.0
+      csv-parse:
+        specifier: 'catalog:'
+        version: 7.0.2
       date-fns:
         specifier: 'catalog:'
         version: 4.1.0
@@ -1200,9 +1206,6 @@ importers:
       next-intl:
         specifier: 'catalog:'
         version: 4.13.0(@swc/helpers@0.5.23)(next@16.4.1(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)(typescript@6.0.3)
-      papaparse:
-        specifier: 5.5.3
-        version: 5.5.3
       react:
         specifier: 'catalog:'
         version: 19.2.7
@@ -1258,9 +1261,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.6.5
-      '@types/papaparse':
-        specifier: 5.5.2
-        version: 5.5.2
       '@types/react':
         specifier: 'catalog:'
         version: 19.2.17
@@ -2249,7 +2249,7 @@ importers:
         specifier: workspace:*
         version: link:../../shared
       csv-parse:
-        specifier: 7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       zod:
         specifier: 'catalog:'
@@ -8511,9 +8511,6 @@ packages:
   '@types/oracledb@6.5.2':
     resolution: {integrity: sha512-kK1eBS/Adeyis+3OlBDMeQQuasIDLUYXsi2T15ccNJ0iyUpQ4xDF7svFu3+bGVrI0CMBUclPciz+lsQR3JX3TQ==}
 
-  '@types/papaparse@5.5.2':
-    resolution: {integrity: sha512-gFnFp/JMzLHCwRf7tQHrNnfhN4eYBVYYI897CGX4MY1tzY9l2aLkVyx2IlKZ/SAqDbB3I1AOZW5gTMGGsqWliA==}
-
   '@types/pg-pool@2.0.7':
     resolution: {integrity: sha512-U4CwmGVQcbEuqpyju8/ptOKg6gEC+Tqsvj2xS9o1g71bUh8twxnC6ZL5rZKCsGN0iyH0CwgUyc9VR5owNQF9Ng==}
 
@@ -11417,9 +11414,6 @@ packages:
 
   pako@1.0.11:
     resolution: {integrity: sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==}
-
-  papaparse@5.5.3:
-    resolution: {integrity: sha512-5QvjGxYVjxO59MGU2lHVYpRWBBtKHnlIAcSe1uNFCkkptUh63NFRj0FJQm7nR67puEruUci/ZkjmEFrjCAyP4A==}
 
   param-case@3.0.4:
     resolution: {integrity: sha512-RXlj7zCYokReqWpOPH9oYivUzLYZ5vAPIfEmCTNViosC78F8F0H9y7T7gG2M39ymgutxF5gcFEsyZQSph9Bp3A==}
@@ -17645,10 +17639,6 @@ snapshots:
     dependencies:
       '@types/node': 26.6.5
 
-  '@types/papaparse@5.5.2':
-    dependencies:
-      '@types/node': 26.6.5
-
   '@types/pg-pool@2.0.7':
     dependencies:
       '@types/pg': 8.20.0
@@ -20939,8 +20929,6 @@ snapshots:
   package-manager-detector@1.8.0: {}
 
   pako@1.0.11: {}
-
-  papaparse@5.5.3: {}
 
   param-case@3.0.4:
     dependencies:

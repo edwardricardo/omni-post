@@ -22,8 +22,8 @@ const root = findMonorepoRoot(import.meta.dirname);
 // App-local aliases — resolved BEFORE the shared workspace map (precedence is
 // array order). These come from the app's OWN tsconfig.json, not tsconfig.base.json:
 //  - `@packages/ui/*` deep imports + bare index (mirrors client tsconfig).
-//  - the runtime-free scheduling CSV schema override (avoids the server-only
-//    csv-parse dep that the barrel index would pull in).
+//  - the tokenizer-free scheduling CSV module, the client's one path into
+//    `@core/bulk-scheduling` (the barrel would pull in csv-parse's Node build).
 //  - `@packages/api-errors` index.
 //  - `@` → app root.
 const appLocalAliases: { find: string; replacement: string }[] = [
@@ -32,9 +32,10 @@ const appLocalAliases: { find: string; replacement: string }[] = [
   // test time. Must precede the exact `@packages/ui` alias so the longer prefix wins.
   { find: "@packages/ui/", replacement: path.resolve(root, "packages/ui/src") + "/" },
   { find: "@packages/ui", replacement: path.resolve(root, "packages/ui/src/index.ts") },
-  // Sub-path alias for the runtime-free scheduling CSV schema module.
-  // Points at the schema file directly (not the barrel index or the server parser)
-  // so Vite/Vitest never attempts to resolve csv-parse (server-only dep).
+  // Sub-path alias for the tokenizer-free scheduling CSV module, mirroring the client
+  // tsconfig. It points at the file directly, not at the barrel index or the server
+  // wrapper `schedulingCsv.ts`, whose `csv-parse/sync` import is csv-parse's Node build;
+  // the client binds the browser build (`csv-parse/browser/esm/sync`) instead.
   {
     find: "@core/bulk-scheduling/schedulingCsvSchema.js",
     replacement: path.resolve(root, "packages/core/bulk-scheduling/src/schedulingCsvSchema.ts"),
