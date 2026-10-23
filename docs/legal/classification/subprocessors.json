@@ -252,14 +252,6 @@
       "status": "library",
       "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
     },
-    "@react-email/components": {
-      "status": "library",
-      "note": "Builds email bodies locally; Resend delivers them (`fetch:resend`)."
-    },
-    "@react-email/render": {
-      "status": "library",
-      "note": "Renders email bodies locally; Resend delivers them (`fetch:resend`)."
-    },
     "@scalar/fastify-api-reference": {
       "status": "pending",
       "note": "Serves the API reference at `/docs` from its bundled script. The bundle names Scalar's request proxy (`proxy.scalar.com`), and whether its request client sends calls through that proxy under this configuration is not established."
@@ -636,7 +628,7 @@
       "envToggle": "`RESEND_API_KEY`",
       "dataSent": "each email's recipient addresses, subject, body and attachments",
       "productionPath": "yes",
-      "note": "`ResendEmailAdapter` posts to `https://api.resend.com/emails`; `@react-email/*` renders the bodies."
+      "note": "`ResendEmailAdapter` posts to `https://api.resend.com/emails`; the API's Handlebars templates (`handlebars`) render the bodies locally."
     },
     "fetch:salesforce": {
       "status": "service",
