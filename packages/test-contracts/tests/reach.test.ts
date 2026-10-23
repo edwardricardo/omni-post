@@ -3,7 +3,8 @@
  * @description Self-tests of the reach engine's command line over planted trees: a planted R1,
  *              R2, R3, C1 or C2 violation reaches the exit code and the output naming its file or
  *              registry entry, a clean tree passes, every input the engine cannot read in full
- *              fails the run, `--json` prints the report, and a usage error exits 2. Every planted
+ *              fails the run, `--json` prints the report with every collected file mapped to the
+ *              sources that collect it, and a usage error exits 2. Every planted
  *              tree carries a workflow, a ruleset and a `collectors.json` whose required check runs
  *              its vitest configs, a `package.json` beside each config whose `test` script is
  *              `vitest run`, and configs that exclude the reserved tier patterns. R1, R2 and R3 are
@@ -19,6 +20,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { err, ok } from "@shared/types";
 import { createK6Collector } from "../src/lib/k6.js";
 import { createNodeCollector } from "../src/lib/node-collector.js";
+import { asRecord, COLLECTOR_ID, type Collector } from "../src/lib/registry.js";
 import { createVitestCollector } from "../src/lib/vitest-collector.js";
 import { main, type ReachSeams } from "../src/reach.js";
 import { CI_PATHS, ciFiles, registryOf, rulesetRequiring, UNIT_ENTRY } from "./fixtures/ci.js";
@@ -88,6 +90,19 @@ function writeQuarantine(tree: PlantedTree, name: string, paths: readonly string
 }
 
 const ORPHAN = "pkg-a/nested/orphan.test.ts";
+const COLLECTED = "pkg-a/one.test.ts";
+const SOURCE_A = "vitest:pkg-a/vitest.config.mjs";
+const SOURCE_B = "vitest:pkg-b/vitest.config.mjs";
+
+/**
+ * @param output - What `main` printed under `--json`.
+ * @returns The report's `reach` map, its keys in the order the report printed them, or `null`
+ *   when the report carries none.
+ */
+function reachMapOf(output: string): Readonly<Record<string, unknown>> | null {
+  const parsed: unknown = JSON.parse(output);
+  return asRecord(asRecord(parsed)?.["reach"]);
+}
 
 describe("reach engine", () => {
   afterEach(() => {
@@ -313,7 +328,7 @@ describe("reach engine", () => {
     );
   });
 
-  it("prints the report as JSON when asked", async () => {
+  it("prints the report as JSON when asked, mapping each collected file to its source", async () => {
     const tree = plant({ [ORPHAN]: TEST_BODY });
 
     const result = await main(["--root", tree.root, "--json"], seamsFor(tree));
@@ -324,6 +339,69 @@ describe("reach engine", () => {
       violations: [{ rule: "R1", file: ORPHAN }],
       errors: [],
     });
+    const reach = reachMapOf(result.output);
+    expect(reach).toEqual({ [COLLECTED]: [SOURCE_A], "pkg-b/two.test.ts": [SOURCE_B] });
+    expect(reach).not.toHaveProperty([ORPHAN]);
+  });
+
+  it("maps a file two configs collect to both sources in the JSON report", async () => {
+    const tree = plant({}, ["*.test.ts", "../pkg-a/*.test.ts"]);
+
+    const result = await main(["--root", tree.root, "--json"], seamsFor(tree));
+
+    expect(reachMapOf(result.output)).toEqual({
+      [COLLECTED]: [SOURCE_A, SOURCE_B],
+      "pkg-b/two.test.ts": [SOURCE_B],
+    });
+  });
+
+  it("prints the map's files and each file's sources in byte order, whatever order they are collected in", async () => {
+    const tree = plant();
+    const unordered: Collector = {
+      id: COLLECTOR_ID.VITEST,
+      collect: () =>
+        Promise.resolve({
+          collections: [
+            {
+              collector: COLLECTOR_ID.VITEST,
+              source: "pkg-b/vitest.config.mjs",
+              files: ["pkg-b/two.test.ts", "pkg-a/alpha.test.ts", "pkg-a/Zeta.test.ts", COLLECTED],
+            },
+            {
+              collector: COLLECTOR_ID.VITEST,
+              source: "pkg-a/vitest.config.mjs",
+              files: [COLLECTED],
+            },
+          ],
+          failures: [],
+        }),
+    };
+
+    const result = await main(["--root", tree.root, "--json"], {
+      ...seamsFor(tree),
+      collectors: [unordered],
+    });
+
+    const reach = reachMapOf(result.output);
+    expect(Object.keys(reach ?? {})).toEqual([
+      "pkg-a/Zeta.test.ts",
+      "pkg-a/alpha.test.ts",
+      COLLECTED,
+      "pkg-b/two.test.ts",
+    ]);
+    expect(reach?.[COLLECTED]).toEqual([SOURCE_A, SOURCE_B]);
+  });
+
+  it("prints an empty map in the JSON report when the disk listing fails", async () => {
+    const tree = plant();
+
+    const result = await main(["--root", tree.root, "--json"], {
+      ...seamsFor(tree),
+      listFiles: () => err({ message: "git ls-files failed: planted" }),
+    });
+
+    expect(result.code).toBe(1);
+    expect(reachMapOf(result.output)).toEqual({});
   });
 
   it("exits 1 naming a registry entry whose job the workflow does not hold (R2)", async () => {
