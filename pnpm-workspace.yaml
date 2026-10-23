@@ -108,7 +108,7 @@ catalog:
 
   # ── App/server runtime (DIRECT) ──
   pino: 10.3.1
-  zod: 4.6.5 # raised 2026-10-15 with knip 6.41.0, which declares zod ^4.6.5: this value is the tree's single zod 4 copy, shared by every 4.x consumer (knip, @t3-oss/env-core and env-nextjs, fastify-type-provider-zod, @scalar, langchain, openai, @anthropic-ai/sdk); the @atproto packages keep their own 3.25.76. 4.6.5 is the latest mature release (published 2026-09-13T23:25:14Z, npm provenance from colinhacks/zod), and it predates the credential compromise the 4.6.6 notes disclose (malicious commits on main on 2026-09-21, reverted, never published). 4.6.6 (2026-10-11T16:18Z: collection size bounds checked before elements, a record type fix) and 4.6.7 (`latest`, 2026-10-12T16:29Z, version only) mature 2026-10-18T16:18Z and 2026-10-19T16:29Z. OSV and the colinhacks/zod repository advisories list nothing for 4.4.3 to 4.6.7. 4.5 and 4.6 change parsing (z.iso.datetime requires seconds; string min, max and length count code points; a strict object reports every issue beside unrecognized_keys; __proto__ is always stripped), build a safeParse error on first read, and change some JSON Schema output. Was 4.4.3; overrides: holds no zod key
+  zod: 4.6.7 # CVE floor raised 2026-10-23 for GHSA-mrhx-c7xc-m3w5 (high, CVE-2023-54404: memory exhaustion validating oversized constrained collections; vulnerable <4.6.6, patched 4.6.6; OSV `introduced 0, fixed 4.6.6`, so the 3.x line has no fix). 4.6.7 is `latest` and mature (published 2026-10-12T16:29:37Z; 4.6.6 on 2026-10-11 carries the fix, 4.6.7 is one version commit over it). The tree's single zod copy since this raise: the `zod: "catalog:"` override below extends it to the @atproto packages, which declare `^3.23.8` and had their own 3.25.76 (7 paths); the direct 4.x consumers (knip, @t3-oss/env-core and env-nextjs, fastify-type-provider-zod, @scalar, langchain, openai, @anthropic-ai/sdk) take it through the catalog. See SECURITY_CANON §CVE-floor pins, row `zod`.
   cloudinary: 2.10.0 # taken 2026-06-20 (`9ab44e82`), not moved since; 2.11.0 is newer and mature (registry, 2026-10-03); was 2.7.0
   axios: 1.20.0 # CVE floor raised 2026-09-30: TWELVE advisories landed in 34 minutes (GHSA-542g-h47m-68v8, -3pq3-5fj3-cg6v, -x97p-jq2g-jp4f, -mghh-pgcx-3jjj, -c29m-xwm3-cm6r, -9fr6-4gfg-395g, -vh66-26gq-q6x8, -r4gj-5m52-g5wh, -44g4-m2mj-wpvx, -m8m8-qj5v-23w3, -4hqw-qxg8-jxx2, -j8rh-479h-cp32 — 7 high / 5 moderate), every one first_patched at 1.20.0, so 1.20.0 is the minimal patched version for the whole set even though it is also the latest. Was 1.18.0 (GHSA-42h9-826w-cgv3 + GHSA-xj6q-8x83-jv6g + GHSA-pmv8-rq9r-6j72; MAX over tiktok 1.7.7)
   form-data: 4.0.6 # CVE floor (MAX over tiktok 4.0.0)
@@ -229,6 +229,11 @@ catalogs:
 overrides:
   validator: "catalog:"
   uuid: "catalog:"
+  # Dual-role CVE floor (the `uuid` shape) added 2026-10-23 for GHSA-mrhx-c7xc-m3w5: the catalog value
+  # reaches every transitive zod copy, so @atproto/lexicon and @atproto/common-web (`^3.23.8`, the
+  # unfixable 3.x line) resolve the patched 4.6.7 instead of 3.25.76. Measured with the bluesky
+  # provider suites on the forced major; remove-when in SECURITY_CANON §CVE-floor pins, row `zod`.
+  zod: "catalog:"
   # CVE floor added 2026-10-06 for GHSA-qqmp-wf37-98f9 (moderate, CWE-532): these eight
   # instrumentations set the database username as an unconditional `db.user` span attribute. OSV,
   # GitHub's first_patched_version and the upstream repository advisory agree on every target, all
