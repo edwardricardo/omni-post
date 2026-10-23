@@ -196,8 +196,8 @@ catalogs:
       specifier: 3.5.18
       version: 3.5.18
     '@googleapis/youtube':
-      specifier: 39.0.1
-      version: 39.0.1
+      specifier: 40.0.1
+      version: 40.0.1
     '@googleapis/youtubeanalytics':
       specifier: 11.0.1
       version: 11.0.1
@@ -3932,7 +3932,7 @@ importers:
         version: link:../../adapters/external-apis
       '@googleapis/youtube':
         specifier: 'catalog:'
-        version: 39.0.1(supports-color@10.2.2)
+        version: 40.0.1(supports-color@10.2.2)
       '@googleapis/youtubeanalytics':
         specifier: 'catalog:'
         version: 11.0.1(supports-color@10.2.2)
@@ -4831,8 +4831,8 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
-  '@googleapis/youtube@39.0.1':
-    resolution: {integrity: sha512-k6G0U/EeCrhzC18tguCLL9xMiEM/Z/xOOsOha+BC9oo30njyX6TaODZEHjz93DdYa1ouW32QZSybqvZadxYDiw==}
+  '@googleapis/youtube@40.0.1':
+    resolution: {integrity: sha512-PUdZI/Hb1AXQ97xGFM68DyclCpwmWvkk72wlRPpgO+ukQFgXvkW0OBjXwfyo/cFTvyeXq7h3lBMe4bLm9LTiKg==}
     engines: {node: '>=22.0.0'}
 
   '@googleapis/youtubeanalytics@11.0.1':
@@ -14218,7 +14218,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@googleapis/youtube@39.0.1(supports-color@10.2.2)':
+  '@googleapis/youtube@40.0.1(supports-color@10.2.2)':
     dependencies:
       googleapis-common: 9.1.0(supports-color@10.2.2)
     transitivePeerDependencies:
