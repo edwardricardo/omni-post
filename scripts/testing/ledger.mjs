@@ -4,23 +4,26 @@
  * @description The test ledger's command: one row per test-shaped file, runner, helper and
  *   dead-suffix file under the workspaces, `security/` and `performance/`, each test-shaped file
  *   joined to the reach engine's sources and its quarantine owner and its blocks classified,
- *   written as `ledger.json` at the repository root. The rows, the verdict table, the summary and
- *   the rendering are `lib/ledger-core.mjs`'s; the reach report and the quarantine are read
- *   through `lib/reach-report.mjs`, which `metrics.mjs` M5 shares.
+ *   written as `ledger.json` at the repository root or checked against it. The rows, the verdict
+ *   table, the summary and the rendering are `lib/ledger-core.mjs`'s; the reach report and the
+ *   quarantine are read through `lib/reach-report.mjs`, which `metrics.mjs` M5 shares.
  *
- *   It writes the ledger to `--out`, by default `ledger.json` at the root. `--reach <file>` reads a
- *   saved `reach --json` report instead of running the engine. Deterministic: no clock, no commit
- *   and no absolute path, so two runs over one tree write the same bytes.
+ *   MODES. Without `--check` it writes the ledger to `--out`, by default `ledger.json` at the root.
+ *   With `--check` it compares the rendered ledger's bytes with that file and names each row that
+ *   differs. `--reach <file>` reads a saved `reach --json` report instead of running the engine.
+ *   Deterministic: no clock, no commit and no absolute path, so two runs over one tree write the
+ *   same bytes.
  *
- *   EXIT CODES, fitness #48's: 0 written; 2 a usage error; 3 an input could not be read (`git
- *   ls-files` failed or listed no test-shaped file, the workspace manifest, the quarantine or a
- *   listed file could not be read, the engine printed no report or reported an input of its own
- *   unread) or the ledger could not be written. An unread input writes nothing. A file the
- *   classifier cannot read is a row (`framework: null`, verdict ADJUDICATE) and a note, not an
- *   unread input.
+ *   EXIT CODES, fitness #48's: 0 written, or no drift; 1 drift; 2 a usage error; 3 an input could
+ *   not be read (`git ls-files` failed or listed no test-shaped file, the workspace manifest, the
+ *   quarantine or a listed file could not be read, the engine printed no report or reported an
+ *   input of its own unread, `--check` found no committed ledger) or the ledger could not be
+ *   written. 3 wins over 1: an unread input stops the run before anything is written or compared,
+ *   so no drift is ever named from a partial read. A file the classifier cannot read is a row
+ *   (`framework: null`, verdict ADJUDICATE) and a note, not an unread input.
  *
- *   Usage: `node scripts/testing/ledger.mjs [--root <dir>] [--out <file>] [--reach <file>]`, or
- *   `pnpm ledger`.
+ *   Usage: `node scripts/testing/ledger.mjs [--root <dir>] [--out <file>] [--reach <file>]
+ *   [--check]`, or `pnpm ledger` and `pnpm check:ledger`.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -53,10 +56,11 @@ const SUITE_ROOTS = Object.freeze(["security/", "performance/"]);
 /** One entry of the workspace manifest's `packages:` list: a glob, quoted or plain. */
 const PACKAGE_GLOB = /^\s+-\s+["']?([^"'\s]+)["']?\s*$/;
 const EXIT_CLEAN = 0;
+const EXIT_DRIFT = 1;
 const EXIT_USAGE = 2;
 const EXIT_UNREAD = 3;
 const USAGE =
-  "usage: node scripts/testing/ledger.mjs [--root <dir>] [--out <file>] [--reach <file>]";
+  "usage: node scripts/testing/ledger.mjs [--root <dir>] [--out <file>] [--reach <file>] [--check]";
 
 /**
  * @template T
@@ -83,8 +87,9 @@ const USAGE =
  *
  * @typedef {object} Options
  * @property {string} root Absolute.
- * @property {string} out Absolute: the ledger written.
+ * @property {string} out Absolute: the ledger written, or checked.
  * @property {string | null} reach A saved reach report, as given, or `null` to run the engine.
+ * @property {boolean} check
  *
  * @typedef {object} CliResult
  * @property {number} code
@@ -229,13 +234,83 @@ export function build(root, seams = {}) {
 }
 
 /**
- * @description Reads the command line. Every flag takes a value; an unknown flag, a positional
- *   argument and an empty value are usage errors.
+ * @description Orders two strings by UTF-16 code unit, the order the ledger's rows are in.
+ * @param {string} left
+ * @param {string} right
+ * @returns {number}
+ */
+function byCodeUnit(left, right) {
+  return left < right ? -1 : Number(left > right);
+}
+
+/**
+ * @description Indexes the committed ledger's rows by path.
+ * @param {unknown} files The committed ledger's `files`.
+ * @returns {Result<Map<string, string>>} Path → the row as JSON.
+ */
+function rowsByPath(files) {
+  if (!Array.isArray(files)) return { error: "the committed ledger's files are not a list" };
+  /** @type {Map<string, string>} */
+  const rows = new Map();
+  for (const row of files) {
+    /** @type {{ path?: unknown }} */
+    const fields = typeof row === "object" && row !== null ? row : {};
+    if (typeof fields.path !== "string") return { error: "a committed row has no path" };
+    if (rows.has(fields.path)) return { error: `the committed ledger lists ${fields.path} twice` };
+    rows.set(fields.path, JSON.stringify(row));
+  }
+  return { value: rows };
+}
+
+/**
+ * @description Names what differs between the committed ledger and the one the tree gives, by
+ *   parsing the committed text: each top-level part, then each path whose row is new, gone or
+ *   changed, in code-unit order. Never empty: equal content laid out otherwise is named as such.
+ * @param {string} committed The committed file's text, which differs from the rendered one.
+ * @param {Ledger} current
+ * @returns {string[]}
+ */
+function driftOf(committed, current) {
+  /** @type {Record<string, unknown>} */
+  let parsed;
+  try {
+    parsed = JSON.parse(committed);
+  } catch (error) {
+    return [`the committed ledger is not JSON: ${messageOf(error)}`];
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return ["the committed ledger is not a JSON object"];
+  }
+  const was = rowsByPath(parsed["files"]);
+  if ("error" in was) return [was.error];
+  /** @type {string[]} */
+  const lines = [];
+  if (Object.keys(parsed).join() !== Object.keys(current).join()) {
+    lines.push("the top-level keys differ");
+  }
+  for (const key of /** @type {const} */ (["version", "summary", "slices"])) {
+    const before = JSON.stringify(parsed[key]);
+    if (before !== JSON.stringify(current[key])) lines.push(`the ${key} differs`);
+  }
+  const now = new Map(current.files.map((row) => [row.path, JSON.stringify(row)]));
+  for (const file of [...new Set([...was.value.keys(), ...now.keys()])].sort(byCodeUnit)) {
+    const before = was.value.get(file);
+    const after = now.get(file);
+    if (after === undefined) lines.push(`${file}: in the committed ledger, not in the tree`);
+    else if (before === undefined) lines.push(`${file}: in the tree, not in the committed ledger`);
+    else if (before !== after) lines.push(`${file}: its row differs`);
+  }
+  return lines.length > 0 ? lines : ["the content is equal; only its formatting differs"];
+}
+
+/**
+ * @description Reads the command line. Every flag takes its value but `--check`; an unknown flag,
+ *   a positional argument and an empty value are usage errors.
  * @param {readonly string[]} argv The arguments after the script path.
  * @returns {Result<Options>}
  */
 function parseArguments(argv) {
-  /** @type {{ root?: string, out?: string, reach?: string }} */
+  /** @type {{ root?: string, out?: string, reach?: string, check?: boolean }} */
   let values;
   try {
     ({ values } = parseArgs({
@@ -244,6 +319,7 @@ function parseArguments(argv) {
         root: { type: "string" },
         out: { type: "string" },
         reach: { type: "string" },
+        check: { type: "boolean" },
       },
       strict: true,
       allowPositionals: false,
@@ -260,6 +336,7 @@ function parseArguments(argv) {
       root,
       out: path.resolve(values.out ?? path.join(root, LEDGER_FILE)),
       reach: values.reach ?? null,
+      check: values.check === true,
     },
   };
 }
@@ -332,7 +409,38 @@ function write(options, built, text, lines) {
 }
 
 /**
- * @description The command line, as a function: parse, build, render, then write.
+ * @description `--check`: compares the rendered ledger's bytes with the committed file's and names
+ *   each difference.
+ * @param {Options} options
+ * @param {Built} built
+ * @param {string} text The rendered ledger.
+ * @param {readonly string[]} lines The notes, already worded.
+ * @returns {CliResult}
+ */
+function check(options, built, text, lines) {
+  /** @type {string} */
+  let committed;
+  try {
+    committed = readFileSync(options.out, "utf8");
+  } catch (error) {
+    return result(EXIT_UNREAD, [
+      ...lines,
+      `ledger: unread: no committed ledger at ${shown(options)} (${messageOf(error)}); ` +
+        "run `pnpm ledger` and commit it",
+    ]);
+  }
+  if (committed === text) {
+    return result(EXIT_CLEAN, [...lines, `ledger: ${shown(options)} is current`]);
+  }
+  return result(EXIT_DRIFT, [
+    ...lines,
+    ...driftOf(committed, built.ledger).map((line) => `ledger: drift: ${line}`),
+    `ledger: ${shown(options)} is stale; run \`pnpm ledger\` and commit the result`,
+  ]);
+}
+
+/**
+ * @description The command line, as a function: parse, build, render, then write or check.
  * @param {readonly string[]} argv The arguments after the script path.
  * @param {LedgerSeams} [seams] Replacements for the suite; the command passes none.
  * @returns {Promise<CliResult>} The text to print and the exit code.
@@ -349,7 +457,9 @@ export async function main(argv, seams = {}) {
   if ("error" in built) return result(EXIT_UNREAD, [`ledger: unread: ${built.error}`]);
   const text = await render(built.value.ledger);
   const lines = built.value.notes.map((note) => `ledger: note: ${note}`);
-  return write(options, built.value, text, lines);
+  return options.check
+    ? check(options, built.value, text, lines)
+    : write(options, built.value, text, lines);
 }
 
 /**
