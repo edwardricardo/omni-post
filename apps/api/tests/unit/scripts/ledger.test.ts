@@ -8,18 +8,23 @@
  *   nothing.
  *
  *   Then the readers of `scripts/testing/lib/reach-report.mjs` (the report, its per-file map, the
- *   quarantine's owners) and `build(root, seams)` of the command, `scripts/testing/ledger.mjs`: the
- *   reach join, the quarantine owner, what is listed, what stops the build. They run over fixture
- *   trees planted in fresh directories under `tmpdir()`, the git listing and the reach engine
- *   replaced, so they spawn nothing.
+ *   quarantine's owners) and the command, `scripts/testing/ledger.mjs`: `build(root, seams)` (the
+ *   reach join, the quarantine owner, what is listed, what stops the build), then write mode through
+ *   `main(argv, seams)`, with #48's exit codes (0 written, 2 usage, 3 an unread input). They run over
+ *   fixture trees planted in fresh directories under `tmpdir()`, the git listing and the reach engine
+ *   replaced, so they spawn nothing. Last, the run over this repository: the reach engine runs once
+ *   and its report is handed back through `--reach`; the ledger's block counts must equal a direct
+ *   `classifyFile` fold over the same tracked files, its test-shaped rows M1's count from
+ *   `metrics.mjs --m1`, and a second run through the seam the first run's bytes.
  * @layer infrastructure
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 type Shape =
   "test" | "integration-test" | "live-test" | "spec" | "k6" | "runner" | "helper" | "disabled";
@@ -179,15 +184,23 @@ interface Built {
   readonly notes: readonly string[];
 }
 
+/** What the command prints and the exit code it ends with. */
+interface CliResult {
+  readonly code: number;
+  readonly output: string;
+}
+
 /** The command's surface, typed for the same reason as the core's. */
 type LedgerCli = {
   build: (root: string, seams?: LedgerSeams) => Result<Built>;
+  main: (argv: readonly string[], seams?: LedgerSeams) => Promise<CliResult>;
 };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const CORE_SCRIPT = path.join(REPO_ROOT, "scripts/testing/lib/ledger-core.mjs");
 const CLI_SCRIPT = path.join(REPO_ROOT, "scripts/testing/ledger.mjs");
 const REACH_LIB = path.join(REPO_ROOT, "scripts/testing/lib/reach-report.mjs");
+const METRICS_SCRIPT = path.join(REPO_ROOT, "scripts/testing/metrics.mjs");
 const CLASSIFIER = path.join(REPO_ROOT, "packages/eslint-plugin-testing/src/index.js");
 const core = (await import(CORE_SCRIPT)) as LedgerCore;
 const cli = (await import(CLI_SCRIPT)) as LedgerCli;
@@ -981,4 +994,171 @@ describe("ledger.mjs build", () => {
       expect.stringMatching(new RegExp(`^${DEEP}: the classifier could not read it: RangeError`)),
     ]);
   });
+});
+
+/** The reason the reader gives for a report that names an input the engine could not read. */
+const REACH_UNREAD = `test-contracts reach could not read an input: ${UNREAD_INPUT}`;
+
+/** Runs the command over a planted tree, its listing every planted path and reach `REACH`. */
+const run = (root: string, argv: readonly string[] = [], seams: LedgerSeams = {}) =>
+  cli.main(["--root", root, ...argv], {
+    listFiles: () => ({ value: Object.keys(FIXTURE) }),
+    runReach: () => REACH,
+    ...seams,
+  });
+
+const ledgerFile = (root: string): string => path.join(root, "ledger.json");
+const readLedger = (file: string): Ledger => JSON.parse(readFileSync(file, "utf8")) as Ledger;
+
+describe("ledger.mjs write mode", () => {
+  it("writes the rendered ledger to ledger.json at the root and reports its counts", async () => {
+    const root = plant(FIXTURE);
+
+    const result = await run(root);
+
+    expect(result).toEqual({
+      code: 0,
+      output: "ledger: wrote ledger.json: 4 files, 3 test-shaped, 5 blocks, 3 with a criterion\n",
+    });
+    expect(readFileSync(ledgerFile(root), "utf8")).toBe(
+      await core.render(valueOf(built(root)).ledger)
+    );
+  });
+
+  it("writes where --out points, from the saved report --reach names rather than a run", async () => {
+    const root = plant({ ...FIXTURE, "reach.json": JSON.stringify({ ...REACH, errors: [] }) });
+    const out = path.join(root, "out.json");
+
+    const result = await run(root, ["--out", out, "--reach", path.join(root, "reach.json")], {
+      runReach: () => "a run of the engine",
+    });
+
+    expect(result.code).toBe(0);
+    expect(readLedger(out).files.find((file) => file.path === A)?.collectors).toEqual([
+      NODE_LABEL,
+      VITEST_LABEL,
+    ]);
+    expect(existsSync(ledgerFile(root))).toBe(false);
+  });
+
+  it.each([
+    ["an unknown flag", ["--frobnicate"]],
+    ["a positional argument", ["ledger.json"]],
+    ["--out with no value", ["--out"]],
+    ["an empty --root", ["--root="]],
+  ])("returns 2 on %s and writes nothing", async (_case, argv) => {
+    const root = plant(FIXTURE);
+
+    const result = await run(root, argv);
+
+    expect(result.code).toBe(2);
+    expect(result.output).toContain("usage: node scripts/testing/ledger.mjs");
+    expect(existsSync(ledgerFile(root))).toBe(false);
+  });
+
+  it.each<[string, readonly string[], LedgerSeams, string]>([
+    [
+      "reach reports an input it could not read",
+      [],
+      { runReach: () => REACH_UNREAD },
+      `ledger: unread: test-contracts reach could not read an input: ${UNREAD_INPUT}\n`,
+    ],
+    [
+      "git ls-files failed",
+      [],
+      { listFiles: () => ({ error: "git ls-files failed: not a git repository" }) },
+      "ledger: unread: git ls-files failed: not a git repository\n",
+    ],
+    [
+      "--reach names no file",
+      ["--reach", "absent-reach.json"],
+      {},
+      "ledger: unread: --reach absent-reach.json could not be read: ENOENT",
+    ],
+  ])("returns 3 and writes nothing when %s", async (_case, argv, seams, line) => {
+    const root = plant(FIXTURE);
+
+    const result = await run(root, argv, seams);
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain(line);
+    expect(existsSync(ledgerFile(root))).toBe(false);
+  });
+});
+
+/** The run over the repository pays the reach engine and two full ledgers, as `metrics.mjs` M5. */
+const REPOSITORY_TIMEOUT = 60_000;
+
+describe("ledger.mjs over the repository", () => {
+  let scratch = "";
+  let saved: ReachReport | string = "";
+  let first: CliResult = { code: -1, output: "" };
+
+  beforeAll(async () => {
+    scratch = mkdtempSync(path.join(tmpdir(), "ledger-repository-test-"));
+    saved = reachLib.reachReport(REPO_ROOT);
+    // Saved as the engine prints it: the reader returns a report only when its errors list is empty.
+    const printed = typeof saved === "string" ? saved : JSON.stringify({ ...saved, errors: [] });
+    writeFileSync(path.join(scratch, "reach.json"), printed);
+    first = await cli.main([
+      "--out",
+      path.join(scratch, "ledger.json"),
+      "--reach",
+      path.join(scratch, "reach.json"),
+    ]);
+  }, REPOSITORY_TIMEOUT);
+
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  it(
+    "returns the blocks and decorative blocks of a direct classifyFile fold, over M1's test-shaped files",
+    { timeout: REPOSITORY_TIMEOUT },
+    () => {
+      const tracked = execFileSync("git", ["ls-files", "-z"], {
+        cwd: REPO_ROOT,
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+      })
+        .split("\0")
+        .filter((file) => core.CANONICAL_TEST_SHAPED.test(file));
+      const blocks = tracked.flatMap(
+        (file) => classifyFile(readFileSync(path.join(REPO_ROOT, file), "utf8"), file).blocks
+      );
+      const m1 = /^M1\t(\d+) \+ (\d+)\t/m.exec(
+        execFileSync(process.execPath, [METRICS_SCRIPT, "--m1"], {
+          cwd: REPO_ROOT,
+          encoding: "utf8",
+        })
+      );
+
+      const ledger = readLedger(path.join(scratch, "ledger.json"));
+
+      const testShaped = ledger.files.filter((file) => file.collectors !== null).length;
+      expect(typeof saved).toBe("object");
+      expect(first.code).toBe(0);
+      expect(ledger.summary.blocks.total).toBe(blocks.length);
+      expect(ledger.summary.blocks.decorative).toBe(
+        blocks.filter((block) => block.criteria.length > 0).length
+      );
+      expect(testShaped).toBe(tracked.length);
+      expect(testShaped).toBe(Number(m1?.[1]) + Number(m1?.[2]));
+    }
+  );
+
+  it(
+    "writes the same bytes again when reach's report comes through the seam instead of --reach",
+    { timeout: REPOSITORY_TIMEOUT },
+    async () => {
+      const again = path.join(scratch, "again.json");
+
+      const result = await cli.main(["--out", again], { runReach: () => saved });
+
+      expect(result.code).toBe(0);
+      expect(readFileSync(again, "utf8")).toBe(
+        readFileSync(path.join(scratch, "ledger.json"), "utf8")
+      );
+    }
+  );
 });
