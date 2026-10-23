@@ -61,15 +61,15 @@ under `.github/workflows/`.
 | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------- |
 | ESLint                              | `ci.yml:65`, Lint and Format Check › Run ESLint                                                                                                                      | PR, main                  | `pnpm lint`                                                                  |
 | Type check                          | `ci.yml:68`, Lint and Format Check › TypeScript type check (full monorepo)                                                                                           | PR, main                  | `pnpm typecheck`                                                             |
-| Semgrep                             | `audit.yml:82`, Semgrep CE (SAST) › Run Semgrep                                                                                                                      | PR, main                  | the step's `semgrep scan` command                                            |
-| CodeQL                              | `security-testing.yml:79`, CodeQL (typescript, javascript) › Perform CodeQL analysis                                                                                 | PR, main, nightly         | —                                                                            |
-| Dependency advisories               | `ci.yml:680`, Security Audit › Run security audit; `production-ci.yml:37`, Security Audit › Audit dependencies                                                       | PR, main                  | `pnpm audit --audit-level moderate`                                          |
-| Container images (Trivy)            | `production-ci.yml:371`, Container Security › Run Trivy vulnerability scanner, for api, workers, admin and client                                                    | PR, main                  | [Container images](#container-images)                                        |
+| Semgrep                             | `audit.yml:86`, Semgrep CE (SAST) › Run Semgrep                                                                                                                      | PR, main                  | the step's `semgrep scan` command                                            |
+| CodeQL                              | `security-testing.yml:77`, CodeQL (typescript, javascript) › Perform CodeQL analysis                                                                                 | PR, main, nightly         | —                                                                            |
+| Dependency advisories               | `ci.yml:687`, Security Audit › Run security audit; `production-ci.yml:38`, Security Audit › Audit dependencies                                                       | PR, main                  | `pnpm audit --audit-level moderate --json`                                   |
+| Container images (Trivy)            | `production-ci.yml:453`, Container Security › Run Trivy vulnerability scanner, for api, workers, admin and client                                                    | PR, main                  | [Container images](#container-images)                                        |
 | Security headers                    | `ci.yml:174`, Test Suite (shard N) › Run API tests (shard, blob reporter), which collects `tests/unit/securityHeaders.test.ts`; on a running API, the ZAP scan below | PR, main                  | `pnpm --filter @apps/api exec vitest run tests/unit/securityHeaders.test.ts` |
 | SQL injection and XSS               | `ci.yml:560`, Integration Tests › Run integration tests (live tier): the cases of `tests/security.live.test.ts`                                                      | PR, main                  | [The security suites](#the-security-suites)                                  |
-| OWASP ZAP baseline                  | `security-testing.yml:168`, OWASP ZAP DAST › Run OWASP ZAP baseline scan                                                                                             | nightly 03:00 UTC, manual | —                                                                            |
+| OWASP ZAP baseline                  | `security-testing.yml:166`, OWASP ZAP DAST › Run OWASP ZAP baseline scan                                                                                             | nightly 03:00 UTC, manual | —                                                                            |
 | Auth, RBAC, MFA and security suites | `ci.yml:445`, Integration Tests › (services tier), `TIER=pr-integration`; `ci.yml:560` › (live tier), `TIER=live-integration`                                        | PR, main                  | [The security suites](#the-security-suites)                                  |
-| Secrets in committed files          | `audit.yml:158`, gitleaks (secrets) › Scan the PR's commits; `audit.yml:265`, secretlint (rule-based secrets) › Run secretlint                                       | PR                        | `pnpm secret:scan`                                                           |
+| Secrets in committed files          | `audit.yml:162`, gitleaks (secrets) › Scan the PR's commits; `audit.yml:272`, secretlint (rule-based secrets) › Run secretlint                                       | PR                        | `pnpm secret:scan`                                                           |
 
 #### The security suites
 
@@ -305,7 +305,7 @@ intent for the SMELL-83 rewrite.
 
 ### Configuration
 
-The OWASP ZAP DAST job (`security-testing.yml:168`) runs
+The OWASP ZAP DAST job (`security-testing.yml:166`) runs
 `zaproxy/action-baseline@v0.15.0` against the API at `http://localhost:3000`
 with `cmd_options: "-a"` and `fail_action: true`, and sets nothing else: no
 rules file, no login and no custom scan policy. The key=value file

@@ -23,8 +23,9 @@ name: Security Testing
 # live API), connected as the app role — the omnipost_app login that
 # row-level security applies to — and with rate limiting on. Its per-suite
 # guards live on there: under TIER each file gets its own verdict and fails
-# on any skipped or cancelled case and on zero tests. Its two ratelimit
-# suites live under apps/api/tests/unit and run in the vitest shards.
+# on any skipped or cancelled case and on zero tests. Its rate-limit suites
+# are apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts and
+# httpRateLimitRuleCoverage.test.ts beside it, which run in the vitest shards.
 
 on:
   push:
