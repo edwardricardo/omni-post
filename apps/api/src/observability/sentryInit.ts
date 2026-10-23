@@ -31,9 +31,13 @@ type SentrySpanJson = Parameters<NonNullable<Sentry.NodeOptions["beforeSendSpan"
  *   `@sentry/server-utils` 10.76.2 does too. The overrides that hold
  *   `@opentelemetry/instrumentation-pg` and its siblings at releases without the attribute cover
  *   only the OpenTelemetry SDK this API starts when tracing is enabled, never the copies Sentry
- *   vendors. The boot order is not a control either: `pg` loads with `@infra/prisma` before
- *   `initSentry` runs, so Sentry instruments nothing today, but nothing holds that order, and an
- *   init moved earlier, where Sentry's setup guide places it, puts the name on every pg span.
+ *   vendors. The boot order is not a control either. `pg` loads with `@infra/prisma` before
+ *   `initSentry` runs, so Sentry's pg instrumentation, the one that writes `db.user`, never
+ *   attaches today; Prisma's own spans (`prisma:client:*`, and the query span with op `db`) reach
+ *   Sentry in either order and never carry the attribute. Nothing holds that order, and an init
+ *   moved earlier, where Sentry's setup guide places it, puts the name on every pg span. The
+ *   payload gate `apps/api/tests/integration/sentryPayload.integration.test.ts` runs that order
+ *   and fails when `db.user` reaches the transport, so the hook holds whatever the boot order.
  *   The hook never drops a span: Sentry no longer honours `null` here.
  * @param span - A root or child span, as Sentry serializes it immediately before sending.
  * @returns The span itself when it carries no `db.user`; otherwise a copy whose `data` lacks
