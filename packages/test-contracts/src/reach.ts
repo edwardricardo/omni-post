@@ -30,7 +30,9 @@
  *              [--quarantine <file> [--base <file>]] [--collectors <file>] [--ruleset <file>]
  *              [--json]`. Every path resolves against the
  *              working directory, which `pnpm --filter` sets to the package's directory. Exit 0
- *              clean, 1 on any violation or error, 2 on a usage error.
+ *              clean, 1 on any violation or error, 2 on a usage error. `--json` prints the whole
+ *              report, and with it `reach`, every collected file mapped to the sources that collect
+ *              it, which the terminal rendering leaves out.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -56,6 +58,7 @@ import {
   describeError,
   runCollectors,
   sourceLabel,
+  tallyReach,
   type Collection,
   type Collector,
 } from "./lib/registry.js";
@@ -92,6 +95,12 @@ interface ReachReport {
   /** Inputs the engine could not read in full; any one fails the run. */
   readonly errors: readonly string[];
   readonly shrinkCheck: ShrinkCheck;
+  /**
+   * Every collected file mapped to the `<collector>:<source>` labels of the sources that collect
+   * it, in the order {@link reachByFile} gives them: a file no source collects has no entry, and a
+   * file two sources collect has two labels. Only `--json` prints it.
+   */
+  readonly reach: Readonly<Record<string, readonly string[]>>;
 }
 
 /** Each rule's place in a report: the order {@link RULE} declares. */
@@ -242,6 +251,24 @@ function readExecutedBy(
 }
 
 /**
+ * @description Maps every collected file to the sources that collect it, for the JSON report.
+ *   Files are compared with `<`, by UTF-16 code unit, which for the ASCII paths the tree holds is
+ *   byte order, so one tree always prints in one order; `localeCompare` would not do, since its
+ *   order depends on the locale and folds case. Each file's labels come from {@link tallyReach},
+ *   whose `sort()` compares by the same code units. A file path is never an array index, so the
+ *   object keeps that order when it is serialized.
+ * @param collections - Every collection of every collector.
+ * @returns File → sorted `<collector>:<source>` labels; a file no source collects has no entry.
+ */
+function reachByFile(
+  collections: readonly Collection[]
+): Readonly<Record<string, readonly string[]>> {
+  return Object.fromEntries(
+    [...tallyReach(collections)].sort(([a], [b]) => (a < b ? -1 : Number(a > b)))
+  );
+}
+
+/**
  * Runs the engine once: list, collect, read the registry and the quarantines, evaluate.
  *
  * @param options - The repository root and the registry and quarantine inputs.
@@ -268,6 +295,7 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
         baseRead: false,
         quarantineRead: false,
       }),
+      reach: {},
     };
   }
   const errors: string[] = [];
@@ -334,6 +362,7 @@ async function runReach(options: ReachOptions, seams: ReachSeams): Promise<Reach
       baseRead: base !== null,
       quarantineRead: quarantine !== null,
     }),
+    reach: reachByFile(outcome.collections),
   };
 }
 
