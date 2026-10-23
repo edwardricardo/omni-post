@@ -2,9 +2,9 @@
 /**
  * @file ledger-core.mjs
  * @description The pure core of the test ledger: the shape a path takes, one row per classified
- *   block and the machine verdict of each file. It spawns nothing, writes nothing and reads no
- *   file; the command that lists the tree, runs the reach engine and the classifier and writes
- *   `ledger.json` builds on these functions.
+ *   block, the machine verdict of each file and the row that carries it. It spawns nothing,
+ *   writes nothing and reads no file; the command that lists the tree, runs the reach engine and
+ *   the classifier and writes `ledger.json` builds on these functions.
  * @layer infrastructure
  */
 import { BLOCK_CLASS } from "@packages/eslint-plugin-testing";
@@ -42,6 +42,9 @@ export const CANONICAL_TEST_SHAPED = /(\.(test|spec)\.[cm]?[jt]sx?|\.k6\.js)$/;
  * with a `.disabled`, `.old` or `.bak` tail.
  * @typedef {"test" | "integration-test" | "live-test" | "spec" | "k6" | "runner" | "helper" | "disabled"} Shape
  */
+
+/** @type {readonly Shape[]} */
+const TEST_SHAPED = Object.freeze(["test", "integration-test", "live-test", "spec", "k6"]);
 
 /** A machine verdict; `null` on a row stands for a verdict no scan measures yet. */
 const VERDICT = Object.freeze(
@@ -91,6 +94,31 @@ const SUITE_ROOT = /^(security|performance)\//;
  * @property {string[]} criteria The demolition criteria the class falls under, empty when none.
  * @property {string} bodyHash The classifier's sha256 of the block's body tokens.
  *
+ * @typedef {object} FileRow One file of the ledger.
+ * @property {string} path Repository-relative.
+ * @property {Shape | null} shape `null` only for a path a decision excludes.
+ * @property {string | null} framework The classifier's, `null` when the file was not read.
+ * @property {string[] | null} collectors Reach's `collector:source` labels, `[]` for an orphan,
+ *   `null` for a file that is not test-shaped.
+ * @property {string | null} quarantined The owner of the file's quarantine entry, else `null`.
+ * @property {number} blockCount
+ * @property {BlockRow[]} blocks In source order.
+ * @property {Verdict | null} verdict
+ * @property {Basis} basis
+ * @property {string | null} excluded The id of the decision that excludes the path, else `null`.
+ * @property {"machine" | "confirmed"} status `machine` until a human confirms the verdict.
+ * @property {string | null} sliceId The demolition slice the file belongs to, `null` until assigned.
+ * @property {null} subject `null` until the subject-import scan exists.
+ * @property {null} duplicate `null` until the duplicate scan exists.
+ * @property {number | null} importers `null` until the importer scan exists.
+ *
+ * @typedef {object} RowInput What `fileRow` builds a row from.
+ * @property {string} path Repository-relative.
+ * @property {FileClassification | null} classification `classifyFile`'s result for the path,
+ *   `null` when the file was not classified.
+ * @property {readonly string[]} collectors Reach's labels for the path, `[]` when it lists none.
+ * @property {string | null} quarantined The owner of the path's quarantine entry, else `null`.
+ *
  * @typedef {object} VerdictInput What `verdictOf` decides from.
  * @property {string} path Repository-relative.
  * @property {FileClassification | null} classification
@@ -100,6 +128,25 @@ const SUITE_ROOT = /^(security|performance)\//;
  * @property {Basis} basis
  * @property {string | null} excluded
  */
+
+/**
+ * @template T
+ * @typedef {{ value: T } | { error: string }} Result
+ */
+
+/**
+ * @description Orders two strings by UTF-16 code unit. `localeCompare` would follow the ICU
+ *   collation of the Node that runs it, which folds case and punctuation (`post` before `Post`)
+ *   and may change with the ICU version or the locale; `<` is the same on every machine and, for
+ *   the ASCII paths git lists here, is byte order, the order `git ls-files` prints.
+ * @param {string} left
+ * @param {string} right
+ * @returns {number} Negative, zero or positive, as `Array.prototype.sort` expects.
+ */
+function byCodeUnit(left, right) {
+  if (left < right) return -1;
+  return left > right ? 1 : 0;
+}
 
 /**
  * @description Reads the decision that excludes a path.
@@ -145,6 +192,32 @@ function orderedBlock(block) {
     blockClass: block.blockClass,
     criteria: [...block.criteria],
     bodyHash: block.bodyHash,
+  };
+}
+
+/**
+ * @description Copies a file row into the ledger's key order, its blocks too, so the order of the
+ *   rendered keys is this literal's whatever object a caller passes.
+ * @param {FileRow} row
+ * @returns {FileRow}
+ */
+function orderedRow(row) {
+  return {
+    path: row.path,
+    shape: row.shape,
+    framework: row.framework,
+    collectors: row.collectors === null ? null : [...row.collectors],
+    quarantined: row.quarantined,
+    blockCount: row.blockCount,
+    blocks: row.blocks.map(orderedBlock),
+    verdict: row.verdict,
+    basis: row.basis,
+    excluded: row.excluded,
+    status: row.status,
+    sliceId: row.sliceId,
+    subject: row.subject,
+    duplicate: row.duplicate,
+    importers: row.importers,
   };
 }
 
@@ -223,4 +296,49 @@ export function verdictOf({ path: file, classification }) {
   if (decorative === blocks.length) return decided(VERDICT.DELETE, BASIS.ALL_DECORATIVE);
   if (decorative > 0) return decided(VERDICT.REWRITE, BASIS.SOME_DECORATIVE);
   return decided(VERDICT.KEEP, BASIS.BEHAVIOURAL);
+}
+
+/**
+ * @description Builds one file's row. A row's collectors are reach's labels sorted by code unit
+ *   when the file is test-shaped, and `null` otherwise. It fails closed on a path that is no
+ *   ledger candidate, on a classification of another path, and on reach labels for a file that is
+ *   not test-shaped, each a caller's defect that a row would hide.
+ * @param {RowInput} input
+ * @returns {Result<FileRow>} The row, or the reason it cannot be built.
+ */
+export function fileRow({ path: file, classification, collectors, quarantined }) {
+  const shape = shapeOf(file);
+  if (shape === null && decisionOf(file) === null) {
+    return { error: `${file} is not a ledger candidate: no shape and no decision admits it` };
+  }
+  if (classification !== null && classification.path !== file) {
+    return { error: `${file} carries the classification of ${classification.path}` };
+  }
+  const testShaped = shape !== null && TEST_SHAPED.includes(shape);
+  if (!testShaped && collectors.length > 0) {
+    return {
+      error: `${file} is not test-shaped, yet reach lists it under ${collectors.join(", ")}`,
+    };
+  }
+  const blocks = classification === null ? [] : blockRows(classification);
+  const { verdict, basis, excluded } = verdictOf({ path: file, classification });
+  return {
+    value: orderedRow({
+      path: file,
+      shape,
+      framework: classification?.framework ?? null,
+      collectors: testShaped ? [...collectors].sort(byCodeUnit) : null,
+      quarantined,
+      blockCount: blocks.length,
+      blocks,
+      verdict,
+      basis,
+      excluded,
+      status: "machine",
+      sliceId: null,
+      subject: null,
+      duplicate: null,
+      importers: null,
+    }),
+  };
 }
