@@ -17,6 +17,7 @@ import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { RedisInstrumentation } from "@opentelemetry/instrumentation-redis";
 import { FsInstrumentation } from "@opentelemetry/instrumentation-fs";
 import pino from "pino";
+import { tagProviderSpan } from "./providerSpanAttributes.js";
 
 export interface TelemetryConfig {
   serviceName: string;
@@ -184,21 +185,11 @@ export function createTelemetryInstrumentations(): NodeSDKConfiguration["instrum
         const url = (req as unknown as { path?: string }).path || "";
         return url.includes("/health") || url.includes("/metrics");
       },
-      requestHook: (span, request) => {
-        // Add social media provider context
-        const url = (request as unknown as { path?: string }).path || "";
-        if (url.includes("api.twitter.com") || url.includes("api.x.com")) {
-          span.setAttributes({
-            "social.provider": "x",
-            "social.api.version": "2",
-          });
-        } else if (url.includes("graph.facebook.com")) {
-          span.setAttributes({
-            "social.provider": "instagram",
-            "social.api.version": "v18.0",
-          });
-        }
-      },
+      // Social provider context on outgoing requests. The provider is recognised by host-name
+      // equality, because a substring test on a URL lets `api.twitter.com.evil.example` pass, and
+      // the host is read from the request itself, because the `path` of an outgoing request never
+      // holds it. Incoming requests are never tagged: the client chooses their `Host` header.
+      requestHook: tagProviderSpan,
     }),
 
     // Redis instrumentation for cache and queues
