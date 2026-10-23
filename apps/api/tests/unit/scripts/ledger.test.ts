@@ -7,16 +7,17 @@
  *   verdict is pinned against the blocks the ledger reads in the tree; those cases spawn and write
  *   nothing.
  *
- *   Then `reachReport` of `scripts/testing/lib/reach-report.mjs`, the engine's run read from a
- *   stand-in for its process.
+ *   Then the readers of `scripts/testing/lib/reach-report.mjs`: the report, read from a stand-in
+ *   for the engine's process, its per-file map, and the quarantine's owners, each quarantine planted
+ *   in a fresh directory under `tmpdir()`.
  * @layer infrastructure
  */
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 type Shape =
   "test" | "integration-test" | "live-test" | "spec" | "k6" | "runner" | "helper" | "disabled";
@@ -160,6 +161,8 @@ type Spawn = (command: string, args: readonly string[], cwd: string) => string;
 /** The shared reader of the reach engine's report and quarantine, typed for the same reason. */
 type ReachLib = {
   reachReport: (root: string, seams?: { readonly spawn?: Spawn }) => ReachReport | string;
+  reachLabels: (report: { readonly reach: unknown }) => Map<string, string[]> | string;
+  quarantineOwners: (root: string) => Map<string, string> | string;
 };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
@@ -678,7 +681,28 @@ describe("buildLedger and render", () => {
 
 const A = "apps/api/tests/unit/a.test.ts";
 const C = "apps/api/tests/unit/c.test.ts";
+const NODE_LABEL = "node:apps/api/scripts/run-tests.sh";
+const OWNER = "WU-2.6a";
 const UNREAD_INPUT = "a vitest config could not be resolved";
+const QUARANTINE_FILE = "packages/test-contracts/quarantine.json";
+
+let planted: string[] = [];
+
+afterEach(() => {
+  for (const root of planted) rmSync(root, { recursive: true, force: true });
+  planted = [];
+});
+
+/** Plants files under a fresh directory below `tmpdir()`, which goes after the test. */
+const plant = (files: Readonly<Record<string, string>>): string => {
+  const root = mkdtempSync(path.join(tmpdir(), "ledger-test-"));
+  planted.push(root);
+  for (const [file, text] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    writeFileSync(path.join(root, file), text);
+  }
+  return root;
+};
 
 /** What the engine prints: one violation, reach's map and no input it could not read. */
 const PRINTED = JSON.stringify({
@@ -765,5 +789,67 @@ describe("reach-report.mjs", () => {
         "/repository",
       ],
     ]);
+  });
+
+  it.each<[string, unknown, Map<string, string[]> | string]>([
+    [
+      "a map of label lists",
+      { [A]: [VITEST_LABEL, NODE_LABEL] },
+      new Map([[A, [VITEST_LABEL, NODE_LABEL]]]),
+    ],
+    ["no map", undefined, "test-contracts reach printed a report with no reach map"],
+    ["a list", [], "test-contracts reach printed a report with no reach map"],
+    ["an empty label list, kept as it was printed", { [A]: [] }, new Map([[A, []]])],
+    [
+      "a label that is not a string",
+      { [A]: [7] },
+      `test-contracts reach printed labels for ${A} that are not strings`,
+    ],
+  ])(
+    "reachLabels returns each file's labels, or why the report holds none, given %s",
+    (_case, reach, expected) => {
+      expect(reachLib.reachLabels({ reach })).toEqual(expected);
+    }
+  );
+
+  it.each<[string, string, Map<string, string> | string]>([
+    [
+      "an entry per quarantined file",
+      JSON.stringify({
+        entries: [{ path: C, reason: "runs nowhere", owner: OWNER, since: "2026-10-23" }],
+      }),
+      new Map([[C, OWNER]]),
+    ],
+    ["no entries list", JSON.stringify({ items: [] }), `${QUARANTINE_FILE} holds no entries list`],
+    [
+      "an entry with no owner",
+      JSON.stringify({ entries: [{ path: C }] }),
+      `${QUARANTINE_FILE}: entry 0 has no path or no owner`,
+    ],
+    [
+      "two entries for one path",
+      JSON.stringify({
+        entries: [
+          { path: C, owner: OWNER },
+          { path: C, owner: "WU-2.7" },
+        ],
+      }),
+      `${QUARANTINE_FILE}: entry 1 repeats ${C}`,
+    ],
+  ])(
+    "quarantineOwners returns each file's owner, or why the quarantine is unread, given %s",
+    (_case, text, expected) => {
+      const root = plant({ [QUARANTINE_FILE]: text });
+
+      expect(reachLib.quarantineOwners(root)).toEqual(expected);
+    }
+  );
+
+  it("quarantineOwners returns why the quarantine is unread when there is no quarantine file", () => {
+    const root = plant({});
+
+    expect(reachLib.quarantineOwners(root)).toMatch(
+      /^packages\/test-contracts\/quarantine\.json could not be read: ENOENT/
+    );
   });
 });
