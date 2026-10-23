@@ -13,16 +13,17 @@
   "scripts": {
     "build": "tsc -b tsconfig.build.json",
     "dev": "tsc --watch",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fastify/otel": "0.21.2",
     "@observability/background-scheduler": "workspace:*",
     "@opentelemetry/api": "catalog:otel",
     "@opentelemetry/auto-instrumentations-node": "catalog:otel",
     "@opentelemetry/core": "catalog:otel",
     "@opentelemetry/exporter-prometheus": "catalog:otel",
     "@opentelemetry/exporter-trace-otlp-http": "catalog:otel",
-    "@opentelemetry/instrumentation-fastify": "catalog:otel",
     "@opentelemetry/instrumentation-fs": "catalog:otel",
     "@opentelemetry/instrumentation-http": "catalog:otel",
     "@opentelemetry/instrumentation-redis": "catalog:otel",
@@ -32,8 +33,11 @@
     "pino": "catalog:"
   },
   "devDependencies": {
+    "@packages/vitest-shared": "workspace:*",
     "@types/node": "catalog:",
-    "typescript": "catalog:"
+    "fastify": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "exports": {
     ".": {

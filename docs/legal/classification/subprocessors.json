@@ -84,6 +84,10 @@
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
     },
+    "@fastify/otel": {
+      "status": "library",
+      "note": "The Fastify authors' OpenTelemetry instrumentation, registered on the API's Fastify instance by `@observability/opentelemetry` when tracing is on; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
+    },
     "@fastify/swagger": {
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
@@ -194,10 +198,6 @@
       "dataSent": "request traces: span names, timings, routes and span attributes",
       "productionPath": "yes",
       "note": "`@observability/opentelemetry`, which the API and the workers start when tracing is on."
-    },
-    "@opentelemetry/instrumentation-fastify": {
-      "status": "library",
-      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
     },
     "@opentelemetry/instrumentation-fs": {
       "status": "library",

@@ -119,7 +119,7 @@
     "argon2": "catalog:",
     "bullmq": "catalog:",
     "dotenv": "catalog:",
-    "fastify": "5.12.6",
+    "fastify": "catalog:",
     "fastify-plugin": "5.0.1",
     "fastify-type-provider-zod": "6.1.0",
     "ioredis": "catalog:",

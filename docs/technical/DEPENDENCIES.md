@@ -170,7 +170,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 | --------------------------------------- | ------- | ----------------------------------- |
 | @opentelemetry/sdk-node                 | 0.219.0 | OpenTelemetry SDK                   |
 | @opentelemetry/api                      | 1.9.1   | Tracing API                         |
-| @opentelemetry/instrumentation-fastify  | 0.57.0  | Fastify auto-instrumentation        |
+| @fastify/otel                           | 0.21.2  | Fastify route and hook spans        |
 | @opentelemetry/instrumentation-http     | 0.219.0 | HTTP auto-instrumentation           |
 | @opentelemetry/instrumentation-redis    | 0.67.0  | Redis auto-instrumentation          |
 | @opentelemetry/exporter-prometheus      | 0.219.0 | Prometheus metrics export           |
