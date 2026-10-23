@@ -7,9 +7,11 @@
  *   verdict is pinned against the blocks the ledger reads in the tree; those cases spawn and write
  *   nothing.
  *
- *   Then the readers of `scripts/testing/lib/reach-report.mjs`: the report, read from a stand-in
- *   for the engine's process, its per-file map, and the quarantine's owners, each quarantine planted
- *   in a fresh directory under `tmpdir()`.
+ *   Then the readers of `scripts/testing/lib/reach-report.mjs` (the report, its per-file map, the
+ *   quarantine's owners) and `build(root, seams)` of the command, `scripts/testing/ledger.mjs`: the
+ *   reach join, the quarantine owner, what is listed, what stops the build. They run over fixture
+ *   trees planted in fresh directories under `tmpdir()`, the git listing and the reach engine
+ *   replaced, so they spawn nothing.
  * @layer infrastructure
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -165,11 +167,30 @@ type ReachLib = {
   quarantineOwners: (root: string) => Map<string, string> | string;
 };
 
+/** What the suite replaces in the command: the git listing and the reach engine's run. */
+interface LedgerSeams {
+  readonly listFiles?: (root: string) => Result<string[]>;
+  readonly runReach?: (root: string) => ReachReport | string;
+}
+
+/** A built ledger, and a note per file the classifier could not read. */
+interface Built {
+  readonly ledger: Ledger;
+  readonly notes: readonly string[];
+}
+
+/** The command's surface, typed for the same reason as the core's. */
+type LedgerCli = {
+  build: (root: string, seams?: LedgerSeams) => Result<Built>;
+};
+
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const CORE_SCRIPT = path.join(REPO_ROOT, "scripts/testing/lib/ledger-core.mjs");
+const CLI_SCRIPT = path.join(REPO_ROOT, "scripts/testing/ledger.mjs");
 const REACH_LIB = path.join(REPO_ROOT, "scripts/testing/lib/reach-report.mjs");
 const CLASSIFIER = path.join(REPO_ROOT, "packages/eslint-plugin-testing/src/index.js");
 const core = (await import(CORE_SCRIPT)) as LedgerCore;
+const cli = (await import(CLI_SCRIPT)) as LedgerCli;
 const reachLib = (await import(REACH_LIB)) as ReachLib;
 const { classifyFile } = (await import(CLASSIFIER)) as ClassifierModule;
 
@@ -680,7 +701,11 @@ describe("buildLedger and render", () => {
 });
 
 const A = "apps/api/tests/unit/a.test.ts";
+const B = "apps/api/tests/unit/b.test.ts";
 const C = "apps/api/tests/unit/c.test.ts";
+const HELPER = "apps/api/tests/unit/a.test-helpers.ts";
+const DEEP = "apps/api/tests/unit/deep.test.ts";
+const MISSING = "apps/api/tests/unit/missing.test.ts";
 const NODE_LABEL = "node:apps/api/scripts/run-tests.sh";
 const OWNER = "WU-2.6a";
 const UNREAD_INPUT = "a vitest config could not be resolved";
@@ -851,5 +876,109 @@ describe("reach-report.mjs", () => {
     expect(reachLib.quarantineOwners(root)).toMatch(
       /^packages\/test-contracts\/quarantine\.json could not be read: ENOENT/
     );
+  });
+});
+
+/**
+ * A planted tree: three test-shaped files (one reached twice, two orphans, one of them
+ * quarantined), a helper, a source file and a test-shaped file outside every workspace, which the
+ * ledger leaves out with the source file.
+ */
+const FIXTURE: Readonly<Record<string, string>> = {
+  "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n  # a comment\n  - packages/*\n',
+  [QUARANTINE_FILE]: JSON.stringify({
+    entries: [{ path: C, reason: "runs nowhere", owner: OWNER, since: "2026-10-23" }],
+  }),
+  [A]: SOURCES.behavioural,
+  [B]: SOURCES.mixed,
+  [C]: SOURCES.decorative,
+  [HELPER]: SOURCES.noBlocks,
+  "apps/api/src/post.ts": SOURCES.noBlocks,
+  "scripts/outside.test.ts": SOURCES.behavioural,
+};
+/** Reach's report: A collected by two sources, its labels out of code-unit order. */
+const REACH: ReachReport = { violations: [], reach: { [A]: [VITEST_LABEL, NODE_LABEL] } };
+
+/** Builds the ledger of a planted tree, its listing every planted path and reach `REACH`. */
+const built = (root: string, seams: LedgerSeams = {}): Result<Built> =>
+  cli.build(root, {
+    listFiles: () => ({ value: Object.keys(FIXTURE) }),
+    runReach: () => REACH,
+    ...seams,
+  });
+
+describe("ledger.mjs build", () => {
+  it("returns reach's labels sorted, an orphan's empty list, a quarantined orphan's owner and null for a helper, leaving out the paths outside every workspace", () => {
+    const { ledger, notes } = valueOf(built(plant(FIXTURE)));
+
+    const rows = new Map(ledger.files.map((file) => [file.path, file]));
+    expect([...rows.keys()]).toEqual([HELPER, A, B, C]);
+    expect(rows.get(A)).toMatchObject({
+      collectors: [NODE_LABEL, VITEST_LABEL],
+      quarantined: null,
+      verdict: "KEEP",
+    });
+    expect(rows.get(B)).toMatchObject({ collectors: [], quarantined: null, verdict: "REWRITE" });
+    expect(rows.get(C)).toMatchObject({ collectors: [], quarantined: OWNER, verdict: "DELETE" });
+    expect(rows.get(HELPER)).toMatchObject({ collectors: null, blockCount: 0, verdict: null });
+    expect(notes).toEqual([]);
+  });
+
+  it("renders the same bytes whatever order the listing gives the paths in", async () => {
+    const root = plant(FIXTURE);
+
+    const forward = valueOf(built(root)).ledger;
+    const reversed = Object.keys(FIXTURE).reverse();
+    const backward = valueOf(built(root, { listFiles: () => ({ value: reversed }) })).ledger;
+
+    expect(await core.render(backward)).toBe(await core.render(forward));
+  });
+
+  it.each<[string, LedgerSeams, string]>([
+    [
+      "git ls-files failed",
+      { listFiles: () => ({ error: "git ls-files failed: not a git repository" }) },
+      "git ls-files failed: not a git repository",
+    ],
+    [
+      "the listing holds no test-shaped file",
+      { listFiles: () => ({ value: ["pnpm-workspace.yaml", HELPER] }) },
+      "git ls-files listed no test-shaped file under apps/, packages/, performance/, security/",
+    ],
+    [
+      "reach printed no report",
+      { runReach: () => "test-contracts reach printed no JSON report" },
+      "test-contracts reach printed no JSON report",
+    ],
+  ])("returns an error when %s", (_case, seams, error) => {
+    expect(built(plant(FIXTURE), seams)).toEqual({ error });
+  });
+
+  it("returns an error naming a listed file it cannot read", () => {
+    const listing = [...Object.keys(FIXTURE), MISSING];
+
+    const result = built(plant(FIXTURE), { listFiles: () => ({ value: listing }) });
+
+    expect(result).toEqual({
+      error: expect.stringMatching(new RegExp(`^${MISSING} could not be read: ENOENT`)),
+    });
+  });
+
+  it("returns a row with no framework and a note for a file the classifier cannot read", () => {
+    const root = plant({ ...FIXTURE, [DEEP]: SOURCES.unreadable });
+
+    const result = valueOf(
+      built(root, { listFiles: () => ({ value: [...Object.keys(FIXTURE), DEEP] }) })
+    );
+
+    expect(result.ledger.files.find((file) => file.path === DEEP)).toMatchObject({
+      framework: null,
+      blockCount: 0,
+      verdict: "ADJUDICATE",
+      basis: "unreadable",
+    });
+    expect(result.notes).toEqual([
+      expect.stringMatching(new RegExp(`^${DEEP}: the classifier could not read it: RangeError`)),
+    ]);
   });
 });
