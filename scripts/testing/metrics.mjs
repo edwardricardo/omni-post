@@ -24,6 +24,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { reachReport } from "./lib/reach-report.mjs";
 
 const UNKNOWN = "—";
 
@@ -188,67 +189,6 @@ function m1() {
 }
 
 /**
- * @typedef {object} ReachViolation
- * @property {string} rule
- * @property {string} message
- */
-
-/**
- * @typedef {object} ReachReport
- * @property {ReachViolation[]} violations
- * @property {string[]} errors
- */
-
-/**
- * Runs the reach engine with the command fitness #30 runs, plus `--json`. The engine exits 1 on a
- * violation and still prints its report, so that exit is read rather than treated as no report.
- *
- * @returns {ReachReport | string} The report, or why there is none.
- */
-function reachReport() {
-  /** @type {string} */
-  let stdout;
-  try {
-    stdout = execFileSync(
-      "pnpm",
-      [
-        "--silent",
-        "--filter",
-        "@packages/test-contracts",
-        "reach",
-        "--quarantine",
-        "quarantine.json",
-        "--json",
-      ],
-      {
-        encoding: "utf8",
-        cwd: REPO_ROOT,
-        maxBuffer: 64 * 1024 * 1024,
-        stdio: ["ignore", "pipe", "pipe"],
-      }
-    );
-  } catch (error) {
-    const failed = typeof error === "object" && error !== null ? error : {};
-    const status = "status" in failed ? failed.status : null;
-    const output = "stdout" in failed ? failed.stdout : null;
-    if (status !== 1 || typeof output !== "string") {
-      return `test-contracts reach exited ${String(status)} with no report`;
-    }
-    stdout = output;
-  }
-  try {
-    /** @type {{ violations?: unknown, errors?: unknown }} */
-    const parsed = JSON.parse(stdout);
-    if (!Array.isArray(parsed.violations) || !Array.isArray(parsed.errors)) {
-      return "test-contracts reach printed a report with no violations or errors list";
-    }
-    return { violations: parsed.violations, errors: parsed.errors };
-  } catch {
-    return "test-contracts reach printed no JSON report";
-  }
-}
-
-/**
  * M5: the orphan test files, which no required check runs (every quarantine entry, plus every file
  * the reach engine reports unreached outside the quarantine), and the files collected more than
  * once. Both read R1's messages, `unreached: …` and `collected <n> times: …` (`rules.ts`). A
@@ -261,16 +201,9 @@ function m5() {
   if (!existsSync(QUARANTINE)) {
     return { id: "M5", value: UNKNOWN, source: absent("packages/test-contracts/quarantine.json") };
   }
-  const report = reachReport();
+  const report = reachReport(REPO_ROOT);
   if (typeof report === "string")
     return { id: "M5", value: UNKNOWN, source: `unavailable: ${report}` };
-  if (report.errors.length > 0) {
-    return {
-      id: "M5",
-      value: UNKNOWN,
-      source: `unavailable: test-contracts reach could not read an input: ${String(report.errors[0])}`,
-    };
-  }
   /** @type {{ entries?: unknown }} */
   const quarantine = JSON.parse(readFileSync(QUARANTINE, "utf8"));
   const quarantined = Array.isArray(quarantine.entries) ? quarantine.entries.length : 0;

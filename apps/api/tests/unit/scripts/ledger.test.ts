@@ -1,11 +1,14 @@
 /**
  * @file ledger.test.ts
- * @description Pins `scripts/testing/lib/ledger-core.mjs`, the pure core of the test ledger: the
- *   shape a path takes, the rows of a file's classified blocks, the machine verdict table, the
+ * @description Pins the test ledger. First its pure core, `scripts/testing/lib/ledger-core.mjs`:
+ *   the shape a path takes, the rows of a file's classified blocks, the machine verdict table, the
  *   summary derived from the rows and the deterministic JSON they render to. The real classifier,
  *   `classifyFile` of `packages/eslint-plugin-testing`, reads inline fixture sources, so every
- *   verdict is pinned against the blocks the ledger reads in the tree. Nothing here spawns or
- *   writes; the only files read are the three that define the test-shaped expression.
+ *   verdict is pinned against the blocks the ledger reads in the tree; those cases spawn and write
+ *   nothing.
+ *
+ *   Then `reachReport` of `scripts/testing/lib/reach-report.mjs`, the engine's run read from a
+ *   stand-in for its process.
  * @layer infrastructure
  */
 import { readFileSync } from "node:fs";
@@ -139,10 +142,32 @@ type ClassifierModule = {
   classifyFile: (text: string, fileName: string) => Classification;
 };
 
+/** One violation of the reach engine's report. */
+interface ReachViolation {
+  readonly rule: string;
+  readonly message: string;
+}
+
+/** A report of the reach engine, as the shared reader returns it. */
+interface ReachReport {
+  readonly violations: readonly ReachViolation[];
+  readonly reach: Readonly<Record<string, readonly string[]>>;
+}
+
+/** The process the reader runs the engine in; it throws as `execFileSync` does on a non-zero exit. */
+type Spawn = (command: string, args: readonly string[], cwd: string) => string;
+
+/** The shared reader of the reach engine's report and quarantine, typed for the same reason. */
+type ReachLib = {
+  reachReport: (root: string, seams?: { readonly spawn?: Spawn }) => ReachReport | string;
+};
+
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const CORE_SCRIPT = path.join(REPO_ROOT, "scripts/testing/lib/ledger-core.mjs");
+const REACH_LIB = path.join(REPO_ROOT, "scripts/testing/lib/reach-report.mjs");
 const CLASSIFIER = path.join(REPO_ROOT, "packages/eslint-plugin-testing/src/index.js");
 const core = (await import(CORE_SCRIPT)) as LedgerCore;
+const reachLib = (await import(REACH_LIB)) as ReachLib;
 const { classifyFile } = (await import(CLASSIFIER)) as ClassifierModule;
 
 const VITEST = 'import { describe, expect, it } from "vitest";\n';
@@ -648,5 +673,97 @@ describe("buildLedger and render", () => {
     expect(text).not.toContain(REPO_ROOT);
     expect(text).not.toContain(tmpdir());
     expect(text).not.toMatch(/"\//);
+  });
+});
+
+const A = "apps/api/tests/unit/a.test.ts";
+const C = "apps/api/tests/unit/c.test.ts";
+const UNREAD_INPUT = "a vitest config could not be resolved";
+
+/** What the engine prints: one violation, reach's map and no input it could not read. */
+const PRINTED = JSON.stringify({
+  ok: false,
+  violations: [{ rule: "R1", message: `unreached: ${C}` }],
+  errors: [],
+  reach: { [A]: [VITEST_LABEL] },
+});
+/** The report the reader returns for `PRINTED`. */
+const READ: ReachReport = {
+  violations: [{ rule: "R1", message: `unreached: ${C}` }],
+  reach: { [A]: [VITEST_LABEL] },
+};
+
+/** A process that prints `stdout` and exits 0. */
+const prints =
+  (stdout: string): Spawn =>
+  () =>
+    stdout;
+
+/** A process that exits `status` having printed `stdout`, thrown as `execFileSync` throws it. */
+const exits =
+  (status: number, stdout: string): Spawn =>
+  () => {
+    throw Object.assign(new Error(`Command failed: pnpm (exit ${status})`), { status, stdout });
+  };
+
+describe("reach-report.mjs", () => {
+  it.each<[string, Spawn, ReachReport | string]>([
+    ["exit 0 with a report", prints(PRINTED), READ],
+    ["exit 1 with a report, the engine's exit on a violation", exits(1, PRINTED), READ],
+    ["exit 1 with nothing printed", exits(1, ""), "test-contracts reach printed no JSON report"],
+    ["exit 2, a usage error", exits(2, PRINTED), "test-contracts reach exited 2 with no report"],
+    [
+      "text that is not a report",
+      prints("reach: PASS\n"),
+      "test-contracts reach printed no JSON report",
+    ],
+    [
+      "a report with no errors list",
+      prints(JSON.stringify({ violations: [] })),
+      "test-contracts reach printed a report with no violations or errors list",
+    ],
+    [
+      "a report naming inputs it could not read",
+      prints(
+        JSON.stringify({ violations: [], errors: [UNREAD_INPUT, "a second input"], reach: {} })
+      ),
+      `test-contracts reach could not read an input: ${UNREAD_INPUT}; a second input`,
+    ],
+    [
+      "a process that cannot start",
+      () => {
+        throw Object.assign(new Error("spawnSync pnpm ENOENT"), { code: "ENOENT" });
+      },
+      "test-contracts reach could not run: spawnSync pnpm ENOENT",
+    ],
+  ])("reachReport returns the report, or why there is none, given %s", (_case, spawn, expected) => {
+    expect(reachLib.reachReport("/repository", { spawn })).toEqual(expected);
+  });
+
+  it("reachReport runs fitness #30's command, plus --json, in the root it is given", () => {
+    const calls: [string, readonly string[], string][] = [];
+
+    reachLib.reachReport("/repository", {
+      spawn: (command, args, cwd) => {
+        calls.push([command, args, cwd]);
+        return PRINTED;
+      },
+    });
+
+    expect(calls).toEqual([
+      [
+        "pnpm",
+        [
+          "--silent",
+          "--filter",
+          "@packages/test-contracts",
+          "reach",
+          "--quarantine",
+          "quarantine.json",
+          "--json",
+        ],
+        "/repository",
+      ],
+    ]);
   });
 });
