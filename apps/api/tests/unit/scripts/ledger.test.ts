@@ -1,11 +1,11 @@
 /**
  * @file ledger.test.ts
  * @description Pins `scripts/testing/lib/ledger-core.mjs`, the pure core of the test ledger: the
- *   shape a path takes, the rows of a file's classified blocks and the machine verdict table.
- *   The real classifier, `classifyFile` of `packages/eslint-plugin-testing`, reads inline fixture
- *   sources, so every verdict is pinned against the blocks the ledger reads in the tree. Nothing
- *   here spawns or writes; the only files read are the three that define the test-shaped
- *   expression.
+ *   shape a path takes, the rows of a file's classified blocks, the machine verdict table and the
+ *   row of each file. The real classifier, `classifyFile` of `packages/eslint-plugin-testing`,
+ *   reads inline fixture sources, so every verdict is pinned against the blocks the ledger reads
+ *   in the tree. Nothing here spawns or writes; the only files read are the three that define
+ *   the test-shaped expression.
  * @layer infrastructure
  */
 import { readFileSync } from "node:fs";
@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 type Shape =
   "test" | "integration-test" | "live-test" | "spec" | "k6" | "runner" | "helper" | "disabled";
 type Verdict = "DELETE" | "REWRITE" | "KEEP" | "ADJUDICATE";
+type Result<T> = { value: T } | { error: string };
 
 /** The line a classified block starts on. */
 interface BlockLocation {
@@ -49,6 +50,31 @@ interface BlockRow {
   readonly bodyHash: string;
 }
 
+interface FileRow {
+  readonly path: string;
+  readonly shape: Shape | null;
+  readonly framework: string | null;
+  readonly collectors: readonly string[] | null;
+  readonly quarantined: string | null;
+  readonly blockCount: number;
+  readonly blocks: readonly BlockRow[];
+  readonly verdict: Verdict | null;
+  readonly basis: string;
+  readonly excluded: string | null;
+  readonly status: string;
+  readonly sliceId: string | null;
+  readonly subject: null;
+  readonly duplicate: null;
+  readonly importers: number | null;
+}
+
+interface RowInput {
+  readonly path: string;
+  readonly classification: Classification | null;
+  readonly collectors: readonly string[];
+  readonly quarantined: string | null;
+}
+
 interface MachineVerdict {
   readonly verdict: Verdict | null;
   readonly basis: string;
@@ -63,6 +89,7 @@ type LedgerCore = {
   shapeOf: (file: string) => Shape | null;
   blockRows: (classification: Classification) => BlockRow[];
   verdictOf: (input: { path: string; classification: Classification | null }) => MachineVerdict;
+  fileRow: (input: RowInput) => Result<FileRow>;
 };
 
 /** The classifier's surface the suite calls, typed for the same reason. */
@@ -105,8 +132,47 @@ const SOURCES = {
 } as const;
 type Source = keyof typeof SOURCES;
 
+const ROW_KEYS = [
+  "path",
+  "shape",
+  "framework",
+  "collectors",
+  "quarantined",
+  "blockCount",
+  "blocks",
+  "verdict",
+  "basis",
+  "excluded",
+  "status",
+  "sliceId",
+  "subject",
+  "duplicate",
+  "importers",
+];
+const VITEST_LABEL = "vitest:apps/api/vitest.config.ts";
+
+const valueOf = <T>(result: Result<T>): T => {
+  if ("error" in result) throw new Error(result.error);
+  return result.value;
+};
+
 const classify = (file: string, source: Source): Classification =>
   classifyFile(SOURCES[source], file);
+
+const row = (
+  file: string,
+  source: Source | null,
+  collectors: readonly string[] = [],
+  quarantined: string | null = null
+): FileRow =>
+  valueOf(
+    core.fileRow({
+      path: file,
+      classification: source === null ? null : classify(file, source),
+      collectors,
+      quarantined,
+    })
+  );
 
 describe("the constants", () => {
   it("returns version 1 and the two paths decision D17 keeps out of every delete slice", () => {
@@ -312,5 +378,84 @@ describe("verdictOf", () => {
     const classification = source === null ? null : classify(file, source);
 
     expect(core.verdictOf({ path: file, classification })).toEqual({ verdict, basis, excluded });
+  });
+});
+
+describe("fileRow", () => {
+  it("returns the row in the ledger's key order, its verdict computed and the fields no scan fills yet null", () => {
+    const file = "apps/api/tests/unit/post.test.ts";
+
+    const result = row(file, "mixed", [VITEST_LABEL]);
+
+    expect(Object.keys(result)).toEqual(ROW_KEYS);
+    expect(result).toMatchObject({
+      path: file,
+      shape: "test",
+      framework: "vitest",
+      collectors: [VITEST_LABEL],
+      quarantined: null,
+      blockCount: 2,
+      verdict: "REWRITE",
+      basis: "some-decorative",
+      excluded: null,
+      status: "machine",
+      sliceId: null,
+      subject: null,
+      duplicate: null,
+      importers: null,
+    });
+  });
+
+  it("sorts reach's labels by code unit and keeps an orphan's list empty, with its quarantine owner", () => {
+    const labels = ["vitest:b.config.ts", "node:apps/api/scripts/run-tests.sh", "Vitest:a"];
+
+    const reached = row("apps/api/tests/unit/a.test.ts", "behavioural", labels);
+    const orphan = row("apps/api/tests/unit/b.test.ts", "behavioural", [], "platform-engineering");
+
+    expect(reached.collectors).toEqual([
+      "Vitest:a",
+      "node:apps/api/scripts/run-tests.sh",
+      "vitest:b.config.ts",
+    ]);
+    expect(orphan.collectors).toEqual([]);
+    expect(orphan.quarantined).toBe("platform-engineering");
+  });
+
+  it.each<[string, Source | null]>([
+    ["apps/api/tests/unit/post.test-helpers.ts", "existence"],
+    ["apps/api/tests/run.ts", null],
+    ["apps/api/scripts/seed-demo-data.ts", "decorative"],
+  ])("returns null collectors for %s, which is not test-shaped", (file, source) => {
+    expect(row(file, source).collectors).toBeNull();
+  });
+
+  it.each<[string, RowInput, string]>([
+    [
+      "a path no shape and no decision admits",
+      { path: "apps/api/src/post.ts", classification: null, collectors: [], quarantined: null },
+      "apps/api/src/post.ts is not a ledger candidate: no shape and no decision admits it",
+    ],
+    [
+      "the classification of another file",
+      {
+        path: "apps/api/tests/unit/a.test.ts",
+        classification: classifyFile(SOURCES.behavioural, "apps/api/tests/unit/b.test.ts"),
+        collectors: [],
+        quarantined: null,
+      },
+      "apps/api/tests/unit/a.test.ts carries the classification of apps/api/tests/unit/b.test.ts",
+    ],
+    [
+      "collectors for a file that is not test-shaped",
+      {
+        path: "apps/api/tests/run.ts",
+        classification: null,
+        collectors: [VITEST_LABEL],
+        quarantined: null,
+      },
+      `apps/api/tests/run.ts is not test-shaped, yet reach lists it under ${VITEST_LABEL}`,
+    ],
+  ])("returns an error for %s", (_case, input, message) => {
+    expect(core.fileRow(input)).toEqual({ error: message });
   });
 });
