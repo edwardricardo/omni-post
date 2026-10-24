@@ -20,6 +20,7 @@ type Row = [string, () => void, string];
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type Scan = {
   names: Map<string, { manifests: string[]; production: boolean }>;
+  declarations: Array<{ file: string; block: string; name: string; spec: string }>;
   listed: string[];
   problems: string[];
 };
@@ -104,6 +105,21 @@ describe("the scan", () => {
     expect(devOnly).toEqual(["env", "lint", "mock"]);
     put(API, { name: "@w/api", dependencies: { "@w/t": WS } });
     expect(scanManifests(root).names.get("mock")?.production).toBe(true);
+  });
+
+  it("returns each declaration's file, block, name and spec, without workspace names or specs", () => {
+    const { declarations } = scanManifests(root);
+
+    expect(declarations).toEqual([
+      { file: "package.json", block: "dependencies", name: "env", spec: "1" },
+      { file: "package.json", block: "devDependencies", name: "lint", spec: "1" },
+      { file: API, block: "dependencies", name: "pay", spec: "catalog:" },
+      { file: DB, block: "devDependencies", name: "lint", spec: "1" },
+      { file: DB, block: "optionalDependencies", name: "pay", spec: "1" },
+      { file: "packages/core/package.json", block: "peerDependencies", name: "peer", spec: "1" },
+      { file: "packages/providers/x/package.json", block: "dependencies", name: "xsdk", spec: "1" },
+      { file: "packages/testing/package.json", block: "dependencies", name: "mock", spec: "1" },
+    ]);
   });
 
   it("renders the services and the providers no service reaches, byte-stable", async () => {
