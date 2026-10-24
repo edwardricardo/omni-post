@@ -36,10 +36,10 @@ const TRACKER = path.join(REPO_ROOT, "docs", "development", "TESTING_REFOUNDATIO
 
 /**
  * The metrics whose value is derived from the tree at HEAD, and are therefore comparable to the
- * tracker's Now column byte for byte. Everything else names a run, an absent artefact, or the
- * network, and says so in its own source field.
+ * tracker's Now column byte for byte. Everything else names a run, an absent artefact, a metric
+ * no lint rule counts yet, or the network, and says so in its own source field.
  */
-const DERIVED_IDS = ["M1", "M5", "M7", "M8"] as const;
+const DERIVED_IDS = ["M1", "M3", "M5", "M7", "M8"] as const;
 
 /**
  * The budget of one run that includes M5. The reach engine took about 3 s on an idle machine on

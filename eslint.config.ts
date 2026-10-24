@@ -268,19 +268,62 @@ export default defineConfig([
       "no-console": "off",
     },
   },
-  // Test files — allow console.* (debugging), any (mocks), and fire-and-forget promises
+  // Test files allow any (mocks) and fire-and-forget promises. console.log and the other stdout
+  // writers stay errors: a test reports through its assertions, and what it prints buries the
+  // runner's own report. console.warn and console.error stay legal, because they write to stderr,
+  // where testing/no-stdout-in-node-test sends a node:test diagnostic. The block comes after the
+  // scripts block on purpose, so a test under a scripts/ directory is held too.
   {
     files: testFiles,
-    // The vitest plugin is registered so its rules are RESOLVABLE on these globs,
-    // and deliberately enables none of them: this glob set also covers the node:test
-    // suites, where a rule such as `vitest/no-import-node-test` would be wrong. Both
-    // the rule selection and the narrower glob that scopes it to the files vitest
-    // actually collects are a separate change.
-    plugins: { vitest: vitestPlugin },
     rules: {
-      "no-console": "off",
+      "no-console": ["error", { allow: ["warn", "error"] }],
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-floating-promises": "off",
+    },
+  },
+  // The test runner's own command-line entry points print by design.
+  {
+    files: unrunTestFiles,
+    rules: { "no-console": "off" },
+  },
+  // The files Vitest collects. The reach engine (`pnpm --filter @packages/test-contracts reach
+  // --json`) is the authority on which files that is; these globs approximate it statically. They
+  // leave out the node:test tiers, which the suffix table of CODING_STANDARDS.md names
+  // `*.integration.test.*` and `*.live.test.*`, the node:test suites under security/tests/, which
+  // carry no tier suffix and which no runner collects, and Playwright's e2e/ code. A file the
+  // engine collects under neither runner belongs outside the block too. A vitest rule read over
+  // another runner's suite would judge that runner's API by Vitest's.
+  {
+    files: testFiles,
+    ignores: ["**/*.integration.test.*", "**/*.live.test.*", "security/tests/**", "**/e2e/**"],
+    plugins: { vitest: vitestPlugin },
+    rules: {
+      "vitest/expect-expect": [
+        "error",
+        { assertFunctionNames: ["expect", "expect*", "assert", "assert.*", "expectTypeOf"] },
+      ],
+      "vitest/no-conditional-expect": "error",
+      "vitest/valid-expect": "error",
+      "vitest/no-standalone-expect": "error",
+      "vitest/no-identical-title": "error",
+      "vitest/no-commented-out-tests": "error",
+      "vitest/no-disabled-tests": "error",
+      "vitest/no-focused-tests": "error",
+    },
+  },
+  // A test block must be able to fail. The classifier of @packages/eslint-plugin-testing names
+  // three classes of block that cannot, in vitest and node:test alike: no assertion runs in it,
+  // its every assertion is true by construction, or its every assertion only checks that a value
+  // exists. The blocks the tree held when these rules landed are listed in
+  // eslint-suppressions.json, which may only shrink: the pull request that deletes one prunes its
+  // entry (`eslint . --prune-suppressions`), and an entry left behind fails lint.
+  {
+    files: testFiles,
+    plugins: { testing: testingPlugin },
+    rules: {
+      "testing/no-empty-test": "error",
+      "testing/no-existence-only-test": "error",
+      "testing/no-tautological-assertion": "error",
     },
   },
   // Test code may unref only the handles it creates: a vitest fork also holds the IPC channel to

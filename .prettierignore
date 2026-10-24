@@ -11,3 +11,5 @@ pnpm-lock.yaml
 *.gif
 *.svg
 
+# ESLint writes this file with no final newline and rewrites it whole on every prune.
+eslint-suppressions.json

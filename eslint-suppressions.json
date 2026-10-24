@@ -1,0 +1,1897 @@
+{
+  "apps/admin/tests/apiClient.smoke.test.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "apps/admin/tests/e2e/auth.spec.ts": {
+    "no-console": {
+      "count": 2
+    },
+    "testing/no-empty-test": {
+      "count": 3
+    }
+  },
+  "apps/admin/tests/posts.flow.test.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "apps/admin/tests/unit/shared/SkipLink.test.tsx": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/accountLifecycle.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/adapters.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/analytics.flow.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/auth.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/cache.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/eval/localizedGeneration.eval.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/eval/trendsTrajectory.eval.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/eval/triageTrajectory.eval.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 7
+    }
+  },
+  "apps/api/tests/integration/customerRegisterHeldEmail.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/integration/post-trio-tenant-isolation.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/integration/postDeleteOwnership.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/integration/recurringPostTenantIsolation.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/integration/repositories/UserRepository.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/integration/tenantGucTransactionBinding.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/mfa.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/multiproject.flow.live.test.ts": {
+    "testing/no-empty-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/planPublication.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/publish.flow.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/schedule.flow.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/setup/testTemplate.ts": {
+    "testing/no-tautological-assertion": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/threading.canonical.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/threading.planner.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/threading.xprovider.integration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 11
+    }
+  },
+  "apps/api/tests/unit/AppError.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/BaseService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/CQRSBus.monitoring.test.ts": {
+    "testing/no-empty-test": {
+      "count": 1
+    },
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/expect-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/ConflictDetector.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/ContentSynchronizer.test-helpers.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/ContentVersionManager.compare.test.ts": {
+    "no-console": {
+      "count": 3
+    },
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 25
+    },
+    "vitest/no-standalone-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/ContentVersionManager.create.test.ts": {
+    "no-console": {
+      "count": 3
+    },
+    "testing/no-existence-only-test": {
+      "count": 2
+    },
+    "vitest/no-conditional-expect": {
+      "count": 33
+    },
+    "vitest/no-standalone-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/ContentVersionManager.merge.test.ts": {
+    "no-console": {
+      "count": 3
+    },
+    "testing/no-existence-only-test": {
+      "count": 3
+    },
+    "vitest/no-conditional-expect": {
+      "count": 22
+    },
+    "vitest/no-standalone-expect": {
+      "count": 5
+    }
+  },
+  "apps/api/tests/unit/DatabaseOptimizer.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 7
+    }
+  },
+  "apps/api/tests/unit/DiffCalculator.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/EventPublisher.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 7
+    }
+  },
+  "apps/api/tests/unit/EventService.post-channel.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/EventService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/EventService.user-analytics.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/EventStore.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 11
+    }
+  },
+  "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/PlatformContentAdapter.content.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 7
+    }
+  },
+  "apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 7
+    }
+  },
+  "apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 15
+    }
+  },
+  "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 11
+    }
+  },
+  "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/PostCommandHandlers.publish.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/PostCommandHandlers.test-helpers.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/PostCommandHandlers.update.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 8
+    }
+  },
+  "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/ServerTemplateEngine.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/accountLifecycleService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 20
+    }
+  },
+  "apps/api/tests/unit/activityFeedService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/admin/AdminUserAdminService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/admin/CustomerAccountBillingService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/admin/PricingAdminService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/admin/adminAuthService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 19
+    }
+  },
+  "apps/api/tests/unit/ai/agent/LangGraphAgentOrchestrationAdapter.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/ai/gemini.init.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/ai/openai.init.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/ai/perplexity.init.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/ai/types.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/aiOrchestrator.cache.test.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/aiOrchestrator.content.test.ts": {
+    "no-console": {
+      "count": 3
+    },
+    "vitest/no-conditional-expect": {
+      "count": 21
+    }
+  },
+  "apps/api/tests/unit/aiOrchestrator.providers.test.ts": {
+    "no-console": {
+      "count": 3
+    },
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/aiService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 11
+    }
+  },
+  "apps/api/tests/unit/aiTypes.schemas.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/aiTypes.smartanalysis.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/apiMetrics.http.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/AnalyticsUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 11
+    },
+    "vitest/no-conditional-expect": {
+      "count": 14
+    }
+  },
+  "apps/api/tests/unit/application/ApiKeyUseCases.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/MLUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/ai/GenerateLocalizedContentUseCase.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/application/brandKitUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/brandVoiceUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/application/campaignUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/application/conversationNoteUseCases.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 16
+    }
+  },
+  "apps/api/tests/unit/application/crisis/crisisUseCases.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 11
+    }
+  },
+  "apps/api/tests/unit/application/crmUseCases.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/application/customReportUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/application/emailTemplates.test.ts": {
+    "vitest/expect-expect": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/application/embeddings/EmbeddingService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 5
+    }
+  },
+  "apps/api/tests/unit/application/externalNotificationUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/generatePlatformVariants.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/generateUTMLinks.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/application/getTopPerformersContext.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/glossary/DeleteGlossaryTermUseCase.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/application/glossary/ListGlossaryByLocaleQuery.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/glossary/UpsertGlossaryTermUseCase.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/application/guardrails/GuardrailRegistry.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/application/inbox/SendReplyGuardrail.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/application/inboxUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/application/integrationUseCases.test.ts": {
+    "testing/no-empty-test": {
+      "count": 2
+    },
+    "vitest/expect-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/application/links/linkUseCases.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 8
+    }
+  },
+  "apps/api/tests/unit/application/oidcUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/optimizeContent.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/application/postUseCases.test.ts": {
+    "vitest/no-standalone-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/application/predictOptimalTiming.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/recurringPostUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/application/reportSharing.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/reportUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/application/sendEmailNotification.test.ts": {
+    "testing/no-empty-test": {
+      "count": 1
+    },
+    "vitest/expect-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/style-guide/DeleteStyleGuideRuleUseCase.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/application/style-guide/ListStyleGuideRulesByLocaleQuery.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/style-guide/UpsertStyleGuideRuleUseCase.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/application/updatePricingConfig.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/application/usageUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/approvalWorkflowUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/approvals/approvalRoutes.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 6
+    },
+    "vitest/no-standalone-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/auditLogger.test.ts": {
+    "testing/no-empty-test": {
+      "count": 1
+    },
+    "testing/no-existence-only-test": {
+      "count": 7
+    },
+    "vitest/expect-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/auditMiddleware.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 9
+    }
+  },
+  "apps/api/tests/unit/auditService.query.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    },
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/auditService.retention.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/auditService.stats.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    },
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/authService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 32
+    }
+  },
+  "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/billing/dunning.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/bootstrap/schedulerTickTenantScope.test.ts": {
+    "vitest/valid-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts": {
+    "vitest/expect-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/cacheStatsRoutes.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    },
+    "testing/no-tautological-assertion": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/comments/commentRoutes.test.ts": {
+    "vitest/no-standalone-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/compliance/ComplianceService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/config/nameDigestRing.test.ts": {
+    "vitest/expect-expect": {
+      "count": 14
+    }
+  },
+  "apps/api/tests/unit/contentRoutes.test.ts": {
+    "no-console": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/correlationMiddleware.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/customerAuthUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/domain/aggregates.post.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/domain/aggregates.social-message.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/domain/aggregates.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    },
+    "vitest/no-conditional-expect": {
+      "count": 107
+    }
+  },
+  "apps/api/tests/unit/domain/approvalWorkflow.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/domain/crisisMode.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    },
+    "vitest/no-conditional-expect": {
+      "count": 29
+    }
+  },
+  "apps/api/tests/unit/domain/domain-errors.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    },
+    "vitest/no-conditional-expect": {
+      "count": 9
+    }
+  },
+  "apps/api/tests/unit/domain/entities.account.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/domain/entities.brandKit.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/domain/entities.campaign.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/domain/entities.conversationNote.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 23
+    }
+  },
+  "apps/api/tests/unit/domain/entities.crmConnection.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 9
+    }
+  },
+  "apps/api/tests/unit/domain/entities.samlConfiguration.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/domain/entities.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 53
+    }
+  },
+  "apps/api/tests/unit/domain/linkTracking.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    },
+    "vitest/no-conditional-expect": {
+      "count": 34
+    }
+  },
+  "apps/api/tests/unit/domain/notification.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 28
+    }
+  },
+  "apps/api/tests/unit/domain/postComment.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 13
+    }
+  },
+  "apps/api/tests/unit/domain/pricingCalculator.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/domain/repositories/GlossaryRepository.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 8
+    }
+  },
+  "apps/api/tests/unit/domain/repositories/GuardrailPort.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/domain/repositories/StyleGuideRuleRepository.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 9
+    }
+  },
+  "apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/domain/security/secretCatalog.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/domain/value-objects.content.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 5
+    }
+  },
+  "apps/api/tests/unit/domain/value-objects.ids-content.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 7
+    },
+    "vitest/no-conditional-expect": {
+      "count": 37
+    }
+  },
+  "apps/api/tests/unit/domain/value-objects.media-provider.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 5
+    },
+    "vitest/no-conditional-expect": {
+      "count": 42
+    }
+  },
+  "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/engagementPredictor.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/errorPlugin.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/fileUploadValidator.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/healthMetrics.test.ts": {
+    "testing/no-tautological-assertion": {
+      "count": 9
+    }
+  },
+  "apps/api/tests/unit/healthRoutes.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 7
+    },
+    "vitest/valid-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/infrastructure/CachePort-DI.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/infrastructure/FetchHttpClient.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 8
+    }
+  },
+  "apps/api/tests/unit/infrastructure/HttpClientPort.contract.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/infrastructure/PrismaExternalNotificationConfigRepository.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 5
+    }
+  },
+  "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts": {
+    "no-console": {
+      "count": 3
+    },
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/infrastructure/PrismaUnitOfWork.test.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/infrastructure/adapters/FetchHttpClient.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 10
+    }
+  },
+  "apps/api/tests/unit/infrastructure/adapters/PrismaMentionRepository.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/infrastructure/adapters/SlackNotifierAdapter.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/infrastructure/adapters/TeamsNotifierAdapter.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/infrastructure/container/setupGuardrailUseCases.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/infrastructure/container/setupLocalizedGenerationUseCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/infrastructure/guardrails/ContentPolicyGuardrail.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 5
+    }
+  },
+  "apps/api/tests/unit/infrastructure/guardrails/PIIRedactionGuardrail.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 5
+    }
+  },
+  "apps/api/tests/unit/infrastructure/repositories/PrismaAdminUserRepository.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 12
+    }
+  },
+  "apps/api/tests/unit/infrastructure/repositories/PrismaConversionRepository.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/infrastructure/repositories/PrismaGlossaryRepository.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 11
+    }
+  },
+  "apps/api/tests/unit/infrastructure/repositories/PrismaStyleGuideRuleRepository.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 8
+    }
+  },
+  "apps/api/tests/unit/inputValidation.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 12
+    }
+  },
+  "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    },
+    "vitest/no-conditional-expect": {
+      "count": 9
+    }
+  },
+  "apps/api/tests/unit/lint/architecturePolicies.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/logger.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 10
+    }
+  },
+  "apps/api/tests/unit/metrics/guardrailMetrics.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/metricsMiddleware.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 5
+    }
+  },
+  "apps/api/tests/unit/optimizedPostsRoutes.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/performanceMonitor.init.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/performanceMonitor.stats.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    },
+    "vitest/no-conditional-expect": {
+      "count": 12
+    }
+  },
+  "apps/api/tests/unit/postsService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    },
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/projectRoutes.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/providerAdapterInterface.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 10
+    },
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/providerCapabilityManager.combinations.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/providerCapabilityManager.init.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/providerCapabilityManager.matrix.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/providerConstraintValidator.test.ts": {
+    "no-console": {
+      "count": 6
+    },
+    "testing/no-existence-only-test": {
+      "count": 5
+    },
+    "testing/no-tautological-assertion": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/providerOAuth.initiation.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/providerRegistry.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 9
+    }
+  },
+  "apps/api/tests/unit/providerService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    },
+    "vitest/no-conditional-expect": {
+      "count": 27
+    }
+  },
+  "apps/api/tests/unit/rateLimitingDashboard.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 20
+    }
+  },
+  "apps/api/tests/unit/rbacService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 5
+    }
+  },
+  "apps/api/tests/unit/roiCalculator.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/saga/sagaPersistence.column.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/sagaIntegration.init.test.ts": {
+    "no-console": {
+      "count": 1
+    },
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/sagaIntegration.monitoring.test.ts": {
+    "no-console": {
+      "count": 1
+    },
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/sagaIntegration.queue.test.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/sagaIntegration.routes.test.ts": {
+    "no-console": {
+      "count": 1
+    },
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/sagaManager.execution.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/sagaManager.persistence.test.ts": {
+    "no-console": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/scripts/architectureBaseline.test.ts": {
+    "vitest/no-standalone-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/secureSchemas.basic.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/secureSchemas.query.test.ts": {
+    "testing/no-empty-test": {
+      "count": 1
+    },
+    "vitest/expect-expect": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/security/EncryptionService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/security/PlatformCredentialService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 16
+    }
+  },
+  "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/security/inputValidation.mutations.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/security/tenantContext.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/security/tenantGuard.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/security/trustedProxy.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 8
+    }
+  },
+  "apps/api/tests/unit/securityHeaders.mutations.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/securityHeaders.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/settings/SettingsService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 63
+    }
+  },
+  "apps/api/tests/unit/settings/settingsRoutes.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/smoke/env-redis-required.test.ts": {
+    "vitest/expect-expect": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/softDeletedIdentifierReuse.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/subscriptionManagementService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 7
+    }
+  },
+  "apps/api/tests/unit/subscriptionSchemas.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 15
+    }
+  },
+  "apps/api/tests/unit/templateAnalytics.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    },
+    "vitest/no-conditional-expect": {
+      "count": 9
+    }
+  },
+  "apps/api/tests/unit/templateService.crud.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/thumbnailGenerator.analysis.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 10
+    },
+    "vitest/no-conditional-expect": {
+      "count": 30
+    }
+  },
+  "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    },
+    "vitest/no-conditional-expect": {
+      "count": 61
+    }
+  },
+  "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 51
+    }
+  },
+  "apps/api/tests/unit/trendAnalysisService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 13
+    },
+    "vitest/no-conditional-expect": {
+      "count": 142
+    }
+  },
+  "apps/api/tests/unit/trendRoutes.test.ts": {
+    "no-console": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/trialManagementService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/unitOfWork.useCases.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/videoProcessor.features.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/webhookDashboardService.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/webhookHandler.errors.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/webhookHandler.init.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "apps/api/tests/unit/webhookHandler.stats.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 8
+    },
+    "testing/no-tautological-assertion": {
+      "count": 2
+    },
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/api/tests/unit/webhookManager.processing.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 7
+    },
+    "testing/no-tautological-assertion": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 8
+    }
+  },
+  "apps/api/tests/unit/webhookManager.subscriptions.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts": {
+    "testing/no-empty-test": {
+      "count": 1
+    },
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/expect-expect": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/webhooks/linkedinWebhookProcessor.test.ts": {
+    "no-console": {
+      "count": 6
+    }
+  },
+  "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/api/tests/unit/webhooks/webhookSignatureVerification.providers1.test.ts": {
+    "no-console": {
+      "count": 3
+    }
+  },
+  "apps/api/tests/unit/webhooks/webhookSignatureVerification.providers2.test.ts": {
+    "no-console": {
+      "count": 6
+    }
+  },
+  "apps/client/lib/api/__tests__/types.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/client/lib/providers/__tests__/registry.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    },
+    "testing/no-tautological-assertion": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 3
+    }
+  },
+  "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 5
+    },
+    "vitest/no-conditional-expect": {
+      "count": 5
+    }
+  },
+  "apps/client/lib/templates/__tests__/postTemplates.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 7
+    }
+  },
+  "apps/client/tests/components/ListeningCharts.test.tsx": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "apps/client/tests/e2e/config/global-setup.ts": {
+    "no-console": {
+      "count": 8
+    }
+  },
+  "apps/client/tests/e2e/config/global-teardown.ts": {
+    "no-console": {
+      "count": 6
+    }
+  },
+  "apps/client/tests/e2e/tests/publishing.spec.ts": {
+    "testing/no-empty-test": {
+      "count": 5
+    }
+  },
+  "apps/client/tests/integration/ListeningPage.test.tsx": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/client/tests/integration/useProviders.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "apps/workers/tests/CredentialResolver.tenantScope.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 2
+    }
+  },
+  "apps/workers/tests/unit/publishWorker.unit.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "apps/workers/tests/worker.smoke.ts": {
+    "no-console": {
+      "count": 4
+    }
+  },
+  "apps/workers/tests/workerMetrics.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/adapters/cache-redis/tests/factory.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "packages/adapters/cache-redis/tests/metrics.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/adapters/db-prisma/tests/resilience.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/adapters/dead-letter-queue/tests/index.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/adapters/dead-letter-queue/tests/mutation-killing-part2.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 4
+    }
+  },
+  "packages/adapters/external-apis/tests/circuitBreaker.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "packages/adapters/fallback-strategies/tests/fallbackTenantIsolation.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 1
+    }
+  },
+  "packages/adapters/fallback-strategies/tests/index.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    },
+    "testing/no-tautological-assertion": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 22
+    }
+  },
+  "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/adapters/queue-bullmq/tests/dead-letter-queue-adapter.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 4
+    }
+  },
+  "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 8
+    }
+  },
+  "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/adapters/queue-bullmq/tests/resilience.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/adapters/storage-cloudinary/tests/index.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 10
+    },
+    "vitest/no-conditional-expect": {
+      "count": 10
+    }
+  },
+  "packages/adapters/storage-s3/tests/index.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 9
+    },
+    "vitest/no-conditional-expect": {
+      "count": 16
+    }
+  },
+  "packages/core/application/tests/unit/UseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/core/auth/tests/unit/RoleManagementService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "packages/core/compliance/tests/unit/ComplianceService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/core/domain/tests/unit/ScheduledTime.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "packages/core/domain/tests/unit/ShortCode.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/core/posts/tests/unit/CreatePostUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "packages/core/threading/tests/unit/threadPlanner.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/monitoring/circuit-breaker/tests/index.test.ts": {
+    "vitest/no-conditional-expect": {
+      "count": 18
+    }
+  },
+  "packages/observability/browser-logger/tests/context.test.tsx": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/observability/logger/tests/createLogger.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/bluesky/tests/BlueskyAdapter.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "packages/providers/bluesky/tests/BlueskyClient.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 5
+    }
+  },
+  "packages/providers/facebook/tests/FacebookAdapter.stories-reels.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/instagram/tests/InstagramAdapter.stories-reels.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 5
+    }
+  },
+  "packages/providers/instagram/tests/index.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "packages/providers/instagram/tests/mediaProcessor.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/instagram/tests/mediaProcessor.validation.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/instagram/tests/schedulingService.management.test.ts": {
+    "testing/no-empty-test": {
+      "count": 1
+    },
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/expect-expect": {
+      "count": 1
+    }
+  },
+  "packages/providers/linkedin/tests/LinkedInAdapter.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/shared/tests/helpers.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    },
+    "vitest/no-conditional-expect": {
+      "count": 9
+    }
+  },
+  "packages/providers/snapchat/tests/responseParsers.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/telegram/tests/TelegramAdapter.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 6
+    }
+  },
+  "packages/providers/tiktok/tests/TikTokAdapter.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 4
+    }
+  },
+  "packages/providers/tiktok/tests/apiClient.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/tiktok/tests/authService.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/tiktok/tests/contentAnalyticsClient.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/tiktok/tests/hashtagManager.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "packages/providers/tiktok/tests/marketingApiClient.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/tiktok/tests/researchApiClient.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/tiktok/tests/videoProcessor.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  },
+  "packages/providers/x/tests/XAdapter.content.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 2
+    }
+  },
+  "packages/providers/x/tests/XAdapter.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 1
+    }
+  },
+  "packages/providers/youtube/tests/YouTubeAdapter.test.ts": {
+    "testing/no-existence-only-test": {
+      "count": 3
+    }
+  }
+}
