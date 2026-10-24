@@ -3,18 +3,23 @@
  * @file dependency-ledger-core.mjs
  * @description The core of the dependency-usage ledger: the rows the readers' outputs join into,
  *   one per declared name, with its declarations, its `bin` names, its sites by kind and path
- *   class and its real sites against the floor. It reads no file.
+ *   class and its real sites against the floor; and the owner's decisions on the names under the
+ *   floor and every rule they are held to. It reads no file but the decisions file, through the
+ *   legal inventories' `loadClassification`.
  *
- *   Pessimistic by construction: a name is unjustified until its real sites reach the floor, and a
- *   reader result the core cannot classify (a catalog reference the catalogs lack, bins not read or
- *   an installed copy that cannot be read, unreadable stylesheets, a site of an undeclared name, a
- *   binary site of a name with no bins) stops the build instead of reading as zero.
+ *   Pessimistic by construction: a name is unjustified until its real sites reach the floor, a
+ *   name under the floor with no entry is counted pending, and a reader result the core cannot
+ *   classify (a catalog reference the catalogs lack, bins not read or an installed copy that
+ *   cannot be read, unreadable stylesheets, a site of an undeclared name, a binary site of a name
+ *   with no bins) stops the build instead of reading as zero.
  *
  *   Nothing here sorts: rows, declarations and sites keep the order the readers hand them in.
  * @layer infrastructure
  */
+import { loadClassification } from "../../legal/lib/inventory.mjs";
 import { specifierKindOf } from "./dependency-manifests.mjs";
 import { PATH_CLASSES, SITE_KINDS, pathClassOf, typedTargetOf } from "./dependency-sites.mjs";
+import { byCodeUnit, isObject } from "./record-helpers.mjs";
 
 /**
  * @template T
@@ -203,4 +208,224 @@ export function buildRows({ scan, catalogs, sites, css, bins, workspaceDirs }) {
     });
   }
   return { value: rows };
+}
+
+/** The owner's three outcomes: debug and keep, destroy, or not decided yet. */
+export const STATUSES = Object.freeze(/** @type {const} */ (["kept", "remove", "pending"]));
+
+/**
+ * @typedef {typeof STATUSES[number]} Status
+ *
+ * @typedef {object} Decisions The owner's decisions, as `loadDecisions` reads them.
+ * @property {ReadonlyMap<string, unknown>} entries Each entry as written, by name.
+ * @property {number} pendingBaseline
+ * @property {unknown} floor The file's `floor`, `null` when it has none.
+ * @property {readonly string[]} problems The reader's own refusals.
+ *
+ * @typedef {Row & { decision: Status | null }} JoinedRow A row with its decision: the entry's
+ *   status or `pending` under the floor, `remove` or `null` above it.
+ *
+ * @typedef {object} Joined
+ * @property {JoinedRow[]} rows In the order they were given.
+ * @property {string[]} problems
+ * @property {number} pending
+ */
+
+/**
+ * Why a name under the floor is kept, one per entry: one adapter per SDK, a CLI scripts run, a
+ * plugin a host loads by name, a type package, a peer range it satisfies, a CVE floor it holds, a
+ * load from code the tree does not track, or a use the owner judges real.
+ */
+export const GROUNDS = Object.freeze([
+  "single-adapter",
+  "tool",
+  "plugin",
+  "types",
+  "peer",
+  "cve-floor",
+  "generated",
+  "in-use",
+]);
+
+/** The owner's decisions, beside the other machine-read records of `scripts/testing/`. */
+export const DECISIONS_FILE = "scripts/testing/dependency-decisions.json";
+
+/** The command that writes the ledger, which the decisions file names. */
+const GENERATOR = "scripts/testing/dependency-ledger.mjs";
+
+/** The keys a decisions file may hold at its top level. */
+const DECISIONS_KEYS = Object.freeze(["generator", "floor", "pendingBaseline", "entries"]);
+
+/** What `loadClassification` admits in an entry of the decisions file. */
+export const ALLOWED = Object.freeze({
+  statuses: STATUSES,
+  categories: Object.freeze([]),
+  subjects: Object.freeze([]),
+  extraFields: Object.freeze({
+    utility: false,
+    replacement: false,
+    decidedOn: false,
+    grounds: false,
+    slice: false,
+  }),
+  optionalNote: Object.freeze(["pending"]),
+});
+
+/**
+ * The fields each status needs, and the ones it never carries: `kept` justifies the name and
+ * says what could replace it, `remove` names what replaces it, `pending` holds a note and nothing
+ * else.
+ * @type {Readonly<Record<string, { needs: readonly string[], never: readonly string[] }>>}
+ */
+const STATUS_FIELDS = Object.freeze({
+  kept: { needs: ["grounds", "utility", "replacement", "decidedOn"], never: ["slice"] },
+  remove: { needs: ["utility", "replacement", "decidedOn"], never: ["grounds"] },
+  pending: { needs: [], never: ["grounds", "utility", "replacement", "decidedOn", "slice"] },
+});
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * @description Reads the owner's decisions, `{ generator, floor, pendingBaseline, entries }`,
+ *   through `loadClassification`, which refuses an entry with an unknown key, a status outside
+ *   {@link STATUSES} or, for `kept` and `remove`, no note. A file that is missing, empty or no
+ *   JSON is an error, never an empty set of decisions. The file is parsed here too, because the
+ *   loader returns no top-level field but the baseline and the entries: an unknown top-level key,
+ *   a generator that is not the ledger's command and a top level that is no object are problems.
+ * @param {string} root Absolute repository root.
+ * @returns {Result<Decisions>} The entries as written, the baseline, the floor and the problems.
+ */
+export function loadDecisions(root) {
+  const loaded = loadClassification(root, DECISIONS_FILE, ALLOWED);
+  if (loaded.text.trim() === "") return { error: `${DECISIONS_FILE} is missing or empty` };
+  /** @type {unknown} */
+  let data;
+  try {
+    data = JSON.parse(loaded.text);
+  } catch (error) {
+    return { error: `${DECISIONS_FILE} is not JSON: ${String(error)}` };
+  }
+  const top = isObject(data) ? data : {};
+  const problems = [...loaded.problems];
+  const unknown = Object.keys(top).filter((key) => !DECISIONS_KEYS.includes(key));
+  if (unknown.length > 0) problems.push(`${DECISIONS_FILE} has unknown keys ${unknown.join(", ")}`);
+  if (top.generator !== GENERATOR) {
+    const written = JSON.stringify(top.generator ?? null);
+    problems.push(`${DECISIONS_FILE}: generator ${written} is not ${GENERATOR}`);
+  }
+  const { entries, pendingBaseline } = loaded;
+  return { value: { entries, pendingBaseline, floor: top.floor ?? null, problems } };
+}
+
+/**
+ * @description Says whether a value names a calendar day as `YYYY-MM-DD`. Kept a named predicate
+ *   because the round trip through `Date` is the rule: the pattern alone admits `2026-02-30`.
+ * @param {unknown} value Any value.
+ * @returns {boolean} `true` for a real date in that form.
+ */
+function isDate(value) {
+  if (typeof value !== "string" || !DATE.test(value)) return false;
+  const day = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(day.getTime()) && day.toISOString().startsWith(value);
+}
+
+/**
+ * @description Holds one entry to the rules of its status: the fields it needs and the ones it
+ *   never carries, grounds one of {@link GROUNDS}, a decision date that is a calendar day, and no
+ *   `manual` flag, which belongs to the legal inventory. A status the reader refused has no rules
+ *   to hold; the reader already reported it.
+ * @param {string} name The entry's name.
+ * @param {Record<string, unknown>} entry The entry as written.
+ * @returns {string[]} One problem per rule it breaks.
+ */
+function entryProblems(name, entry) {
+  /** @type {string[]} */
+  const problems = [];
+  if (entry.manual !== undefined) problems.push(`${name}: manual belongs to the legal inventory`);
+  const status = String(entry.status);
+  const rules = Object.hasOwn(STATUS_FIELDS, status) ? STATUS_FIELDS[status] : undefined;
+  if (rules === undefined) return problems;
+  for (const field of rules.needs) {
+    if (entry[field] === undefined) problems.push(`${name}: a ${status} entry needs ${field}`);
+  }
+  for (const field of rules.never) {
+    if (entry[field] !== undefined) {
+      problems.push(`${name}: a ${status} entry never carries ${field}`);
+    }
+  }
+  const { grounds, decidedOn } = entry;
+  if (status === "kept" && grounds !== undefined && !GROUNDS.includes(String(grounds))) {
+    problems.push(`${name} has grounds ${JSON.stringify(grounds)}, not ${GROUNDS.join("|")}`);
+  }
+  if (rules.needs.includes("decidedOn") && decidedOn !== undefined && !isDate(decidedOn)) {
+    problems.push(`${name} has decidedOn ${JSON.stringify(decidedOn)}, not a YYYY-MM-DD date`);
+  }
+  return problems;
+}
+
+/**
+ * @description Reads the status of an entry as written, when it is one of {@link STATUSES}.
+ * @param {Record<string, unknown>} entry The entry, an empty object for one that is no object.
+ * @returns {Status | null} The status, or `null` for none or one the reader refused.
+ */
+function statusOf(entry) {
+  const { status } = entry;
+  return STATUSES.find((known) => known === status) ?? null;
+}
+
+/**
+ * @description Joins the rows with the owner's decisions. A name under the floor takes its
+ *   entry's status, or `pending` without one; a name at or above it takes `remove` from an entry
+ *   or nothing. An entry that breaks its status's rules, an entry above the floor that is not
+ *   `remove`, an entry no manifest declares and a floor other than {@link REAL_SITE_FLOOR} are
+ *   problems. The pending names must number exactly `pendingBaseline`, so a new name under the
+ *   floor fails until it is decided, and a decision lowers the baseline in the same change.
+ * @param {readonly Row[]} rows The rows.
+ * @param {Decisions} decisions What {@link loadDecisions} read.
+ * @returns {Joined} The rows with their decisions, every problem with the reader's first, and the
+ *   pending count.
+ */
+export function joinDecisions(rows, decisions) {
+  const problems = [...decisions.problems];
+  if (decisions.floor !== REAL_SITE_FLOOR) {
+    const written = JSON.stringify(decisions.floor);
+    problems.push(
+      `${DECISIONS_FILE}: floor ${written} is not the real-site floor ${REAL_SITE_FLOOR}`
+    );
+  }
+  const verdicts = new Map(rows.map((row) => [row.name, row.verdict]));
+  /** @type {Map<string, Status>} */
+  const statuses = new Map();
+  for (const [name, raw] of decisions.entries) {
+    const entry = isObject(raw) ? raw : {};
+    problems.push(...entryProblems(name, entry));
+    const status = statusOf(entry);
+    if (status !== null) statuses.set(name, status);
+    const verdict = verdicts.get(name);
+    if (verdict === undefined) {
+      problems.push(`${name}: no manifest declares it: delete the entry with its declaration`);
+    } else if (verdict === VERDICTS.ABOVE && status !== "remove") {
+      const label = status === null ? "an entry with no status" : `a ${status} entry`;
+      problems.push(`${name}: ${label} above the floor, which justifies it: delete the entry`);
+    }
+  }
+  /** @type {JoinedRow[]} */
+  const joined = rows.map((row) => {
+    const status = statuses.get(row.name) ?? null;
+    const under = row.verdict === VERDICTS.UNDER;
+    const decision = under ? (status ?? "pending") : status === "remove" ? status : null;
+    return { ...row, decision };
+  });
+  const pendingNames = joined.filter((row) => row.decision === "pending").map((row) => row.name);
+  const pending = pendingNames.length;
+  const baseline = decisions.pendingBaseline;
+  if (pending > baseline) {
+    const names = [...pendingNames].sort(byCodeUnit).join(", ");
+    problems.push(
+      `${pending} pending exceed pendingBaseline ${baseline}: decide ${names} or raise the baseline visibly`
+    );
+  }
+  if (pending < baseline)
+    problems.push(`stale pendingBaseline ${baseline}: lower it to ${pending}`);
+  return { rows: joined, problems, pending };
 }
