@@ -12,7 +12,9 @@
  *   Versions and the lockfile are not read. A missing root, an unreadable manifest, zero manifests
  *   or zero names is a scope error, reported with the classification's own problems. The page
  *   holds no manifest count, so a workspace that declares nothing new never stales it; `generate`
- *   prints that count instead.
+ *   prints that count instead. `scanManifests` also returns each third-party declaration with its
+ *   manifest, block and specifier, and `readToolingList` is exported, so the dependency-usage
+ *   ledger reads the same declarations and the same production and tooling rule as this page.
  * @layer infrastructure
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
@@ -39,7 +41,7 @@ const TOOLING_KEYS = ["workspace", "note"];
 /** @typedef {{ manifests: string[], production: boolean }} Declared */
 /** @typedef {{ file: string, data: Record<string, unknown> }} Manifest */
 /** @typedef {{ file: string, block: string, name: string, spec: string }} Declaration */
-/** @typedef {{ manifests: string[], names: Map<string, Declared>, digest: string, missing: string[], unreadable: string[], listed: string[], problems: string[] }} Scan */
+/** @typedef {{ manifests: string[], names: Map<string, Declared>, declarations: Declaration[], digest: string, missing: string[], unreadable: string[], listed: string[], problems: string[] }} Scan */
 /** @typedef {import("./lib/inventory.mjs").Inventory & { counts?: Record<string, number>, scanned?: string }} Built */
 
 /** @type {(value: unknown) => value is Record<string, unknown>} */
@@ -64,13 +66,15 @@ function manifestsUnder(root, dir) {
 }
 
 /**
- * Reads the classification's `tooling` list, `[{ "workspace": "<name>", "note": "<why>" }]`. An
- * entry holds a workspace name and a note, and nothing else, and a name is listed once. A refused
- * entry is not applied, and each refusal is a problem; a text that is no JSON yields neither, since
- * `loadClassification` already reports it.
- * @type {(text: string) => { listed: string[], problems: string[] }}
+ * @description Reads the classification's `tooling` list, `[{ "workspace": "<name>", "note":
+ *   "<why>" }]`. An entry holds a workspace name and a note, and nothing else, and a name is listed
+ *   once. A refused entry is not applied, and each refusal is a problem; a text that is no JSON
+ *   yields neither, since `loadClassification` already reports it.
+ * @param {string} text The classification file's text.
+ * @returns {{ listed: string[], problems: string[] }} The workspace names applied, and one problem
+ *   per refused entry.
  */
-function readToolingList(text) {
+export function readToolingList(text) {
   /** @type {unknown} */
   let data;
   try {
@@ -134,7 +138,8 @@ function toolingOf(read, declarations, seeds) {
  * manifest, every workspace `listed` names, and every workspace whose every declaration is a
  * `devDependencies` one or is made by a tooling manifest. A listed name is refused, with a problem,
  * when no workspace carries it, when its workspace is not `private: true`, or when a manifest that
- * is not tooling declares it outside `devDependencies`: such a workspace reaches production.
+ * is not tooling declares it outside `devDependencies`: such a workspace reaches production. The
+ * `declarations` are the same names, one per manifest and block, in manifest and block order.
  * @type {(root: string, listed?: string[]) => Scan}
  */
 export function scanManifests(root, listed = []) {
@@ -194,10 +199,12 @@ export function scanManifests(root, listed = []) {
     tooling = toolingNow();
     refused = declaredByProduction(tooling);
   }
+  const thirdParty = declarations.filter(
+    ({ name, spec }) => !workspaces.has(name) && !spec.startsWith("workspace:")
+  );
   /** @type {Map<string, Declared>} */
   const names = new Map();
-  for (const { file, block, name, spec } of declarations) {
-    if (workspaces.has(name) || spec.startsWith("workspace:")) continue;
+  for (const { file, block, name } of thirdParty) {
     const seen = names.get(name) ?? { manifests: [], production: false };
     if (!seen.manifests.includes(file)) seen.manifests.push(file);
     seen.production ||= block !== "devDependencies" && !tooling.has(file);
@@ -210,6 +217,7 @@ export function scanManifests(root, listed = []) {
   return {
     manifests: files,
     names: sorted,
+    declarations: thirdParty,
     digest,
     missing,
     unreadable,
