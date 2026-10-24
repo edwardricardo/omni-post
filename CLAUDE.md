@@ -318,7 +318,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **49 checks, numbered #1-#49**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the owner's decision. Every baseline may fall and must never rise.) There are **50 checks, numbered #1-#50**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -2187,6 +2187,101 @@ grep -B1 -xF '    rules: { "no-console": "off" },' "$CONFIG" | grep -cxF '    fi
 RULES_RE='vitest/(expect-expect|no-conditional-expect|valid-expect|no-standalone-expect|no-identical-title|no-commented-out-tests|no-disabled-tests|no-focused-tests)|testing/(no-empty-test|no-existence-only-test|no-tautological-assertion)'
 grep -cE "\"($RULES_RE)\": *(\"(off|warn)\"|[01]\b|\[ *(\"(off|warn)\"|[01]\b))" "$CONFIG"   # expect 0
 git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!eslint.config.ts' | wc -l   # expect 0
+
+# 50. Every direct dependency proves its use with real sites in the tree, or carries the owner's decision.
+# Threat: a direct dependency is declared, pinned, patched and audited for years with nothing asking
+# what uses it. #45's subprocessors inventory records which dependencies reach production, never
+# whether anything loads them. On 2026-10-22 `@monaco-editor/react`, `@fastify/rate-limit`,
+# `papaparse` and `react-email` were each found by hand to serve two files or fewer and removed one
+# at a time (#678, #679, #698, #694), and the method left no record a later pass could compare
+# against; `@fastify/websocket` has had no site since the first commit, hidden by a knip
+# `ignoreDependencies` entry.
+# WHAT IT RUNS: `pnpm check:deps-ledger`, which is `node scripts/testing/dependency-ledger.mjs
+# --check`, over the files `git ls-files` lists. The site reader,
+# scripts/testing/lib/dependency-sites.mjs, reads every tracked JS/TS module's syntax tree through
+# the `typescript` package and gives each site of a declared name its kind (runtime-import,
+# type-only, test-mock, config-string) and its path class: test, production (below a workspace
+# directory) or config. The manifest side, scripts/testing/lib/dependency-manifests.mjs, derives the
+# workspace manifests from the `packages:` globs and holds them to the legal scan's, reads the
+# catalogs, the `bin` names of each declaring package's installed copy and their binary sites
+# (manifest scripts, the root lint-staged, .husky/*, workflows, composite actions, tracked *.sh),
+# and the css sites (`@import`, `@plugin`, `@config` in tracked stylesheets). The core,
+# scripts/testing/lib/dependency-ledger-core.mjs, counts each name's real sites in distinct files:
+# an `@types/*` row the type-only files of its target, in any class; a production name its runtime
+# imports and stylesheets in production files; a dev-only name every runtime import, stylesheet and
+# binary site, and the config strings of config files; a mock never counts. A name with fewer than
+# REAL_SITE_FLOOR = 3 real sites is under the floor. A config string in one of the ledger's own
+# files, its five modules and its two suites (`LEDGER_FILES` in the command), is not a site:
+# those files name the fields, protocols and tools the ledger reads and plant packages as
+# fixtures; their imports still count. The command renders the record,
+# dependency-ledger.json at the root (every name's declarations and `bin` names, and for a name
+# under the floor its real count and its sites by kind and class), compares it byte for byte with
+# the committed one, and joins every name with the owner's decisions in
+# scripts/testing/dependency-decisions.json: `kept` (a ground from a closed list, its utility, the
+# replacement weighed, decidedOn), `remove` (utility, replacement, decidedOn, an optional slice) or
+# `pending` (an optional note); a name under the floor with no entry is pending. The modules and the
+# command are pinned by apps/api/tests/unit/scripts/dependencySites.test.ts and
+# dependencyLedger.test.ts.
+# WHERE IT RUNS, and why: in the dependency-consistency job of fitness.yml, beside #45 and for its
+# reason: the record renders through prettier's API and the `bin` names come from the installed
+# tree, and that job runs `pnpm install --frozen-lockfile`. #44 reads a `#N` step name from any
+# job, so the inventory still counts this check. The battery runs the same command as its step
+# `deps-ledger`.
+# WHAT FAILS, exit 1, each printed as `dependency-ledger: <problem>`: a committed record that
+# differs from the rendered one, each difference named (`drift: the summary differs`,
+# `drift: <name>: in the tree, not in the committed record`, `in the committed record, not in the
+# tree`, `its row differs`); an entry off its status's rules (a field the status needs left out or
+# one it never carries, a ground outside the list, a decidedOn that is not a calendar day, a
+# `manual` flag); a stale entry (a name no manifest declares, or a name at or above the floor whose
+# entry is not `remove`); a `floor` other than 3, a `generator` other than the command, an unknown
+# top-level key, `entries` that is not an object, a `pendingBaseline` that is not a non-negative
+# integer; and a `pending` count above or below `pendingBaseline`. Write mode, `pnpm deps:ledger`,
+# writes the record and prints the same problems with exit 1.
+# RECORDED FACTS ONLY. The record carries what a decision reads and nothing that moves when a file
+# merely imports a name above the floor: no clock, no commit, no absolute path, no scan-size
+# counter, no version (the lockfile and pnpm-workspace.yaml stay the source), and no site of a name
+# above the floor (`--sites <name>` prints those on demand). It moves on a fact a decision reads: a
+# declaration added or removed, a name crossing the floor, a site of a name under it added, moved
+# or removed, a decision written. A clean checkout reproduces it byte for byte.
+# RATCHET. `pendingBaseline` is the check's one counted residual: the names under the floor that
+# wait for the owner's decision, 128 when this check landed. It may fall and must never rise, and
+# the check holds it EXACT, so the change that decides a pending name lowers the baseline in the
+# same diff or goes red, and a new name under the floor goes red until it is decided or the
+# baseline is raised in a visible edit, for review to refuse.
+# FAIL-CLOSED, exit 3, which wins over 1, so nothing is written or compared from a partial read: a
+# git listing that fails, lists nothing or holds no JS/TS file; an unreadable pnpm-workspace.yaml,
+# one with no `packages:` block, or a catalog line the reader cannot read; a catalog reference the
+# catalogs do not hold; manifests derived from the globs that differ from the legal scan's; a
+# missing workspace root, an unreadable manifest, zero manifests beyond the root or zero names; an
+# installed copy of a declaring package that cannot be read; a tracked module, stylesheet, hook,
+# workflow or script that cannot be read, or a module the parser refuses; the legal classification
+# unreadable, not JSON or holding a refused `tooling` entry; a decisions file that is missing, empty
+# or not JSON; a Prettier configuration the render cannot read; any exception a read throws (the
+# legal scan's ENOTDIR on a workspace root that is a file); in `--check`, no committed record, or
+# one that cannot be read, with its own error. A usage error exits 2. The legal scan walks the
+# filesystem while the derived manifests read git's listing, so an untracked package.json under
+# apps/, packages/ or infra/ exits 3 too: fail-closed by design, cleared by tracking or deleting it.
+# RESIDUAL LIMITS, stated rather than implied: (1) JSON, YAML and Markdown configs are not scanned
+# for package names, so a plugin named only there (.secretlintrc.json, .size-limit.json) reads as
+# zero sites and the owner's entry names the file; (2) a string literal equal to a package name in
+# a config-class JS/TS file counts as a site even when it is data, and so does a string-literal
+# type (`type P = "x"`): an over-count toward `kept`, never toward removal; (3) a package loaded by
+# code the tree does not track, the generated Prisma client, reads as zero sites, and a JSDoc
+# `import("x")` type in a .js or .mjs file is not read; (4) the unit is the file, so a tool invoked
+# from sixty scripts of one manifest is one site; (5) in command text, an inline trailing comment
+# and a YAML `name:` line still read as commands, `./node_modules/.bin/<bin>` and a bin followed by
+# a comma are not read, and .scss loses whole-line comments only; (6) `LEDGER_FILES` is a list of
+# seven files, held to the tree by a suite case that requires each to exist, so a new ledger module
+# or suite counts its config strings until it is listed; (7) the floor is one number for every
+# kind: a hexagonal adapter with one site reads as under it, and its entry says `kept` on the ground
+# `single-adapter`; (8) `pnpm dlx <pkg>` names no declared dependency and has no row, and a package
+# imported but declared nowhere is knip's `unlisted` finding, not a row; (9) a decision is a human
+# judgement, and the check proves only that it is present, well formed and still applies, never
+# that it is right.
+pnpm check:deps-ledger   # expect exit 0 and one line:
+#   dependency-ledger: dependency-ledger.json is current
+pnpm deps:ledger   # writes the record and prints, on this tree:
+#   dependency-ledger: wrote dependency-ledger.json: 101 manifests, 175 names, 47 at or above the floor, 128 under it (19 at zero); pending 128 of baseline 128
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One
@@ -2215,7 +2310,7 @@ A generic "RLS not covered" would send the reader toward the wrong fix.
 **Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
-2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #48) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #48, #50) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
 3. Prove the red path — mandatory for every NEW or MODIFIED check or CI gate, fitness or otherwise: plant the violation, run the gate, and observe a REAL failure (non-zero exit / `core.setFailed`; an `::error` annotation alone leaves the job green and proves nothing), then restore the tree byte-exact (verify with `cmp` or a checksum) and re-confirm the count is 0. A gate whose red path was never demonstrated does not merge.
 4. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a backlog entry rather than locking in non-zero noise.
 
