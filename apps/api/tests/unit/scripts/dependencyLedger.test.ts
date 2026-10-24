@@ -2,10 +2,12 @@
  * @file dependencyLedger.test.ts
  * @description Pins the manifest side of the dependency-usage ledger,
  *   `scripts/testing/lib/dependency-manifests.mjs`: the workspace manifests the `packages:` globs
- *   reach and their agreement with the legal scan of `scripts/legal/subprocessors.mjs`, and the
- *   catalogs of `pnpm-workspace.yaml` and the specifier kind of a declaration. Each case runs over
- *   a tree planted in a fresh directory under `tmpdir()`, with the tracked files handed in as a
- *   list, so nothing is spawned and the repository is read for its workspace manifest only.
+ *   reach and their agreement with the legal scan of `scripts/legal/subprocessors.mjs`, the
+ *   catalogs of `pnpm-workspace.yaml` and the specifier kind of a declaration, the `bin` names of
+ *   an installed package, the command lines a binary runs from, and the binary and stylesheet
+ *   sites of a declared name. Each case runs over a tree planted in a fresh directory under
+ *   `tmpdir()`, with the tracked files handed in as a list, so nothing is spawned and the
+ *   repository is read for its workspace manifest only.
  * @layer infrastructure
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -23,12 +25,44 @@ interface Catalogs {
   readonly named: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
+/** One declaration of a manifest, as the legal scan returns it. */
+interface Declaration {
+  readonly file: string;
+  readonly block: string;
+  readonly name: string;
+  readonly spec: string;
+}
+
+/** One site of a declared name in one file. */
+interface Site {
+  readonly name: string;
+  readonly kind: string;
+  readonly file: string;
+}
+
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type ManifestsModule = {
   workspaceManifests: (root: string, tracked: readonly string[]) => Result<string[]>;
   manifestDisagreement: (derived: readonly string[], legal: readonly string[]) => string | null;
   readCatalogs: (text: string) => Result<Catalogs>;
   specifierKindOf: (spec: string, catalogs: Catalogs, name: string) => Result<string>;
+  readBins: (root: string, manifestDir: string, name: string) => Result<string[]>;
+  declaredBins: (
+    root: string,
+    declarations: readonly Declaration[],
+    name: string
+  ) => Result<string[] | null>;
+  binaryTexts: (root: string, tracked: readonly string[]) => Result<Array<[string, string]>>;
+  binarySites: (
+    name: string,
+    bins: readonly string[],
+    texts: ReadonlyArray<readonly [string, string]>
+  ) => Site[];
+  cssSites: (
+    root: string,
+    tracked: readonly string[],
+    declared: ReadonlySet<string>
+  ) => Result<Site[]>;
 };
 
 /** The legal scan's surface, as far as this suite reads it. */
@@ -202,5 +236,183 @@ describe("readCatalogs and specifierKindOf", () => {
     const catalogs = valueOf(manifests.readCatalogs(CATALOG_TEXT));
 
     expect(errorOf(manifests.specifierKindOf(spec, catalogs, name))).toContain(expected);
+  });
+});
+
+describe("readBins and declaredBins", () => {
+  beforeEach(() => {
+    put("apps/api/node_modules/@s/tool/package.json", { name: "@s/tool", bin: "cli.js" });
+    put("node_modules/multi/package.json", { name: "multi", bin: { zeta: "z.js", alpha: "a.js" } });
+    put("node_modules/lib/package.json", { name: "lib" });
+    put("packages/ui/node_modules/@s/tool/package.json", { name: "@s/tool", bin: "cli.js" });
+    put("node_modules/broken/package.json", "{");
+  });
+
+  it.each<[string, string, string[]]>([
+    ["apps/api", "@s/tool", ["tool"]],
+    [".", "multi", ["alpha", "zeta"]],
+    [".", "lib", []],
+  ])("returns the bin names of the copy %s installs for %s", (manifestDir, name, expected) => {
+    expect(valueOf(manifests.readBins(root, manifestDir, name))).toEqual(expected);
+  });
+
+  it.each<[string, string, string]>([
+    ["apps/api", "absent", "apps/api/package.json declares absent, and its installed copy cannot"],
+    [".", "broken", "package.json declares broken, and its installed copy cannot be read"],
+  ])("returns an error when the copy %s installs for %s cannot be read", (dir, name, expected) => {
+    expect(errorOf(manifests.readBins(root, dir, name))).toContain(expected);
+  });
+
+  it("returns the bins of the first declaring manifest that is no peer, and null for a peer only", () => {
+    const peer = { file: "apps/api/package.json", block: "peerDependencies", spec: "1" };
+    const dev = { file: "packages/ui/package.json", block: "devDependencies", spec: "1" };
+
+    const declaredByBoth = manifests.declaredBins(
+      root,
+      [
+        { ...peer, name: "@s/tool" },
+        { ...dev, name: "@s/tool" },
+      ],
+      "@s/tool"
+    );
+    const peerOnly = manifests.declaredBins(root, [{ ...peer, name: "react" }], "react");
+
+    expect(valueOf(declaredByBoth)).toEqual(["tool"]);
+    expect(valueOf(peerOnly)).toBeNull();
+  });
+});
+
+describe("binaryTexts", () => {
+  it("returns the manifest scripts, the root lint-staged, and hooks, workflows, actions and shell scripts without their comment lines", () => {
+    put("package.json", {
+      scripts: { lint: "eslint .", prepare: "husky", nothing: 1 },
+      "lint-staged": { "*.ts": ["prettier --write", "eslint --fix"], "*.md": "prettier --write" },
+    });
+    put("apps/api/package.json", { name: "@w/api", scripts: { gen: "prisma generate" } });
+    put("packages/ui/package.json", { name: "@w/ui", "lint-staged": { "*.ts": "ignored" } });
+    put(
+      ".husky/pre-commit",
+      "#!/usr/bin/env sh\n# prettier runs on the staged files\npnpm exec lint-staged\n"
+    );
+    put(
+      ".github/workflows/ci.yml",
+      "  # turbo builds every workspace\nrun: pnpm exec turbo run build\n"
+    );
+    put(".github/actions/setup/action.yml", "run: pnpm install\n");
+    put("scripts/run.sh", "tsx scripts/x.ts\n");
+    const ignored = ["apps/api/src/index.ts", ".github/dependabot.yml", ".husky/hooks/extra"];
+    ignored.forEach((file) => put(file, "turbo\n"));
+    const tracked = [
+      "scripts/run.sh",
+      "package.json",
+      "apps/api/package.json",
+      "packages/ui/package.json",
+      ".husky/pre-commit",
+      ".github/workflows/ci.yml",
+      ".github/actions/setup/action.yml",
+      ...ignored,
+    ];
+
+    const texts = valueOf(manifests.binaryTexts(root, tracked));
+
+    expect(texts).toEqual([
+      [".github/actions/setup/action.yml", "run: pnpm install\n"],
+      [".github/workflows/ci.yml", "run: pnpm exec turbo run build\n"],
+      [".husky/pre-commit", "pnpm exec lint-staged\n"],
+      ["apps/api/package.json", "prisma generate"],
+      ["package.json", "eslint .\nhusky\nprettier --write\neslint --fix\nprettier --write"],
+      ["scripts/run.sh", "tsx scripts/x.ts\n"],
+    ]);
+  });
+
+  it.each<[string, string, string | null, string]>([
+    ["a tracked source that is gone", "scripts/gone.sh", null, "scripts/gone.sh could not be read"],
+    [
+      "a manifest that is no JSON",
+      "apps/api/package.json",
+      "{",
+      "apps/api/package.json is not JSON",
+    ],
+  ])("returns an error for %s", (_case, file, text, expected) => {
+    if (text !== null) put(file, text);
+
+    const result = manifests.binaryTexts(root, [file]);
+
+    expect(errorOf(result)).toContain(expected);
+  });
+});
+
+describe("binarySites", () => {
+  const TEXTS: ReadonlyArray<readonly [string, string]> = [
+    [".github/workflows/ci.yml", "run: pnpm exec depcruise src --config .dependency-cruiser.cjs"],
+    ["apps/api/package.json", "prisma generate\ntsx watch src/index.ts"],
+    ["package.json", "husky\nprisma-client generate"],
+    ["scripts/a.sh", 'NODE_OPTIONS="--import=tsx" node x.ts'],
+    ["scripts/b.sh", "tsxfoo run\n./prisma/seed"],
+    ["scripts/c.sh", "cat .dependency-cruiser.cjs schema.prisma"],
+  ];
+
+  it.each<[string, string[], string[]]>([
+    ["prisma", ["prisma"], ["apps/api/package.json"]],
+    ["tsx", ["tsx"], ["apps/api/package.json", "scripts/a.sh"]],
+    ["husky", ["husky"], ["package.json"]],
+    ["dependency-cruiser", ["depcruise", "dependency-cruiser"], [".github/workflows/ci.yml"]],
+    ["lib", [], []],
+  ])("returns the files whose command lines run %s's bins %j", (name, bins, files) => {
+    const sites = manifests.binarySites(name, bins, TEXTS);
+
+    expect(sites).toEqual(files.map((file) => ({ name, kind: "binary", file })));
+  });
+});
+
+describe("cssSites", () => {
+  const CLIENT_CSS = "apps/client/app/globals.css";
+  const ADMIN_CSS = "apps/admin/app/globals.css";
+  const DECLARED = new Set([
+    "tailwindcss",
+    "tw-animate-css",
+    "@fontsource/inter",
+    "@tailwindcss/typography",
+    "tailwind-config",
+    "pkg-src",
+    "commented-out",
+  ]);
+
+  it("returns the declared packages a stylesheet imports or loads as a plugin or config", () => {
+    put(
+      CLIENT_CSS,
+      [
+        '@import "tailwindcss";',
+        "@import 'tw-animate-css';",
+        '@import url("@fontsource/inter/400.css");',
+        '@import "./local.css";',
+        '@plugin "@tailwindcss/typography";',
+        '@config "tailwind-config/base.js";',
+        '@source "pkg-src";',
+        '/* @import "commented-out"; */',
+        '@import "undeclared-pkg";',
+      ].join("\n")
+    );
+    put(ADMIN_CSS, '@import "tailwindcss";\n');
+    put("docs/style.md", '@import "tw-animate-css";\n');
+
+    const sites = valueOf(
+      manifests.cssSites(root, [CLIENT_CSS, ADMIN_CSS, "docs/style.md"], DECLARED)
+    );
+
+    expect(sites).toEqual([
+      { name: "@fontsource/inter", kind: "css", file: CLIENT_CSS },
+      { name: "@tailwindcss/typography", kind: "css", file: CLIENT_CSS },
+      { name: "tailwind-config", kind: "css", file: CLIENT_CSS },
+      { name: "tailwindcss", kind: "css", file: ADMIN_CSS },
+      { name: "tailwindcss", kind: "css", file: CLIENT_CSS },
+      { name: "tw-animate-css", kind: "css", file: CLIENT_CSS },
+    ]);
+  });
+
+  it("returns an error for a tracked stylesheet that cannot be read", () => {
+    const result = manifests.cssSites(root, ["apps/client/app/gone.scss"], DECLARED);
+
+    expect(errorOf(result)).toContain("apps/client/app/gone.scss could not be read");
   });
 });

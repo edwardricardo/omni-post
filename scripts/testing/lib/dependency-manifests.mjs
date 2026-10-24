@@ -3,15 +3,18 @@
  * @file dependency-manifests.mjs
  * @description The manifest side of the dependency-usage ledger: the workspace manifests the
  *   `packages:` globs of `pnpm-workspace.yaml` reach, checked against the set the legal scan of
- *   `scripts/legal/subprocessors.mjs` reads, and the catalogs a `catalog:` specifier resolves
- *   against. A reader that cannot read its whole input returns an error value, never an empty
- *   answer, so the command fails closed instead of counting a dependency unused from a partial
- *   read. Versions are never read: the lockfile and `pnpm-workspace.yaml` stay their source.
+ *   `scripts/legal/subprocessors.mjs` reads; the catalogs a `catalog:` specifier resolves against;
+ *   the `bin` names of an installed package; the command lines a binary runs from; and the binary
+ *   and stylesheet sites of a declared name. A reader that cannot read its whole input returns an
+ *   error value, never an empty answer, so the command fails closed instead of counting a
+ *   dependency unused from a partial read. Versions are never read: the lockfile and
+ *   `pnpm-workspace.yaml` stay their source.
  * @layer infrastructure
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { readTopLevelBlock } from "../workspace-block-reader.mjs";
+import { SITE_KINDS, packageOf } from "./dependency-sites.mjs";
 
 /**
  * @template T
@@ -187,4 +190,228 @@ export function specifierKindOf(spec, catalogs, name) {
   return named.has(name)
     ? { value: spec }
     : { error: `${name} is declared ${spec}, but the ${catalog} catalog holds no ${name}` };
+}
+
+/**
+ * @typedef {import("./dependency-sites.mjs").Site} Site
+ *
+ * @typedef {object} Declaration One third-party declaration, as the legal scan returns it.
+ * @property {string} file The declaring manifest, repository-relative.
+ * @property {string} block `dependencies`, `devDependencies`, `optionalDependencies` or
+ *   `peerDependencies`.
+ * @property {string} name
+ * @property {string} spec The specifier as written.
+ */
+
+const MANIFEST = /(^|\/)package\.json$/;
+const HOOK = /^\.husky\/[^/]+$/;
+const WORKFLOW = /^\.github\/workflows\/[^/]+\.ya?ml$/;
+const ACTION = /^\.github\/actions\/(.+\/)?action\.ya?ml$/;
+const SHELL_SCRIPT = /\.sh$/;
+/** A line that is nothing but a `#` comment, in a shell script or a YAML file. */
+const COMMENT_LINE = /^\s*#/;
+
+const STYLESHEET = /\.s?css$/;
+const BLOCK_COMMENT = /\/\*[\s\S]*?\*\//g;
+/** A whole-line `//` comment, which only SCSS allows. */
+const LINE_COMMENT = /^\s*\/\/.*$/gm;
+/** `@import`, `@plugin` or `@config` with a quoted specifier, `url("…")` included. */
+const STYLESHEET_LOAD = /@(?:import|plugin|config)\s+(?:url\(\s*)?(["'])([^"']+)\1/g;
+
+/**
+ * @description Says whether a value is a plain object.
+ * @param {unknown} value Any value.
+ * @returns {value is Record<string, unknown>} `true` for an object that is not an array.
+ */
+function isObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * @description Reads the `bin` names of the copy of a package a manifest's directory installs,
+ *   `<manifestDir>/node_modules/<name>/package.json`, where pnpm links each workspace's own
+ *   dependencies. A string `bin` is named after the package, its scope dropped; an object's keys
+ *   are the names. A copy that cannot be read is an error, never an empty list: a tree that is not
+ *   installed would otherwise read every binary as unused.
+ * @param {string} root Absolute repository root.
+ * @param {string} manifestDir The declaring manifest's directory, repository-relative (`.` for
+ *   the root).
+ * @param {string} name The declared name.
+ * @returns {Result<string[]>} The bin names in code-unit order, `[]` for a package with none.
+ */
+export function readBins(root, manifestDir, name) {
+  const manifest = path.posix.join(manifestDir, "package.json");
+  const copy = path.join(root, manifestDir, "node_modules", name, "package.json");
+  /** @param {string} why */
+  const unread = (why) => ({
+    error: `${manifest} declares ${name}, and its installed copy cannot be read (${why}): run pnpm install --frozen-lockfile --offline`,
+  });
+  /** @type {unknown} */
+  let data;
+  try {
+    data = JSON.parse(readFileSync(copy, "utf8"));
+  } catch (error) {
+    return unread(messageOf(error));
+  }
+  if (!isObject(data)) return unread("its package.json is not a JSON object");
+  const { bin } = data;
+  if (bin === undefined) return { value: [] };
+  if (typeof bin === "string") {
+    const packageName = typeof data.name === "string" ? data.name : name;
+    return { value: [packageName.replace(/^@[^/]+\//, "")] };
+  }
+  if (isObject(bin)) return { value: Object.keys(bin).sort(byCodeUnit) };
+  return unread("its bin is neither a string nor an object");
+}
+
+/**
+ * @description Reads the `bin` names of a declared package from the copy the first manifest that
+ *   declares it outside `peerDependencies` installs. A peer is satisfied by a copy someone else
+ *   installs, so a name declared only as a peer has no bins of its own to read.
+ * @param {string} root Absolute repository root.
+ * @param {readonly Declaration[]} declarations The legal scan's declarations.
+ * @param {string} name The declared name.
+ * @returns {Result<string[] | null>} The bin names, or `null` for a name no manifest declares
+ *   outside `peerDependencies`.
+ */
+export function declaredBins(root, declarations, name) {
+  const declaring = declarations.find(
+    (declaration) => declaration.name === name && declaration.block !== "peerDependencies"
+  );
+  if (declaring === undefined) return { value: null };
+  return readBins(root, path.posix.dirname(declaring.file), name);
+}
+
+/**
+ * @description Reads the command lines of one manifest: its `scripts` values and, in the root
+ *   manifest, its `lint-staged` commands.
+ * @param {string} root Absolute repository root.
+ * @param {string} file The manifest, repository-relative.
+ * @returns {Result<string>} One command per line, empty for a manifest that runs none.
+ */
+function manifestCommands(root, file) {
+  const text = readText(root, file);
+  if ("error" in text) return text;
+  /** @type {unknown} */
+  let data;
+  try {
+    data = JSON.parse(text.value);
+  } catch {
+    return { error: `${file} is not JSON` };
+  }
+  if (!isObject(data)) return { error: `${file} is not a JSON object` };
+  const scripts = isObject(data.scripts) ? Object.values(data.scripts) : [];
+  const staged = data["lint-staged"];
+  const lintStaged = file === ROOT_MANIFEST && isObject(staged) ? Object.values(staged).flat() : [];
+  const commands = [...scripts, ...lintStaged].filter((command) => typeof command === "string");
+  return { value: commands.join("\n") };
+}
+
+/**
+ * @description Reads the command lines of a hook, a workflow, an action or a shell script: its
+ *   text without the whole-line `#` comments, the shebang among them. A binary a comment names
+ *   is not run, and a workflow's comments name tools far more often than its steps run them.
+ * @param {string} root Absolute repository root.
+ * @param {string} file The source, repository-relative.
+ * @returns {Result<string>} The lines that are not comments.
+ */
+function scriptCommands(root, file) {
+  const text = readText(root, file);
+  if ("error" in text) return text;
+  return {
+    value: text.value
+      .split("\n")
+      .filter((line) => !COMMENT_LINE.test(line))
+      .join("\n"),
+  };
+}
+
+/**
+ * @description Reads every command line a binary can run from: the `scripts` of each tracked
+ *   manifest and the root manifest's `lint-staged`, the hooks directly under `.husky/`, the
+ *   workflows under `.github/workflows/`, the composite actions under `.github/actions/` and
+ *   every tracked shell script, the last four without their comment lines. A tracked source that
+ *   cannot be read is an error.
+ * @param {string} root Absolute repository root.
+ * @param {readonly string[]} tracked Every tracked file, repository-relative.
+ * @returns {Result<Array<[string, string]>>} Each source with its command lines, in code-unit
+ *   order of the file; a manifest that runs no command is left out.
+ */
+export function binaryTexts(root, tracked) {
+  /** @type {Array<[string, string]>} */
+  const texts = [];
+  for (const file of [...tracked].sort(byCodeUnit)) {
+    const script = [HOOK, WORKFLOW, ACTION, SHELL_SCRIPT].some((shape) => shape.test(file));
+    const read = MANIFEST.test(file)
+      ? manifestCommands(root, file)
+      : script
+        ? scriptCommands(root, file)
+        : null;
+    if (read === null) continue;
+    if ("error" in read) return read;
+    if (read.value !== "") texts.push([file, read.value]);
+  }
+  return { value: texts };
+}
+
+/**
+ * @description Escapes a string for use inside a regular expression.
+ * @param {string} text Any text.
+ * @returns {string} The text with every regular-expression metacharacter escaped.
+ */
+function escapeForPattern(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * @description Finds the files whose command lines run one of a package's binaries. A bin name
+ *   is a whole token: it starts a line or follows whitespace, a quote, `(`, `;`, `&`, `|` or `=`,
+ *   and ends a line or precedes whitespace, a quote, `)`, `;`, `&` or `|`. So `prisma` is not read
+ *   in `prisma-client`, `schema.prisma` or `./prisma/seed`, and `tsx` is not read in `tsxfoo`.
+ * @param {string} name The declared package.
+ * @param {readonly string[]} bins Its bin names.
+ * @param {ReadonlyArray<readonly [string, string]>} texts What {@link binaryTexts} returned.
+ * @returns {Site[]} One binary site per file, in code-unit order of the file.
+ */
+export function binarySites(name, bins, texts) {
+  if (bins.length === 0) return [];
+  const names = bins.map(escapeForPattern).join("|");
+  const token = new RegExp(`(^|[\\s"'(;&|=])(?:${names})(?=$|[\\s"');&|])`, "m");
+  return texts
+    .filter(([, text]) => token.test(text))
+    .map(([file]) => file)
+    .sort(byCodeUnit)
+    .map((file) => ({ name, kind: SITE_KINDS.BINARY, file }));
+}
+
+/**
+ * @description Finds the declared packages each tracked stylesheet loads: `@import`, `@plugin` and
+ *   `@config` with a quoted specifier, `url("…")` included, mapped to its package as a module
+ *   specifier is. Comments are not read, and `@source`, which names files to scan rather than a
+ *   module to load, is no site.
+ * @param {string} root Absolute repository root.
+ * @param {readonly string[]} tracked Every tracked file, repository-relative.
+ * @param {ReadonlySet<string>} declared Every declared name.
+ * @returns {Result<Site[]>} One stylesheet site per name and file, sorted by name and then file;
+ *   an error for a tracked stylesheet that cannot be read.
+ */
+export function cssSites(root, tracked, declared) {
+  /** @type {Site[]} */
+  const sites = [];
+  for (const file of tracked.filter((candidate) => STYLESHEET.test(candidate))) {
+    const text = readText(root, file);
+    if ("error" in text) return text;
+    const uncommented = text.value.replace(BLOCK_COMMENT, "");
+    const body = file.endsWith(".scss") ? uncommented.replace(LINE_COMMENT, "") : uncommented;
+    /** @type {Set<string>} */
+    const names = new Set();
+    for (const match of body.matchAll(STYLESHEET_LOAD)) {
+      const name = packageOf(match[2] ?? "");
+      if (name !== null && declared.has(name)) names.add(name);
+    }
+    for (const name of names) sites.push({ name, kind: SITE_KINDS.CSS, file });
+  }
+  const byNameThenFile = (/** @type {Site} */ left, /** @type {Site} */ right) =>
+    byCodeUnit(left.name, right.name) || byCodeUnit(left.file, right.file);
+  return { value: sites.sort(byNameThenFile) };
 }
