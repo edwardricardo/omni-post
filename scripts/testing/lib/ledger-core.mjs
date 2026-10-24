@@ -2,12 +2,20 @@
 /**
  * @file ledger-core.mjs
  * @description The pure core of the test ledger: the shape a path takes, one row per classified
- *   block, the machine verdict of each file and the row that carries it. It spawns nothing,
- *   writes nothing and reads no file; the command that lists the tree, runs the reach engine and
- *   the classifier and writes `ledger.json` builds on these functions.
+ *   block, the machine verdict of each file, the summary derived from the rows and the
+ *   deterministic JSON they render to. It spawns nothing, writes nothing and reads no file but
+ *   the Prettier configuration `render` formats with; the command that lists the tree, runs the
+ *   reach engine and the classifier and writes `ledger.json` builds on these functions.
+ *
+ *   Deterministic by construction: every object is built from a literal, so its keys come in the
+ *   order written here and never in the order a Map or a caller filled them; files are sorted by
+ *   path; blocks stay in source order; and nothing carries a timestamp, a commit or an absolute
+ *   path, so a clean checkout renders the same bytes.
  * @layer infrastructure
  */
+import { fileURLToPath } from "node:url";
 import { BLOCK_CLASS } from "@packages/eslint-plugin-testing";
+import prettier from "prettier";
 
 /** @typedef {import("../../../packages/eslint-plugin-testing/src/classify.js").FileClassification} FileClassification */
 
@@ -36,15 +44,31 @@ export const EXCLUDED_BY_DECISION = Object.freeze({
 export const CANONICAL_TEST_SHAPED = /(\.(test|spec)\.[cm]?[jt]sx?|\.k6\.js)$/;
 
 /**
- * The shapes a row may take. The first five are test-shaped; `runner` is `tests/run*.ts`;
- * `helper` is a `.ts`, `.tsx` or `.js` file under a `tests/`, `__tests__/` or `test/` directory,
- * or under `security/` or `performance/`, that is none of the others; `disabled` is any of them
- * with a `.disabled`, `.old` or `.bak` tail.
- * @typedef {"test" | "integration-test" | "live-test" | "spec" | "k6" | "runner" | "helper" | "disabled"} Shape
+ * The shapes a row may take, in the order the summary counts them. The first five are
+ * test-shaped; `runner` is `tests/run*.ts`; `helper` is a `.ts`, `.tsx` or `.js` file under a
+ * `tests/`, `__tests__/` or `test/` directory, or under `security/` or `performance/`, that is
+ * none of the others; `disabled` is any of them with a `.disabled`, `.old` or `.bak` tail.
  */
+const SHAPES = Object.freeze(
+  /** @type {const} */ ([
+    "test",
+    "integration-test",
+    "live-test",
+    "spec",
+    "k6",
+    "runner",
+    "helper",
+    "disabled",
+  ])
+);
+
+/** @typedef {typeof SHAPES[number]} Shape */
 
 /** @type {readonly Shape[]} */
 const TEST_SHAPED = Object.freeze(["test", "integration-test", "live-test", "spec", "k6"]);
+
+/** The summary's key for the rows with no shape: the paths a decision excludes. */
+const NO_SHAPE = "none";
 
 /** A machine verdict; `null` on a row stands for a verdict no scan measures yet. */
 const VERDICT = Object.freeze(
@@ -57,6 +81,9 @@ const VERDICT = Object.freeze(
 );
 
 /** @typedef {typeof VERDICT[keyof typeof VERDICT]} Verdict */
+
+/** The summary's key for the rows whose verdict is `null`. */
+const UNMEASURED = "unmeasured";
 
 /** The rule of the verdict table each row was decided by. */
 const BASIS = Object.freeze(
@@ -85,6 +112,9 @@ const RUNNER = /(^|\/)tests\/run[^/]*\.ts$/;
 const HELPER_EXTENSION = /\.(ts|tsx|js)$/;
 const TEST_DIRECTORY = /(^|\/)(tests|__tests__|test)\//;
 const SUITE_ROOT = /^(security|performance)\//;
+
+/** The file the rendered JSON is committed as, whose Prettier configuration `render` applies. */
+const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.url));
 
 /**
  * @typedef {object} BlockRow One classified block.
@@ -127,6 +157,38 @@ const SUITE_ROOT = /^(security|performance)\//;
  * @property {Verdict | null} verdict
  * @property {Basis} basis
  * @property {string | null} excluded
+ *
+ * @typedef {object} FileCounts
+ * @property {number} total
+ * @property {Record<string, number>} byShape Every shape, then `none`.
+ * @property {Record<string, number>} byVerdict Every verdict, then `unmeasured`.
+ *
+ * @typedef {object} RowCounts
+ * @property {number} machine
+ * @property {number} confirmed
+ * @property {number} total
+ *
+ * @typedef {object} BlockCounts
+ * @property {number} total
+ * @property {number} decorative The blocks with at least one criterion.
+ * @property {Record<string, number>} byClass Every block class, in the classifier's order.
+ *
+ * @typedef {object} DeletedCounts
+ * @property {number} files
+ * @property {number} blocks
+ *
+ * @typedef {object} Summary
+ * @property {FileCounts} files
+ * @property {RowCounts} rows
+ * @property {BlockCounts} blocks
+ * @property {DeletedCounts} deleted Zero until the ledger records deletions.
+ * @property {string[]} excluded `<path>: <decision>` per excluded row, sorted by path.
+ *
+ * @typedef {object} Ledger
+ * @property {number} version
+ * @property {Summary} summary
+ * @property {Record<string, never>} slices Empty until slices are assigned.
+ * @property {FileRow[]} files Sorted by path.
  */
 
 /**
@@ -341,4 +403,94 @@ export function fileRow({ path: file, classification, collectors, quarantined })
       importers: null,
     }),
   };
+}
+
+/**
+ * @description Counts values under a fixed list of keys, every key present even at zero, in the
+ *   list's order; a value outside the list is counted under its own key, after them.
+ * @param {readonly string[]} keys
+ * @param {readonly string[]} values
+ * @returns {Record<string, number>}
+ */
+function countBy(keys, values) {
+  /** @type {Record<string, number>} */
+  const counts = {};
+  for (const key of keys) counts[key] = 0;
+  for (const value of values) counts[value] = (counts[value] ?? 0) + 1;
+  return counts;
+}
+
+/**
+ * @description Derives the summary from the rows alone, so it can never disagree with them.
+ *   `deleted` stays zero until the ledger records deletions.
+ * @param {readonly FileRow[]} rows
+ * @returns {Summary}
+ */
+export function summarize(rows) {
+  const blocks = rows.flatMap((row) => row.blocks);
+  const verdicts = [...Object.values(VERDICT), UNMEASURED];
+  const excluded = rows
+    .filter((row) => row.excluded !== null)
+    .sort((left, right) => byCodeUnit(left.path, right.path))
+    .map((row) => `${row.path}: ${row.excluded}`);
+  return {
+    files: {
+      total: rows.length,
+      byShape: countBy(
+        [...SHAPES, NO_SHAPE],
+        rows.map((row) => row.shape ?? NO_SHAPE)
+      ),
+      byVerdict: countBy(
+        verdicts,
+        rows.map((row) => row.verdict ?? UNMEASURED)
+      ),
+    },
+    rows: {
+      machine: rows.filter((row) => row.status === "machine").length,
+      confirmed: rows.filter((row) => row.status === "confirmed").length,
+      total: rows.length,
+    },
+    blocks: {
+      total: blocks.length,
+      decorative: blocks.filter((block) => block.criteria.length > 0).length,
+      byClass: countBy(
+        Object.values(BLOCK_CLASS),
+        blocks.map((block) => block.blockClass)
+      ),
+    },
+    deleted: { files: 0, blocks: 0 },
+    excluded,
+  };
+}
+
+/**
+ * @description Assembles the ledger: its rows sorted by path, each copied into the key order of
+ *   `orderedRow`, and the summary derived from them. A path with two rows is refused.
+ * @param {readonly FileRow[]} rows
+ * @returns {Result<Ledger>} The ledger, or the path two rows share.
+ */
+export function buildLedger(rows) {
+  const files = [...rows].sort((left, right) => byCodeUnit(left.path, right.path));
+  const repeated = files.find((row, index) => index > 0 && files[index - 1]?.path === row.path);
+  if (repeated !== undefined) {
+    const count = files.filter((row) => row.path === repeated.path).length;
+    return { error: `${repeated.path} has ${count} rows` };
+  }
+  const ordered = files.map(orderedRow);
+  return {
+    value: { version: LEDGER_VERSION, summary: summarize(ordered), slices: {}, files: ordered },
+  };
+}
+
+/**
+ * @description Renders the ledger as the JSON text that is committed: `JSON.stringify` formatted
+ *   by Prettier with the configuration that applies to `ledger.json` at the repository root (the
+ *   `.prettierrc` and the `.editorconfig`, as the CLI reads them), so `pnpm format:check` passes
+ *   over the committed file. Equal ledgers render equal bytes.
+ * @param {Ledger} ledger
+ * @returns {Promise<string>} The text, ending in a newline.
+ */
+export async function render(ledger) {
+  const config = await prettier.resolveConfig(LEDGER_FILE, { editorconfig: true });
+  return prettier.format(JSON.stringify(ledger, null, 2), { ...config, parser: "json" });
 }

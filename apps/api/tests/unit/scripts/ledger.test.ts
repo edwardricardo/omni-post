@@ -1,14 +1,15 @@
 /**
  * @file ledger.test.ts
  * @description Pins `scripts/testing/lib/ledger-core.mjs`, the pure core of the test ledger: the
- *   shape a path takes, the rows of a file's classified blocks, the machine verdict table and the
- *   row of each file. The real classifier, `classifyFile` of `packages/eslint-plugin-testing`,
- *   reads inline fixture sources, so every verdict is pinned against the blocks the ledger reads
- *   in the tree. Nothing here spawns or writes; the only files read are the three that define
- *   the test-shaped expression.
+ *   shape a path takes, the rows of a file's classified blocks, the machine verdict table, the
+ *   summary derived from the rows and the deterministic JSON they render to. The real classifier,
+ *   `classifyFile` of `packages/eslint-plugin-testing`, reads inline fixture sources, so every
+ *   verdict is pinned against the blocks the ledger reads in the tree. Nothing here spawns or
+ *   writes; the only files read are the three that define the test-shaped expression.
  * @layer infrastructure
  */
 import { readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
@@ -81,6 +82,44 @@ interface MachineVerdict {
   readonly excluded: string | null;
 }
 
+interface FileCounts {
+  readonly total: number;
+  readonly byShape: Readonly<Record<string, number>>;
+  readonly byVerdict: Readonly<Record<string, number>>;
+}
+
+interface RowCounts {
+  readonly machine: number;
+  readonly confirmed: number;
+  readonly total: number;
+}
+
+interface BlockCounts {
+  readonly total: number;
+  readonly decorative: number;
+  readonly byClass: Readonly<Record<string, number>>;
+}
+
+interface DeletedCounts {
+  readonly files: number;
+  readonly blocks: number;
+}
+
+interface Summary {
+  readonly files: FileCounts;
+  readonly rows: RowCounts;
+  readonly blocks: BlockCounts;
+  readonly deleted: DeletedCounts;
+  readonly excluded: readonly string[];
+}
+
+interface Ledger {
+  readonly version: number;
+  readonly summary: Summary;
+  readonly slices: Readonly<Record<string, unknown>>;
+  readonly files: readonly FileRow[];
+}
+
 /** The core's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type LedgerCore = {
   LEDGER_VERSION: number;
@@ -90,6 +129,9 @@ type LedgerCore = {
   blockRows: (classification: Classification) => BlockRow[];
   verdictOf: (input: { path: string; classification: Classification | null }) => MachineVerdict;
   fileRow: (input: RowInput) => Result<FileRow>;
+  summarize: (rows: readonly FileRow[]) => Summary;
+  buildLedger: (rows: readonly FileRow[]) => Result<Ledger>;
+  render: (ledger: Ledger) => Promise<string>;
 };
 
 /** The classifier's surface the suite calls, typed for the same reason. */
@@ -132,6 +174,17 @@ const SOURCES = {
 } as const;
 type Source = keyof typeof SOURCES;
 
+const SHAPE_ORDER = [
+  "test",
+  "integration-test",
+  "live-test",
+  "spec",
+  "k6",
+  "runner",
+  "helper",
+  "disabled",
+  "none",
+];
 const ROW_KEYS = [
   "path",
   "shape",
@@ -173,6 +226,20 @@ const row = (
       quarantined,
     })
   );
+
+/** One row per shape the summary counts, the paths deliberately out of code-unit order. */
+const sampleRows = (): FileRow[] => [
+  row("apps/api/tests/unit/post.test.ts", "mixed", [VITEST_LABEL]),
+  row("apps/client/e2e/login.spec.ts", "contradiction", ["playwright:apps/client/e2e.config.ts"]),
+  row("apps/api/tests/unit/Post.test.ts", "behavioural", [], "platform-engineering"),
+  row("performance/k6/scenarios/load.k6.js", "noBlocks", ["k6:performance/k6/scenarios"]),
+  row("apps/api/tests/old.test.ts.disabled", "existence"),
+  row("apps/api/tests/run.ts", null),
+  row("apps/api/scripts/seed-demo-data.ts", "decorative"),
+];
+
+const total = (counts: Readonly<Record<string, number>>): number =>
+  Object.values(counts).reduce((sum, count) => sum + count, 0);
 
 describe("the constants", () => {
   it("returns version 1 and the two paths decision D17 keeps out of every delete slice", () => {
@@ -457,5 +524,129 @@ describe("fileRow", () => {
     ],
   ])("returns an error for %s", (_case, input, message) => {
     expect(core.fileRow(input)).toEqual({ error: message });
+  });
+});
+
+describe("summarize", () => {
+  it("returns every count of the sample rows, keyed in a fixed order", () => {
+    const summary = core.summarize(sampleRows());
+
+    expect(summary).toEqual({
+      files: {
+        total: 7,
+        byShape: {
+          test: 2,
+          "integration-test": 0,
+          "live-test": 0,
+          spec: 1,
+          k6: 1,
+          runner: 1,
+          helper: 0,
+          disabled: 1,
+          none: 1,
+        },
+        byVerdict: { DELETE: 1, REWRITE: 1, KEEP: 1, ADJUDICATE: 3, unmeasured: 1 },
+      },
+      rows: { machine: 7, confirmed: 0, total: 7 },
+      blocks: {
+        total: 8,
+        decorative: 5,
+        byClass: {
+          EMPTY: 1,
+          "TAUTOLOGY-ONLY": 0,
+          "EXISTENCE-ONLY": 4,
+          "CONDITIONAL-ONLY": 0,
+          "SELF-SKIP": 0,
+          "PRINTS-SUCCESS": 0,
+          "TITLE-CONTRADICTION": 1,
+          BEHAVIOURAL: 2,
+        },
+      },
+      deleted: { files: 0, blocks: 0 },
+      excluded: ["apps/api/scripts/seed-demo-data.ts: D17"],
+    });
+    expect(Object.keys(summary)).toEqual(["files", "rows", "blocks", "deleted", "excluded"]);
+    expect(Object.keys(summary.files.byShape)).toEqual(SHAPE_ORDER);
+    expect(Object.keys(summary.files.byVerdict)).toEqual([
+      "DELETE",
+      "REWRITE",
+      "KEEP",
+      "ADJUDICATE",
+      "unmeasured",
+    ]);
+  });
+
+  it("derives every total from a direct count over the rows it is given", () => {
+    const rows = sampleRows();
+    const blocks = rows.flatMap((file) => file.blocks);
+
+    const summary = core.summarize(rows);
+
+    expect(summary.files.total).toBe(rows.length);
+    expect(total(summary.files.byShape)).toBe(rows.length);
+    expect(total(summary.files.byVerdict)).toBe(rows.length);
+    expect(summary.files.byVerdict["unmeasured"]).toBe(
+      rows.filter((file) => file.verdict === null).length
+    );
+    expect(summary.rows.total).toBe(rows.length);
+    expect(summary.blocks.total).toBe(blocks.length);
+    expect(summary.blocks.total).toBe(rows.reduce((sum, file) => sum + file.blockCount, 0));
+    expect(summary.blocks.decorative).toBe(
+      blocks.filter((block) => block.criteria.length > 0).length
+    );
+    expect(total(summary.blocks.byClass)).toBe(blocks.length);
+  });
+});
+
+describe("buildLedger and render", () => {
+  it("returns the ledger keyed in a fixed order, its files sorted by code unit rather than by locale", () => {
+    const ledger = valueOf(core.buildLedger(sampleRows()));
+
+    expect(Object.keys(ledger)).toEqual(["version", "summary", "slices", "files"]);
+    expect(ledger.version).toBe(1);
+    expect(ledger.slices).toEqual({});
+    expect(ledger.files.map((file) => file.path)).toEqual([
+      "apps/api/scripts/seed-demo-data.ts",
+      "apps/api/tests/old.test.ts.disabled",
+      "apps/api/tests/run.ts",
+      "apps/api/tests/unit/Post.test.ts",
+      "apps/api/tests/unit/post.test.ts",
+      "apps/client/e2e/login.spec.ts",
+      "performance/k6/scenarios/load.k6.js",
+    ]);
+    expect(ledger.summary).toEqual(core.summarize(ledger.files));
+  });
+
+  it("returns an error naming a path that two rows share", () => {
+    const twice = row("apps/api/tests/unit/a.test.ts", "behavioural");
+
+    expect(core.buildLedger([twice, twice])).toEqual({
+      error: "apps/api/tests/unit/a.test.ts has 2 rows",
+    });
+  });
+
+  it("renders byte-equal JSON from the same rows given in two orders", async () => {
+    const rows = sampleRows();
+
+    const forward = await core.render(valueOf(core.buildLedger(rows)));
+    const backward = await core.render(valueOf(core.buildLedger([...rows].reverse())));
+
+    expect(backward).toBe(forward);
+    expect(await core.render(valueOf(core.buildLedger(rows)))).toBe(forward);
+  });
+
+  it("renders JSON that parses back to the ledger and carries no clock, no commit and no absolute path", async () => {
+    const ledger = valueOf(core.buildLedger(sampleRows()));
+
+    const text = await core.render(ledger);
+
+    expect(JSON.parse(text)).toEqual(ledger);
+    expect(text.endsWith("}\n")).toBe(true);
+    expect(text).not.toMatch(/T\d\d:\d\d/);
+    expect(text).not.toMatch(/(?<![0-9a-f])[0-9a-f]{40}(?![0-9a-f])/);
+    expect(text).not.toContain("/root/");
+    expect(text).not.toContain(REPO_ROOT);
+    expect(text).not.toContain(tmpdir());
+    expect(text).not.toMatch(/"\//);
   });
 });
