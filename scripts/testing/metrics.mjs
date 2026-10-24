@@ -296,29 +296,47 @@ function m15(offline) {
 }
 
 /**
- * Counts, per rule, the entries of the bulk-suppression file. Absent at the baseline commit, which
- * is why the absence is reported rather than guessed at.
+ * The lint rules whose suppressed violations each metric counts. M3 counts the test blocks that
+ * cannot fail, the classes of `packages/eslint-plugin-testing`; the `vitest/*` rules and
+ * `no-console` share the file and are not decorative blocks. M13's rules do not exist yet.
+ */
+const SUPPRESSED_RULES = Object.freeze({
+  M3: Object.freeze([
+    "testing/no-empty-test",
+    "testing/no-existence-only-test",
+    "testing/no-tautological-assertion",
+  ]),
+  M13: Object.freeze([]),
+});
+
+/**
+ * Sums the suppressed violations of the named rules in the bulk-suppression file. The file is
+ * absent at the baseline commit, and a metric whose rules are not written yet names none, so both
+ * are reported rather than guessed at: a sum over no rule would read as a measured zero.
  *
  * @param {string} id
+ * @param {readonly string[]} rules
  * @returns {Metric}
  */
-function fromSuppressions(id) {
+function fromSuppressions(id, rules) {
+  if (rules.length === 0) {
+    return { id, value: UNKNOWN, source: `unavailable: no lint rule counts ${id} yet` };
+  }
   const file = path.join(REPO_ROOT, "eslint-suppressions.json");
   if (!existsSync(file)) return { id, value: UNKNOWN, source: absent("eslint-suppressions.json") };
   /** @type {Record<string, Record<string, { count?: number }>>} */
   const parsed = JSON.parse(readFileSync(file, "utf8"));
-  /** @type {Map<string, number>} */
-  const perRule = new Map();
-  for (const rules of Object.values(parsed)) {
-    for (const [rule, entry] of Object.entries(rules)) {
-      perRule.set(rule, (perRule.get(rule) ?? 0) + (entry.count ?? 0));
+  const counted = new Set(rules);
+  let total = 0;
+  for (const perFile of Object.values(parsed)) {
+    for (const [rule, entry] of Object.entries(perFile)) {
+      if (counted.has(rule)) total += entry.count ?? 0;
     }
   }
-  const total = [...perRule.values()].reduce((sum, n) => sum + n, 0);
   return {
     id,
     value: String(total),
-    source: "derived: eslint-suppressions.json counts per rule",
+    source: `derived: eslint-suppressions.json, the suppressed violations of ${rules.join(", ")}`,
   };
 }
 
@@ -361,7 +379,7 @@ function metricTable(offline) {
       id: "M2",
       compute: () => pasted("M2", "the local vitest run summary and the integration tier summary"),
     },
-    { id: "M3", compute: () => fromSuppressions("M3") },
+    { id: "M3", compute: () => fromSuppressions("M3", SUPPRESSED_RULES.M3) },
     { id: "M4", compute: () => fromArtefact("M4", "ledger.json") },
     { id: "M5", compute: m5 },
     { id: "M6", compute: () => fromArtefact("M6", "ledger.json") },
@@ -375,7 +393,7 @@ function metricTable(offline) {
     { id: "M10", compute: () => pasted("M10", "the named CI run of the end-to-end job") },
     { id: "M11", compute: () => pasted("M11", "the named CI run of the load job") },
     { id: "M12", compute: () => fromArtefact("M12", "mutation-floors.json") },
-    { id: "M13", compute: () => fromSuppressions("M13") },
+    { id: "M13", compute: () => fromSuppressions("M13", SUPPRESSED_RULES.M13) },
     { id: "M14", compute: () => fromArtefact("M14", "ledger.json") },
     { id: "M15", compute: () => m15(offline) },
     {
