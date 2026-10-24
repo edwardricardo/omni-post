@@ -1,0 +1,5924 @@
+{
+  "version": 1,
+  "floor": 3,
+  "summary": {
+    "names": 175,
+    "production": 107,
+    "devOnly": 68,
+    "types": 9,
+    "aboveFloor": 47,
+    "underFloor": 128,
+    "atZero": 19,
+    "underFloorWithSites": 109,
+    "kept": 0,
+    "remove": 0,
+    "pending": 128
+  },
+  "names": [
+    {
+      "name": "@anthropic-ai/sdk",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["anthropic-ai-sdk"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/ai/providers/anthropic.ts"]
+        }
+      }
+    },
+    {
+      "name": "@atproto/api",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/providers/bluesky/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/providers/bluesky/src/BlueskyClient.ts"]
+        },
+        "type-only": {
+          "test": ["packages/providers/bluesky/tests/BlueskyClient.test.ts"]
+        },
+        "test-mock": {
+          "test": ["packages/providers/bluesky/tests/BlueskyClient.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@aws-sdk/client-s3",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/adapters/storage-s3/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/adapters/storage-s3/src/index.ts"],
+          "test": ["packages/adapters/storage-s3/tests/s3-operations.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@aws-sdk/s3-presigned-post",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/adapters/storage-s3/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/adapters/storage-s3/src/index.ts"],
+          "test": ["packages/adapters/storage-s3/tests/s3-operations.test.ts"]
+        },
+        "test-mock": {
+          "test": ["packages/adapters/storage-s3/tests/s3-operations.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@aws-sdk/s3-request-presigner",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/adapters/storage-s3/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/adapters/storage-s3/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@axe-core/playwright",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@azure/storage-blob",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/adapters/storage-azure/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/adapters/storage-azure/src/index.ts"]
+        },
+        "test-mock": {
+          "test": ["packages/adapters/storage-azure/tests/index.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@emoji-mart/data",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/ui/src/components/business/EmojiPickerButton.tsx"]
+        },
+        "type-only": {
+          "production": ["packages/ui/src/components/business/EmojiPickerButton.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@emoji-mart/react",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/ui/src/components/business/EmojiPickerButton.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@eslint/js",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["eslint.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "@faker-js/faker",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@fastify/cookie",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/index.ts"],
+          "test": [
+            "apps/api/tests/unit/accountLifecycleRoutes.test.ts",
+            "apps/api/tests/unit/analyticsRoutes.test.ts",
+            "apps/api/tests/unit/approvals/approvalRoutes.test.ts",
+            "apps/api/tests/unit/authRoutes.test.ts",
+            "apps/api/tests/unit/channelRoutes.test.ts",
+            "apps/api/tests/unit/comments/commentRoutes.test.ts",
+            "apps/api/tests/unit/contentRoutes.test.ts",
+            "apps/api/tests/unit/dashboardRoutes.test.ts",
+            "apps/api/tests/unit/notifications/notificationRoutes.test.ts",
+            "apps/api/tests/unit/schedulingRoutes.test.ts",
+            "apps/api/tests/unit/team/teamRoutes.test.ts",
+            "apps/api/tests/unit/trendRoutes.test.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@fastify/cors",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/security/securityHeaders.ts"]
+        }
+      }
+    },
+    {
+      "name": "@fastify/helmet",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/security/securityHeaders.ts"]
+        }
+      }
+    },
+    {
+      "name": "@fastify/otel",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        },
+        "config-string": {
+          "test": ["packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@fastify/swagger",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@fastify/websocket",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@formatjs/icu-messageformat-parser",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": [
+            "apps/admin/scripts/i18n-validate.mjs",
+            "apps/client/scripts/i18n-validate.mjs"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@git-diff-view/file",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/templates/VersionCompareView.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@git-diff-view/react",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/templates/VersionCompareView.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@google-cloud/storage",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/adapters/storage-gcs/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/adapters/storage-gcs/src/index.ts"]
+        },
+        "test-mock": {
+          "test": ["packages/adapters/storage-gcs/tests/index.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@google/genai",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/ai/providers/gemini.ts"]
+        }
+      }
+    },
+    {
+      "name": "@googleapis/youtube",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/providers/youtube/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@googleapis/youtubeanalytics",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/providers/youtube/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "packages/providers/youtube/src/analytics.ts",
+            "packages/providers/youtube/src/apiClient.ts"
+          ]
+        },
+        "test-mock": {
+          "test": [
+            "packages/providers/youtube/tests/YouTubeApiClient.cacheIsolation.test.ts",
+            "packages/providers/youtube/tests/YouTubeUpdateSemantics.test.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@hey-api/openapi-ts",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["openapi-ts"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["openapi-ts.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "@langchain/core",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@langchain/langgraph",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "apps/api/src/ai/agent/LangGraphAgentOrchestrationAdapter.ts",
+            "apps/api/src/ai/agent/repurposeGraph.ts"
+          ],
+          "test": [
+            "apps/api/tests/eval/repurposeTrajectory.eval.test.ts",
+            "apps/api/tests/unit/ai/agent/repurposeGraph.test.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@marsidev/react-turnstile",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/admin/app/[locale]/reset-password/page.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@node-saml/node-saml",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/auth/samlRoutes.ts"]
+        }
+      }
+    },
+    {
+      "name": "@opentelemetry/api",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@opentelemetry/auto-instrumentations-node",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@opentelemetry/core",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@opentelemetry/exporter-prometheus",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@opentelemetry/exporter-trace-otlp-http",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@opentelemetry/instrumentation-fs",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        },
+        "config-string": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@opentelemetry/instrumentation-http",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@opentelemetry/instrumentation-redis",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@opentelemetry/resources",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@opentelemetry/sdk-node",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"],
+          "test": [
+            "packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts",
+            "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@opentelemetry/semantic-conventions",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog:otel"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/observability/opentelemetry/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@paddle/paddle-node-sdk",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/infrastructure/billing/PaddlePaymentAdapter.ts"],
+          "test": ["apps/api/tests/unit/infrastructure/billing/PaddlePaymentAdapter.test.ts"]
+        },
+        "config-string": {
+          "test": ["apps/api/tests/unit/scripts/subprocessorsInventory.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@playwright/test",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["playwright"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@prisma/adapter-pg",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "infra/prisma/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["infra/prisma/src/client.ts", "infra/prisma/src/test-client.ts"],
+          "config": [
+            "infra/prisma/scripts/backfill-admin-mfa-backup-codes.ts",
+            "infra/prisma/scripts/migrate-team-member-to-customer-user.ts",
+            "infra/prisma/seed.ts"
+          ]
+        },
+        "config-string": {
+          "test": ["apps/api/tests/unit/scripts/holdsGate.test.ts"],
+          "config": [
+            "openspec/changes/archive/admin-password-reset-claim/evidence/probe-reset-claim-sql-v3.mts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@prisma/client",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "infra/prisma/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {
+        "config-string": {
+          "test": ["apps/api/tests/unit/scripts/holdsGate.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@radix-ui/react-popover",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/notifications/NotificationBell.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@radix-ui/react-scroll-area",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/notifications/NotificationBell.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@scalar/fastify-api-reference",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "@secretlint/secretlint-rule-preset-recommend",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@sentry/nextjs",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@sentry/node",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/observability/sentryInit.ts"]
+        },
+        "test-mock": {
+          "test": ["apps/api/tests/unit/observability/sentryInit.test.ts"]
+        },
+        "config-string": {
+          "test": ["apps/api/tests/unit/scripts/subprocessorsInventory.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@size-limit/preset-small-lib",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@storybook/addon-a11y",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "config-string": {
+          "config": ["apps/client/.storybook/main.ts"]
+        }
+      }
+    },
+    {
+      "name": "@storybook/addon-docs",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "config-string": {
+          "config": ["apps/client/.storybook/main.ts"]
+        }
+      }
+    },
+    {
+      "name": "@storybook/addon-vitest",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["apps/client/vitest.stories.config.ts"]
+        },
+        "config-string": {
+          "config": ["apps/client/.storybook/main.ts"]
+        }
+      }
+    },
+    {
+      "name": "@storybook/nextjs-vite",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "type-only": {
+          "test": [
+            "apps/client/stories/foundation/Colors.stories.tsx",
+            "apps/client/stories/foundation/Spacing.stories.tsx",
+            "apps/client/stories/foundation/Typography.stories.tsx"
+          ],
+          "config": ["apps/client/.storybook/main.ts", "apps/client/.storybook/preview.tsx"]
+        },
+        "config-string": {
+          "config": ["apps/client/.storybook/main.ts"]
+        }
+      }
+    },
+    {
+      "name": "@storybook/react",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {
+        "type-only": {
+          "test": [
+            "packages/ui/src/components/avatar.stories.tsx",
+            "packages/ui/src/components/badge.stories.tsx",
+            "packages/ui/src/components/button.stories.tsx",
+            "packages/ui/src/components/card.stories.tsx",
+            "packages/ui/src/components/input.stories.tsx",
+            "packages/ui/src/components/label.stories.tsx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@t3-oss/env-core",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/config/env.ts", "apps/workers/src/config/env.ts"],
+          "test": ["apps/workers/tests/unit/env.unit.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "@t3-oss/env-nextjs",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/admin/lib/env.ts", "apps/client/lib/env.ts"]
+        }
+      }
+    },
+    {
+      "name": "@tailwindcss/postcss",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "config-string": {
+          "config": ["apps/admin/postcss.config.mjs", "apps/client/postcss.config.mjs"]
+        }
+      }
+    },
+    {
+      "name": "@tanstack/react-query",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/query-client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/query-client/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@tanstack/react-query-devtools",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/app/providers.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@testing-library/dom",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@testing-library/jest-dom",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "test": ["apps/admin/tests/unit/setup.ts", "apps/client/lib/api/__tests__/setup.ts"]
+        }
+      }
+    },
+    {
+      "name": "@testing-library/react",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/browser-logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@testing-library/user-event",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "test": [
+            "apps/admin/tests/unit/instrumentation.test.ts",
+            "apps/admin/tests/unit/shared/SkipLink.test.tsx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@tiptap/core",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@tiptap/extension-character-count",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "apps/client/components/templates/TipTapEditor.tsx",
+            "packages/ui/src/components/business/TipTapContentEditor.tsx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@tiptap/extension-color",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/templates/TipTapEditor.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@tiptap/extension-highlight",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/templates/TipTapEditor.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@tiptap/extension-link",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/templates/TipTapEditor.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@tiptap/extension-placeholder",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "apps/client/components/templates/TipTapEditor.tsx",
+            "packages/ui/src/components/business/TipTapContentEditor.tsx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@tiptap/extension-text-style",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/templates/TipTapEditor.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@tiptap/extension-typography",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/templates/TipTapEditor.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@tiptap/pm",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@tiptap/react",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "apps/client/components/templates/TipTapEditor.tsx",
+            "packages/ui/src/components/business/TipTapContentEditor.tsx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@tiptap/starter-kit",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "apps/client/components/templates/TipTapEditor.tsx",
+            "packages/ui/src/components/business/TipTapContentEditor.tsx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "@types/jsonwebtoken",
+      "scope": "dev-only",
+      "typedTarget": "jsonwebtoken",
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@types/node",
+      "scope": "dev-only",
+      "typedTarget": "node:builtins",
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "infra/prisma/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/cache-redis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/crm-hubspot/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/crm-salesforce/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/db-prisma/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/dead-letter-queue/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/external-apis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/fallback-strategies/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/queue-bullmq/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-azure/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-cloudinary/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-do-spaces/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-gcs/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-s3/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/api-common/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/api-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/accounts/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/ai-image/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/ai/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/aiPromptTemplates/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/analytics/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/apiKeys/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/application/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/approvals/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/assets/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/auth/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/billing/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/brand-kit/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/brand-voice/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/bulk-scheduling/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/campaigns/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/channels/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/comments/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/compliance/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/crisis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/crm/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/custom-reports/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/customer-auth/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/domain/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/embeddings/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/external-notifications/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/first-comment/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/glossary/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/guardrails/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/inbox/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/integrations/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/links/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/listening/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/mentions/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/ml/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/notifications/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/posts/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/projects/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/providers/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/recurring/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/referral/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/reports/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/security/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/settings/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/style-guide/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/tasks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/team/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/threading/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/trends/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/usage/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/utm/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/webhooks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/eslint-plugin-testing/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/i18n/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/circuit-breaker/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/health-checks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/background-scheduler/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/browser-logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ports/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/bluesky/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/facebook/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/instagram/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/linkedin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/pinterest/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/shared/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/snapchat/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/telegram/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/threads/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/tiktok/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/x/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/youtube/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/query-client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/shared/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/test-contracts/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/vitest-shared/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@types/opossum",
+      "scope": "dev-only",
+      "typedTarget": "opossum",
+      "declarations": [
+        {
+          "manifest": "packages/adapters/db-prisma/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/external-apis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/queue-bullmq/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@types/qrcode",
+      "scope": "dev-only",
+      "typedTarget": "qrcode",
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "type-only": {
+          "production": ["apps/api/src/admin/auth/MfaService.ts"]
+        }
+      }
+    },
+    {
+      "name": "@types/react",
+      "scope": "dev-only",
+      "typedTarget": "react",
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/browser-logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/query-client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@types/react-dom",
+      "scope": "dev-only",
+      "typedTarget": "react-dom",
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "type-only": {
+          "production": ["packages/ui/src/components/submit-button.tsx"]
+        }
+      }
+    },
+    {
+      "name": "@types/validator",
+      "scope": "dev-only",
+      "typedTarget": "validator",
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "type-only": {
+          "production": ["apps/api/src/validation/secureSchemas.ts"]
+        }
+      }
+    },
+    {
+      "name": "@types/ws",
+      "scope": "dev-only",
+      "typedTarget": "ws",
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "type-only": {
+          "production": ["apps/api/src/webhooks/realtimeWebhookBroadcaster.ts"]
+        }
+      }
+    },
+    {
+      "name": "@types/xml2js",
+      "scope": "dev-only",
+      "typedTarget": "xml2js",
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "type-only": {
+          "production": ["apps/api/src/webhooks/processors/youtubeWebhookProcessor.ts"]
+        }
+      }
+    },
+    {
+      "name": "@typescript-eslint/eslint-plugin",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["eslint.config.ts", "eslint.jsdoc.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "@typescript-eslint/parser",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/eslint-plugin-testing/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["apps/admin/vitest.config.ts", "apps/client/vitest.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "@vitest/browser",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@vitest/browser-playwright",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["apps/client/vitest.stories.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "@vitest/coverage-v8",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "@vitest/eslint-plugin",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["eslint.config.ts", "eslint.jsdoc.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "@vitest/ui",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "argon2",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "infra/prisma/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/auth/passwordHashing.ts"],
+          "test": [
+            "apps/api/tests/integration/customerPasswordReset.integration.test.ts",
+            "apps/api/tests/unit/admin/adminAuthService.test.ts",
+            "apps/api/tests/unit/admin/adminTestHelper.ts",
+            "apps/api/tests/unit/application/ApiKeyUseCases.test.ts",
+            "apps/api/tests/unit/auth/passwordHashing.test.ts",
+            "apps/api/tests/unit/customerAuthUseCases.test.ts",
+            "apps/api/tests/unit/customerPasswordResetClaim.test.ts"
+          ],
+          "config": ["infra/prisma/seed.ts"]
+        },
+        "config-string": {
+          "test": ["apps/api/tests/unit/helpers/factories.ts"]
+        }
+      }
+    },
+    {
+      "name": "autocannon",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["autocannon"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "aws-sdk-client-mock",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/adapters/storage-s3/package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "test": ["packages/adapters/storage-s3/tests/s3-operations.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "axios",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/providers/tiktok/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "bullmq",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/dead-letter-queue/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/queue-bullmq/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "class-variance-authority",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "cloudinary",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/adapters/storage-cloudinary/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/adapters/storage-cloudinary/src/index.ts"]
+        }
+      }
+    },
+    {
+      "name": "clsx",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/ui/src/lib/utils.ts"]
+        }
+      }
+    },
+    {
+      "name": "cronstrue",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["cronstrue"],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "apps/client/components/analytics/ScheduledReportsList.tsx",
+            "apps/client/components/scheduling/RecurringPostCard.tsx"
+          ]
+        }
+      }
+    },
+    {
+      "name": "cross-env",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["cross-env", "cross-env-shell"],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "binary": {
+          "config": ["apps/api/package.json", "apps/workers/package.json"]
+        }
+      }
+    },
+    {
+      "name": "csv-parse",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/bulk-scheduling/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "apps/client/lib/csv/bulkSchedulingCsvParser.ts",
+            "packages/core/bulk-scheduling/src/schedulingCsv.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "date-fns",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/shared/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "dependency-cruiser",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [
+        "depcruise",
+        "depcruise-baseline",
+        "depcruise-fmt",
+        "depcruise-wrap-stream-in-html",
+        "dependency-cruise",
+        "dependency-cruiser"
+      ],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "binary": {
+          "config": [".github/workflows/audit.yml", "package.json"]
+        }
+      }
+    },
+    {
+      "name": "dotenv",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "infra/prisma/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/config/env.ts", "apps/workers/src/config/env.ts"],
+          "test": [
+            "apps/api/tests/integration/customerLoginMfa.integration.test.ts",
+            "apps/api/tests/setup-env.ts",
+            "apps/api/tests/setup.ts",
+            "apps/workers/tests/setup-env.ts"
+          ],
+          "config": [
+            "infra/prisma/prisma.config.ts",
+            "infra/prisma/scripts/migrate-team-member-to-customer-user.ts",
+            "infra/prisma/seed.ts"
+          ]
+        },
+        "test-mock": {
+          "test": [
+            "apps/api/tests/unit/config/env.test.ts",
+            "apps/api/tests/unit/config/nameDigestRing.test.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "eslint",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/eslint-plugin-testing/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["eslint"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "eslint-config-prettier",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["eslint-config-prettier"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["eslint.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "eslint-plugin-jsdoc",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["eslint.jsdoc.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "eslint-plugin-jsx-a11y",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["eslint.config.ts", "eslint.jsdoc.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "eslint-plugin-react",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["eslint.config.ts", "eslint.jsdoc.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "eslint-plugin-react-hooks",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "config": ["eslint.config.ts", "eslint.jsdoc.config.ts"]
+        }
+      }
+    },
+    {
+      "name": "fast-check",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/bulk-scheduling/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/domain/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "fastify",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "fastify-plugin",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "apps/api/src/lib/errors/errorPlugin.ts",
+            "apps/api/src/middleware/autoCacheMiddleware.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "fastify-type-provider-zod",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/index.ts"],
+          "test": [
+            "apps/api/tests/unit/accountLifecycleRoutes.test.ts",
+            "apps/api/tests/unit/accountRoutes.test.ts",
+            "apps/api/tests/unit/accounts/accountDeleteOwnership.test.ts",
+            "apps/api/tests/unit/accounts/accountDeletePermission.test.ts",
+            "apps/api/tests/unit/accounts/accountReadUpdateAuthorization.test.ts",
+            "apps/api/tests/unit/auditRoutes.test.ts",
+            "apps/api/tests/unit/authRoutes.test.ts",
+            "apps/api/tests/unit/dashboardRoutes.test.ts",
+            "apps/api/tests/unit/healthRoutes.test.ts",
+            "apps/api/tests/unit/mfaRoutes.test.ts",
+            "apps/api/tests/unit/postRoutes.test.ts",
+            "apps/api/tests/unit/rbacRoutes.test.ts",
+            "apps/api/tests/unit/subscriptionRoutes.test-helpers.ts",
+            "apps/api/tests/unit/usage/usageRoutesOwnership.test.ts",
+            "apps/api/tests/unit/webhookDashboardRoutes.test.ts"
+          ]
+        },
+        "type-only": {
+          "production": ["apps/api/src/security/securityHeaders.ts"],
+          "test": [
+            "apps/api/tests/unit/accountLifecycleRoutes.test.ts",
+            "apps/api/tests/unit/accountRoutes.test.ts",
+            "apps/api/tests/unit/accounts/accountDeleteOwnership.test.ts",
+            "apps/api/tests/unit/accounts/accountDeletePermission.test.ts",
+            "apps/api/tests/unit/accounts/accountReadUpdateAuthorization.test.ts",
+            "apps/api/tests/unit/postRoutes.test.ts",
+            "apps/api/tests/unit/usage/usageRoutesOwnership.test.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "form-data",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/providers/tiktok/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/providers/tiktok/src/apiClient.ts"]
+        },
+        "test-mock": {
+          "test": ["packages/providers/tiktok/tests/apiClient.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "fuse.js",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/client/components/templates/TemplateLibrary.tsx"]
+        }
+      }
+    },
+    {
+      "name": "geist",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/admin/app/[locale]/layout.tsx"]
+        }
+      }
+    },
+    {
+      "name": "google-auth-library",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/providers/youtube/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "handlebars",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/shared/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["handlebars"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/shared/src/templates/BaseTemplateEngine.ts"]
+        }
+      }
+    },
+    {
+      "name": "husky",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["husky"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "binary": {
+          "config": ["package.json"]
+        }
+      }
+    },
+    {
+      "name": "image-size",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/providers/bluesky/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["image-size"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/providers/bluesky/src/BlueskyClient.ts"],
+          "test": ["packages/providers/bluesky/tests/BlueskyClient.test.ts"]
+        },
+        "test-mock": {
+          "test": ["packages/providers/bluesky/tests/BlueskyClient.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "ioredis",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/cache-redis/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/db-prisma/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/dead-letter-queue/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/fallback-strategies/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/queue-bullmq/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/health-checks/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "ipaddr.js",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "isomorphic-dompurify",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/lib/templates/ServerTemplateEngine.ts"]
+        },
+        "type-only": {
+          "production": ["apps/api/src/types/isomorphic-dompurify.d.ts"]
+        }
+      }
+    },
+    {
+      "name": "jiti",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["jiti"],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "jscpd",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["jscpd"],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "config-string": {
+          "config": ["scripts/testing/jscpd-baseline-gate.mjs"]
+        },
+        "binary": {
+          "config": [".github/workflows/ci.yml"]
+        }
+      }
+    },
+    {
+      "name": "jsdom",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/browser-logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/query-client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "jsonwebtoken",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "knip",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["knip", "knip-bun"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "lint-staged",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["lint-staged"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "binary": {
+          "config": [".husky/pre-commit"]
+        }
+      }
+    },
+    {
+      "name": "lucide-react",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "msw",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/shared/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["msw"],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "test": [
+            "apps/api/tests/integration/publishing/failedWrite.smoke.integration.test.ts",
+            "apps/api/tests/unit/ai/msw/aiWireServer.ts",
+            "apps/api/tests/unit/auth/oauthTokenRefresher.test.ts",
+            "apps/api/tests/unit/auth/providerOAuthX.pilot.test.ts",
+            "apps/client/tests/integration/ListeningPage.test.tsx",
+            "apps/client/tests/integration/TrendsPage.test.tsx",
+            "apps/client/tests/integration/useABTests.test.ts",
+            "apps/client/tests/integration/useBulkScheduleParse.test.tsx",
+            "apps/client/tests/integration/useNotifications.test.tsx",
+            "apps/client/tests/integration/useSchedulingDashboardSidebar.test.tsx",
+            "apps/client/tests/integration/useTemplateVersions.test.ts",
+            "apps/client/tests/integration/useTemplates.test.ts",
+            "apps/client/tests/integration/useTrendRadar.test.tsx",
+            "apps/client/tests/mocks/handlers/listening.ts",
+            "apps/client/tests/mocks/handlers/notifications.ts",
+            "apps/client/tests/mocks/handlers/scheduling.ts",
+            "apps/client/tests/mocks/handlers/trendRadar.ts",
+            "apps/client/tests/mocks/server.ts",
+            "packages/providers/shared/src/test-utils/msw-helpers.ts"
+          ]
+        },
+        "type-only": {
+          "test": ["packages/providers/shared/src/test-utils/msw-helpers.ts"]
+        }
+      }
+    },
+    {
+      "name": "next",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["next"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "next-intl",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/i18n/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "openai",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["openai"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/ai/providers/openai.ts"]
+        },
+        "config-string": {
+          "production": [
+            "apps/api/src/ai/AIProviderFactory.ts",
+            "apps/api/src/ai/AIRequestExecutorAdapter.ts",
+            "apps/api/src/ai/orchestrator.ts",
+            "apps/api/src/ai/providers/openai.ts",
+            "apps/api/src/settings/settingsSchemas.ts",
+            "apps/client/app/[locale]/dashboard/settings/ai/page.tsx",
+            "apps/client/hooks/api/useAiSettings.ts",
+            "packages/core/ai/src/AiRequestService.ts",
+            "packages/core/domain/src/ai/AIContracts.ts",
+            "packages/core/settings/src/SettingsService.ts"
+          ],
+          "test": [
+            "apps/api/tests/integration/redisTokenBucketRateLimiter.integration.test.ts",
+            "apps/api/tests/unit/ai/openai.init.test.ts",
+            "apps/api/tests/unit/ai/providers/AICircuitBreaker.test.ts",
+            "apps/api/tests/unit/ai/providers/AIProviderError.test.ts",
+            "apps/api/tests/unit/ai/providers/InMemoryTokenBucketRateLimiter.test.ts",
+            "apps/api/tests/unit/ai/providers/RedisTokenBucketRateLimiter.test.ts",
+            "apps/api/tests/unit/ai/types.test.ts",
+            "apps/api/tests/unit/aiOrchestrator.cache.test.ts",
+            "apps/api/tests/unit/aiOrchestrator.content.test.ts",
+            "apps/api/tests/unit/aiOrchestrator.helpers.ts",
+            "apps/api/tests/unit/aiOrchestrator.providers.test.ts",
+            "apps/api/tests/unit/aiRoutes.generate.test.ts",
+            "apps/api/tests/unit/aiRoutes.test-helpers.ts",
+            "apps/api/tests/unit/aiService.test.ts",
+            "apps/api/tests/unit/aiTypes.optimize.test.ts",
+            "apps/api/tests/unit/aiTypes.schemas.test.ts",
+            "apps/api/tests/unit/application/MLUseCases.test.ts",
+            "apps/api/tests/unit/settings/SettingsService.test.ts",
+            "apps/api/tests/unit/settings/settingsRoutes.test.ts",
+            "packages/core/ai/tests/unit/AiRequestService.test.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "openid-client",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": [
+            "apps/api/src/auth/oidcRoutes.ts",
+            "apps/api/src/infrastructure/auth/OpenidClientHandshakeProbe.ts"
+          ]
+        },
+        "test-mock": {
+          "test": ["apps/api/tests/unit/infrastructure/auth/OpenidClientHandshakeProbe.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "opossum",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/adapters/db-prisma/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/external-apis/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/queue-bullmq/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "otplib",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/admin/auth/MfaService.ts"],
+          "test": [
+            "apps/api/tests/integration/customerLoginMfaE2e.live.test.ts",
+            "apps/api/tests/integration/mfaBackupCodeSingleUse.integration.test.ts",
+            "apps/api/tests/integration/mfaCustomer.live.test.ts",
+            "apps/api/tests/mfa.integration.test.ts",
+            "apps/api/tests/unit/authService.test.ts",
+            "apps/api/tests/unit/mfaRoutes.test.ts",
+            "apps/api/tests/unit/mfaTotpSingleUse.test.ts",
+            "apps/api/tests/unit/unifiedMfaService.test.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "pgvector",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "pino",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/cache-redis/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/fallback-strategies/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/circuit-breaker/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/health-checks/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/logger/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/bluesky/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/facebook/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/instagram/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/linkedin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/pinterest/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/shared/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/snapchat/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/telegram/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/threads/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/tiktok/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/x/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/youtube/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["pino"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "playwright",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["playwright"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "postcss",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "postcss-load-config",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "prettier",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["prettier"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "prisma",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "infra/prisma/package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["prisma"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "prom-client",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/cache-redis/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/external-apis/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-cloudinary/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-s3/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/circuit-breaker/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/health-checks/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/_template/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/facebook/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/instagram/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/linkedin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/pinterest/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/snapchat/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/telegram/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/tiktok/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/x/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/youtube/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "qrcode",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["qrcode"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/admin/auth/MfaService.ts"]
+        }
+      }
+    },
+    {
+      "name": "radix-ui",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "react",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/browser-logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/browser-logger/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/query-client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/query-client/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "react-dom",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/browser-logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/ui/src/components/submit-button.tsx"]
+        }
+      }
+    },
+    {
+      "name": "recharts",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "secretlint",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["secretlint"],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "binary": {
+          "config": [".github/workflows/audit.yml", "package.json"]
+        }
+      }
+    },
+    {
+      "name": "size-limit",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["size-limit"],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "binary": {
+          "config": [".github/workflows/audit.yml"]
+        }
+      }
+    },
+    {
+      "name": "storybook",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["storybook"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "stripe",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/infrastructure/billing/StripePaymentAdapter.ts"]
+        },
+        "config-string": {
+          "production": [
+            "apps/api/src/billing/billingWebhookRoutes.ts",
+            "apps/api/src/billing/clientBillingRoutes.ts",
+            "apps/api/src/billing/gatewaySwitchSchemas.ts",
+            "apps/api/src/config/env.ts",
+            "apps/api/src/infrastructure/billing/GatewayAdapterRegistry.ts",
+            "apps/api/src/infrastructure/billing/StripePaymentAdapter.ts",
+            "apps/api/src/infrastructure/billing/paymentAdapterFactory.ts",
+            "apps/client/app/[locale]/dashboard/settings/billing/components/GatewaySection.tsx",
+            "apps/client/app/[locale]/dashboard/settings/billing/components/GatewaySelector.tsx",
+            "apps/client/app/[locale]/dashboard/settings/billing/page.tsx",
+            "apps/client/app/[locale]/dashboard/settings/billing/utils/pricing.ts",
+            "apps/client/hooks/api/useBilling/types.ts",
+            "packages/core/billing/src/GatewayBillingService.ts",
+            "packages/ports/src/PaymentAdapter.ts",
+            "packages/providers/facebook/src/features/shop.types.ts"
+          ],
+          "test": [
+            "apps/api/tests/unit/application/paymentAdapterFactory.test.ts",
+            "apps/api/tests/unit/billing/GatewayBillingService.test.ts",
+            "apps/api/tests/unit/billing/billingWebhookIdempotency.test.ts",
+            "apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts",
+            "apps/api/tests/unit/scripts/subprocessorsInventory.test.ts",
+            "apps/api/tests/unit/settings/settingsRoutes.test.ts"
+          ]
+        }
+      }
+    },
+    {
+      "name": "tailwind-merge",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/ui/src/lib/utils.ts"]
+        }
+      }
+    },
+    {
+      "name": "tailwindcss",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "css": {
+          "production": ["apps/admin/app/globals.css", "apps/client/app/globals.css"]
+        }
+      }
+    },
+    {
+      "name": "tsx",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "infra/prisma/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/test-contracts/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["tsx"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "turbo",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["turbo"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "tw-animate-css",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "css": {
+          "production": ["apps/admin/app/globals.css", "apps/client/app/globals.css"]
+        }
+      }
+    },
+    {
+      "name": "twitter-api-v2",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/providers/x/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/providers/x/src/apiClient.ts"]
+        },
+        "test-mock": {
+          "test": ["packages/providers/x/tests/XApiClient.writeFailFast.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "typescript",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/cache-redis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/db-prisma/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/dead-letter-queue/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/external-apis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/fallback-strategies/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-azure/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-do-spaces/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-gcs/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-s3/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/api-common/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/api-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/accounts/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/ai-image/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/ai/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/aiPromptTemplates/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/analytics/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/apiKeys/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/application/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/approvals/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/assets/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/auth/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/billing/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/brand-kit/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/brand-voice/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/bulk-scheduling/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/campaigns/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/channels/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/comments/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/compliance/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/crisis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/crm/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/custom-reports/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/customer-auth/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/domain/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/embeddings/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/external-notifications/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/first-comment/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/glossary/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/guardrails/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/inbox/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/integrations/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/links/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/listening/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/mentions/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/ml/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/notifications/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/posts/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/projects/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/providers/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/recurring/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/referral/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/reports/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/security/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/settings/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/style-guide/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/tasks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/team/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/threading/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/trends/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/usage/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/utm/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/webhooks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/eslint-plugin-testing/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/i18n/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/circuit-breaker/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/health-checks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/background-scheduler/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/browser-logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ports/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/bluesky/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/facebook/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/instagram/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/linkedin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/pinterest/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/shared/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/snapchat/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/telegram/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/threads/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/tiktok/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/x/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/youtube/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/query-client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/shared/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/test-contracts/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/ui/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/vitest-shared/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["tsc", "tsserver"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "uuid",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/dead-letter-queue/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["uuid"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "validator",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/validation/secureSchemas.ts"]
+        }
+      }
+    },
+    {
+      "name": "vite",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["vite"],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "vitest",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/api/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/cache-redis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/crm-hubspot/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/crm-salesforce/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/db-prisma/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/dead-letter-queue/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/external-apis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/fallback-strategies/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/queue-bullmq/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-azure/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-cloudinary/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-do-spaces/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-gcs/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/adapters/storage-s3/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/api-common/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/api-errors/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/accounts/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/ai-image/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/ai/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/aiPromptTemplates/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/analytics/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/apiKeys/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/application/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/approvals/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/assets/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/auth/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/billing/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/brand-kit/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/brand-voice/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/bulk-scheduling/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/campaigns/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/channels/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/comments/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/compliance/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/crisis/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/crm/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/custom-reports/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/customer-auth/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/domain/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/embeddings/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/external-notifications/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/first-comment/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/glossary/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/guardrails/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/inbox/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/integrations/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/links/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/listening/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/mentions/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/ml/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/notifications/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/posts/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/projects/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/providers/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/recurring/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/referral/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/reports/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/security/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/settings/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/style-guide/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/tasks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/team/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/threading/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/trends/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/usage/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/utm/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/webhooks/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/eslint-plugin-testing/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/i18n/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/monitoring/circuit-breaker/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/background-scheduler/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/browser-logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/logger/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/opentelemetry/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/observability/sentry-next/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/bluesky/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/facebook/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/instagram/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/linkedin/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/pinterest/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/shared/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/snapchat/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/telegram/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/threads/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/tiktok/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/x/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/providers/youtube/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/query-client/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/test-contracts/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/vitest-shared/package.json",
+          "block": "devDependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/vitest-shared/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": ["vitest"],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "ws",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/webhooks/realtimeWebhookBroadcaster.ts"]
+        }
+      }
+    },
+    {
+      "name": "xml2js",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["apps/api/src/webhooks/processors/youtubeWebhookProcessor.ts"]
+        }
+      }
+    },
+    {
+      "name": "yaml",
+      "scope": "dev-only",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "packages/test-contracts/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": ["yaml"],
+      "verdict": "under-floor",
+      "real": 2,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/test-contracts/src/lib/executed-by.ts"],
+          "test": ["packages/test-contracts/tests/executed-by.test.ts"]
+        }
+      }
+    },
+    {
+      "name": "zod",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/workers/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/api-common/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/core/bulk-scheduling/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/shared/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "above-floor",
+      "real": null,
+      "decision": null,
+      "sites": null
+    },
+    {
+      "name": "zod-to-json-schema",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/api/package.json",
+          "block": "dependencies",
+          "specifier": "literal"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 0,
+      "decision": "pending",
+      "sites": {}
+    },
+    {
+      "name": "zustand",
+      "scope": "production",
+      "typedTarget": null,
+      "declarations": [
+        {
+          "manifest": "apps/admin/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "apps/client/package.json",
+          "block": "dependencies",
+          "specifier": "catalog"
+        },
+        {
+          "manifest": "packages/shared/package.json",
+          "block": "peerDependencies",
+          "specifier": "catalog"
+        }
+      ],
+      "bins": [],
+      "verdict": "under-floor",
+      "real": 1,
+      "decision": "pending",
+      "sites": {
+        "runtime-import": {
+          "production": ["packages/shared/src/stores/notificationStore.ts"]
+        }
+      }
+    }
+  ]
+}

@@ -17,7 +17,9 @@
  *   Last, the command, `scripts/testing/dependency-ledger.mjs`, through `main(argv, seams)` over
  *   a planted repository with the git listing replaced: write mode, `--check` and the drift it
  *   names, `--sites`, the ledger's own files, and the exit code of every class (0 clean, 1 a
- *   problem or a drift, 2 usage, 3 an unread input, 3 over 1), twice as a spawned script.
+ *   problem or a drift, 2 usage, 3 an unread input, 3 over 1), twice as a spawned script; then one
+ *   run over this repository, whose record must equal the committed one byte for byte and whose
+ *   second run writes the same bytes.
  * @layer infrastructure
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -26,7 +28,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findMonorepoRoot } from "@packages/vitest-shared";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 type Result<T> = { value: T } | { error: string };
 
@@ -2030,5 +2032,74 @@ describe("dependency-ledger.mjs usage", () => {
 
     expect(result.code).toBe(2);
     expect(result.output).toContain(`dependency-ledger: ${expected}`);
+  });
+});
+
+/** One run over this repository spawns git and parses every tracked module: seconds, not ms. */
+const REPOSITORY_TIMEOUT = 60_000;
+
+describe("dependency-ledger.mjs over the repository", () => {
+  let scratch = "";
+  let first: CliResult = { code: -1, output: "" };
+  let tracked: string[] = [];
+
+  beforeAll(async () => {
+    scratch = mkdtempSync(path.join(tmpdir(), "dependency-ledger-repository-test-"));
+    if (!path.relative(REPO_ROOT, scratch).startsWith("..")) {
+      throw new Error(
+        `the temporary directory ${scratch} lies inside the repository; set TMPDIR outside it`
+      );
+    }
+    tracked = execFileSync("git", ["ls-files", "-z"], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    })
+      .split("\0")
+      .filter((file) => file.length > 0);
+    first = await cli.main(["--out", path.join(scratch, "first.json")]);
+  }, REPOSITORY_TIMEOUT);
+
+  afterAll(() => {
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  it(
+    "returns 0 and writes the committed record byte for byte, twice",
+    { timeout: REPOSITORY_TIMEOUT },
+    async () => {
+      const second = await cli.main(["--out", path.join(scratch, "second.json")]);
+
+      const firstBytes = readFileSync(path.join(scratch, "first.json"), "utf8");
+
+      expect(first.code).toBe(0);
+      expect(second.code).toBe(0);
+      expect(firstBytes).toBe(readFileSync(path.join(REPO_ROOT, RECORD), "utf8"));
+      expect(readFileSync(path.join(scratch, "second.json"), "utf8")).toBe(firstBytes);
+    }
+  );
+
+  it("returns the whole counts line, the legal scan's names, real sites under the floor only, and the committed baseline", () => {
+    const written = JSON.parse(readFileSync(path.join(scratch, "first.json"), "utf8")) as Ledger;
+    const decisions = JSON.parse(readFileSync(path.join(REPO_ROOT, DECISIONS), "utf8")) as {
+      pendingBaseline: number;
+    };
+    const legal = scanManifests(REPO_ROOT);
+    const manifestCount = valueOf(
+      manifests.workspaceManifests(readFileSync(path.join(REPO_ROOT, WORKSPACE), "utf8"), tracked)
+    ).length;
+    const { summary } = written;
+
+    expect(first.output).toBe(
+      `dependency-ledger: wrote ${path.join(scratch, "first.json")}: ${String(manifestCount)} manifests, ` +
+        `${String(summary.names)} names, ${String(summary.aboveFloor)} at or above the floor, ` +
+        `${String(summary.underFloor)} under it (${String(summary.atZero)} at zero); ` +
+        `pending ${String(summary.pending)} of baseline ${String(decisions.pendingBaseline)}\n`
+    );
+    expect(summary.names).toBe(legal.names.size);
+    expect(written.names.map((row) => row.name)).toEqual([...legal.names.keys()]);
+    expect(
+      written.names.filter((row) => (row.real === null) !== (row.verdict === "above-floor"))
+    ).toEqual([]);
   });
 });
