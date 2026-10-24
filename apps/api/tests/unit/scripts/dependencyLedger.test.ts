@@ -13,9 +13,15 @@
  *   literal inputs: the rows the readers' outputs join into, the real-site rule and the floor, the
  *   owner's decisions and every rule they are held to, the summary, and the deterministic JSON the
  *   ledger renders to. Only the decisions file is planted on disk, for the one reader of it.
+ *
+ *   Last, the command, `scripts/testing/dependency-ledger.mjs`, through `main(argv, seams)` over
+ *   a planted repository with the git listing replaced: write mode, `--sites`, the ledger's own
+ *   files, and the exit code of every class (0 written, 1 a problem, 2 usage, 3 an unread input,
+ *   3 over 1), twice as a spawned script.
  * @layer infrastructure
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,7 +53,7 @@ interface Site {
 
 /** The module's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type ManifestsModule = {
-  workspaceManifests: (root: string, tracked: readonly string[]) => Result<string[]>;
+  workspaceManifests: (text: string, tracked: readonly string[]) => Result<string[]>;
   manifestDisagreement: (derived: readonly string[], legal: readonly string[]) => string | null;
   readCatalogs: (text: string) => Result<Catalogs>;
   specifierKindOf: (spec: string, catalogs: Catalogs, name: string) => Result<string>;
@@ -72,7 +78,10 @@ type ManifestsModule = {
 
 /** The legal scan's surface, as far as this suite reads it. */
 type LegalModule = {
-  scanManifests: (root: string, listed?: string[]) => { manifests: string[] };
+  scanManifests: (
+    root: string,
+    listed?: string[]
+  ) => { manifests: string[]; names: ReadonlyMap<string, unknown> };
 };
 
 type PathClass = "production" | "test" | "config";
@@ -198,13 +207,33 @@ type CoreModule = {
   render: (ledger: Ledger) => Promise<string>;
 };
 
+/** What the command prints and the code it exits with. */
+interface CliResult {
+  readonly code: number;
+  readonly output: string;
+}
+
+/** What the suite replaces in the command: the git listing. */
+interface CommandSeams {
+  readonly listFiles?: (root: string) => Result<string[]>;
+  readonly render?: (ledger: Ledger) => Promise<string>;
+}
+
+/** The command's surface, typed for the same reason as the core's. */
+type CommandModule = {
+  main: (argv: readonly string[], seams?: CommandSeams) => Promise<CliResult>;
+  LEDGER_FILES: readonly string[];
+};
+
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const MANIFESTS_LIB = path.join(REPO_ROOT, "scripts/testing/lib/dependency-manifests.mjs");
 const LEGAL = path.join(REPO_ROOT, "scripts/legal/subprocessors.mjs");
 const CORE_LIB = path.join(REPO_ROOT, "scripts/testing/lib/dependency-ledger-core.mjs");
+const COMMAND = path.join(REPO_ROOT, "scripts/testing/dependency-ledger.mjs");
 const manifests = (await import(MANIFESTS_LIB)) as ManifestsModule;
 const { scanManifests } = (await import(LEGAL)) as LegalModule;
 const core = (await import(CORE_LIB)) as CoreModule;
+const cli = (await import(COMMAND)) as CommandModule;
 
 /** The repository's own workspace manifest, so the planted tree reads the real `packages:` globs. */
 const WORKSPACE_TEXT = readFileSync(path.join(REPO_ROOT, "pnpm-workspace.yaml"), "utf8");
@@ -271,7 +300,7 @@ describe("workspaceManifests and manifestDisagreement", () => {
     plantWorkspace(WORKSPACE_TEXT, PLANTED_MANIFESTS);
     const tracked = [...PLANTED_MANIFESTS, "apps/api/src/index.ts", WORKSPACE];
 
-    const derived = valueOf(manifests.workspaceManifests(root, tracked));
+    const derived = valueOf(manifests.workspaceManifests(WORKSPACE_TEXT, tracked));
 
     expect(derived).toEqual(PLANTED_MANIFESTS);
     expect(manifests.manifestDisagreement(derived, scanManifests(root).manifests)).toBeNull();
@@ -280,13 +309,10 @@ describe("workspaceManifests and manifestDisagreement", () => {
   it("returns the manifests each side holds alone when the globs and the legal scan disagree", () => {
     const deep = "apps/api/fixtures/package.json";
     const outside = "tools/x/package.json";
-    plantWorkspace(`${WORKSPACE_TEXT}\n`.replace("  - infra/*\n", "  - infra/*\n  - tools/*\n"), [
-      ...PLANTED_MANIFESTS,
-      deep,
-      outside,
-    ]);
+    const text = `${WORKSPACE_TEXT}\n`.replace("  - infra/*\n", "  - infra/*\n  - tools/*\n");
+    plantWorkspace(text, [...PLANTED_MANIFESTS, deep, outside]);
     const derived = valueOf(
-      manifests.workspaceManifests(root, [...PLANTED_MANIFESTS, deep, outside])
+      manifests.workspaceManifests(text, [...PLANTED_MANIFESTS, deep, outside])
     );
 
     const disagreement = manifests.manifestDisagreement(derived, scanManifests(root).manifests);
@@ -299,21 +325,19 @@ describe("workspaceManifests and manifestDisagreement", () => {
 
   it("returns no manifest a negated glob names", () => {
     const files = ["package.json", "packages/a/package.json", "packages/skip/package.json"];
-    plantWorkspace('packages:\n  - packages/*\n  - "!packages/skip"\n', files);
+    const text = 'packages:\n  - packages/*\n  - "!packages/skip"\n';
+    plantWorkspace(text, files);
 
-    const derived = valueOf(manifests.workspaceManifests(root, files));
+    const derived = valueOf(manifests.workspaceManifests(text, files));
 
     expect(derived).toEqual(["package.json", "packages/a/package.json"]);
   });
 
-  it.each<[string, string | null, string]>([
-    ["no workspace manifest", null, `${WORKSPACE} could not be read`],
+  it.each<[string, string, string]>([
     ["no packages: block", "catalog:\n  react: 19.2.7\n", `${WORKSPACE} has no packages: block`],
     ["a glob line it cannot read", "packages:\n  apps/*\n", 'cannot read "apps/*"'],
   ])("returns an error for %s", (_case, text, expected) => {
-    if (text !== null) put(WORKSPACE, text);
-
-    const result = manifests.workspaceManifests(root, ["package.json"]);
+    const result = manifests.workspaceManifests(text, ["package.json"]);
 
     expect(errorOf(result)).toContain(expected);
   });
@@ -1329,5 +1353,485 @@ describe("buildLedger and render", () => {
     expect(backward).toBe(forward);
     expect(JSON.parse(forward)).toEqual(forwardLedger);
     expect(forward.endsWith("}\n")).toBe(true);
+  });
+});
+
+/** The planted repository's files, the git listing the command reads through its seam. */
+const LEDGER_TRACKED = [
+  "package.json",
+  "pnpm-workspace.yaml",
+  "vite.config.ts",
+  "apps/admin/package.json",
+  "apps/web/package.json",
+  "packages/kit/package.json",
+  "packages/ui/package.json",
+  "infra/db/package.json",
+  "docs/legal/classification/subprocessors.json",
+  "scripts/testing/dependency-decisions.json",
+  "apps/web/src/a.ts",
+  "apps/web/src/b.ts",
+  "apps/web/src/c.ts",
+];
+const DECISIONS = "scripts/testing/dependency-decisions.json";
+const GENERATOR_COMMAND = "scripts/testing/dependency-ledger.mjs";
+const RECORD = "dependency-ledger.json";
+const WEB_DEPENDENCIES = {
+  "lib-a": "catalog:",
+  "lib-b": "^1.0.0",
+  "lib-d": "^1.0.0",
+  "lib-f": "^1.0.0",
+};
+const ROOT_DEPENDENCIES = {
+  "tool-a": "1.0.0",
+  "tool-b": "1.0.0",
+  "tool-c": "1.0.0",
+  "tool-d": "1.0.0",
+};
+const REMOVED = {
+  status: "remove",
+  note: "N.",
+  utility: "U.",
+  replacement: "R.",
+  decidedOn: "2026-10-24",
+};
+/** An entry its status refuses: a `kept` entry with a note and nothing else. */
+const KEPT_WITHOUT_GROUNDS = { status: "kept", note: "N." };
+/** What a renderer that refuses its configuration says, for the cases that plant one. */
+const REFUSED = "the configuration could not be read";
+/** One spawned command loads `typescript` and `prettier` before it reads anything: seconds. */
+const SPAWN_TIMEOUT = 30_000;
+
+/** The decisions file of the planted repository, with `entries` and the baseline given. */
+const decisionsFile = (entries: Fields, pendingBaseline: number): Fields => ({
+  generator: GENERATOR_COMMAND,
+  floor: 3,
+  pendingBaseline,
+  entries,
+});
+
+/** The planted repository's decisions: the four names the owner removes. */
+const PLANTED_ENTRIES = {
+  "lib-d": REMOVED,
+  "lib-f": REMOVED,
+  "tool-c": REMOVED,
+  "tool-d": REMOVED,
+};
+
+/**
+ * Plants a repository whose counts differ wherever the command prints one: 6 manifests and 8
+ * names. The four production names live in `apps/web`: `lib-a`, which three production files
+ * import, is the one above the floor; `lib-b` and `lib-f` have one import each and `lib-d` none.
+ * The four dev-only names live in the root: `tool-a` is run by a script and imported once,
+ * `tool-b` is run by a script, `tool-c` has no site and `tool-d` is imported by a config file. So
+ * the printed counts are 6 manifests, 8 names, 1 above the floor, 7 under it, 2 at zero and 3
+ * pending, and the other summary counts are 4 production, 4 dev-only, 5 under the floor with a
+ * site, 4 removed and 0 kept or typed: none of them equals a printed one.
+ */
+const plantRepository = (): void => {
+  put("package.json", {
+    name: "root",
+    private: true,
+    devDependencies: ROOT_DEPENDENCIES,
+    scripts: { lint: "tool-a check", fmt: "tool-b" },
+  });
+  put(
+    "pnpm-workspace.yaml",
+    "packages:\n  - apps/*\n  - packages/*\n  - infra/*\n\ncatalog:\n  lib-a: 1.0.0\n"
+  );
+  put("apps/admin/package.json", { name: "@w/admin", private: true });
+  put("apps/web/package.json", { name: "@w/web", dependencies: WEB_DEPENDENCIES });
+  put("packages/kit/package.json", { name: "@w/kit", private: true });
+  put("packages/ui/package.json", { name: "@w/ui", private: true });
+  put("infra/db/package.json", { name: "@w/db" });
+  put("docs/legal/classification/subprocessors.json", {
+    pendingBaseline: 0,
+    tooling: [],
+    entries: {},
+  });
+  put(DECISIONS, decisionsFile(PLANTED_ENTRIES, 3));
+  put("node_modules/tool-a/package.json", { name: "tool-a", bin: { "tool-a": "cli.js" } });
+  put("node_modules/tool-b/package.json", { name: "tool-b", bin: { "tool-b": "cli.js" } });
+  put("node_modules/tool-c/package.json", { name: "tool-c" });
+  put("node_modules/tool-d/package.json", { name: "tool-d" });
+  Object.keys(WEB_DEPENDENCIES).forEach((name) =>
+    put(`apps/web/node_modules/${name}/package.json`, { name })
+  );
+  put("vite.config.ts", 'import { d } from "tool-d";\nexport default d;\n');
+  put("apps/web/src/a.ts", 'import { a } from "lib-a";\nimport { b } from "lib-b";\n');
+  put("apps/web/src/b.ts", 'import { a } from "lib-a";\nimport { f } from "lib-f";\n');
+  put("apps/web/src/c.ts", 'import { a } from "lib-a";\nimport { t } from "tool-a";\n');
+};
+
+const listing = (files: readonly string[] = LEDGER_TRACKED): CommandSeams => ({
+  listFiles: () => ({ value: [...files] }),
+});
+
+const run = (args: readonly string[], seams: CommandSeams = listing()): Promise<CliResult> =>
+  cli.main(["--root", root, ...args], seams);
+
+const record = (): string => readFileSync(path.join(root, RECORD), "utf8");
+
+/** The environment a spawned command runs in: no `GIT_*` setting, and no repository above root. */
+const spawnEnvironment = (): NodeJS.ProcessEnv => ({
+  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_"))),
+  GIT_CEILING_DIRECTORIES: path.dirname(root),
+});
+
+describe("dependency-ledger.mjs write mode and --sites", () => {
+  beforeEach(() => {
+    plantRepository();
+  });
+
+  it("returns 0, writes the record and prints its counts", async () => {
+    const result = await run([]);
+
+    expect(result).toEqual({
+      code: 0,
+      output:
+        "dependency-ledger: wrote dependency-ledger.json: 6 manifests, 8 names, 1 at or above the floor, 7 under it (2 at zero); pending 3 of baseline 3\n",
+    });
+    const written = JSON.parse(record()) as Ledger;
+    expect(written.names.map((row) => [row.name, row.verdict, row.real, row.decision])).toEqual([
+      ["lib-a", "above-floor", null, null],
+      ["lib-b", "under-floor", 1, "pending"],
+      ["lib-d", "under-floor", 0, "remove"],
+      ["lib-f", "under-floor", 1, "remove"],
+      ["tool-a", "under-floor", 2, "pending"],
+      ["tool-b", "under-floor", 1, "pending"],
+      ["tool-c", "under-floor", 0, "remove"],
+      ["tool-d", "under-floor", 1, "remove"],
+    ]);
+    expect(written.names[4]?.sites).toEqual({
+      "runtime-import": { production: ["apps/web/src/c.ts"] },
+      binary: { config: ["package.json"] },
+    });
+  });
+
+  it("returns 1 and still writes the record when a decision is off its contract", async () => {
+    put(DECISIONS, decisionsFile({ ...PLANTED_ENTRIES, "lib-b": KEPT_WITHOUT_GROUNDS }, 3));
+
+    const result = await run([]);
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("dependency-ledger: lib-b: a kept entry needs grounds\n");
+    expect(result.output).toContain("dependency-ledger: stale pendingBaseline 3: lower it to 2\n");
+    expect(result.output).toContain("; pending 2 of baseline 3\n");
+    expect(JSON.parse(record())).toMatchObject({ summary: { kept: 1, remove: 4, pending: 2 } });
+  });
+
+  it("returns 0 and prints a name's sites in code-unit order, the binary one first", async () => {
+    const result = await run(["--sites", "tool-a"]);
+
+    expect(result).toEqual({
+      code: 0,
+      output: "binary\tconfig\tpackage.json\nruntime-import\tproduction\tapps/web/src/c.ts\n",
+    });
+  });
+
+  it("returns 0 and prints a name's files in code-unit order whatever order git lists them in", async () => {
+    const result = await run(["--sites", "lib-a"], listing([...LEDGER_TRACKED].reverse()));
+
+    expect(result).toEqual({
+      code: 0,
+      output: [
+        "runtime-import\tproduction\tapps/web/src/a.ts",
+        "runtime-import\tproduction\tapps/web/src/b.ts",
+        "runtime-import\tproduction\tapps/web/src/c.ts",
+        "",
+      ].join("\n"),
+    });
+  });
+
+  it("returns 0 and prints nothing for a declared name with no site", async () => {
+    expect(await run(["--sites", "lib-d"])).toEqual({ code: 0, output: "" });
+  });
+});
+
+describe("dependency-ledger.mjs over its own files", () => {
+  beforeEach(() => {
+    plantRepository();
+  });
+
+  it("returns no site for a name one of the ledger's files writes as a string, and a runtime site for the one it imports", async () => {
+    const ledgerModule = "scripts/testing/lib/dependency-manifests.mjs";
+    const ledgerSuite = "apps/api/tests/unit/scripts/dependencyLedger.test.ts";
+    put(ledgerModule, 'import { t } from "tool-a";\nexport const NAMED = "tool-a";\n');
+    put(ledgerSuite, 'export const PLANTED = "tool-a";\n');
+    put("scripts/other.mjs", 'export const NAMED = "tool-a";\n');
+
+    const result = await run(
+      ["--sites", "tool-a"],
+      listing([...LEDGER_TRACKED, ledgerModule, ledgerSuite, "scripts/other.mjs"])
+    );
+
+    expect(result).toEqual({
+      code: 0,
+      output: [
+        "binary\tconfig\tpackage.json",
+        "config-string\tconfig\tscripts/other.mjs",
+        "runtime-import\tconfig\tscripts/testing/lib/dependency-manifests.mjs",
+        "runtime-import\tproduction\tapps/web/src/c.ts",
+        "",
+      ].join("\n"),
+    });
+  });
+
+  it("returns every file it names as its own present in this repository", () => {
+    expect(cli.LEDGER_FILES.filter((file) => !existsSync(path.join(REPO_ROOT, file)))).toEqual([]);
+  });
+});
+
+describe("dependency-ledger.mjs unread inputs", () => {
+  beforeEach(() => {
+    plantRepository();
+  });
+
+  it.each<[string, () => CommandSeams, string]>([
+    [
+      "a failing git listing",
+      () => ({ listFiles: () => ({ error: "git ls-files failed" }) }),
+      "git ls-files failed",
+    ],
+    ["an empty git listing", () => listing([]), "git ls-files listed nothing"],
+    [
+      "a listing with no JavaScript or TypeScript file",
+      () => listing(LEDGER_TRACKED.filter((file) => !file.endsWith(".ts"))),
+      "zero JavaScript or TypeScript files among the tracked files",
+    ],
+    [
+      "a tracked module that cannot be read",
+      () => listing([...LEDGER_TRACKED, "apps/web/src/gone.ts"]),
+      "apps/web/src/gone.ts could not be read",
+    ],
+    [
+      "a tracked stylesheet that cannot be read",
+      () => listing([...LEDGER_TRACKED, "apps/web/src/gone.css"]),
+      "apps/web/src/gone.css could not be read",
+    ],
+    [
+      "a tracked hook that cannot be read",
+      () => listing([...LEDGER_TRACKED, ".husky/pre-commit"]),
+      ".husky/pre-commit could not be read",
+    ],
+    [
+      "a workspace root that is a file, which the legal scan throws on",
+      () => {
+        rmSync(path.join(root, "infra"), { recursive: true });
+        put("infra", "not a directory\n");
+        return listing(LEDGER_TRACKED.filter((file) => !file.startsWith("infra/")));
+      },
+      "the legal scan could not walk the workspace roots: ENOTDIR",
+    ],
+  ])("returns 3 for %s", async (_case, seams, expected) => {
+    const result = await run([], seams());
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain(`dependency-ledger: unread: ${expected}`);
+  });
+
+  it.each<[string, () => void, string]>([
+    [
+      "a workspace manifest that cannot be read",
+      () => rmSync(path.join(root, "pnpm-workspace.yaml")),
+      "pnpm-workspace.yaml could not be read",
+    ],
+    [
+      "a catalog reference the catalogs do not hold",
+      () =>
+        put("apps/web/package.json", {
+          name: "@w/web",
+          dependencies: { ...WEB_DEPENDENCIES, "lib-a": "catalog:nope" },
+        }),
+      "catalog:nope names a catalog pnpm-workspace.yaml does not hold",
+    ],
+    [
+      "a manifest outside the workspace globs",
+      () => put("apps/web/tools/package.json", { name: "@w/tools" }),
+      "the workspace manifests and the legal scan disagree: only the legal scan reads apps/web/tools/package.json",
+    ],
+    [
+      "an installed copy that cannot be read",
+      () => rmSync(path.join(root, "node_modules/tool-a"), { recursive: true }),
+      "package.json declares tool-a, and its installed copy cannot be read",
+    ],
+    [
+      "a legal classification with no tooling array",
+      () =>
+        put("docs/legal/classification/subprocessors.json", { pendingBaseline: 0, entries: {} }),
+      "docs/legal/classification/subprocessors.json holds no tooling array",
+    ],
+    [
+      "a legal classification that is no JSON",
+      () => put("docs/legal/classification/subprocessors.json", "{"),
+      "docs/legal/classification/subprocessors.json is not JSON",
+    ],
+    [
+      "a missing workspace root",
+      () => rmSync(path.join(root, "infra"), { recursive: true }),
+      "infra does not exist",
+    ],
+    [
+      "a decisions file that is missing",
+      () => rmSync(path.join(root, DECISIONS)),
+      `${DECISIONS} is missing or empty`,
+    ],
+    ["a decisions file that is no JSON", () => put(DECISIONS, "{"), `${DECISIONS} is not JSON`],
+    [
+      "a catalog line it cannot read",
+      () =>
+        put(
+          "pnpm-workspace.yaml",
+          "packages:\n  - apps/*\n  - packages/*\n  - infra/*\n\ncatalog:\n  lib-a 1.0.0\n"
+        ),
+      'pnpm-workspace.yaml: cannot read "lib-a 1.0.0"',
+    ],
+    [
+      "a workspace manifest with no packages: block",
+      () => put("pnpm-workspace.yaml", "catalog:\n  lib-a: 1.0.0\n"),
+      "pnpm-workspace.yaml has no packages: block",
+    ],
+    [
+      "a legal classification that cannot be read",
+      () => rmSync(path.join(root, "docs/legal/classification/subprocessors.json")),
+      "docs/legal/classification/subprocessors.json could not be read",
+    ],
+    [
+      "a tooling entry the legal reader refuses",
+      () =>
+        put("docs/legal/classification/subprocessors.json", {
+          pendingBaseline: 0,
+          tooling: [{ workspace: "@w/web", extra: true, note: "N." }],
+          entries: {},
+        }),
+      "docs/legal/classification/subprocessors.json: tooling @w/web has unknown keys extra",
+    ],
+    [
+      "a tooling workspace the legal scan refuses",
+      () =>
+        put("docs/legal/classification/subprocessors.json", {
+          pendingBaseline: 0,
+          tooling: [{ workspace: "@w/none", note: "N." }],
+          entries: {},
+        }),
+      "docs/legal/classification/subprocessors.json: tooling @w/none is not a workspace package",
+    ],
+    [
+      "a manifest that is no JSON object",
+      () => put("infra/db/package.json", "{"),
+      "infra/db/package.json is not a JSON object",
+    ],
+    [
+      "no workspace manifest beyond the root",
+      () =>
+        ["apps/admin", "apps/web", "packages/kit", "packages/ui", "infra/db"].forEach((dir) =>
+          rmSync(path.join(root, dir, "package.json"))
+        ),
+      "the legal scan read zero manifests beyond the root",
+    ],
+    [
+      "manifests that declare no dependency",
+      () => {
+        put("package.json", { name: "root", private: true });
+        put("apps/web/package.json", { name: "@w/web" });
+      },
+      "the manifests declare zero dependency names",
+    ],
+  ])("returns 3 for %s", async (_case, plant, expected) => {
+    plant();
+
+    const result = await run([]);
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain(`dependency-ledger: unread: ${expected}`);
+  });
+
+  it("returns 3 when the record cannot be rendered", async () => {
+    const result = await run([], {
+      ...listing(),
+      render: () => Promise.reject(new Error(REFUSED)),
+    });
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain(
+      `dependency-ledger: unread: the record could not be rendered: ${REFUSED}`
+    );
+  });
+
+  it("returns 3 over 1 when the record cannot be written and a decision is off its contract", async () => {
+    put(DECISIONS, decisionsFile({ ...PLANTED_ENTRIES, "lib-b": KEPT_WITHOUT_GROUNDS }, 2));
+    const out = path.join(root, "missing-directory", "record.json");
+
+    const result = await run(["--out", out]);
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain("dependency-ledger: lib-b: a kept entry needs grounds\n");
+    expect(result.output).toContain(
+      "dependency-ledger: missing-directory/record.json could not be written"
+    );
+  });
+
+  it(
+    "exits 3 with the reason on stderr when run as a script over a directory git does not track",
+    { timeout: SPAWN_TIMEOUT },
+    () => {
+      const spawned = spawnSync(process.execPath, [COMMAND, "--root", root], {
+        encoding: "utf8",
+        env: spawnEnvironment(),
+        timeout: SPAWN_TIMEOUT,
+      });
+
+      expect(spawned.status).toBe(3);
+      expect(spawned.stdout).toBe("");
+      expect(spawned.stderr).toContain(`dependency-ledger: unread: git ls-files failed in ${root}`);
+    }
+  );
+
+  it(
+    "exits 3 naming a module the parser cannot read, run under V8's default stack size",
+    { timeout: SPAWN_TIMEOUT },
+    () => {
+      put(
+        "apps/web/src/deep.ts",
+        `export const deep = ${"[".repeat(20_000)}${"]".repeat(20_000)};\n`
+      );
+      const env = spawnEnvironment();
+      execFileSync("git", ["init", "--quiet"], { cwd: root, env });
+      execFileSync("git", ["add", "--all"], { cwd: root, env });
+
+      const spawned = spawnSync(process.execPath, [COMMAND, "--root", root], {
+        encoding: "utf8",
+        env,
+        timeout: SPAWN_TIMEOUT,
+      });
+
+      expect(spawned.status).toBe(3);
+      expect(spawned.stderr).toContain(
+        "dependency-ledger: unread: apps/web/src/deep.ts could not be parsed"
+      );
+    }
+  );
+});
+
+describe("dependency-ledger.mjs usage", () => {
+  beforeEach(() => {
+    plantRepository();
+  });
+
+  it.each<[string, readonly string[], string]>([
+    ["a positional argument", ["extra"], "Unexpected argument 'extra'"],
+    ["an unknown flag", ["--write"], "Unknown option '--write'"],
+    ["an empty --root", ["--root", ""], "--root takes a non-empty value"],
+    ["an empty --out", ["--out", ""], "--out takes a non-empty value"],
+    ["an empty --sites", ["--sites", ""], "--sites takes a non-empty value"],
+    [
+      "--sites of a name no manifest declares",
+      ["--sites", "nope"],
+      "--sites nope: no manifest declares nope",
+    ],
+  ])("returns 2 for %s", async (_case, args, expected) => {
+    const result = await run(args);
+
+    expect(result.code).toBe(2);
+    expect(result.output).toContain(`dependency-ledger: ${expected}`);
   });
 });

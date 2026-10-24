@@ -1,0 +1,6 @@
+{
+  "generator": "scripts/testing/dependency-ledger.mjs",
+  "floor": 3,
+  "pendingBaseline": 128,
+  "entries": {}
+}

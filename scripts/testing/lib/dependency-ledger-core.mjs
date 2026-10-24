@@ -476,8 +476,11 @@ export function joinDecisions(rows, decisions) {
 /** The version of the ledger's JSON; a change of a row's shape raises it. */
 export const LEDGER_VERSION = 1;
 
-/** The file the rendered ledger is committed as, whose Prettier configuration applies. */
-const LEDGER_FILE = fileURLToPath(new URL("../../../dependency-ledger.json", import.meta.url));
+/** The file the record is committed as, at the repository root. */
+export const RECORD_FILE = "dependency-ledger.json";
+
+/** This repository's record, whose Prettier configuration every record is rendered with. */
+const RECORD_PATH = fileURLToPath(new URL(`../../../${RECORD_FILE}`, import.meta.url));
 
 /**
  * @description Copies a row's sites into their canonical order: kinds as `SITE_KINDS` lists
@@ -576,11 +579,12 @@ export function buildLedger(rows, decisions) {
 
 /**
  * @description Renders the ledger as the JSON text that is committed, with the Prettier
- *   configuration of `dependency-ledger.json` at the repository root, so `pnpm format:check`
- *   passes over the committed file. It orders nothing: {@link buildLedger} did.
+ *   configuration of {@link RECORD_FILE} in this repository, the rule the test ledger follows too,
+ *   so `pnpm format:check` passes over the committed file and a planted tree renders the same
+ *   bytes on every host. It orders nothing: {@link buildLedger} did.
  * @param {Ledger} ledger What {@link buildLedger} returned.
  * @returns {Promise<string>} The text, ending in a newline.
  */
 export function render(ledger) {
-  return renderJson(LEDGER_FILE, ledger);
+  return renderJson(RECORD_PATH, ledger);
 }
