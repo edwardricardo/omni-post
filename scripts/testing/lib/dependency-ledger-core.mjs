@@ -23,7 +23,13 @@
 import { fileURLToPath } from "node:url";
 import { loadClassification } from "../../legal/lib/inventory.mjs";
 import { specifierKindOf } from "./dependency-manifests.mjs";
-import { PATH_CLASSES, SITE_KINDS, pathClassOf, typedTargetOf } from "./dependency-sites.mjs";
+import {
+  KIND_ORDER,
+  PATH_CLASSES,
+  SITE_KINDS,
+  pathClassOf,
+  typedTargetOf,
+} from "./dependency-sites.mjs";
 import { byCodeUnit, isObject, renderJson } from "./record-helpers.mjs";
 
 /**
@@ -472,9 +478,6 @@ export const LEDGER_VERSION = 1;
 
 /** The file the rendered ledger is committed as, whose Prettier configuration applies. */
 const LEDGER_FILE = fileURLToPath(new URL("../../../dependency-ledger.json", import.meta.url));
-
-/** @type {readonly SiteKind[]} */
-const KIND_ORDER = Object.values(SITE_KINDS);
 
 /**
  * @description Copies a row's sites into their canonical order: kinds as `SITE_KINDS` lists

@@ -17,6 +17,7 @@
  */
 import { builtinModules } from "node:module";
 import ts from "typescript";
+import { byCodeUnit } from "./record-helpers.mjs";
 
 /** The extensions of the modules the reader parses. */
 export const SOURCE_EXTENSIONS = Object.freeze([
@@ -187,8 +188,12 @@ export function pathClassOf(file, workspaceDirs) {
 
 const { RUNTIME_IMPORT, TYPE_ONLY, TEST_MOCK, CONFIG_STRING } = SITE_KINDS;
 
-/** The order the sites of one name are returned in: the order of the kinds above. */
-const KIND_ORDER = Object.values(SITE_KINDS);
+/**
+ * The order the sites of one name are returned in, and the order the ledger lists a name's sites
+ * by kind: the order of the kinds above.
+ * @type {readonly SiteKind[]}
+ */
+export const KIND_ORDER = Object.freeze(Object.values(SITE_KINDS));
 
 /** The files whose imports TypeScript resolves types for, declaration files among them. */
 const TYPESCRIPT_FILE = /\.[cm]?tsx?$/;
@@ -391,8 +396,10 @@ function referencedName(reference, declared) {
  * @returns {number} Negative, zero or positive, as `Array.prototype.sort` reads it.
  */
 function bySite(left, right) {
-  if (left.name !== right.name) return left.name < right.name ? -1 : 1;
-  return KIND_ORDER.indexOf(left.kind) - KIND_ORDER.indexOf(right.kind);
+  return (
+    byCodeUnit(left.name, right.name) ||
+    KIND_ORDER.indexOf(left.kind) - KIND_ORDER.indexOf(right.kind)
+  );
 }
 
 /**

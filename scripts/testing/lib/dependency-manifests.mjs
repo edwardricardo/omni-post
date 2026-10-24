@@ -15,6 +15,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { readTopLevelBlock } from "../workspace-block-reader.mjs";
 import { SITE_KINDS, packageOf } from "./dependency-sites.mjs";
+import { byCodeUnit, isObject } from "./record-helpers.mjs";
 
 /**
  * @template T
@@ -47,16 +48,6 @@ const NAMED_ENTRY = /^ {4}("?)([^"\s:]+)\1:\s*[^\s#]+/;
  */
 function messageOf(error) {
   return error instanceof Error ? error.message : String(error);
-}
-
-/**
- * @description Orders two strings by code unit.
- * @param {string} left One string.
- * @param {string} right The other.
- * @returns {number} Negative, zero or positive, as `Array.prototype.sort` reads it.
- */
-function byCodeUnit(left, right) {
-  return left === right ? 0 : left < right ? -1 : 1;
 }
 
 /**
@@ -217,15 +208,6 @@ const BLOCK_COMMENT = /\/\*[\s\S]*?\*\//g;
 const LINE_COMMENT = /^\s*\/\/.*$/gm;
 /** `@import`, `@plugin` or `@config` with a quoted specifier, `url("…")` included. */
 const STYLESHEET_LOAD = /@(?:import|plugin|config)\s+(?:url\(\s*)?(["'])([^"']+)\1/g;
-
-/**
- * @description Says whether a value is a plain object.
- * @param {unknown} value Any value.
- * @returns {value is Record<string, unknown>} `true` for an object that is not an array.
- */
-function isObject(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 /**
  * @description Reads the `bin` names of the copy of a package a manifest's directory installs,
