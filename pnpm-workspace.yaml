@@ -78,7 +78,7 @@ catalog:
   "@langchain/langgraph": 1.4.4 # taken 2026-06-20 (`7d9da4aa`), not moved since; 1.4.19 is newer, 1.4.18 the newest mature (registry, 2026-10-03)
 
   # ── Google API clients ──
-  google-auth-library: 11.1.0 # raised 2026-10-04 from 10.7.0 (MAJOR 10->11): published 2026-09-16T14:49Z and `latest` on 2026-10-04 (registry). 11.x is the line googleapis-common ^9 declares (`google-auth-library ^11.0.0`, 9.0.4 and 9.1.0 alike), so the googleapis-common and google-auth-library@10 compatibility pins left with this raise (SECURITY_CANON §"Compatibility pins"); engines.node >=22; was 10.7.0, before that 9.14.1 (MAJOR 9->10)
+  google-auth-library: 11.3.1 # raised 2026-10-04 from 10.7.0 (MAJOR 10->11): published 2026-09-16T14:49Z and `latest` on 2026-10-04 (registry). 11.x is the line googleapis-common ^9 declares (`google-auth-library ^11.0.0`, 9.0.4 and 9.1.0 alike), so the googleapis-common and google-auth-library@10 compatibility pins left with this raise (SECURITY_CANON §"Compatibility pins"); engines.node >=22; was 10.7.0, before that 9.14.1 (MAJOR 9->10)
   # The per-API packages, NOT the `googleapis` monolith this replaced: that one
   # ships EVERY Google API and weighs 204MB, of which this repository uses two
   # surfaces. Measured in a `pnpm deploy --prod` of the API: 204MB of 998MB.
