@@ -9,6 +9,7 @@
  */
 import noChildProcessInUnit from "./rules/no-child-process-in-unit.js";
 import noEmptyTest from "./rules/no-empty-test.js";
+import noExistenceOnlyTest from "./rules/no-existence-only-test.js";
 import noFixedTimeWait from "./rules/no-fixed-time-wait.js";
 import noStdoutInNodeTest from "./rules/no-stdout-in-node-test.js";
 import noTautologicalAssertion from "./rules/no-tautological-assertion.js";
@@ -23,6 +24,7 @@ const plugin = {
   rules: {
     "no-child-process-in-unit": noChildProcessInUnit,
     "no-empty-test": noEmptyTest,
+    "no-existence-only-test": noExistenceOnlyTest,
     "no-fixed-time-wait": noFixedTimeWait,
     "no-stdout-in-node-test": noStdoutInNodeTest,
     "no-tautological-assertion": noTautologicalAssertion,

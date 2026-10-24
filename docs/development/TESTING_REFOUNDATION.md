@@ -10,7 +10,7 @@ fitness #37 admits it. WU-2.1 adds the assertion classifier, `classifyFile` in
 WU-2.2a builds the test ledger, `scripts/testing/ledger.mjs`, in three stacked slices (row 2.2a 🔄).
 WU-6.P2 retired `perf:db` and its suite (row 6.P2 🔄 until its siblings are
 adjudicated). N-CI-7, the test kit, is closed (row N-CI-7). Phase 0 is closed, row 0.16 aside (🔄);
-Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1035 + 13` · M5 `28 · 0` · M7 `45/45` · M8 `1/94`. Every
+Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1036 + 13` · M5 `28 · 0` · M7 `45/45` · M8 `1/94`. Every
 unit's line is in [§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
@@ -37,7 +37,7 @@ naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1035 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR l24a  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1036 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR l24b  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 0 / ≤272              | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | —        |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -144,7 +144,7 @@ until task 0.16.3 moves the homelab host and the local worktrees.
 | 2     | 2.2a   | Ledger: scan, reach, JSON                                                   | 🔄     | `ledga` a1 · a2 · a3          | `refound-2-ledger-a*` · 95/95           | 2026-10-23 |
 | 2     | 2.2c   | Ledger: duplicates, dead helpers, subject, overlay, Markdown, `--area`      | ⬜     | —                             | —                                       | —          |
 | 2     | 2.3    | The hard probe                                                              | ⬜     | —                             | —                                       | —          |
-| 2     | 2.4    | Durable form: ESLint rules + bulk suppressions                              | 🔄     | `l24` a                       | —                                       | 2026-10-24 |
+| 2     | 2.4    | Durable form: ESLint rules + bulk suppressions                              | 🔄     | `l24` a · b                   | —                                       | 2026-10-24 |
 | 2     | 2.5    | List before deleting; Edward approves the DELETE set                        | ⬜     | —                             | —                                       | —          |
 | 2     | 2.6a   | Whole files (a)(b)(d)                                                       | ⬜     | —                             | —                                       | —          |
 | 2     | 2.6b   | The four `describe.todo` stubs                                              | ⬜     | —                             | —                                       | —          |
@@ -425,6 +425,7 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 
 Newest first; a line with no date or no pull request number is one whose record named none.
 
+- 2026-10-24 — WU-2.4b, `PR l24b` (`workstream/refound-2-lint-rules-b`) — `testing/no-existence-only-test` in `packages/eslint-plugin-testing` reports the classifier's EXISTENCE-ONLY blocks in vitest and node:test, with its RuleTester suite; registered, enabled by `PR l24c` — M1 `1035 + 13` → `1036 + 13`
 - 2026-10-24 — WU-2.4a, `PR l24a` (`workstream/refound-2-lint-rules-a`) — `testing/no-empty-test` and `testing/no-tautological-assertion` in `packages/eslint-plugin-testing` report the classifier's EMPTY and TAUTOLOGY-ONLY blocks in vitest and node:test, with a RuleTester suite each, and the shared `src/classified.js`, which reads the classifier's error path and reports it as one `classifierError` instead of a crash or a silent skip, with its own suite; registered, enabled by `PR l24c` — M1 `1032 + 13` → `1035 + 13`
 - 2026-10-23 — WU-2.2a a3, the ledger's command `scripts/testing/ledger.mjs` (`workstream/refound-2-ledger-a3`), five stacked slices — `PR ledga` a3 — `lib/reach-report.mjs` runs and reads the reach report behind a spawner seam, its per-file map and the quarantine's owners, and M5 runs through it; `build` lists the candidates under the workspaces, `security/` and `performance/`, joins each test-shaped file to reach and the quarantine and classifies it; `ledger.json` written, or compared by `--check`, exit 0/1/2/3 as #48's; `pnpm ledger`, `pnpm check:ledger`; over this tree 1,174 rows, 1,040 test-shaped, 14,662 blocks, 1,052 with a criterion in 262 files, 24 files all decorative, in 6.4 s; row 2.1 ✅, row 2.2b retitled 2.2c — no metric
 - 2026-10-22 — Dependabot #588 not taken, `PR rl588` (`workstream/api-drop-rate-limit-decorative`) — `apps/api/tests/unit/authRateLimit.test.ts` deleted (12 tests that registered `@fastify/rate-limit`, which production never registers, and asserted the inert `config.rateLimit` blocks of `authRoutes.ts`), with those three blocks, the four of `customerAuthRoutes.ts` and the `@fastify/rate-limit` devDependency only that file kept; the live caps stay in `httpRateLimitPreHandler` and its rule-coverage suite — M1 `1026 + 13` → `1025 + 13`
