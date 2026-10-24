@@ -3,9 +3,10 @@
  * @file dependency-ledger-core.mjs
  * @description The core of the dependency-usage ledger: the rows the readers' outputs join into,
  *   one per declared name, with its declarations, its `bin` names, its sites by kind and path
- *   class and its real sites against the floor; and the owner's decisions on the names under the
- *   floor and every rule they are held to. It reads no file but the decisions file, through the
- *   legal inventories' `loadClassification`.
+ *   class and its real sites against the floor; the owner's decisions on the names under the
+ *   floor and every rule they are held to; the summary; and the JSON the ledger renders to. It
+ *   reads no file but the decisions file, through the legal inventories' `loadClassification`,
+ *   and the Prettier configuration the record is rendered with.
  *
  *   Pessimistic by construction: a name is unjustified until its real sites reach the floor, a
  *   name under the floor with no entry is counted pending, and a reader result the core cannot
@@ -13,13 +14,17 @@
  *   cannot be read, unreadable stylesheets, a site of an undeclared name, a binary site of a name
  *   with no bins) stops the build instead of reading as zero.
  *
- *   Nothing here sorts: rows, declarations and sites keep the order the readers hand them in.
+ *   One stage owns the order: `buildLedger` sorts the names, each name's declarations and each
+ *   site list, so the record is the same bytes whatever order the readers hand their results in.
+ *   No clock, no commit, no absolute path and no scan-size counter: the record moves only when a
+ *   declaration, a verdict, a site of a name under the floor or a decision moves.
  * @layer infrastructure
  */
+import { fileURLToPath } from "node:url";
 import { loadClassification } from "../../legal/lib/inventory.mjs";
 import { specifierKindOf } from "./dependency-manifests.mjs";
 import { PATH_CLASSES, SITE_KINDS, pathClassOf, typedTargetOf } from "./dependency-sites.mjs";
-import { byCodeUnit, isObject } from "./record-helpers.mjs";
+import { byCodeUnit, isObject, renderJson } from "./record-helpers.mjs";
 
 /**
  * @template T
@@ -155,7 +160,7 @@ export function verdictOf(real) {
  * @description Joins the readers' outputs into one row per declared name: its scope, the target
  *   it types, its declarations with each specifier read as a kind, its `bin` names, its sites
  *   grouped by kind and path class, and its real sites and verdict, counted once here. Nothing is
- *   sorted. A reader result it cannot classify is an error,
+ *   sorted: {@link buildLedger} owns the order. A reader result it cannot classify is an error,
  *   which the command reports as an unread input: a catalog reference the catalogs do not hold, a
  *   name whose bins were not read or could not be, stylesheets that could not be read, a site of a
  *   name no manifest declares, and a binary site of a name with no bins.
@@ -428,4 +433,151 @@ export function joinDecisions(rows, decisions) {
   if (pending < baseline)
     problems.push(`stale pendingBaseline ${baseline}: lower it to ${pending}`);
   return { rows: joined, problems, pending };
+}
+
+/**
+ * @typedef {object} LedgerRow One name of the rendered ledger.
+ * @property {string} name
+ * @property {Scope} scope
+ * @property {string | null} typedTarget
+ * @property {RowDeclaration[]} declarations By manifest, then block.
+ * @property {string[] | null} bins
+ * @property {Verdict} verdict
+ * @property {number | null} real The real sites of a name under the floor, else `null`.
+ * @property {Status | null} decision
+ * @property {Sites | null} sites The sites of a name under the floor, ordered, else `null`.
+ *
+ * @typedef {object} Summary The counts of the ledger, a fixed set of keys.
+ * @property {number} names
+ * @property {number} production
+ * @property {number} devOnly
+ * @property {number} types The `@types/*` rows.
+ * @property {number} aboveFloor
+ * @property {number} underFloor
+ * @property {number} atZero The names under the floor with no real site.
+ * @property {number} underFloorWithSites
+ * @property {number} kept
+ * @property {number} remove
+ * @property {number} pending
+ *
+ * @typedef {object} Ledger
+ * @property {number} version
+ * @property {number} floor
+ * @property {Summary} summary
+ * @property {LedgerRow[]} names
+ */
+
+/** The version of the ledger's JSON; a change of a row's shape raises it. */
+export const LEDGER_VERSION = 1;
+
+/** The file the rendered ledger is committed as, whose Prettier configuration applies. */
+const LEDGER_FILE = fileURLToPath(new URL("../../../dependency-ledger.json", import.meta.url));
+
+/** @type {readonly SiteKind[]} */
+const KIND_ORDER = Object.values(SITE_KINDS);
+
+/**
+ * @description Copies a row's sites into their canonical order: kinds as `SITE_KINDS` lists
+ *   them, classes as `PATH_CLASSES` does, each list of files sorted; empty kinds left out.
+ * @param {Sites} sites Sites in any order.
+ * @returns {Sites} The same sites, ordered.
+ */
+function orderedSites(sites) {
+  /** @type {Sites} */
+  const ordered = {};
+  for (const kind of KIND_ORDER) {
+    const byClass = sites[kind];
+    if (byClass === undefined) continue;
+    /** @type {Partial<Record<PathClass, string[]>>} */
+    const sorted = {};
+    for (const pathClass of CLASS_ORDER) {
+      const files = byClass[pathClass];
+      if (files !== undefined) sorted[pathClass] = [...files].sort(byCodeUnit);
+    }
+    ordered[kind] = sorted;
+  }
+  return ordered;
+}
+
+/**
+ * @description Shapes a joined row into the ledger's: declarations by manifest and block, and the
+ *   real sites and ordered sites of a name under the floor only, so a site added to a name above
+ *   it never moves the record.
+ * @param {JoinedRow} row A joined row.
+ * @returns {LedgerRow} The ledger's row, in its key order.
+ */
+function ledgerRow(row) {
+  const under = row.verdict === VERDICTS.UNDER;
+  return {
+    name: row.name,
+    scope: row.scope,
+    typedTarget: row.typedTarget,
+    declarations: [...row.declarations].sort(
+      (left, right) =>
+        byCodeUnit(left.manifest, right.manifest) || byCodeUnit(left.block, right.block)
+    ),
+    bins: row.bins,
+    verdict: row.verdict,
+    real: under ? row.real : null,
+    decision: row.decision,
+    sites: under ? orderedSites(row.sites) : null,
+  };
+}
+
+/**
+ * @description Counts the ledger's rows: names, scopes, `@types/*` rows, verdicts, the names
+ *   under the floor with no site and with some, and each decision. No count of manifests or files
+ *   scanned: the record moves only on a fact a decision depends on.
+ * @param {readonly LedgerRow[]} rows The ledger's rows.
+ * @returns {Summary} The counts, in a fixed key order.
+ */
+export function summarize(rows) {
+  /** @param {(row: LedgerRow) => boolean} test */
+  const count = (test) => rows.filter(test).length;
+  return {
+    names: rows.length,
+    production: count((row) => row.scope === SCOPES.PRODUCTION),
+    devOnly: count((row) => row.scope === SCOPES.DEV_ONLY),
+    types: count((row) => row.typedTarget !== null),
+    aboveFloor: count((row) => row.verdict === VERDICTS.ABOVE),
+    underFloor: count((row) => row.verdict === VERDICTS.UNDER),
+    atZero: count((row) => row.real === 0),
+    underFloorWithSites: count((row) => row.real !== null && row.real > 0),
+    kept: count((row) => row.decision === "kept"),
+    remove: count((row) => row.decision === "remove"),
+    pending: count((row) => row.decision === "pending"),
+  };
+}
+
+/**
+ * @description Assembles the ledger, the one stage that orders it: the names in code-unit order,
+ *   joined with the decisions, each shaped by `ledgerRow`, and the summary derived from them. The
+ *   decisions' problems are returned beside the ledger, which is still written so the owner sees
+ *   the record the problems are about.
+ * @param {readonly Row[]} rows The rows, in any order.
+ * @param {Decisions} decisions What {@link loadDecisions} read.
+ * @returns {{ ledger: Ledger, problems: string[] }} The ledger and its problems.
+ */
+export function buildLedger(rows, decisions) {
+  const sorted = [...rows].sort((left, right) => byCodeUnit(left.name, right.name));
+  const joined = joinDecisions(sorted, decisions);
+  const names = joined.rows.map(ledgerRow);
+  const ledger = {
+    version: LEDGER_VERSION,
+    floor: REAL_SITE_FLOOR,
+    summary: summarize(names),
+    names,
+  };
+  return { ledger, problems: joined.problems };
+}
+
+/**
+ * @description Renders the ledger as the JSON text that is committed, with the Prettier
+ *   configuration of `dependency-ledger.json` at the repository root, so `pnpm format:check`
+ *   passes over the committed file. It orders nothing: {@link buildLedger} did.
+ * @param {Ledger} ledger What {@link buildLedger} returned.
+ * @returns {Promise<string>} The text, ending in a newline.
+ */
+export function render(ledger) {
+  return renderJson(LEDGER_FILE, ledger);
 }
