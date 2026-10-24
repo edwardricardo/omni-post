@@ -15,9 +15,9 @@
  *   ledger renders to. Only the decisions file is planted on disk, for the one reader of it.
  *
  *   Last, the command, `scripts/testing/dependency-ledger.mjs`, through `main(argv, seams)` over
- *   a planted repository with the git listing replaced: write mode, `--sites`, the ledger's own
- *   files, and the exit code of every class (0 written, 1 a problem, 2 usage, 3 an unread input,
- *   3 over 1), twice as a spawned script.
+ *   a planted repository with the git listing replaced: write mode, `--check` and the drift it
+ *   names, `--sites`, the ledger's own files, and the exit code of every class (0 clean, 1 a
+ *   problem or a drift, 2 usage, 3 an unread input, 3 over 1), twice as a spawned script.
  * @layer infrastructure
  */
 import { execFileSync, spawnSync } from "node:child_process";
@@ -1581,6 +1581,198 @@ describe("dependency-ledger.mjs over its own files", () => {
   });
 });
 
+describe("dependency-ledger.mjs --check", () => {
+  beforeEach(async () => {
+    plantRepository();
+    const written = await run([]);
+    if (written.code !== 0)
+      throw new Error(`the planted record was not written: ${written.output}`);
+  });
+
+  /** The lines a stale record prints after its drift lines. */
+  const STALE =
+    "dependency-ledger: dependency-ledger.json is stale; run `pnpm deps:ledger` and commit the result\n";
+
+  /** Rewrites the committed record from its parsed form. */
+  const commit = (edit: (written: Fields) => unknown): void => {
+    put(RECORD, edit(JSON.parse(record()) as Fields));
+  };
+
+  it("returns 0 over the record it wrote", async () => {
+    expect(await run(["--check"])).toEqual({
+      code: 0,
+      output: "dependency-ledger: dependency-ledger.json is current\n",
+    });
+  });
+
+  it("returns 1 naming the one row a new import moved", async () => {
+    put("apps/web/src/d.ts", 'import { b } from "lib-b";\n');
+
+    const result = await run(["--check"], listing([...LEDGER_TRACKED, "apps/web/src/d.ts"]));
+
+    expect(result).toEqual({
+      code: 1,
+      output: `dependency-ledger: drift: lib-b: its row differs\n${STALE}`,
+    });
+  });
+
+  it("returns 1 naming a name the record lacks, the summary that moved and the baseline", async () => {
+    put("apps/web/package.json", {
+      name: "@w/web",
+      dependencies: { ...WEB_DEPENDENCIES, "lib-c": "^1.0.0" },
+    });
+    put("apps/web/node_modules/lib-c/package.json", { name: "lib-c" });
+
+    const result = await run(["--check"]);
+
+    expect(result).toEqual({
+      code: 1,
+      output: [
+        "dependency-ledger: 4 pending exceed pendingBaseline 3: decide lib-b, lib-c, tool-a, tool-b or raise the baseline visibly",
+        "dependency-ledger: drift: the summary differs",
+        "dependency-ledger: drift: lib-c: in the tree, not in the committed record",
+        STALE,
+      ].join("\n"),
+    });
+  });
+
+  it("returns 1 naming a name the tree no longer declares", async () => {
+    const { "tool-b": _gone, ...kept } = ROOT_DEPENDENCIES;
+    put("package.json", {
+      name: "root",
+      private: true,
+      devDependencies: kept,
+      scripts: { lint: "tool-a check", fmt: "tool-b" },
+    });
+    put(DECISIONS, decisionsFile(PLANTED_ENTRIES, 2));
+
+    const result = await run(["--check"]);
+
+    expect(result).toEqual({
+      code: 1,
+      output: [
+        "dependency-ledger: drift: the summary differs",
+        "dependency-ledger: drift: tool-b: in the committed record, not in the tree",
+        STALE,
+      ].join("\n"),
+    });
+  });
+
+  it("returns 1 naming every part of the record the committed one lacks, read from the record", async () => {
+    commit(({ floor: _floor, ...rest }) => rest);
+
+    const result = await run(["--check"]);
+
+    expect(result).toEqual({
+      code: 1,
+      output: [
+        "dependency-ledger: drift: the top-level keys differ",
+        "dependency-ledger: drift: the floor differs",
+        STALE,
+      ].join("\n"),
+    });
+  });
+
+  it.each<[string, (written: Fields) => unknown, string]>([
+    ["a record that is no JSON", () => "{", "the committed record is not JSON: "],
+    ["a record that is no object", () => [], "the committed record is not a JSON object\n"],
+    [
+      "a record whose names are no list",
+      (written) => ({ ...written, names: {} }),
+      "the committed record's names are not a list\n",
+    ],
+    [
+      "a row with no name",
+      (written) => ({ ...written, names: [{}] }),
+      "a committed row has no name\n",
+    ],
+    [
+      "a name listed twice",
+      (written) => ({ ...written, names: [{ name: "lib-a" }, { name: "lib-a" }] }),
+      "the committed record lists lib-a twice\n",
+    ],
+    [
+      "a top-level key the record does not have",
+      (written) => ({ ...written, extra: true }),
+      "the top-level keys differ\n",
+    ],
+    ["another version", (written) => ({ ...written, version: 0 }), "the version differs\n"],
+    ["another floor", (written) => ({ ...written, floor: 2 }), "the floor differs\n"],
+    [
+      "the same content laid out otherwise",
+      (written) => JSON.stringify(written),
+      "the content is equal; only its formatting differs\n",
+    ],
+  ])("returns 1 naming %s", async (_case, edit, expected) => {
+    commit(edit);
+
+    const result = await run(["--check"]);
+
+    expect(result.code).toBe(1);
+    expect(result.output.startsWith(`dependency-ledger: drift: ${expected}`)).toBe(true);
+    expect(result.output.endsWith(STALE)).toBe(true);
+  });
+
+  it("returns 1 on a decisions problem even when the record is current", async () => {
+    put(DECISIONS, decisionsFile({ ...PLANTED_ENTRIES, "lib-a": { status: "pending" } }, 3));
+
+    const result = await run(["--check"]);
+
+    expect(result).toEqual({
+      code: 1,
+      output:
+        "dependency-ledger: lib-a: a pending entry above the floor, which justifies it: delete the entry\n",
+    });
+  });
+
+  it("returns 3 when the record cannot be rendered for the comparison", async () => {
+    const result = await run(["--check"], {
+      ...listing(),
+      render: () => Promise.reject(new Error(REFUSED)),
+    });
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain(
+      `dependency-ledger: unread: the record could not be rendered: ${REFUSED}`
+    );
+    expect(result.output).not.toContain("drift");
+  });
+
+  it("returns 3 over 1 with no committed record and a decision off its contract", async () => {
+    rmSync(path.join(root, RECORD));
+    put(DECISIONS, decisionsFile({ ...PLANTED_ENTRIES, "lib-b": KEPT_WITHOUT_GROUNDS }, 2));
+
+    const result = await run(["--check"]);
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain("dependency-ledger: lib-b: a kept entry needs grounds\n");
+    expect(result.output).toContain(
+      "dependency-ledger: unread: no committed record at dependency-ledger.json"
+    );
+  });
+
+  it("returns 3 with the read error when the committed record exists and cannot be read", async () => {
+    mkdirSync(path.join(root, "records"));
+
+    const result = await run(["--check", "--out", path.join(root, "records")]);
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain("dependency-ledger: unread: records could not be read: ");
+    expect(result.output).not.toContain("no committed record");
+  });
+
+  it("returns 3 over 1 when the decisions file is no JSON and the record drifted", async () => {
+    put("apps/web/src/d.ts", 'import { b } from "lib-b";\n');
+    put(DECISIONS, "{");
+
+    const result = await run(["--check"], listing([...LEDGER_TRACKED, "apps/web/src/d.ts"]));
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain(`dependency-ledger: unread: ${DECISIONS} is not JSON`);
+    expect(result.output).not.toContain("drift");
+  });
+});
+
 describe("dependency-ledger.mjs unread inputs", () => {
   beforeEach(() => {
     plantRepository();
@@ -1823,6 +2015,11 @@ describe("dependency-ledger.mjs usage", () => {
     ["an empty --root", ["--root", ""], "--root takes a non-empty value"],
     ["an empty --out", ["--out", ""], "--out takes a non-empty value"],
     ["an empty --sites", ["--sites", ""], "--sites takes a non-empty value"],
+    [
+      "--check with --sites",
+      ["--check", "--sites", "lib-a"],
+      "--sites cannot be combined with --check",
+    ],
     [
       "--sites of a name no manifest declares",
       ["--sites", "nope"],
