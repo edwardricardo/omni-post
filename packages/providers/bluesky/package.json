@@ -23,7 +23,7 @@
     }
   },
   "dependencies": {
-    "@atproto/api": "0.13.28",
+    "@atproto/api": "0.27.0",
     "@ports/core": "workspace:*",
     "@providers/shared": "workspace:*",
     "@shared/types": "workspace:*",

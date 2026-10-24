@@ -278,7 +278,7 @@ Each platform is a separate workspace package implementing `IProviderAdapter` fr
 | Pinterest   | Direct API (fetch)                                                                          | Publish, analytics                           |
 | Snapchat    | Direct API (fetch)                                                                          | Publish, analytics                           |
 | Telegram    | Direct API (fetch)                                                                          | Publish, inbox                               |
-| Bluesky     | @atproto/api 0.13.28                                                                        | Publish, AT Protocol                         |
+| Bluesky     | @atproto/api 0.27.0                                                                         | Publish, mention search                      |
 
 ---
 
