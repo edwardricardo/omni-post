@@ -15,7 +15,7 @@
  */
 import { fileURLToPath } from "node:url";
 import { BLOCK_CLASS } from "@packages/eslint-plugin-testing";
-import prettier from "prettier";
+import { byCodeUnit, renderJson } from "./record-helpers.mjs";
 
 /** @typedef {import("../../../packages/eslint-plugin-testing/src/classify.js").FileClassification} FileClassification */
 
@@ -195,20 +195,6 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  * @template T
  * @typedef {{ value: T } | { error: string }} Result
  */
-
-/**
- * @description Orders two strings by UTF-16 code unit. `localeCompare` would follow the ICU
- *   collation of the Node that runs it, which folds case and punctuation (`post` before `Post`)
- *   and may change with the ICU version or the locale; `<` is the same on every machine and, for
- *   the ASCII paths git lists here, is byte order, the order `git ls-files` prints.
- * @param {string} left
- * @param {string} right
- * @returns {number} Negative, zero or positive, as `Array.prototype.sort` expects.
- */
-function byCodeUnit(left, right) {
-  if (left < right) return -1;
-  return left > right ? 1 : 0;
-}
 
 /**
  * @description Reads the decision that excludes a path.
@@ -483,14 +469,13 @@ export function buildLedger(rows) {
 }
 
 /**
- * @description Renders the ledger as the JSON text that is committed: `JSON.stringify` formatted
- *   by Prettier with the configuration that applies to `ledger.json` at the repository root (the
- *   `.prettierrc` and the `.editorconfig`, as the CLI reads them), so `pnpm format:check` passes
- *   over the committed file. Equal ledgers render equal bytes.
+ * @description Renders the ledger as the JSON text that is committed, through `renderJson`:
+ *   `JSON.stringify` formatted by Prettier with the configuration that applies to `ledger.json`
+ *   at the repository root (the `.prettierrc` and the `.editorconfig`, as the CLI reads them), so
+ *   `pnpm format:check` passes over the committed file. Equal ledgers render equal bytes.
  * @param {Ledger} ledger
  * @returns {Promise<string>} The text, ending in a newline.
  */
-export async function render(ledger) {
-  const config = await prettier.resolveConfig(LEDGER_FILE, { editorconfig: true });
-  return prettier.format(JSON.stringify(ledger, null, 2), { ...config, parser: "json" });
+export function render(ledger) {
+  return renderJson(LEDGER_FILE, ledger);
 }
