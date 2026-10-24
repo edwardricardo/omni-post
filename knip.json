@@ -8,6 +8,7 @@
         "scripts/rls-ab-measurement.ts",
         "scripts/testing/metrics.mjs",
         "scripts/testing/lib/ledger-core.mjs",
+        "scripts/testing/lib/reach-report.mjs",
         "scripts/testing/battery-state.mjs",
         "scripts/testing/sentry-init-probe.mjs",
         "scripts/testing/node-summary-reporter.mjs",
