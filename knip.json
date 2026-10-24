@@ -9,6 +9,7 @@
         "scripts/testing/metrics.mjs",
         "scripts/testing/lib/ledger-core.mjs",
         "scripts/testing/lib/dependency-sites.mjs",
+        "scripts/testing/lib/dependency-manifests.mjs",
         "scripts/testing/battery-state.mjs",
         "scripts/testing/sentry-init-probe.mjs",
         "scripts/testing/node-summary-reporter.mjs",

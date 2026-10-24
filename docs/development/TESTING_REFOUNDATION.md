@@ -3,7 +3,8 @@
 **Owner:** Platform engineering
 **As of:** 2026-10-24 — WU-2.2b starts the dependency-usage ledger with its site reader,
 `scripts/testing/lib/dependency-sites.mjs`: the kind and path class of every site a module holds
-of a declared package (row 2.2b 🔄).
+of a declared package; its manifest side, `scripts/testing/lib/dependency-manifests.mjs`, adds the
+workspace manifests, the catalogs, the `bin` names and the binary and stylesheet sites (row 2.2b 🔄).
 WU-2.4 makes the classifier's EMPTY, TAUTOLOGY-ONLY and EXISTENCE-ONLY
 blocks, eight Vitest rules and `no-console` lint errors on the test files, with the tree's 2,241
 violations bulk-suppressed in a file that only shrinks; M3 counts the 646 decorative blocks among
@@ -17,7 +18,7 @@ fitness #37 admits it. WU-2.1 adds the assertion classifier, `classifyFile` in
 WU-2.2a builds the test ledger, `scripts/testing/ledger.mjs`, in three stacked slices (row 2.2a ✅).
 WU-6.P2 retired `perf:db` and its suite (row 6.P2 🔄 until its siblings are
 adjudicated). N-CI-7, the test kit, is closed (row N-CI-7). Phase 0 is closed, row 0.16 aside (🔄);
-Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1037 + 13` · M3 `646` · M5 `28 · 0` · M7 `47/47` · M8 `1/94`. Every
+Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1038 + 13` · M3 `646` · M5 `28 · 0` · M7 `47/47` · M8 `1/94`. Every
 unit's line is in [§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
@@ -44,7 +45,7 @@ naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1037 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR depl  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1038 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR depl  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 646                   | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | PR l24c  |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -149,7 +150,7 @@ until task 0.16.3 moves the homelab host and the local worktrees.
 | 2     | 2.0    | Canon scenario `decorative-demolition` + ADR                                | ✅     | `2cov`                        | `refound-2-wu20` · [§Gates](#gates)     | 2026-10-19 |
 | 2     | 2.1    | The assertion classifier as a workspace package with tests                  | ✅     | `#660` · `#676` · `#677`      | `refound-2-wu21` · 275/275 · red ×5+28  | 2026-10-22 |
 | 2     | 2.2a   | Ledger: scan, reach, JSON                                                   | ✅     | `#699` · `#705`–`#713`        | `refound-2-ledger-a*` · 95/95           | 2026-10-23 |
-| 2     | 2.2b   | Dependency-usage ledger: sites by kind and class, floor, owner decisions    | 🔄     | `depl` 1                      | `refound-2-deps-ledger-*`               | 2026-10-24 |
+| 2     | 2.2b   | Dependency-usage ledger: sites by kind and class, floor, owner decisions    | 🔄     | `depl` 1 · 2                  | `refound-2-deps-ledger-*`               | 2026-10-24 |
 | 2     | 2.2c   | Ledger: duplicates, dead helpers, subject, overlay, Markdown, `--area`      | ⬜     | —                             | —                                       | —          |
 | 2     | 2.3    | The hard probe                                                              | ⬜     | —                             | —                                       | —          |
 | 2     | 2.4    | Durable form: ESLint rules + bulk suppressions                              | ✅     | `l24` a · b · c · d           | 2,241 suppressed · red ×3               | 2026-10-24 |
@@ -435,6 +436,7 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 
 Newest first; a line with no date or no pull request number is one whose record named none.
 
+- 2026-10-24 — WU-2.2b slice 2, `PR depl` 2 (`workstream/refound-2-deps-ledger-2`) — the ledger's manifest side, `scripts/testing/lib/dependency-manifests.mjs`, with its suite `dependencyLedger.test.ts`: the workspace manifests the `packages:` globs reach, checked against the legal scan's set (101 on this tree, no disagreement); the `catalog:` and `catalogs:` blocks (78 default, 11 `otel`) and each declaration's catalog reference resolved against them; the `bin` names of the copy the first non-peer declaring manifest installs, an unreadable copy an error; the command lines of manifest scripts, the root `lint-staged`, hooks, workflows, actions and shell scripts, comment lines left out; whole-token binary sites; stylesheet `@import`, `@plugin` and `@config` sites (`tailwindcss` and `tw-animate-css` in both portals). `scanManifests` returns its third-party `declarations` and exports `readToolingList`, its page unchanged — M1 `1037 + 13` → `1038 + 13`
 - 2026-10-24 — WU-2.2b slice 1, `PR depl` 1 (`workstream/refound-2-deps-ledger-1`) — the dependency-usage ledger's site reader, `scripts/testing/lib/dependency-sites.mjs`, with its suite: the package a specifier names (Node's built-ins one target), the target an `@types/*` package types, the path class of a tracked file (test, `test-utils/` helpers included; production under the longest workspace match; config), and four of the six site kinds read from a module's syntax tree through the `typescript` package — runtime import, type-only (type imports, import types, module declarations, type references, every import of a declaration file), test mock (the six `vi` module calls, by string or by a wrapped `import()`, never a use) and config string — attributed to the declared names; row 2.2a ✅ — M1 `1036 + 13` → `1037 + 13`
 - 2026-10-24 — WU-2.4d, `PR l24d` (`workstream/refound-2-lint-rules-d`) — fitness #49 in `.github/workflows/fitness.yml` and the CLAUDE.md block: every test-block lint rule stays at `error` (grep pins over `eslint.config.ts`, the `no-console` allow list and the runner-only `off` block included) and no inline `eslint-disable` names one of the twelve rules; red proven on the complete step — M7 `46/46` → `47/47`
 - 2026-10-24 — WU-2.4c, `PR l24c` (`workstream/refound-2-lint-rules-c`) — the three `testing/*` rules at `error` on every test file; eight `vitest/*` rules at `error` on the files Vitest collects, without the node:test tiers, `security/tests/` and `e2e/`; `no-console` at `error` on the test files, `console.warn` and `console.error` allowed and the runner's three entry points exempt; the tree's violations bulk-suppressed in `eslint-suppressions.json`, which only shrinks: `vitest/no-conditional-expect` 1442 · `testing/no-existence-only-test` 612 · `no-console` 99 · `vitest/expect-expect` 34 · `testing/no-empty-test` 17 · `testing/no-tautological-assertion` 17 · `vitest/no-standalone-expect` 16 · `vitest/valid-expect` 4, 2,241 in 337 files; `metrics.mjs` counts M3 from the three `testing/*` rules alone and gives M13 no rule yet — M3 `0 / ≤272` → `646` · M7 `45/45` → `46/46`
