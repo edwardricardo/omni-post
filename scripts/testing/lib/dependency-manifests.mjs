@@ -28,7 +28,8 @@ import { byCodeUnit, isObject } from "./record-helpers.mjs";
  * @property {Map<string, Set<string>>} named The names each catalog of the `catalogs:` block holds.
  */
 
-const WORKSPACE_FILE = "pnpm-workspace.yaml";
+/** The workspace manifest, at the repository root: the `packages:` globs and the catalogs. */
+export const WORKSPACE_FILE = "pnpm-workspace.yaml";
 const ROOT_MANIFEST = "package.json";
 const CATALOG_PROTOCOL = "catalog:";
 
@@ -65,29 +66,45 @@ function readText(root, file) {
 }
 
 /**
+ * @typedef {object} PackageGlobs The `packages:` globs of a workspace manifest.
+ * @property {string[]} positive The globs that add workspaces, in the manifest's order.
+ * @property {string[]} negated The globs that take workspaces out, their `!` dropped.
+ */
+
+/**
+ * @description Reads the `packages:` block of a workspace manifest: each entry a glob, quoted or
+ *   plain, a negated one starting with `!`. A manifest with no such block, or an entry the reader
+ *   cannot read, is an error, never an empty or partial list.
+ * @param {string} text The text of {@link WORKSPACE_FILE}.
+ * @returns {Result<PackageGlobs>} The globs, positive and negated.
+ */
+export function readPackageGlobs(text) {
+  const lines = readTopLevelBlock(text, "packages");
+  if (lines === null) return { error: `${WORKSPACE_FILE} has no packages: block` };
+  /** @type {PackageGlobs} */
+  const globs = { positive: [], negated: [] };
+  for (const line of lines) {
+    const glob = PACKAGE_GLOB.exec(line)?.[1];
+    if (glob === undefined) return { error: `${WORKSPACE_FILE}: cannot read "${line.trim()}"` };
+    if (glob.startsWith("!")) globs.negated.push(glob.slice(1));
+    else globs.positive.push(glob);
+  }
+  return { value: globs };
+}
+
+/**
  * @description Lists the workspace manifests: the root `package.json` and every tracked
  *   `package.json` whose directory a positive `packages:` glob of `pnpm-workspace.yaml` matches
  *   and no negated one does. Derived from the globs pnpm itself reads, so a workspace is read the
  *   day its manifest is tracked; a glob line the reader cannot read is an error, never a skip.
- * @param {string} root Absolute repository root.
+ * @param {string} text The text of {@link WORKSPACE_FILE}, which the caller read once.
  * @param {readonly string[]} tracked Every tracked file, repository-relative.
  * @returns {Result<string[]>} The root manifest first, then the others in code-unit order.
  */
-export function workspaceManifests(root, tracked) {
-  const text = readText(root, WORKSPACE_FILE);
-  if ("error" in text) return text;
-  const lines = readTopLevelBlock(text.value, "packages");
-  if (lines === null) return { error: `${WORKSPACE_FILE} has no packages: block` };
-  /** @type {string[]} */
-  const positive = [];
-  /** @type {string[]} */
-  const negated = [];
-  for (const line of lines) {
-    const glob = PACKAGE_GLOB.exec(line)?.[1];
-    if (glob === undefined) return { error: `${WORKSPACE_FILE}: cannot read "${line.trim()}"` };
-    if (glob.startsWith("!")) negated.push(glob.slice(1));
-    else positive.push(glob);
-  }
+export function workspaceManifests(text, tracked) {
+  const globs = readPackageGlobs(text);
+  if ("error" in globs) return globs;
+  const { positive, negated } = globs.value;
   /** @param {string} dir */
   const reached = (dir) =>
     positive.some((glob) => path.posix.matchesGlob(dir, glob)) &&
