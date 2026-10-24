@@ -10,9 +10,9 @@
  *   repository is read for its workspace manifest only.
  *
  *   Then the ledger's core, `scripts/testing/lib/dependency-ledger-core.mjs`, over rows built from
- *   literal inputs: the rows the readers' outputs join into, the real-site rule and the floor, and
- *   the owner's decisions and every rule they are held to. Only the decisions file is planted on
- *   disk, for the one reader of it.
+ *   literal inputs: the rows the readers' outputs join into, the real-site rule and the floor, the
+ *   owner's decisions and every rule they are held to, the summary, and the deterministic JSON the
+ *   ledger renders to. Only the decisions file is planted on disk, for the one reader of it.
  * @layer infrastructure
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -147,6 +147,42 @@ interface Joined {
   readonly pending: number;
 }
 
+/** A row of the rendered ledger. */
+interface LedgerRow {
+  readonly name: string;
+  readonly scope: Scope;
+  readonly typedTarget: string | null;
+  readonly declarations: readonly RowDeclaration[];
+  readonly bins: readonly string[] | null;
+  readonly verdict: Verdict;
+  readonly real: number | null;
+  readonly decision: string | null;
+  readonly sites: Sites | null;
+}
+
+/** The counts of the ledger. */
+interface Summary {
+  readonly names: number;
+  readonly production: number;
+  readonly devOnly: number;
+  readonly types: number;
+  readonly aboveFloor: number;
+  readonly underFloor: number;
+  readonly atZero: number;
+  readonly underFloorWithSites: number;
+  readonly kept: number;
+  readonly remove: number;
+  readonly pending: number;
+}
+
+/** The ledger the core renders. */
+interface Ledger {
+  readonly version: number;
+  readonly floor: number;
+  readonly summary: Summary;
+  readonly names: readonly LedgerRow[];
+}
+
 /** The core's surface, typed for the same reason as the manifests module's. */
 type CoreModule = {
   realSitesOf: (row: Counted) => number;
@@ -154,6 +190,12 @@ type CoreModule = {
   buildRows: (input: RowsInput) => Result<Row[]>;
   loadDecisions: (root: string) => Result<Decisions>;
   joinDecisions: (rows: readonly Row[], decisions: Decisions) => Joined;
+  summarize: (rows: readonly LedgerRow[]) => Summary;
+  buildLedger: (
+    rows: readonly Row[],
+    decisions: Decisions
+  ) => { ledger: Ledger; problems: string[] };
+  render: (ledger: Ledger) => Promise<string>;
 };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
@@ -1131,5 +1173,161 @@ describe("joinDecisions", () => {
       "second",
       "scripts/testing/dependency-decisions.json: floor 2 is not the real-site floor 3",
     ]);
+  });
+});
+
+describe("summarize", () => {
+  /** `count` rows named `prefix0`, `prefix1`, …, all alike. */
+  const rowsOf = (
+    prefix: string,
+    count: number,
+    scope: Scope,
+    sites: Sites,
+    typedTarget: string | null = null
+  ): Row[] =>
+    Array.from({ length: count }, (_, index) =>
+      rowOf(`${prefix}${String(index)}`, scope, sites, typedTarget)
+    );
+  const entriesOf = (rows: readonly Row[], entry: Fields): Record<string, Fields> =>
+    Object.fromEntries(rows.map((row) => [row.name, entry]));
+
+  it("returns every count from rows where no two counts are equal", () => {
+    const removedAbove = rowsOf("pa", 7, "production", ABOVE);
+    const plainAbove = rowsOf("pb", 2, "production", ABOVE);
+    const removedAtZero = rowsOf("pz", 4, "production", {});
+    const pendingAtZero = rowsOf("dz", 1, "dev-only", {});
+    const keptWithSites = rowsOf("dk", 2, "dev-only", { binary: { config: ["package.json"] } });
+    const types = rowsOf("@types/t", 3, "dev-only", { "type-only": { test: ["a.ts"] } }, "t");
+    const pendingWithSites = rowsOf("dp", 2, "dev-only", { binary: { config: ["package.json"] } });
+    const rows = [
+      ...removedAbove,
+      ...plainAbove,
+      ...removedAtZero,
+      ...pendingAtZero,
+      ...keptWithSites,
+      ...types,
+      ...pendingWithSites,
+    ];
+    const decisions = decisionsOf(
+      {
+        ...entriesOf(removedAbove, REMOVE),
+        ...entriesOf(removedAtZero, REMOVE),
+        ...entriesOf(keptWithSites, KEPT),
+      },
+      6
+    );
+
+    const { ledger, problems } = core.buildLedger(rows, decisions);
+
+    expect(problems).toEqual([]);
+    expect(core.summarize(ledger.names)).toEqual({
+      names: 21,
+      production: 13,
+      devOnly: 8,
+      types: 3,
+      aboveFloor: 9,
+      underFloor: 12,
+      atZero: 5,
+      underFloorWithSites: 7,
+      kept: 2,
+      remove: 11,
+      pending: 6,
+    });
+  });
+});
+
+describe("buildLedger and render", () => {
+  const ROWS = [
+    rowOf("above", "production", ABOVE),
+    rowOf("siteless", "production", {}),
+    rowOf("under", "dev-only", {
+      "test-mock": { test: ["apps/api/tests/c.test.ts"] },
+      "runtime-import": { test: ["apps/api/tests/b.test.ts", "apps/api/tests/a.test.ts"] },
+    }),
+  ];
+  /** A second declaration, so the order of a row's declarations is something to sort. */
+  const EXTRA_DECLARATION: RowDeclaration = {
+    manifest: "apps/api/package.json",
+    block: "a-block",
+    specifier: "literal",
+  };
+  /** The rows in the opposite order, with the extra declaration, each list reversed. */
+  const reversed = (rows: readonly Row[]): Row[] =>
+    [...rows].reverse().map((row) => ({
+      ...row,
+      declarations: [...row.declarations, EXTRA_DECLARATION].reverse(),
+      sites: Object.fromEntries(
+        Object.entries(row.sites).map(([kind, byClass]) => [
+          kind,
+          Object.fromEntries(
+            Object.entries(byClass).map(([pathClass, files]) => [
+              pathClass,
+              [...(files ?? [])].reverse(),
+            ])
+          ),
+        ])
+      ),
+    }));
+
+  it("returns real and sites for the names under the floor only, an empty object for a siteless one", () => {
+    const { ledger, problems } = core.buildLedger(ROWS, decisionsOf({}, 2));
+
+    expect(problems).toEqual([]);
+    expect(Object.keys(ledger)).toEqual(["version", "floor", "summary", "names"]);
+    expect([ledger.version, ledger.floor]).toEqual([1, 3]);
+    expect(ledger.names.map((row) => Object.keys(row))).toEqual(
+      ledger.names.map(() => [
+        "name",
+        "scope",
+        "typedTarget",
+        "declarations",
+        "bins",
+        "verdict",
+        "real",
+        "decision",
+        "sites",
+      ])
+    );
+    expect(ledger.names.map((row) => [row.name, row.verdict, row.real, row.decision])).toEqual([
+      ["above", "above-floor", null, null],
+      ["siteless", "under-floor", 0, "pending"],
+      ["under", "under-floor", 2, "pending"],
+    ]);
+    expect(ledger.names.map((row) => row.sites)).toEqual([
+      null,
+      {},
+      {
+        "runtime-import": { test: ["apps/api/tests/a.test.ts", "apps/api/tests/b.test.ts"] },
+        "test-mock": { test: ["apps/api/tests/c.test.ts"] },
+      },
+    ]);
+    expect(Object.keys(ledger.names[2]?.sites ?? {})).toEqual(["runtime-import", "test-mock"]);
+  });
+
+  it("returns the names, each declaration list and each site list in code-unit order whatever order they come in", () => {
+    const { ledger } = core.buildLedger(reversed(ROWS), decisionsOf({}, 2));
+
+    expect(ledger.names.map((row) => row.name)).toEqual(["above", "siteless", "under"]);
+    expect(ledger.names[2]?.declarations.map((declaration) => declaration.block)).toEqual([
+      "a-block",
+      "devDependencies",
+    ]);
+    expect(ledger.names[2]?.sites).toEqual({
+      "runtime-import": { test: ["apps/api/tests/a.test.ts", "apps/api/tests/b.test.ts"] },
+      "test-mock": { test: ["apps/api/tests/c.test.ts"] },
+    });
+  });
+
+  it("renders byte-equal JSON from rows given in two orders, which parses back to the ledger", async () => {
+    const twice = (rows: readonly Row[]): Row[] =>
+      rows.map((row) => ({ ...row, declarations: [...row.declarations, EXTRA_DECLARATION] }));
+    const forwardLedger = core.buildLedger(twice(ROWS), decisionsOf({}, 2)).ledger;
+
+    const forward = await core.render(forwardLedger);
+    const backward = await core.render(core.buildLedger(reversed(ROWS), decisionsOf({}, 2)).ledger);
+
+    expect(backward).toBe(forward);
+    expect(JSON.parse(forward)).toEqual(forwardLedger);
+    expect(forward.endsWith("}\n")).toBe(true);
   });
 });
