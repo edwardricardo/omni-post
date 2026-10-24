@@ -6,8 +6,9 @@
  *   plain-object test their readers apply to parsed JSON, the Prettier rendering under this
  *   repository's configuration that makes a record's bytes the ones `pnpm format:check` accepts,
  *   the reads of the tree and of git's listing as `Result` values, a command's exit codes, result
- *   and entry-point test, and the tail a record command ends in: render the record and write it.
- *   One copy each, so two records cannot drift apart in how they sort, render, read or report.
+ *   and entry-point test, and the tail every record command ends in: write the record, or check it
+ *   against the committed one and name the drift. One copy each, so two records cannot drift apart
+ *   in how they sort, render, read or report.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -29,6 +30,9 @@ import prettier from "prettier";
  * @typedef {object} RecordSpec How a record's command names its record in what it prints.
  * @property {string} label The prefix of every line: `ledger`, `dependency-ledger`.
  * @property {string} noun What its messages call the record: `ledger`, `record`.
+ * @property {string} command The command that rewrites the record: `pnpm ledger`.
+ * @property {string} list The top-level key of the record's rows: `files`, `names`.
+ * @property {string} id The key that names a row: `path`, `name`.
  */
 
 /**
@@ -215,4 +219,112 @@ export async function writeRecord(spec, run, counts) {
   }
   const wrote = `${spec.label}: wrote ${shown}: ${counts}`;
   return cliResult(run.failing ? EXIT.VERDICT : EXIT.CLEAN, [...run.lines, wrote]);
+}
+
+/**
+ * @description Indexes a committed record's rows by the key that names them. The committed file
+ *   is whatever the disk holds, so a list that is not one, a row with no name and a name listed
+ *   twice are each named rather than read past.
+ * @param {unknown} rows The committed record's list of rows.
+ * @param {RecordSpec} spec How the record lists its rows.
+ * @returns {Result<Map<string, string>>} Each row's name with the row as JSON.
+ */
+function rowsById(rows, { list, id, noun }) {
+  if (!Array.isArray(rows)) return { error: `the committed ${noun}'s ${list} are not a list` };
+  /** @type {Map<string, string>} */
+  const byId = new Map();
+  for (const row of rows) {
+    const name = isObject(row) ? row[id] : undefined;
+    if (typeof name !== "string") return { error: `a committed row has no ${id}` };
+    if (byId.has(name)) return { error: `the committed ${noun} lists ${name} twice` };
+    byId.set(name, JSON.stringify(row));
+  }
+  return { value: byId };
+}
+
+/**
+ * @description Names what differs between a committed record and the one the tree gives, by
+ *   parsing the committed text: the top-level keys, then every other top-level part of the
+ *   record the tree gives, compared whole, then each row that is new, gone or changed, in
+ *   code-unit order of its name. The parts are read from the record itself, so a part added to it
+ *   is compared the day it is added. Never empty: equal content laid out otherwise is named as
+ *   such.
+ * @param {string} committed The committed file's text, which differs from the rendered one.
+ * @param {Readonly<Record<string, unknown>>} current The record the tree gives.
+ * @param {RecordSpec} spec How the record lists its rows.
+ * @returns {string[]} One line per difference.
+ */
+function recordDrift(committed, current, spec) {
+  const { list, id, noun } = spec;
+  /** @type {unknown} */
+  let parsed;
+  try {
+    parsed = JSON.parse(committed);
+  } catch (error) {
+    return [`the committed ${noun} is not JSON: ${messageOf(error)}`];
+  }
+  if (!isObject(parsed)) return [`the committed ${noun} is not a JSON object`];
+  const was = rowsById(parsed[list], spec);
+  if ("error" in was) return [was.error];
+  /** @type {string[]} */
+  const lines = [];
+  if (Object.keys(parsed).join() !== Object.keys(current).join()) {
+    lines.push("the top-level keys differ");
+  }
+  for (const key of Object.keys(current).filter((part) => part !== list)) {
+    if (JSON.stringify(parsed[key]) !== JSON.stringify(current[key])) {
+      lines.push(`the ${key} differs`);
+    }
+  }
+  const rows = /** @type {ReadonlyArray<Readonly<Record<string, unknown>>>} */ (current[list]);
+  const now = new Map(rows.map((row) => [/** @type {string} */ (row[id]), JSON.stringify(row)]));
+  for (const name of [...new Set([...was.value.keys(), ...now.keys()])].sort(byCodeUnit)) {
+    const before = was.value.get(name);
+    const after = now.get(name);
+    if (after === undefined) lines.push(`${name}: in the committed ${noun}, not in the tree`);
+    else if (before === undefined) lines.push(`${name}: in the tree, not in the committed ${noun}`);
+    else if (before !== after) lines.push(`${name}: its row differs`);
+  }
+  return lines.length > 0 ? lines : ["the content is equal; only its formatting differs"];
+}
+
+/**
+ * @description `--check`: renders the record and compares its bytes with the committed file's,
+ *   names each difference, and exits 1 on a difference or when the run's lines are problems. A
+ *   committed file that does not exist is "no committed record"; any other read error, and a record
+ *   that cannot be rendered, exits 3 with its own message. The drift reads the run's record, the
+ *   one it rendered.
+ * @template {Readonly<Record<string, unknown>>} R
+ * @param {RecordSpec} spec How the command names its record.
+ * @param {RecordRun<R>} run The run.
+ * @returns {Promise<CliResult>} The result.
+ */
+export async function checkRecord(spec, run) {
+  const text = await rendered(spec, run);
+  if ("error" in text) return cliResult(EXIT.UNREAD, [...run.lines, text.error]);
+  const shown = shownPath(run.root, run.out);
+  /** @type {string} */
+  let committed;
+  try {
+    committed = readFileSync(run.out, "utf8");
+  } catch (error) {
+    const why = messageOf(error);
+    const missing = isObject(error) && error["code"] === "ENOENT";
+    return cliResult(EXIT.UNREAD, [
+      ...run.lines,
+      missing
+        ? `${spec.label}: unread: no committed ${spec.noun} at ${shown} (${why}); run \`${spec.command}\` and commit it`
+        : `${spec.label}: unread: ${shown} could not be read: ${why}`,
+    ]);
+  }
+  if (committed === text.value) {
+    return run.failing
+      ? cliResult(EXIT.VERDICT, run.lines)
+      : cliResult(EXIT.CLEAN, [...run.lines, `${spec.label}: ${shown} is current`]);
+  }
+  return cliResult(EXIT.VERDICT, [
+    ...run.lines,
+    ...recordDrift(committed, run.record, spec).map((line) => `${spec.label}: drift: ${line}`),
+    `${spec.label}: ${shown} is stale; run \`${spec.command}\` and commit the result`,
+  ]);
 }

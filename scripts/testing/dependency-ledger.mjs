@@ -5,38 +5,39 @@
  *   manifests declare, its declarations, its `bin` names, and for each name under the floor of
  *   real sites the sites by kind and path class, joined with the owner's decisions in
  *   `scripts/testing/dependency-decisions.json` and written as `dependency-ledger.json` at the
- *   repository root. The site reader is `lib/dependency-sites.mjs`, the manifest side
- *   `lib/dependency-manifests.mjs`, the rows, the decisions and the record
- *   `lib/dependency-ledger-core.mjs`, the reads, the exit codes and the write tail
- *   `lib/record-helpers.mjs`; the declarations and the production scope are the legal scan's,
+ *   repository root, or checked against it. The site reader is `lib/dependency-sites.mjs`, the
+ *   manifest side `lib/dependency-manifests.mjs`, the rows, the decisions and the record
+ *   `lib/dependency-ledger-core.mjs`, the reads, the exit codes, the drift and the write and check
+ *   tail `lib/record-helpers.mjs`; the declarations and the production scope are the legal scan's,
  *   `scanManifests` of `scripts/legal/subprocessors.mjs`.
  *
- *   MODES. It writes the record to `--out`, by default `dependency-ledger.json` at the root, and
- *   prints every problem of the decisions. `--sites <name>` prints a declared name's sites, one
- *   `<kind>\t<class>\t<file>` line each in code-unit order, above the floor too. The record is
- *   rendered with this repository's Prettier configuration for its record file, whatever root it
- *   describes and wherever `--out` writes it, the test ledger's rule too.
+ *   MODES. Without `--check` it writes the record to `--out`, by default `dependency-ledger.json`
+ *   at the root, and prints every problem of the decisions. With `--check` it compares the rendered
+ *   record's bytes with that file and names each part that differs. `--sites <name>` prints a
+ *   declared name's sites, one `<kind>\t<class>\t<file>` line each in code-unit order, above the
+ *   floor too. The record is rendered with this repository's Prettier configuration for its record
+ *   file, whatever root it describes and wherever `--out` writes it, the test ledger's rule too.
  *
  *   OWN FILES. A config string in one of the ledger's own files, its modules and its two suites
  *   alike ({@link LEDGER_FILES}), is not a site: those files name the package.json blocks,
  *   catalog protocols, tools and files the ledger reads, and plant packages as fixtures, which
  *   describes what the ledger measures rather than using it. Their imports still count.
  *
- *   EXIT CODES, the test ledger's: 0 written; 1 a problem of the decisions (the record is still
- *   written); 2 a usage error; 3 an input that could not be read in full (the git listing, a
- *   tracked module or stylesheet, a command line's source (a manifest's scripts, a hook, a
- *   workflow, a composite action, a tracked shell script), the workspace manifest, a manifest or
- *   the legal classification, an installed copy, the decisions file, the Prettier configuration,
- *   an exception the legal scan's walk of the workspace roots throws, or any reader result the
- *   core cannot classify) or a record that could not be written. 3 wins over 1: nothing is
- *   written from a partial read.
+ *   EXIT CODES, the test ledger's: 0 written or current; 1 a problem of the decisions or a drift of
+ *   the record (write mode still writes it); 2 a usage error; 3 an input that could not be read in
+ *   full (the git listing, a tracked module or stylesheet, a command line's source (a manifest's
+ *   scripts, a hook, a workflow, a composite action, a tracked shell script), the workspace
+ *   manifest, a manifest or the legal classification, an installed copy, the decisions file, the
+ *   committed record, the Prettier configuration, an exception the legal scan's walk of the
+ *   workspace roots throws, or any reader result the core cannot classify) or a record that could
+ *   not be written. 3 wins over 1: nothing is written or compared from a partial read.
  *
  *   RESIDUAL. The legal scan walks the filesystem and the derived manifests read git's listing, so
  *   an untracked `package.json` under `apps/`, `packages/` or `infra/` makes the two disagree and
  *   exits 3: fail-closed by design, cleared by tracking or deleting the file.
  *
- *   Usage: `node scripts/testing/dependency-ledger.mjs [--root <dir>] [--out <file>]
- *   [--sites <name>]`, or `pnpm deps:ledger`.
+ *   Usage: `node scripts/testing/dependency-ledger.mjs [--root <dir>] [--out <file>] [--check]
+ *   [--sites <name>]`, or `pnpm deps:ledger` and `pnpm check:deps-ledger`.
  * @layer infrastructure
  */
 import path from "node:path";
@@ -70,6 +71,7 @@ import {
 import {
   EXIT,
   byCodeUnit,
+  checkRecord,
   cliResult,
   isEntryPoint,
   listTrackedFiles,
@@ -80,9 +82,15 @@ import {
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const USAGE =
-  "usage: node scripts/testing/dependency-ledger.mjs [--root <dir>] [--out <file>] [--sites <name>]";
-/** How the command names its record in what it prints. */
-const SPEC = Object.freeze({ label: "dependency-ledger", noun: "record" });
+  "usage: node scripts/testing/dependency-ledger.mjs [--root <dir>] [--out <file>] [--check] [--sites <name>]";
+/** How the command names its record in what it prints, and how the record lists its rows. */
+const SPEC = Object.freeze({
+  label: "dependency-ledger",
+  noun: "record",
+  command: "pnpm deps:ledger",
+  list: "names",
+  id: "name",
+});
 /**
  * The ledger's own files, repository-relative: the command, its site reader, its manifest side,
  * its core, the record helpers, and the two suites that pin them. A config string in one of them
@@ -123,7 +131,8 @@ export const LEDGER_FILES = Object.freeze([
  *
  * @typedef {object} Options
  * @property {string} root Absolute.
- * @property {string} out Absolute: the record written.
+ * @property {string} out Absolute: the record written, or checked.
+ * @property {boolean} check Whether to compare instead of write.
  * @property {string | null} sites The name whose sites to print, or `null`.
  */
 
@@ -271,12 +280,12 @@ export function build(root, seams = {}) {
 
 /**
  * @description Reads the command line. `--root`, `--out` and `--sites` take a non-empty value;
- *   an unknown flag and a positional argument are usage errors.
+ *   an unknown flag, a positional argument and `--sites` with `--check` are usage errors.
  * @param {readonly string[]} argv The arguments after the script path.
  * @returns {Result<Options>} The options, or the usage error.
  */
 function parseArguments(argv) {
-  /** @type {{ root?: string, out?: string, sites?: string }} */
+  /** @type {{ root?: string, out?: string, check?: boolean, sites?: string }} */
   let values;
   try {
     ({ values } = parseArgs({
@@ -284,6 +293,7 @@ function parseArguments(argv) {
       options: {
         root: { type: "string" },
         out: { type: "string" },
+        check: { type: "boolean" },
         sites: { type: "string" },
       },
       strict: true,
@@ -295,11 +305,15 @@ function parseArguments(argv) {
   for (const flag of /** @type {const} */ (["root", "out", "sites"])) {
     if (values[flag] === "") return { error: `--${flag} takes a non-empty value` };
   }
+  if (values.check === true && values.sites !== undefined) {
+    return { error: "--sites cannot be combined with --check" };
+  }
   const root = path.resolve(values.root ?? ROOT);
   return {
     value: {
       root,
       out: path.resolve(values.out ?? path.join(root, RECORD_FILE)),
+      check: values.check === true,
       sites: values.sites ?? null,
     },
   };
@@ -344,7 +358,7 @@ function sitesOf(built, name) {
 }
 
 /**
- * @description The command line, as a function: parse, build, then write or print a name's
+ * @description The command line, as a function: parse, build, then write, check or print a name's
  *   sites.
  * @param {readonly string[]} argv The arguments after the script path.
  * @param {DependencyLedgerSeams} [seams] Replacements for the suite; the command passes none.
@@ -366,7 +380,7 @@ export async function main(argv, seams = {}) {
     lines: problems.map((problem) => `${SPEC.label}: ${problem}`),
     failing: problems.length > 0,
   };
-  return writeRecord(SPEC, run, counts(built.value));
+  return options.check ? checkRecord(SPEC, run) : writeRecord(SPEC, run, counts(built.value));
 }
 
 if (isEntryPoint(import.meta.url)) {
