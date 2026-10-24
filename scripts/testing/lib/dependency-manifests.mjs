@@ -13,9 +13,9 @@
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { readTopLevelBlock } from "../workspace-block-reader.mjs";
+import { WORKSPACE_FILE, readPackageGlobs, readTopLevelBlock } from "../workspace-block-reader.mjs";
 import { SITE_KINDS, packageOf } from "./dependency-sites.mjs";
-import { byCodeUnit, isObject } from "./record-helpers.mjs";
+import { byCodeUnit, isObject, messageOf, readText } from "./record-helpers.mjs";
 
 /**
  * @template T
@@ -28,69 +28,15 @@ import { byCodeUnit, isObject } from "./record-helpers.mjs";
  * @property {Map<string, Set<string>>} named The names each catalog of the `catalogs:` block holds.
  */
 
-/** The workspace manifest, at the repository root: the `packages:` globs and the catalogs. */
-export const WORKSPACE_FILE = "pnpm-workspace.yaml";
 const ROOT_MANIFEST = "package.json";
 const CATALOG_PROTOCOL = "catalog:";
 
-/** One entry of the workspace manifest's `packages:` list: a glob, quoted or plain. */
-const PACKAGE_GLOB = /^\s+-\s+["']?([^"'\s]+)["']?\s*$/;
 /** One entry of the `catalog:` block, at column 2, its key quoted or plain. */
 const DEFAULT_ENTRY = /^ {2}("?)([^"\s:]+)\1:\s*[^\s#]+/;
 /** The key that opens a named catalog inside the `catalogs:` block, at column 2. */
 const NAMED_CATALOG = /^ {2}([^\s"#:]+):\s*(#.*)?$/;
 /** One entry of a named catalog, at column 4. */
 const NAMED_ENTRY = /^ {4}("?)([^"\s:]+)\1:\s*[^\s#]+/;
-
-/**
- * @description Words a thrown value.
- * @param {unknown} error What was thrown.
- * @returns {string} Its message.
- */
-function messageOf(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-
-/**
- * @description Reads one file of the tree.
- * @param {string} root Absolute repository root.
- * @param {string} file Repository-relative.
- * @returns {Result<string>} Its text, or an error naming the file.
- */
-function readText(root, file) {
-  try {
-    return { value: readFileSync(path.join(root, file), "utf8") };
-  } catch (error) {
-    return { error: `${file} could not be read: ${messageOf(error)}` };
-  }
-}
-
-/**
- * @typedef {object} PackageGlobs The `packages:` globs of a workspace manifest.
- * @property {string[]} positive The globs that add workspaces, in the manifest's order.
- * @property {string[]} negated The globs that take workspaces out, their `!` dropped.
- */
-
-/**
- * @description Reads the `packages:` block of a workspace manifest: each entry a glob, quoted or
- *   plain, a negated one starting with `!`. A manifest with no such block, or an entry the reader
- *   cannot read, is an error, never an empty or partial list.
- * @param {string} text The text of {@link WORKSPACE_FILE}.
- * @returns {Result<PackageGlobs>} The globs, positive and negated.
- */
-export function readPackageGlobs(text) {
-  const lines = readTopLevelBlock(text, "packages");
-  if (lines === null) return { error: `${WORKSPACE_FILE} has no packages: block` };
-  /** @type {PackageGlobs} */
-  const globs = { positive: [], negated: [] };
-  for (const line of lines) {
-    const glob = PACKAGE_GLOB.exec(line)?.[1];
-    if (glob === undefined) return { error: `${WORKSPACE_FILE}: cannot read "${line.trim()}"` };
-    if (glob.startsWith("!")) globs.negated.push(glob.slice(1));
-    else globs.positive.push(glob);
-  }
-  return { value: globs };
-}
 
 /**
  * @description Lists the workspace manifests: the root `package.json` and every tracked
