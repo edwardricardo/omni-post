@@ -107,6 +107,7 @@ catalog:
   prom-client: 15.1.3 # MAX of 15.0.0 / 15.1.3
 
   # ── App/server runtime (DIRECT) ──
+  fastify: 5.12.6 # CVE floor of GHSA-389g-gv7q-r4x8 (SECURITY_CANON row `fastify`); two consumers since 2026-10-23: apps/api and the span probe of @observability/opentelemetry
   pino: 10.3.1
   zod: 4.6.7 # CVE floor raised 2026-10-23 for GHSA-mrhx-c7xc-m3w5 (high, CVE-2023-54404: memory exhaustion validating oversized constrained collections; vulnerable <4.6.6, patched 4.6.6; OSV `introduced 0, fixed 4.6.6`, so the 3.x line has no fix). 4.6.7 is `latest` and mature (published 2026-10-12T16:29:37Z; 4.6.6 on 2026-10-11 carries the fix, 4.6.7 is one version commit over it). The tree's single zod copy since this raise: the `zod: "catalog:"` override below extends it to the @atproto packages, which declare `^3.23.8` and had their own 3.25.76 (7 paths); the direct 4.x consumers (knip, @t3-oss/env-core and env-nextjs, fastify-type-provider-zod, @scalar, langchain, openai, @anthropic-ai/sdk) take it through the catalog. See SECURITY_CANON §CVE-floor pins, row `zod`.
   cloudinary: 2.10.0 # taken 2026-06-20 (`9ab44e82`), not moved since; 2.11.0 is newer and mature (registry, 2026-10-03); was 2.7.0
@@ -198,8 +199,11 @@ catalogs:
   # moves atomically. It is not the newest: on 2026-10-03 the registry carries a
   # newer release for 10 of the 12 members, named per line. Two members left on
   # 2026-10-16, `@opentelemetry/instrumentation` and `@opentelemetry/propagation-utils`,
-  # with their one declaration, which nothing imported. Only `core` is still
-  # extended to transitive copies by an override, as a CVE floor (decision D47).
+  # with their one declaration, which nothing imported. `@opentelemetry/instrumentation-fastify`
+  # left on 2026-10-23, deprecated upstream for `@fastify/otel`, which the Fastify authors
+  # release on their own train and its one manifest declares as a literal. No member has
+  # been extended to transitive copies by an override since 2026-10-22, when the `core`
+  # CVE-floor override left (the overrides header below).
   otel:
     "@opentelemetry/api": 1.9.1 # the newest release on 2026-10-03
     "@opentelemetry/auto-instrumentations-node": 0.77.0 # 0.80.0 is newer and mature; was 0.75.0
@@ -207,7 +211,6 @@ catalogs:
     "@opentelemetry/exporter-prometheus": 0.219.0 # 0.222.0 is newer and mature; was 0.217.0
     "@opentelemetry/sdk-node": 0.219.0 # 0.222.0 is newer and mature; was 0.217.0
     "@opentelemetry/exporter-trace-otlp-http": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
-    "@opentelemetry/instrumentation-fastify": 0.57.0 # the newest release on 2026-10-03
     "@opentelemetry/instrumentation-fs": 0.38.0 # 0.41.0 is newer and mature; was 0.33.0
     "@opentelemetry/instrumentation-http": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
     "@opentelemetry/instrumentation-redis": 0.67.0 # 0.70.0 is newer and mature; was 0.62.0

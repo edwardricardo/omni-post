@@ -1,21 +1,23 @@
 /**
  * @file index.ts
  * @description OpenTelemetry NodeSDK bootstrap for the platform — configures trace and metric
- *              exporters, resource attributes, and auto-instrumentation for HTTP, Fastify, Redis.
+ *              exporters, resource attributes, and the instrumentations for HTTP, Fastify, Redis
+ *              and the file system.
  * @layer infrastructure
  */
-import { NodeSDK } from "@opentelemetry/sdk-node";
+import { NodeSDK, type NodeSDKConfiguration } from "@opentelemetry/sdk-node";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { PrometheusExporter } from "@opentelemetry/exporter-prometheus";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
-import { FastifyInstrumentation } from "@opentelemetry/instrumentation-fastify";
+import { FastifyOtelInstrumentation } from "@fastify/otel";
 import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
 import { RedisInstrumentation } from "@opentelemetry/instrumentation-redis";
 import { FsInstrumentation } from "@opentelemetry/instrumentation-fs";
 import pino from "pino";
+import { tagProviderSpan } from "./providerSpanAttributes.js";
 
 export interface TelemetryConfig {
   serviceName: string;
@@ -71,7 +73,7 @@ export class SocialMediaTelemetry {
     const exporters = this.configureExporters();
 
     // Configure instrumentations
-    const instrumentations = this.configureInstrumentations();
+    const instrumentations = createTelemetryInstrumentations();
 
     // Initialize SDK (use conditional spreading for exactOptionalPropertyTypes compliance)
     this.sdk = new NodeSDK({
@@ -115,87 +117,10 @@ export class SocialMediaTelemetry {
     return { trace: traceExporter, metrics: metricsReader };
   }
 
-  private configureInstrumentations() {
-    return [
-      // Auto-instrumentations for common Node.js libraries
-      getNodeAutoInstrumentations({
-        "@opentelemetry/instrumentation-fs": {
-          enabled: true,
-        },
-      }),
-
-      // Fastify-specific instrumentation for API server
-      new FastifyInstrumentation({
-        enabled: true,
-        requestHook: (span, request) => {
-          // Add custom attributes for social media context
-          const headers = (
-            request as unknown as { headers: Record<string, string | string[] | undefined> }
-          ).headers;
-          if (headers["x-tenant-id"]) {
-            span.setAttributes({
-              "tenant.id": headers["x-tenant-id"] as string,
-            });
-          }
-          if (headers["x-project-id"]) {
-            span.setAttributes({
-              "project.id": headers["x-project-id"] as string,
-            });
-          }
-          if (headers["x-provider"]) {
-            span.setAttributes({
-              "social.provider": headers["x-provider"] as string,
-            });
-          }
-        },
-      }),
-
-      // HTTP instrumentation for provider API calls
-      new HttpInstrumentation({
-        enabled: true,
-        ignoreOutgoingRequestHook: (req) => {
-          // Don't trace internal health checks
-          const url = (req as unknown as { path?: string }).path || "";
-          return url.includes("/health") || url.includes("/metrics");
-        },
-        requestHook: (span, request) => {
-          // Add social media provider context
-          const url = (request as unknown as { path?: string }).path || "";
-          if (url.includes("api.twitter.com") || url.includes("api.x.com")) {
-            span.setAttributes({
-              "social.provider": "x",
-              "social.api.version": "2",
-            });
-          } else if (url.includes("graph.facebook.com")) {
-            span.setAttributes({
-              "social.provider": "instagram",
-              "social.api.version": "v18.0",
-            });
-          }
-        },
-      }),
-
-      // Redis instrumentation for cache and queues
-      new RedisInstrumentation({
-        enabled: true,
-        dbStatementSerializer: (cmdName, cmdArgs) => {
-          // Sanitize sensitive data in Redis commands
-          if (cmdName.toLowerCase().includes("auth") || cmdName.toLowerCase().includes("set")) {
-            return `${cmdName} [REDACTED]`;
-          }
-          return `${cmdName} ${cmdArgs.join(" ")}`;
-        },
-      }),
-
-      // File system instrumentation for media handling
-      new FsInstrumentation({
-        enabled: true,
-      }),
-    ];
-  }
-
   /**
-   * Start the telemetry system
+   * @method start
+   * @description Starts the NodeSDK: registers the tracer and meter providers and enables every
+   *              instrumentation of `createTelemetryInstrumentations()`.
    */
   async start(): Promise<void> {
     try {
@@ -208,7 +133,8 @@ export class SocialMediaTelemetry {
   }
 
   /**
-   * Gracefully shutdown the telemetry system
+   * @method shutdown
+   * @description Flushes pending spans and metrics and shuts the NodeSDK down.
    */
   async shutdown(): Promise<void> {
     try {
@@ -221,7 +147,9 @@ export class SocialMediaTelemetry {
   }
 
   /**
-   * Get the current configuration
+   * @method getConfig
+   * @description Returns a shallow copy of the configuration this instance was built with.
+   * @returns The telemetry configuration
    */
   getConfig(): TelemetryConfig {
     return { ...this.config };
@@ -229,8 +157,65 @@ export class SocialMediaTelemetry {
 }
 
 /**
- * Initialize OpenTelemetry for different service types.
- * Registers SIGINT/SIGTERM handlers for graceful shutdown.
+ * @description Builds the instrumentations the NodeSDK of `SocialMediaTelemetry` enables. Fastify
+ *              is instrumented by `@fastify/otel` with `registerOnInitialization`: on `enable()` it
+ *              subscribes to Fastify's `fastify.initialization` diagnostics channel and registers
+ *              its plugin on every instance created afterwards, patching no module. The API is ESM
+ *              and imports `fastify` before the SDK starts, so a module-patching instrumentation
+ *              would never see that import; a subscription made before `Fastify()` runs does.
+ * @returns The instrumentations, in the shape `NodeSDKConfiguration.instrumentations` takes
+ */
+export function createTelemetryInstrumentations(): NodeSDKConfiguration["instrumentations"] {
+  return [
+    // Auto-instrumentations for common Node.js libraries
+    getNodeAutoInstrumentations({
+      "@opentelemetry/instrumentation-fs": {
+        enabled: true,
+      },
+    }),
+
+    // Fastify route spans: one `request` span per request and one child span per handler and hook
+    new FastifyOtelInstrumentation({ registerOnInitialization: true }),
+
+    // HTTP instrumentation for provider API calls
+    new HttpInstrumentation({
+      enabled: true,
+      ignoreOutgoingRequestHook: (req) => {
+        // Don't trace internal health checks
+        const url = (req as unknown as { path?: string }).path || "";
+        return url.includes("/health") || url.includes("/metrics");
+      },
+      // Social provider context on outgoing requests. The provider is recognised by host-name
+      // equality, because a substring test on a URL lets `api.twitter.com.evil.example` pass, and
+      // the host is read from the request itself, because the `path` of an outgoing request never
+      // holds it. Incoming requests are never tagged: the client chooses their `Host` header.
+      requestHook: tagProviderSpan,
+    }),
+
+    // Redis instrumentation for cache and queues
+    new RedisInstrumentation({
+      enabled: true,
+      dbStatementSerializer: (cmdName, cmdArgs) => {
+        // Sanitize sensitive data in Redis commands
+        if (cmdName.toLowerCase().includes("auth") || cmdName.toLowerCase().includes("set")) {
+          return `${cmdName} [REDACTED]`;
+        }
+        return `${cmdName} ${cmdArgs.join(" ")}`;
+      },
+    }),
+
+    // File system instrumentation for media handling
+    new FsInstrumentation({
+      enabled: true,
+    }),
+  ];
+}
+
+/**
+ * @description Builds the telemetry for one service and registers SIGINT and SIGTERM handlers that
+ *              shut it down before the process exits. The SDK is not started here.
+ * @param config - The service's telemetry configuration
+ * @returns The telemetry instance, to be started with `start()`
  */
 export function initializeTelemetry(config: TelemetryConfig): SocialMediaTelemetry {
   const telemetry = new SocialMediaTelemetry(config);
@@ -261,7 +246,12 @@ export function initializeTelemetry(config: TelemetryConfig): SocialMediaTelemet
   return telemetry;
 }
 
-// Pre-configured telemetry setups for different services
+/**
+ * @description Builds the API server's telemetry: OTLP traces, the Prometheus exporter, and
+ *              detailed diagnostics in development.
+ * @param environment - The runtime environment name
+ * @returns The telemetry instance, to be started with `start()`
+ */
 export const createApiTelemetry = (environment: string = "development") => {
   return initializeTelemetry({
     serviceName: process.env.OTEL_SERVICE_NAME || "omnipost-api",
@@ -278,6 +268,12 @@ export const createApiTelemetry = (environment: string = "development") => {
   });
 };
 
+/**
+ * @description Builds the workers' telemetry: OTLP traces, the Prometheus exporter, and detailed
+ *              diagnostics in development.
+ * @param environment - The runtime environment name
+ * @returns The telemetry instance, to be started with `start()`
+ */
 export const createWorkerTelemetry = (environment: string = "development") => {
   return initializeTelemetry({
     serviceName: process.env.OTEL_SERVICE_NAME || "omnipost-worker",
@@ -294,6 +290,12 @@ export const createWorkerTelemetry = (environment: string = "development") => {
   });
 };
 
+/**
+ * @description Builds the client portal's telemetry: OTLP traces, no Prometheus exporter, and
+ *              detailed diagnostics in development.
+ * @param environment - The runtime environment name
+ * @returns The telemetry instance, to be started with `start()`
+ */
 export const createClientTelemetry = (environment: string = "development") => {
   return initializeTelemetry({
     serviceName: process.env.OTEL_SERVICE_NAME || "omnipost-client",
@@ -310,6 +312,12 @@ export const createClientTelemetry = (environment: string = "development") => {
   });
 };
 
+/**
+ * @description Builds the admin portal's telemetry: OTLP traces, no Prometheus exporter, and
+ *              detailed diagnostics in development.
+ * @param environment - The runtime environment name
+ * @returns The telemetry instance, to be started with `start()`
+ */
 export const createAdminTelemetry = (environment: string = "development") => {
   return initializeTelemetry({
     serviceName: process.env.OTEL_SERVICE_NAME || "omnipost-admin",
