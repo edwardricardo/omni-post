@@ -9,13 +9,14 @@
  *
  *   Then the readers of `scripts/testing/lib/reach-report.mjs` (the report, its per-file map, the
  *   quarantine's owners) and the command, `scripts/testing/ledger.mjs`: `build(root, seams)` (the
- *   reach join, the quarantine owner, what is listed, what stops the build), then write mode through
- *   `main(argv, seams)`, with #48's exit codes (0 written, 2 usage, 3 an unread input). They run over
- *   fixture trees planted in fresh directories under `tmpdir()`, the git listing and the reach engine
- *   replaced, so they spawn nothing. Last, the run over this repository: the reach engine runs once
- *   and its report is handed back through `--reach`; the ledger's block counts must equal a direct
- *   `classifyFile` fold over the same tracked files, its test-shaped rows M1's count from
- *   `metrics.mjs --m1`, and a second run through the seam the first run's bytes.
+ *   reach join, the quarantine owner, what is listed, what stops the build), then write mode and
+ *   `--check` through `main(argv, seams)`, with #48's exit codes (0 clean, 1 drift, 2 usage, 3 an
+ *   unread input, 3 winning over 1). They run over fixture trees planted in fresh directories under
+ *   `tmpdir()`, the git listing and the reach engine replaced, so they spawn nothing. Last, the run
+ *   over this repository: the reach engine runs once and its report is handed back through
+ *   `--reach`; the ledger's block counts must equal a direct `classifyFile` fold over the same
+ *   tracked files, its test-shaped rows M1's count from `metrics.mjs --m1`, and a second run
+ *   through the seam the first run's bytes.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -1083,6 +1084,55 @@ describe("ledger.mjs write mode", () => {
     expect(result.code).toBe(3);
     expect(result.output).toContain(line);
     expect(existsSync(ledgerFile(root))).toBe(false);
+  });
+});
+
+/** Renames one block of B in the written ledger, the drift `--check` must name. */
+const retitle = (root: string): void => {
+  const text = readFileSync(ledgerFile(root), "utf8");
+  writeFileSync(ledgerFile(root), text.replace(`${B}::loads the module"`, `${B}::loads it"`));
+};
+
+describe("ledger.mjs --check", () => {
+  it("returns 0 over the ledger it wrote, and 1 naming the one path whose block title drifted", async () => {
+    const root = plant(FIXTURE);
+    await run(root);
+
+    const current = await run(root, ["--check"]);
+    retitle(root);
+    const drifted = await run(root, ["--check"]);
+
+    expect(current).toEqual({ code: 0, output: "ledger: ledger.json is current\n" });
+    expect(drifted).toEqual({
+      code: 1,
+      output:
+        `ledger: drift: ${B}: its row differs\n` +
+        "ledger: ledger.json is stale; run `pnpm ledger` and commit the result\n",
+    });
+  });
+
+  it("returns 3 when there is no committed ledger to check", async () => {
+    const root = plant(FIXTURE);
+
+    const result = await run(root, ["--check"]);
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain("ledger: unread: no committed ledger at ledger.json");
+  });
+
+  it("returns 3 over 1 when the committed ledger drifted and reach could not read an input, comparing nothing", async () => {
+    const root = plant(FIXTURE);
+    await run(root);
+    retitle(root);
+
+    const result = await run(root, ["--check"], {
+      runReach: () => REACH_UNREAD,
+    });
+
+    expect(result).toEqual({
+      code: 3,
+      output: `ledger: unread: test-contracts reach could not read an input: ${UNREAD_INPUT}\n`,
+    });
   });
 });
 
