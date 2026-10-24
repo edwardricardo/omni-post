@@ -1724,6 +1724,69 @@ jobs:
             exit 1
           fi
 
+      - name: "#49 Every test-block lint rule stays at error and no inline directive turns one off"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #49. eslint-suppressions.json holds the tree's test blocks that cannot
+          # fail at the count they had when their rules landed, and lets it only shrink; that holds
+          # only while each rule is an error. Part A pins each rule's error line in
+          # eslint.config.ts, exactly as prettier writes it: no-console's line in the test-files
+          # block, with console.warn and console.error as its only allowed members, and its one off
+          # block, scoped to the runner's entry points (unrunTestFiles); and it refuses any line that
+          # sets one of the eleven test-block rules to off or warn (no-console is left out of that
+          # scan: its off lines are the scripts, stories, seeds and runner blocks). Part B refuses an
+          # inline eslint-disable directive naming one of the twelve rules in a tracked .ts or .tsx
+          # file: a directive takes a block out of the ratchet without pruning it. Fail-closed: a
+          # missing config, and a git grep that cannot read the tree, each exit 1.
+          set -uo pipefail
+          CONFIG=eslint.config.ts
+          if [ ! -f "$CONFIG" ]; then
+            echo "::error title=Fitness #49 scope error::$CONFIG does not exist, so no rule can be pinned and a zero would be a blind one."
+            exit 1
+          fi
+          # Part A: each rule holds its `error` line in the config. Three forms, one pin each: the ten
+          # single-line rules below (SINGLE_LINE_RULES), expect-expect's two-line array (EXPECT_PIN), and
+          # no-console's bracketed allow list (CONSOLE_PIN) with its one off block (RUNNER_OFF, RUNNER_PIN).
+          SINGLE_LINE_RULES="vitest/no-conditional-expect vitest/valid-expect vitest/no-standalone-expect vitest/no-identical-title vitest/no-commented-out-tests vitest/no-disabled-tests vitest/no-focused-tests testing/no-empty-test testing/no-existence-only-test testing/no-tautological-assertion"
+          MISSING=""
+          for rule in $SINGLE_LINE_RULES; do
+            PIN=$(grep -cxF "      \"$rule\": \"error\"," "$CONFIG" || true)
+            [ "${PIN:-0}" -ge 1 ] || MISSING="$MISSING $rule"
+          done
+          EXPECT_PIN=$(grep -A1 -xF '      "vitest/expect-expect": [' "$CONFIG" | grep -cxF '        "error",' || true)
+          [ "${EXPECT_PIN:-0}" -ge 1 ] || MISSING="$MISSING vitest/expect-expect"
+          CONSOLE_PIN=$(grep -A2 -xF '    files: testFiles,' "$CONFIG" | grep -cxF '      "no-console": ["error", { allow: ["warn", "error"] }],' || true)
+          [ "${CONSOLE_PIN:-0}" -ge 1 ] || MISSING="$MISSING no-console(test files)"
+          RUNNER_OFF=$(grep -cxF '    rules: { "no-console": "off" },' "$CONFIG" || true)
+          RUNNER_PIN=$(grep -B1 -xF '    rules: { "no-console": "off" },' "$CONFIG" | grep -cxF '    files: unrunTestFiles,' || true)
+          [ "${RUNNER_OFF:-0}" -eq 1 ] && [ "${RUNNER_PIN:-0}" -eq 1 ] || MISSING="$MISSING no-console-off(runner entry points only)"
+          RULES_RE='vitest/(expect-expect|no-conditional-expect|valid-expect|no-standalone-expect|no-identical-title|no-commented-out-tests|no-disabled-tests|no-focused-tests)|testing/(no-empty-test|no-existence-only-test|no-tautological-assertion)'
+          WEAKENED=$(grep -nE "\"($RULES_RE)\": *(\"(off|warn)\"|[01]\b|\[ *(\"(off|warn)\"|[01]\b))" "$CONFIG" || true)
+          WCOUNT=$(printf "%s" "$WEAKENED" | grep -c . || true); WCOUNT=${WCOUNT:-0}
+          # Part B: no inline directive turns one of them off in a tracked source file.
+          DSTATUS=0
+          DIRECTIVES=$(git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!eslint.config.ts') || DSTATUS=$?
+          if [ "$DSTATUS" -gt 1 ]; then
+            echo "::error title=Fitness #49 scope error::git grep exited $DSTATUS over the tracked TypeScript files, so a zero would be a blind one."
+            exit 1
+          fi
+          DCOUNT=$(printf "%s" "$DIRECTIVES" | grep -c . || true); DCOUNT=${DCOUNT:-0}
+          echo "Fitness #49: missing pins:${MISSING:- none}; weakened=$WCOUNT; inline directives=$DCOUNT (expect none, 0 and 0)"
+          if [ -n "$MISSING" ]; then
+            echo "::error title=Fitness #49 violation::eslint.config.ts no longer sets these rules to error on their globs, or a reformat moved their lines (the pins are indentation-exact, so a moved line reads as a missing one):$MISSING. Each one names a test block that cannot fail or a test that hides from its runner, and eslint-suppressions.json holds the tree's violations only while the rule is an error; at warn or off the ratchet stops counting and the classes grow back unseen."
+          fi
+          if [ "$WCOUNT" -gt 0 ]; then
+            echo "::error title=Fitness #49 violation::eslint.config.ts sets one of the test-block rules to off or warn on some glob; a later block overrides the error line the pin reads."
+            printf "%s\n" "$WEAKENED"
+          fi
+          if [ "$DCOUNT" -gt 0 ]; then
+            echo "::error title=Fitness #49 violation::$DCOUNT inline eslint-disable directive(s) name a test-block rule or no-console: a directive takes a block out of the suppressions ratchet without pruning anything. Fix the block, or delete it and prune its entry with eslint . --prune-suppressions."
+            printf "%s\n" "$DIRECTIVES" | head -20
+          fi
+          if [ -n "$MISSING" ] || [ "$WCOUNT" -gt 0 ] || [ "$DCOUNT" -gt 0 ]; then
+            exit 1
+          fi
+
   dependency-consistency:
     name: Dependency Consistency (catalog single-version + lockfile)
     runs-on: ubuntu-latest

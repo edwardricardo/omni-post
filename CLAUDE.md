@@ -318,7 +318,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **48 checks, numbered #1-#48**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. Every baseline may fall and must never rise.) There are **49 checks, numbered #1-#49**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -2138,6 +2138,55 @@ pnpm check:patched-deps   # expect exit 0 and, with no patch, this one line:
 # With a patch, one line per patch (tab-separated) and a summary:
 #   <package>@<version>  patch  consistent
 #   1 patched dependency checked against patchedDependencies, patches/ and the ADRs: 1 consistent, 0 violation(s)
+
+# 49. Every test-block lint rule stays at `error`, and no inline directive turns one off.
+# Threat: eslint-suppressions.json holds the test blocks that cannot fail, and the tests that hide
+# from their runner, at the count the tree had when their rules landed, and lets it only shrink: a
+# deleted block whose entry is not pruned makes `pnpm lint` exit 2. That ratchet counts only while
+# each rule is an error. At `warn` or `off` every entry of the rule goes unused, a prune deletes
+# them, and the class grows back with nothing counting it; an inline `eslint-disable` takes one
+# block out of the count without pruning anything.
+# WHAT IT READS. Part A: eslint.config.ts, as text. Each of the twelve rules keeps its `error` line
+# exactly as prettier writes it: the eight `vitest/*` rules of the block over the files Vitest
+# collects (expect-expect's `"error",` on the line after its key), the three `testing/*` rules of
+# the block over every test file, and `"no-console": ["error", { allow: ["warn", "error"] }]` as
+# the first rule of the block that opens with `files: testFiles,`, so `console.log` and the other
+# stdout writers stay errors in test code. Its one `off` block is the single-line
+# `rules: { "no-console": "off" }` directly under `files: unrunTestFiles,`, the runner's three
+# entry points, and no other. No line of the file sets one of the eleven test-block rules to `off`
+# or `warn`, by name or by number, alone or at the head of an array; `no-console` is left out of
+# that scan, because its `off` lines are the blocks of scripts, stories, seeds and the runner's
+# entry points. Part B: no tracked .ts or .tsx file holds an `eslint-disable` directive that names
+# one of the twelve rules (0 on 2026-10-24); eslint.config.ts is out of that scan, since it names
+# the rules by design.
+# FAIL-CLOSED: a missing eslint.config.ts and a git grep that cannot read the tree each exit 1; a
+# pin that matches nothing is a violation, never a pass.
+# RESIDUAL LIMITS, stated rather than implied: (1) textual over the config: a rule switched off
+# through a variable, a spread or a severity built at run time passes, and so does a later block
+# that narrows a rule's glob or a multi-line `no-console` `off` block over test files; only the
+# resolved config (`eslint --print-config <file>`) sees those, and it needs the installed tree; (2)
+# the pins are indentation-exact, so a reformat that moves a line fails closed, red rather than
+# green; (3) a blanket `eslint-disable` that names no rule is not counted; (4) the contents of
+# `unrunTestFiles` are not pinned, only that the `off` block reads that list; (5) it proves the
+# rules are on, never that the suppressions file matches the tree, which `pnpm lint` proves by its
+# exit 2.
+set -uo pipefail
+CONFIG=eslint.config.ts
+[ -f "$CONFIG" ]   # expect exit 0
+for rule in vitest/no-conditional-expect vitest/valid-expect vitest/no-standalone-expect \
+    vitest/no-identical-title vitest/no-commented-out-tests vitest/no-disabled-tests \
+    vitest/no-focused-tests testing/no-empty-test testing/no-existence-only-test \
+    testing/no-tautological-assertion; do
+  grep -cxF "      \"$rule\": \"error\"," "$CONFIG"   # expect >= 1 for each rule
+done
+grep -A1 -xF '      "vitest/expect-expect": [' "$CONFIG" | grep -cxF '        "error",'   # expect >= 1
+grep -A2 -xF '    files: testFiles,' "$CONFIG" | \
+  grep -cxF '      "no-console": ["error", { allow: ["warn", "error"] }],'   # expect >= 1
+grep -cxF '    rules: { "no-console": "off" },' "$CONFIG"   # expect 1
+grep -B1 -xF '    rules: { "no-console": "off" },' "$CONFIG" | grep -cxF '    files: unrunTestFiles,'   # expect 1
+RULES_RE='vitest/(expect-expect|no-conditional-expect|valid-expect|no-standalone-expect|no-identical-title|no-commented-out-tests|no-disabled-tests|no-focused-tests)|testing/(no-empty-test|no-existence-only-test|no-tautological-assertion)'
+grep -cE "\"($RULES_RE)\": *(\"(off|warn)\"|[01]\b|\[ *(\"(off|warn)\"|[01]\b))" "$CONFIG"   # expect 0
+git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!eslint.config.ts' | wc -l   # expect 0
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One
