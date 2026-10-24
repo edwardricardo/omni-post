@@ -8,6 +8,9 @@
  *   sites of a declared name. Each case runs over a tree planted in a fresh directory under
  *   `tmpdir()`, with the tracked files handed in as a list, so nothing is spawned and the
  *   repository is read for its workspace manifest only.
+ *
+ *   Then the ledger's core, `scripts/testing/lib/dependency-ledger-core.mjs`, over rows built from
+ *   literal inputs: the rows the readers' outputs join into, and the real-site rule and the floor.
  * @layer infrastructure
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -70,11 +73,70 @@ type LegalModule = {
   scanManifests: (root: string, listed?: string[]) => { manifests: string[] };
 };
 
+type PathClass = "production" | "test" | "config";
+type Scope = "production" | "dev-only";
+type Verdict = "above-floor" | "under-floor";
+/** A row's sites: kind, then path class, then the files. */
+type Sites = Readonly<Record<string, Readonly<Partial<Record<PathClass, readonly string[]>>>>>;
+
+/** One declaration of a row, its specifier read as a kind. */
+interface RowDeclaration {
+  readonly manifest: string;
+  readonly block: string;
+  readonly specifier: string;
+}
+
+/** What the real-site rule reads of a row. */
+interface Counted {
+  readonly scope: Scope;
+  readonly typedTarget: string | null;
+  readonly sites: Sites;
+}
+
+/** One declared name with everything the readers found for it, counted against the floor. */
+interface Row extends Counted {
+  readonly name: string;
+  readonly declarations: readonly RowDeclaration[];
+  readonly bins: readonly string[] | null;
+  readonly real: number;
+  readonly verdict: Verdict;
+}
+
+/** What the legal scan says of one name. */
+interface Declared {
+  readonly production: boolean;
+}
+
+/** The legal scan's names and declarations. */
+interface Scan {
+  readonly names: ReadonlyMap<string, Declared>;
+  readonly declarations: readonly Declaration[];
+}
+
+/** What the readers hand the core. */
+interface RowsInput {
+  readonly scan: Scan;
+  readonly catalogs: Catalogs;
+  readonly sites: readonly Site[];
+  readonly css: Result<Site[]>;
+  readonly bins: ReadonlyMap<string, Result<string[] | null>>;
+  readonly workspaceDirs: readonly string[];
+}
+
+/** The core's surface, typed for the same reason as the manifests module's. */
+type CoreModule = {
+  realSitesOf: (row: Counted) => number;
+  verdictOf: (real: number) => Verdict;
+  buildRows: (input: RowsInput) => Result<Row[]>;
+};
+
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 const MANIFESTS_LIB = path.join(REPO_ROOT, "scripts/testing/lib/dependency-manifests.mjs");
 const LEGAL = path.join(REPO_ROOT, "scripts/legal/subprocessors.mjs");
+const CORE_LIB = path.join(REPO_ROOT, "scripts/testing/lib/dependency-ledger-core.mjs");
 const manifests = (await import(MANIFESTS_LIB)) as ManifestsModule;
 const { scanManifests } = (await import(LEGAL)) as LegalModule;
+const core = (await import(CORE_LIB)) as CoreModule;
 
 /** The repository's own workspace manifest, so the planted tree reads the real `packages:` globs. */
 const WORKSPACE_TEXT = readFileSync(path.join(REPO_ROOT, "pnpm-workspace.yaml"), "utf8");
@@ -414,5 +476,288 @@ describe("cssSites", () => {
     const result = manifests.cssSites(root, ["apps/client/app/gone.scss"], DECLARED);
 
     expect(errorOf(result)).toContain("apps/client/app/gone.scss could not be read");
+  });
+});
+
+/** `count` files under `dir`, named apart. */
+const filesUnder = (dir: string, count: number): string[] =>
+  Array.from({ length: count }, (_, index) => `${dir}/f${String(index)}.ts`);
+
+const ABOVE: Sites = { "runtime-import": { production: filesUnder("apps/api/src", 3) } };
+
+describe("realSitesOf", () => {
+  it.each<[string, Scope, string | null, Sites, number]>([
+    ["a production name three production files import", "production", null, ABOVE, 3],
+    [
+      "a production name two production files import",
+      "production",
+      null,
+      { "runtime-import": { production: filesUnder("apps/api/src", 2) } },
+      2,
+    ],
+    [
+      "a production name only tests import and config strings name",
+      "production",
+      null,
+      {
+        "runtime-import": { test: filesUnder("apps/api/tests", 5) },
+        "config-string": { config: filesUnder("scripts", 2) },
+      },
+      0,
+    ],
+    [
+      "a production name a production and a config stylesheet load",
+      "production",
+      null,
+      { css: { production: ["apps/client/app/globals.css"], config: ["styles/base.css"] } },
+      1,
+    ],
+    [
+      "a production name only run as a binary",
+      "production",
+      null,
+      { binary: { config: filesUnder(".github", 3) } },
+      0,
+    ],
+    [
+      "a production name imported and loaded as a stylesheet by the same file",
+      "production",
+      null,
+      { "runtime-import": { production: ["apps/a.ts"] }, css: { production: ["apps/a.ts"] } },
+      1,
+    ],
+    [
+      "a dev-only name two tests import and one script runs",
+      "dev-only",
+      null,
+      {
+        "runtime-import": { test: ["apps/api/tests/a.test.ts", "apps/api/tests/b.test.ts"] },
+        binary: { config: ["package.json"] },
+      },
+      3,
+    ],
+    [
+      "a dev-only name three production files import",
+      "dev-only",
+      null,
+      { "runtime-import": { production: filesUnder("apps/api/src", 3) } },
+      3,
+    ],
+    [
+      "a dev-only name three test scripts run as a binary",
+      "dev-only",
+      null,
+      { binary: { test: filesUnder("performance/scripts", 3) } },
+      3,
+    ],
+    [
+      "a dev-only name config strings name in production files and one config file",
+      "dev-only",
+      null,
+      {
+        "config-string": {
+          production: filesUnder("apps/api/src", 2),
+          config: ["vitest.config.ts"],
+        },
+      },
+      1,
+    ],
+    [
+      "a dev-only name stylesheets of every class load",
+      "dev-only",
+      null,
+      { css: { production: ["a.css"], test: ["b.css"], config: ["c.css"] } },
+      3,
+    ],
+    [
+      "an @types row with three type-only files of its target",
+      "dev-only",
+      "x",
+      { "type-only": { production: ["a.ts"], test: ["b.ts"], config: ["c.ts"] } },
+      3,
+    ],
+    [
+      "an @types row whose only sites are runtime imports",
+      "dev-only",
+      "x",
+      { "runtime-import": { production: filesUnder("apps/api/src", 3) } },
+      0,
+    ],
+    [
+      "a name that is only type-imported",
+      "production",
+      null,
+      { "type-only": { production: filesUnder("apps/api/src", 3) } },
+      0,
+    ],
+    [
+      "a name that is only mocked",
+      "dev-only",
+      null,
+      { "test-mock": { test: filesUnder("apps/api/tests", 4) } },
+      0,
+    ],
+  ])("returns the real sites of %s", (_case, scope, typedTarget, sites, expected) => {
+    expect(core.realSitesOf({ scope, typedTarget, sites })).toBe(expected);
+  });
+});
+
+describe("verdictOf", () => {
+  it.each<[number, Verdict]>([
+    [0, "under-floor"],
+    [2, "under-floor"],
+    [3, "above-floor"],
+    [4, "above-floor"],
+  ])("returns %s real sites as %s", (real, expected) => {
+    expect(core.verdictOf(real)).toBe(expected);
+  });
+});
+
+describe("buildRows", () => {
+  const input = (overrides: Partial<RowsInput> = {}): RowsInput => ({
+    scan: {
+      names: new Map([
+        ["prod-a", { production: true }],
+        ["dev-a", { production: false }],
+        ["@types/x", { production: false }],
+        ["peer-a", { production: true }],
+      ]),
+      declarations: [
+        { file: "apps/api/package.json", block: "devDependencies", name: "prod-a", spec: "^2.0.0" },
+        { file: "package.json", block: "devDependencies", name: "dev-a", spec: "catalog:otel" },
+        { file: "apps/api/package.json", block: "dependencies", name: "prod-a", spec: "catalog:" },
+        { file: "package.json", block: "devDependencies", name: "@types/x", spec: "1.0.0" },
+        { file: "packages/x/package.json", block: "peerDependencies", name: "peer-a", spec: "^1" },
+      ],
+    },
+    catalogs: { default: new Set(["prod-a"]), named: new Map([["otel", new Set(["dev-a"])]]) },
+    sites: [
+      { name: "prod-a", kind: "runtime-import", file: "apps/api/src/b.ts" },
+      { name: "prod-a", kind: "test-mock", file: "apps/api/tests/a.test.ts" },
+      { name: "prod-a", kind: "runtime-import", file: "apps/api/src/a.ts" },
+      { name: "dev-a", kind: "binary", file: "package.json" },
+      { name: "@types/x", kind: "type-only", file: "apps/api/src/a.ts" },
+    ],
+    css: { value: [{ name: "prod-a", kind: "css", file: "apps/api/src/style.css" }] },
+    bins: new Map<string, Result<string[] | null>>([
+      ["prod-a", { value: [] }],
+      ["dev-a", { value: ["dev-a"] }],
+      ["@types/x", { value: [] }],
+      ["peer-a", { value: null }],
+    ]),
+    workspaceDirs: ["apps/api", "packages/x"],
+    ...overrides,
+  });
+
+  it("returns one row per name in the scan's order, its declarations, bins, sites by class, real sites and verdict", () => {
+    const rows = valueOf(core.buildRows(input()));
+
+    expect(rows).toEqual([
+      {
+        name: "prod-a",
+        scope: "production",
+        typedTarget: null,
+        declarations: [
+          { manifest: "apps/api/package.json", block: "devDependencies", specifier: "literal" },
+          { manifest: "apps/api/package.json", block: "dependencies", specifier: "catalog" },
+        ],
+        bins: [],
+        sites: {
+          "runtime-import": { production: ["apps/api/src/b.ts", "apps/api/src/a.ts"] },
+          "test-mock": { test: ["apps/api/tests/a.test.ts"] },
+          css: { production: ["apps/api/src/style.css"] },
+        },
+        real: 3,
+        verdict: "above-floor",
+      },
+      {
+        name: "dev-a",
+        scope: "dev-only",
+        typedTarget: null,
+        declarations: [
+          { manifest: "package.json", block: "devDependencies", specifier: "catalog:otel" },
+        ],
+        bins: ["dev-a"],
+        sites: { binary: { config: ["package.json"] } },
+        real: 1,
+        verdict: "under-floor",
+      },
+      {
+        name: "@types/x",
+        scope: "dev-only",
+        typedTarget: "x",
+        declarations: [
+          { manifest: "package.json", block: "devDependencies", specifier: "literal" },
+        ],
+        bins: [],
+        sites: { "type-only": { production: ["apps/api/src/a.ts"] } },
+        real: 1,
+        verdict: "under-floor",
+      },
+      {
+        name: "peer-a",
+        scope: "production",
+        typedTarget: null,
+        declarations: [
+          { manifest: "packages/x/package.json", block: "peerDependencies", specifier: "literal" },
+        ],
+        bins: null,
+        sites: {},
+        real: 0,
+        verdict: "under-floor",
+      },
+    ]);
+  });
+
+  const scanWith = (declaration: Declaration): Scan => ({
+    names: new Map([["prod-a", { production: true }]]),
+    declarations: [declaration],
+  });
+  const PROD: Declaration = {
+    file: "apps/api/package.json",
+    block: "dependencies",
+    name: "prod-a",
+    spec: "1.0.0",
+  };
+  const ONLY_PROD = {
+    scan: scanWith(PROD),
+    sites: [],
+    css: { value: [] },
+    bins: new Map<string, Result<string[] | null>>([["prod-a", { value: [] }]]),
+  };
+
+  it.each<[string, Partial<RowsInput>, string]>([
+    [
+      "a catalog reference the catalogs do not hold",
+      { ...ONLY_PROD, scan: scanWith({ ...PROD, spec: "catalog:nope" }) },
+      "catalog:nope names a catalog",
+    ],
+    [
+      "bins whose installed copy could not be read",
+      { ...ONLY_PROD, bins: new Map([["prod-a", { error: "copy unread" }]]) },
+      "copy unread",
+    ],
+    [
+      "a name whose bins were never read",
+      { ...ONLY_PROD, bins: new Map<string, Result<string[] | null>>() },
+      "no bins were read for prod-a",
+    ],
+    [
+      "stylesheets that could not be read",
+      { ...ONLY_PROD, css: { error: "css unread" } },
+      "css unread",
+    ],
+    [
+      "a site of a name no manifest declares",
+      { ...ONLY_PROD, sites: [{ name: "ghost", kind: "runtime-import", file: "a.ts" }] },
+      "a.ts holds a runtime-import site of ghost, which no manifest declares",
+    ],
+    [
+      "a binary site of a name with no bins",
+      { ...ONLY_PROD, sites: [{ name: "prod-a", kind: "binary", file: "a.sh" }] },
+      "prod-a has binary sites but no bins",
+    ],
+  ])("returns an error for %s", (_case, overrides, expected) => {
+    expect(errorOf(core.buildRows(input(overrides)))).toContain(expected);
   });
 });
