@@ -243,10 +243,11 @@ export const STATUSES = Object.freeze(/** @type {const} */ (["kept", "remove", "
  */
 
 /**
- * Why a name under the floor is kept, one per entry: one adapter per SDK, a CLI scripts run, a
- * plugin a host loads by name, a type package, a peer range it satisfies, a CVE floor it holds, a
- * load from code the tree does not track, a use the owner judges real, or a feature a Master Plan item
- * schedules to wire (the item named in the note; the code stays until that item runs).
+ * Why a name under the floor is kept, one per entry: one adapter per SDK, a CLI or a library that
+ * scripts and gates run, a plugin a host loads by name, a type package, a peer range it satisfies,
+ * a CVE floor it holds, a load from code the tree does not track, a use the owner judges real, or a
+ * feature a Master Plan item schedules to wire (the item named in the note; the code stays until
+ * that item runs).
  */
 export const GROUNDS = Object.freeze([
   "single-adapter",

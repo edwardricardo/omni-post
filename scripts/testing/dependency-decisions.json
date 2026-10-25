@@ -189,11 +189,11 @@
     },
     "@formatjs/icu-messageformat-parser": {
       "status": "kept",
-      "grounds": "in-use",
+      "grounds": "tool",
       "utility": "parse() and TYPE drive apps/admin/scripts/i18n-validate.mjs and apps/client/scripts/i18n-validate.mjs (admin 1,311 keys and client 2,232 at the 2026-10-25 run, both passing).",
       "replacement": "None: the ICU MessageFormat parser the i18n check is built on.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/admin, apps/client (devDependencies). Only the package script i18n:lint runs the two scripts today, and no workflow, hook, turbo task or battery step runs it; the owner decided on 2026-10-25 to wire it as a gate (one shared script, a battery step and a CI step), its own unit."
+      "note": "Declared in apps/admin, apps/client (devDependencies). Only the package script i18n:lint runs the two scripts today, and no workflow, hook, turbo task or battery step runs it; the owner decided on 2026-10-25 to wire it as a gate (one shared script, a battery step and a CI step), its own unit, and to keep the ground tool, the vocabulary of that check."
     },
     "@types/validator": {
       "status": "remove",
