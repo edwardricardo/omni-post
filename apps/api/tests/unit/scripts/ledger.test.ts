@@ -173,10 +173,11 @@ type ReachLib = {
   quarantineOwners: (root: string) => Map<string, string> | string;
 };
 
-/** What the suite replaces in the command: the git listing and the reach engine's run. */
+/** What the suite replaces in the command: the git listing, the reach engine's run and the rendering. */
 interface LedgerSeams {
   readonly listFiles?: (root: string) => Result<string[]>;
   readonly runReach?: (root: string) => ReachReport | string;
+  readonly render?: (ledger: Ledger) => Promise<string>;
 }
 
 /** A built ledger, and a note per file the classifier could not read. */
@@ -1075,6 +1076,12 @@ describe("ledger.mjs write mode", () => {
       ["--reach", "absent-reach.json"],
       {},
       "ledger: unread: --reach absent-reach.json could not be read: ENOENT",
+    ],
+    [
+      "the ledger cannot be rendered",
+      [],
+      { render: () => Promise.reject(new Error("the configuration could not be read")) },
+      "ledger: unread: the ledger could not be rendered: the configuration could not be read\n",
     ],
   ])("returns 3 and writes nothing when %s", async (_case, argv, seams, line) => {
     const root = plant(FIXTURE);

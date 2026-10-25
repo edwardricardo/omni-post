@@ -17,17 +17,17 @@
  *   EXIT CODES, fitness #48's: 0 written, or no drift; 1 drift; 2 a usage error; 3 an input could
  *   not be read (`git ls-files` failed or listed no test-shaped file, the workspace manifest, the
  *   quarantine or a listed file could not be read, the engine printed no report or reported an
- *   input of its own unread, `--check` found no committed ledger) or the ledger could not be
- *   written. 3 wins over 1: an unread input stops the run before anything is written or compared,
- *   so no drift is ever named from a partial read. A file the classifier cannot read is a row
- *   (`framework: null`, verdict ADJUDICATE) and a note, not an unread input.
+ *   input of its own unread, `--check` found no committed ledger or could not read it, the Prettier
+ *   configuration could not be read) or the ledger could not be written. 3 wins over 1: an unread
+ *   input stops the run before anything is written or compared, so no drift is ever named from a
+ *   partial read. A file the classifier cannot read is a row (`framework: null`, verdict
+ *   ADJUDICATE) and a note, not an unread input.
  *
  *   Usage: `node scripts/testing/ledger.mjs [--root <dir>] [--out <file>] [--reach <file>]
  *   [--check]`, or `pnpm ledger` and `pnpm check:ledger`.
  * @layer infrastructure
  */
-import { execFileSync } from "node:child_process";
-import { readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -46,25 +46,36 @@ import {
   reachLabels,
   reachReport,
 } from "./lib/reach-report.mjs";
-import { readTopLevelBlock } from "./workspace-block-reader.mjs";
+import {
+  EXIT,
+  checkRecord,
+  cliResult,
+  isEntryPoint,
+  listTrackedFiles,
+  messageOf,
+  readText,
+  writeRecord,
+} from "./lib/record-helpers.mjs";
+import { WORKSPACE_FILE, readPackageGlobs } from "./workspace-block-reader.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const LEDGER_FILE = "ledger.json";
-const WORKSPACE_FILE = "pnpm-workspace.yaml";
 /** The directories outside the workspaces that hold test-shaped files of their own. */
 const SUITE_ROOTS = Object.freeze(["security/", "performance/"]);
-/** One entry of the workspace manifest's `packages:` list: a glob, quoted or plain. */
-const PACKAGE_GLOB = /^\s+-\s+["']?([^"'\s]+)["']?\s*$/;
-const EXIT_CLEAN = 0;
-const EXIT_DRIFT = 1;
-const EXIT_USAGE = 2;
-const EXIT_UNREAD = 3;
 const USAGE =
   "usage: node scripts/testing/ledger.mjs [--root <dir>] [--out <file>] [--reach <file>] [--check]";
+/** How the command names its ledger in what it prints, and how the ledger lists its rows. */
+const SPEC = Object.freeze({
+  label: "ledger",
+  noun: "ledger",
+  command: "pnpm ledger",
+  list: "files",
+  id: "path",
+});
 
 /**
  * @template T
- * @typedef {{ value: T } | { error: string }} Result
+ * @typedef {import("./lib/record-helpers.mjs").Result<T>} Result
  */
 
 /**
@@ -76,6 +87,7 @@ const USAGE =
  * @typedef {object} LedgerSeams What the suite replaces; the command passes none.
  * @property {(root: string) => Result<string[]>} [listFiles] Replaces `git ls-files`.
  * @property {(root: string) => ReachReport | string} [runReach] Replaces the reach engine's run.
+ * @property {(ledger: Ledger) => Promise<string>} [render] Replaces the rendering of the ledger.
  *
  * @typedef {object} Read One file's classification.
  * @property {FileClassification | null} classification
@@ -91,38 +103,8 @@ const USAGE =
  * @property {string | null} reach A saved reach report, as given, or `null` to run the engine.
  * @property {boolean} check
  *
- * @typedef {object} CliResult
- * @property {number} code
- * @property {string} output
+ * @typedef {import("./lib/record-helpers.mjs").CliResult} CliResult
  */
-
-/**
- * @description Words a thrown value.
- * @param {unknown} error
- * @returns {string}
- */
-function messageOf(error) {
-  return error instanceof Error ? error.message : String(error);
-}
-
-/**
- * @description Lists the paths git tracks in a repository.
- * @param {string} root
- * @returns {Result<string[]>} Repository-relative paths, in git's order.
- */
-function listTrackedFiles(root) {
-  try {
-    const out = execFileSync("git", ["ls-files", "-z"], {
-      cwd: root,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return { value: out.split("\0").filter((file) => file.length > 0) };
-  } catch (error) {
-    return { error: `git ls-files failed in ${root}: ${messageOf(error)}` };
-  }
-}
 
 /**
  * @description The directories the ledger lists: the first segment of every `packages:` glob of
@@ -133,22 +115,15 @@ function listTrackedFiles(root) {
  * @returns {Result<string[]>} Sorted, each ending in `/`.
  */
 function scopePrefixes(root) {
-  /** @type {string} */
-  let text;
-  try {
-    text = readFileSync(path.join(root, WORKSPACE_FILE), "utf8");
-  } catch (error) {
-    return { error: `${WORKSPACE_FILE} could not be read: ${messageOf(error)}` };
-  }
-  const lines = readTopLevelBlock(text, "packages");
-  if (lines === null) return { error: `${WORKSPACE_FILE} has no packages: block` };
+  const text = readText(root, WORKSPACE_FILE);
+  if ("error" in text) return text;
+  const globs = readPackageGlobs(text.value);
+  if ("error" in globs) return globs;
   /** @type {Set<string>} */
   const prefixes = new Set(SUITE_ROOTS);
-  for (const line of lines) {
-    const glob = PACKAGE_GLOB.exec(line)?.[1];
-    if (glob === undefined) return { error: `${WORKSPACE_FILE}: cannot read "${line.trim()}"` };
+  for (const glob of globs.value.positive) {
     const first = glob.split("/").find((part) => part.length > 0);
-    if (!glob.startsWith("!") && first !== undefined) prefixes.add(`${first}/`);
+    if (first !== undefined) prefixes.add(`${first}/`);
   }
   return { value: [...prefixes].sort() };
 }
@@ -165,15 +140,10 @@ const UNCLASSIFIED = Object.freeze({ value: { classification: null, note: null }
  * @returns {Result<Read>}
  */
 function classified(root, file) {
-  /** @type {string} */
-  let text;
+  const text = readText(root, file);
+  if ("error" in text) return text;
   try {
-    text = readFileSync(path.join(root, file), "utf8");
-  } catch (error) {
-    return { error: `${file} could not be read: ${messageOf(error)}` };
-  }
-  try {
-    const classification = classifyFile(text, file);
+    const classification = classifyFile(text.value, file);
     const { error } = classification;
     const note = error === null ? null : `${file}: the classifier could not read it: ${error}`;
     return { value: { classification, note } };
@@ -234,76 +204,6 @@ export function build(root, seams = {}) {
 }
 
 /**
- * @description Orders two strings by UTF-16 code unit, the order the ledger's rows are in.
- * @param {string} left
- * @param {string} right
- * @returns {number}
- */
-function byCodeUnit(left, right) {
-  return left < right ? -1 : Number(left > right);
-}
-
-/**
- * @description Indexes the committed ledger's rows by path.
- * @param {unknown} files The committed ledger's `files`.
- * @returns {Result<Map<string, string>>} Path → the row as JSON.
- */
-function rowsByPath(files) {
-  if (!Array.isArray(files)) return { error: "the committed ledger's files are not a list" };
-  /** @type {Map<string, string>} */
-  const rows = new Map();
-  for (const row of files) {
-    /** @type {{ path?: unknown }} */
-    const fields = typeof row === "object" && row !== null ? row : {};
-    if (typeof fields.path !== "string") return { error: "a committed row has no path" };
-    if (rows.has(fields.path)) return { error: `the committed ledger lists ${fields.path} twice` };
-    rows.set(fields.path, JSON.stringify(row));
-  }
-  return { value: rows };
-}
-
-/**
- * @description Names what differs between the committed ledger and the one the tree gives, by
- *   parsing the committed text: each top-level part, then each path whose row is new, gone or
- *   changed, in code-unit order. Never empty: equal content laid out otherwise is named as such.
- * @param {string} committed The committed file's text, which differs from the rendered one.
- * @param {Ledger} current
- * @returns {string[]}
- */
-function driftOf(committed, current) {
-  /** @type {Record<string, unknown>} */
-  let parsed;
-  try {
-    parsed = JSON.parse(committed);
-  } catch (error) {
-    return [`the committed ledger is not JSON: ${messageOf(error)}`];
-  }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    return ["the committed ledger is not a JSON object"];
-  }
-  const was = rowsByPath(parsed["files"]);
-  if ("error" in was) return [was.error];
-  /** @type {string[]} */
-  const lines = [];
-  if (Object.keys(parsed).join() !== Object.keys(current).join()) {
-    lines.push("the top-level keys differ");
-  }
-  for (const key of /** @type {const} */ (["version", "summary", "slices"])) {
-    const before = JSON.stringify(parsed[key]);
-    if (before !== JSON.stringify(current[key])) lines.push(`the ${key} differs`);
-  }
-  const now = new Map(current.files.map((row) => [row.path, JSON.stringify(row)]));
-  for (const file of [...new Set([...was.value.keys(), ...now.keys()])].sort(byCodeUnit)) {
-    const before = was.value.get(file);
-    const after = now.get(file);
-    if (after === undefined) lines.push(`${file}: in the committed ledger, not in the tree`);
-    else if (before === undefined) lines.push(`${file}: in the tree, not in the committed ledger`);
-    else if (before !== after) lines.push(`${file}: its row differs`);
-  }
-  return lines.length > 0 ? lines : ["the content is equal; only its formatting differs"];
-}
-
-/**
  * @description Reads the command line. Every flag takes its value but `--check`; an unknown flag,
  *   a positional argument and an empty value are usage errors.
  * @param {readonly string[]} argv The arguments after the script path.
@@ -355,16 +255,6 @@ function savedReach(file) {
 }
 
 /**
- * @description Names the ledger file in a message: relative to the root when it lies inside it.
- * @param {Options} options
- * @returns {string}
- */
-function shown(options) {
-  const relative = path.relative(options.root, options.out);
-  return relative.startsWith("..") || path.isAbsolute(relative) ? options.out : relative;
-}
-
-/**
  * @description The counts a written ledger is reported with.
  * @param {Ledger} ledger
  * @returns {string}
@@ -379,106 +269,35 @@ function counts(ledger) {
 }
 
 /**
- * @description Joins the lines the command prints with the code it exits with.
- * @param {number} code
- * @param {readonly string[]} lines
- * @returns {CliResult}
- */
-function result(code, lines) {
-  return { code, output: `${lines.join("\n")}\n` };
-}
-
-/**
- * @description Write mode: writes the rendered ledger.
- * @param {Options} options
- * @param {Built} built
- * @param {string} text The rendered ledger.
- * @param {readonly string[]} lines The notes, already worded.
- * @returns {CliResult}
- */
-function write(options, built, text, lines) {
-  try {
-    writeFileSync(options.out, text);
-  } catch (error) {
-    return result(EXIT_UNREAD, [
-      ...lines,
-      `ledger: ${shown(options)} could not be written: ${messageOf(error)}`,
-    ]);
-  }
-  return result(EXIT_CLEAN, [...lines, `ledger: wrote ${shown(options)}: ${counts(built.ledger)}`]);
-}
-
-/**
- * @description `--check`: compares the rendered ledger's bytes with the committed file's and names
- *   each difference.
- * @param {Options} options
- * @param {Built} built
- * @param {string} text The rendered ledger.
- * @param {readonly string[]} lines The notes, already worded.
- * @returns {CliResult}
- */
-function check(options, built, text, lines) {
-  /** @type {string} */
-  let committed;
-  try {
-    committed = readFileSync(options.out, "utf8");
-  } catch (error) {
-    return result(EXIT_UNREAD, [
-      ...lines,
-      `ledger: unread: no committed ledger at ${shown(options)} (${messageOf(error)}); ` +
-        "run `pnpm ledger` and commit it",
-    ]);
-  }
-  if (committed === text) {
-    return result(EXIT_CLEAN, [...lines, `ledger: ${shown(options)} is current`]);
-  }
-  return result(EXIT_DRIFT, [
-    ...lines,
-    ...driftOf(committed, built.ledger).map((line) => `ledger: drift: ${line}`),
-    `ledger: ${shown(options)} is stale; run \`pnpm ledger\` and commit the result`,
-  ]);
-}
-
-/**
- * @description The command line, as a function: parse, build, render, then write or check.
+ * @description The command line, as a function: parse, build, then write or check.
  * @param {readonly string[]} argv The arguments after the script path.
  * @param {LedgerSeams} [seams] Replacements for the suite; the command passes none.
  * @returns {Promise<CliResult>} The text to print and the exit code.
  */
 export async function main(argv, seams = {}) {
   const parsed = parseArguments(argv);
-  if ("error" in parsed) return result(EXIT_USAGE, [`ledger: ${parsed.error}`, USAGE]);
+  if ("error" in parsed) return cliResult(EXIT.USAGE, [`ledger: ${parsed.error}`, USAGE]);
   const options = parsed.value;
   const { reach } = options;
   const built = build(
     options.root,
     reach === null ? seams : { ...seams, runReach: () => savedReach(reach) }
   );
-  if ("error" in built) return result(EXIT_UNREAD, [`ledger: unread: ${built.error}`]);
-  const text = await render(built.value.ledger);
-  const lines = built.value.notes.map((note) => `ledger: note: ${note}`);
-  return options.check
-    ? check(options, built.value, text, lines)
-    : write(options, built.value, text, lines);
+  if ("error" in built) return cliResult(EXIT.UNREAD, [`ledger: unread: ${built.error}`]);
+  const { ledger } = built.value;
+  const run = {
+    root: options.root,
+    out: options.out,
+    record: ledger,
+    render: seams.render ?? render,
+    lines: built.value.notes.map((note) => `ledger: note: ${note}`),
+    failing: false,
+  };
+  return options.check ? checkRecord(SPEC, run) : writeRecord(SPEC, run, counts(ledger));
 }
 
-/**
- * @description True only when this file is the process entry point, so the suite's import of
- *   `main` and `build` runs nothing.
- * @returns {boolean}
- */
-function invokedAsScript() {
-  const entry = process.argv[1];
-  if (entry === undefined) return false;
-  try {
-    return realpathSync(entry) === fileURLToPath(import.meta.url);
-  } catch {
-    return false;
-  }
-}
-
-if (invokedAsScript()) {
+if (isEntryPoint(import.meta.url)) {
   const { code, output } = await main(process.argv.slice(2));
-  (code === EXIT_CLEAN ? process.stdout : process.stderr).write(output);
+  (code === EXIT.CLEAN ? process.stdout : process.stderr).write(output);
   process.exitCode = code;
 }

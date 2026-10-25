@@ -52,7 +52,6 @@ import {
   render,
 } from "./lib/dependency-ledger-core.mjs";
 import {
-  WORKSPACE_FILE,
   binarySites,
   binaryTexts,
   cssSites,
@@ -61,6 +60,7 @@ import {
   readCatalogs,
   workspaceManifests,
 } from "./lib/dependency-manifests.mjs";
+import { WORKSPACE_FILE } from "./workspace-block-reader.mjs";
 import {
   SITE_KINDS,
   SOURCE_EXTENSIONS,
