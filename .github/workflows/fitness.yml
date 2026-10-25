@@ -1988,6 +1988,26 @@ jobs:
             exit 1
           fi
 
+      - name: "#50 The dependency-usage record is current and every name under the floor is decided or counted pending"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #50. `pnpm check:deps-ledger` runs
+          # `node scripts/testing/dependency-ledger.mjs --check`: it rebuilds the dependency-usage
+          # record from the tree (every direct dependency's declarations; for each name under the
+          # floor of 3 real sites, its sites by kind and path class), compares it byte for byte with
+          # dependency-ledger.json, and joins the names with the owner's decisions in
+          # scripts/testing/dependency-decisions.json. A stale record, a stale or malformed entry,
+          # or a pending count off its exact baseline exits 1; an input it cannot read in full
+          # exits 3; either fails this step. Same job as #45 for the same reason: the record
+          # renders through prettier's API, and the bin names come from the installed tree.
+          # Pinned by apps/api/tests/unit/scripts/dependencySites.test.ts and
+          # dependencyLedger.test.ts.
+          set -euo pipefail
+          if ! pnpm check:deps-ledger; then
+            echo "::error title=Fitness #50 violation::The dependency-usage record is stale, an owner decision is stale or malformed, the pending count moved off its baseline, or an input could not be read. Run pnpm deps:ledger, decide every new name under the floor in scripts/testing/dependency-decisions.json (kept with its ground, or remove with its replacement; pending is counted, never silent), and commit the regenerated record with the change that moved it. The dependency-ledger lines above name each problem."
+            exit 1
+          fi
+
   test-contracts:
     name: Test Contracts
     runs-on: ubuntu-latest
