@@ -127,7 +127,7 @@ execute(command: CreatePostCommand): Promise<Post>  // hides failure
 - Async tests always `await` — no floating promises
 - A test waits on the observable result, never on a fixed time: `until` from `@packages/vitest-shared/determinism` or fake timers, never `setTimeout(resolve, ms)`, a `timers/promises` waiter or `waitForTimeout` (`testing/no-fixed-time-wait`, at `error`). A wait no result can replace carries `// fixed-wait: <kind> — <why>` on the line above, `<kind>` one of `latency-injection`, `clock-advance`, `interleaving`, `poll-step`, `ttl-expiry`
 
-`pnpm lint` holds part of this list at `error`, and refuses a test block that cannot fail. Such a block is reported in vitest and node:test alike, by the classifier of `packages/eslint-plugin-testing`: `testing/no-empty-test` (no assertion runs in it), `testing/no-tautological-assertion` (every assertion is true by construction) and `testing/no-existence-only-test` (every assertion on every path checks only presence, type or truthiness). The files Vitest collects also take `vitest/expect-expect`, `no-conditional-expect`, `valid-expect`, `no-standalone-expect`, `no-identical-title`, `no-commented-out-tests`, `no-disabled-tests` and `no-focused-tests`: every test file but `*.integration.test.*`, `*.live.test.*`, `security/tests/` and `e2e/`, a static approximation of what the reach engine (`pnpm --filter @packages/test-contracts reach --json`) reports. Every test file takes `no-console`, which allows `console.warn` and `console.error`, the stderr writers `testing/no-stdout-in-node-test` points a node:test diagnostic to; the runner's three entry points under `apps/api/tests/` are exempt. The violations the tree held when the rules landed are listed in `eslint-suppressions.json`, which ESLint generates (`--suppress-rule`) and nobody edits by hand. It may only shrink: when a pull request deletes or fixes a suppressed block, the entry it leaves unused makes `pnpm lint` exit 2 until the same pull request runs `pnpm exec eslint . --prune-suppressions`. A new violation is fixed, never added to the file.
+`pnpm lint` holds part of this list at `error`, and refuses a test block that cannot fail. Such a block is reported in vitest and node:test alike, by the classifier of `packages/eslint-plugin-testing`: `testing/no-empty-test` (no assertion runs in it), `testing/no-tautological-assertion` (every assertion is true by construction) and `testing/no-existence-only-test` (every assertion on every path checks only presence, type or truthiness). The files Vitest collects also take `vitest/expect-expect`, `no-conditional-expect`, `valid-expect`, `no-standalone-expect`, `no-identical-title`, `no-commented-out-tests`, `no-disabled-tests` and `no-focused-tests`: every test file but `*.integration.test.*`, `*.live.test.*`, `security/tests/` and `e2e/`, a static approximation of what the reach engine (`pnpm --filter @packages/test-contracts reach --json`) reports. Every test file takes `no-console`, which allows `console.warn` and `console.error`, the stderr writers `testing/no-stdout-in-node-test` points a node:test diagnostic to; the runner's three entry points under `apps/api/tests/` are exempt. The violations the tree held when the rules landed are listed in `eslint-suppressions.json`, which ESLint generates (`--suppress-rule`) and nobody edits by hand. It may only shrink: when a pull request deletes or fixes a suppressed block, the entry it leaves unused makes `pnpm lint` exit 2 while the file is still linted (a deleted file's entries stay unreported until `eslint . --prune-suppressions` runs, which the deleting change does) until the same pull request runs `pnpm exec eslint . --prune-suppressions`. A new violation is fixed, never added to the file.
 
 ### Mock Factories (Required Pattern)
 
@@ -398,16 +398,11 @@ A `packages/ports/` module stays `@layer domain` although it may import `@core/a
 
 **Forbidden variations:** `test`, `integration`, `unit`, `testing`, `presentation`, `page`, `hooks`, `ui`, `client-components`, `client-hooks`, `client-pages`, `client-state`, `client-lib`, `client-tests`, `ports`, `provider`, `test-infrastructure`, `infrastructure (routes)`, `routes`, `service`, `handler` — always normalize to one of `domain` / `application` / `infrastructure`.
 
-### React component JSDoc — Storybook autodocs integration
+### React component JSDoc — props on the interface
 
 React components get `@component` **in addition to** `@layer infrastructure`. The two tags answer different questions: `@layer` locates the file in the hexagonal architecture (always `infrastructure` for UI); `@component` marks the file as a React component for readers and grep-based tooling.
 
-Storybook `addon-docs` reads **two places** to populate the autodocs page:
-
-1. The **component function's preceding JSDoc block** → used as the long-form component description.
-2. **JSDoc comments above each prop in the props `interface`** → used as the per-prop description in the Controls panel.
-
-`@param` tags on the component function are **redundant and ignored** by `react-docgen-typescript`. Put prop descriptions on the interface, not the function.
+A component's props are documented **on the props `interface`**, one JSDoc comment above each prop, and the component function carries a description only. `@param` tags on the component function duplicate the interface and are not required by `pnpm check:jsdoc` (fitness #47), which asks a component for a description only. The interface is where a reader, the editor's hover and every tool that types the component find the prop's meaning; a description on the function says what the component renders.
 
 **Canonical template:**
 
@@ -437,11 +432,7 @@ export function CampaignList({ accountId, includeArchived = false, onChange }: C
 }
 ```
 
-Gotchas documented during T1-F research:
-
-- Storybook `react-docgen-typescript` has a known limitation (issues [#21007](https://github.com/storybookjs/storybook/issues/21007), [#30767](https://github.com/storybookjs/storybook/issues/30767)): when a component is imported from a pnpm workspace package via the package root, autodocs may miss prop descriptions. If this happens, import from the source path (`@packages/ui/src/ComponentName`) instead of the package root (`@packages/ui`).
-- Next.js 15 App Router components that use `useRouter` from `next/navigation` require `parameters.nextjs.appDirectory: true` in the Storybook `preview.tsx`.
-- Storybook ignores `@defaultValue` ([issue #21192](https://github.com/storybookjs/storybook/issues/21192)). Express defaults via TypeScript parameter defaults instead (`prop = false`).
+Storybook note: Next.js App Router components that use `useRouter` from `next/navigation` need `parameters.nextjs.appDirectory: true` in the Storybook `preview.tsx` (the client Storybook sets it). Autodocs pages are not generated: `@storybook/addon-docs` left on 2026-10-25 (deps-remove-2), so no story carries `tags: ["autodocs"]`.
 
 ### Storybook port convention
 

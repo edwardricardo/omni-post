@@ -142,7 +142,7 @@ development timeline.
     validate HTTPS only (`ConfigureExternalNotificationUseCase.ts:74-76`) and
     `secureSchemas.ts:129` blocks `localhost` by substring.
 15. **`createTestApp` cannot live in a shared package**: only `apps/api` uses Fastify and the builder
-    needs `errorPlugin`, `setupContainer` and the Zod compilers → `apps/api/tests/support/`.
+    needs `createErrorHandler`, `setupContainer` and the Zod compilers → `apps/api/tests/support/`.
 
 ### Phase 0 — Baseline and tracking (Track T)
 
@@ -1005,7 +1005,7 @@ Starts after WU-2.5; each migration waits for its package's demolition slice.
   PR `refound/s-redis-double`.
 - **WU-S.5** The one Fastify app builder for routes: `apps/api/tests/support/buildRouteTestApp.ts`
   (`{ routes, prisma?, auth?: {kind:"customer"|"admin"|"none", principal}, decorate? }`) which
-  registers the Zod compilers, the **production `errorPlugin`**, `setupContainer({ prisma })`, and the
+  registers the Zod compilers, the **production error handler** (`createErrorHandler`, set the way `apps/api/src/index.ts` does), `setupContainer({ prisma })`, and the
   auth mocks of `helpers/mockAuthMiddleware.ts`. Migrates the 28 `createTestApp` copies plus 9 users of
   `*Routes.test-helpers.ts` (3 pull requests); the 6 `admin/*Routes.test.ts` that call captured
   handlers move to `inject`. Retires `createTestContainer` (production, `setup.ts:118`). CODE ~100
@@ -1619,7 +1619,7 @@ maxRetries AND nextRetryAt <= now AND lease`), saga (compensation in reverse ord
   small ones). PRs `refound/6n-core-<pkg>`.
 - **WU-6.N4** The untested api routes (the 36): `buildRouteTestApp` plus `inject`; the full contract
   per route: auth required, Zod validation (400 with the detail), the success body asserted, and the
-  domain-error-to-HTTP mapping (the production `errorPlugin`). PRs `refound/6n-routes-<area>`.
+  domain-error-to-HTTP mapping (the production error handler, `createErrorHandler`). PRs `refound/6n-routes-<area>`.
 - **WU-6.N5** Packages with no config: `packages/shared` (errors, `Result`,
   `channelCredentialsCrypto`: encrypt → decrypt → equal, wrong key → fails), `health-checks`,
   `opentelemetry`, `ports` (only what has runtime: helpers; the pure interfaces go into
