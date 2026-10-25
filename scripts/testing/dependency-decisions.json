@@ -1,7 +1,7 @@
 {
   "generator": "scripts/testing/dependency-ledger.mjs",
   "floor": 3,
-  "pendingBaseline": 109,
+  "pendingBaseline": 0,
   "entries": {
     "@fastify/websocket": {
       "status": "remove",
@@ -154,6 +154,878 @@
       "replacement": "None while the ESLint config is TypeScript.",
       "decidedOn": "2026-10-25",
       "note": "Declared in the root manifest."
+    },
+    "@aws-sdk/s3-request-presigner": {
+      "status": "kept",
+      "grounds": "planned",
+      "utility": "None today: its one binding, getSignedUrl, is imported as _getSignedUrl in packages/adapters/storage-s3/src/index.ts and never referenced, so the package is only evaluated at import.",
+      "replacement": "None: a presigned GetObject on S3 and Spaces is the signed read STOR-5 adds, and getSignedUrl is the SDK v3 call that signs it.",
+      "decidedOn": "2026-10-25",
+      "note": "Master Plan STOR-5 (signed read in the port and in each adapter, ADR-0028 decision 4: a presigned GetObject on S3 and Spaces) wires it; the unreferenced binding stays until then. Declared in packages/adapters/storage-s3 (dependencies)."
+    },
+    "@azure/storage-blob": {
+      "status": "kept",
+      "grounds": "planned",
+      "utility": "Builds the Azure Blob storage adapter (packages/adapters/storage-azure, 6 files, 298 lines); no workspace declares the package and createStorageAdapter never selects it, so nothing runs it today.",
+      "replacement": "None: the adapter is the Azure implementation STOR-4 makes selectable.",
+      "decidedOn": "2026-10-25",
+      "note": "Master Plan STOR-4 (credential modes and GCS/Azure selectable, ADR-0028) wires it and STOR-10 extends UploadTicket and verifyUpload to it; unreachable until then. The legal subprocessors classification already records it as unused. Declared in packages/adapters/storage-azure (dependencies)."
+    },
+    "@google-cloud/storage": {
+      "status": "kept",
+      "grounds": "planned",
+      "utility": "Builds the GCS storage adapter (packages/adapters/storage-gcs, 6 files, 329 lines); no workspace declares the package and createStorageAdapter never selects it, so nothing runs it today.",
+      "replacement": "None: the adapter is the GCS implementation STOR-4 makes selectable.",
+      "decidedOn": "2026-10-25",
+      "note": "Master Plan STOR-4 (credential modes and GCS/Azure selectable, ADR-0028) wires it and STOR-10 extends UploadTicket and verifyUpload to it; unreachable until then. Declared in packages/adapters/storage-gcs (dependencies)."
+    },
+    "@googleapis/youtubeanalytics": {
+      "status": "kept",
+      "grounds": "planned",
+      "utility": "Builds the YouTube Analytics client twice per YouTubeApiClient (apiClient.ts:96, never read; analytics.ts:133 for YouTubeAnalyticsService, whose four methods have no production caller); the channel analytics the adapter returns come from the Data API today.",
+      "replacement": "None: the Analytics API is the source F2-API-12 types.",
+      "decidedOn": "2026-10-25",
+      "note": "Master Plan F2-API-12 (typed fetchAnalytics contract on ProviderAdapter and the analytics model) wires it; the owner's decision of 2026-10-25. Declared in packages/providers/youtube (dependencies)."
+    },
+    "cloudinary": {
+      "status": "remove",
+      "utility": "None today: the Cloudinary adapter (packages/adapters/storage-cloudinary, 4 files, 729 lines) is declared by no workspace package and never selected by createStorageAdapter.",
+      "replacement": "S3, DigitalOcean Spaces and the local adapter stay; STOR-1 deletes the Cloudinary package with every reference (ADR-0028).",
+      "decidedOn": "2026-10-25",
+      "note": "Master Plan STOR-1. Declared in packages/adapters/storage-cloudinary (dependencies).",
+      "slice": "STOR-1"
+    },
+    "validator": {
+      "status": "remove",
+      "utility": "isEmail, isUUID and isIP inside SecurityValidatedSchemas (apps/api/src/validation/secureSchemas.ts), a file with no importer but its three tests.",
+      "replacement": "Zod's own string validators where a schema needs them. DC-3 deletes secureSchemas.ts except SecurityValidatedSchemas.password, kept verbatim for N-SEC-6 and free of validator, and the validator-using tests except the password cases; the catalog entry, the override and the SECURITY_CANON floor row leave with the package.",
+      "decidedOn": "2026-10-25",
+      "note": "Master Plan DC-3 and DC-4 name validator and @types/validator as leaving once both are in main; DC-4 group (a) is in main since 2026-10-06 (#436, enhancedValidator.ts gone in f83000c3) while its other modules are still tracked, so the last import leaves with DC-3. Declared in apps/api (dependencies).",
+      "slice": "DC-3"
+    },
+    "ws": {
+      "status": "kept",
+      "grounds": "planned",
+      "utility": "WebSocket.WebSocket.OPEN and its types in RealtimeWebhookBroadcaster's WebSocket half; addConnection, the only way a socket enters the map, has no production caller today, so the half never receives a socket (the SSE half is the live one).",
+      "replacement": "None: a WebSocket server is the feature F2-CLI-5 brings back.",
+      "decidedOn": "2026-10-25",
+      "note": "Master Plan F2-CLI-5 (presence WebSocket, dep F2-API-5) returns a WebSocket server to the API; the plan says @fastify/websocket comes back with it. Whether that server reuses the broadcaster's half is F2-CLI-5's design; until it lands, the half receives no socket. Declared in apps/api (dependencies)."
+    },
+    "xml2js": {
+      "status": "kept",
+      "grounds": "planned",
+      "utility": "parseStringPromise parses the YouTube PubSubHubbub Atom payload in youtubeWebhookProcessor.ts, inside the inbound provider-webhook pipeline (webhookManager, webhookJobProcessor, webhookHandler, the eight processors), whose root has no production importer today.",
+      "replacement": "None: the pipeline is the feature; its parser goes with it.",
+      "decidedOn": "2026-10-25",
+      "note": "Master Plan WEBHOOK-INGEST (SMELL-38: the HMAC pipeline complete and unwired, P1, the eight processors named) and N-COR-9 (webhook rollups to PUBLISHED, youtube:400 among its five processors) wire the pipeline; only tests import the chain until then. Declared in apps/api (dependencies)."
+    },
+    "@formatjs/icu-messageformat-parser": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "parse() and TYPE drive apps/admin/scripts/i18n-validate.mjs and apps/client/scripts/i18n-validate.mjs (admin 1,311 keys and client 2,232 at the 2026-10-25 run, both passing).",
+      "replacement": "None: the ICU MessageFormat parser the i18n check is built on.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client (devDependencies). Only the package script i18n:lint runs the two scripts today, and no workflow, hook, turbo task or battery step runs it; the owner decided on 2026-10-25 to wire it as a gate (one shared script, a battery step and a CI step), its own unit."
+    },
+    "@types/validator": {
+      "status": "remove",
+      "utility": "Types of validator at its one site, secureSchemas.ts.",
+      "replacement": "None: it follows validator.",
+      "decidedOn": "2026-10-25",
+      "note": "Follows validator into DC-3. Declared in apps/api (devDependencies).",
+      "slice": "DC-3"
+    },
+    "@types/ws": {
+      "status": "kept",
+      "grounds": "planned",
+      "utility": "Types of ws at its one site, realtimeWebhookBroadcaster.ts.",
+      "replacement": "None: it follows ws.",
+      "decidedOn": "2026-10-25",
+      "note": "Follows ws: planned through F2-CLI-5. Declared in apps/api (devDependencies)."
+    },
+    "@types/xml2js": {
+      "status": "kept",
+      "grounds": "planned",
+      "utility": "Types of xml2js (which ships none) at its one site, youtubeWebhookProcessor.ts.",
+      "replacement": "None: it follows xml2js.",
+      "decidedOn": "2026-10-25",
+      "note": "Follows xml2js: planned through WEBHOOK-INGEST and N-COR-9. Declared in apps/api (devDependencies)."
+    },
+    "@opentelemetry/instrumentation-fs": {
+      "status": "remove",
+      "utility": "An explicit new FsInstrumentation({ enabled: true }) that duplicates the fs instance getNodeAutoInstrumentations already builds with the same option.",
+      "replacement": "The auto-instrumentations map's own fs instance; the package stays in the tree as a dependency of auto-instrumentations-node.",
+      "decidedOn": "2026-10-25",
+      "note": "The three duplicated instrumentations and the two constants leave in one unit, otel-dedupe, with a span probe before and after. Declared in packages/observability/opentelemetry (dependencies).",
+      "slice": "otel-dedupe"
+    },
+    "@opentelemetry/instrumentation-http": {
+      "status": "remove",
+      "utility": "A second HttpInstrumentation beside the one auto-instrumentations builds; its own contribution is requestHook: tagProviderSpan and ignoreOutgoingRequestHook.",
+      "replacement": "The same hooks passed as the '@opentelemetry/instrumentation-http' config of getNodeAutoInstrumentations, which accepts them.",
+      "decidedOn": "2026-10-25",
+      "note": "Leaves in otel-dedupe; the hooks move into the auto map's config. Declared in packages/observability/opentelemetry (dependencies).",
+      "slice": "otel-dedupe"
+    },
+    "@opentelemetry/instrumentation-redis": {
+      "status": "remove",
+      "utility": "Instruments the redis (node-redis) package, which no file imports and the lockfile does not hold; the code uses ioredis, covered by the auto map's ioredis instance; its dbStatementSerializer never sees a command.",
+      "replacement": "The auto map's ioredis instance, already registered.",
+      "decidedOn": "2026-10-25",
+      "note": "Leaves in otel-dedupe. Declared in packages/observability/opentelemetry (dependencies).",
+      "slice": "otel-dedupe"
+    },
+    "@opentelemetry/semantic-conventions": {
+      "status": "remove",
+      "utility": "Two string constants, ATTR_SERVICE_NAME ('service.name') and ATTR_SERVICE_VERSION ('service.version'), in resourceFromAttributes.",
+      "replacement": "The two literal attribute keys, with a comment naming the convention; the package stays in the tree through sdk-node.",
+      "decidedOn": "2026-10-25",
+      "note": "Leaves in otel-dedupe. Declared in packages/observability/opentelemetry (dependencies).",
+      "slice": "otel-dedupe"
+    },
+    "@tanstack/react-query-devtools": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "providers.tsx loads the devtools panel with import() outside production and replaces it with () => null when NODE_ENV=production: dev-only in effect, declared in dependencies.",
+      "replacement": "None: the dev panel is the tool for the query cache; its declaration moves to devDependencies.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies). The move to devDependencies lands in deps-remove-2."
+    },
+    "dotenv": {
+      "status": "remove",
+      "utility": "dotenv.config() loads <root>/.env or .env.test at five production and config sites (apps/api and apps/workers config/env.ts, prisma.config.ts, seed.ts, one migration script) and four test sites (the vitest setupFiles apps/api/tests/setup-env.ts and apps/workers/tests/setup-env.ts, apps/api/tests/setup.ts, customerLoginMfa.integration.test.ts); two suites mock it (env.test.ts, nameDigestRing.test.ts). In the images the path resolves above the deploy root, so production is a no-op.",
+      "replacement": "Node's built-in process.loadEnvFile (Node 26 runtime) at the nine import sites, each behind an existence check, because loadEnvFile throws on a missing file where dotenv.config returns quietly; the two vi.mock('dotenv') calls go with the import they neutralize.",
+      "decidedOn": "2026-10-25",
+      "note": "Leaves in deps-remove-2, with a boot check that the API, the workers, prisma, the seed and both vitest setups still read .env and .env.test. Declared in apps/api, apps/workers, infra/prisma (dependencies and devDependencies).",
+      "slice": "deps-remove-2"
+    },
+    "@hey-api/openapi-ts": {
+      "status": "kept",
+      "grounds": "tool",
+      "utility": "The openapi-ts CLI runs over openapi-ts.config.ts from scripts/generate-api-types.ts (pnpm generate:api-types), the ci.yml API-types drift gate, and writes packages/shared/src/api-generated/types.gen.ts.",
+      "replacement": "None: the gate measures drift between the OpenAPI spec and that file.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies). types.gen.ts is imported by no app or package: one unit test reads it as a route table (httpRateLimitRuleCoverage.test.ts) and docs name it; booked as a finding."
+    },
+    "@storybook/addon-docs": {
+      "status": "remove",
+      "utility": "Renders the autodocs pages, which only storybook dev and build-storybook show; no workflow, hook or battery step runs either, and test:stories does not test docs pages.",
+      "replacement": "None: the owner does not use the autodocs pages (decision of 2026-10-25); the autodocs tags leave with it.",
+      "decidedOn": "2026-10-25",
+      "note": "Leaves in deps-remove-2, with tags: ['autodocs'] in the stories. The Storybook autodocs section of CODING_STANDARDS is rewritten, not deleted: it also states the props-interface JSDoc rule that pnpm check:jsdoc (fitness #47) relies on, and that rule stays. Declared in apps/client (devDependencies).",
+      "slice": "deps-remove-2"
+    },
+    "cross-env": {
+      "status": "remove",
+      "utility": "Sets NODE_ENV=test in the dev:test scripts of apps/api and apps/workers (run by ci.yml, performance.yml and security-testing.yml) and in the unrun perf:* scripts.",
+      "replacement": "NODE_ENV=test <command> in those scripts: every runner is Linux (45 runs-on, all ubuntu-latest), where the shell assignment does the same.",
+      "decidedOn": "2026-10-25",
+      "note": "Leaves in deps-remove-2. Declared in apps/api, apps/workers (devDependencies).",
+      "slice": "deps-remove-2"
+    },
+    "eslint-plugin-react": {
+      "status": "remove",
+      "utility": "eslint.config.ts enables exactly one of its rules, react/display-name at warn (jsx-uses-react, react-in-jsx-scope and prop-types are off); eslint.jsdoc.config.ts registers it only so directives resolve.",
+      "replacement": "None needed: the one warning-level rule leaves with it; eslint-plugin-react-hooks and eslint-plugin-jsx-a11y stay.",
+      "decidedOn": "2026-10-25",
+      "note": "Leaves in deps-remove-2. It is one of the two peers holding eslint below 10 (SECURITY_CANON hold row); its removal leaves jsx-a11y as the only one. Declared in the root manifest (devDependencies).",
+      "slice": "deps-remove-2"
+    },
+    "@anthropic-ai/sdk": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "AnthropicProvider holds the client and calls it 3 times; selected by AIProviderFactory per account AI settings.",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "@atproto/api": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "AtpAgent/CredentialSession/RichText drive every Bluesky call (agent used 4x, RichText 2x).",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/providers/bluesky (dependencies)."
+    },
+    "@aws-sdk/client-s3": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "S3Client + HeadObjectCommand used; GetObjectCommand imported as _GetObjectCommand and never used; reached through storage-do-spaces and STORAGE_PROVIDER=s3.",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/adapters/storage-s3 (dependencies). GetObjectCommand is imported as _GetObjectCommand and unreferenced today; STOR-5's signed read (a presigned GetObject) is the feature that uses it."
+    },
+    "@aws-sdk/s3-presigned-post": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "createPresignedPost builds the upload signature (StoragePort.getUploadSignature).",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/adapters/storage-s3 (dependencies)."
+    },
+    "@emoji-mart/data": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Dynamic import of the emoji dataset feeds the picker; type-only import too.",
+      "replacement": "None weighed: the picker's own dataset; a different picker would bring its own data.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/ui (dependencies)."
+    },
+    "@emoji-mart/react": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "next/dynamic import of the Picker component, rendered by EmojiPickerButton.",
+      "replacement": "None weighed: a hand-written picker would re-implement search, skin tones and categories.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/ui (dependencies)."
+    },
+    "@fastify/cookie": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Registered once in createApp; cookie parsing for admin/customer sessions.",
+      "replacement": "None: Fastify's own cookie plugin; parsing Cookie headers by hand would duplicate it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "@fastify/cors": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Registered by SecurityManager.register (index.ts:525).",
+      "replacement": "None: Fastify's own CORS plugin.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "@fastify/helmet": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Registered by SecurityManager.register (index.ts:525).",
+      "replacement": "None: Fastify's own security-headers plugin.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "@fastify/otel": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "FastifyOtelInstrumentation in createTelemetryInstrumentations; runs only when TRACING_ENABLED.",
+      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+    },
+    "@fastify/swagger": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Dynamic import registered unconditionally (index.ts:228): builds the OpenAPI spec for /docs/json and for pnpm generate:api-types.",
+      "replacement": "None while /docs/json is served; gating it to non-production is the booked finding, not a replacement.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies). Registered with no environment gate (index.ts:228): /docs/json is served by every deployment with servers: http://localhost:3000; booked as a finding."
+    },
+    "@git-diff-view/file": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "generateDiffFile builds the diff the view renders.",
+      "replacement": "None weighed: it computes the diff model the version compare renders; dropping the compare would be the only alternative.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies)."
+    },
+    "@git-diff-view/react": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "DiffView + DiffModeEnum render the version diff; CSS side-effect import.",
+      "replacement": "None weighed: it renders the diff its sibling computes.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies)."
+    },
+    "@google/genai": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "GeminiProvider holds the client (4 calls); selected by AIProviderFactory.",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "@langchain/langgraph": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "StateGraph/Annotation/interrupt build the repurpose graph; MemorySaver/Command run it; resolved by the GENERATE_REPURPOSE consumer (index.ts:1142).",
+      "replacement": "None: the owner kept the repurpose agent on 2026-10-25; a hand-written state machine would re-implement the graph, its interrupts and its checkpoints.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies). Kept by the owner's decision of 2026-10-25: the repurpose agent stays, so @langchain/core and zod-to-json-schema stay as its peers."
+    },
+    "@marsidev/react-turnstile": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Renders the Turnstile widget on the admin reset-password page when the public settings return a site key.",
+      "replacement": "None weighed: the Turnstile widget wrapper; a script tag plus a ref would re-implement it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin (dependencies)."
+    },
+    "@node-saml/node-saml": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "new SAML(...) per SSO request in samlRoutes.",
+      "replacement": "None: the SAML implementation of the SSO route; hand-rolled SAML is not an option.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "@opentelemetry/auto-instrumentations-node": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "getNodeAutoInstrumentations() registers the bundled instrumentations (http, ioredis, redis, fs enabled, pg, ...); TRACING_ENABLED only.",
+      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+    },
+    "@opentelemetry/exporter-prometheus": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "Metric reader when enablePrometheusExporter; TRACING_ENABLED only.",
+      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+    },
+    "@opentelemetry/exporter-trace-otlp-http": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "Trace exporter when otlpEndpoint is set; TRACING_ENABLED only.",
+      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+    },
+    "@opentelemetry/resources": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "resourceFromAttributes builds the service resource the SDK tags every span with.",
+      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+    },
+    "@opentelemetry/sdk-node": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "NodeSDK constructed and started; type of instrumentations.",
+      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+    },
+    "@paddle/paddle-node-sdk": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "Paddle client used 9x in PaddlePaymentAdapter; chosen by paymentAdapterFactory per gateway.",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "@prisma/adapter-pg": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "PrismaPg is the driver adapter of the singleton client (infra/prisma/src/client.ts:169) and of test-client.ts; seed.ts and two scripts are config-class sites run by prisma/tsx.",
+      "replacement": "None: Prisma 7 requires a driver adapter, and pg is the database.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in infra/prisma (dependencies)."
+    },
+    "@radix-ui/react-popover": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Popover primitives render the notification panel (9 uses). Redundant: packages/ui exports a Popover wrapper over radix-ui, which carries the same @radix-ui/react-popover 1.1.15.",
+      "replacement": "The Popover wrapper packages/ui exports over radix-ui (the same 1.1.15); a follow-up moves NotificationBell onto it and drops this declaration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies). Redundant with the packages/ui wrapper; the declaration leaves when NotificationBell moves onto it."
+    },
+    "@radix-ui/react-scroll-area": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "ScrollArea primitives in the notification panel (7 uses). Redundant: packages/ui exports a ScrollArea over radix-ui (same 1.2.10).",
+      "replacement": "The ScrollArea wrapper packages/ui exports over radix-ui (the same 1.2.10); a follow-up moves NotificationBell onto it and drops this declaration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies). Redundant with the packages/ui wrapper; the declaration leaves when NotificationBell moves onto it."
+    },
+    "@scalar/fastify-api-reference": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Dynamic import registered unconditionally (index.ts:262): serves the API reference UI at /docs, production included.",
+      "replacement": "None while /docs is served; gating it to non-production is the booked finding, not a replacement.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies). Registered with no environment gate (index.ts:262): the API reference UI at /docs is served by every deployment; booked as a finding."
+    },
+    "@sentry/node": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "Sentry.init (index.ts:480, when a DSN is set) and captureException from errorHandler and SagaIntegration.",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "@t3-oss/env-core": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "createEnv validates the api and workers env at boot. Root devDependencies declares it too with no root use (knip ignores it).",
+      "replacement": "None: the typed env boundary the security canon requires (fitness #15 and #16).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api, apps/workers, the root manifest (dependencies and devDependencies). The root devDependencies declare it too with no root import (knip ignores it); that declaration leaves in deps-remove-2."
+    },
+    "@t3-oss/env-nextjs": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "createEnv in both portals' lib/env.ts. Root devDependencies declares it too with no root use.",
+      "replacement": "None: the typed env boundary with the server/client split the security canon requires (fitness #17).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client, the root manifest (dependencies and devDependencies). The root devDependencies declare it too with no root import (knip ignores it); that declaration leaves in deps-remove-2."
+    },
+    "@tiptap/extension-character-count": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Editor extension (character count) of the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
+      "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (Edward's go-ahead); the client template editor is the live site."
+    },
+    "@tiptap/extension-color": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Editor extension of the client template editor (TipTapEditor.tsx).",
+      "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies)."
+    },
+    "@tiptap/extension-highlight": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Editor extension of the client template editor (TipTapEditor.tsx).",
+      "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies)."
+    },
+    "@tiptap/extension-link": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Editor extension (Link.configure) of the client template editor (TipTapEditor.tsx).",
+      "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies)."
+    },
+    "@tiptap/extension-placeholder": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Editor extension (placeholder) of the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
+      "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (Edward's go-ahead); the client template editor is the live site."
+    },
+    "@tiptap/extension-text-style": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Editor extension of the client template editor (TipTapEditor.tsx).",
+      "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies)."
+    },
+    "@tiptap/extension-typography": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Editor extension of the client template editor (TipTapEditor.tsx).",
+      "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies)."
+    },
+    "@tiptap/react": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "useEditor and EditorContent in the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
+      "replacement": "None: the editor's React binding (useEditor, EditorContent).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (Edward's go-ahead); the client template editor is the live site."
+    },
+    "@tiptap/starter-kit": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "The base extensions of the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
+      "replacement": "None: the editor's base extensions.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (Edward's go-ahead); the client template editor is the live site."
+    },
+    "argon2": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "hash/verify/needsRehash behind passwordHashing.ts (fitness #18's single helper); seed.ts (config-class) hashes the seed passwords.",
+      "replacement": "None: the canon's hash (RFC 9106 Argon2id) behind the single helper fitness #18 holds.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api, infra/prisma (dependencies and devDependencies)."
+    },
+    "clsx": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Inside packages/ui cn(), which every ui primitive calls.",
+      "replacement": "None weighed: half of cn(), which every ui primitive calls.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/ui (dependencies)."
+    },
+    "cronstrue": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Renders cron expressions as text in two client components.",
+      "replacement": "None weighed: a hand-written cron-to-text would re-implement its grammar.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies)."
+    },
+    "csv-parse": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "The parse function handed to parseSchedulingCsvWith (client preview and core use case).",
+      "replacement": "None: the CSV parser the use case and the client preview share (CVE floor 7.0.2).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client, packages/core/bulk-scheduling (dependencies)."
+    },
+    "fastify-plugin": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Wraps autoCachePlugin (registered index.ts:315) so its hooks apply app-wide. Its other site, apps/api/src/lib/errors/errorPlugin.ts, is imported only by errorPlugin.test.ts (33 + 398 lines, dead).",
+      "replacement": "None: the way a Fastify plugin's hooks apply app-wide instead of to one encapsulation context.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies). Its other site, apps/api/src/lib/errors/errorPlugin.ts (33 lines, plus 398 of test), is imported only by its own test; the file leaves in a dead-code slice."
+    },
+    "fastify-type-provider-zod": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "validator/serializer compilers + jsonSchemaTransform set in createApp.",
+      "replacement": "None: the Zod type provider every route schema depends on.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "form-data": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Multipart body of TikTokApiClient.uploadVideo (called by TikTokAdapter).",
+      "replacement": "Node's global FormData with fetch could replace it; the TikTok client builds its multipart body for axios with this package today (apiClient.ts:267), and a swap is a change to that client, not a ledger decision.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/providers/tiktok (dependencies)."
+    },
+    "fuse.js": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Fuzzy search index of the template library (fuse.search on every query).",
+      "replacement": "None weighed: the template library's fuzzy search; a substring filter would lose the ranking.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (dependencies)."
+    },
+    "geist": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "GeistSans/GeistMono font variables on the admin root layout.",
+      "replacement": "None weighed: the admin's font package; a @font-face copy would duplicate it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin (dependencies)."
+    },
+    "handlebars": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "BaseTemplateEngine compiles every template through a Handlebars instance (30 uses); extended by the API's ServerTemplateEngine and the client's ClientTemplateEngine.",
+      "replacement": "None: the template engine templates are authored in (CVE floor 4.7.10).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/shared (dependencies)."
+    },
+    "image-size": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "getImageDimensions supplies the aspectRatio of each Bluesky image upload.",
+      "replacement": "None weighed: it reads the header dimensions of JPEG, PNG, GIF and WebP for the aspect ratio Bluesky requires; a hand-written header parser would re-implement it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/providers/bluesky (dependencies)."
+    },
+    "isomorphic-dompurify": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "DOMPurify.sanitize via compileForPlatform, reached from TemplateService.compileTemplate(WithComponents).",
+      "replacement": "None: the sanitizer of compiled templates (CVE floor through dompurify).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies). apps/api/src/types/isomorphic-dompurify.d.ts declares types the package ships (dist/index.d.ts); the .d.ts leaves in deps-remove-2."
+    },
+    "openai": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "OpenAIProvider client (5 calls); the many other sites are the string 'openai'.",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "openid-client": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "OIDC discovery, PKCE and code grant in oidcRoutes; client-credentials probe in setupSamlUseCases.",
+      "replacement": "None: the certified OIDC client of oidcRoutes and the handshake probe.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "otplib": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "TOTP secret, keyuri and verify in the unified MfaService.",
+      "replacement": "None weighed: TOTP per RFC 6238; a hand-written HMAC-OTP would re-implement it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "qrcode": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "QR data URL of the MFA enrolment (MfaService.setupMfa).",
+      "replacement": "None weighed: the QR data URL of MFA enrolment.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "react-dom": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "useFormStatus in packages/ui SubmitButton, which client login, register and MfaChallengeForm render; also the required runtime peer of next in both portals (no import site needed).",
+      "replacement": "None: React's DOM renderer and next's required peer.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client, packages/observability/browser-logger, packages/observability/sentry-next, packages/ui (dependencies and devDependencies and peerDependencies)."
+    },
+    "stripe": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "Stripe client used 12x in StripePaymentAdapter; chosen by paymentAdapterFactory.",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (dependencies)."
+    },
+    "tailwind-merge": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Inside packages/ui cn().",
+      "replacement": "None weighed: the other half of cn(); it dedupes conflicting Tailwind classes.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/ui (dependencies)."
+    },
+    "twitter-api-v2": {
+      "status": "kept",
+      "grounds": "single-adapter",
+      "utility": "TwitterApi client used 7x in XApiClient.",
+      "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/providers/x (dependencies)."
+    },
+    "zustand": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "create() of the shared notification store, used by the client's NotificationBell and useNotificationStream. apps/admin declares zustand too, but admin's re-export lib/stores/notificationStore.ts is imported only by its own test.",
+      "replacement": "None: the engine of the shared notification store.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client, packages/shared (dependencies and peerDependencies). apps/admin declares it too, for a re-export (lib/stores/notificationStore.ts) only its own test imports; packages/shared declares zustand as an optional peer, so that test resolves it through admin's declaration, and the declaration leaves together with the re-export and its test (DC-12, awaiting Edward), not before."
+    },
+    "@eslint/js": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "js.configs.recommended spread into eslint.config.ts; loader: pnpm lint (eslint), battery step lint.",
+      "replacement": "None: eslint's recommended rules, spread into eslint.config.ts.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "@storybook/addon-a11y": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "String in .storybook/main.ts addons; axe checks of test:stories (parameters.a11y) — loader: vitest.stories.config.ts via addon-vitest, CI job Storybook Stories.",
+      "replacement": "None: the axe checks of test:stories (ADR-0035).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (devDependencies)."
+    },
+    "@storybook/addon-vitest": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "storybookTest() plugin of vitest.stories.config.ts — the stories gate (CI Storybook Stories, battery step stories).",
+      "replacement": "None: the plugin of the stories gate (ADR-0035).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (devDependencies)."
+    },
+    "@storybook/nextjs-vite": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "The framework string of .storybook/main.ts; the rest are type-only.",
+      "replacement": "None: the framework of the client Storybook (ADR-0035), patched for next 16.4 (ADR-0037).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (devDependencies)."
+    },
+    "@tailwindcss/postcss": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "String plugin in both postcss.config.mjs; Next's PostCSS pipeline loads it on every build.",
+      "replacement": "None: Tailwind 4's PostCSS plugin, the way Next builds the CSS.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client (devDependencies)."
+    },
+    "@testing-library/jest-dom": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Imported by the vitest setupFiles of admin and client (130 matcher uses in tests).",
+      "replacement": "None: the DOM matchers of both portals' suites.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client (devDependencies)."
+    },
+    "@testing-library/user-event": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "2 admin test files; loader: admin vitest.",
+      "replacement": "None weighed: it drives the two admin suites that use it; fireEvent would lose the realistic event sequence.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin (devDependencies)."
+    },
+    "@types/qrcode": {
+      "status": "kept",
+      "grounds": "types",
+      "utility": "Types of qrcode (ships none); follows qrcode.",
+      "replacement": "None: the typed package ships no types of its own.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api (devDependencies)."
+    },
+    "@types/react-dom": {
+      "status": "kept",
+      "grounds": "types",
+      "utility": "Types of react-dom 19 (ships none); follows react-dom.",
+      "replacement": "None: the typed package ships no types of its own.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client, packages/ui (devDependencies)."
+    },
+    "@typescript-eslint/eslint-plugin": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "11 rules in eslint.config.ts; in eslint.jsdoc.config.ts registered only so disable directives resolve.",
+      "replacement": "None: the TypeScript rules of pnpm lint (11 enabled).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "@vitejs/plugin-react": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "react() plugin (JSX transform) of the admin and client vitest configs.",
+      "replacement": "None: the JSX transform of the component suites (hold row: 5.2.0 is the next move).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client (devDependencies)."
+    },
+    "@vitest/browser-playwright": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "Browser provider of vitest.stories.config.ts.",
+      "replacement": "None: the browser provider of the stories run.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client (devDependencies)."
+    },
+    "@vitest/eslint-plugin": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "8 vitest/* rules in eslint.config.ts; jsdoc config registers it only for directives.",
+      "replacement": "None: the eight vitest rules of pnpm lint.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "aws-sdk-client-mock": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Mocks S3Client in storage-s3's own test (loader: its vitest).",
+      "replacement": "None weighed: it mocks S3Client in storage-s3's own suite; a hand-written mock would re-implement the command matching.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/adapters/storage-s3 (devDependencies)."
+    },
+    "dependency-cruiser": {
+      "status": "kept",
+      "grounds": "tool",
+      "utility": "pnpm check:architecture (battery step architecture, audit.yml dependency-cruiser job).",
+      "replacement": "None: the architecture gate (pnpm check:architecture).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "eslint-config-prettier": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "Turns off the rules that fight Prettier in eslint.config.ts.",
+      "replacement": "None: it turns off the rules that fight Prettier.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "eslint-plugin-jsdoc": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "The jsdoc rules of eslint.jsdoc.config.ts, loaded by jsdoc-touched-gate.mjs (fitness #47, pre-commit, battery).",
+      "replacement": "None: the rules of fitness #47.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "eslint-plugin-jsx-a11y": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "Spreads flatConfigs.strict.rules in eslint.config.ts.",
+      "replacement": "None: the accessibility rules of pnpm lint.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies). One of the two peers holding eslint below 10 (SECURITY_CANON hold row), and the only one once eslint-plugin-react leaves."
+    },
+    "eslint-plugin-react-hooks": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "rules-of-hooks (error) and exhaustive-deps.",
+      "replacement": "None: rules-of-hooks and exhaustive-deps.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "husky": {
+      "status": "kept",
+      "grounds": "tool",
+      "utility": "The root prepare script installs the .husky hooks; pre-commit runs lint-staged, secretlint and the jsdoc gate.",
+      "replacement": "None: the git hooks manager.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "jscpd": {
+      "status": "kept",
+      "grounds": "tool",
+      "utility": "pnpm check:duplicates (ci.yml, battery step duplicates).",
+      "replacement": "None: the duplicates gate (pnpm check:duplicates).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "lint-staged": {
+      "status": "kept",
+      "grounds": "tool",
+      "utility": ".husky/pre-commit.",
+      "replacement": "None: the pre-commit runner.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "secretlint": {
+      "status": "kept",
+      "grounds": "tool",
+      "utility": "pnpm secret:scan (pre-commit, audit.yml).",
+      "replacement": "None: the secret scanner of pre-commit and audit.yml.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "size-limit": {
+      "status": "kept",
+      "grounds": "tool",
+      "utility": "audit.yml size-limit job.",
+      "replacement": "None: the bundle-size job of audit.yml.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest (devDependencies)."
+    },
+    "tailwindcss": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "@import \"tailwindcss\" in both globals.css, imported by each [locale]/layout.tsx.",
+      "replacement": "None: the styling framework of both portals.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client (devDependencies)."
+    },
+    "tw-animate-css": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "@import in both globals.css; provides animate-in/fade/zoom classes used by 7 packages/ui primitives (dialog, select, popover, ...).",
+      "replacement": "None weighed: the animate classes seven ui primitives use; copying them into globals.css would duplicate the package.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/client (devDependencies)."
+    },
+    "yaml": {
+      "status": "kept",
+      "grounds": "in-use",
+      "utility": "Parses every workflow for rule R2 of the reach engine (pnpm --filter @packages/test-contracts reach, fitness.yml Test Contracts).",
+      "replacement": "None weighed: the reach engine's workflow parser (rule R2).",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/test-contracts (dependencies)."
     }
   }
 }

@@ -2231,8 +2231,10 @@ git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!es
 # differs from the rendered one, each difference named (`drift: the summary differs`,
 # `drift: <name>: in the tree, not in the committed record`, `in the committed record, not in the
 # tree`, `its row differs`); an entry off its status's rules (a field the status needs left out or
-# one it never carries, a ground outside the list, a decidedOn that is not a calendar day, a
-# `manual` flag); a stale entry (a name no manifest declares, or a name at or above the floor whose
+# one it never carries, a ground outside the list, a `planned` entry whose note names no Master Plan
+# item (an id of the plan's shape, `STOR-5` or `N-COR-9`: the shape, not the plan's list, so a note
+# citing only an `ADR-0028` or a `CVE-2026-1234` passes it and review confirms the item), a
+# decidedOn that is not a calendar day, a `manual` flag); a stale entry (a name no manifest declares, or a name at or above the floor whose
 # entry is not `remove`); a `floor` other than 3, a `generator` other than the command, an unknown
 # top-level key, `entries` that is not an object, a `pendingBaseline` that is not a non-negative
 # integer; and a `pending` count above or below `pendingBaseline`. Write mode, `pnpm deps:ledger`,
@@ -2280,8 +2282,8 @@ git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!es
 # that it is right.
 pnpm check:deps-ledger   # expect exit 0 and one line:
 #   dependency-ledger: dependency-ledger.json is current
-pnpm deps:ledger   # writes the record and prints, on this tree:
-#   dependency-ledger: wrote dependency-ledger.json: 101 manifests, 175 names, 47 at or above the floor, 128 under it (19 at zero); pending 128 of baseline 128
+pnpm deps:ledger   # writes the record and prints one line with the tree's counts, of this shape:
+#   dependency-ledger: wrote dependency-ledger.json: <M> manifests, <N> names, <A> at or above the floor, <U> under it (<Z> at zero); pending <P> of baseline <P>
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One
