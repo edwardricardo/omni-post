@@ -15,23 +15,6 @@ import { Button } from "./button";
 const meta = {
   title: "Components/UI/Input",
   component: Input,
-  parameters: {
-    docs: {
-      description: {
-        component: `
-A flexible input component that supports various input types and styling states.
-
-**Features:**
-- Support for all HTML input types
-- Consistent styling with the design system
-- Focus and disabled states
-- File upload styling
-- Placeholder text support
-- Integration with form libraries
-        `,
-      },
-    },
-  },
   argTypes: {
     type: {
       control: "select",
@@ -68,7 +51,6 @@ A flexible input component that supports various input types and styling states.
     onFocus: action("focused"),
     onBlur: action("blurred"),
   },
-  tags: ["autodocs"],
 } satisfies Meta<typeof Input>;
 
 export default meta;

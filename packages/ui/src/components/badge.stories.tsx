@@ -16,14 +16,6 @@ import { Badge } from "./badge";
 const meta = {
   title: "Components/UI/Badge",
   component: Badge,
-  parameters: {
-    docs: {
-      description: {
-        component:
-          "A compact pill for a status or a count, in four variants: default, secondary, outline, and destructive for a failed status.",
-      },
-    },
-  },
   argTypes: {
     variant: {
       control: "select",
@@ -38,7 +30,6 @@ const meta = {
   args: {
     children: "Published",
   },
-  tags: ["autodocs"],
 } satisfies Meta<typeof Badge>;
 
 export default meta;

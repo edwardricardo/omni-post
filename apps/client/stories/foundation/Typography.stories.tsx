@@ -211,14 +211,6 @@ const TypographySystem = () => {
 const meta: Meta<typeof TypographySystem> = {
   title: "Foundation/Typography",
   component: TypographySystem,
-  parameters: {
-    docs: {
-      description: {
-        component: "Complete typography system with semantic hierarchy and consistent spacing.",
-      },
-    },
-  },
-  tags: ["autodocs"],
 };
 
 export default meta;

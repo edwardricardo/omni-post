@@ -25,9 +25,6 @@
       "name": "@storybook/addon-a11y"
     },
     {
-      "name": "@storybook/addon-docs"
-    },
-    {
       "name": "@storybook/addon-vitest"
     },
     {
@@ -76,9 +73,6 @@
       "name": "autocannon"
     },
     {
-      "name": "cross-env"
-    },
-    {
       "name": "dependency-cruiser"
     },
     {
@@ -89,9 +83,6 @@
     },
     {
       "name": "eslint-plugin-jsx-a11y"
-    },
-    {
-      "name": "eslint-plugin-react"
     },
     {
       "name": "fast-check"

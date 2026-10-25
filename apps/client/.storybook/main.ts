@@ -14,7 +14,7 @@ const config: StorybookConfig = {
     // Storybook for the package, to avoid dual-maintenance of addons/preview.
     "../../../packages/ui/src/**/*.stories.@(ts|tsx)",
   ],
-  addons: ["@storybook/addon-a11y", "@storybook/addon-docs", "@storybook/addon-vitest"],
+  addons: ["@storybook/addon-a11y", "@storybook/addon-vitest"],
   framework: {
     name: "@storybook/nextjs-vite",
     options: {
@@ -31,9 +31,6 @@ const config: StorybookConfig = {
   staticDirs: ["../public"],
   core: {
     disableTelemetry: true,
-  },
-  docs: {
-    defaultName: "Documentation",
   },
 };
 

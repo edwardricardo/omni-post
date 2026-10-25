@@ -27,13 +27,7 @@
       "project": ["*.{ts,js,cjs,mjs}", "scripts/**/*.{ts,js,mjs}"],
       "ignore": ["performance/**", "security/**", "scripts/migrations/**", "scripts/depscan.mjs"],
       "ignoreBinaries": ["du"],
-      "ignoreDependencies": [
-        "react",
-        "@secretlint/secretlint-rule-preset-recommend",
-        "msw",
-        "@t3-oss/env-core",
-        "@t3-oss/env-nextjs"
-      ]
+      "ignoreDependencies": ["react", "@secretlint/secretlint-rule-preset-recommend", "msw"]
     },
     "apps/api": {
       "project": ["src/**/*.{ts,tsx}"],

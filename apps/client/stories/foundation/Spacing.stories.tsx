@@ -273,14 +273,6 @@ const SpacingSystem = () => {
 const meta: Meta<typeof SpacingSystem> = {
   title: "Foundation/Spacing",
   component: SpacingSystem,
-  parameters: {
-    docs: {
-      description: {
-        component: "Complete spacing system with consistent scale and layout patterns.",
-      },
-    },
-  },
-  tags: ["autodocs"],
 };
 
 export default meta;

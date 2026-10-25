@@ -29,15 +29,6 @@ const meta = {
   title: "Components/UI/Avatar",
   component: Avatar,
   subcomponents: { AvatarImage, AvatarFallback, AvatarInitial },
-  parameters: {
-    docs: {
-      description: {
-        component:
-          "A user's picture in a circle. AvatarImage renders only once its image has loaded; until then, or when it fails, AvatarFallback shows the user's initials. AvatarInitial is the initial shown for a user without a picture.",
-      },
-    },
-  },
-  tags: ["autodocs"],
 } satisfies Meta<typeof Avatar>;
 
 export default meta;

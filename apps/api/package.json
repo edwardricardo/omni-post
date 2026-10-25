@@ -12,7 +12,7 @@
     "build": "tsc -b tsconfig.build.json",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.type-tests.json && node scripts/typecheck-tests-ratchet.mjs",
     "dev": "node --conditions development --env-file=../../.env --import tsx src/index.ts",
-    "dev:test": "cross-env NODE_ENV=test node --conditions development --import tsx src/index.ts",
+    "dev:test": "NODE_ENV=test node --conditions development --import tsx src/index.ts",
     "dump:openapi": "SCHEMA_ONLY=true node --conditions development --env-file=../../.env --import tsx scripts/dump-openapi-spec.ts",
     "test": "vitest run",
     "test:unit": "vitest run",
@@ -20,9 +20,9 @@
     "test:unit:coverage": "vitest run --coverage",
     "test:all": "pnpm test && pnpm test:integration",
     "test:integration": "bash scripts/run-tests.sh",
-    "perf:memory": "cross-env NODE_ENV=test tsx ../../performance/monitoring/memory-leak-detector.ts",
-    "perf:baseline": "cross-env NODE_ENV=test tsx ../../performance/scripts/baseline-capture.ts",
-    "perf:regression": "cross-env NODE_ENV=test tsx ../../performance/monitoring/regression-detector.ts"
+    "perf:memory": "NODE_ENV=test tsx ../../performance/monitoring/memory-leak-detector.ts",
+    "perf:baseline": "NODE_ENV=test tsx ../../performance/scripts/baseline-capture.ts",
+    "perf:regression": "NODE_ENV=test tsx ../../performance/monitoring/regression-detector.ts"
   },
   "dependencies": {
     "@adapters/cache-redis": "workspace:*",
@@ -117,7 +117,6 @@
     "@t3-oss/env-core": "catalog:",
     "argon2": "catalog:",
     "bullmq": "catalog:",
-    "dotenv": "catalog:",
     "fastify": "catalog:",
     "fastify-plugin": "5.0.1",
     "fastify-type-provider-zod": "6.1.0",
@@ -151,7 +150,6 @@
     "@types/ws": "8.18.1",
     "@types/xml2js": "0.4.14",
     "@vitest/coverage-v8": "catalog:",
-    "cross-env": "catalog:",
     "fast-check": "catalog:",
     "msw": "catalog:",
     "tsx": "catalog:",

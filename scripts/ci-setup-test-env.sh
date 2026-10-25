@@ -54,15 +54,15 @@ DIGEST_RING_KEY="$(printf 'omnipost-citest-name-digest-ring' | sha256sum | cut -
   # SINGLE-quoted, and it has to be. These files have TWO readers that disagree,
   # measured rather than assumed:
   #   unquoted  {"1":"x"}   -> bash `source` strips the inner quotes and yields
-  #                            {1:x}, which is not JSON; dotenv reads it fine.
-  #   "escaped"             -> bash yields the right value; dotenv keeps the
-  #                            backslashes and yields {\"1\":\"x\"}.
+  #                            {1:x}, which is not JSON; process.loadEnvFile reads it fine.
+  #   "escaped"             -> bash yields the right value; process.loadEnvFile stops
+  #                            at the first escaped quote and yields {\ (Node 26.12.1).
   #   'single'              -> BOTH yield {"1":"x"}.
   # The bash reader is whoever exports the root env file before the integration
   # tier: `scripts/testing/battery.sh` sources it, and so does a developer's
   # `set -a; . ./.env.test; set +a` (`apps/api/scripts/run-tests.sh` reads no
-  # env file; it exits 2 when DATABASE_URL is empty). The dotenv readers are
-  # vitest's `setupFiles` (`apps/api/tests/setup-env.ts`) and
+  # env file; it exits 2 when DATABASE_URL is empty). The process.loadEnvFile readers
+  # are vitest's `setupFiles` (`apps/api/tests/setup-env.ts`) and
   # `apps/api/src/config/env.ts`. So the unquoted form breaks the whole
   # integration tier with a boot refusal that names the ring, not the quoting.
   echo "DELETION_NAME_DIGEST_KEY_RING='{\"1\":\"${DIGEST_RING_KEY}\"}'"

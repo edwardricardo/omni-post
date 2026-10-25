@@ -30,18 +30,6 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
-    docs: {
-      toc: {
-        contentsSelector: ".sbdocs-content",
-        headingSelector: "h1, h2, h3",
-        ignoreSelector: "#storybook-docs",
-        title: "Table of Contents",
-        disable: false,
-        unsafeTocbotOptions: {
-          orderedList: false,
-        },
-      },
-    },
     viewport: {
       options: {
         mobile: { name: "Mobile", styles: { width: "375px", height: "667px" } },
@@ -115,7 +103,6 @@ const preview: Preview = {
       );
     },
   ],
-  tags: ["autodocs"],
 };
 
 export default preview;

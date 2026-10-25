@@ -13,22 +13,6 @@ import { Button } from "./button";
 const meta = {
   title: "Components/UI/Button",
   component: Button,
-  parameters: {
-    docs: {
-      description: {
-        component: `
-A flexible button component built with Radix UI Slot and class-variance-authority for consistent styling and behavior.
-
-**Features:**
-- Multiple variants (default, destructive, outline, secondary, ghost, link)
-- Different sizes (sm, default, lg, icon)
-- Support for icons and custom content
-- Accessibility compliant with proper focus management
-- Can render as different elements using the \`asChild\` prop
-        `,
-      },
-    },
-  },
   argTypes: {
     variant: {
       control: "select",
@@ -57,7 +41,6 @@ A flexible button component built with Radix UI Slot and class-variance-authorit
     children: "Button",
     onClick: action("clicked"),
   },
-  tags: ["autodocs"],
 } satisfies Meta<typeof Button>;
 
 export default meta;
@@ -198,13 +181,6 @@ export const SocialMediaActions: Story = {
       </Button>
     </div>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Common button patterns used in social media management interfaces.",
-      },
-    },
-  },
 };
 
 // Button Groups
@@ -385,12 +361,4 @@ export const AllVariants: Story = {
       </div>
     </div>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "Complete overview of all button variants, sizes, and states available in the design system.",
-      },
-    },
-  },
 };
