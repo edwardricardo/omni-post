@@ -94,19 +94,40 @@ describe("createErrorHandler through Fastify inject", () => {
   });
 
   it.each([
-    ["bad-request", 400],
-    ["unauthorized", 401],
-    ["forbidden", 403],
-    ["not-found", 404],
-    ["conflict", 409],
-    ["too-many-requests", 429],
-    ["internal", 500],
-    ["external-service", 502],
-  ])("maps the %s factory to HTTP %i", async (route, status) => {
+    ["bad-request", 400, ErrorCode.BAD_REQUEST],
+    ["unauthorized", 401, ErrorCode.AUTH_INVALID_CREDENTIALS],
+    ["forbidden", 403, ErrorCode.FORBIDDEN],
+    ["not-found", 404, ErrorCode.RESOURCE_NOT_FOUND],
+    ["conflict", 409, ErrorCode.RESOURCE_CONFLICT],
+    ["too-many-requests", 429, ErrorCode.RATE_LIMIT_EXCEEDED],
+    ["internal", 500, ErrorCode.INTERNAL_SERVER_ERROR],
+    ["external-service", 502, ErrorCode.EXTERNAL_SERVICE_ERROR],
+  ])("maps the %s factory to HTTP %i with code %s", async (route, status, code) => {
     const response = await app.inject({ method: "GET", url: `/factory/${route}` });
 
     expect(response.statusCode).toBe(status);
-    expect(JSON.parse(response.body).ok).toBe(false);
+    const body = JSON.parse(response.body);
+    expect(body.ok).toBe(false);
+    expect(body.error.code).toBe(code);
+  });
+
+  // The handler reads process.env.NODE_ENV on every request (errorHandler.ts), so toggling it after
+  // the app is built is what the handler sees; details surface in development and nowhere else.
+  it("surfaces an AppError's details, retryAfter included, in development only", async () => {
+    const previous = process.env.NODE_ENV;
+    process.env.NODE_ENV = "development";
+    try {
+      const validation = JSON.parse((await app.inject({ method: "GET", url: "/app-error" })).body);
+      expect(validation.error.details).toStrictEqual({ field: "email" });
+      const limited = JSON.parse(
+        (await app.inject({ method: "GET", url: "/factory/too-many-requests" })).body
+      );
+      expect(limited.error.details).toStrictEqual({ retryAfter: 60 });
+    } finally {
+      process.env.NODE_ENV = previous;
+    }
+    const outside = JSON.parse((await app.inject({ method: "GET", url: "/app-error" })).body);
+    expect(outside.error.details).toBeUndefined();
   });
 
   it("hides a Prisma error code and its meta in production", async () => {
