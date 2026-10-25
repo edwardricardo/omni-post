@@ -245,7 +245,8 @@ export const STATUSES = Object.freeze(/** @type {const} */ (["kept", "remove", "
 /**
  * Why a name under the floor is kept, one per entry: one adapter per SDK, a CLI scripts run, a
  * plugin a host loads by name, a type package, a peer range it satisfies, a CVE floor it holds, a
- * load from code the tree does not track, or a use the owner judges real.
+ * load from code the tree does not track, a use the owner judges real, or a feature a Master Plan item
+ * schedules to wire (the item named in the note; the code stays until that item runs).
  */
 export const GROUNDS = Object.freeze([
   "single-adapter",
@@ -256,6 +257,7 @@ export const GROUNDS = Object.freeze([
   "cve-floor",
   "generated",
   "in-use",
+  "planned",
 ]);
 
 /** The owner's decisions, beside the other machine-read records of `scripts/testing/`. */
@@ -295,6 +297,12 @@ const STATUS_FIELDS = Object.freeze({
 });
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * A Master Plan item id as the plan writes them: `STOR-5`, `N-COR-9`, `F2-API-12`, `WEBHOOK-INGEST`.
+ * The shape, not the plan's list: a note that cites only an `ADR-0028` or a `CVE-2026-1234` passes
+ * it too, so review still confirms the item exists.
+ */
+const PLAN_ITEM = /\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b/;
 
 /**
  * @description Reads the owner's decisions, `{ generator, floor, pendingBaseline, entries }`,
@@ -342,9 +350,9 @@ function isDate(value) {
 
 /**
  * @description Holds one entry to the rules of its status: the fields it needs and the ones it
- *   never carries, grounds one of {@link GROUNDS}, a decision date that is a calendar day, and no
- *   `manual` flag, which belongs to the legal inventory. A status the reader refused has no rules
- *   to hold; the reader already reported it.
+ *   never carries, grounds one of {@link GROUNDS}, a `planned` note that names its Master Plan
+ *   item, a decision date that is a calendar day, and no `manual` flag, which belongs to the legal
+ *   inventory. A status the reader refused has no rules to hold; the reader already reported it.
  * @param {string} name The entry's name.
  * @param {Record<string, unknown>} entry The entry as written.
  * @returns {string[]} One problem per rule it breaks.
@@ -367,6 +375,11 @@ function entryProblems(name, entry) {
   const { grounds, decidedOn } = entry;
   if (status === "kept" && grounds !== undefined && !GROUNDS.includes(String(grounds))) {
     problems.push(`${name} has grounds ${JSON.stringify(grounds)}, not ${GROUNDS.join("|")}`);
+  }
+  if (status === "kept" && grounds === "planned" && !PLAN_ITEM.test(String(entry.note ?? ""))) {
+    problems.push(
+      `${name} is planned, but its note names no Master Plan item (an id such as STOR-5)`
+    );
   }
   if (rules.needs.includes("decidedOn") && decidedOn !== undefined && !isDate(decidedOn)) {
     problems.push(`${name} has decidedOn ${JSON.stringify(decidedOn)}, not a YYYY-MM-DD date`);
