@@ -92,10 +92,6 @@
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
     },
-    "@fastify/websocket": {
-      "status": "library",
-      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
-    },
     "@formatjs/icu-messageformat-parser": {
       "status": "library",
       "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
@@ -446,10 +442,6 @@
       "status": "library",
       "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
     },
-    "@vitest/ui": {
-      "status": "library",
-      "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
-    },
     "argon2": {
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
@@ -758,14 +750,6 @@
     "playwright": {
       "status": "library",
       "note": "Test, story or load-test tooling: it runs on developer machines and in CI, and the product sends no data through it."
-    },
-    "postcss": {
-      "status": "library",
-      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
-    },
-    "postcss-load-config": {
-      "status": "library",
-      "note": "Build, lint, format or type-check tooling: it runs on developer machines and in CI, and the product sends no data through it."
     },
     "prettier": {
       "status": "library",

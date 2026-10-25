@@ -51,7 +51,6 @@
 | @fastify/cookie               | 11.0.2  | Cookie handling         | httpOnly cookies for auth sessions                            |
 | @fastify/helmet               | 13.0.1  | Security headers        |                                                               |
 | @fastify/swagger              | 9.7.0   | OpenAPI spec generation |                                                               |
-| @fastify/websocket            | 11.2.0  | WebSocket support       | SSE notifications                                             |
 | @scalar/fastify-api-reference | 1.49.5  | API documentation UI    | Interactive Scalar docs                                       |
 
 ### Architecture

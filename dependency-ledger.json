@@ -2,16 +2,16 @@
   "version": 1,
   "floor": 3,
   "summary": {
-    "names": 175,
-    "production": 107,
-    "devOnly": 68,
+    "names": 171,
+    "production": 106,
+    "devOnly": 65,
     "types": 9,
     "aboveFloor": 47,
-    "underFloor": 128,
-    "atZero": 19,
+    "underFloor": 124,
+    "atZero": 15,
     "underFloorWithSites": 109,
     "kept": 113,
-    "remove": 15,
+    "remove": 11,
     "pending": 0
   },
   "names": [
@@ -381,23 +381,6 @@
           "production": ["apps/api/src/index.ts"]
         }
       }
-    },
-    {
-      "name": "@fastify/websocket",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/api/package.json",
-          "block": "dependencies",
-          "specifier": "literal"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 0,
-      "decision": "remove",
-      "sites": {}
     },
     {
       "name": "@formatjs/icu-messageformat-parser",
@@ -2659,23 +2642,6 @@
       }
     },
     {
-      "name": "@vitest/ui",
-      "scope": "dev-only",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/client/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 0,
-      "decision": "remove",
-      "sites": {}
-    },
-    {
       "name": "argon2",
       "scope": "production",
       "typedTarget": null,
@@ -4100,50 +4066,6 @@
       "real": null,
       "decision": null,
       "sites": null
-    },
-    {
-      "name": "postcss",
-      "scope": "dev-only",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/admin/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
-        },
-        {
-          "manifest": "apps/client/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 0,
-      "decision": "remove",
-      "sites": {}
-    },
-    {
-      "name": "postcss-load-config",
-      "scope": "dev-only",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/admin/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
-        },
-        {
-          "manifest": "apps/client/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 0,
-      "decision": "remove",
-      "sites": {}
     },
     {
       "name": "prettier",

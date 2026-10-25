@@ -3,38 +3,6 @@
   "floor": 3,
   "pendingBaseline": 0,
   "entries": {
-    "@fastify/websocket": {
-      "status": "remove",
-      "utility": "None: no register call and no websocket route; the realtime broadcaster uses ws directly.",
-      "replacement": "ws, already in use by realtimeWebhookBroadcaster.",
-      "decidedOn": "2026-10-25",
-      "note": "Only fastify.d.ts named it; knip's ignoreDependencies hid it.",
-      "slice": "deps-remove-1"
-    },
-    "postcss-load-config": {
-      "status": "remove",
-      "utility": "None: no importer and no package depends on it (pnpm why lists only our own devDependencies).",
-      "replacement": "Next and Vite load PostCSS configuration themselves.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/admin and apps/client devDependencies.",
-      "slice": "deps-remove-1"
-    },
-    "postcss": {
-      "status": "remove",
-      "utility": "None: no import, no peer requires it; Next bundles its own copy.",
-      "replacement": "The lockfile holds the CVE floor by natural resolution, as for undici and sharp; the SECURITY_CANON row moves to lockfile-only.",
-      "decidedOn": "2026-10-25",
-      "note": "Direct declaration in apps/admin and apps/client; CVE-floor catalog pin.",
-      "slice": "deps-remove-1"
-    },
-    "@vitest/ui": {
-      "status": "remove",
-      "utility": "None: the owner and the agent run vitest headless; the test:ui script was never used.",
-      "replacement": "vitest run and its text reporters.",
-      "decidedOn": "2026-10-25",
-      "note": "Leaves with the apps/client test:ui script.",
-      "slice": "deps-remove-1"
-    },
     "zod-to-json-schema": {
       "status": "kept",
       "grounds": "peer",
@@ -221,11 +189,11 @@
     },
     "@formatjs/icu-messageformat-parser": {
       "status": "kept",
-      "grounds": "in-use",
+      "grounds": "tool",
       "utility": "parse() and TYPE drive apps/admin/scripts/i18n-validate.mjs and apps/client/scripts/i18n-validate.mjs (admin 1,311 keys and client 2,232 at the 2026-10-25 run, both passing).",
       "replacement": "None: the ICU MessageFormat parser the i18n check is built on.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/admin, apps/client (devDependencies). Only the package script i18n:lint runs the two scripts today, and no workflow, hook, turbo task or battery step runs it; the owner decided on 2026-10-25 to wire it as a gate (one shared script, a battery step and a CI step), its own unit."
+      "note": "Declared in apps/admin, apps/client (devDependencies). Only the package script i18n:lint runs the two scripts today, and no workflow, hook, turbo task or battery step runs it; the owner decided on 2026-10-25 to wire it as a gate (one shared script, a battery step and a CI step), its own unit, and to keep the ground tool, the vocabulary of that check."
     },
     "@types/validator": {
       "status": "remove",

@@ -73,9 +73,6 @@
       "name": "@vitest/eslint-plugin"
     },
     {
-      "name": "@vitest/ui"
-    },
-    {
       "name": "autocannon"
     },
     {

@@ -48,15 +48,6 @@ declare module "fastify" {
     signed?: boolean;
   }
 
-  /**
-   * `RouteShorthandOptions` extension surfaced by `@fastify/websocket`
-   * so route definitions can opt into WebSocket upgrade with
-   * `{ websocket: true }`.
-   */
-  interface RouteShorthandOptions {
-    websocket?: boolean;
-  }
-
   export interface FastifyInstance {
     prisma?: PrismaClient;
     container?: Container;
