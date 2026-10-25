@@ -8,7 +8,7 @@
  *              a stack trace reaches the body.
  * @layer infrastructure
  */
-import { describe, it, beforeAll, afterAll, expect } from "vitest";
+import { describe, it, beforeAll, afterAll, afterEach, expect, vi } from "vitest";
 import Fastify, { type FastifyInstance } from "fastify";
 import { createErrorHandler } from "../../src/lib/errors/errorHandler.js";
 import { AppError, ErrorCode } from "../../src/lib/errors/AppError.js";
@@ -64,6 +64,12 @@ describe("createErrorHandler through Fastify inject", () => {
     await app.close();
   });
 
+  // Every NODE_ENV the suite sets goes through vi.stubEnv, so the ambient value, set or unset, comes
+  // back exactly, and no case depends on the shell the suite runs in.
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("returns the AppError's status and code with a JSON body", async () => {
     const response = await app.inject({ method: "GET", url: "/app-error" });
 
@@ -111,38 +117,32 @@ describe("createErrorHandler through Fastify inject", () => {
     expect(body.error.code).toBe(code);
   });
 
-  // The handler reads process.env.NODE_ENV on every request (errorHandler.ts), so toggling it after
+  // The handler reads process.env.NODE_ENV on every request (errorHandler.ts), so stubbing it after
   // the app is built is what the handler sees; details surface in development and nowhere else.
-  it("surfaces an AppError's details, retryAfter included, in development only", async () => {
-    const previous = process.env.NODE_ENV;
-    process.env.NODE_ENV = "development";
-    try {
-      const validation = JSON.parse((await app.inject({ method: "GET", url: "/app-error" })).body);
-      expect(validation.error.details).toStrictEqual({ field: "email" });
-      const limited = JSON.parse(
-        (await app.inject({ method: "GET", url: "/factory/too-many-requests" })).body
-      );
-      expect(limited.error.details).toStrictEqual({ retryAfter: 60 });
-    } finally {
-      process.env.NODE_ENV = previous;
-    }
-    const outside = JSON.parse((await app.inject({ method: "GET", url: "/app-error" })).body);
-    expect(outside.error.details).toBeUndefined();
+  it("surfaces an AppError's details, retryAfter included, in development", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const validation = JSON.parse((await app.inject({ method: "GET", url: "/app-error" })).body);
+    expect(validation.error.details).toStrictEqual({ field: "email" });
+    const limited = JSON.parse(
+      (await app.inject({ method: "GET", url: "/factory/too-many-requests" })).body
+    );
+    expect(limited.error.details).toStrictEqual({ retryAfter: 60 });
+  });
+
+  it.each(["production", "test"])("hides an AppError's details under NODE_ENV=%s", async (env) => {
+    vi.stubEnv("NODE_ENV", env);
+    const body = JSON.parse((await app.inject({ method: "GET", url: "/app-error" })).body);
+    expect(body.error.details).toBeUndefined();
   });
 
   it("hides a Prisma error code and its meta in production", async () => {
-    const previous = process.env.NODE_ENV;
-    process.env.NODE_ENV = "production";
-    try {
-      const response = await app.inject({ method: "GET", url: "/prisma-error" });
+    vi.stubEnv("NODE_ENV", "production");
+    const response = await app.inject({ method: "GET", url: "/prisma-error" });
 
-      expect(response.statusCode).toBe(500);
-      expect(response.body.includes("P2002")).toBe(false);
-      expect(response.body.includes("email")).toBe(false);
-      expect(JSON.parse(response.body).error.details).toBeUndefined();
-    } finally {
-      process.env.NODE_ENV = previous;
-    }
+    expect(response.statusCode).toBe(500);
+    expect(response.body.includes("P2002")).toBe(false);
+    expect(response.body.includes("email")).toBe(false);
+    expect(JSON.parse(response.body).error.details).toBeUndefined();
   });
 
   it("hides an internal path from the body", async () => {
