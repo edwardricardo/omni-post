@@ -10,9 +10,9 @@
     "underFloor": 128,
     "atZero": 19,
     "underFloorWithSites": 109,
-    "kept": 0,
-    "remove": 0,
-    "pending": 128
+    "kept": 15,
+    "remove": 4,
+    "pending": 109
   },
   "names": [
     {
@@ -396,7 +396,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "remove",
       "sites": {}
     },
     {
@@ -597,7 +597,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -722,7 +722,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -993,7 +993,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {
         "config-string": {
           "test": ["apps/api/tests/unit/scripts/holdsGate.test.ts"]
@@ -1077,7 +1077,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -1153,7 +1153,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -1265,7 +1265,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {
         "type-only": {
           "test": [
@@ -1440,7 +1440,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -1544,7 +1544,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -1729,7 +1729,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -2586,7 +2586,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -2634,7 +2634,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -2672,7 +2672,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "remove",
       "sites": {}
     },
     {
@@ -3559,7 +3559,7 @@
       "bins": ["jiti"],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -3734,7 +3734,7 @@
       "bins": ["msw"],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {
         "runtime-import": {
           "test": [
@@ -4120,7 +4120,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "remove",
       "sites": {}
     },
     {
@@ -4142,7 +4142,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "remove",
       "sites": {}
     },
     {
@@ -5266,7 +5266,7 @@
       "bins": ["vite"],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {
@@ -5886,7 +5886,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 0,
-      "decision": "pending",
+      "decision": "kept",
       "sites": {}
     },
     {

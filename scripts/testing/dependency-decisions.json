@@ -1,6 +1,159 @@
 {
   "generator": "scripts/testing/dependency-ledger.mjs",
   "floor": 3,
-  "pendingBaseline": 128,
-  "entries": {}
+  "pendingBaseline": 109,
+  "entries": {
+    "@fastify/websocket": {
+      "status": "remove",
+      "utility": "None: no register call and no websocket route; the realtime broadcaster uses ws directly.",
+      "replacement": "ws, already in use by realtimeWebhookBroadcaster.",
+      "decidedOn": "2026-10-25",
+      "note": "Only fastify.d.ts named it; knip's ignoreDependencies hid it.",
+      "slice": "deps-remove-1"
+    },
+    "postcss-load-config": {
+      "status": "remove",
+      "utility": "None: no importer and no package depends on it (pnpm why lists only our own devDependencies).",
+      "replacement": "Next and Vite load PostCSS configuration themselves.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin and apps/client devDependencies.",
+      "slice": "deps-remove-1"
+    },
+    "postcss": {
+      "status": "remove",
+      "utility": "None: no import, no peer requires it; Next bundles its own copy.",
+      "replacement": "The lockfile holds the CVE floor by natural resolution, as for undici and sharp; the SECURITY_CANON row moves to lockfile-only.",
+      "decidedOn": "2026-10-25",
+      "note": "Direct declaration in apps/admin and apps/client; CVE-floor catalog pin.",
+      "slice": "deps-remove-1"
+    },
+    "@vitest/ui": {
+      "status": "remove",
+      "utility": "None: the owner and the agent run vitest headless; the test:ui script was never used.",
+      "replacement": "vitest run and its text reporters.",
+      "decidedOn": "2026-10-25",
+      "note": "Leaves with the apps/client test:ui script.",
+      "slice": "deps-remove-1"
+    },
+    "zod-to-json-schema": {
+      "status": "kept",
+      "grounds": "peer",
+      "utility": "Peer requirement (^3.x) of @langchain/langgraph, the repurpose agent's graph engine; no import of our own.",
+      "replacement": "None while langgraph stays; it leaves with langgraph if that engine is replaced.",
+      "decidedOn": "2026-10-25",
+      "note": "The only mention in our code is a comment saying fastify-type-provider-zod replaced it."
+    },
+    "@langchain/core": {
+      "status": "kept",
+      "grounds": "peer",
+      "utility": "Peer requirement (^1.1.48) of @langchain/langgraph.",
+      "replacement": "None while langgraph stays; it leaves with langgraph.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/api."
+    },
+    "@prisma/client": {
+      "status": "kept",
+      "grounds": "generated",
+      "utility": "Runtime library of the generated Prisma client: 130 generated files under infra/prisma/generated import it.",
+      "replacement": "None: Prisma's own generated client requires it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in infra/prisma."
+    },
+    "@opentelemetry/core": {
+      "status": "kept",
+      "grounds": "cve-floor",
+      "utility": "Direct catalog pin that holds the GHSA-8988-4f7v-96qf floor for every transitive copy (SECURITY_CANON CVE-floor row).",
+      "replacement": "A dual-role override is the canon's shape for this floor; the floor only rises.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/observability/opentelemetry through the otel catalog."
+    },
+    "@tiptap/core": {
+      "status": "kept",
+      "grounds": "peer",
+      "utility": "Exact peer (3.30.5) of every @tiptap extension the editors use; the family moves atomically.",
+      "replacement": "None: the extensions require it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client and packages/ui."
+    },
+    "@tiptap/pm": {
+      "status": "kept",
+      "grounds": "peer",
+      "utility": "Exact peer (3.30.5) of every @tiptap extension; the ProseMirror layer the editors run on.",
+      "replacement": "None: the extensions require it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client and packages/ui."
+    },
+    "vite": {
+      "status": "kept",
+      "grounds": "peer",
+      "utility": "Peer of @vitejs/plugin-react, the JSX transform of the admin and client component suites.",
+      "replacement": "None while the component suites run under vitest with that plugin.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin and apps/client devDependencies."
+    },
+    "@vitest/coverage-v8": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "Coverage provider vitest loads by its internal name: coverage.provider \"v8\" in apps/api/vitest.config.ts.",
+      "replacement": "None: fitness #37's thresholds are measured by it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin, apps/api and apps/client."
+    },
+    "@vitest/browser": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "Browser mode of apps/client/vitest.stories.config.ts, which runs every story in Chromium (ADR-0035).",
+      "replacement": "None: the story runner is vitest browser mode by decision.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/client."
+    },
+    "msw": {
+      "status": "kept",
+      "grounds": "peer",
+      "utility": "Optional peer of packages/providers/shared, whose test-utils expose msw helpers to consumers' suites; every other declaration is a devDependency used by tests.",
+      "replacement": "None: the provider contract suites mock HTTP with it.",
+      "decidedOn": "2026-10-25",
+      "note": "The ledger reads the peer declaration as production scope; its real use is test-only by design."
+    },
+    "@storybook/react": {
+      "status": "kept",
+      "grounds": "types",
+      "utility": "Every story in packages/ui imports Meta and StoryObj from it; the stories run under the client Storybook.",
+      "replacement": "None: the story types are the renderer's.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in packages/ui devDependencies."
+    },
+    "@testing-library/dom": {
+      "status": "kept",
+      "grounds": "peer",
+      "utility": "Peer (^10) of @testing-library/react, used by the admin and client component suites.",
+      "replacement": "None: @testing-library/react requires it.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in apps/admin and apps/client."
+    },
+    "@secretlint/secretlint-rule-preset-recommend": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "The rule preset .secretlintrc.json loads for the pre-commit secret scan.",
+      "replacement": "None: it is the secret scanner's rule set.",
+      "decidedOn": "2026-10-25",
+      "note": "Named in .secretlintrc.json, a file the site reader does not scan."
+    },
+    "@size-limit/preset-small-lib": {
+      "status": "kept",
+      "grounds": "plugin",
+      "utility": "The preset size-limit detects from package.json for the size-limit job of audit.yml.",
+      "replacement": "None: size-limit requires a preset.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest."
+    },
+    "jiti": {
+      "status": "kept",
+      "grounds": "peer",
+      "utility": "Optional peer of eslint, required to load eslint.config.ts (a TypeScript config).",
+      "replacement": "None while the ESLint config is TypeScript.",
+      "decidedOn": "2026-10-25",
+      "note": "Declared in the root manifest."
+    }
+  }
 }
