@@ -254,18 +254,10 @@
     "@tanstack/react-query-devtools": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "providers.tsx loads the devtools panel with import() outside production and replaces it with () => null when NODE_ENV=production: dev-only in effect, declared in dependencies.",
-      "replacement": "None: the dev panel is the tool for the query cache; its declaration moves to devDependencies.",
+      "utility": "providers.tsx loads the devtools panel with import() outside production and replaces it with () => null when NODE_ENV=production: dev-only in effect, declared in devDependencies since 2026-10-25.",
+      "replacement": "None: the dev panel is the tool for the query cache; its declaration sits in devDependencies.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client (dependencies). The move to devDependencies lands in deps-remove-2."
-    },
-    "dotenv": {
-      "status": "remove",
-      "utility": "dotenv.config() loads <root>/.env or .env.test at five production and config sites (apps/api and apps/workers config/env.ts, prisma.config.ts, seed.ts, one migration script) and four test sites (the vitest setupFiles apps/api/tests/setup-env.ts and apps/workers/tests/setup-env.ts, apps/api/tests/setup.ts, customerLoginMfa.integration.test.ts); two suites mock it (env.test.ts, nameDigestRing.test.ts). In the images the path resolves above the deploy root, so production is a no-op.",
-      "replacement": "Node's built-in process.loadEnvFile (Node 26 runtime) at the nine import sites, each behind an existence check, because loadEnvFile throws on a missing file where dotenv.config returns quietly; the two vi.mock('dotenv') calls go with the import they neutralize.",
-      "decidedOn": "2026-10-25",
-      "note": "Leaves in deps-remove-2, with a boot check that the API, the workers, prisma, the seed and both vitest setups still read .env and .env.test. Declared in apps/api, apps/workers, infra/prisma (dependencies and devDependencies).",
-      "slice": "deps-remove-2"
+      "note": "Declared in apps/client (devDependencies). Moved to devDependencies on 2026-10-25 (deps-remove-2)."
     },
     "@hey-api/openapi-ts": {
       "status": "kept",
@@ -274,30 +266,6 @@
       "replacement": "None: the gate measures drift between the OpenAPI spec and that file.",
       "decidedOn": "2026-10-25",
       "note": "Declared in the root manifest (devDependencies). types.gen.ts is imported by no app or package: one unit test reads it as a route table (httpRateLimitRuleCoverage.test.ts) and docs name it; booked as a finding."
-    },
-    "@storybook/addon-docs": {
-      "status": "remove",
-      "utility": "Renders the autodocs pages, which only storybook dev and build-storybook show; no workflow, hook or battery step runs either, and test:stories does not test docs pages.",
-      "replacement": "None: the owner does not use the autodocs pages (decision of 2026-10-25); the autodocs tags leave with it.",
-      "decidedOn": "2026-10-25",
-      "note": "Leaves in deps-remove-2, with tags: ['autodocs'] in the stories. The Storybook autodocs section of CODING_STANDARDS is rewritten, not deleted: it also states the props-interface JSDoc rule that pnpm check:jsdoc (fitness #47) relies on, and that rule stays. Declared in apps/client (devDependencies).",
-      "slice": "deps-remove-2"
-    },
-    "cross-env": {
-      "status": "remove",
-      "utility": "Sets NODE_ENV=test in the dev:test scripts of apps/api and apps/workers (run by ci.yml, performance.yml and security-testing.yml) and in the unrun perf:* scripts.",
-      "replacement": "NODE_ENV=test <command> in those scripts: every runner is Linux (45 runs-on, all ubuntu-latest), where the shell assignment does the same.",
-      "decidedOn": "2026-10-25",
-      "note": "Leaves in deps-remove-2. Declared in apps/api, apps/workers (devDependencies).",
-      "slice": "deps-remove-2"
-    },
-    "eslint-plugin-react": {
-      "status": "remove",
-      "utility": "eslint.config.ts enables exactly one of its rules, react/display-name at warn (jsx-uses-react, react-in-jsx-scope and prop-types are off); eslint.jsdoc.config.ts registers it only so directives resolve.",
-      "replacement": "None needed: the one warning-level rule leaves with it; eslint-plugin-react-hooks and eslint-plugin-jsx-a11y stay.",
-      "decidedOn": "2026-10-25",
-      "note": "Leaves in deps-remove-2. It is one of the two peers holding eslint below 10 (SECURITY_CANON hold row); its removal leaves jsx-a11y as the only one. Declared in the root manifest (devDependencies).",
-      "slice": "deps-remove-2"
     },
     "@anthropic-ai/sdk": {
       "status": "kept",
@@ -526,18 +494,18 @@
     "@t3-oss/env-core": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "createEnv validates the api and workers env at boot. Root devDependencies declares it too with no root use (knip ignores it).",
+      "utility": "createEnv validates the api and workers env at boot. The root manifest declared it too, with no root use, until deps-remove-2 (2026-10-25).",
       "replacement": "None: the typed env boundary the security canon requires (fitness #15 and #16).",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api, apps/workers, the root manifest (dependencies and devDependencies). The root devDependencies declare it too with no root import (knip ignores it); that declaration leaves in deps-remove-2."
+      "note": "Declared in apps/api, apps/workers (dependencies). The root devDependencies declared it too with no root import, behind a knip ignore; that declaration left on 2026-10-25 (deps-remove-2)."
     },
     "@t3-oss/env-nextjs": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "createEnv in both portals' lib/env.ts. Root devDependencies declares it too with no root use.",
+      "utility": "createEnv in both portals' lib/env.ts. The root manifest declared it too, with no root use, until deps-remove-2 (2026-10-25).",
       "replacement": "None: the typed env boundary with the server/client split the security canon requires (fitness #17).",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/admin, apps/client, the root manifest (dependencies and devDependencies). The root devDependencies declare it too with no root import (knip ignores it); that declaration leaves in deps-remove-2."
+      "note": "Declared in apps/admin, apps/client (dependencies). The root devDependencies declared it too with no root import, behind a knip ignore; that declaration left on 2026-10-25 (deps-remove-2)."
     },
     "@tiptap/extension-character-count": {
       "status": "kept",
@@ -646,10 +614,10 @@
     "fastify-plugin": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "Wraps autoCachePlugin (registered index.ts:315) so its hooks apply app-wide. Its other site, apps/api/src/lib/errors/errorPlugin.ts, is imported only by errorPlugin.test.ts (33 + 398 lines, dead).",
+      "utility": "Wraps autoCachePlugin (registered index.ts:315) so its hooks apply app-wide. Its other site, apps/api/src/lib/errors/errorPlugin.ts, was imported only by its test and left on 2026-10-25 (deps-remove-2).",
       "replacement": "None: the way a Fastify plugin's hooks apply app-wide instead of to one encapsulation context.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies). Its other site, apps/api/src/lib/errors/errorPlugin.ts (33 lines, plus 398 of test), is imported only by its own test; the file leaves in a dead-code slice."
+      "note": "Declared in apps/api (dependencies). Its other site, apps/api/src/lib/errors/errorPlugin.ts (33 lines, plus 398 of test), was imported only by its own test; both left on 2026-10-25 (deps-remove-2)."
     },
     "fastify-type-provider-zod": {
       "status": "kept",
@@ -705,7 +673,7 @@
       "utility": "DOMPurify.sanitize via compileForPlatform, reached from TemplateService.compileTemplate(WithComponents).",
       "replacement": "None: the sanitizer of compiled templates (CVE floor through dompurify).",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies). apps/api/src/types/isomorphic-dompurify.d.ts declares types the package ships (dist/index.d.ts); the .d.ts leaves in deps-remove-2."
+      "note": "Declared in apps/api (dependencies). apps/api/src/types/isomorphic-dompurify.d.ts declares types the package ships (dist/index.d.ts); the .d.ts left on 2026-10-25 (deps-remove-2)."
     },
     "openai": {
       "status": "kept",
@@ -921,7 +889,7 @@
       "utility": "Spreads flatConfigs.strict.rules in eslint.config.ts.",
       "replacement": "None: the accessibility rules of pnpm lint.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in the root manifest (devDependencies). One of the two peers holding eslint below 10 (SECURITY_CANON hold row), and the only one once eslint-plugin-react leaves."
+      "note": "Declared in the root manifest (devDependencies). One of the two peers holding eslint below 10 (SECURITY_CANON hold row), and the only one since eslint-plugin-react left on 2026-10-25 (deps-remove-2)."
     },
     "eslint-plugin-react-hooks": {
       "status": "kept",
