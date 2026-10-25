@@ -167,7 +167,7 @@ owner moved it to 2026-10-15 ([D52](TESTING_REFOUNDATION.md#decisions-log)). The
   documented hold (yes/no, where) · CVE floor; (b) per family, raise to the **latest mature** unless
   a documented hold says otherwise, each bump validated empirically (green tests of the affected
   packages, `tsc -b --force`, `format:check`) and one pull request per family ≤ 400 CODE: `vitest` +
-  `@vitest/coverage-v8` + `@vitest/ui`, `@playwright/test` (plus `playwright install` of the
+  `@vitest/coverage-v8`, `@playwright/test` (plus `playwright install` of the
   version), `msw`, `@testing-library/react` + `jest-dom` + `user-event`, `jsdom`, `tsx`;
   (c) **`@types/node` aligns DOWN to the runtime major (24)**, and `engines.node` is added (0 of 98
   manifests declare it) so drift becomes a gate; (d) the Storybook family keeps its hold (10.4.6,

@@ -1,7 +1,7 @@
 /**
  * @file webhookDashboardRoutes.ts
  * @description Fastify route plugin for the webhook admin dashboard providing metrics,
- *              event search, DLQ management, and real-time WebSocket upgrades.
+ *              event search, DLQ management, and a real-time SSE stream.
  * @layer infrastructure
  */
 import { randomUUID } from "node:crypto";
@@ -284,8 +284,10 @@ class WebhookDashboardRouteHandler extends BaseRouteHandler {
 }
 
 /**
- * Register webhook dashboard routes
- * Resolves WebhookDashboardService from the DI container (registered in setup.ts).
+ * @description Registers the webhook dashboard routes: metrics, event search, DLQ management and
+ *   the real-time SSE stream. Resolves WebhookDashboardService and the realtime broadcaster from
+ *   the DI container (registered in setup.ts).
+ * @param fastify - The Fastify instance the routes are registered on
  */
 export async function registerWebhookDashboardRoutes(fastify: FastifyInstance) {
   const service = fastify.container!.resolve<WebhookDashboardService>(
