@@ -1033,6 +1033,26 @@ describe("joinDecisions", () => {
     expect(joined.problems).toEqual([]);
   });
 
+  it("joins a kept entry whose ground is planned, the Master Plan item in its note, with no problem", () => {
+    const joined = core.joinDecisions(
+      [rowOf("u", "production", ONE)],
+      decisionsOf({ u: { ...KEPT, grounds: "planned", note: "STOR-4 wires it." } })
+    );
+
+    expect(joined.problems).toEqual([]);
+  });
+
+  it("names the whole list of grounds, and nothing after it, for a ground outside the list", () => {
+    const joined = core.joinDecisions(
+      [rowOf("u", "production", ONE)],
+      decisionsOf({ u: { ...KEPT, grounds: "habit" } })
+    );
+
+    expect(joined.problems).toEqual([
+      'u has grounds "habit", not single-adapter|tool|plugin|types|peer|cve-floor|generated|in-use|planned',
+    ]);
+  });
+
   const without = (entry: Fields, field: string): Fields =>
     Object.fromEntries(Object.entries(entry).filter(([key]) => key !== field));
 
@@ -1055,9 +1075,14 @@ describe("joinDecisions", () => {
       "u: a kept entry never carries slice",
     ],
     [
-      "grounds outside the eight",
+      "grounds outside the nine",
       { ...KEPT, grounds: "habit" },
-      'u has grounds "habit", not single-adapter|',
+      'u has grounds "habit", not single-adapter|tool|plugin|types|peer|cve-floor|generated|in-use|planned',
+    ],
+    [
+      "a planned entry whose note names no Master Plan item",
+      { ...KEPT, grounds: "planned", note: "Wired later." },
+      "u is planned, but its note names no Master Plan item (an id such as STOR-5)",
     ],
     [
       "a remove entry with no utility",
