@@ -2142,7 +2142,9 @@ pnpm check:patched-deps   # expect exit 0 and, with no patch, this one line:
 # 49. Every test-block lint rule stays at `error`, and no inline directive turns one off.
 # Threat: eslint-suppressions.json holds the test blocks that cannot fail, and the tests that hide
 # from their runner, at the count the tree had when their rules landed, and lets it only shrink: a
-# deleted block whose entry is not pruned makes `pnpm lint` exit 2 while its file is still linted; a deleted FILE leaves its entries unused and unreported until `eslint . --prune-suppressions` runs, which the deleting change does. That ratchet counts only while
+# deleted block whose entry is not pruned makes `pnpm lint` exit 2 while its file is still linted. A
+# deleted FILE is the gap: its entries stay unused and unreported until `eslint . --prune-suppressions`
+# runs, so the change that deletes a test file runs the prune. That ratchet counts only while
 # each rule is an error. At `warn` or `off` every entry of the rule goes unused, a prune deletes
 # them, and the class grows back with nothing counting it; an inline `eslint-disable` takes one
 # block out of the count without pruning anything.

@@ -24,8 +24,9 @@ import { describe, it, expect, vi } from "vitest";
 import { parseNameDigestKeyRing } from "../../../src/security/nameDigest/keyRing.js";
 
 // `env.ts` calls `process.loadEnvFile()` on import, which would re-inject `.env.test`
-// over the fixture below. Neutralise it so the fixture is the only source.
-vi.spyOn(process, "loadEnvFile").mockImplementation(() => undefined);
+// over the fixture below. Neutralise it so the fixture is the only source; vi.hoisted installs
+// the spy before any import of this file can load env.ts.
+vi.hoisted(() => vi.spyOn(process, "loadEnvFile").mockImplementation(() => undefined));
 
 /** 32 bytes of obviously-fake, deterministic key material, as 64 lowercase hex. */
 const KEY_ONE = "1".repeat(64);

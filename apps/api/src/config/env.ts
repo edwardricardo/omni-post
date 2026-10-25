@@ -10,9 +10,9 @@
 
 // Load .env first so callers that import env.ts without an env file loaded (e.g. vitest) still
 // see the variables.
-// `process.loadEnvFile` leaves a variable the process already holds untouched, so `node --env-file`
-// and CI exports win; it throws when the file is absent, and the images
-// carry no env file, hence the guard.
+// `process.loadEnvFile` (Node's own loader, stable since 21.7; the engines pin Node 26) leaves a
+// variable the process already holds untouched, so `node --env-file` and CI exports win; it throws
+// when the file is absent, and the images carry no env file, hence the guard.
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

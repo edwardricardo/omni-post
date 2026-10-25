@@ -7,10 +7,10 @@
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// process.loadEnvFile() inside env.ts re-injects values from .env.test on import.
-// For deterministic tests we need it to be a no-op so that explicit
-// process.env mutations are the only source of truth.
-vi.spyOn(process, "loadEnvFile").mockImplementation(() => undefined);
+// process.loadEnvFile() inside env.ts re-injects values from .env.test on import. For
+// deterministic tests we need it to be a no-op so that explicit process.env mutations are the only
+// source of truth; vi.hoisted installs the spy before any import of this file can load env.ts.
+vi.hoisted(() => vi.spyOn(process, "loadEnvFile").mockImplementation(() => undefined));
 
 const REQUIRED_BASE_ENV = {
   NODE_ENV: "test",
