@@ -8,17 +8,20 @@
  * @layer infrastructure
  */
 
-// Load .env first so callers that import env.ts without setting up dotenv
-// (e.g. vitest) still see the variables. Idempotent when `node --env-file`
-// has already populated process.env.
-import dotenv from "dotenv";
+// Load .env first so callers that import env.ts without an env file loaded (e.g. vitest) still
+// see the variables.
+// `process.loadEnvFile` leaves a variable the process already holds untouched, so `node --env-file`
+// and CI exports win; it throws when the file is absent, and the images
+// carry no env file, hence the guard.
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
-dotenv.config({ path: path.resolve(__dirname, "../../../..", envFile) });
+const envPath = path.resolve(__dirname, "../../../..", envFile);
+if (existsSync(envPath)) process.loadEnvFile(envPath);
 
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";

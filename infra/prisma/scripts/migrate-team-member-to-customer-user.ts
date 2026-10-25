@@ -13,10 +13,11 @@
  *
  * @layer infrastructure
  */
+import { existsSync } from "fs";
 import path from "path";
-import dotenv from "dotenv";
 
-dotenv.config({ path: path.join(import.meta.dirname, "../../../.env") });
+const envPath = path.join(import.meta.dirname, "../../../.env");
+if (existsSync(envPath)) process.loadEnvFile(envPath);
 
 import { PrismaClient } from "../generated/prisma/client/client.js";
 import { PrismaPg } from "@prisma/adapter-pg";
