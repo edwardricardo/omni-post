@@ -195,27 +195,11 @@
       "productionPath": "yes",
       "note": "`@observability/opentelemetry`, which the API and the workers start when tracing is on."
     },
-    "@opentelemetry/instrumentation-fs": {
-      "status": "library",
-      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
-    },
-    "@opentelemetry/instrumentation-http": {
-      "status": "library",
-      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
-    },
-    "@opentelemetry/instrumentation-redis": {
-      "status": "library",
-      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
-    },
     "@opentelemetry/resources": {
       "status": "library",
       "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
     },
     "@opentelemetry/sdk-node": {
-      "status": "library",
-      "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
-    },
-    "@opentelemetry/semantic-conventions": {
       "status": "library",
       "note": "In-process OpenTelemetry instrumentation of the API and the workers; it exports through `@opentelemetry/exporter-trace-otlp-http` and reaches no endpoint of its own."
     },
