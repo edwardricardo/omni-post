@@ -68,5 +68,8 @@ describe("GET /api/auth/refresh", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(`${appOrigin}/`);
+    // The parameter changes nothing else: the refresh still runs and rewrites the session.
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(session.setSessionCookie).toHaveBeenLastCalledWith("fresh-access");
   });
 });

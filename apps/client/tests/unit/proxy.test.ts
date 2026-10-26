@@ -105,6 +105,16 @@ describe("client proxy with the declared routing (en, es)", () => {
     expect(response.headers.get("location")).toBe(`${ORIGIN}/en/dashboard`);
   });
 
+  it("hands an anonymous visitor's auth page to next-intl whatever its returnTo holds", async () => {
+    const proxy = await loadProxy();
+
+    const response = proxy(requestTo("/en/login?returnTo=https%3A%2F%2Fevil.example%2Fphish"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
+    expect(i18nMiddleware.handledPaths).toEqual(["/en/login"]);
+  });
+
   it("keeps a signed-in user on the site when returnTo is a protocol-relative or backslash path", async () => {
     const proxy = await loadProxy();
 
