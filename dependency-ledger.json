@@ -4963,7 +4963,11 @@
       "verdict": "under-floor",
       "real": 0,
       "decision": "kept",
-      "sites": {}
+      "sites": {
+        "type-only": {
+          "config": ["apps/client/.storybook/preview.tsx"]
+        }
+      }
     },
     {
       "name": "vitest",

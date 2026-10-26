@@ -15,6 +15,10 @@ export default defineConfig({
   // The plugin loads .storybook/main.ts, so the stories render through the Next.js framework's
   // own Vite plugins and resolve their imports through the client tsconfig, as the app does.
   plugins: [storybookTest({ configDir: path.join(import.meta.dirname, ".storybook") })],
+  // The preview imports the routing, and so next-intl/routing. Vite's dependency scan does not
+  // reach the preview, so on a cache built without it the optimizer finds the module mid-run and
+  // reloads the browser, failing every suite that was loading; listing it keeps the cache whole.
+  optimizeDeps: { include: ["next-intl/routing"] },
   test: {
     name: "stories",
     setupFiles: ["./.storybook/vitest.setup.ts"],
