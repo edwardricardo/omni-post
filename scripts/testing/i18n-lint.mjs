@@ -162,7 +162,9 @@ function readLocales(text, file) {
       problem: `${file} holds ${lines.length} \`locales: [...]\` lines; the gate reads exactly one`,
     };
   if (lines.length === 0) return { problem: unreadable };
-  const items = (lines[0][1] ?? "")
+  const body = lines[0][1];
+  if (body === undefined) return { problem: unreadable };
+  const items = body
     .split(",")
     .map((item) => item.trim())
     .filter((item) => item !== "");
@@ -170,8 +172,9 @@ function readLocales(text, file) {
   const locales = [];
   for (const item of items) {
     const literal = LOCALE_LITERAL.exec(item);
-    if (literal === null) return { problem: unreadable };
-    locales.push(literal[2] ?? "");
+    const tag = literal?.[2];
+    if (tag === undefined) return { problem: unreadable };
+    locales.push(tag);
   }
   return { locales };
 }
@@ -190,7 +193,10 @@ function readDefaultLocale(text, file) {
     };
   if (lines.length === 0)
     return { problem: `${file} holds no readable \`defaultLocale: "..."\` string literal` };
-  return { defaultLocale: lines[0][2] ?? "" };
+  const tag = lines[0][2];
+  if (tag === undefined)
+    return { problem: `${file} holds no readable \`defaultLocale: "..."\` string literal` };
+  return { defaultLocale: tag };
 }
 
 /**
@@ -243,6 +249,8 @@ function collectNames(elements, names) {
       names.add(element.value);
       for (const option of Object.values(element.options)) collectNames(option.value, names);
     } else if (isTagElement(element)) {
+      // A tag is stored as `<name>`: an ICU argument name cannot hold `<` or `>`, so a tag and an
+      // argument of the same name stay two entries, and a problem line shows which one is missing.
       names.add(`<${element.value}>`);
       collectNames(element.children, names);
     }

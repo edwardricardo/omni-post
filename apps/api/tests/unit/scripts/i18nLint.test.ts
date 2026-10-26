@@ -558,16 +558,20 @@ describe("i18n-lint, usage", () => {
 });
 
 describe("i18n-lint, this repository", () => {
-  it("passes the repository's own portals and prints their summary lines", () => {
+  it("passes the repository's own portals and prints one summary line per discovered portal", () => {
     const result = runGate([]);
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
-    const lines = result.stdout.trimEnd().split("\n");
-    expect(lines[0]).toBe("i18n-lint: PASS");
-    expect(lines.slice(1)).toEqual([
-      expect.stringMatching(/^admin: 2 locales \(en, es\), [1-9]\d* messages, reference en$/),
-      expect.stringMatching(/^client: 2 locales \(en, es\), [1-9]\d* messages, reference en$/),
-    ]);
+    const [first, ...summaries] = result.stdout.trimEnd().split("\n");
+    expect(first).toBe("i18n-lint: PASS");
+    // The shape, not the counts: a new locale, portal or message changes the numbers, never this test.
+    for (const line of summaries) {
+      expect(line).toMatch(
+        /^[a-z][a-z0-9-]*: \d+ locales \([a-z-]+(, [a-z-]+)*\), [1-9]\d* messages, reference [a-z-]+$/
+      );
+    }
+    const portals = summaries.map((line) => line.slice(0, line.indexOf(":")));
+    expect(portals).toEqual(expect.arrayContaining(["admin", "client"]));
   });
 });
