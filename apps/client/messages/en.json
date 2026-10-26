@@ -1241,8 +1241,15 @@
         "postsThisMonth": "{count} {count, plural, one {post} other {posts}} this month",
         "disconnect": "Disconnect",
         "disconnectChannel": "Disconnect {channel}",
+        "never": "Never",
         "emptyTitle": "No channels connected yet",
         "emptyDescription": "Connect your first social media account to get started"
+      },
+      "status": {
+        "expiredOn": "Expired on {date}",
+        "reconnectRequired": "Reconnect required",
+        "disconnected": "Disconnected",
+        "connected": "Connected"
       }
     }
   },

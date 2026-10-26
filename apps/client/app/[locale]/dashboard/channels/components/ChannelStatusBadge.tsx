@@ -1,47 +1,49 @@
 /**
  * @file ChannelStatusBadge.tsx
  * @description Status pill rendered in the channels-table Status column.
- *              Order of precedence (highest first): expiredAt → "Expired on
- *              YYYY-MM-DD" (amber); needsReauth → "Reconnect required"
- *              (orange); not connected → "Disconnected" (red); otherwise
- *              "Connected" (green).
+ *              Order of precedence (highest first): expiredAt → the expiry date
+ *              (amber); needsReauth → reconnect required (orange); not connected
+ *              → disconnected (red); otherwise connected (green). Every label
+ *              comes from the `channels.components.status` catalog keys.
  * @component ChannelStatusBadge
  * @layer infrastructure
  */
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { ProjectChannel } from "@/lib/hooks/useProjectChannels";
 import { formatDay } from "./formatters";
 
 /**
- * Status pill of one channel; the expiry date, when shown, is in the active UI locale.
+ * Status pill of one channel, labelled in the active UI locale; the expiry date, when shown, is
+ * formatted in that locale too.
  */
 export function ChannelStatusBadge({ channel }: { channel: ProjectChannel }) {
+  const t = useTranslations("channels.components.status");
   const locale = useLocale();
   if (channel.expiredAt && !channel.isConnected) {
     return (
       <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
-        Expired on {formatDay(channel.expiredAt, locale)}
+        {t("expiredOn", { date: formatDay(channel.expiredAt, locale) })}
       </span>
     );
   }
   if (channel.needsReauth) {
     return (
       <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
-        Reconnect required
+        {t("reconnectRequired")}
       </span>
     );
   }
   if (!channel.isConnected) {
     return (
       <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
-        Disconnected
+        {t("disconnected")}
       </span>
     );
   }
   return (
     <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
-      Connected
+      {t("connected")}
     </span>
   );
 }
