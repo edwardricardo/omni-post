@@ -10,7 +10,7 @@
  *     for integration test fixtures. Forcing every unit test through that
  *     module would pull the full adapter graph into the import phase —
  *     defeats the point of a fast unit test.
- *   - `setupFiles` MUST be lightweight: only dotenv loading, nothing else.
+ *   - `setupFiles` MUST be lightweight: only the env-file loading, nothing else.
  *
  *   If `.env.test` is missing the loader logs a single stderr warning and
  *   returns. CI provides env via shell exports (see
@@ -19,7 +19,6 @@
  *
  * @layer infrastructure
  */
-import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
@@ -40,7 +39,7 @@ const __dirname = path.dirname(__filename);
 const envFilePath = path.join(findMonorepoRoot(__dirname), ".env.test");
 
 if (existsSync(envFilePath)) {
-  dotenv.config({ path: envFilePath });
+  process.loadEnvFile(envFilePath);
 } else if (!process.env.DATABASE_URL) {
   // Only warn when the env var that everything depends on is also missing —
   // CI exports vars directly without needing the file.
@@ -52,5 +51,5 @@ if (existsSync(envFilePath)) {
 
 // Ensure NODE_ENV reflects the test runner so downstream modules
 // (e.g. `apps/api/src/config/env.ts`) take the test branch on subsequent
-// dotenv loads even when the file already set it explicitly.
+// env-file loads even when the file already set it explicitly.
 process.env.NODE_ENV = process.env.NODE_ENV ?? "test";

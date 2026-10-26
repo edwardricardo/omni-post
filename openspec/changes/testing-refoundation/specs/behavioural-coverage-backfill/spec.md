@@ -104,7 +104,7 @@ to get around them.
 
 Every backfill test MUST build its aggregates through the shared domain builders, replace HTTP through
 the single interception layer, and build route applications through the shared route-app builder with
-the production error plugin. A backfill slice MUST NOT introduce a local builder, a local persistence
+the production error handler (`createErrorHandler`). A backfill slice MUST NOT introduce a local builder, a local persistence
 or cache double, or a hand-written HTTP stub; the name, cast and stub gates apply unchanged. Every new
 file MUST carry the file, description and layer documentation header, and no comment MAY reference a
 phase, sprint or roadmap section.
@@ -130,7 +130,7 @@ branches — validation failure, not-found, conflict, and persistence failure (t
 missing) — plus the success path with the VALUES asserted, not merely that the result is successful.
 Route coverage MUST assert the complete contract per route: required authentication, schema rejection
 with its detail, the asserted success body, and the domain-error-to-status mapping through the
-production error plugin.
+production error handler (`createErrorHandler`).
 
 #### Scenario: Every branch of a covered use case has a test that reaches it [runtime]
 

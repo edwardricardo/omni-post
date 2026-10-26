@@ -31,12 +31,14 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "crypto";
+import { existsSync } from "fs";
 import path from "path";
-import dotenv from "dotenv";
 import { until } from "@packages/vitest-shared/determinism";
+import { findMonorepoRoot } from "@packages/vitest-shared";
 
-// Load .env.test BEFORE importing modules that read the typed env at import time.
-dotenv.config({ path: path.resolve(process.cwd(), ".env.test") });
+// Load the root .env.test, when it exists, BEFORE importing modules that read the typed env at import time.
+const envPath = path.join(findMonorepoRoot(process.cwd()), ".env.test");
+if (existsSync(envPath)) process.loadEnvFile(envPath);
 
 const { Redis } = await import("ioredis");
 const { RedisMfaChallengeStoreAdapter } =

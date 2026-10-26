@@ -484,7 +484,7 @@ jobs:
           # The live tier includes rate-limiting tests (Advanced Rate Limiting in
           # integration:flows) that assert the limiter actually blocks; the
           # synthesized .env.test disables it for unit ergonomics, so the API
-          # boot re-enables it (process env wins over the dotenv file).
+          # boot re-enables it (process env wins over the .env file).
           ENABLE_RATE_LIMITING: "true"
         run: |
           pnpm --filter @apps/api dev:test > "$RUNNER_TEMP/api.log" 2>&1 &

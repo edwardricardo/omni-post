@@ -17,14 +17,6 @@ import { Label } from "./label";
 const meta = {
   title: "Components/UI/Label",
   component: Label,
-  parameters: {
-    docs: {
-      description: {
-        component:
-          "The accessible name of a form control. Clicking it focuses the control it names, and it dims when that control, marked with the `peer` class, is disabled.",
-      },
-    },
-  },
   argTypes: {
     children: {
       control: "text",
@@ -34,7 +26,6 @@ const meta = {
   args: {
     children: "Email address",
   },
-  tags: ["autodocs"],
 } satisfies Meta<typeof Label>;
 
 export default meta;

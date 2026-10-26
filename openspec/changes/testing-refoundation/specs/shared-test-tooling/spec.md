@@ -112,11 +112,11 @@ rather than being approximated.
 
 ---
 
-### Requirement: One route-app builder, in the API app's own test support, using the production error plugin
+### Requirement: One route-app builder, in the API app's own test support, using the production error handler
 
 The Fastify route-test app builder MUST live in the API application's test support directory, not
 in a shared package — Fastify is used by that app alone and the builder needs the app's own error
-plugin, container setup and schema compilers. It MUST register the PRODUCTION error plugin, so a
+plugin, container setup and schema compilers. It MUST set the PRODUCTION error handler (`createErrorHandler`, as `apps/api/src/index.ts` does), so a
 route test observes the real domain-error-to-HTTP mapping. Route tests MUST exercise the real route
 through injection; capturing a handler from a fake app and calling it directly MUST NOT be used.
 Production code MUST NOT retain a container factory that exists only for tests.
@@ -125,7 +125,7 @@ Production code MUST NOT retain a container factory that exists only for tests.
 
 - **GIVEN** a route test built with the shared builder
 - **WHEN** a domain error is raised by the use case
-- **THEN** the response status and body are those the production error plugin produces
+- **THEN** the response status and body are those the production error handler produces
 
 #### Scenario: Red — a hand-rolled app builder in a test fails the name gate [static]
 

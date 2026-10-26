@@ -8,7 +8,6 @@
  *
  * @layer infrastructure
  */
-import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync } from "node:fs";
@@ -20,7 +19,7 @@ const __dirname = path.dirname(__filename);
 const envFilePath = path.resolve(__dirname, "../../../.env.test");
 
 if (existsSync(envFilePath)) {
-  dotenv.config({ path: envFilePath });
+  process.loadEnvFile(envFilePath);
 } else if (!process.env.DATABASE_URL) {
   process.stderr.write(
     `⚠️  vitest setup-env: .env.test not found at ${envFilePath}\n` +

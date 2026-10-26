@@ -2,16 +2,16 @@
   "version": 1,
   "floor": 3,
   "summary": {
-    "names": 171,
-    "production": 106,
-    "devOnly": 65,
+    "names": 167,
+    "production": 104,
+    "devOnly": 63,
     "types": 9,
     "aboveFloor": 47,
-    "underFloor": 124,
+    "underFloor": 120,
     "atZero": 15,
-    "underFloorWithSites": 109,
+    "underFloorWithSites": 105,
     "kept": 113,
-    "remove": 11,
+    "remove": 7,
     "pending": 0
   },
   "names": [
@@ -1161,27 +1161,6 @@
       }
     },
     {
-      "name": "@storybook/addon-docs",
-      "scope": "dev-only",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/client/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "remove",
-      "sites": {
-        "config-string": {
-          "config": ["apps/client/.storybook/main.ts"]
-        }
-      }
-    },
-    {
       "name": "@storybook/addon-vitest",
       "scope": "dev-only",
       "typedTarget": null,
@@ -1276,11 +1255,6 @@
           "manifest": "apps/workers/package.json",
           "block": "dependencies",
           "specifier": "catalog"
-        },
-        {
-          "manifest": "package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
         }
       ],
       "bins": [],
@@ -1307,11 +1281,6 @@
         {
           "manifest": "apps/client/package.json",
           "block": "dependencies",
-          "specifier": "catalog"
-        },
-        {
-          "manifest": "package.json",
-          "block": "devDependencies",
           "specifier": "catalog"
         }
       ],
@@ -1385,12 +1354,12 @@
     },
     {
       "name": "@tanstack/react-query-devtools",
-      "scope": "production",
+      "scope": "dev-only",
       "typedTarget": null,
       "declarations": [
         {
           "manifest": "apps/client/package.json",
-          "block": "dependencies",
+          "block": "devDependencies",
           "specifier": "literal"
         }
       ],
@@ -2851,32 +2820,6 @@
       }
     },
     {
-      "name": "cross-env",
-      "scope": "dev-only",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/api/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
-        },
-        {
-          "manifest": "apps/workers/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
-        }
-      ],
-      "bins": ["cross-env", "cross-env-shell"],
-      "verdict": "under-floor",
-      "real": 2,
-      "decision": "remove",
-      "sites": {
-        "binary": {
-          "config": ["apps/api/package.json", "apps/workers/package.json"]
-        }
-      }
-    },
-    {
       "name": "csv-parse",
       "scope": "production",
       "typedTarget": null,
@@ -2962,54 +2905,6 @@
       "sites": {
         "binary": {
           "config": [".github/workflows/audit.yml", "package.json"]
-        }
-      }
-    },
-    {
-      "name": "dotenv",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/api/package.json",
-          "block": "dependencies",
-          "specifier": "catalog"
-        },
-        {
-          "manifest": "apps/workers/package.json",
-          "block": "dependencies",
-          "specifier": "catalog"
-        },
-        {
-          "manifest": "infra/prisma/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 2,
-      "decision": "remove",
-      "sites": {
-        "runtime-import": {
-          "production": ["apps/api/src/config/env.ts", "apps/workers/src/config/env.ts"],
-          "test": [
-            "apps/api/tests/integration/customerLoginMfa.integration.test.ts",
-            "apps/api/tests/setup-env.ts",
-            "apps/api/tests/setup.ts",
-            "apps/workers/tests/setup-env.ts"
-          ],
-          "config": [
-            "infra/prisma/prisma.config.ts",
-            "infra/prisma/scripts/migrate-team-member-to-customer-user.ts",
-            "infra/prisma/seed.ts"
-          ]
-        },
-        "test-mock": {
-          "test": [
-            "apps/api/tests/unit/config/env.test.ts",
-            "apps/api/tests/unit/config/nameDigestRing.test.ts"
-          ]
         }
       }
     },
@@ -3104,27 +2999,6 @@
       }
     },
     {
-      "name": "eslint-plugin-react",
-      "scope": "dev-only",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "package.json",
-          "block": "devDependencies",
-          "specifier": "literal"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 2,
-      "decision": "remove",
-      "sites": {
-        "runtime-import": {
-          "config": ["eslint.config.ts", "eslint.jsdoc.config.ts"]
-        }
-      }
-    },
-    {
       "name": "eslint-plugin-react-hooks",
       "scope": "dev-only",
       "typedTarget": null,
@@ -3207,14 +3081,11 @@
       ],
       "bins": [],
       "verdict": "under-floor",
-      "real": 2,
+      "real": 1,
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "production": [
-            "apps/api/src/lib/errors/errorPlugin.ts",
-            "apps/api/src/middleware/autoCacheMiddleware.ts"
-          ]
+          "production": ["apps/api/src/middleware/autoCacheMiddleware.ts"]
         }
       }
     },
@@ -3505,9 +3376,6 @@
       "sites": {
         "runtime-import": {
           "production": ["apps/api/src/lib/templates/ServerTemplateEngine.ts"]
-        },
-        "type-only": {
-          "production": ["apps/api/src/types/isomorphic-dompurify.d.ts"]
         }
       }
     },

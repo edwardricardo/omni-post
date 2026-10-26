@@ -41,8 +41,7 @@ function runKnip() {
     // knip exits 1 when it finds issues — expected; its stdout still holds the JSON.
     out = e.stdout ? e.stdout.toString() : "";
   }
-  const lines = out.split("\n").filter((l) => !l.trimStart().startsWith("[dotenv"));
-  const joined = lines.join("\n");
+  const joined = out;
   const start = joined.indexOf("{");
   if (start === -1) throw new Error("knip produced no JSON output");
   return JSON.parse(joined.slice(start));

@@ -122,13 +122,15 @@ Not a style preference — these files have two readers that disagree, measured
 rather than assumed. Bash SOURCES the root test env file before the integration
 tier — `scripts/testing/battery.sh` does, and so does a developer's
 `set -a; . ./.env.test; set +a` (`apps/api/scripts/run-tests.sh` reads no env
-file and exits 2 when `DATABASE_URL` is empty) — while dotenv reads it in
-vitest's `setupFiles` (`apps/api/tests/setup-env.ts`) and in
-`apps/api/src/config/env.ts`. Bash strips the inner double quotes from an
+file and exits 2 when `DATABASE_URL` is empty) — while Node's
+`process.loadEnvFile` reads it in vitest's `setupFiles`
+(`apps/api/tests/setup-env.ts`) and in `apps/api/src/config/env.ts`. Bash strips the inner double quotes from an
 unquoted `{"1":"…"}`, producing `{1:…}` — which is not JSON, so
 the app refuses to boot with an error naming the RING rather than the quoting.
 Escaped double quotes have the mirror defect: bash reads them correctly while
-dotenv keeps the backslashes. Only the single-quoted form survives both.
+`process.loadEnvFile` stops at the first escaped quote and yields `{\` (measured
+on Node 26.12.1 on 2026-10-25; dotenv kept the backslashes). Only the single-quoted
+form survives both.
 
 **Why entries are never deleted.** Every degraded row pins the generation it was
 computed under, and that row's plaintext no longer exists — so the digest can

@@ -30,7 +30,6 @@
     "@observability/logger": "workspace:*",
     "@types/node": "catalog:",
     "argon2": "catalog:",
-    "dotenv": "catalog:",
     "prisma": "7.10.0",
     "tsx": "catalog:"
   },

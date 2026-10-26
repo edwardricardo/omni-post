@@ -1,13 +1,15 @@
-import dotenv from "dotenv";
+import { existsSync } from "fs";
 import path from "path";
 import { defineConfig } from "prisma/config";
 
 // Load .env from project root (two levels up from infra/prisma/) so the Prisma
 // CLI can read DATABASE_URL / SHADOW_DATABASE_URL when running migrate / push
 // commands from a developer machine. In CI, .env is created by the workflow's
-// setup step after `pnpm install`, so this dotenv call is a no-op there — the
-// real envs come from the workflow `env:` block at runtime.
-dotenv.config({ path: path.join(__dirname, "../../.env") });
+// setup step after `pnpm install`, and a variable the process already holds wins
+// over the file — the real envs come from the workflow `env:` block at runtime.
+// `process.loadEnvFile` throws on a missing file, hence the guard.
+const envPath = path.join(__dirname, "../../.env");
+if (existsSync(envPath)) process.loadEnvFile(envPath);
 
 // IMPORTANT: do NOT use Prisma's `env()` helper here. `env()` is strict in
 // Prisma 7 — it throws at module-load time if the variable isn't defined,
@@ -29,7 +31,7 @@ export default defineConfig({
     //
     // `||`, not `??`, and it is load-bearing: `.env.example` ships the key
     // PRESENT BUT EMPTY ("may be omitted while an environment has not cut
-    // over"), and CI copies that file to `.env` before dotenv loads it. An
+    // over"), and CI copies that file to `.env` before this config loads it. An
     // empty string is "unconfigured" here — `??` treated it as a real URL and
     // every CI migrate died with "Connection url is empty".
     url: process.env.MIGRATE_DATABASE_URL || process.env.DATABASE_URL || "",

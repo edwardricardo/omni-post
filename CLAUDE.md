@@ -2142,7 +2142,9 @@ pnpm check:patched-deps   # expect exit 0 and, with no patch, this one line:
 # 49. Every test-block lint rule stays at `error`, and no inline directive turns one off.
 # Threat: eslint-suppressions.json holds the test blocks that cannot fail, and the tests that hide
 # from their runner, at the count the tree had when their rules landed, and lets it only shrink: a
-# deleted block whose entry is not pruned makes `pnpm lint` exit 2. That ratchet counts only while
+# deleted block whose entry is not pruned makes `pnpm lint` exit 2 while its file is still linted. A
+# deleted FILE is the gap: its entries stay unused and unreported until `eslint . --prune-suppressions`
+# runs, so the change that deletes a test file runs the prune. That ratchet counts only while
 # each rule is an error. At `warn` or `off` every entry of the rule goes unused, a prune deletes
 # them, and the class grows back with nothing counting it; an inline `eslint-disable` takes one
 # block out of the count without pruning anything.
@@ -2194,8 +2196,8 @@ git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!es
 # whether anything loads them. On 2026-10-22 `@monaco-editor/react`, `@fastify/rate-limit`,
 # `papaparse` and `react-email` were each found by hand to serve two files or fewer and removed one
 # at a time (#678, #679, #698, #694), and the method left no record a later pass could compare
-# against; `@fastify/websocket` has had no site since the first commit, hidden by a knip
-# `ignoreDependencies` entry.
+# against; `@fastify/websocket` had no site from the first commit on, hidden by a knip
+# `ignoreDependencies` entry, until deps-remove-1 removed both on 2026-10-25.
 # WHAT IT RUNS: `pnpm check:deps-ledger`, which is `node scripts/testing/dependency-ledger.mjs
 # --check`, over the files `git ls-files` lists. The site reader,
 # scripts/testing/lib/dependency-sites.mjs, reads every tracked JS/TS module's syntax tree through

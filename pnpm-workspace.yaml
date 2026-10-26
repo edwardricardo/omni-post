@@ -88,7 +88,6 @@ catalog:
   "@googleapis/youtubeanalytics": 11.0.1 # the newest release on 2026-10-03
 
   # ── Build/test toolchain ──
-  cross-env: 10.1.0 # latest stable AND latest mature, measured 2026-10-04T04:45Z: published 2025-09-29T17:34Z, nothing newer; OSV lists nothing. Catalog since 2026-10-03 (decision D35): declared by apps/api and apps/workers, and ADR-0018 gives a direct dependency declared in two manifests a catalog entry, not two literals. 10.1.0 adds only the `${VAR:-default}` expansion, which no script here uses. Was 10.0.0
   fast-check: 4.10.2 # latest stable AND latest mature, measured 2026-10-18T04:00Z: published 2026-09-19T19:34Z, mature since 2026-09-26T19:34Z, nothing newer; OSV lists nothing for it or for its one dependency, pure-rand (^8.0.0, resolves 8.4.2). Added 2026-10-18 for the first property suites: declared by apps/api, @core/domain and @core/bulk-scheduling (devDependency), so a catalog entry (ADR-0018). The transitive fast-check 3.23.2 under @prisma/config > effect stays a second copy, because the majors differ
   vitest: 4.1.12 # CVE floor raised 2026-10-21: GHSA-qxg6-89mg-rqv8 (moderate, CVE-2026-112949, unauthenticated manual-mock registration interpolated into module source, >=2.1.0-beta.7 <4.1.12) and GHSA-xp26-3454-mjgp (moderate, CVE-2026-112950, Windows backslash bypass of the redirect allowlist, >=4.1.11 <4.1.12), both in @vitest/mocker and fixed in 4.1.12 on the 4.x line. Published 2026-10-15T14:51:24Z and taken inside the 7-day buffer as a security-tied deviation (mature from 2026-10-22T14:51:25Z; maturity watchlist). vitest 4.1.12 pins @vitest/mocker EXACTLY at 4.1.12, so the transitive needs no override of its own. Peer-locked to @vitest/* 4.1.12. Was 4.1.11 (2026-09-09, the floor of GHSA-82fw-gwwq-j7x9)
   typescript: 6.0.3 # NOT latest stable (the previous comment said so and was false, corrected 2026-09-27): latest mature is 7.0.2. 6.0.3 is the v6 ceiling, HELD — @typescript-eslint 8.71.2 peers typescript ">=4.8.4 <6.1.0" (re-measured 2026-10-21 on 8.71.2: the range is unchanged from 8.70.0 through 8.71.1, and 8.72.0, latest, and the 8.72.1 alphas carry it too). See SECURITY_CANON §"Build-tool version holds"
@@ -130,7 +129,6 @@ catalog:
   "@t3-oss/env-nextjs": 0.13.11
   argon2: 0.44.0
   bullmq: 5.58.9
-  dotenv: 17.2.2
   ioredis: 5.11.1
   date-fns: 4.1.0
   lucide-react: 1.7.0
@@ -139,7 +137,7 @@ catalog:
   tailwindcss: 4.3.3
   "@tailwindcss/postcss": 4.3.3
   vite: 8.3.4 # latest stable AND latest mature: published 2026-10-08T12:07:04Z, mature since 2026-10-15T12:07Z; OSV lists nothing. Above the CVE floor 8.3.3, which does not move: the MINIMAL patched version of GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg and GHSA-9jrq-w75r-8gcw, vitejs/vite repository advisories of 2026-10-06, vulnerable >=8.3.0 <=8.3.2 (CVE-floor row vite in SECURITY_CANON). Its release notes list bug fixes, bundled-dev `import.meta.hot.acceptExports` and rolldown updates, none a security fix. Declares postcss ^8.5.29, which the lockfile resolves (no catalog value since 2026-10-25: SECURITY_CANON row `postcss`), and rolldown ~1.2.12, which the lockfile's 1.2.12 meets. One version tree-wide since apps/client gained @vitejs/plugin-react (ADR-0019). Was 8.3.3 (2026-10-08, the floor taken 2.4 days after publication)
-  eslint: 9.39.5 # the v9 line's FINAL release and its ceiling. Still held below 10: eslint-plugin-react@7.37.5 peers eslint up to ^9.7, eslint-plugin-jsx-a11y@6.10.2 up to ^9, both already at their own latest. Measured 2026-09-27; see SECURITY_CANON §"Build-tool version holds"
+  eslint: 9.39.5 # the v9 line's FINAL release and its ceiling. Still held below 10 by one peer since 2026-10-25, when eslint-plugin-react was removed (deps-remove-2): eslint-plugin-jsx-a11y@6.10.2 peers eslint up to ^9 and is at its own latest. Measured 2026-10-14; see SECURITY_CANON §"Build-tool version holds"
   "@typescript-eslint/parser": 8.71.2 # latest MATURE, re-measured 2026-10-21T21:40Z: published 2026-10-12T17:11Z, mature since 2026-10-19T17:11Z. NOT latest stable: 8.72.0 (published 2026-10-19T17:11Z) matures 2026-10-26T17:11Z, a lag inside the 30-day budget that the weekly dependency window takes (ADR-0036); OSV lists nothing for 8.71.2. Its fixes are rule fixes, among them no-unused-vars ignoring type-only references for after-used. Peers typescript ">=4.8.4 <6.1.0" and eslint "^8.57.0 || ^9.0.0 || ^10.0.0", as 8.71.1 did and 8.72.0 does. In the catalog since 2026-10-04 (slice 0.20): declared by the root and by packages/eslint-plugin-testing, whose RuleTester parses TypeScript. @typescript-eslint/eslint-plugin stays a root literal (one manifest) and moves with it. Was 8.71.1 (taken 2026-10-11, about 22 hours before its maturity, on Edward's instruction)
   "@playwright/test": 1.64.1 # latest stable AND latest mature, re-measured 2026-10-21T22:10Z: published 2026-10-14T11:58Z, mature since 2026-10-21T11:58Z; only 1.65.0 alphas and a 1.64.1 beta build are newer. Two bug fixes over 1.64.0: an Electron first-window race and a Chromium 155+ abort of preflighted cross-origin redirects while a route is registered; OSV lists nothing for 1.64.0 or 1.64.1. Declared by apps/admin + apps/client; pins its own `playwright` at the identical exact version, which carries `playwright-core`; drives Chromium 156.0.8078.4 (browser revision 1248, unchanged from 1.64.0, so no browser download). engines.node ">=20", below the repo floor ">=26.12.1 <27", so it raises nothing here. Was 1.64.0 (2026-10-15)
   playwright: 1.64.1 # the browser driver @vitest/browser-playwright takes as a REQUIRED peer (its range is "*", so it admits 1.64.1; published 2026-10-14T11:54Z, mature since 2026-10-21T11:54Z); declared by apps/client only, catalogued anyway because it is ATOMIC with @playwright/test: one value, so the two cannot drift (a literal here was the one deviation the PR C review flagged, 2026-10-06). Was 1.64.0
@@ -183,7 +181,6 @@ catalog:
   # the family moves as one; 10.6.3 peers react/react-dom up to ^19 (19.2.7) and storybook ^10.6.3.
   storybook: 10.6.3
   "@storybook/addon-a11y": 10.6.3
-  "@storybook/addon-docs": 10.6.3
   "@storybook/addon-vitest": 10.6.3
   "@storybook/nextjs-vite": 10.6.3
   "@storybook/react": 10.6.3

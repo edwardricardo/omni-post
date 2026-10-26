@@ -34,38 +34,12 @@ const AVATAR_SRC = `data:image/svg+xml,${encodeURIComponent(
 const meta: Meta<typeof Card> = {
   title: "Components/UI/Card",
   component: Card,
-  parameters: {
-    docs: {
-      description: {
-        component: `
-A flexible card component built with semantic HTML elements and consistent styling.
-
-**Features:**
-- Multiple layout options with header, content, and footer sections
-- Semantic HTML structure for accessibility
-- Consistent spacing and styling
-- Support for various content types
-- Responsive design patterns
-- Shadow and border styling
-
-**Components:**
-- \`Card\` - Main container
-- \`CardHeader\` - Header section with title and description
-- \`CardTitle\` - Main heading
-- \`CardDescription\` - Subtitle or description text
-- \`CardContent\` - Main content area
-- \`CardFooter\` - Footer section for actions or metadata
-        `,
-      },
-    },
-  },
   argTypes: {
     className: {
       control: "text",
       description: "Additional CSS classes",
     },
   },
-  tags: ["autodocs"],
 };
 
 export default meta;
@@ -173,13 +147,6 @@ export const SocialPostCard: Story = {
       </CardFooter>
     </Card>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Social media post card with user avatar, content, and engagement metrics.",
-      },
-    },
-  },
 };
 
 export const ScheduledPostCard: Story = {
@@ -223,13 +190,6 @@ export const ScheduledPostCard: Story = {
       </CardFooter>
     </Card>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Scheduled post card with media preview and timing information.",
-      },
-    },
-  },
 };
 
 // Analytics Cards
@@ -256,13 +216,6 @@ export const MetricsCard: Story = {
       </CardContent>
     </Card>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Analytics metrics card with trend indicators and progress visualization.",
-      },
-    },
-  },
 };
 
 export const PlatformStatsCard: Story = {
@@ -306,13 +259,6 @@ export const PlatformStatsCard: Story = {
       </CardFooter>
     </Card>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Platform statistics card with key metrics and analytics access.",
-      },
-    },
-  },
 };
 
 // Settings and Configuration Cards
@@ -363,13 +309,6 @@ export const SettingsCard: Story = {
       </CardFooter>
     </Card>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Settings configuration card with toggle options and save functionality.",
-      },
-    },
-  },
 };
 
 // Team and Collaboration Cards
@@ -417,13 +356,6 @@ export const TeamMemberCard: Story = {
       </CardFooter>
     </Card>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Team member card with role information and action buttons.",
-      },
-    },
-  },
 };
 
 // Status and Alert Cards
@@ -454,13 +386,6 @@ export const AlertCard: Story = {
       </CardFooter>
     </Card>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Alert card with warning styling and action buttons.",
-      },
-    },
-  },
 };
 
 // Responsive Examples
@@ -496,13 +421,6 @@ export const ResponsiveCards: Story = {
       </Card>
     </div>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Responsive card grid that adapts to different screen sizes.",
-      },
-    },
-  },
 };
 
 // Accessibility Example
@@ -598,11 +516,4 @@ export const AllVariants: Story = {
       </Card>
     </div>
   ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Overview of different card variants and styling options.",
-      },
-    },
-  },
 };

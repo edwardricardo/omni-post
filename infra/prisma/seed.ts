@@ -1,11 +1,12 @@
+import { existsSync } from "fs";
 import path from "path";
-import dotenv from "dotenv";
 
 // Load env from project root. Mirror apps/api/src/config/env.ts: under
 // NODE_ENV=test load `.env.test` (CI synthesizes it via
 // scripts/ci-setup-test-env.sh) so seeds use the same test secrets.
 const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
-dotenv.config({ path: path.join(import.meta.dirname, "../..", envFile) });
+const envPath = path.join(import.meta.dirname, "../..", envFile);
+if (existsSync(envPath)) process.loadEnvFile(envPath);
 
 import { PrismaClient } from "./generated/prisma/client/client.js";
 import { Provider, TrackedTermKind } from "./generated/prisma/client/client.js";

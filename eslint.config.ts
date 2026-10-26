@@ -3,7 +3,6 @@ import { defineConfig } from "eslint/config";
 import js from "@eslint/js";
 import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
-import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
 import jsxA11yPlugin from "eslint-plugin-jsx-a11y";
 import vitestPlugin from "@vitest/eslint-plugin";
@@ -141,7 +140,6 @@ export default defineConfig([
     },
     plugins: {
       "@typescript-eslint": tsPlugin,
-      react: reactPlugin,
       "react-hooks": reactHooksPlugin,
       "jsx-a11y": jsxA11yPlugin,
     },
@@ -161,11 +159,6 @@ export default defineConfig([
           ignoreRestSiblings: true,
         },
       ],
-      // React rules
-      "react/jsx-uses-react": "off", // Not needed in React 17+
-      "react/react-in-jsx-scope": "off", // Not needed in React 17+
-      "react/prop-types": "off", // Using TypeScript
-      "react/display-name": "warn",
       // React Hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
@@ -175,11 +168,6 @@ export default defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
       // a11y static AST checks (jsx-a11y strict preset rules).
       ...jsxA11yPlugin.flatConfigs.strict.rules,
-    },
-    settings: {
-      react: {
-        version: "detect",
-      },
     },
   },
   // Declaration-style packages (ports) — allow unused names in type signatures
@@ -316,7 +304,8 @@ export default defineConfig([
   // its every assertion is true by construction, or its every assertion only checks that a value
   // exists. The blocks the tree held when these rules landed are listed in
   // eslint-suppressions.json, which may only shrink: the pull request that deletes one prunes its
-  // entry (`eslint . --prune-suppressions`), and an entry left behind fails lint.
+  // entry (`eslint . --prune-suppressions`); an entry left behind fails lint while its file is still
+  // linted, and a deleted file's entries stay unreported until the prune runs.
   {
     files: testFiles,
     plugins: { testing: testingPlugin },

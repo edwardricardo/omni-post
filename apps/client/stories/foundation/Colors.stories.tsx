@@ -192,14 +192,6 @@ const ColorPalette = () => {
 const meta = {
   title: "Foundation/Colors",
   component: ColorPalette,
-  parameters: {
-    docs: {
-      description: {
-        component: "Complete color system with semantic tokens and social media brand colors.",
-      },
-    },
-  },
-  tags: ["autodocs"],
 } satisfies Meta<typeof ColorPalette>;
 
 export default meta;

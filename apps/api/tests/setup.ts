@@ -6,13 +6,14 @@
  *   Its progress lines go to stderr, never stdout (DEF-83).
  * @layer infrastructure
  */
-import dotenv from "dotenv";
+import { existsSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createPrismaRepoAdapter } from "@adapters/db-prisma";
 import { createBullMQQueueAdapter } from "@adapters/queue-bullmq";
 import { createRedisConnection } from "../src/lib/redis.js";
 import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.js";
+import { findMonorepoRoot } from "@packages/vitest-shared";
 
 /**
  * Fixture AND subject channel for the shared publish-flow setup: it plants the account,
@@ -23,10 +24,11 @@ import { createSeedPrismaClient } from "./integration/helpers/seedPrismaClient.j
  */
 const prisma = createSeedPrismaClient();
 
-// Load test environment variables
+// Load the root .env.test when it exists (the integration tier exports it first; this is the fallback).
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, "../.env.test") });
+const envPath = path.join(findMonorepoRoot(__dirname), ".env.test");
+if (existsSync(envPath)) process.loadEnvFile(envPath);
 
 // Every progress line below goes to stderr on purpose: in a node:test child, stdout
 // is the runner's message channel, and a non-ASCII line written right after a frame is misread

@@ -929,11 +929,6 @@
       "count": 1
     }
   },
-  "apps/api/tests/unit/errorPlugin.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
   "apps/api/tests/unit/fileUploadValidator.test.ts": {
     "testing/no-existence-only-test": {
       "count": 4
