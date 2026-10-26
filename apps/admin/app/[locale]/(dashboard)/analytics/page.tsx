@@ -19,6 +19,12 @@ import { DonutChart, TrendAreaChart } from "@/components/charts";
 import type { DonutChartDatum } from "@/components/charts";
 import { useChartColors } from "@/hooks/useChartColors";
 
+/**
+ * Formats a USD amount for display.
+ * @param amount - The amount in dollars.
+ * @param locale - The active UI locale from next-intl's `useLocale()`, a BCP 47 tag such as "en".
+ * @returns The amount as currency in that locale.
+ */
 function formatCurrency(amount: number, locale: string): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
