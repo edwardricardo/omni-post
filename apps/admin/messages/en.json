@@ -31,8 +31,7 @@
     "darkMode": "Dark Mode",
     "switchToLight": "Switch to light mode",
     "switchToDark": "Switch to dark mode",
-    "switchToEnglish": "Switch to English",
-    "switchToSpanish": "Switch to Spanish",
+    "switchToLanguage": "Switch to {language}",
     "configuration": "Configuration",
     "settings": "Settings"
   },

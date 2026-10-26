@@ -7,10 +7,12 @@
  */
 "use client";
 
-import React, { useState, useCallback, useTransition } from "react";
+import React, { Fragment, useState, useCallback, useTransition } from "react";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
+import { routing, type AppLocale } from "@/i18n/routing";
 import { useTranslations, useLocale } from "next-intl";
 import { logoutAction } from "@/app/actions/auth";
+import type enMessages from "@/messages/en.json";
 import {
   LayoutDashboard,
   Users,
@@ -49,15 +51,18 @@ interface SidebarNavProps {
   userRole?: string;
 }
 
+/** A key of the `nav` catalog namespace: a navigation entry the catalog lacks is a type error. */
+type NavKey = keyof typeof enMessages.nav;
+
 interface NavItem {
-  translationKey: string;
+  translationKey: NavKey;
   href: string;
   icon: LucideIcon;
   badge?: number;
 }
 
 interface NavGroup {
-  translationKey: string;
+  translationKey: NavKey;
   items: NavItem[];
 }
 
@@ -105,6 +110,15 @@ const NAV_GROUPS: NavGroup[] = [
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(href + "/");
+}
+
+/**
+ * The target locale's name in the interface's language ("Spanish" on English, "inglés" on
+ * Spanish), so an accessible name never mixes two languages (WCAG 3.1.2).
+ */
+function languageName(target: string, interfaceLocale: string): string {
+  // The default "code" fallback returns the code itself; the `??` only satisfies the type.
+  return new Intl.DisplayNames([interfaceLocale], { type: "language" }).of(target) ?? target;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,7 +171,7 @@ interface CollapsibleGroupProps {
   pathname: string;
   collapsed: boolean;
   title: string;
-  itemLabels: Record<string, string>;
+  itemLabels: Record<NavKey, string>;
 }
 
 function CollapsibleGroup({
@@ -180,7 +194,7 @@ function CollapsibleGroup({
             item={item}
             pathname={pathname}
             collapsed={collapsed}
-            label={itemLabels[item.translationKey] ?? item.translationKey}
+            label={itemLabels[item.translationKey]}
           />
         ))}
       </div>
@@ -216,7 +230,7 @@ function CollapsibleGroup({
               item={item}
               pathname={pathname}
               collapsed={collapsed}
-              label={itemLabels[item.translationKey] ?? item.translationKey}
+              label={itemLabels[item.translationKey]}
             />
           ))}
         </div>
@@ -250,7 +264,7 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
   const sidebarWidth = collapsed ? "w-16" : "w-64";
 
   const handleLocaleChange = useCallback(
-    (next: "en" | "es") => {
+    (next: AppLocale) => {
       if (next === locale) return;
       startLocaleTransition(() => {
         router.replace(pathname, { locale: next });
@@ -259,23 +273,13 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
     [locale, pathname, router]
   );
 
-  // Build translation map for items
-  const itemLabels: Record<string, string> = {
-    platform: t("platform"),
-    operations: t("operations"),
-    dashboard: t("dashboard"),
-    accounts: t("accounts"),
-    subscriptions: t("subscriptions"),
-    pricing: t("pricing"),
-    analytics: t("analytics"),
-    security: t("security"),
-    compliance: t("compliance"),
-    logs: t("logs"),
-    webhooks: t("webhooks"),
-    maintenance: t("maintenance"),
-    announcements: t("announcements"),
-    users: t("users"),
-  };
+  // Every label the navigation names, read from the catalog: no hand-kept copy of NAV_GROUPS.
+  const itemLabels = Object.fromEntries(
+    NAV_GROUPS.flatMap((group) => [
+      group.translationKey,
+      ...group.items.map((item) => item.translationKey),
+    ]).map((key) => [key, t(key)])
+  ) as Record<NavKey, string>;
 
   return (
     <aside
@@ -334,7 +338,7 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
             group={group}
             pathname={pathname}
             collapsed={collapsed}
-            title={itemLabels[group.translationKey] ?? group.translationKey}
+            title={itemLabels[group.translationKey]}
             itemLabels={itemLabels}
           />
         ))}
@@ -359,37 +363,26 @@ export function SidebarNav({ userName, userRole }: SidebarNavProps) {
         {/* Language switcher */}
         {!collapsed && (
           <div className="flex items-center gap-1 px-3 py-2">
-            <button
-              type="button"
-              onClick={() => handleLocaleChange("en")}
-              disabled={isLocaleSwitching}
-              aria-pressed={locale === "en"}
-              className={[
-                "px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-60",
-                locale === "en"
-                  ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold"
-                  : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]",
-              ].join(" ")}
-              aria-label={t("switchToEnglish")}
-            >
-              EN
-            </button>
-            <span className="text-[var(--text-tertiary)]">|</span>
-            <button
-              type="button"
-              onClick={() => handleLocaleChange("es")}
-              disabled={isLocaleSwitching}
-              aria-pressed={locale === "es"}
-              className={[
-                "px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-60",
-                locale === "es"
-                  ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold"
-                  : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]",
-              ].join(" ")}
-              aria-label={t("switchToSpanish")}
-            >
-              ES
-            </button>
+            {routing.locales.map((target, index) => (
+              <Fragment key={target}>
+                {index > 0 && <span className="text-[var(--text-tertiary)]">|</span>}
+                <button
+                  type="button"
+                  onClick={() => handleLocaleChange(target)}
+                  disabled={isLocaleSwitching}
+                  aria-pressed={locale === target}
+                  className={[
+                    "px-2 py-1 text-xs rounded-md transition-colors disabled:opacity-60",
+                    locale === target
+                      ? "bg-[var(--accent-subtle)] text-[var(--accent)] font-semibold"
+                      : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]",
+                  ].join(" ")}
+                  aria-label={t("switchToLanguage", { language: languageName(target, locale) })}
+                >
+                  {target.toUpperCase()}
+                </button>
+              </Fragment>
+            ))}
           </div>
         )}
 
