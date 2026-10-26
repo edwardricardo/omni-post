@@ -29,7 +29,7 @@ name: Architectural Fitness Functions
 # Design: one named step per check with `if: always()` so a violation in one
 # step does NOT mask later violations — every PR sees every check. The greps run
 # in the `fitness` job, which installs nothing; a check that needs the installed
-# tree runs in a job that installs it: #45 to #47 in `dependency-consistency`,
+# tree runs in a job that installs it: #45 to #48, #50 and #51 in `dependency-consistency`,
 # #30 and #36 in `test-contracts`. Two exceptions to `if: always()` alone: #37
 # and #47 gate the delta against the PR base, which only exists on pull_request
 # events — their `if` adds that event condition and the step is skipped
@@ -2005,6 +2005,25 @@ jobs:
           set -euo pipefail
           if ! pnpm check:deps-ledger; then
             echo "::error title=Fitness #50 violation::The dependency-usage record is stale, an owner decision is stale or malformed, the pending count moved off its baseline, or an input could not be read. Run pnpm deps:ledger, decide every new name under the floor in scripts/testing/dependency-decisions.json (kept with its ground, or remove with its replacement; pending is counted, never silent), and commit the regenerated record with the change that moved it. The dependency-ledger lines above name each problem."
+            exit 1
+          fi
+
+      - name: "#51 Every portal's message catalogs are complete and valid ICU for every declared locale"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #51. `pnpm check:i18n` runs `node scripts/testing/i18n-lint.mjs`. It
+          # discovers every portal (a directory directly under apps/ holding i18n/routing.ts and
+          # messages/), reads each portal's `locales` and `defaultLocale` from routing.ts and its
+          # catalogs from messages/<locale>.json, and holds the two locale sets equal. Every leaf of
+          # every catalog must be a string that parses as ICU MessageFormat; every other locale must
+          # carry the default locale's key set and, per message, its argument and tag names. A violation
+          # exits 1; an input it cannot read in full (fewer than 2 portals, a routing.ts whose
+          # locales or default locale cannot be read, a catalog that does not parse as JSON) exits
+          # 3; either fails this step. Same job as #45 because the ICU parser comes from the
+          # installed tree. Pinned by apps/api/tests/unit/scripts/i18nLint.test.ts.
+          set -euo pipefail
+          if ! pnpm check:i18n; then
+            echo "::error title=Fitness #51 violation::A portal's message catalogs disagree with its routing or with each other: a messages/<locale>.json its routing.ts does not list, or a listed locale with no catalog; a key missing or extra against the default locale; a leaf that is not a string or does not parse as ICU; or argument or rich-text tag names that differ from the default locale's; or an input could not be read. The i18n-lint lines above name each portal, locale and key. For the catalogs, a new locale is its catalog plus its entry in the routing.ts locales array; code that keeps its own locale list is outside this check."
             exit 1
           fi
 
