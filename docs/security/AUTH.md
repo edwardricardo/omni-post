@@ -128,7 +128,7 @@ redirect(`/${await getLocale()}`);
 
 The admin access token lasts 15 minutes; two places renew it with the `admin-refresh` and `admin-csrf` cookies through `POST /admin/auth/refresh` (`{ refreshToken, csrfToken }`) and rewrite `admin-session`:
 
-- **Page loads**: when the dashboard layout cannot verify the token it redirects to `GET /api/auth/refresh` (`app/api/auth/refresh/route.ts`), which refreshes and redirects back to `returnTo`, or clears every auth cookie and redirects to login.
+- **Page loads**: when the dashboard layout cannot verify the token it redirects to `GET /api/auth/refresh` (`app/api/auth/refresh/route.ts`), which refreshes and redirects to the admin root, or clears every auth cookie and redirects to login. It takes no return target, so no link can send a signed-in admin to another origin (CWE-601).
 - **API calls**: the backend proxy retries a request once after a refresh when the backend answers 401 with error code `TOKEN_EXPIRED`; any other 401, or a failed refresh, is passed through.
 
 ## Proxy Pattern
@@ -202,9 +202,9 @@ Both applications gate routes on cookie presence before anything renders; the ad
 
 **File:** `apps/client/proxy.ts` (Next.js 16 `proxy`, composed with next-intl locale routing)
 
-- **Public paths:** `/{locale}/login`, `/{locale}/register` and `/{locale}` (compared after stripping the `es` / `en` locale prefix)
+- **Public paths:** `/{locale}/login`, `/{locale}/register` and `/{locale}` (compared after stripping the locale prefix, the first path segment when `routing.locales` declares it)
 - **Redirect rule:** If the `customer-session` cookie is missing on any other route → redirect to `/{locale}/login?redirect=<original-path>`
-- **Reverse rule:** If the cookie is present on the login or register page → redirect to the `returnTo` query parameter when one is given, otherwise to `/{locale}/dashboard`
+- **Reverse rule:** If the cookie is present on the login or register page → redirect to `/{locale}/dashboard`; the gate reads no return target, so no query parameter can send the browser to another origin (CWE-601)
 - **Matcher:** every path except `/api`, `/_next`, `/_vercel` and files with an extension, so the backend proxy is not gated here
 
 The gate checks only that the cookie exists; it never validates the token.
@@ -213,7 +213,7 @@ The gate checks only that the cookie exists; it never validates the token.
 
 **File:** `apps/admin/proxy.ts` (Next.js 16 `proxy`, composed with next-intl locale routing)
 
-- **Public path:** `/{locale}/login` (compared after stripping the `en` / `es` locale prefix)
+- **Public path:** `/{locale}/login` (compared after stripping the locale prefix, the first path segment when `routing.locales` declares it)
 - **Redirect rule:** If the `admin-session` cookie is missing on any other route → redirect to `/{locale}/login`
 - **Reverse rule:** If the cookie is present on the login page → redirect to `/{locale}`
 - **Matcher:** every path except `/api`, `/_next`, `/_vercel` and files with an extension, so the backend proxy and the refresh route are not gated here
