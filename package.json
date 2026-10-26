@@ -55,6 +55,7 @@
     "check:deps-ledger": "node scripts/testing/dependency-ledger.mjs --check",
     "deps:ledger": "node scripts/testing/dependency-ledger.mjs",
     "check:patched-deps": "node scripts/testing/patched-dependencies-gate.mjs --check",
+    "check:i18n": "node scripts/testing/i18n-lint.mjs",
     "check:legal": "node scripts/legal/run.mjs --check",
     "legal:inventory": "node scripts/legal/run.mjs",
     "check:support": "node scripts/support/run.mjs --check",
@@ -69,6 +70,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
+    "@formatjs/icu-messageformat-parser": "3.5.18",
     "@hey-api/openapi-ts": "0.99.0",
     "@packages/eslint-plugin-testing": "workspace:*",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.7",

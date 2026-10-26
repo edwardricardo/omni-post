@@ -182,7 +182,7 @@ describe("pathClassOf", () => {
     ["apps/api/src/types/fastify.d.ts", "production"],
     ["infra/prisma/src/x.ts", "production"],
     ["packages/core/x/src/y.ts", "production"],
-    ["apps/client/scripts/i18n-validate.mjs", "config"],
+    ["apps/client/scripts/x.mjs", "config"],
     ["apps/client/.storybook/main.ts", "config"],
     ["apps/client/public/sw.js", "config"],
     ["apps/client/stories/foundation/helpers.ts", "config"],
