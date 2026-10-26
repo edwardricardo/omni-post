@@ -7,7 +7,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { CampaignStatusBadge } from "./CampaignStatusBadge";
 import { useCampaignAnalytics } from "@/hooks/api/useCampaigns";
 import type { CampaignAnalyticsDto, CampaignDto } from "@/hooks/api/useCampaigns";
@@ -19,9 +19,9 @@ interface CampaignCardProps {
   analytics?: CampaignAnalyticsDto;
 }
 
-function formatDate(dateStr: string | null, noDateLabel: string): string {
+function formatDate(dateStr: string | null, noDateLabel: string, locale: string): string {
   if (!dateStr) return noDateLabel;
-  return new Date(dateStr).toLocaleDateString("en-US", {
+  return new Date(dateStr).toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -35,6 +35,7 @@ function formatDate(dateStr: string | null, noDateLabel: string): string {
  */
 export function CampaignCard({ campaign, onClick, analytics: analyticsProp }: CampaignCardProps) {
   const t = useTranslations("campaigns.components");
+  const locale = useLocale();
   // Fall back to a per-campaign fetch only when the parent did not supply
   // batched analytics. Passing "" disables the query (hook gates on campaignId).
   const { data: fetchedAnalytics } = useCampaignAnalytics(analyticsProp ? "" : campaign.id);
@@ -67,9 +68,9 @@ export function CampaignCard({ campaign, onClick, analytics: analyticsProp }: Ca
       </div>
 
       <div className="text-xs text-muted-foreground mt-2">
-        {formatDate(campaign.startDate, t("noDate"))}
+        {formatDate(campaign.startDate, t("noDate"), locale)}
         {campaign.endDate
-          ? ` - ${formatDate(campaign.endDate, t("noDate"))}`
+          ? ` - ${formatDate(campaign.endDate, t("noDate"), locale)}`
           : ` - ${t("noEndDate")}`}
       </div>
 

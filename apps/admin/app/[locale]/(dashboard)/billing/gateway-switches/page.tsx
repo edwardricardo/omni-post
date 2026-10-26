@@ -8,7 +8,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { ArrowRightLeft, Calendar, Clock, RefreshCw, X } from "lucide-react";
-import { useTranslations, type Messages } from "next-intl";
+import { useLocale, useTranslations, type Messages } from "next-intl";
 import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
@@ -65,9 +65,9 @@ const EXTEND_OPTIONS = [12, 24, 48, 72];
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatDate(dateStr: string | null): string {
+function formatDate(dateStr: string | null, locale: string): string {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("en-US", {
+  return new Date(dateStr).toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -121,6 +121,7 @@ interface DetailDialogProps {
 }
 
 function DetailDialog({ eventId, t, tc, onClose, onExtend }: DetailDialogProps) {
+  const locale = useLocale();
   const { data: evt, isLoading } = useGatewaySwitchDetail(eventId);
   const forceComplete = useForceCompleteSwitch();
   const forceSuspend = useForceSuspendSwitch();
@@ -228,7 +229,7 @@ function DetailDialog({ eventId, t, tc, onClose, onExtend }: DetailDialogProps) 
                   {t("detail.currentDeadline")}
                 </div>
                 <div className="text-sm font-medium text-[var(--text-primary)]">
-                  {formatDate(evt.extendedUntil ?? evt.scheduledFor)}
+                  {formatDate(evt.extendedUntil ?? evt.scheduledFor, locale)}
                 </div>
               </div>
             )}
@@ -273,11 +274,14 @@ function TimelineRow({
   label: string;
   date: string;
 }) {
+  const locale = useLocale();
   return (
     <div className="flex items-center gap-2 text-[var(--text-secondary)]">
       <span className="text-[var(--text-tertiary)]">{icon}</span>
       <span>{label}</span>
-      <span className="ml-auto font-medium text-[var(--text-primary)]">{formatDate(date)}</span>
+      <span className="ml-auto font-medium text-[var(--text-primary)]">
+        {formatDate(date, locale)}
+      </span>
     </div>
   );
 }
@@ -300,6 +304,7 @@ interface ExtendDialogProps {
 }
 
 function ExtendDialog({ eventId, currentDeadline, t, tc, onClose }: ExtendDialogProps) {
+  const locale = useLocale();
   const [extraHours, setExtraHours] = useState(24);
   const extendMutation = useExtendSwitchDeadline();
   const newDeadline = addHours(currentDeadline, extraHours);
@@ -341,7 +346,7 @@ function ExtendDialog({ eventId, currentDeadline, t, tc, onClose }: ExtendDialog
               {t("extendDialog.currentDeadline")}
             </div>
             <div className="text-sm font-medium text-[var(--text-primary)]">
-              {formatDate(currentDeadline)}
+              {formatDate(currentDeadline, locale)}
             </div>
           </div>
 
@@ -371,7 +376,7 @@ function ExtendDialog({ eventId, currentDeadline, t, tc, onClose }: ExtendDialog
               {t("extendDialog.newDeadline")}
             </div>
             <div className="text-sm font-semibold text-[var(--accent)]">
-              {newDeadline.toLocaleString("en-US", {
+              {newDeadline.toLocaleString(locale, {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
@@ -407,6 +412,7 @@ function ExtendDialog({ eventId, currentDeadline, t, tc, onClose }: ExtendDialog
 function GatewaySwitchesPageContent() {
   const t = useTranslations("gatewaySwitches");
   const tc = useTranslations("common");
+  const locale = useLocale();
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -508,7 +514,7 @@ function GatewaySwitchesPageContent() {
         header: t("table.requestedAt"),
         render: (evt: GatewaySwitchEvent) => (
           <span className="text-sm text-[var(--text-secondary)]">
-            {formatDate(evt.requestedAt)}
+            {formatDate(evt.requestedAt, locale)}
           </span>
         ),
       },
@@ -517,7 +523,7 @@ function GatewaySwitchesPageContent() {
         header: t("table.scheduledFor"),
         render: (evt: GatewaySwitchEvent) => (
           <span className="text-sm text-[var(--text-secondary)]">
-            {formatDate(evt.scheduledFor)}
+            {formatDate(evt.scheduledFor, locale)}
           </span>
         ),
       },
@@ -573,7 +579,7 @@ function GatewaySwitchesPageContent() {
         ),
       },
     ],
-    [t, forceComplete, forceSuspend, handleExtendOpen]
+    [t, locale, forceComplete, forceSuspend, handleExtendOpen]
   );
 
   // ---------------------------------------------------------------------------

@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { ProjectChannel } from "@/lib/hooks/useProjectChannels";
 import { ChannelAvatar } from "./ChannelAvatar";
 import { ChannelStatusBadge } from "./ChannelStatusBadge";
@@ -21,6 +21,10 @@ interface ChannelsTableProps {
   onDisconnect: (channelId: string) => void;
 }
 
+/**
+ * Connected-channels table: one row per channel with its status, usage and the last-used and
+ * connected dates in the active UI locale.
+ */
 export function ChannelsTable({
   channels,
   selectedChannels,
@@ -28,6 +32,7 @@ export function ChannelsTable({
   onDisconnect,
 }: ChannelsTableProps) {
   const t = useTranslations("channels");
+  const locale = useLocale();
   const columns = [
     { key: "channel", label: t("components.table.columns.channel") },
     { key: "status", label: t("components.table.columns.status") },
@@ -112,10 +117,10 @@ export function ChannelsTable({
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {formatDate(channel.lastUsedAt)}
+                    {formatDate(channel.lastUsedAt, locale)}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {formatDate(channel.connectedAt)}
+                    {formatDate(channel.connectedAt, locale)}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex space-x-2">

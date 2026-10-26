@@ -7,7 +7,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import cronstrue from "cronstrue";
 import type { RecurringPost } from "@/hooks/api/useRecurringPosts";
 
@@ -31,17 +31,22 @@ function humanCron(expression: string): string {
   }
 }
 
-function formatNextOccurrence(isoDate?: string): string {
+function formatNextOccurrence(locale: string, isoDate?: string): string {
   if (!isoDate) return "—";
   const date = new Date(isoDate);
-  return date.toLocaleString("es", {
+  return date.toLocaleString(locale, {
     dateStyle: "medium",
     timeStyle: "short",
   });
 }
 
+/**
+ * One recurring post: its name, schedule, channel count and next occurrence in the active UI
+ * locale, with a two-step deactivate action.
+ */
 export function RecurringPostCard({ post, onDeactivate, isDeactivating }: RecurringPostCardProps) {
   const t = useTranslations("scheduling.components");
+  const locale = useLocale();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   function handleDeactivateClick() {
@@ -81,7 +86,7 @@ export function RecurringPostCard({ post, onDeactivate, isDeactivating }: Recurr
         </div>
 
         <div className="mt-1 text-xs text-gray-400">
-          {t("nextOccurrence", { date: formatNextOccurrence(post.nextScheduledAt) })}
+          {t("nextOccurrence", { date: formatNextOccurrence(locale, post.nextScheduledAt) })}
           {post.maxOccurrences !== undefined && (
             <span className="ml-3">
               {t("occurrences", {

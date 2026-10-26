@@ -8,6 +8,7 @@
  */
 
 import React from "react";
+import { useLocale } from "next-intl";
 import { useUsageMetrics } from "@/hooks/api/useUsageMetrics";
 
 interface UsageBarProps {
@@ -22,6 +23,7 @@ interface UsageBarProps {
 }
 
 function UsageBar({ label, used, limit, unit = "" }: UsageBarProps) {
+  const locale = useLocale();
   const percentage = limit ? Math.min((used / limit) * 100, 100) : 0;
   const isUnlimited = limit === null;
 
@@ -31,8 +33,8 @@ function UsageBar({ label, used, limit, unit = "" }: UsageBarProps) {
         <span className="text-sm font-medium text-[var(--text-secondary)]">{label}</span>
         <span className="text-sm font-semibold text-[var(--text-primary)]">
           {isUnlimited
-            ? `${Number(used).toLocaleString()}${unit} (unlimited)`
-            : `${Number(used).toLocaleString()}${unit} / ${Number(limit!).toLocaleString()}${unit}`}
+            ? `${Number(used).toLocaleString(locale)}${unit} (unlimited)`
+            : `${Number(used).toLocaleString(locale)}${unit} / ${Number(limit!).toLocaleString(locale)}${unit}`}
         </span>
       </div>
       {!isUnlimited && (
@@ -59,18 +61,17 @@ interface UsageMetricsPanelProps {
  * @description Shows current-month usage for posts, AI calls, storage, and team members.
  */
 export function UsageMetricsPanel({ accountId }: UsageMetricsPanelProps) {
+  const locale = useLocale();
   const { data, isLoading, error } = useUsageMetrics(accountId);
 
-  const now = new Date();
-  const monthName = now.toLocaleString("en-US", { month: "long" });
-  const year = now.getFullYear();
+  // One formatted month and year: the locale orders and joins them ("October 2026",
+  // "octubre de 2026"), which concatenating a month name with the year cannot.
+  const period = new Date().toLocaleString(locale, { month: "long", year: "numeric" });
 
   if (isLoading) {
     return (
       <div className="border border-[var(--border-subtle)] bg-[var(--bg-surface)] rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
-          Usage -- {monthName} {year}
-        </h3>
+        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Usage -- {period}</h3>
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="animate-pulse">
@@ -89,9 +90,7 @@ export function UsageMetricsPanel({ accountId }: UsageMetricsPanelProps) {
   if (error || !data) {
     return (
       <div className="border border-[var(--border-subtle)] bg-[var(--bg-surface)] rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-          Usage -- {monthName} {year}
-        </h3>
+        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Usage -- {period}</h3>
         <p className="text-sm text-[var(--text-secondary)]">
           Usage data unavailable for this period.
         </p>
@@ -101,9 +100,7 @@ export function UsageMetricsPanel({ accountId }: UsageMetricsPanelProps) {
 
   return (
     <div className="border border-[var(--border-subtle)] bg-[var(--bg-surface)] rounded-lg p-4">
-      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
-        Usage -- {monthName} {year}
-      </h3>
+      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Usage -- {period}</h3>
       <p className="text-xs text-[var(--text-tertiary)] mb-4">Resets on the 1st of each month</p>
 
       <div className="space-y-4">

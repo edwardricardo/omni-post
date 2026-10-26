@@ -9,7 +9,7 @@
  */
 
 import React, { useMemo, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type {
   AvailableSlot,
   OptimalTime,
@@ -28,6 +28,10 @@ interface CalendarViewProps {
   onSmartSchedule: (providers: string[], numberOfPosts: number) => void;
 }
 
+/**
+ * Week grid of the multi-platform scheduler: available slots and optimal times per day, with the
+ * month, weekdays and slot times in the active UI locale.
+ */
 export function CalendarView({
   currentWeek,
   slots,
@@ -39,6 +43,7 @@ export function CalendarView({
   onSmartSchedule,
 }: CalendarViewProps) {
   const t = useTranslations("scheduling.components");
+  const locale = useLocale();
   // Generate calendar grid for current week
   const calendarDays = useMemo((): CalendarDay[] => {
     const startOfWeek = new Date(currentWeek);
@@ -73,9 +78,10 @@ export function CalendarView({
       : "bg-gray-100 text-gray-500 border-gray-200";
   }, []);
 
-  const getDayName = useCallback((date: Date) => {
-    return date.toLocaleDateString("en-US", { weekday: "short" });
-  }, []);
+  const getDayName = useCallback(
+    (date: Date) => date.toLocaleDateString(locale, { weekday: "short" }),
+    [locale]
+  );
 
   return (
     <div className="space-y-6">
@@ -90,7 +96,7 @@ export function CalendarView({
         </button>
 
         <h3 className="text-lg font-medium">
-          {currentWeek.toLocaleDateString("en-US", {
+          {currentWeek.toLocaleDateString(locale, {
             month: "long",
             year: "numeric",
           })}
@@ -148,15 +154,15 @@ export function CalendarView({
                   aria-label={
                     slot.available
                       ? t("slotAvailableAria", {
-                          time: new Date(slot.datetime).toLocaleTimeString(),
+                          time: new Date(slot.datetime).toLocaleTimeString(locale),
                         })
                       : t("slotUnavailableAria", {
-                          time: new Date(slot.datetime).toLocaleTimeString(),
+                          time: new Date(slot.datetime).toLocaleTimeString(locale),
                         })
                   }
                 >
                   <div className="font-medium">
-                    {new Date(slot.datetime).toLocaleTimeString("en-US", {
+                    {new Date(slot.datetime).toLocaleTimeString(locale, {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
@@ -178,7 +184,7 @@ export function CalendarView({
                 });
               }}
               className="w-full mt-2 p-2 border-2 border-dashed border-gray-300 rounded-sm text-xs text-gray-500 hover:border-blue-300 hover:text-blue-600 focus:ring-2 focus:ring-blue-500"
-              aria-label={t("addPostOnDate", { date: day.date.toLocaleDateString() })}
+              aria-label={t("addPostOnDate", { date: day.date.toLocaleDateString(locale) })}
             >
               {t("addPost")}
             </button>

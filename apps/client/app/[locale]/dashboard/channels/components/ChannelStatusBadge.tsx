@@ -9,14 +9,19 @@
  * @layer infrastructure
  */
 
+import { useLocale } from "next-intl";
 import type { ProjectChannel } from "@/lib/hooks/useProjectChannels";
 import { formatDay } from "./formatters";
 
+/**
+ * Status pill of one channel; the expiry date, when shown, is in the active UI locale.
+ */
 export function ChannelStatusBadge({ channel }: { channel: ProjectChannel }) {
+  const locale = useLocale();
   if (channel.expiredAt && !channel.isConnected) {
     return (
       <span className="px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
-        Expired on {formatDay(channel.expiredAt)}
+        Expired on {formatDay(channel.expiredAt, locale)}
       </span>
     );
   }

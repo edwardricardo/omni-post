@@ -9,9 +9,10 @@
  */
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Play, Pause, Settings, Wand2 } from "lucide-react";
 import type { AutomationTemplate } from "./types";
+import { formatTemplateDate } from "./formatTemplateDate";
 
 interface AutomationCardProps {
   automation: AutomationTemplate;
@@ -25,13 +26,7 @@ interface AutomationCardProps {
  */
 export const AutomationCard: React.FC<AutomationCardProps> = ({ automation, onToggle }) => {
   const t = useTranslations("content");
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  const locale = useLocale();
 
   return (
     <div className="border rounded-lg p-4 bg-white">
@@ -51,7 +46,9 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({ automation, onTo
           <div className="grid grid-cols-2 gap-4 text-xs text-gray-500">
             <div>
               <span className="font-medium">{t("automation.successRate")}</span>{" "}
-              {Math.round((automation.stats.successfulRuns / automation.stats.totalRuns) * 100)}%
+              {automation.stats.totalRuns > 0
+                ? `${Math.round((automation.stats.successfulRuns / automation.stats.totalRuns) * 100)}%`
+                : "—"}
             </div>
             <div>
               <span className="font-medium">{t("automation.totalRuns")}</span>{" "}
@@ -60,13 +57,13 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({ automation, onTo
             {automation.nextRun && (
               <div>
                 <span className="font-medium">{t("automation.nextRun")}</span>{" "}
-                {formatDate(automation.nextRun)}
+                {formatTemplateDate(automation.nextRun, locale)}
               </div>
             )}
             {automation.lastRun && (
               <div>
                 <span className="font-medium">{t("automation.lastRun")}</span>{" "}
-                {formatDate(automation.lastRun)}
+                {formatTemplateDate(automation.lastRun, locale)}
               </div>
             )}
           </div>

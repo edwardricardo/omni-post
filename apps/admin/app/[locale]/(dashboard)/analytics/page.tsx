@@ -7,7 +7,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
@@ -19,8 +19,14 @@ import { DonutChart, TrendAreaChart } from "@/components/charts";
 import type { DonutChartDatum } from "@/components/charts";
 import { useChartColors } from "@/hooks/useChartColors";
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
+/**
+ * Formats a USD amount for display.
+ * @param amount - The amount in dollars.
+ * @param locale - The active UI locale from next-intl's `useLocale()`, a BCP 47 tag such as "en".
+ * @returns The amount as currency in that locale.
+ */
+function formatCurrency(amount: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 0,
@@ -47,6 +53,7 @@ const PROVIDER_COLORS: Record<string, string> = {
 
 function AnalyticsPageContent() {
   const te = useTranslations("analytics");
+  const locale = useLocale();
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
   const { data: summary, isLoading, error } = useAnalytics(timeRange);
   const colors = useChartColors();
@@ -148,7 +155,7 @@ function AnalyticsPageContent() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard
           label={te("kpi.totalRevenue")}
-          value={formatCurrency(summary.businessMetrics.totalRevenue)}
+          value={formatCurrency(summary.businessMetrics.totalRevenue, locale)}
           trend={{
             value: summary.businessMetrics.revenueGrowth,
             isPositive: summary.businessMetrics.revenueGrowth > 0,
@@ -156,7 +163,7 @@ function AnalyticsPageContent() {
         />
         <StatCard
           label={te("kpi.mrr")}
-          value={formatCurrency(summary.businessMetrics.monthlyRecurringRevenue)}
+          value={formatCurrency(summary.businessMetrics.monthlyRecurringRevenue, locale)}
         />
         <StatCard
           label={te("kpi.activeUsers")}
@@ -287,7 +294,7 @@ function AnalyticsPageContent() {
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-3 bg-[var(--bg-elevated)] rounded-md">
               <div className="text-2xl font-bold text-[var(--text-primary)]">
-                {formatCurrency(summary.businessMetrics.lifetimeValue)}
+                {formatCurrency(summary.businessMetrics.lifetimeValue, locale)}
               </div>
               <div className="text-sm text-[var(--text-secondary)]">
                 {te("financialHealth.customerLtv")}
@@ -356,7 +363,7 @@ function AnalyticsPageContent() {
             }))}
             height={192}
             color={colors.accent}
-            formatValue={(v: number) => `$${v.toLocaleString()}`}
+            formatValue={(v: number) => `$${v.toLocaleString(locale)}`}
             emptyMessage={te("trends.noData")}
           />
         </div>
@@ -369,7 +376,7 @@ function AnalyticsPageContent() {
             data={(summary?.trends?.users ?? []).map((v, i) => ({ label: `P${i + 1}`, value: v }))}
             height={192}
             color={colors.success}
-            formatValue={(v: number) => v.toLocaleString()}
+            formatValue={(v: number) => v.toLocaleString(locale)}
             emptyMessage={te("trends.noData")}
           />
         </div>

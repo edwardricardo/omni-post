@@ -8,10 +8,11 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { DashboardScheduledPost } from "./schedulingDashboardTypes";
+import { formatHourLabel, isSameDay } from "./calendarDates";
 
 interface DayCalendarProps {
   currentDate: Date;
@@ -31,14 +32,10 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-gray-50 border-gray-200 text-gray-500",
 };
 
-function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
+/**
+ * Day view: one row per hour of the day, each post placed in the row of its hour, with the date,
+ * the hours and the post times in the active UI locale.
+ */
 export function DayCalendar({
   currentDate,
   posts,
@@ -47,6 +44,7 @@ export function DayCalendar({
   onToday,
 }: DayCalendarProps) {
   const t = useTranslations("scheduling.components");
+  const locale = useLocale();
   const today = new Date();
   const isToday = isSameDay(currentDate, today);
 
@@ -60,7 +58,7 @@ export function DayCalendar({
     [dayPosts]
   );
 
-  const dateLabel = currentDate.toLocaleDateString("en-US", {
+  const dateLabel = currentDate.toLocaleDateString(locale, {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -98,14 +96,7 @@ export function DayCalendar({
       <div className="flex-1 overflow-auto border rounded-lg">
         {HOURS.map((hour) => {
           const hourPosts = getPostsForHour(hour);
-          const timeLabel =
-            hour === 0
-              ? "12 AM"
-              : hour < 12
-                ? `${hour} AM`
-                : hour === 12
-                  ? "12 PM"
-                  : `${hour - 12} PM`;
+          const timeLabel = formatHourLabel(hour, locale);
           const isCurrentHour = isToday && today.getHours() === hour;
 
           return (
@@ -131,7 +122,7 @@ export function DayCalendar({
                         {post.title || t("untitledPost")}
                       </span>
                       <span className="text-xs shrink-0">
-                        {new Date(post.scheduledAt).toLocaleTimeString("en-US", {
+                        {new Date(post.scheduledAt).toLocaleTimeString(locale, {
                           hour: "numeric",
                           minute: "2-digit",
                         })}

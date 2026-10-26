@@ -8,7 +8,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Pencil, Clock, CalendarDays, Monitor } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "@packages/ui";
@@ -46,6 +46,7 @@ export function AccountBillingPanel({
 }: AccountBillingPanelProps) {
   const tb = useTranslations("accounts.billing");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const { data, isLoading, error } = useAccountBilling(accountId);
   const { data: sessions } = useAccountSessions(accountId);
@@ -120,7 +121,7 @@ export function AccountBillingPanel({
           <Badge variant="warning">
             {tb("grandfathered")}
             {data.grandfathering.expiresAt
-              ? ` until ${new Date(data.grandfathering.expiresAt).toLocaleDateString()}`
+              ? ` until ${new Date(data.grandfathering.expiresAt).toLocaleDateString(locale)}`
               : ""}
           </Badge>
         )}
@@ -143,7 +144,7 @@ export function AccountBillingPanel({
         <span>{tb("lastLogin")}</span>
         <span className="font-medium text-[var(--text-primary)]">
           {lastLoginAt
-            ? new Date(lastLoginAt).toLocaleDateString("en-US", {
+            ? new Date(lastLoginAt).toLocaleDateString(locale, {
                 year: "numeric",
                 month: "short",
                 day: "numeric",
@@ -161,7 +162,9 @@ export function AccountBillingPanel({
           </span>
           {data.trial.trialEndDate && (
             <span className="ml-auto text-xs text-[var(--text-tertiary)]">
-              {tb("trialEnds", { date: new Date(data.trial.trialEndDate).toLocaleDateString() })}
+              {tb("trialEnds", {
+                date: new Date(data.trial.trialEndDate).toLocaleDateString(locale),
+              })}
             </span>
           )}
         </div>
@@ -362,7 +365,7 @@ export function AccountBillingPanel({
                 </span>
                 <span className="text-[var(--text-tertiary)]">{session.ipAddress ?? "N/A"}</span>
                 <span className="ml-auto text-[var(--text-tertiary)]">
-                  {new Date(session.createdAt).toLocaleDateString()}
+                  {new Date(session.createdAt).toLocaleDateString(locale)}
                 </span>
               </div>
             ))}
