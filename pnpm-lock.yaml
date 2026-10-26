@@ -412,24 +412,12 @@ catalogs:
     '@opentelemetry/exporter-trace-otlp-http':
       specifier: 0.219.0
       version: 0.219.0
-    '@opentelemetry/instrumentation-fs':
-      specifier: 0.38.0
-      version: 0.38.0
-    '@opentelemetry/instrumentation-http':
-      specifier: 0.219.0
-      version: 0.219.0
-    '@opentelemetry/instrumentation-redis':
-      specifier: 0.67.0
-      version: 0.67.0
     '@opentelemetry/resources':
       specifier: 2.8.0
       version: 2.8.0
     '@opentelemetry/sdk-node':
       specifier: 0.219.0
       version: 0.219.0
-    '@opentelemetry/semantic-conventions':
-      specifier: 1.41.1
-      version: 1.41.1
 
 overrides:
   validator: 13.15.35
@@ -3332,24 +3320,12 @@ importers:
       '@opentelemetry/exporter-trace-otlp-http':
         specifier: catalog:otel
         version: 0.219.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-fs':
-        specifier: catalog:otel
-        version: 0.38.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2)
-      '@opentelemetry/instrumentation-http':
-        specifier: catalog:otel
-        version: 0.219.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2)
-      '@opentelemetry/instrumentation-redis':
-        specifier: catalog:otel
-        version: 0.67.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2)
       '@opentelemetry/resources':
         specifier: catalog:otel
         version: 2.8.0(@opentelemetry/api@1.9.1)
       '@opentelemetry/sdk-node':
         specifier: catalog:otel
         version: 0.219.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2)
-      '@opentelemetry/semantic-conventions':
-        specifier: catalog:otel
-        version: 1.41.1
       pino:
         specifier: 'catalog:'
         version: 10.3.1

@@ -2,16 +2,16 @@
   "version": 1,
   "floor": 3,
   "summary": {
-    "names": 167,
-    "production": 104,
+    "names": 163,
+    "production": 100,
     "devOnly": 63,
     "types": 9,
     "aboveFloor": 47,
-    "underFloor": 120,
+    "underFloor": 116,
     "atZero": 15,
-    "underFloorWithSites": 105,
+    "underFloorWithSites": 101,
     "kept": 113,
-    "remove": 7,
+    "remove": 3,
     "pending": 0
   },
   "names": [
@@ -751,72 +751,6 @@
       }
     },
     {
-      "name": "@opentelemetry/instrumentation-fs",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "packages/observability/opentelemetry/package.json",
-          "block": "dependencies",
-          "specifier": "catalog:otel"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "remove",
-      "sites": {
-        "runtime-import": {
-          "production": ["packages/observability/opentelemetry/src/index.ts"]
-        },
-        "config-string": {
-          "production": ["packages/observability/opentelemetry/src/index.ts"]
-        }
-      }
-    },
-    {
-      "name": "@opentelemetry/instrumentation-http",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "packages/observability/opentelemetry/package.json",
-          "block": "dependencies",
-          "specifier": "catalog:otel"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "remove",
-      "sites": {
-        "runtime-import": {
-          "production": ["packages/observability/opentelemetry/src/index.ts"]
-        }
-      }
-    },
-    {
-      "name": "@opentelemetry/instrumentation-redis",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "packages/observability/opentelemetry/package.json",
-          "block": "dependencies",
-          "specifier": "catalog:otel"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "remove",
-      "sites": {
-        "runtime-import": {
-          "production": ["packages/observability/opentelemetry/src/index.ts"]
-        }
-      }
-    },
-    {
       "name": "@opentelemetry/resources",
       "scope": "production",
       "typedTarget": null,
@@ -857,29 +791,9 @@
           "production": ["packages/observability/opentelemetry/src/index.ts"],
           "test": [
             "packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts",
+            "packages/observability/opentelemetry/tests/fsSpans.test.ts",
             "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts"
           ]
-        }
-      }
-    },
-    {
-      "name": "@opentelemetry/semantic-conventions",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "packages/observability/opentelemetry/package.json",
-          "block": "dependencies",
-          "specifier": "catalog:otel"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "remove",
-      "sites": {
-        "runtime-import": {
-          "production": ["packages/observability/opentelemetry/src/index.ts"]
         }
       }
     },

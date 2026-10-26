@@ -219,38 +219,6 @@
       "decidedOn": "2026-10-25",
       "note": "Follows xml2js: planned through WEBHOOK-INGEST and N-COR-9. Declared in apps/api (devDependencies)."
     },
-    "@opentelemetry/instrumentation-fs": {
-      "status": "remove",
-      "utility": "An explicit new FsInstrumentation({ enabled: true }) that duplicates the fs instance getNodeAutoInstrumentations already builds with the same option.",
-      "replacement": "The auto-instrumentations map's own fs instance; the package stays in the tree as a dependency of auto-instrumentations-node.",
-      "decidedOn": "2026-10-25",
-      "note": "The three duplicated instrumentations and the two constants leave in one unit, otel-dedupe, with a span probe before and after. Declared in packages/observability/opentelemetry (dependencies).",
-      "slice": "otel-dedupe"
-    },
-    "@opentelemetry/instrumentation-http": {
-      "status": "remove",
-      "utility": "A second HttpInstrumentation beside the one auto-instrumentations builds; its own contribution is requestHook: tagProviderSpan and ignoreOutgoingRequestHook.",
-      "replacement": "The same hooks passed as the '@opentelemetry/instrumentation-http' config of getNodeAutoInstrumentations, which accepts them.",
-      "decidedOn": "2026-10-25",
-      "note": "Leaves in otel-dedupe; the hooks move into the auto map's config. Declared in packages/observability/opentelemetry (dependencies).",
-      "slice": "otel-dedupe"
-    },
-    "@opentelemetry/instrumentation-redis": {
-      "status": "remove",
-      "utility": "Instruments the redis (node-redis) package, which no file imports and the lockfile does not hold; the code uses ioredis, covered by the auto map's ioredis instance; its dbStatementSerializer never sees a command.",
-      "replacement": "The auto map's ioredis instance, already registered.",
-      "decidedOn": "2026-10-25",
-      "note": "Leaves in otel-dedupe. Declared in packages/observability/opentelemetry (dependencies).",
-      "slice": "otel-dedupe"
-    },
-    "@opentelemetry/semantic-conventions": {
-      "status": "remove",
-      "utility": "Two string constants, ATTR_SERVICE_NAME ('service.name') and ATTR_SERVICE_VERSION ('service.version'), in resourceFromAttributes.",
-      "replacement": "The two literal attribute keys, with a comment naming the convention; the package stays in the tree through sdk-node.",
-      "decidedOn": "2026-10-25",
-      "note": "Leaves in otel-dedupe. Declared in packages/observability/opentelemetry (dependencies).",
-      "slice": "otel-dedupe"
-    },
     "@tanstack/react-query-devtools": {
       "status": "kept",
       "grounds": "in-use",

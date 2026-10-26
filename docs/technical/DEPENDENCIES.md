@@ -165,17 +165,16 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 ### Observability
 
-| Package                                 | Version | Purpose                             |
-| --------------------------------------- | ------- | ----------------------------------- |
-| @opentelemetry/sdk-node                 | 0.219.0 | OpenTelemetry SDK                   |
-| @opentelemetry/api                      | 1.9.1   | Tracing API                         |
-| @fastify/otel                           | 0.21.2  | Fastify route and hook spans        |
-| @opentelemetry/instrumentation-http     | 0.219.0 | HTTP auto-instrumentation           |
-| @opentelemetry/instrumentation-redis    | 0.67.0  | Redis auto-instrumentation          |
-| @opentelemetry/exporter-prometheus      | 0.219.0 | Prometheus metrics export           |
-| @opentelemetry/exporter-trace-otlp-http | 0.219.0 | OTLP trace export                   |
-| pino                                    | 10.3.1  | High-performance structured logging |
-| prom-client                             | 15.1.3  | Prometheus metrics client           |
+| Package                                   | Version | Purpose                                           |
+| ----------------------------------------- | ------- | ------------------------------------------------- |
+| @opentelemetry/sdk-node                   | 0.219.0 | OpenTelemetry SDK                                 |
+| @opentelemetry/api                        | 1.9.1   | Tracing API                                       |
+| @fastify/otel                             | 0.21.2  | Fastify route and hook spans                      |
+| @opentelemetry/auto-instrumentations-node | 0.77.0  | HTTP, fs, ioredis and other auto-instrumentations |
+| @opentelemetry/exporter-prometheus        | 0.219.0 | Prometheus metrics export                         |
+| @opentelemetry/exporter-trace-otlp-http   | 0.219.0 | OTLP trace export                                 |
+| pino                                      | 10.3.1  | High-performance structured logging               |
+| prom-client                               | 15.1.3  | Prometheus metrics client                         |
 
 ### Resilience
 

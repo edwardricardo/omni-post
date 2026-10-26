@@ -1,12 +1,16 @@
 /**
  * @file httpProviderSpans.test.ts
- * @description Proves that the HTTP instrumentation the package's NodeSDK bootstrap registers sets
- *              the social provider's attributes on the client span of a real outgoing request to a
- *              provider host, on no client span of a request to another host, and on no server
- *              span, even when the client's `Host` header names a provider host. The provider host
- *              resolves to a local server through the request's `lookup` option, so no request
- *              leaves the machine. `node:http` is required after the SDK starts, the way a CommonJS
- *              provider client loads it, which is what lets the instrumentation patch it.
+ * @description Proves the two hooks of the HTTP instrumentation the package's NodeSDK bootstrap
+ *              registers. Its request hook sets the social provider's attributes on the client span
+ *              of a real outgoing request to a provider host, on no client span of a request to
+ *              another host, and on no server span, even when the client's `Host` header names a
+ *              provider host. Its outgoing-request filter starts no client span for a request to a
+ *              health or metrics path, while the local server's span of the same request shows that
+ *              the request was sent. Every host resolves to the local server through the request's
+ *              `lookup` option, so no request leaves the machine. `node:http` is required after the
+ *              SDK starts, the way a CommonJS provider client loads it, which is what lets the
+ *              instrumentation patch it. The entry's `enabled: true` keeps the instrumentation when
+ *              `OTEL_NODE_DISABLED_INSTRUMENTATIONS` names it, as the explicit instance it replaced did.
  * @layer infrastructure
  */
 import { createServer, type Server } from "node:http";
@@ -18,6 +22,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { createTelemetryInstrumentations } from "../src/index.js";
 
 const LOOPBACK = "127.0.0.1";
+const PROVIDER_PATH = "/2/tweets";
+const OTHER_HOST = "internal.example";
 
 const exporter = new tracing.InMemorySpanExporter();
 const processor = new tracing.SimpleSpanProcessor(exporter);
@@ -38,12 +44,12 @@ const loopbackLookup: LookupFunction = (_hostname, options, callback) => {
   callback(null, LOOPBACK, 4);
 };
 
-/** Sends one GET to `host` on the local server and waits for its spans to be exported. */
-const send = async (host: string): Promise<void> => {
+/** Sends one GET for `path` to `host` on the local server and waits for its spans to be exported. */
+const send = async (host: string, path: string = PROVIDER_PATH): Promise<void> => {
   const http = createRequire(import.meta.url)("node:http") as typeof import("node:http");
   await new Promise<void>((resolve, reject) => {
     const request = http.request(
-      { host, port, path: "/2/tweets", method: "GET", lookup: loopbackLookup },
+      { host, port, path, method: "GET", lookup: loopbackLookup },
       (response) => {
         response.resume();
         response.on("end", resolve);
@@ -120,5 +126,46 @@ describe("social provider attributes on HTTP spans", () => {
     const [span] = spans;
     expect(span?.attributes["social.provider"]).toBeUndefined();
     expect(span?.attributes["social.api.version"]).toBeUndefined();
+  });
+});
+
+describe("client spans of outgoing requests, by path", () => {
+  it("starts exactly one client span for an outgoing request to a path other than /health and /metrics", async () => {
+    await send(OTHER_HOST, "/v1/items");
+
+    expect(clientSpans()).toHaveLength(1);
+    expect(serverSpans()).toHaveLength(1);
+  });
+
+  it("suppresses the client span of an outgoing /health request", async () => {
+    await send(OTHER_HOST, "/health");
+
+    expect(clientSpans()).toHaveLength(0);
+    expect(serverSpans()).toHaveLength(1);
+  });
+
+  it("suppresses the client span of an outgoing /metrics request", async () => {
+    await send(OTHER_HOST, "/metrics");
+
+    expect(clientSpans()).toHaveLength(0);
+    expect(serverSpans()).toHaveLength(1);
+  });
+});
+
+describe("enablement of the HTTP instrumentation", () => {
+  it("keeps the HTTP instrumentation when OTEL_NODE_DISABLED_INSTRUMENTATIONS names it", () => {
+    const previous = process.env.OTEL_NODE_DISABLED_INSTRUMENTATIONS;
+    // The map filters its list by this variable while it is built, so the list is the behaviour.
+    vi.stubEnv("OTEL_NODE_DISABLED_INSTRUMENTATIONS", "http");
+    try {
+      const names = (createTelemetryInstrumentations() ?? [])
+        .flat()
+        .map((instrumentation) => instrumentation.instrumentationName);
+
+      expect(names).toContain("@opentelemetry/instrumentation-http");
+    } finally {
+      // Restores this one variable: `vi.unstubAllEnvs()` would also undo the `beforeAll` stubs.
+      vi.stubEnv("OTEL_NODE_DISABLED_INSTRUMENTATIONS", previous);
+    }
   });
 });

@@ -195,9 +195,16 @@ catalogs:
   # 2026-10-16, `@opentelemetry/instrumentation` and `@opentelemetry/propagation-utils`,
   # with their one declaration, which nothing imported. `@opentelemetry/instrumentation-fastify`
   # left on 2026-10-23, deprecated upstream for `@fastify/otel`, which the Fastify authors
-  # release on their own train and its one manifest declares as a literal. No member has
-  # been extended to transitive copies by an override since 2026-10-22, when the `core`
-  # CVE-floor override left (the overrides header below).
+  # release on their own train and its one manifest declares as a literal. Four left on
+  # 2026-10-26 with their one declaration: `@opentelemetry/instrumentation-http`, a second
+  # instance of the auto-instrumentations map's own, whose two hooks moved into the map's
+  # configuration; `@opentelemetry/instrumentation-fs`, a second instance of the map's own fs
+  # entry; `@opentelemetry/instrumentation-redis`, which instruments the node-redis package
+  # nothing loads; and `@opentelemetry/semantic-conventions`, whose two constants became the
+  # literal keys `service.name` and `service.version`. All four stay in the tree as transitive
+  # dependencies.
+  # No member has been extended to transitive copies by an override since 2026-10-22, when the
+  # `core` CVE-floor override left (the overrides header below).
   otel:
     "@opentelemetry/api": 1.9.1 # the newest release on 2026-10-03
     "@opentelemetry/auto-instrumentations-node": 0.77.0 # 0.80.0 is newer and mature; was 0.75.0
@@ -205,11 +212,7 @@ catalogs:
     "@opentelemetry/exporter-prometheus": 0.219.0 # 0.222.0 is newer and mature; was 0.217.0
     "@opentelemetry/sdk-node": 0.219.0 # 0.222.0 is newer and mature; was 0.217.0
     "@opentelemetry/exporter-trace-otlp-http": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
-    "@opentelemetry/instrumentation-fs": 0.38.0 # 0.41.0 is newer and mature; was 0.33.0
-    "@opentelemetry/instrumentation-http": 0.219.0 # 0.222.0 is newer and mature; was 0.214.0
-    "@opentelemetry/instrumentation-redis": 0.67.0 # 0.70.0 is newer and mature; was 0.62.0
     "@opentelemetry/resources": 2.8.0 # 2.11.0 is newer and mature; was 2.6.1
-    "@opentelemetry/semantic-conventions": 1.41.1 # 1.43.0 is newer and mature; was 1.40.0
 
 # Dependency resolution overrides. Migrated verbatim from the package.json `pnpm`
 # field (ADR-0019). `catalog:` / `catalog:otel` values resolve against the catalogs

@@ -1,7 +1,9 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-24 — WU-2.2b starts the dependency-usage ledger with its site reader,
+**As of:** 2026-10-26 — otel-dedupe moves M1 to `1040 + 13` with two test files on the
+OpenTelemetry package; deps-remove-2 moved M3 to `643` on 2026-10-25. WU-2.2b starts the
+dependency-usage ledger with its site reader,
 `scripts/testing/lib/dependency-sites.mjs`: the kind and path class of every site a module holds
 of a declared package; its manifest side, `scripts/testing/lib/dependency-manifests.mjs`, adds the
 workspace manifests, the catalogs, the `bin` names and the binary and stylesheet sites; its core,
@@ -23,7 +25,7 @@ fitness #37 admits it. WU-2.1 adds the assertion classifier, `classifyFile` in
 WU-2.2a builds the test ledger, `scripts/testing/ledger.mjs`, in three stacked slices (row 2.2a ✅).
 WU-6.P2 retired `perf:db` and its suite (row 6.P2 🔄 until its siblings are
 adjudicated). N-CI-7, the test kit, is closed (row N-CI-7). Phase 0 is closed, row 0.16 aside (🔄);
-Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1038 + 13` · M3 `643` · M5 `28 · 0` · M7 `48/48` · M8 `1/94`. Every
+Phase 1 has 1.13, 1.14 and 1.15 left. M1 `1040 + 13` · M3 `643` · M5 `28 · 0` · M7 `48/48` · M8 `1/94`. Every
 unit's line is in [§Log](#log).
 
 **Baseline:** `main` @ `6701be00`, measured 2026-09-27
@@ -50,7 +52,7 @@ naming one of its parts. [§Log](#log) gives each alias its branch.
 
 | #   | Metric                                                            | Baseline              | Now                   | Target        | Re-derive with                                                                          | Moved by |
 | --- | ----------------------------------------------------------------- | --------------------- | --------------------- | ------------- | --------------------------------------------------------------------------------------- | -------- |
-| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1038 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR depl  |
+| M1  | Test files (workspaces + outside)                                 | 942 + 8               | 1040 + 13             | ledger-driven | `metrics.mjs --m1` (derived: `git ls-files`)                                            | PR otel  |
 | M2  | Tests: vitest passed / todo · node:test (TIER) · Playwright in CI | 12,580 / 43 · 934 · 0 | 12,580 / 43 · 934 · 0 | todo 0        | `metrics.mjs --m2` (pasted: local vitest run + TIER summary, report F-report §State)    | —        |
 | M3  | Decorative blocks deleted / remaining (suppressions)              | 0 / ≤272              | 643                   | — / 0         | `metrics.mjs --m3` (`eslint-suppressions.json` per rule; absent at baseline)            | PR dr2   |
 | M4  | Decorative whole files deleted                                    | 0                     | 0                     | per ledger    | `metrics.mjs --m4` (`ledger.json`; absent at baseline)                                  | —        |
@@ -443,6 +445,7 @@ test, or a test that cannot fail — it lives here, with the reason and the owne
 
 Newest first; a line with no date or no pull request number is one whose record named none.
 
+- 2026-10-26 — otel-dedupe, `PR otel` (`workstream/refound-2-otel-dedupe`) — the four `otel-dedupe` names of the dependency-usage ledger leave `packages/observability/opentelemetry`: the explicit `HttpInstrumentation`, `RedisInstrumentation` and `FsInstrumentation` instances, second instances of the auto-instrumentations map's own, which they replaced rather than duplicated (`InstrumentationBase._wrap` unwraps the earlier patch first; measured span for span before and after), and the two `@opentelemetry/semantic-conventions` constants, now the literal keys `service.name` and `service.version`. The http hooks (`tagProviderSpan`, the `/health` and `/metrics` outgoing ignore) moved into the map's `@opentelemetry/instrumentation-http` configuration. M1 `1038 + 13` → `1040 + 13`: `fsSpans.test.ts` pins one `fs readFileSync` span per call and `telemetryResource.test.ts` the configured `service.name` / `service.version` on every exported resource; `httpProviderSpans.test.ts` gains the `/health` and `/metrics` CLIENT-span suppression, which no test pinned before.
 - 2026-10-25 — deps-remove-2, `PR dr2` (`workstream/refound-2-deps-remove-2`) — the four names round 2 of the dependency-usage ledger marked `remove` leave the tree: `dotenv` (its nine sites call `process.loadEnvFile` behind an existence check; measured on Node 26.12.1: existing variables win, a missing file throws), `cross-env` (the scripts assign `NODE_ENV=test` in the shell), `eslint-plugin-react` (one `warn` rule; the lint configs drop it, `pnpm lint` green) and `@storybook/addon-docs` (the owner does not use autodocs; the tag leaves `preview.tsx` and nine stories, and CODING_STANDARDS keeps the props-on-the-interface rule without the Storybook rationale); with them `@tanstack/react-query-devtools` moves to devDependencies, the root `@t3-oss` declarations leave, and the dead `isomorphic-dompurify.d.ts`, `errorPlugin.ts` and its test leave, the handler's inject-level coverage rewritten against the production wiring (`errorHandler.inject.test.ts`, so M1 holds at 1038); the pruned suppressions of the deleted test move M3 646 → 643. The `CLAUDE.md` fitness #50 rationale is in the past tense (the residual deps-remove-1 named). Lockfile: 21 packages out, none in. Verified by an independent reader before review and battery.
 - 2026-10-25 — deps-remove-1, `PR deps-remove-1` (`workstream/refound-2-deps-remove-1`) — the four names round 1 of the dependency-usage ledger marked `remove` leave the tree: `@fastify/websocket` (with its `fastify.d.ts` augmentation and knip ignore), `postcss` and `postcss-load-config` (admin, client, catalog), `@vitest/ui` (with `test:ui` and its holds-population row); the lockfile loses three of them and `fflate` (`postcss` stays as a transitive under vite, `@tailwindcss/postcss` and next, whose own 8.5.23 now builds the portals' CSS, byte-identical to main's); the ledger record, the legal subprocessors inventory and the SECURITY_CANON `postcss` row (lockfile-only) follow. Verified by an independent reader before review and battery. Residual: the fitness #50 rationale inside `CLAUDE.md`'s own fitness block (`FOUNDATION_PRACTICES.md` is already fixed) still says `@fastify/websocket` "has had no site since the first commit, hidden by a knip `ignoreDependencies` entry"; the next unit that opens `CLAUDE.md` (an owner's sensitive-edit window) puts it in the past tense.
 - 2026-10-25 — dependency decisions round 2, PR #735 (`workstream/refound-2-deps-decisions-2`) — the 109 names under the floor with real sites decided from a liveness map crossed with the Master Plan: 8 `planned` (a new ground, held to a note that names its plan item), 11 `remove` with their slices, 90 kept with a weighed replacement each; `pendingBaseline` 109 → 0.

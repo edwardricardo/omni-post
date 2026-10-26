@@ -10,12 +10,8 @@ import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentation
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { PrometheusExporter } from "@opentelemetry/exporter-prometheus";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { FastifyOtelInstrumentation } from "@fastify/otel";
-import { HttpInstrumentation } from "@opentelemetry/instrumentation-http";
-import { RedisInstrumentation } from "@opentelemetry/instrumentation-redis";
-import { FsInstrumentation } from "@opentelemetry/instrumentation-fs";
 import pino from "pino";
 import { tagProviderSpan } from "./providerSpanAttributes.js";
 
@@ -59,10 +55,10 @@ export class SocialMediaTelemetry {
     process.env.OTEL_METRICS_EXPORTER ??= "none";
     process.env.OTEL_LOGS_EXPORTER ??= "none";
 
-    // Create resource with service information
+    // `service.name` and `service.version` are the semantic-convention service attributes.
     const resource = resourceFromAttributes({
-      [ATTR_SERVICE_NAME]: this.config.serviceName,
-      [ATTR_SERVICE_VERSION]: this.config.serviceVersion,
+      "service.name": this.config.serviceName,
+      "service.version": this.config.serviceVersion,
       environment: this.config.environment,
       tenant: "multi-tenant",
       component: "social-media-cms",
@@ -157,12 +153,24 @@ export class SocialMediaTelemetry {
 }
 
 /**
- * @description Builds the instrumentations the NodeSDK of `SocialMediaTelemetry` enables. Fastify
- *              is instrumented by `@fastify/otel` with `registerOnInitialization`: on `enable()` it
- *              subscribes to Fastify's `fastify.initialization` diagnostics channel and registers
- *              its plugin on every instance created afterwards, patching no module. The API is ESM
- *              and imports `fastify` before the SDK starts, so a module-patching instrumentation
- *              would never see that import; a subscription made before `Fastify()` runs does.
+ * @description Builds the instrumentations the NodeSDK of `SocialMediaTelemetry` enables: the
+ *              auto-instrumentations map, with its file-system instrumentation switched on and its
+ *              HTTP instrumentation carrying two hooks, and `@fastify/otel`. The hooks are set in
+ *              the map's `@opentelemetry/instrumentation-http` entry, never on a second
+ *              `HttpInstrumentation`: `InstrumentationBase._wrap` unwraps a target that is already
+ *              wrapped, so a second instance of one instrumentation replaces the first one's
+ *              wrapper, and only the configuration of the instance that wraps last reaches a span.
+ *              Redis spans come from the map's `ioredis` entry, the client every file uses: the
+ *              node-redis instrumentation that used to be listed here saw no command, because the
+ *              tree holds no `redis` package, and the map's default statement serializer, from
+ *              `@opentelemetry/redis-common`, writes `AUTH` with no arguments and `SET` with its
+ *              key alone.
+ *              Fastify is instrumented by `@fastify/otel` with `registerOnInitialization`: on
+ *              `enable()` it subscribes to Fastify's `fastify.initialization` diagnostics channel
+ *              and registers its plugin on every instance created afterwards, patching no module.
+ *              The API is ESM and imports `fastify` before the SDK starts, so a module-patching
+ *              instrumentation would never see that import; a subscription made before
+ *              `Fastify()` runs does.
  * @returns The instrumentations, in the shape `NodeSDKConfiguration.instrumentations` takes
  */
 export function createTelemetryInstrumentations(): NodeSDKConfiguration["instrumentations"] {
@@ -172,42 +180,25 @@ export function createTelemetryInstrumentations(): NodeSDKConfiguration["instrum
       "@opentelemetry/instrumentation-fs": {
         enabled: true,
       },
+      "@opentelemetry/instrumentation-http": {
+        // Always on, as the explicit instance this entry replaced was: the map's
+        // `OTEL_NODE_DISABLED_INSTRUMENTATIONS` switch does not remove the provider spans.
+        enabled: true,
+        // No client span for a request to the internal health and metrics endpoints
+        ignoreOutgoingRequestHook: (request) => {
+          const path = request.path ?? "";
+          return path.includes("/health") || path.includes("/metrics");
+        },
+        // Social provider context on outgoing requests. The provider is recognised by host-name
+        // equality, because a substring test on a URL lets `api.twitter.com.evil.example` pass, and
+        // the host is read from the request itself, because the `path` of an outgoing request never
+        // holds it. Incoming requests are never tagged: the client chooses their `Host` header.
+        requestHook: tagProviderSpan,
+      },
     }),
 
     // Fastify route spans: one `request` span per request and one child span per handler and hook
     new FastifyOtelInstrumentation({ registerOnInitialization: true }),
-
-    // HTTP instrumentation for provider API calls
-    new HttpInstrumentation({
-      enabled: true,
-      ignoreOutgoingRequestHook: (req) => {
-        // Don't trace internal health checks
-        const url = (req as unknown as { path?: string }).path || "";
-        return url.includes("/health") || url.includes("/metrics");
-      },
-      // Social provider context on outgoing requests. The provider is recognised by host-name
-      // equality, because a substring test on a URL lets `api.twitter.com.evil.example` pass, and
-      // the host is read from the request itself, because the `path` of an outgoing request never
-      // holds it. Incoming requests are never tagged: the client chooses their `Host` header.
-      requestHook: tagProviderSpan,
-    }),
-
-    // Redis instrumentation for cache and queues
-    new RedisInstrumentation({
-      enabled: true,
-      dbStatementSerializer: (cmdName, cmdArgs) => {
-        // Sanitize sensitive data in Redis commands
-        if (cmdName.toLowerCase().includes("auth") || cmdName.toLowerCase().includes("set")) {
-          return `${cmdName} [REDACTED]`;
-        }
-        return `${cmdName} ${cmdArgs.join(" ")}`;
-      },
-    }),
-
-    // File system instrumentation for media handling
-    new FsInstrumentation({
-      enabled: true,
-    }),
   ];
 }
 
