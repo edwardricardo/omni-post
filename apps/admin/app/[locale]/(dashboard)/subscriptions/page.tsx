@@ -10,7 +10,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Download, PlayCircle, RefreshCw, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +68,7 @@ function SubscriptionsPageContent() {
   const t = useTranslations("nav");
   const ts = useTranslations("subscriptions");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const { data: subscriptionData, isLoading, error, refetch } = useSubscriptions();
   const { data: billingStats } = useBillingStats();
   const queryClient = useQueryClient();
@@ -272,13 +273,13 @@ function SubscriptionsPageContent() {
   const formatDate = useCallback(
     (dateString: string | null) => {
       if (!dateString) return ts("na");
-      return new Date(dateString).toLocaleDateString("en-US", {
+      return new Date(dateString).toLocaleDateString(locale, {
         year: "numeric",
         month: "short",
         day: "numeric",
       });
     },
-    [ts]
+    [ts, locale]
   );
 
   const handleBillingExport = useCallback(async () => {
@@ -390,11 +391,11 @@ function SubscriptionsPageContent() {
       >
         <StatCard
           label={ts("stats.totalRevenue")}
-          value={`$${(stats.totalRevenue ?? 0).toLocaleString()}`}
+          value={`$${(stats.totalRevenue ?? 0).toLocaleString(locale)}`}
         />
         <StatCard
           label={ts("stats.monthlyRevenue")}
-          value={`$${(stats.monthlyRevenue ?? 0).toLocaleString()}`}
+          value={`$${(stats.monthlyRevenue ?? 0).toLocaleString(locale)}`}
         />
         <StatCard
           label={ts("stats.activeSubscriptions")}
@@ -433,7 +434,7 @@ function SubscriptionsPageContent() {
         >
           <StatCard
             label={ts("mrrStat")}
-            value={`$${(billingStats.monthlyRecurringRevenue ?? 0).toLocaleString()}`}
+            value={`$${(billingStats.monthlyRecurringRevenue ?? 0).toLocaleString(locale)}`}
           />
         </div>
       )}
@@ -499,7 +500,7 @@ function SubscriptionsPageContent() {
                         <td className="px-3 py-2">
                           <div className="text-sm font-medium text-[var(--text-primary)]">
                             {ts("perMonth", {
-                              amount: Number(sub.plan?.pricePerMonth ?? 0).toLocaleString(),
+                              amount: Number(sub.plan?.pricePerMonth ?? 0).toLocaleString(locale),
                             })}
                           </div>
                         </td>

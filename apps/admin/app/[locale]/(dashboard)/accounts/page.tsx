@@ -7,7 +7,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@packages/ui";
 import { useCurrentUser } from "@/providers/AuthProvider";
 
@@ -59,6 +59,7 @@ function AccountsPageContent() {
   const t = useTranslations("nav");
   const ta = useTranslations("accounts");
   const tc = useTranslations("common");
+  const locale = useLocale();
   const queryClient = useQueryClient();
   const { data: accountsData, isLoading, error, refetch } = useAccounts();
   const updateAccount = useUpdateAccount();
@@ -316,13 +317,13 @@ function AccountsPageContent() {
   const formatDate = useCallback(
     (dateString: string | null | undefined) => {
       if (!dateString) return tc("never");
-      return new Date(dateString).toLocaleDateString("en-US", {
+      return new Date(dateString).toLocaleDateString(locale, {
         year: "numeric",
         month: "short",
         day: "numeric",
       });
     },
-    [tc]
+    [tc, locale]
   );
 
   if (isLoading) {
