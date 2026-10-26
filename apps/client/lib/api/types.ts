@@ -5,6 +5,7 @@
  * @layer infrastructure
  */
 // API Types for OmniPost Client
+import type { ContentLocale } from "@shared/types";
 
 export interface Project {
   id: string;
@@ -15,8 +16,8 @@ export interface Project {
    * projects scoped to a specific account.
    */
   accountId: string;
-  /** Default content locale (`es`, `en`, etc.) for posts in this project. */
-  locale: string;
+  /** Default content language of the project's posts, one of CONTENT_LOCALES. */
+  locale: ContentLocale;
   description?: string;
   createdAt: string;
   updatedAt: string;
@@ -25,7 +26,7 @@ export interface Project {
 export interface Post {
   id: string;
   projectId: string;
-  locale: "es" | "en";
+  locale: ContentLocale;
   title?: string;
   summary?: string;
   body: string;
@@ -144,7 +145,7 @@ export interface CrossPlatformAnalyticsData {
 
 export interface CreatePostRequest {
   projectId: string;
-  locale?: "es" | "en";
+  locale?: ContentLocale;
   title?: string;
   summary?: string;
   body: string;
@@ -161,7 +162,7 @@ export interface CreatePostRequest {
 }
 
 export interface UpdatePostRequest {
-  locale?: "es" | "en";
+  locale?: ContentLocale;
   title?: string;
   summary?: string;
   body?: string;

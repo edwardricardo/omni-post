@@ -10,6 +10,7 @@
 
 import React, { useMemo, useCallback, useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import type { ContentLocale } from "@shared/types";
 import {
   ChannelMultiSelect,
   ContentEditorCore,
@@ -36,7 +37,7 @@ interface ClientContentEditorProps {
   initialTitle?: string;
   initialTags?: string[];
   projectId?: string;
-  locale?: string;
+  locale?: ContentLocale;
   showPreview?: boolean;
   onContentChange?: (content: string, charCount: number) => void;
   onMediaAdd?: (files: File[]) => void;
@@ -170,7 +171,7 @@ export function ClientContentEditor({
         body: initialContent,
         ...(initialTags.length > 0 && { tags: initialTags }),
         projectId: projectId!,
-        locale: locale as "en" | "es",
+        locale,
       });
 
       success({

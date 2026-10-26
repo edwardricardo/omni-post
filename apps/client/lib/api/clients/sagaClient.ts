@@ -9,6 +9,7 @@
 
 import type { ApiResponse } from "../types";
 import { request } from "./request";
+import type { ContentLocale } from "@shared/types";
 
 export type SagaPostMode = "draft" | "schedule" | "publish-now";
 
@@ -21,7 +22,7 @@ export type SagaStatus =
  * Zod refinement enforces XOR (callers MUST provide one or the other).
  */
 interface NewPostContent {
-  locale: string;
+  locale: ContentLocale;
   body: string;
   title?: string;
   tags?: string[];
@@ -42,7 +43,7 @@ export interface StartScheduleSagaInput {
   mode: "schedule";
   projectId: string;
   postId?: string;
-  locale?: string;
+  locale?: ContentLocale;
   body?: string;
   title?: string;
   tags?: string[];
@@ -61,7 +62,7 @@ export interface StartPublishNowSagaInput {
   mode: "publish-now";
   projectId: string;
   postId?: string;
-  locale?: string;
+  locale?: ContentLocale;
   body?: string;
   title?: string;
   tags?: string[];
@@ -162,7 +163,7 @@ export const SAGA_TERMINAL_STATUSES: ReadonlyArray<SagaStatus> = Object.freeze([
 ]);
 
 /**
- * Helper: start a saga and imperatively poll its status until a terminal
+ * @description Starts a saga and imperatively polls its status until a terminal
  * state. Used by mutation hooks that need to resolve with the post result
  * (auto-save flow, scheduling UI). Components that want a non-blocking
  * flow with progress UI should use the `useSagaStatus` hook instead.
@@ -174,6 +175,7 @@ export const SAGA_TERMINAL_STATUSES: ReadonlyArray<SagaStatus> = Object.freeze([
  * @param ops - The two saga operations from the API facade (start + status)
  * @param input - Discriminated union by `mode`
  * @param options - Polling tuning (defaults: 200ms interval, 60s timeout)
+ * @returns The saga id, the post id read from the create-post step and the final status
  */
 export async function runSagaAndAwaitTerminal(
   ops: {
