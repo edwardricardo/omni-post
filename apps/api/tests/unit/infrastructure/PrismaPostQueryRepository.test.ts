@@ -117,6 +117,19 @@ describe("PrismaPostQueryRepository", () => {
       expect(prisma.post.findFirst.mock.calls.length).toBe(1);
     });
 
+    it("fails the read when the stored content locale is not a content locale", async () => {
+      const row = baseRow();
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...row,
+        contents: row.contents.map((content) => ({ ...content, locale: "fr" })),
+      }));
+      const id = PostId.fromStringUnsafe(POST_ID);
+
+      await expect(repo.getById(id, accountId)).rejects.toThrow(
+        `PostContent of post ${POST_ID} holds locale "fr", which is not a content locale (en, es)`
+      );
+    });
+
     it("returns err(EntityNotFoundError) for missing post", async () => {
       prisma.post.findFirst.mockImplementation(async () => null);
       const id = PostId.fromStringUnsafe(POST_ID);

@@ -6,15 +6,74 @@
  */
 import { ok, err, type Result, type CanonicalPost, type Media } from "@shared/types";
 import type { CreatePostInput, ListPostsQuery, PostsPage } from "@ports/core";
-import type { PrismaClient, MediaKind } from "@infra/prisma";
+import type { PrismaClient } from "@infra/prisma";
 import {
   SYSTEM_TENANT_SCOPE,
   withGucBoundTransaction,
 } from "@infra/prisma/extensions/tenantGuc.js";
+import { contentLocaleFromStorage } from "@core/domain/index.js";
 import { createLogger } from "@observability/logger";
 
 const logger = createLogger("adapter:db-prisma:post");
 
+/** The PostContent columns a CanonicalPost is read from. */
+interface StoredContent {
+  id: string;
+  locale: string;
+  title: string | null;
+  summary: string | null;
+  body: string;
+  tags: string[];
+}
+
+/**
+ * @function canonicalContent
+ * @description Reads the content half of a CanonicalPost from its PostContent row. A stored locale
+ *   outside CONTENT_LOCALES throws the InvalidValueError that names the row and the value, which
+ *   each caller's catch logs before answering DATABASE_ERROR.
+ * @param content - The PostContent row.
+ * @returns The post's locale, title, summary, body and tags.
+ */
+function canonicalContent(
+  content: StoredContent
+): Pick<CanonicalPost, "locale" | "title" | "summary" | "body" | "tags"> {
+  const locale = contentLocaleFromStorage(content.locale, `PostContent ${content.id}`);
+  if (!locale.ok) throw locale.error;
+  return {
+    locale: locale.value,
+    ...(content.title ? { title: content.title } : {}),
+    ...(content.summary ? { summary: content.summary } : {}),
+    body: content.body,
+    tags: content.tags,
+  };
+}
+
+/**
+ * @function mediaRowData
+ * @description The PostMedia columns written for one media item, the kind as the lowercase
+ *   `MediaKind` value the column holds.
+ * @param media - The media item.
+ * @returns The url, kind and the dimensions, duration and alt text the item carries.
+ */
+function mediaRowData(media: Media) {
+  return {
+    url: media.url,
+    type: media.type,
+    ...(media.w ? { width: media.w } : {}),
+    ...(media.h ? { height: media.h } : {}),
+    ...(media.durationMs ? { durationMs: media.durationMs } : {}),
+    ...(media.alt ? { alt: media.alt } : {}),
+  };
+}
+
+/**
+ * @function createPostRepository
+ * @description Builds the post repository over an injected Prisma client: posts read by id or
+ *   listed, created with their content and media, and media added to a post.
+ * @param transactionBreaker - The circuit breaker the create transaction runs through.
+ * @param prisma - The Prisma client.
+ * @returns The post repository's operations.
+ */
 export function createPostRepository(
   transactionBreaker: {
     fire: (fn: () => Promise<unknown>) => Promise<unknown>;
@@ -99,11 +158,7 @@ export function createPostRepository(
         const canonical: CanonicalPost = {
           id: post.id,
           projectId: post.projectId,
-          locale: content.locale as "es" | "en",
-          ...(content.title ? { title: content.title } : {}),
-          ...(content.summary ? { summary: content.summary } : {}),
-          body: content.body,
-          tags: content.tags,
+          ...canonicalContent(content),
           media: post.media.map((m) => ({
             id: m.id,
             type: m.type as "image" | "video" | "gif",
@@ -180,16 +235,7 @@ export function createPostRepository(
             if (input.media && input.media.length > 0) {
               for (const media of input.media) {
                 const mediaRecord = await tx.postMedia.create({
-                  data: {
-                    postId: post.id,
-                    accountId: post.accountId,
-                    url: media.url,
-                    type: media.type.toUpperCase() as MediaKind,
-                    ...(media.w ? { width: media.w } : {}),
-                    ...(media.h ? { height: media.h } : {}),
-                    ...(media.durationMs ? { durationMs: media.durationMs } : {}),
-                    ...(media.alt ? { alt: media.alt } : {}),
-                  },
+                  data: { postId: post.id, accountId: post.accountId, ...mediaRowData(media) },
                 });
                 mediaRecords.push(mediaRecord);
               }
@@ -202,13 +248,7 @@ export function createPostRepository(
         // Transform to CanonicalPost format
         const txResult = result as {
           post: { id: string; projectId: string; scheduledAt: Date | null };
-          content: {
-            locale: string;
-            title: string | null;
-            summary: string | null;
-            body: string;
-            tags: string[];
-          };
+          content: StoredContent;
           media: Array<{
             id: string;
             type: string;
@@ -222,11 +262,7 @@ export function createPostRepository(
         const canonical: CanonicalPost = {
           id: txResult.post.id,
           projectId: txResult.post.projectId,
-          locale: txResult.content.locale as "es" | "en",
-          ...(txResult.content.title ? { title: txResult.content.title } : {}),
-          ...(txResult.content.summary ? { summary: txResult.content.summary } : {}),
-          body: txResult.content.body,
-          tags: txResult.content.tags,
+          ...canonicalContent(txResult.content),
           media: txResult.media.map((m) => ({
             id: m.id,
             type: m.type.toLowerCase() as "image" | "video" | "gif",
@@ -279,11 +315,7 @@ export function createPostRepository(
           return {
             id: post.id,
             projectId: post.projectId,
-            locale: content.locale as "es" | "en",
-            ...(content.title ? { title: content.title } : {}),
-            ...(content.summary ? { summary: content.summary } : {}),
-            body: content.body,
-            tags: content.tags,
+            ...canonicalContent(content),
             media: post.media.map((m) => ({
               id: m.id,
               type: m.type.toLowerCase() as "image" | "video" | "gif",
@@ -325,16 +357,7 @@ export function createPostRepository(
         // Add media to post — the tenant comes from the parent row just read, so
         // the child cannot be filed anywhere its post is not.
         await prisma.postMedia.create({
-          data: {
-            postId,
-            accountId: post.accountId,
-            url: media.url,
-            type: media.type.toUpperCase() as MediaKind,
-            ...(media.w ? { width: media.w } : {}),
-            ...(media.h ? { height: media.h } : {}),
-            ...(media.durationMs ? { durationMs: media.durationMs } : {}),
-            ...(media.alt ? { alt: media.alt } : {}),
-          },
+          data: { postId, accountId: post.accountId, ...mediaRowData(media) },
         });
 
         return ok(undefined);

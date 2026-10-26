@@ -6,6 +6,7 @@
  */
 
 import { z } from "zod";
+import { contentLocaleSchema } from "@shared/types";
 
 /**
  * Result of a schema validation attempt.
@@ -26,7 +27,7 @@ const postCreatedV1 = z.object({
   postId: z.string(),
   projectId: z.string(),
   body: z.string(),
-  locale: z.string(),
+  locale: contentLocaleSchema,
   title: z.string().optional(),
 });
 
@@ -153,10 +154,10 @@ export class EventSchemaRegistry {
   }
 
   /**
-   * Register a Zod schema for a given (eventType, version) pair.
-   *
-   * If a schema already exists for that pair it will be overwritten —
-   * this allows tests to replace schemas without constructing a new registry.
+   * @method register
+   * @description Registers a Zod schema for a given (eventType, version) pair. If a schema already
+   *   exists for that pair it will be overwritten — this allows tests to replace schemas without
+   *   constructing a new registry.
    *
    * @param eventType - Event type discriminator (e.g. "PostCreated")
    * @param version   - Schema version number (e.g. 1, 2, 3)
@@ -172,8 +173,10 @@ export class EventSchemaRegistry {
   }
 
   /**
-   * Retrieve the Zod schema for a specific (eventType, version) pair.
-   *
+   * @method getSchema
+   * @description Retrieves the Zod schema for a specific (eventType, version) pair.
+   * @param eventType - Event type discriminator (e.g. "PostCreated")
+   * @param version - Schema version number
    * @returns The schema, or `undefined` if no schema has been registered
    *          for this eventType+version combination.
    */
@@ -182,8 +185,9 @@ export class EventSchemaRegistry {
   }
 
   /**
-   * Get the highest registered version number for an event type.
-   *
+   * @method getCurrentVersion
+   * @description Gets the highest registered version number for an event type.
+   * @param eventType - Event type discriminator (e.g. "PostCreated")
    * @returns The highest version number, or `undefined` if the event type
    *          is not registered at all.
    */
@@ -199,7 +203,8 @@ export class EventSchemaRegistry {
   }
 
   /**
-   * Validate a payload against the schema for the given (eventType, version) pair.
+   * @method validate
+   * @description Validates a payload against the schema for the given (eventType, version) pair.
    *
    * @param eventType - Event type to look up
    * @param version   - Schema version to validate against
@@ -231,7 +236,10 @@ export class EventSchemaRegistry {
   }
 
   /**
-   * Check whether any schemas are registered for a given event type.
+   * @method hasEventType
+   * @description Checks whether any schemas are registered for a given event type.
+   * @param eventType - Event type discriminator (e.g. "PostCreated")
+   * @returns True when at least one version is registered for it.
    */
   hasEventType(eventType: string): boolean {
     const versionMap = this.schemas.get(eventType);

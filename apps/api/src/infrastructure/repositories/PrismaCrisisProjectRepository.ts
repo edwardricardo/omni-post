@@ -7,7 +7,13 @@
 
 import type { Prisma, PrismaClient } from "@infra/prisma";
 import { type Result, ok, err } from "@shared/types";
-import { Project, ProjectId, AccountId, EntityNotFoundError } from "@core/domain/index.js";
+import {
+  Project,
+  ProjectId,
+  AccountId,
+  EntityNotFoundError,
+  contentLocaleFromStorage,
+} from "@core/domain/index.js";
 import type { CrisisProjectRepository } from "@core/crisis/types.js";
 import { PrismaUnitOfWork } from "@adapters/db-prisma";
 
@@ -23,6 +29,13 @@ type TxClient = Prisma.TransactionClient;
 export class PrismaCrisisProjectRepository implements CrisisProjectRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
+  /**
+   * @method findById
+   * @description Reads a live project with its crisis state. A stored locale outside
+   *   CONTENT_LOCALES throws the InvalidValueError that names the project and the value.
+   * @param projectId - The project's id.
+   * @returns The project, or EntityNotFoundError when no live project has the id.
+   */
   async findById(projectId: ProjectId): Promise<Result<Project, EntityNotFoundError>> {
     const project = await this.prisma.project.findFirst({
       where: { id: projectId.value, deletedAt: null },
@@ -33,8 +46,9 @@ export class PrismaCrisisProjectRepository implements CrisisProjectRepository {
       return err(new EntityNotFoundError("Project", projectId.value));
     }
 
-    // Reconstitute domain Project
-    const locale = (project.locale ?? "en") as "es" | "en" | "pt";
+    // Reconstitute domain Project; a stored locale outside CONTENT_LOCALES fails the read.
+    const locale = contentLocaleFromStorage(project.locale, `Project ${project.id}`);
+    if (!locale.ok) throw locale.error;
     const historyData = (project.crisisModeHistory ?? []) as Array<{
       reason: string;
       startedAt: string;
@@ -45,7 +59,7 @@ export class PrismaCrisisProjectRepository implements CrisisProjectRepository {
       Project.reconstitute(ProjectId.fromStringUnsafe(project.id), {
         accountId: AccountId.fromStringUnsafe(project.accountId),
         name: project.name,
-        locale,
+        locale: locale.value,
         isInCrisisMode: project.isInCrisisMode,
         ...(project.crisisStartedAt && { crisisStartedAt: project.crisisStartedAt }),
         ...(project.crisisReason && { crisisReason: project.crisisReason }),
@@ -72,6 +86,13 @@ export class PrismaCrisisProjectRepository implements CrisisProjectRepository {
     return PrismaUnitOfWork.getTransactionClient() ?? this.prisma;
   }
 
+  /**
+   * @method save
+   * @description Writes a project's crisis state on the active unit of work's transaction, or on
+   *   the base client when none is open.
+   * @param project - The project whose crisis state is written.
+   * @returns ok, or the error the write raised.
+   */
   async save(project: Project): Promise<Result<void, Error>> {
     try {
       await this.getClient().project.update({

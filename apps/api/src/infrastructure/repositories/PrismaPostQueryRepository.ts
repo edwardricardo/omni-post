@@ -22,7 +22,8 @@ import type {
   TenantScope,
 } from "@core/domain/index.js";
 import { AccountId, PostId, ProjectId } from "@core/domain/index.js";
-import { EntityNotFoundError } from "@core/domain/index.js";
+import { EntityNotFoundError, contentLocaleFromStorage } from "@core/domain/index.js";
+import type { ContentLocale } from "@core/domain/index.js";
 import type { PublishStatusValue } from "@core/domain/value-objects/PublishStatus.js";
 
 const DEFAULT_PAGE = 1;
@@ -93,7 +94,8 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
-   * Get a post read model by ID, scoped to the caller's account (CWE-639).
+   * @method getById
+   * @description Gets a post read model by ID, scoped to the caller's account (CWE-639).
    * Returns EntityNotFoundError when the post does not exist, is soft-deleted, or
    * belongs to another account — the account scope lives inside the query, so a
    * foreign-owned post is indistinguishable from a nonexistent one.
@@ -104,6 +106,9 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    * semantic one. This point read keeps the relational form: it is a single-row
    * lookup led by the primary key, and the account-wide feed — not this — is the
    * shape whose cost was measured.
+   * @param id - Post to read
+   * @param accountId - Account the caller belongs to
+   * @returns Result with the read model, or EntityNotFoundError when the post is missing, deleted or foreign
    */
   async getById(
     id: PostId,
@@ -125,7 +130,8 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   }
 
   /**
-   * List posts for a project with optional pagination, sorting, and filters.
+   * @method listByProject
+   * @description Lists posts for a project with optional pagination, sorting, and filters.
    * Defaults: page 1, limit 20, ordered by createdAt descending.
    *
    * Filter semantics:
@@ -138,6 +144,12 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    *
    * The filter's own `projectId` is ignored — the explicit `projectId` arg is
    * authoritative for scope (prevents cross-project leakage).
+   * @param scope - Tenant scope whose account the posts must belong to
+   * @param projectId - Project whose posts are listed
+   * @param pagination - Page and limit; the limit is capped at 100
+   * @param sort - Sort field and direction
+   * @param filter - Optional status, date, media, tag and text criteria
+   * @returns Page of post read models with totals and paging flags
    */
   async listByProject(
     scope: TenantScope,
@@ -252,8 +264,13 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   }
 
   /**
-   * Search posts by text within a project.
-   * Performs case-insensitive contains match on PostContent title and body fields.
+   * @method search
+   * @description Searches posts by text within a project, as a case-insensitive contains match on PostContent title and body.
+   * @param scope - Tenant scope whose account the posts must belong to
+   * @param projectId - Project to search in
+   * @param searchText - Text matched against title and body
+   * @param pagination - Page and limit; the limit is capped at 100
+   * @returns Page of matching post read models, newest first
    */
   async search(
     scope: TenantScope,
@@ -307,8 +324,13 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   }
 
   /**
-   * Get upcoming scheduled posts for a project ordered by scheduledAt ascending.
+   * @method getUpcoming
+   * @description Gets upcoming scheduled posts for a project ordered by scheduledAt ascending.
    * Returns only posts with status SCHEDULED and scheduledAt in the future.
+   * @param scope - Tenant scope whose account the posts must belong to
+   * @param projectId - Project whose schedule is read
+   * @param limit - Maximum posts returned (default 10, capped at 100)
+   * @returns Post read models in publication order
    */
   async getUpcoming(
     scope: TenantScope,
@@ -335,8 +357,13 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   }
 
   /**
-   * Get recently published posts for a project ordered by publishedAt descending.
+   * @method getRecentlyPublished
+   * @description Gets recently published posts for a project ordered by publishedAt descending.
    * Returns only posts with status PUBLISHED and a non-null publishedAt.
+   * @param scope - Tenant scope whose account the posts must belong to
+   * @param projectId - Project whose history is read
+   * @param limit - Maximum posts returned (default 10, capped at 100)
+   * @returns Post read models, most recently published first
    */
   async getRecentlyPublished(
     scope: TenantScope,
@@ -363,10 +390,14 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   }
 
   /**
-   * Get a post by ID enriched with thread data (tweets ordered by sequence),
+   * @method getByIdWithThread
+   * @description Gets a post by ID enriched with thread data (tweets ordered by sequence),
    * scoped to the caller's account (CWE-639). Same NOT_FOUND semantics as
    * {@link getById}. Returns the standard PostReadModel plus an optional
    * `thread` property.
+   * @param id - Post to read
+   * @param accountId - Account the caller belongs to
+   * @returns Result with the read model (and its thread when one exists), or EntityNotFoundError
    */
   async getByIdWithThread(
     id: PostId,
@@ -420,7 +451,8 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
   }
 
   /**
-   * List the caller account's posts across all its projects (CWE-639) with an
+   * @method listGlobal
+   * @description Lists the caller account's posts across all its projects (CWE-639) with an
    * optional status filter. The account scope lives inside the query as `Post`'s
    * own `accountId` column, so a customer never receives another account's posts
    * and the read does not walk into `Project` to learn whose post it is. Project
@@ -428,6 +460,10 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    * not cascade. The account value is server-derived; no caller-supplied scope
    * selector reaches this method.
    * Defaults: page 1, limit 20, ordered by createdAt descending.
+   * @param accountId - Account whose posts are listed
+   * @param filter - Optional status filter
+   * @param pagination - Page and limit; the limit is capped at 100
+   * @returns Page of post read models with totals and paging flags
    */
   async listGlobal(
     accountId: AccountId,
@@ -489,6 +525,13 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
    */
   private toReadModel(post: PostQueryRow): PostReadModel {
     const content = post.contents[0];
+    // A stored locale outside CONTENT_LOCALES fails the read; a post with no content reads as "en".
+    let locale: ContentLocale = "en";
+    if (content) {
+      const stored = contentLocaleFromStorage(content.locale, `PostContent of post ${post.id}`);
+      if (!stored.ok) throw stored.error;
+      locale = stored.value;
+    }
     return {
       id: post.id,
       projectId: post.projectId,
@@ -496,7 +539,7 @@ export class PrismaPostQueryRepository implements PostQueryRepository {
       ...(content?.summary ? { summary: content.summary } : {}),
       body: content?.body ?? "",
       status: post.status as PublishStatusValue,
-      locale: content?.locale ?? "en",
+      locale,
       tags: content?.tags ?? [],
       mediaCount: post._count?.media ?? 0,
       ...(post.scheduledAt ? { scheduledAt: post.scheduledAt } : {}),

@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { VersionDiff, SyncRule } from "@shared/types/orchestration.js";
 import type { CanonicalPost } from "@shared/types";
+import { contentLocaleFromStorage } from "@core/domain/index.js";
 import type { ProviderId } from "../providers/providerAdapter.interface.js";
 import { SyncEngineBase } from "./SyncEngineBase.js";
 import { logger } from "../lib/logger.js";
@@ -344,26 +345,23 @@ export class SyncEngine extends SyncEngineBase {
     postId: string,
     _providerId: ProviderId
   ): Promise<CanonicalPost | null> {
-    // Get content from database for the given post
-    try {
-      // findFirst + deletedAt: null — a soft-deleted post must not be synced to a provider.
-      const post = await this.prisma.post.findFirst({
-        where: { id: postId, deletedAt: null },
-        include: { contents: true },
-      });
+    // findFirst + deletedAt: null — a soft-deleted post must not be synced to a provider.
+    // A failed read propagates: executeSyncTransaction records it as the transaction's failure,
+    // where a null here would report the post as missing.
+    const post = await this.prisma.post.findFirst({
+      where: { id: postId, deletedAt: null },
+      include: { contents: true },
+    });
 
-      if (!post) return null;
+    if (!post) return null;
 
-      const content = post.contents[0];
-      return {
-        id: post.id,
-        projectId: post.projectId,
-        locale: (content?.locale as "es" | "en") || "en",
-        body: content?.body || "",
-      };
-    } catch {
-      return null;
+    const content = post.contents[0];
+    if (!content) {
+      return { id: post.id, projectId: post.projectId, locale: "en", body: "" };
     }
+    const locale = contentLocaleFromStorage(content.locale, `PostContent ${content.id}`);
+    if (!locale.ok) throw locale.error;
+    return { id: post.id, projectId: post.projectId, locale: locale.value, body: content.body };
   }
 
   private async detectChanges(

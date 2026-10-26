@@ -4,7 +4,7 @@
  *              scoped to an account with locale metadata.
  * @layer infrastructure
  */
-import { ok, err, type Result } from "@shared/types";
+import { ok, err, type Result, type ContentLocale } from "@shared/types";
 import type { PrismaClient } from "@infra/prisma";
 import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import {
@@ -23,7 +23,7 @@ const PROJECT_NAME_UNIQUE = {
 
 export interface CreateProjectInput {
   name: string;
-  locale: "es" | "en";
+  locale: ContentLocale;
 }
 
 /**
@@ -75,7 +75,7 @@ export function createProjectRepository(prisma: PrismaClient) {
             data: {
               accountId,
               name: input.name,
-              locale: input.locale || "es",
+              locale: input.locale,
             },
           });
 

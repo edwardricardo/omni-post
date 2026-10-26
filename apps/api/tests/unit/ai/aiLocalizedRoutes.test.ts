@@ -297,3 +297,76 @@ describe("aiLocalizedRoutes — style-guide CRUD", () => {
     expect(response.statusCode).toBe(200);
   });
 });
+
+describe("aiLocalizedRoutes — the locale of every input is a content locale", () => {
+  let app: FastifyInstance;
+  let stubs: UseCaseStubs;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stubs = makeStubs();
+  });
+  afterEach(async () => {
+    if (app) await app.close();
+  });
+
+  const requests = (locale: string) => [
+    {
+      method: "POST" as const,
+      url: "/ai/generate-localized",
+      payload: { locale, brief: "A launch announcement for the spring line" },
+    },
+    {
+      method: "POST" as const,
+      url: "/ai/glossary",
+      payload: { locale, term: "Brand", definition: "The company's identity" },
+    },
+    {
+      method: "POST" as const,
+      url: "/ai/style-guide",
+      payload: { locale, rule: "Use the active voice" },
+    },
+    { method: "GET" as const, url: `/ai/glossary?locale=${locale}` },
+    { method: "GET" as const, url: `/ai/style-guide?locale=${locale}` },
+  ];
+
+  it("refuses fr with 422 on generation, both upserts and both listings, calling no use case", async () => {
+    app = await buildApp(stubs);
+
+    for (const request of requests("fr")) {
+      const response = await app.inject(request);
+      expect(response.statusCode, `${request.method} ${request.url}`).toBe(422);
+    }
+    for (const stub of Object.values(stubs)) expect(stub).not.toHaveBeenCalled();
+  });
+
+  it("passes es and en through to the use cases", async () => {
+    stubs.generate.mockResolvedValue(
+      ok({ content: "Texto", rationale: null, usedTerms: [], usedRules: [] })
+    );
+    stubs.upsertGlossary.mockResolvedValue(ok({ id: "g-1" }));
+    stubs.upsertStyleRule.mockResolvedValue(ok({ id: "s-1" }));
+    stubs.listGlossary.mockResolvedValue(ok({ entries: [] }));
+    stubs.listStyleRules.mockResolvedValue(ok({ rules: [] }));
+    app = await buildApp(stubs);
+
+    for (const locale of ["es", "en"]) {
+      for (const request of requests(locale)) {
+        const response = await app.inject(request);
+        expect(response.statusCode, `${request.method} ${request.url}`).toBeLessThan(300);
+      }
+    }
+    for (const stub of [
+      stubs.generate,
+      stubs.upsertGlossary,
+      stubs.upsertStyleRule,
+      stubs.listGlossary,
+      stubs.listStyleRules,
+    ]) {
+      expect(stub.mock.calls.map(([input]) => (input as { locale: string }).locale)).toEqual([
+        "es",
+        "en",
+      ]);
+    }
+  });
+});
