@@ -5,6 +5,7 @@
  */
 
 import { type Result } from "@shared/types";
+import type { ContentLocale } from "../value-objects/Content.js";
 import {
   type Repository,
   type PaginatedResult,
@@ -188,7 +189,7 @@ export interface PostReadModel {
   summary?: string;
   body: string;
   status: PublishStatusValue;
-  locale: string;
+  locale: ContentLocale;
   tags: string[];
   mediaCount: number;
   scheduledAt?: Date;

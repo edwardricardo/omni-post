@@ -4,15 +4,46 @@
  * @layer domain
  */
 
-import { type Result, ok, err } from "@shared/types";
+import {
+  type Result,
+  ok,
+  err,
+  CONTENT_LOCALES,
+  type ContentLocale,
+  isContentLocale,
+} from "@shared/types";
 import { EmptyValueError, ValueTooLongError, InvalidValueError } from "../errors/index.js";
 import { MediaId } from "./EntityId.js";
 
 /**
- * Supported content locales
+ * The content languages, defined once in the shared kernel so that the portals, which import the
+ * shared kernel and never the core, read the same list as the domain.
  */
-export const CONTENT_LOCALES = ["es", "en", "pt", "fr", "de", "it", "ja", "ko", "zh"] as const;
-export type ContentLocale = (typeof CONTENT_LOCALES)[number];
+export { CONTENT_LOCALES, type ContentLocale, isContentLocale };
+
+/**
+ * @function contentLocaleFromStorage
+ * @description Reads a content language back from a stored row. A row can hold a language the
+ *   product no longer supports, written before the list narrowed; it is refused with an error that
+ *   names the row and the value, so the read fails where the data is wrong instead of carrying a
+ *   value its type does not admit. An adapter reads a stored content language through it.
+ * @param value - The locale the row holds.
+ * @param row - The row it was read from, as `<Model> <id>`.
+ * @returns The locale, or an InvalidValueError naming the row and the value.
+ */
+export function contentLocaleFromStorage(
+  value: string,
+  row: string
+): Result<ContentLocale, InvalidValueError> {
+  if (isContentLocale(value)) return ok(value);
+  return err(
+    new InvalidValueError(
+      "locale",
+      value,
+      `${row} holds locale "${value}", which is not a content locale (${CONTENT_LOCALES.join(", ")})`
+    )
+  );
+}
 
 /**
  * Platform character limits for validation
@@ -70,9 +101,12 @@ export class Content {
   }
 
   /**
-   * Reconstitute a Content value object from trusted persistent storage.
-   * Bypasses empty-body validation since data from the DB is already validated at write time.
-   * Use this in repository mappers (toDomain) instead of create().
+   * @method reconstitute
+   * @description Rebuilds a Content value object from trusted persistent storage. It skips the
+   *   empty-body check, which the data passed when it was written; repository mappers use it
+   *   instead of create(), and read the stored locale through contentLocaleFromStorage first.
+   * @param props - The stored body, title, summary, tags, locale and media ids.
+   * @returns The Content, with blank and duplicate tags dropped.
    */
   static reconstitute(props: {
     body: string;
@@ -94,7 +128,11 @@ export class Content {
   }
 
   /**
-   * Create a new Content value object with validation
+   * @method create
+   * @description Creates a Content value object, validating the body and the locale.
+   * @param props - The body, title, summary, tags, locale (default "en") and media ids.
+   * @returns The Content, or EmptyValueError for a blank body and InvalidValueError for a locale
+   *   outside CONTENT_LOCALES.
    */
   static create(props: ContentProps): Result<Content, EmptyValueError | InvalidValueError> {
     // Validate body is not empty
@@ -104,7 +142,7 @@ export class Content {
 
     // Validate locale if provided
     const locale = props.locale ?? "en";
-    if (!CONTENT_LOCALES.includes(locale)) {
+    if (!isContentLocale(locale)) {
       return err(
         new InvalidValueError(
           "locale",
@@ -157,7 +195,10 @@ export class Content {
   }
 
   /**
-   * Check if content fits within platform character limits
+   * @method fitsInPlatform
+   * @description Checks the title and body against a platform's character limits.
+   * @param platform - The platform whose limits apply.
+   * @returns ok(true) when both fit, or ValueTooLongError naming the field that does not.
    */
   fitsInPlatform(platform: PlatformType): Result<boolean, ValueTooLongError> {
     const limits = PLATFORM_LIMITS[platform];
@@ -196,7 +237,10 @@ export class Content {
   }
 
   /**
-   * Create a new Content with updated body (immutable update)
+   * @method withBody
+   * @description Returns a copy of this Content with another body.
+   * @param newBody - The new body, trimmed.
+   * @returns The new Content, or EmptyValueError for a blank body.
    */
   withBody(newBody: string): Result<Content, EmptyValueError> {
     if (!newBody || newBody.trim().length === 0) {
@@ -216,7 +260,10 @@ export class Content {
   }
 
   /**
-   * Create a new Content with updated title (immutable update)
+   * @method withTitle
+   * @description Returns a copy of this Content with another title, or none.
+   * @param newTitle - The new title, trimmed; undefined or empty removes it.
+   * @returns The new Content.
    */
   withTitle(newTitle: string | undefined): Content {
     return new Content({
@@ -230,7 +277,10 @@ export class Content {
   }
 
   /**
-   * Create a new Content with updated tags (immutable update)
+   * @method withTags
+   * @description Returns a copy of this Content with another tag list.
+   * @param newTags - The new tags; blank and duplicate tags are dropped.
+   * @returns The new Content.
    */
   withTags(newTags: string[]): Content {
     const uniqueTags = [...new Set(newTags.filter((t) => t.trim().length > 0))];
@@ -246,7 +296,10 @@ export class Content {
   }
 
   /**
-   * Create a new Content with added media (immutable update)
+   * @method withMedia
+   * @description Returns a copy of this Content with media ids appended.
+   * @param mediaIds - The media ids to append after the existing ones.
+   * @returns The new Content.
    */
   withMedia(mediaIds: MediaId[]): Content {
     return new Content({
@@ -260,7 +313,10 @@ export class Content {
   }
 
   /**
-   * Equality check
+   * @method equals
+   * @description Compares two Content values field by field, tags and media ids in order.
+   * @param other - The Content to compare with.
+   * @returns True when every field is equal.
    */
   equals(other: Content): boolean {
     if (this._body !== other._body) return false;
@@ -280,6 +336,11 @@ export class Content {
     return true;
   }
 
+  /**
+   * @method toJSON
+   * @description Serializes the Content for JSON, media ids as strings.
+   * @returns The body, title and summary when present, tags, locale and media ids.
+   */
   toJSON(): Record<string, unknown> {
     return {
       body: this._body,
