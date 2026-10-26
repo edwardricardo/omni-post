@@ -155,6 +155,7 @@ describe("client spans of outgoing requests, by path", () => {
 describe("enablement of the HTTP instrumentation", () => {
   it("keeps the HTTP instrumentation when OTEL_NODE_DISABLED_INSTRUMENTATIONS names it", () => {
     const previous = process.env.OTEL_NODE_DISABLED_INSTRUMENTATIONS;
+    // The map filters its list by this variable while it is built, so the list is the behaviour.
     vi.stubEnv("OTEL_NODE_DISABLED_INSTRUMENTATIONS", "http");
     try {
       const names = (createTelemetryInstrumentations() ?? [])

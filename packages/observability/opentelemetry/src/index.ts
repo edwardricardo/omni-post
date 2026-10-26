@@ -160,6 +160,11 @@ export class SocialMediaTelemetry {
  *              `HttpInstrumentation`: `InstrumentationBase._wrap` unwraps a target that is already
  *              wrapped, so a second instance of one instrumentation replaces the first one's
  *              wrapper, and only the configuration of the instance that wraps last reaches a span.
+ *              Redis spans come from the map's `ioredis` entry, the client every file uses: the
+ *              node-redis instrumentation that used to be listed here saw no command, because the
+ *              tree holds no `redis` package, and the map's default statement serializer, from
+ *              `@opentelemetry/redis-common`, writes `AUTH` with no arguments and `SET` with its
+ *              key alone.
  *              Fastify is instrumented by `@fastify/otel` with `registerOnInitialization`: on
  *              `enable()` it subscribes to Fastify's `fastify.initialization` diagnostics channel
  *              and registers its plugin on every instance created afterwards, patching no module.
