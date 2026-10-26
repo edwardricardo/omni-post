@@ -1,10 +1,11 @@
 /**
  * @file channelDateFormatters.test.tsx
- * @description Pins the channels page's date helpers to the locale their callers pass: the date
+ * @description Pins the channels page's date helpers and texts to the active UI locale: the date
  *   with time (last used, connected) and the date alone (the expiry badge) read in Spanish for
- *   `es` and keep the English text they had when the helpers named `en-US` for `en`; and pins
- *   the table and the badge to the active UI locale. Dates are built from local wall-clock parts,
- *   so the assertions hold in any time zone the suite runs in.
+ *   `es` and keep the English text they had when the helpers named `en-US` for `en`; the missing
+ *   date and the four status pills read their catalog text, in Spanish under `es` and in the
+ *   English they had before under `en`. Dates are built from local wall-clock parts, so the
+ *   assertions hold in any time zone the suite runs in.
  * @layer infrastructure
  */
 import { describe, expect, it, vi } from "vitest";
@@ -44,11 +45,11 @@ function makeChannel(overrides: Partial<ProjectChannel> = {}): ProjectChannel {
   };
 }
 
-function renderTable(locale: TestLocale) {
+function renderTable(locale: TestLocale, channel: ProjectChannel = makeChannel()) {
   return renderInLocale(
     locale,
     <ChannelsTable
-      channels={[makeChannel()]}
+      channels={[channel]}
       selectedChannels={new Set()}
       onSelectChannel={vi.fn()}
       onDisconnect={vi.fn()}
@@ -58,11 +59,15 @@ function renderTable(locale: TestLocale) {
 
 describe("formatDate", () => {
   it("formats the date and time in Spanish for es", () => {
-    expect(formatDate(OCT_29, "es")).toBe("29 oct 2026, 14:07");
+    expect(formatDate(OCT_29, "es", "Nunca")).toBe("29 oct 2026, 14:07");
   });
 
   it("keeps the English date and time for en", () => {
-    expect(formatDate(OCT_29, "en")).toBe("Oct 29, 2026, 02:07 PM");
+    expect(formatDate(OCT_29, "en", "Never")).toBe("Oct 29, 2026, 02:07 PM");
+  });
+
+  it("returns the label its caller passes when there is no date", () => {
+    expect(formatDate(null, "es", "Nunca")).toBe("Nunca");
   });
 });
 
@@ -92,24 +97,57 @@ describe("ChannelsTable dates", () => {
 
     expect(screen.getAllByText("Oct 29, 2026, 02:07 PM")).toHaveLength(2);
   });
-});
 
-describe("ChannelStatusBadge expiry", () => {
-  it("dates the expiry in Spanish on the es interface", () => {
-    renderInLocale(
-      "es",
-      <ChannelStatusBadge channel={makeChannel({ isConnected: false, expiredAt: OCT_29 })} />
-    );
+  it("says never in Spanish for a channel never used on the es interface", () => {
+    renderTable("es", makeChannel({ lastUsedAt: null }));
 
-    expect(screen.getByText(/29 oct 2026$/)).toBeInTheDocument();
+    expect(screen.getByText("Nunca")).toBeInTheDocument();
   });
 
-  it("keeps the English expiry date on the en interface", () => {
-    renderInLocale(
-      "en",
-      <ChannelStatusBadge channel={makeChannel({ isConnected: false, expiredAt: OCT_29 })} />
-    );
+  it("keeps the English never for a channel never used on the en interface", () => {
+    renderTable("en", makeChannel({ lastUsedAt: null }));
 
-    expect(screen.getByText("Expired on Oct 29, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Never")).toBeInTheDocument();
+  });
+});
+
+describe("ChannelStatusBadge", () => {
+  const CASES: Array<{
+    state: string;
+    channel: Partial<ProjectChannel>;
+    es: string;
+    en: string;
+  }> = [
+    {
+      state: "an expired channel",
+      channel: { isConnected: false, expiredAt: OCT_29 },
+      es: "Expiró el 29 oct 2026",
+      en: "Expired on Oct 29, 2026",
+    },
+    {
+      state: "a channel that needs reauthorization",
+      channel: { needsReauth: true },
+      es: "Requiere reconexión",
+      en: "Reconnect required",
+    },
+    {
+      state: "a disconnected channel",
+      channel: { isConnected: false },
+      es: "Desconectado",
+      en: "Disconnected",
+    },
+    { state: "a connected channel", channel: {}, es: "Conectado", en: "Connected" },
+  ];
+
+  it.each(CASES)("labels $state in Spanish on the es interface", ({ channel, es }) => {
+    renderInLocale("es", <ChannelStatusBadge channel={makeChannel(channel)} />);
+
+    expect(screen.getByText(es)).toBeInTheDocument();
+  });
+
+  it.each(CASES)("keeps the English label of $state on the en interface", ({ channel, en }) => {
+    renderInLocale("en", <ChannelStatusBadge channel={makeChannel(channel)} />);
+
+    expect(screen.getByText(en)).toBeInTheDocument();
   });
 });

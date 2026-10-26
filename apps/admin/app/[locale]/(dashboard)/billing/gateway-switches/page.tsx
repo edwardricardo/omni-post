@@ -365,7 +365,7 @@ function ExtendDialog({ eventId, currentDeadline, t, tc, onClose }: ExtendDialog
             >
               {EXTEND_OPTIONS.map((h) => (
                 <option key={h} value={h}>
-                  {h}h
+                  {t("extendDialog.hoursOption", { hours: h })}
                 </option>
               ))}
             </select>
@@ -630,7 +630,7 @@ function GatewaySwitchesPageContent() {
         <div
           className="mb-3 grid grid-cols-2 gap-4 md:grid-cols-4"
           role="region"
-          aria-label="Gateway switch statistics"
+          aria-label={t("stats.regionLabel")}
         >
           <StatCard label={t("stats.scheduled")} value={stats.scheduled} />
           <StatCard label={t("stats.pendingCheckout")} value={stats.pendingCheckout} />

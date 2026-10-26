@@ -7,7 +7,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations, type Messages } from "next-intl";
 
 import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
@@ -42,6 +42,27 @@ function formatNumber(num: number): string {
   return num.toString();
 }
 
+/** Union of status keys declared under the `analytics.subscriptionStatus` catalog. */
+type SubscriptionStatusKey = keyof Messages["analytics"]["subscriptionStatus"];
+
+/** The subscription statuses the catalog names, one per value of the `SubscriptionStatus` enum. */
+const SUBSCRIPTION_STATUS_KEYS = [
+  "TRIALING",
+  "ACTIVE",
+  "PAST_DUE",
+  "CANCELED",
+  "GRANDFATHERED",
+] as const satisfies SubscriptionStatusKey[];
+
+/**
+ * @description Tells whether a status from the API is one the catalog names.
+ * @param status - A key of the API's subscription counts.
+ * @returns True when `analytics.subscriptionStatus` holds a label for `status`.
+ */
+function isSubscriptionStatusKey(status: string): status is SubscriptionStatusKey {
+  return (SUBSCRIPTION_STATUS_KEYS as readonly string[]).includes(status);
+}
+
 const PROVIDER_COLORS: Record<string, string> = {
   x: "#1DA1F2",
   instagram: "#E4405F",
@@ -68,14 +89,11 @@ function AnalyticsPageContent() {
     return Object.entries(subs)
       .filter(([, count]) => Number(count) > 0)
       .map(([status, count]) => ({
-        name: status
-          .toLowerCase()
-          .replace(/_/g, " ")
-          .replace(/\b\w/g, (l) => l.toUpperCase()),
+        name: isSubscriptionStatusKey(status) ? te(`subscriptionStatus.${status}`) : status,
         value: Number(count),
         color: colors.subscriptionColors[status] ?? colors.accent,
       }));
-  }, [summary?.platformMetrics?.subscriptions, colors]);
+  }, [summary?.platformMetrics?.subscriptions, colors, te]);
 
   const channelChartData: DonutChartDatum[] = useMemo(() => {
     const channels = summary?.platformMetrics?.channelsByProvider;
@@ -142,7 +160,7 @@ function AnalyticsPageContent() {
             value={timeRange}
             onChange={handleTimeRangeChange}
             className="border border-[var(--border-default)] rounded-md px-3 py-1 text-sm bg-[var(--bg-surface)] text-[var(--text-primary)]"
-            aria-label="Select time range"
+            aria-label={te("timeRange.label")}
           >
             <option value="7d">{te("timeRange.last7d")}</option>
             <option value="30d">{te("timeRange.last30d")}</option>

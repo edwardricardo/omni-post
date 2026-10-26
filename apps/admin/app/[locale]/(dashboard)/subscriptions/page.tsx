@@ -10,7 +10,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Download, PlayCircle, RefreshCw, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations, type Messages } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +63,36 @@ const TRIAL_STATUS_VARIANT: Record<string, "success" | "warning" | "error"> = {
   EXPIRING: "warning",
   EXPIRED: "error",
 };
+
+/** Union of the trial statuses declared under the `subscriptions.trialStatus` catalog. */
+type TrialStatusKey = keyof Messages["subscriptions"]["trialStatus"];
+
+/** Union of the billing cycles declared under the `subscriptions.billingCycle` catalog. */
+type BillingCycleKey = keyof Messages["subscriptions"]["billingCycle"];
+
+/** The trial statuses the catalog names: the ones the admin dashboard service computes. */
+const TRIAL_STATUS_KEYS = ["ACTIVE", "EXPIRING", "EXPIRED"] as const satisfies TrialStatusKey[];
+
+/** The billing cycles the catalog names: the values `Account.billingCycle` holds. */
+const BILLING_CYCLE_KEYS = ["monthly", "yearly"] as const satisfies BillingCycleKey[];
+
+/**
+ * @description Tells whether a trial status from the API is one the catalog names.
+ * @param status - The trial's status as the API sends it.
+ * @returns True when `subscriptions.trialStatus` holds a label for `status`.
+ */
+function isTrialStatusKey(status: string): status is TrialStatusKey {
+  return (TRIAL_STATUS_KEYS as readonly string[]).includes(status);
+}
+
+/**
+ * @description Tells whether a billing cycle from the API is one the catalog names.
+ * @param cycle - The subscription's billing cycle as the API sends it.
+ * @returns True when `subscriptions.billingCycle` holds a label for `cycle`.
+ */
+function isBillingCycleKey(cycle: string): cycle is BillingCycleKey {
+  return (BILLING_CYCLE_KEYS as readonly string[]).includes(cycle);
+}
 
 function SubscriptionsPageContent() {
   const t = useTranslations("nav");
@@ -387,7 +417,7 @@ function SubscriptionsPageContent() {
       <div
         className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-3"
         role="region"
-        aria-label="Subscription statistics"
+        aria-label={ts("stats.regionLabel")}
       >
         <StatCard
           label={ts("stats.totalRevenue")}
@@ -430,7 +460,7 @@ function SubscriptionsPageContent() {
         <div
           className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3"
           role="region"
-          aria-label="Billing statistics"
+          aria-label={ts("billingStatsLabel")}
         >
           <StatCard
             label={ts("mrrStat")}
@@ -493,8 +523,10 @@ function SubscriptionsPageContent() {
                           <Badge variant="info">{sub.plan?.name ?? ts("noPlan")}</Badge>
                         </td>
                         <td className="px-3 py-2">
-                          <span className="text-sm text-[var(--text-primary)] capitalize">
-                            {sub.billingCycle}
+                          <span className="text-sm text-[var(--text-primary)]">
+                            {isBillingCycleKey(sub.billingCycle)
+                              ? ts(`billingCycle.${sub.billingCycle}`)
+                              : sub.billingCycle}
                           </span>
                         </td>
                         <td className="px-3 py-2">
@@ -595,7 +627,9 @@ function SubscriptionsPageContent() {
                         </td>
                         <td className="px-3 py-2">
                           <Badge variant={TRIAL_STATUS_VARIANT[trial.status] ?? "neutral"}>
-                            {trial.status}
+                            {isTrialStatusKey(trial.status)
+                              ? ts(`trialStatus.${trial.status}`)
+                              : trial.status}
                           </Badge>
                         </td>
                         <td className="px-3 py-2">

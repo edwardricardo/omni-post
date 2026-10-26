@@ -117,10 +117,10 @@ export function ChannelsTable({
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {formatDate(channel.lastUsedAt, locale)}
+                    {formatDate(channel.lastUsedAt, locale, t("components.table.never"))}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {formatDate(channel.connectedAt, locale)}
+                    {formatDate(channel.connectedAt, locale, t("components.table.never"))}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex space-x-2">

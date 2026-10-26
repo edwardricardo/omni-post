@@ -8,7 +8,7 @@
  */
 
 import React from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useUsageMetrics } from "@/hooks/api/useUsageMetrics";
 
 interface UsageBarProps {
@@ -23,6 +23,7 @@ interface UsageBarProps {
 }
 
 function UsageBar({ label, used, limit, unit = "" }: UsageBarProps) {
+  const t = useTranslations("usage");
   const locale = useLocale();
   const percentage = limit ? Math.min((used / limit) * 100, 100) : 0;
   const isUnlimited = limit === null;
@@ -33,7 +34,7 @@ function UsageBar({ label, used, limit, unit = "" }: UsageBarProps) {
         <span className="text-sm font-medium text-[var(--text-secondary)]">{label}</span>
         <span className="text-sm font-semibold text-[var(--text-primary)]">
           {isUnlimited
-            ? `${Number(used).toLocaleString(locale)}${unit} (unlimited)`
+            ? t("unlimited", { value: Number(used).toLocaleString(locale), unit })
             : `${Number(used).toLocaleString(locale)}${unit} / ${Number(limit!).toLocaleString(locale)}${unit}`}
         </span>
       </div>
@@ -61,6 +62,7 @@ interface UsageMetricsPanelProps {
  * @description Shows current-month usage for posts, AI calls, storage, and team members.
  */
 export function UsageMetricsPanel({ accountId }: UsageMetricsPanelProps) {
+  const t = useTranslations("usage");
   const locale = useLocale();
   const { data, isLoading, error } = useUsageMetrics(accountId);
 
@@ -71,7 +73,9 @@ export function UsageMetricsPanel({ accountId }: UsageMetricsPanelProps) {
   if (isLoading) {
     return (
       <div className="border border-[var(--border-subtle)] bg-[var(--bg-surface)] rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Usage -- {period}</h3>
+        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+          {t("title", { period })}
+        </h3>
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="animate-pulse">
@@ -90,29 +94,31 @@ export function UsageMetricsPanel({ accountId }: UsageMetricsPanelProps) {
   if (error || !data) {
     return (
       <div className="border border-[var(--border-subtle)] bg-[var(--bg-surface)] rounded-lg p-4">
-        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Usage -- {period}</h3>
-        <p className="text-sm text-[var(--text-secondary)]">
-          Usage data unavailable for this period.
-        </p>
+        <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+          {t("title", { period })}
+        </h3>
+        <p className="text-sm text-[var(--text-secondary)]">{t("unavailable")}</p>
       </div>
     );
   }
 
   return (
     <div className="border border-[var(--border-subtle)] bg-[var(--bg-surface)] rounded-lg p-4">
-      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Usage -- {period}</h3>
-      <p className="text-xs text-[var(--text-tertiary)] mb-4">Resets on the 1st of each month</p>
+      <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
+        {t("title", { period })}
+      </h3>
+      <p className="text-xs text-[var(--text-tertiary)] mb-4">{t("resetsMonthly")}</p>
 
       <div className="space-y-4">
-        <UsageBar label="Posts Published" used={data.postsPublished} limit={null} />
-        <UsageBar label="AI Calls Used" used={data.aiCallsMade} limit={null} />
+        <UsageBar label={t("postsPublished")} used={data.postsPublished} limit={null} />
+        <UsageBar label={t("aiCallsUsed")} used={data.aiCallsMade} limit={null} />
         <UsageBar
-          label="Storage Used"
+          label={t("storageUsed")}
           used={parseFloat(Number(data.storageGb).toFixed(2))}
           limit={null}
           unit=" GB"
         />
-        <UsageBar label="Team Members" used={data.teamMemberCount} limit={null} />
+        <UsageBar label={t("teamMembers")} used={data.teamMemberCount} limit={null} />
       </div>
     </div>
   );
