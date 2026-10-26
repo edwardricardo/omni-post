@@ -6,7 +6,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import cronstrue from "cronstrue";
 import { ConfirmDialog } from "@packages/ui";
 import { useLogger, extractErrorInfo } from "@observability/browser-logger";
@@ -16,13 +16,6 @@ interface ScheduledReportsListProps {
   projectId: string;
   onCreateClick: () => void;
 }
-
-/**
- * @component ScheduledReportsList
- * @description Table of scheduled analytics reports with generate-now and delete actions,
- * showing cron schedule in human-readable format and last-run date.
- * @param props.onCreateClick - Opens the report creation dialog
- */
 
 type GenerateStatus = "idle" | "success" | "error";
 
@@ -34,9 +27,9 @@ function humanizeCron(cron: string): string {
   }
 }
 
-function formatDate(iso: string | null, neverLabel: string): string {
+function formatDate(iso: string | null, neverLabel: string, locale: string): string {
   if (!iso) return neverLabel;
-  return new Date(iso).toLocaleDateString("en-US", {
+  return new Date(iso).toLocaleDateString(locale, {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -53,8 +46,14 @@ const TABLE_HEADER_KEYS = [
   "headerActions",
 ] as const;
 
+/**
+ * @component ScheduledReportsList
+ * @description Table of scheduled analytics reports with generate-now and delete actions,
+ * showing the cron schedule in human-readable form and the last-run date in the active UI locale.
+ */
 export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledReportsListProps) {
   const t = useTranslations("analytics.components");
+  const locale = useLocale();
   const logger = useLogger("client.scheduled-reports");
   const { data: reports, isLoading, error, refetch } = useReports(projectId);
   const deleteReport = useDeleteReport();
@@ -230,7 +229,7 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(report.lastRunAt, t("never"))}
+                    {formatDate(report.lastRunAt, t("never"), locale)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                     <button

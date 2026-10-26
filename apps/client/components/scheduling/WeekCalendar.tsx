@@ -8,10 +8,11 @@
 "use client";
 
 import { useMemo, useCallback } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@packages/ui";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { DashboardScheduledPost } from "./schedulingDashboardTypes";
+import { formatHourLabel, isSameDay } from "./calendarDates";
 
 interface WeekCalendarProps {
   currentDate: Date;
@@ -42,22 +43,24 @@ function getWeekDays(date: Date): Date[] {
   });
 }
 
-function isSameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
-function formatWeekLabel(days: Date[]): string {
+/**
+ * @description Formats the week's span as "first - last", the last day carrying the year.
+ * @param days - The seven days of the week, Sunday first.
+ * @param locale - The active UI locale.
+ * @returns The span in `locale`, or "" when `days` is not a full week.
+ */
+function formatWeekLabel(days: Date[], locale: string): string {
   const first = days[0];
   const last = days[6];
   if (!first || !last) return "";
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  return `${first.toLocaleDateString("en-US", opts)} - ${last.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
+  return `${first.toLocaleDateString(locale, opts)} - ${last.toLocaleDateString(locale, { ...opts, year: "numeric" })}`;
 }
 
+/**
+ * Week view: seven day columns by an hour gutter from 6 AM to 11 PM, each post placed in the
+ * cell of its day and hour, with dates and hours in the active UI locale.
+ */
 export function WeekCalendar({
   currentDate,
   posts,
@@ -66,6 +69,7 @@ export function WeekCalendar({
   onToday,
 }: WeekCalendarProps) {
   const t = useTranslations("scheduling.components");
+  const locale = useLocale();
   const weekDays = useMemo(() => getWeekDays(currentDate), [currentDate]);
   const today = new Date();
 
@@ -92,7 +96,7 @@ export function WeekCalendar({
             {t("today")}
           </Button>
         </div>
-        <h3 className="text-sm font-medium">{formatWeekLabel(weekDays)}</h3>
+        <h3 className="text-sm font-medium">{formatWeekLabel(weekDays, locale)}</h3>
       </div>
 
       <div className="flex-1 overflow-auto border rounded-lg">
@@ -105,7 +109,7 @@ export function WeekCalendar({
                 isSameDay(day, today) ? "bg-primary/10 text-primary" : "text-muted-foreground"
               }`}
             >
-              <div>{day.toLocaleDateString("en-US", { weekday: "short" })}</div>
+              <div>{day.toLocaleDateString(locale, { weekday: "short" })}</div>
               <div className="text-lg font-bold">{day.getDate()}</div>
             </div>
           ))}
@@ -114,13 +118,7 @@ export function WeekCalendar({
         {HOURS.map((hour) => (
           <div key={hour} className="grid grid-cols-8 border-b last:border-b-0 min-h-[48px]">
             <div className="p-1 text-xs text-muted-foreground border-r text-right pr-2 pt-1">
-              {hour === 0
-                ? "12 AM"
-                : hour < 12
-                  ? `${hour} AM`
-                  : hour === 12
-                    ? "12 PM"
-                    : `${hour - 12} PM`}
+              {formatHourLabel(hour, locale)}
             </div>
             {weekDays.map((day) => {
               const dayPosts = getPostsForDayHour(day, hour);

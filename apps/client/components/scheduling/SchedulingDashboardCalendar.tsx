@@ -9,7 +9,7 @@
  */
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { DashboardScheduledPost, DashboardCalendarDay } from "./schedulingDashboardTypes";
 import { getStatusColor, getContentTypeIcon } from "./schedulingDashboardUtils";
 
@@ -38,6 +38,10 @@ interface SchedulingDashboardCalendarProps {
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
+/**
+ * Month grid of the scheduling dashboard: the month heading in the active UI locale, the weekday
+ * headers, and up to three post badges per day.
+ */
 export function SchedulingDashboardCalendar({
   currentDate,
   calendarDays,
@@ -47,13 +51,14 @@ export function SchedulingDashboardCalendar({
   onToday,
 }: SchedulingDashboardCalendarProps) {
   const t = useTranslations("scheduling.components");
+  const locale = useLocale();
   return (
     <div className="flex-1 flex flex-col">
       {/* Calendar Header */}
       <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <h2 className="text-xl font-semibold text-gray-900">
-            {currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+            {currentDate.toLocaleDateString(locale, { month: "long", year: "numeric" })}
           </h2>
           <div className="flex space-x-2">
             <button

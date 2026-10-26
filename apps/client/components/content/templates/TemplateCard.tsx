@@ -9,9 +9,10 @@
  */
 
 import React from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { FileText, Play, Edit, Copy, Trash2, Star, Clock, Users, Wand2 } from "lucide-react";
 import type { ContentTemplate } from "./types";
+import { formatTemplateDate } from "./formatTemplateDate";
 
 interface TemplateCardProps {
   template: ContentTemplate;
@@ -34,13 +35,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
   onDelete,
 }) => {
   const t = useTranslations("content");
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+  const locale = useLocale();
 
   return (
     <div className="border rounded-lg p-4 hover:shadow-md transition-shadow bg-white">
@@ -62,7 +57,7 @@ export const TemplateCard: React.FC<TemplateCardProps> = ({
               </span>
               <span className="flex items-center">
                 <Clock className="w-3 h-3 mr-1" />
-                {formatDate(template.metadata.updatedAt)}
+                {formatTemplateDate(template.metadata.updatedAt, locale)}
               </span>
               {template.metadata.performance && (
                 <span className="flex items-center">

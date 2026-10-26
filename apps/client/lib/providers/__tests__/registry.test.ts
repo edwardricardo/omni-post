@@ -308,6 +308,29 @@ describe("providerRegistry.getOptimalTimes", () => {
     const times = providerRegistry.getOptimalTimes("tiktok", wednesday);
     expect(times.length).toBeGreaterThan(0);
   });
+
+  // The weekday is a lookup key, not display text, so it never depends on a locale. The dates
+  // are noon of each day of the week of Sunday 25 October 2026, built from local wall-clock
+  // parts, the parts the lookup reads.
+  const WEEK = Array.from({ length: 7 }, (_, offset) => new Date(2026, 9, 25 + offset, 12));
+
+  it("reads each weekday's own list for X, Sunday through Saturday", () => {
+    expect(WEEK.map((day) => providerRegistry.getOptimalTimes("x", day))).toEqual([
+      ["10:00", "14:00", "19:00"],
+      ["09:00", "12:00", "15:00", "18:00"],
+      ["09:00", "12:00", "15:00", "18:00"],
+      ["09:00", "12:00", "15:00", "18:00"],
+      ["09:00", "12:00", "15:00", "18:00"],
+      ["09:00", "12:00", "15:00"],
+      ["10:00", "14:00"],
+    ]);
+  });
+
+  it("reads LinkedIn's empty weekend and its shorter Friday", () => {
+    expect(WEEK.map((day) => providerRegistry.getOptimalTimes("linkedin", day).length)).toEqual([
+      0, 5, 5, 5, 5, 4, 0,
+    ]);
+  });
 });
 
 // ============================================================================

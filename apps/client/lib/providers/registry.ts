@@ -45,6 +45,20 @@ export interface ProviderConfig {
   };
 }
 
+/**
+ * Keys of the optimal-times table, indexed by `Date#getDay()` (0 is Sunday). They are lookup
+ * keys, not display text, so they never pass through a locale.
+ */
+const WEEKDAY_KEYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
+
 interface ProviderRequirement {
   field: string;
   message: string;
@@ -277,7 +291,10 @@ class ProviderRegistry {
   }
 
   /**
-   * Get provider configuration (legacy API).
+   * @method getProvider
+   * @description Returns a provider's configuration in the legacy shape.
+   * @param id - Provider identifier.
+   * @returns The legacy configuration, or undefined for an unknown provider.
    * @deprecated Use getProviderMetadata() instead.
    */
   getProvider(id: string): ProviderConfig | undefined {
@@ -287,15 +304,20 @@ class ProviderRegistry {
   }
 
   /**
-   * Get provider metadata from centralized config.
-   * This is the preferred method for accessing provider information.
+   * @method getProviderMetadata
+   * @description Returns a provider's metadata from the centralized configuration, the preferred
+   *   way to read provider information.
+   * @param id - Provider identifier.
+   * @returns The metadata, or undefined for an unknown provider.
    */
   getProviderMetadata(id: string): ProviderMetadata | undefined {
     return getProviderConfig(id);
   }
 
   /**
-   * Get all available providers (legacy API).
+   * @method getAllProviders
+   * @description Returns every active provider in the legacy shape.
+   * @returns The legacy configurations of the active providers.
    * @deprecated Use getAllProviderMetadata() instead.
    */
   getAllProviders(): ProviderConfig[] {
@@ -305,23 +327,32 @@ class ProviderRegistry {
   }
 
   /**
-   * Get all available provider metadata.
-   * This is the preferred method for accessing all providers.
+   * @method getAllProviderMetadata
+   * @description Returns the metadata of every active provider, the preferred way to list them.
+   * @returns The metadata of the active providers.
    */
   getAllProviderMetadata(): ProviderMetadata[] {
     return Object.values(PROVIDER_CONFIGS).filter((p) => p.status === "active");
   }
 
   /**
-   * Get providers that support a specific feature.
+   * @method getProvidersByFeature
+   * @description Returns the active providers that support a feature.
+   * @param feature - Feature flag of the legacy configuration.
+   * @returns The legacy configurations of the providers that support it.
    */
   getProvidersByFeature(feature: keyof ProviderConfig["features"]): ProviderConfig[] {
     return this.getAllProviders().filter((provider) => provider.features[feature]);
   }
 
   /**
-   * Validate content for a specific provider.
-   * Uses both centralized validation and client-specific requirements.
+   * @method validateContent
+   * @description Validates content for a provider against the centralized rules and the
+   *   client-specific requirements.
+   * @param providerId - Provider identifier.
+   * @param content - Post text.
+   * @param media - Attached files.
+   * @returns Whether the content is valid, and each distinct error message.
    */
   validateContent(
     providerId: string,
@@ -357,16 +388,24 @@ class ProviderRegistry {
   }
 
   /**
-   * Get optimal posting times for a provider on a specific date.
+   * @method getOptimalTimes
+   * @description Returns a provider's optimal posting times for the weekday of a date, in the
+   *   date's local time zone.
+   * @param providerId - Provider identifier.
+   * @param date - Date whose weekday is looked up.
+   * @returns The "HH:mm" times of that weekday, or [] for an unknown provider.
    */
   getOptimalTimes(providerId: string, date: Date): string[] {
-    const dayName = date.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+    const weekday = WEEKDAY_KEYS[date.getDay()];
     const times = this.optimalTimesCache.get(providerId);
-    return times?.[dayName] || [];
+    return (weekday && times?.[weekday]) || [];
   }
 
   /**
-   * Get character limit for a provider.
+   * @method getCharLimit
+   * @description Returns a provider's character limit per post.
+   * @param providerId - Provider identifier.
+   * @returns The limit, or 280 for an unknown provider.
    */
   getCharLimit(providerId: string): number {
     const metadata = getProviderConfig(providerId);
@@ -374,7 +413,11 @@ class ProviderRegistry {
   }
 
   /**
-   * Get media limits for a provider.
+   * @method getMediaLimits
+   * @description Returns a provider's media limits per post.
+   * @param providerId - Provider identifier.
+   * @returns The file count, file size and MIME types allowed, or a one-image default for an
+   *   unknown provider.
    */
   getMediaLimits(providerId: string) {
     const metadata = getProviderConfig(providerId);
@@ -397,7 +440,10 @@ class ProviderRegistry {
   }
 
   /**
-   * Get rate limits for a provider.
+   * @method getRateLimit
+   * @description Returns a provider's posting rate limits.
+   * @param providerId - Provider identifier.
+   * @returns Posts per hour and per day, or 10 and 50 for an unknown provider.
    */
   getRateLimit(providerId: string) {
     // Rate limits not yet in centralized config; using sensible defaults per provider
@@ -419,7 +465,11 @@ class ProviderRegistry {
   }
 
   /**
-   * Check if a provider supports a specific feature.
+   * @method supportsFeature
+   * @description Tells whether a provider supports a feature.
+   * @param providerId - Provider identifier.
+   * @param feature - Feature flag of the legacy configuration.
+   * @returns True when the provider supports it; false for an unknown provider.
    */
   supportsFeature(providerId: string, feature: keyof ProviderConfig["features"]): boolean {
     const provider = this.getProvider(providerId);
@@ -427,7 +477,12 @@ class ProviderRegistry {
   }
 
   /**
-   * Check if content needs to be split into a thread for the given provider.
+   * @method needsThreading
+   * @description Tells whether content must be split into a thread for a provider: it exceeds
+   *   the character limit and the provider supports threads.
+   * @param providerId - Provider identifier.
+   * @param content - Post text.
+   * @returns True when the content must be split.
    */
   needsThreading(providerId: string, content: string): boolean {
     const charLimit = this.getCharLimit(providerId);
@@ -437,8 +492,12 @@ class ProviderRegistry {
   }
 
   /**
-   * Split content into thread segments for a provider.
-   * Uses sentence/word boundary detection.
+   * @method getThreadSegments
+   * @description Splits content into thread segments within a provider's character limit,
+   *   breaking at a sentence boundary, else a word boundary.
+   * @param providerId - Provider identifier.
+   * @param content - Post text.
+   * @returns The segments, or the content alone when it needs no thread.
    */
   getThreadSegments(providerId: string, content: string): string[] {
     if (!this.needsThreading(providerId, content)) {
