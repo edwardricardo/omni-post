@@ -388,26 +388,18 @@
       "typedTarget": null,
       "declarations": [
         {
-          "manifest": "apps/admin/package.json",
+          "manifest": "package.json",
           "block": "devDependencies",
-          "specifier": "catalog"
-        },
-        {
-          "manifest": "apps/client/package.json",
-          "block": "devDependencies",
-          "specifier": "catalog"
+          "specifier": "literal"
         }
       ],
       "bins": [],
       "verdict": "under-floor",
-      "real": 2,
+      "real": 1,
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "config": [
-            "apps/admin/scripts/i18n-validate.mjs",
-            "apps/client/scripts/i18n-validate.mjs"
-          ]
+          "config": ["scripts/testing/i18n-lint.mjs"]
         }
       }
     },

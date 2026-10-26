@@ -18,7 +18,6 @@
     "test:e2e:ui": "playwright test --config=tests/e2e/config/playwright.config.ts --ui",
     "test:e2e:headed": "playwright test --config=tests/e2e/config/playwright.config.ts --headed",
     "typecheck": "tsc --noEmit",
-    "i18n:lint": "node scripts/i18n-validate.mjs",
     "test:e2e:debug": "playwright test --config=tests/e2e/config/playwright.config.ts --debug",
     "test:e2e:report": "playwright show-report test-results/html-report",
     "test:e2e:auth": "playwright test --config=tests/e2e/config/playwright.config.ts tests/e2e/tests/auth.spec.ts",
@@ -75,7 +74,6 @@
   "devDependencies": {
     "@packages/vitest-shared": "workspace:*",
     "@axe-core/playwright": "catalog:",
-    "@formatjs/icu-messageformat-parser": "catalog:",
     "@playwright/test": "catalog:",
     "@storybook/addon-a11y": "catalog:",
     "@storybook/addon-vitest": "catalog:",

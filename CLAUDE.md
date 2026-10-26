@@ -318,7 +318,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the owner's decision. Every baseline may fall and must never rise.) There are **50 checks, numbered #1-#50**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the owner's decision. Every baseline may fall and must never rise.) There are **51 checks, numbered #1-#51**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -2286,6 +2286,59 @@ pnpm check:deps-ledger   # expect exit 0 and one line:
 #   dependency-ledger: dependency-ledger.json is current
 pnpm deps:ledger   # writes the record and prints one line with the tree's counts, of this shape:
 #   dependency-ledger: wrote dependency-ledger.json: <M> manifests, <N> names, <A> at or above the floor, <U> under it (<Z> at zero); pending <P> of baseline <P>
+
+# 51. Every portal's message catalogs are complete and valid ICU for every locale its routing declares.
+# Threat: a portal ships a locale whose catalog lacks keys, carries a message that does not parse, or
+# drops an argument another locale passes, and next-intl renders the key path, throws, or prints the
+# message without its value. Each portal carried its own validator,
+# apps/admin/scripts/i18n-validate.mjs and apps/client/scripts/i18n-validate.mjs, run only by its
+# package's `i18n:lint` script, which no workflow, battery step or hook called: the check existed and
+# enforced nothing. Each also hard-coded
+# its locale list (`["en", "es"]` and `["es", "en"]`), so a third locale would have been checked by neither, and neither
+# read the arguments inside a rich-text tag (`<b>{name}</b>`), which 18 of the catalogs' 40 tags hold.
+# WHAT IT RUNS: `pnpm check:i18n`, which is `node scripts/testing/i18n-lint.mjs`, one script for every
+# portal, pinned by apps/api/tests/unit/scripts/i18nLint.test.ts. A portal is every directory directly
+# under apps/ that holds both `i18n/routing.ts` and `messages/`. For each, the locales are the
+# basenames of `messages/*.json`, and the routing's `locales: [...]` array and `defaultLocale: "..."`
+# are read from routing.ts with anchored regular expressions; the two locale sets must be equal. The
+# reference locale is `defaultLocale`. Every leaf of every catalog (objects recursed by key, arrays by
+# index) must be a string that parses as ICU MessageFormat through @formatjs/icu-messageformat-parser;
+# every other locale must hold the reference's key set, in both directions, and per message the
+# reference's set of argument names and rich-text tag names, collected through plural and select
+# branches and inside tags. For the catalogs, a new locale is therefore its two natural edits, its
+# catalog and its entry in the routing's `locales`, and the gate names the half that is missing.
+# WHERE IT RUNS, and why: in the dependency-consistency job of fitness.yml, beside #45 and #50,
+# because the ICU parser comes from the installed tree and that job runs `pnpm install
+# --frozen-lockfile`. #44 reads a `#N` step name from any job, so the inventory still counts this
+# check. The battery runs the same command as its step `i18n`.
+# WHAT FAILS, exit 1, each printed to stderr as `i18n-lint <portal>: <problem>`: a catalog its routing
+# does not list (`messages/fr.json exists but apps/admin/i18n/routing.ts does not list "fr"`); a
+# listed locale with no catalog (`apps/admin/i18n/routing.ts lists "fr" but messages/fr.json does not
+# exist`); a `defaultLocale` outside `locales`; a key the reference holds and a locale lacks, or one a
+# locale holds and the reference lacks, each named with its locale; a catalog whose top level is not
+# an object; a leaf that is not a string; a message that does not parse as ICU, named with its
+# locale, its key and the parser's error; and a message whose argument or tag-name set differs from
+# the reference's, both sets printed.
+# FAIL-CLOSED, exit 3, which wins over 1: fewer than 2 portals discovered (`--root` at a tree with
+# none included), a `--root` that is not a directory, a routing.ts that cannot be read or holds no
+# readable `locales` array of string literals (on one line or wrapped onto several) or no
+# `defaultLocale` string literal, or more than one of either, a `messages/` with no catalog, and a
+# catalog that cannot be read or does not parse as JSON, each named with its file. A usage error, an
+# unknown flag, a `--root` with no value or a `--root` given twice, exits 2.
+# RESIDUAL LIMITS, stated rather than implied: (1) routing.ts is read as text, so a locale list built
+# by code (a spread, an imported constant, a computed array) is invisible and reads as no `locales`
+# array, exit 3, rather than being guessed; (2) a portal outside apps/, or one that keeps its
+# catalogs anywhere but `messages/<locale>.json`, is not discovered; (3) argument parity compares
+# names, never argument types or the branch keys of a plural or select, so `{count, number}` against
+# `{count}` passes; (4) the check proves a catalog is complete and well formed, never that a
+# translation is right, and the TypeScript check of `t()` keys, not this one, proves the keys the code
+# uses exist; (5) the gate reads the catalogs and routing.ts and nothing else, so code that keeps
+# its own locale list or formats with a fixed locale is invisible to it, and a new locale needs every
+# such site as well.
+pnpm check:i18n   # expect exit 0 and, on stdout:
+#   i18n-lint: PASS
+#   admin: 2 locales (en, es), <m> messages, reference en
+#   client: 2 locales (en, es), <m> messages, reference en
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One

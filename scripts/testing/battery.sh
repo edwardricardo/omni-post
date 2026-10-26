@@ -36,7 +36,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=30
+PLANNED_STEPS=31
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -180,6 +180,9 @@ step support pnpm check:support
 # The dependency-usage record is current, every owner decision is well formed and still applies,
 # and the pending count equals its baseline.
 step deps-ledger pnpm check:deps-ledger
+# Fitness #51: every portal's catalogs match the locales its routing declares, every leaf is a
+# string that parses as ICU, and every locale carries the default locale's keys and argument names.
+step i18n pnpm check:i18n
 # The architecture gate of audit.yml: dependency-cruiser's layer rules and its
 # `no-circular` cycle check over one resolved import graph. Its `warn`-severity
 # rules print `warn` lines, which this battery reads as RED.

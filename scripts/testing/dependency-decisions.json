@@ -190,10 +190,10 @@
     "@formatjs/icu-messageformat-parser": {
       "status": "kept",
       "grounds": "tool",
-      "utility": "parse() and TYPE drive apps/admin/scripts/i18n-validate.mjs and apps/client/scripts/i18n-validate.mjs (admin 1,311 keys and client 2,232 at the 2026-10-25 run, both passing).",
+      "utility": "parse() and its element guards drive scripts/testing/i18n-lint.mjs, fitness #51 (pnpm check:i18n), which holds every portal's catalogs to its routing's locales, valid ICU, and the default locale's keys and argument names (admin 1,311 messages and client 2,232 at the 2026-10-26 run, both passing).",
       "replacement": "None: the ICU MessageFormat parser the i18n check is built on.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/admin, apps/client (devDependencies). Only the package script i18n:lint runs the two scripts today, and no workflow, hook, turbo task or battery step runs it; the owner decided on 2026-10-25 to wire it as a gate (one shared script, a battery step and a CI step), its own unit, and to keep the ground tool, the vocabulary of that check."
+      "note": "Declared in the root (devDependencies) as the literal 3.5.18 since 2026-10-26, when the two per-portal validators it served, apps/admin/scripts/i18n-validate.mjs and apps/client/scripts/i18n-validate.mjs, which only their unrun package script i18n:lint called, were replaced by the one gate, run by the battery step i18n and the Dependency Consistency job; the owner decided that unit on 2026-10-25 and kept the ground tool. 3.5.18 is the newest version the tree holds as one copy: intl-messageformat pins this parser exactly, and use-intl declares intl-messageformat ^11.1.0, whose newest release, 11.2.15, pins 3.5.18 (measured 2026-10-15)."
     },
     "@types/validator": {
       "status": "remove",
