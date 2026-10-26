@@ -119,10 +119,11 @@ export function AccountBillingPanel({
         {data.planType === "none" && <Badge variant="neutral">{tb("noPlan")}</Badge>}
         {data.isGrandfathered && data.grandfathering && (
           <Badge variant="warning">
-            {tb("grandfathered")}
             {data.grandfathering.expiresAt
-              ? ` until ${new Date(data.grandfathering.expiresAt).toLocaleDateString(locale)}`
-              : ""}
+              ? tb("grandfatheredUntil", {
+                  date: new Date(data.grandfathering.expiresAt).toLocaleDateString(locale),
+                })
+              : tb("grandfathered")}
           </Badge>
         )}
         <ActionButton
@@ -314,8 +315,12 @@ export function AccountBillingPanel({
               ${Number(data.cheaperBundle.savings).toFixed(2)}
               {tb("perMonth")}
             </span>{" "}
-            (bundle: ${Number(data.cheaperBundle.bundleTotal).toFixed(2)} vs custom: $
-            {Number(data.cheaperBundle.customTotal).toFixed(2)})
+            <span>
+              {tb("bundleComparison", {
+                bundleTotal: `$${Number(data.cheaperBundle.bundleTotal).toFixed(2)}`,
+                customTotal: `$${Number(data.cheaperBundle.customTotal).toFixed(2)}`,
+              })}
+            </span>
           </p>
         </div>
       )}
@@ -363,7 +368,9 @@ export function AccountBillingPanel({
                 >
                   {session.userAgent ? session.userAgent.slice(0, 40) : tb("unknownDevice")}
                 </span>
-                <span className="text-[var(--text-tertiary)]">{session.ipAddress ?? "N/A"}</span>
+                <span className="text-[var(--text-tertiary)]">
+                  {session.ipAddress ?? tb("unknownIpAddress")}
+                </span>
                 <span className="ml-auto text-[var(--text-tertiary)]">
                   {new Date(session.createdAt).toLocaleDateString(locale)}
                 </span>

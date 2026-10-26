@@ -13,7 +13,7 @@ import { useCurrentUser } from "@/providers/AuthProvider";
 
 import { Eye, EyeOff, Pencil, KeyRound } from "lucide-react";
 
-import { isPermissionDenied, getErrorMessage } from "@packages/api-errors";
+import { ApiError, isPermissionDenied, getErrorMessage } from "@packages/api-errors";
 import { AccessDenied } from "@/components/shared/AccessDenied";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccounts, useUpdateAccount } from "@/hooks/api/useAccounts";
@@ -177,7 +177,7 @@ function AccountsPageContent() {
         } catch (e) {
           // Surface failure as an alert; the export endpoint either returns
           // CSV (success) or a JSON error envelope on auth/validation issues.
-          alert(e instanceof Error ? e.message : "Failed to export accounts");
+          alert(e instanceof Error ? e.message : ta("bulkActions.exportFailed"));
         }
         setSelectedAccounts(new Set());
         setShowActions(false);
@@ -199,14 +199,30 @@ function AccountsPageContent() {
           credentials: "include",
           body,
         });
-        if (!res.ok) throw new Error(`Bulk ${action} failed`);
-        const data = await res.json();
-        const result = data.data ?? data;
-        toast({
-          title: tc("success"),
-          description: `${result.successful ?? ids.length} ${action}d, ${result.failed ?? 0} failed`,
-        });
-        await refetch();
+        if (!res.ok) {
+          toast({
+            title: tc("error"),
+            description: ta(
+              action === "suspend" ? "bulkActions.suspendFailed" : "bulkActions.activateFailed"
+            ),
+            variant: "destructive",
+          });
+        } else {
+          const data = await res.json();
+          const result = data.data ?? data;
+          const counts = {
+            successful: result.successful ?? ids.length,
+            failed: result.failed ?? 0,
+          };
+          toast({
+            title: tc("success"),
+            description: ta(
+              action === "suspend" ? "bulkActions.suspendResult" : "bulkActions.activateResult",
+              counts
+            ),
+          });
+          await refetch();
+        }
       } catch (err) {
         toast({
           title: tc("error"),
@@ -217,7 +233,7 @@ function AccountsPageContent() {
       setSelectedAccounts(new Set());
       setShowActions(false);
     },
-    [selectedAccounts, refetch, tc]
+    [selectedAccounts, refetch, ta, tc]
   );
 
   const handleView = useCallback((accountId: string) => {
@@ -258,7 +274,7 @@ function AccountsPageContent() {
       });
 
       // 2. Update trial + autoRenewal via /settings
-      await fetch(`/api/backend/admin/accounts/${editingId}/settings`, {
+      const settingsRes = await fetch(`/api/backend/admin/accounts/${editingId}/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -271,12 +287,16 @@ function AccountsPageContent() {
             }),
         }),
       });
+      if (!settingsRes.ok) {
+        const body = await settingsRes.text().catch(() => "");
+        throw ApiError.fromResponse(settingsRes.status, body);
+      }
 
       // Refresh all related queries
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["account", "billing", editingId] });
       queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-      toast({ title: tc("success"), description: "Account updated" });
+      toast({ title: tc("success"), description: ta("accountUpdated") });
       setEditingId(null);
     } catch (err) {
       toast({
@@ -285,7 +305,7 @@ function AccountsPageContent() {
         variant: "destructive",
       });
     }
-  }, [editingId, editForm, updateAccount, queryClient, refetch, tc]);
+  }, [editingId, editForm, updateAccount, queryClient, refetch, ta, tc]);
 
   const handleCreateAccount = useCallback(async () => {
     if (!createForm.name || !createForm.email) return;
@@ -296,8 +316,11 @@ function AccountsPageContent() {
         credentials: "include",
         body: JSON.stringify(createForm),
       });
-      if (!res.ok) throw new Error("Failed to create account");
-      toast({ title: tc("success"), description: "Account created" });
+      if (!res.ok) {
+        toast({ title: tc("error"), description: ta("createFailed"), variant: "destructive" });
+        return;
+      }
+      toast({ title: tc("success"), description: ta("accountCreated") });
       setShowCreate(false);
       setCreateForm({ name: "", email: "" });
       await refetch();
@@ -308,7 +331,7 @@ function AccountsPageContent() {
         variant: "destructive",
       });
     }
-  }, [createForm, refetch, tc]);
+  }, [createForm, refetch, ta, tc]);
 
   const handleRefresh = useCallback(() => {
     refetch();
@@ -350,7 +373,9 @@ function AccountsPageContent() {
       <div>
         <PageHeader title={t("accounts")} />
         <div className="flex justify-center items-center h-64" role="alert">
-          <div className="text-sm text-[var(--error)]">Error: {getErrorMessage(error)}</div>
+          <div className="text-sm text-[var(--error)]">
+            {ta("loadError", { message: getErrorMessage(error) })}
+          </div>
           <ActionButton
             variant="primary"
             size="sm"
@@ -592,7 +617,7 @@ function AccountsPageContent() {
         <div className="overflow-x-auto">
           <table
             className="min-w-full divide-y divide-[var(--border-subtle)]"
-            aria-label="User accounts"
+            aria-label={ta("table.label")}
           >
             <thead className="bg-[var(--bg-elevated)]">
               <tr>
@@ -653,7 +678,7 @@ function AccountsPageContent() {
                         checked={selectedAccounts.has(account.id)}
                         onChange={(e) => handleSelectAccount(account.id, e.target.checked)}
                         className="rounded border-[var(--border-default)]"
-                        aria-label={`Select account ${account.email}`}
+                        aria-label={ta("selectAccount", { email: account.email })}
                       />
                     </td>
                     <td className="px-3 py-2">
@@ -665,7 +690,7 @@ function AccountsPageContent() {
                       </div>
                     </td>
                     <td className="px-3 py-2">
-                      <Badge variant="info">{account.plan.name || "None"}</Badge>
+                      <Badge variant="info">{account.plan.name || ta("table.noPlan")}</Badge>
                     </td>
                     <td className="px-3 py-2">
                       <AccountStatusBadge account={account} />

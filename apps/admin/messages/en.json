@@ -161,7 +161,11 @@
     "loadingAccounts": "Loading accounts...",
     "retryLoading": "Retry loading accounts",
     "refreshData": "Refresh accounts data",
+    "loadError": "Error: {message}",
     "createAccount": "Create Account",
+    "accountCreated": "Account created",
+    "createFailed": "Failed to create account",
+    "accountUpdated": "Account updated",
     "filterAccounts": "Filter accounts",
     "searchPlaceholder": "Search by email or name...",
     "searchLabel": "Search accounts by email or name",
@@ -186,7 +190,9 @@
       "status": "Status",
       "usage": "Usage",
       "lastLogin": "Last Login",
-      "actions": "Actions"
+      "actions": "Actions",
+      "label": "User accounts",
+      "noPlan": "None"
     },
     "created": "Created {date}",
     "projects": "{used} / {total} projects",
@@ -199,7 +205,12 @@
       "selectedPlural": "{count} accounts selected",
       "activate": "Activate",
       "suspend": "Suspend",
-      "export": "Export"
+      "export": "Export",
+      "suspendResult": "{successful} suspended, {failed} failed",
+      "activateResult": "{successful} activated, {failed} failed",
+      "suspendFailed": "Bulk suspend failed",
+      "activateFailed": "Bulk activate failed",
+      "exportFailed": "Failed to export accounts"
     },
     "actions": {
       "view": "View",
@@ -252,6 +263,7 @@
       "bundleName": "Bundle: {name}",
       "noPlan": "No Active Plan",
       "grandfathered": "Grandfathered",
+      "grandfatheredUntil": "Grandfathered until {date}",
       "lastLogin": "Last Login:",
       "trialRemaining": "Trial: {days} days remaining",
       "trialEnds": "Ends {date}",
@@ -271,6 +283,7 @@
       "revokeAll": "Revoke All",
       "revokeAllLabel": "Revoke all sessions",
       "unknownDevice": "Unknown device",
+      "unknownIpAddress": "N/A",
       "adjust": "Adjust",
       "loadingBilling": "Loading billing data...",
       "failedBilling": "Failed to load billing data:",
@@ -280,6 +293,7 @@
       "failedRevoke": "Failed to revoke sessions",
       "lockedAt": "Locked at",
       "wouldSave": "would save",
+      "bundleComparison": "(bundle: {bundleTotal} vs custom: {customTotal})",
       "perMonth": "/mo",
       "currentList": "current list:",
       "saving": "saving"
@@ -307,7 +321,8 @@
       "activeSubscriptions": "Active Subscriptions",
       "activeTrials": "Active Trials",
       "expiringTrials": "Expiring Trials",
-      "conversionRate": "Conversion Rate"
+      "conversionRate": "Conversion Rate",
+      "regionLabel": "Subscription statistics"
     },
     "table": {
       "account": "Account",
@@ -322,6 +337,10 @@
       "autoRenew": "Auto-Renew"
     },
     "autoRenew": "Auto-Renew",
+    "billingCycle": {
+      "monthly": "Monthly",
+      "yearly": "Yearly"
+    },
     "manual": "Manual",
     "perMonth": "${amount}/mo",
     "totalValue": "${amount} total",
@@ -331,6 +350,11 @@
     "extend": "Extend",
     "end": "End",
     "expired": "Expired",
+    "trialStatus": {
+      "ACTIVE": "ACTIVE",
+      "EXPIRING": "EXPIRING",
+      "EXPIRED": "EXPIRED"
+    },
     "days": "{count} days",
     "noSubscriptions": "No active subscriptions found",
     "noTrials": "No trial accounts found",
@@ -340,6 +364,7 @@
     "lastBill": "Last Bill",
     "noPlan": "No Plan",
     "mrrStat": "MRR",
+    "billingStatsLabel": "Billing statistics",
     "expiringWarning": "{count} trial{count, plural, one {} other {s}} expiring in the next 7 days",
     "viewTrials": "View trials",
     "startDate": "Start Date",
@@ -480,6 +505,7 @@
     "errorTitle": "Error Loading Analytics Dashboard",
     "noData": "No analytics data available",
     "timeRange": {
+      "label": "Select time range",
       "last7d": "Last 7 days",
       "last30d": "Last 30 days",
       "last90d": "Last 90 days"
@@ -533,7 +559,14 @@
       "revenueGrowth": "Revenue Growth",
       "trialConversion": "Trial Conversion"
     },
-    "subscriptionDistribution": "Subscription Distribution"
+    "subscriptionDistribution": "Subscription Distribution",
+    "subscriptionStatus": {
+      "TRIALING": "Trialing",
+      "ACTIVE": "Active",
+      "PAST_DUE": "Past Due",
+      "CANCELED": "Canceled",
+      "GRANDFATHERED": "Grandfathered"
+    }
   },
   "security": {
     "title": "Security Dashboard",
@@ -997,12 +1030,12 @@
     }
   },
   "usage": {
-    "title": "Usage — {month} {year}",
+    "title": "Usage -- {period}",
     "resetsMonthly": "Resets on the 1st of each month",
     "unavailable": "Usage data unavailable for this period.",
     "postsPublished": "Posts Published",
-    "aiCalls": "AI Calls",
-    "storage": "Storage",
+    "aiCallsUsed": "AI Calls Used",
+    "storageUsed": "Storage Used",
     "teamMembers": "Team Members",
     "unlimited": "{value}{unit} (unlimited)"
   },
@@ -1472,7 +1505,8 @@
       "scheduled": "Scheduled",
       "pendingCheckout": "Pending Checkout",
       "suspended": "Suspended",
-      "completed30d": "Completed (30d)"
+      "completed30d": "Completed (30d)",
+      "regionLabel": "Gateway switch statistics"
     },
     "table": {
       "account": "Account",
@@ -1512,6 +1546,7 @@
       "title": "Extend Checkout Deadline",
       "currentDeadline": "Current deadline",
       "extraHours": "Additional hours",
+      "hoursOption": "{hours}h",
       "newDeadline": "New deadline",
       "confirm": "Confirm Extension"
     },

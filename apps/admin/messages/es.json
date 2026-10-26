@@ -161,7 +161,11 @@
     "loadingAccounts": "Cargando cuentas...",
     "retryLoading": "Reintentar carga de cuentas",
     "refreshData": "Actualizar datos de cuentas",
+    "loadError": "Error: {message}",
     "createAccount": "Crear cuenta",
+    "accountCreated": "Cuenta creada",
+    "createFailed": "No se pudo crear la cuenta",
+    "accountUpdated": "Cuenta actualizada",
     "filterAccounts": "Filtrar cuentas",
     "searchPlaceholder": "Buscar por correo o nombre...",
     "searchLabel": "Buscar cuentas por correo o nombre",
@@ -186,7 +190,9 @@
       "status": "Estado",
       "usage": "Uso",
       "lastLogin": "Ultimo acceso",
-      "actions": "Acciones"
+      "actions": "Acciones",
+      "label": "Cuentas de usuario",
+      "noPlan": "Ninguno"
     },
     "created": "Creada el {date}",
     "projects": "{used} / {total} proyectos",
@@ -199,7 +205,12 @@
       "selectedPlural": "{count} cuentas seleccionadas",
       "activate": "Activar",
       "suspend": "Suspender",
-      "export": "Exportar"
+      "export": "Exportar",
+      "suspendResult": "Suspendidas: {successful}, con error: {failed}",
+      "activateResult": "Activadas: {successful}, con error: {failed}",
+      "suspendFailed": "Falló la suspensión masiva",
+      "activateFailed": "Falló la activación masiva",
+      "exportFailed": "No se pudieron exportar las cuentas"
     },
     "actions": {
       "view": "Ver",
@@ -252,6 +263,7 @@
       "bundleName": "Paquete: {name}",
       "noPlan": "Sin plan activo",
       "grandfathered": "Precio anterior",
+      "grandfatheredUntil": "Precio anterior hasta el {date}",
       "lastLogin": "Ultimo acceso:",
       "trialRemaining": "Prueba: {days} dias restantes",
       "trialEnds": "Termina el {date}",
@@ -271,6 +283,7 @@
       "revokeAll": "Revocar todas",
       "revokeAllLabel": "Revocar todas las sesiones",
       "unknownDevice": "Dispositivo desconocido",
+      "unknownIpAddress": "N/D",
       "adjust": "Ajustar",
       "loadingBilling": "Cargando datos de facturacion...",
       "failedBilling": "Error al cargar datos de facturacion:",
@@ -280,6 +293,7 @@
       "failedRevoke": "Error al revocar sesiones",
       "lockedAt": "Bloqueado en",
       "wouldSave": "ahorraria",
+      "bundleComparison": "(paquete: {bundleTotal} frente a personalizado: {customTotal})",
       "perMonth": "/mes",
       "currentList": "lista actual:",
       "saving": "ahorrando"
@@ -307,7 +321,8 @@
       "activeSubscriptions": "Suscripciones activas",
       "activeTrials": "Pruebas activas",
       "expiringTrials": "Pruebas por vencer",
-      "conversionRate": "Tasa de conversion"
+      "conversionRate": "Tasa de conversion",
+      "regionLabel": "Estadísticas de suscripciones"
     },
     "table": {
       "account": "Cuenta",
@@ -322,6 +337,10 @@
       "autoRenew": "Renovacion automatica"
     },
     "autoRenew": "Renovacion automatica",
+    "billingCycle": {
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
     "manual": "Manual",
     "perMonth": "${amount}/mes",
     "totalValue": "${amount} total",
@@ -331,6 +350,11 @@
     "extend": "Extender",
     "end": "Finalizar",
     "expired": "Expirada",
+    "trialStatus": {
+      "ACTIVE": "ACTIVA",
+      "EXPIRING": "POR VENCER",
+      "EXPIRED": "VENCIDA"
+    },
     "days": "{count} dias",
     "noSubscriptions": "No se encontraron suscripciones activas",
     "noTrials": "No se encontraron cuentas de prueba",
@@ -340,6 +364,7 @@
     "lastBill": "Ultima factura",
     "noPlan": "Sin plan",
     "mrrStat": "MRR",
+    "billingStatsLabel": "Estadísticas de facturación",
     "expiringWarning": "{count} prueba{count, plural, one {} other {s}} por vencer en los proximos 7 dias",
     "viewTrials": "Ver pruebas",
     "startDate": "Fecha de inicio",
@@ -480,6 +505,7 @@
     "errorTitle": "Error al cargar el panel de analiticas",
     "noData": "No hay datos de analiticas disponibles",
     "timeRange": {
+      "label": "Seleccionar rango de tiempo",
       "last7d": "Ultimos 7 dias",
       "last30d": "Ultimos 30 dias",
       "last90d": "Ultimos 90 dias"
@@ -533,7 +559,14 @@
       "revenueGrowth": "Crecimiento de ingresos",
       "trialConversion": "Conversion de pruebas"
     },
-    "subscriptionDistribution": "Distribucion de suscripciones"
+    "subscriptionDistribution": "Distribucion de suscripciones",
+    "subscriptionStatus": {
+      "TRIALING": "En prueba",
+      "ACTIVE": "Activa",
+      "PAST_DUE": "Pago vencido",
+      "CANCELED": "Cancelada",
+      "GRANDFATHERED": "Precio anterior"
+    }
   },
   "security": {
     "title": "Panel de seguridad",
@@ -997,12 +1030,12 @@
     }
   },
   "usage": {
-    "title": "Uso — {month} {year}",
-    "resetsMonthly": "Se reinicia el 1.o de cada mes",
+    "title": "Uso — {period}",
+    "resetsMonthly": "Se reinicia el día 1 de cada mes",
     "unavailable": "Datos de uso no disponibles para este periodo.",
     "postsPublished": "Publicaciones realizadas",
-    "aiCalls": "Llamadas de IA",
-    "storage": "Almacenamiento",
+    "aiCallsUsed": "Llamadas de IA usadas",
+    "storageUsed": "Almacenamiento usado",
     "teamMembers": "Miembros del equipo",
     "unlimited": "{value}{unit} (ilimitado)"
   },
@@ -1475,7 +1508,8 @@
       "scheduled": "Programados",
       "pendingCheckout": "Pendiente de Checkout",
       "suspended": "Suspendidos",
-      "completed30d": "Completados (30d)"
+      "completed30d": "Completados (30d)",
+      "regionLabel": "Estadísticas de cambios de gateway"
     },
     "table": {
       "account": "Cuenta",
@@ -1515,6 +1549,7 @@
       "title": "Extender Plazo de Checkout",
       "currentDeadline": "Plazo actual",
       "extraHours": "Horas adicionales",
+      "hoursOption": "{hours} h",
       "newDeadline": "Nuevo plazo",
       "confirm": "Confirmar Extension"
     },

@@ -1,10 +1,13 @@
 /**
  * @file analyticsLocaleFormatting.test.tsx
- * @description Pins the money and counts of the analytics page to the active UI locale: the
- *   revenue, recurring revenue and lifetime value figures and the two trend charts' values read
- *   the Spanish way under `es` and keep the English text they had when the page named `en-US`
- *   under `en`. The data hook, the chart colours, the charts and next-intl's navigation are
- *   stand-ins; each chart stand-in renders the values its `formatValue` returns.
+ * @description Pins the money, counts and texts of the analytics page to the active UI locale:
+ *   the revenue, recurring revenue and lifetime value figures and the two trend charts' values
+ *   read the Spanish way under `es` and keep the English text they had when the page named
+ *   `en-US` under `en`; the time-range selector's accessible name and the subscription chart's
+ *   status names read their catalog text, and a status the catalog does not name keeps its code.
+ *   The data hook, the chart colours, the charts and next-intl's navigation are stand-ins; each
+ *   trend stand-in renders the values its `formatValue` returns and each donut stand-in the names
+ *   of its slices.
  * @layer infrastructure
  */
 import { describe, expect, it, vi } from "vitest";
@@ -51,7 +54,14 @@ const SUMMARY: AnalyticsSummary = {
     channelsByProvider: {},
     totalPosts: 900,
     postsPublished: 850,
-    subscriptions: {},
+    subscriptions: {
+      TRIALING: 3,
+      ACTIVE: 20,
+      PAST_DUE: 1,
+      CANCELED: 2,
+      GRANDFATHERED: 4,
+      PAUSED: 1,
+    },
   },
 };
 
@@ -72,7 +82,13 @@ vi.mock("@/hooks/useChartColors", () => ({
 }));
 
 vi.mock("@/components/charts", () => ({
-  DonutChart: () => null,
+  DonutChart: ({ data }: { data: Array<{ name: string }> }) => (
+    <ul>
+      {data.map((slice) => (
+        <li key={slice.name}>{slice.name}</li>
+      ))}
+    </ul>
+  ),
   TrendAreaChart: ({
     data,
     formatValue,
@@ -129,5 +145,45 @@ describe("analytics trend values", () => {
 
     expect(screen.getByText("$7,654,321")).toBeInTheDocument();
     expect(screen.getByText("3,456,789")).toBeInTheDocument();
+  });
+});
+
+describe("analytics time-range selector", () => {
+  it("names the time-range selector in Spanish on the es interface", () => {
+    renderPage("es");
+
+    expect(
+      screen.getByRole("combobox", { name: "Seleccionar rango de tiempo" })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the English name of the time-range selector on the en interface", () => {
+    renderPage("en");
+
+    expect(screen.getByRole("combobox", { name: "Select time range" })).toBeInTheDocument();
+  });
+});
+
+describe("analytics subscription statuses", () => {
+  it("names the subscription statuses in Spanish on the es interface", () => {
+    renderPage("es");
+
+    for (const name of ["En prueba", "Activa", "Pago vencido", "Cancelada", "Precio anterior"]) {
+      expect(screen.getByText(name)).toBeInTheDocument();
+    }
+  });
+
+  it("keeps the English subscription status names on the en interface", () => {
+    renderPage("en");
+
+    for (const name of ["Trialing", "Active", "Past Due", "Canceled", "Grandfathered"]) {
+      expect(screen.getByText(name)).toBeInTheDocument();
+    }
+  });
+
+  it("shows the code of a status the catalog does not name", () => {
+    renderPage("es");
+
+    expect(screen.getByText("PAUSED")).toBeInTheDocument();
   });
 });

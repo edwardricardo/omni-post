@@ -1,10 +1,12 @@
 /**
  * @file subscriptionsLocaleFormatting.test.tsx
- * @description Pins the numbers and dates of the subscriptions page to the active UI locale:
- *   the revenue figures, the plan price, the billing and trial dates, and the usage panel's
- *   month and counts read in Spanish under `es` and keep the English text they had under `en`.
- *   The data hooks, the URL's search parameters and next-intl's navigation are stand-ins, and
- *   the clock is fixed for
+ * @description Pins the numbers, dates and texts of the subscriptions page to the active UI
+ *   locale: the revenue figures, the plan price, the billing and trial dates, and the usage
+ *   panel's month and counts read in Spanish under `es` and keep the English text they had under
+ *   `en`; the two statistics regions' accessible names, the billing cycle, the trial status and
+ *   every text of the usage panel, loaded, loading and failed, read their catalog text, and a
+ *   billing cycle or trial status the catalog does not name keeps its code. The data hooks, the
+ *   URL's search parameters and next-intl's navigation are stand-ins, and the clock is fixed for
  *   the usage panel's month. Dates are built from local wall-clock parts, so the assertions hold
  *   in any time zone the suite runs in.
  * @layer infrastructure
@@ -19,6 +21,8 @@ import esMessages from "@/messages/es.json";
 import SubscriptionsPage from "@/app/[locale]/(dashboard)/subscriptions/page";
 
 const search = vi.hoisted(() => ({ params: new URLSearchParams() }));
+const usage = vi.hoisted(() => ({ state: "loaded" as "loaded" | "loading" | "failed" }));
+const rows = vi.hoisted(() => ({ billingCycle: "monthly", trialStatus: "ACTIVE" }));
 
 vi.mock("next/navigation", () => ({ useSearchParams: () => search.params }));
 
@@ -49,7 +53,7 @@ vi.mock("@/hooks/api/useSubscriptions", () => ({
           email: "billing@acme.test",
           name: "Acme",
           plan: PLAN,
-          billingCycle: "monthly",
+          billingCycle: rows.billingCycle,
           autoRenewal: true,
           nextBillingDate: OCT_29,
           lastBillingDate: OCT_22,
@@ -66,7 +70,7 @@ vi.mock("@/hooks/api/useSubscriptions", () => ({
           trialEndDate: OCT_29,
           trialDaysRemaining: 3,
           autoRenewal: false,
-          status: "ACTIVE",
+          status: rows.trialStatus,
         },
       ],
       stats: {
@@ -97,19 +101,25 @@ vi.mock("@/hooks/api/useSubscriptionMutations", () => ({
 }));
 
 vi.mock("@/hooks/api/useUsageMetrics", () => ({
-  useUsageMetrics: () => ({
-    data: {
-      accountId: "account-1",
-      periodYear: 2026,
-      periodMonth: 10,
-      postsPublished: 1234567,
-      aiCallsMade: 1500,
-      storageGb: 12.5,
-      teamMemberCount: 4,
-    },
-    isLoading: false,
-    error: null,
-  }),
+  useUsageMetrics: () => {
+    if (usage.state === "loading") return { data: undefined, isLoading: true, error: null };
+    if (usage.state === "failed") {
+      return { data: undefined, isLoading: false, error: new Error("HTTP 401: {}") };
+    }
+    return {
+      data: {
+        accountId: "account-1",
+        periodYear: 2026,
+        periodMonth: 10,
+        postsPublished: 1234567,
+        aiCallsMade: 1500,
+        storageGb: 12.5,
+        teamMemberCount: 4,
+      },
+      isLoading: false,
+      error: null,
+    };
+  },
 }));
 
 const CATALOGS = { en: enMessages, es: esMessages } as const;
@@ -132,6 +142,9 @@ function openTrials(locale: keyof typeof CATALOGS): void {
 
 beforeEach(() => {
   search.params = new URLSearchParams();
+  usage.state = "loaded";
+  rows.billingCycle = "monthly";
+  rows.trialStatus = "ACTIVE";
 });
 
 afterEach(() => {
@@ -201,5 +214,141 @@ describe("usage metrics panel", () => {
     expect(screen.getByRole("heading", { name: "Usage -- October 2026" })).toBeInTheDocument();
     expect(screen.getByText("1,234,567 (unlimited)")).toBeInTheDocument();
     expect(screen.getByText("12.5 GB (unlimited)")).toBeInTheDocument();
+  });
+
+  it("writes the panel's heading, reset note, labels and unlimited counts in Spanish on the es interface", () => {
+    renderPage("es");
+
+    expect(screen.getByRole("heading", { name: "Uso — octubre de 2026" })).toBeInTheDocument();
+    expect(screen.getByText("Se reinicia el día 1 de cada mes")).toBeInTheDocument();
+    for (const label of [
+      "Publicaciones realizadas",
+      "Llamadas de IA usadas",
+      "Almacenamiento usado",
+      "Miembros del equipo",
+    ]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    expect(screen.getByText("1.234.567 (ilimitado)")).toBeInTheDocument();
+    expect(screen.getByText("12,5 GB (ilimitado)")).toBeInTheDocument();
+  });
+
+  it("keeps the panel's English reset note and labels on the en interface", () => {
+    renderPage("en");
+
+    expect(screen.getByText("Resets on the 1st of each month")).toBeInTheDocument();
+    for (const label of ["Posts Published", "AI Calls Used", "Storage Used", "Team Members"]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+  });
+
+  it("titles the loading panel in Spanish on the es interface", () => {
+    usage.state = "loading";
+    renderPage("es");
+
+    expect(screen.getByRole("heading", { name: "Uso — octubre de 2026" })).toBeInTheDocument();
+  });
+
+  it("keeps the English title of the loading panel on the en interface", () => {
+    usage.state = "loading";
+    renderPage("en");
+
+    expect(screen.getByRole("heading", { name: "Usage -- October 2026" })).toBeInTheDocument();
+  });
+
+  it("says the usage is unavailable in Spanish on the es interface", () => {
+    usage.state = "failed";
+    renderPage("es");
+
+    expect(screen.getByRole("heading", { name: "Uso — octubre de 2026" })).toBeInTheDocument();
+    expect(screen.getByText("Datos de uso no disponibles para este periodo.")).toBeInTheDocument();
+  });
+
+  it("keeps the English unavailable notice on the en interface", () => {
+    usage.state = "failed";
+    renderPage("en");
+
+    expect(screen.getByRole("heading", { name: "Usage -- October 2026" })).toBeInTheDocument();
+    expect(screen.getByText("Usage data unavailable for this period.")).toBeInTheDocument();
+  });
+});
+
+describe("subscriptions statistics regions", () => {
+  it("names the two statistics regions in Spanish on the es interface", () => {
+    renderPage("es");
+
+    expect(
+      screen.getByRole("region", { name: "Estadísticas de suscripciones" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Estadísticas de facturación" })).toBeInTheDocument();
+  });
+
+  it("keeps the English names of the two statistics regions on the en interface", () => {
+    renderPage("en");
+
+    expect(screen.getByRole("region", { name: "Subscription statistics" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Billing statistics" })).toBeInTheDocument();
+  });
+});
+
+describe("subscriptions billing cycle", () => {
+  it.each([
+    ["monthly", "Mensual"],
+    ["yearly", "Anual"],
+  ])("names the %s billing cycle in Spanish on the es interface", (cycle, label) => {
+    rows.billingCycle = cycle;
+    renderPage("es");
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it.each([
+    ["monthly", "Monthly"],
+    ["yearly", "Yearly"],
+  ])("keeps the English %s billing cycle on the en interface", (cycle, label) => {
+    rows.billingCycle = cycle;
+    renderPage("en");
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it("shows the code of a billing cycle the catalog does not name", () => {
+    rows.billingCycle = "quarterly";
+    renderPage("es");
+
+    expect(screen.getByText("quarterly")).toBeInTheDocument();
+  });
+});
+
+describe("subscriptions trial status", () => {
+  it.each([
+    ["ACTIVE", "ACTIVA"],
+    ["EXPIRING", "POR VENCER"],
+    ["EXPIRED", "VENCIDA"],
+  ])("names the %s trial status in Spanish on the es interface", (status, label) => {
+    rows.trialStatus = status;
+    renderPage("es");
+    openTrials("es");
+
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
+  it.each(["ACTIVE", "EXPIRING", "EXPIRED"])(
+    "keeps the English %s trial status on the en interface",
+    (status) => {
+      rows.trialStatus = status;
+      renderPage("en");
+      openTrials("en");
+
+      expect(screen.getByText(status)).toBeInTheDocument();
+    }
+  );
+
+  it("shows the code of a trial status the catalog does not name", () => {
+    rows.trialStatus = "PAUSED";
+    renderPage("es");
+    openTrials("es");
+
+    expect(screen.getByText("PAUSED")).toBeInTheDocument();
   });
 });
