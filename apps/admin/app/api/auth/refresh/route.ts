@@ -3,7 +3,9 @@
  * @description Server-side token refresh route handler. Called when the dashboard layout
  *              detects an expired access token on page load. Attempts to refresh using the
  *              stored refresh/csrf cookies, updates the session cookie via the shared
- *              `lib/auth/sessionCookie` helpers, and redirects back to the original page.
+ *              `lib/auth/sessionCookie` helpers, and redirects to the admin app's root. It
+ *              takes no return target: a query parameter it followed would let any link send a
+ *              signed-in admin to another origin.
  * @layer infrastructure
  */
 
@@ -22,11 +24,17 @@ import { forwardedForHeaders } from "../../../../lib/http/forwardedFor";
 const API_URL = env.API_URL ?? env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 const APP_URL = env.NEXT_PUBLIC_URL ?? "http://localhost:3100";
 
+/**
+ * @description Refreshes the admin session from its refresh and CSRF cookies and redirects to the
+ *   admin app's root; a missing cookie, a refused refresh or a response without an access token
+ *   clears the auth cookies and redirects to the login page.
+ * @param req - The incoming request; only its client-IP headers are relayed to the backend.
+ * @returns The redirect to the admin root, or to the login page.
+ */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const cookieStore = await cookies();
   const refreshToken = cookieStore.get(REFRESH_COOKIE_NAME)?.value;
   const csrfToken = cookieStore.get(CSRF_COOKIE_NAME)?.value;
-  const returnTo = req.nextUrl.searchParams.get("returnTo") ?? "/";
 
   if (!refreshToken || !csrfToken) {
     // No refresh tokens — clear everything and send to login
@@ -60,8 +68,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // Update session cookie with fresh access token (shared TTL = 15min)
     await setSessionCookie(newAccessToken);
 
-    // Redirect back to the page they were trying to visit
-    return NextResponse.redirect(new URL(returnTo, APP_URL));
+    return NextResponse.redirect(new URL("/", APP_URL));
   } catch {
     await clearAuthCookies();
     return NextResponse.redirect(new URL("/login", APP_URL));

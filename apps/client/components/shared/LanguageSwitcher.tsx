@@ -1,9 +1,10 @@
 /**
  * @file LanguageSwitcher.tsx
- * @description Locale switcher for the dashboard shell. Lets the user toggle
- *              between supported locales (es/en) while preserving the current
- *              route; navigation goes through next-intl's locale-aware router,
- *              which also persists the choice in the NEXT_LOCALE cookie.
+ * @description Locale switcher for the dashboard shell. Lists every locale
+ *              `routing.locales` declares, each under its own name, and switches
+ *              to the chosen one while preserving the current route; navigation
+ *              goes through next-intl's locale-aware router, which also persists
+ *              the choice in the NEXT_LOCALE cookie.
  * @component LanguageSwitcher
  * @layer infrastructure
  */
@@ -21,10 +22,16 @@ import {
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { routing, type AppLocale } from "@/i18n/routing";
 
-const LOCALE_LABELS: Record<string, string> = {
-  es: "Español",
-  en: "English",
-};
+/**
+ * The locale's name in its own language, first letter capitalised as a standalone menu label
+ * ("English", "Español", "Français"); CLDR's own form is the mid-sentence one ("español").
+ */
+function nativeLanguageLabel(locale: string): string {
+  // `of` is typed `string | undefined` for `fallback: "none"`; the default "code" fallback returns
+  // the code itself, so the `??` only satisfies the type.
+  const name = new Intl.DisplayNames([locale], { type: "language" }).of(locale) ?? locale;
+  return name.replace(/^\p{Ll}/u, (letter) => letter.toLocaleUpperCase(locale));
+}
 
 /**
  * @component LanguageSwitcher
@@ -44,14 +51,16 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label={LOCALE_LABELS[locale] ?? locale}>
+        <Button variant="ghost" size="icon" aria-label={nativeLanguageLabel(locale)}>
           <Languages className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {routing.locales.map((loc) => (
           <DropdownMenuItem key={loc} onClick={() => handleSelect(loc)}>
-            <span className="flex-1">{LOCALE_LABELS[loc] ?? loc}</span>
+            <span className="flex-1" lang={loc}>
+              {nativeLanguageLabel(loc)}
+            </span>
             {loc === locale && <Check className="ml-2 h-4 w-4" />}
           </DropdownMenuItem>
         ))}
