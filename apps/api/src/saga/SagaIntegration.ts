@@ -41,6 +41,7 @@ import type { EventService } from "../events/EventService.js";
 import type { CQRSBusImpl } from "../cqrs/CQRSBus.js";
 import { createPostPublishingSagaDefinition, createSagaContext } from "@shared/types/saga.js";
 import type { Command } from "@shared/types/cqrs.js";
+import { contentLocaleSchema } from "@shared/types";
 import type { Redis } from "ioredis";
 import { AppError } from "../lib/errors/index.js";
 import { captureError } from "../observability/sentryInit.js";
@@ -119,7 +120,7 @@ const SagaPostBaseSchema = {
  * refinement below enforces XOR.
  */
 const PostContentFieldsSchema = {
-  locale: z.string().min(2).max(5).optional(),
+  locale: contentLocaleSchema.optional(),
   body: SecureSchemas.postBody.optional(),
   title: SecureSchemas.userName.optional(),
   tags: z.array(z.string()).default([]),
@@ -165,7 +166,7 @@ const StartPostPublishingSagaBodySchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("draft"),
     ...SagaPostBaseSchema,
-    locale: z.string().min(2).max(5),
+    locale: contentLocaleSchema,
     body: SecureSchemas.postBody,
     title: SecureSchemas.userName.optional(),
     tags: z.array(z.string()).default([]),
@@ -225,7 +226,8 @@ export class SagaIntegration {
   }
 
   /**
-   * Initialize saga integration.
+   * @method initialize
+   * @description Initializes the saga integration.
    *
    * When `schemaOnly=true` (SCHEMA_ONLY OpenAPI dump mode):
    *   - Only registers API routes so all saga paths appear in the OpenAPI schema.
@@ -866,14 +868,18 @@ export class SagaIntegration {
   }
 
   /**
-   * Get saga manager instance
+   * @method getSagaManager
+   * @description Gets the saga manager this integration drives.
+   * @returns The saga manager instance.
    */
   getSagaManager(): SagaManagerImpl {
     return this.sagaManager;
   }
 
   /**
-   * Graceful shutdown - closes saga manager and the dedicated subscriber connection
+   * @method shutdown
+   * @description Graceful shutdown: closes the saga manager and the dedicated subscriber
+   *   connection.
    */
   async shutdown(): Promise<void> {
     logger.info("Shutting down Saga Integration");

@@ -26,7 +26,7 @@ import type {
   RestoreProjectUseCase,
 } from "@core/projects/index.js";
 import { USE_CASE_ERRORS, type UseCaseError } from "@core/application/UseCase.js";
-import type { Result } from "@shared/types";
+import { contentLocaleSchema, isContentLocale, type Result } from "@shared/types";
 import { mapHardDeleteError } from "../lib/hardDeleteErrorMapping.js";
 import { AuditActions, AuditResources, type AuditService } from "../audit/auditService.js";
 
@@ -40,7 +40,7 @@ const UNLIMITED_PROJECT_CAP = -1;
 // Zod Schemas for Validation
 const CreateProjectBodySchema = z.object({
   name: SecureSchemas.userName,
-  locale: z.string().min(2).max(5).default("en"),
+  locale: contentLocaleSchema.default("en"),
 });
 
 const AccountParamsSchema = z.object({
@@ -289,6 +289,17 @@ class ProjectRouteHandler extends BaseRouteHandler {
         orderBy: { createdAt: "desc" },
       });
 
+      // A stored locale outside CONTENT_LOCALES fails the read, as every other read of a project does.
+      const legacy = projects.find((project) => !isContentLocale(project.locale));
+      if (legacy) {
+        // The row and value go to the log only; the response keeps the generic failure.
+        this.logError(ctx, "Project holds a locale outside the content locales", {
+          projectId: legacy.id,
+          locale: legacy.locale,
+        });
+        return this.sendError(ctx, 500, "Failed to list projects");
+      }
+
       this.logInfo(ctx, "Projects retrieved successfully", { count: projects.length });
 
       this.sendSuccess(ctx, projects);
@@ -327,6 +338,14 @@ class ProjectRouteHandler extends BaseRouteHandler {
 
       if (!project) {
         return this.sendError(ctx, 404, "Project not found");
+      }
+      // A stored locale outside CONTENT_LOCALES fails the read, as every other read of a project does.
+      if (!isContentLocale(project.locale)) {
+        this.logError(ctx, "Project holds a locale outside the content locales", {
+          projectId: project.id,
+          locale: project.locale,
+        });
+        return this.sendError(ctx, 500, "Failed to get project");
       }
 
       this.logInfo(ctx, "Project retrieved successfully", { projectId });

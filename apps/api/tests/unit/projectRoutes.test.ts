@@ -287,13 +287,13 @@ async function seedAccount(
  */
 async function seedProject(
   accountId: string,
-  fields: { label: string; createdAt?: Date; deletedAt?: Date }
+  fields: { label: string; createdAt?: Date; deletedAt?: Date; locale?: string }
 ): Promise<{ id: string; name: string }> {
   return prisma.project.create({
     data: {
       accountId,
       name: uniqueName(fields.label),
-      locale: "en",
+      locale: fields.locale ?? "en",
       ...(fields.createdAt !== undefined && { createdAt: fields.createdAt }),
       ...(fields.deletedAt !== undefined && { deletedAt: fields.deletedAt }),
     },
@@ -684,8 +684,25 @@ describe("projectRoutes - Unit Tests", () => {
       expect(response.statusCode).toBe(400);
     });
 
+    it("refuses a locale outside CONTENT_LOCALES (fr, pt) with 400 and creates no project", async () => {
+      const account = await seedAccount();
+      actAs(account.id);
+
+      for (const locale of ["fr", "pt"]) {
+        const name = uniqueName(`Project ${locale}`);
+        const response = await app.inject({
+          method: "POST",
+          url: `/accounts/${account.id}/projects`,
+          payload: { name, locale },
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect(await prisma.project.findFirst({ where: { name } })).toBeNull();
+      }
+    });
+
     it("should accept valid locales", async () => {
-      const locales = ["en", "es", "fr", "de", "ja"];
+      const locales = ["en", "es"];
       const account = await seedAccount();
       actAs(account.id);
 
@@ -712,7 +729,42 @@ describe("projectRoutes - Unit Tests", () => {
     });
   });
 
+  describe("GET /projects/:projectId", () => {
+    it("fails the read with 500 when the project's stored locale is not a content locale", async () => {
+      const account = await seedAccount();
+      actAs(account.id);
+      const legacy = await seedProject(account.id, { label: "Legacy", locale: "fr" });
+
+      const response = await app.inject({ method: "GET", url: `/projects/${legacy.id}` });
+
+      expect(response.statusCode).toBe(500);
+      expect(JSON.parse(response.body).error).toBe("Failed to get project");
+    });
+
+    it("returns the project with its content locale when the stored locale is one", async () => {
+      const account = await seedAccount();
+      actAs(account.id);
+      const current = await seedProject(account.id, { label: "Current", locale: "es" });
+
+      const response = await app.inject({ method: "GET", url: `/projects/${current.id}` });
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body).data.locale).toBe("es");
+    });
+  });
+
   describe("GET /accounts/:accountId/projects", () => {
+    it("fails the list with 500 when one of the account's projects holds a locale outside the content locales", async () => {
+      const account = await seedAccount();
+      actAs(account.id);
+      await seedProject(account.id, { label: "Legacy", locale: "fr" });
+
+      const response = await app.inject({ method: "GET", url: `/accounts/${account.id}/projects` });
+
+      expect(response.statusCode).toBe(500);
+      expect(JSON.parse(response.body).error).toBe("Failed to list projects");
+    });
+
     it("should list all projects for an account", async () => {
       const account = await seedAccount();
       actAs(account.id);

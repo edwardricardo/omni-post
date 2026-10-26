@@ -15,6 +15,7 @@
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
+import { contentLocaleSchema } from "@shared/types";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { requireClientAuth } from "../auth/customerAuthMiddleware.js";
@@ -26,17 +27,15 @@ import type { UpsertStyleGuideRuleUseCase } from "@core/style-guide/UpsertStyleG
 import type { DeleteStyleGuideRuleUseCase } from "@core/style-guide/DeleteStyleGuideRuleUseCase.js";
 import type { ListStyleGuideRulesByLocaleQuery } from "@core/style-guide/ListStyleGuideRulesByLocaleQuery.js";
 
-const SupportedLocaleSchema = z.enum(["es", "en"]);
-
 const GenerateBodySchema = z.object({
-  locale: SupportedLocaleSchema,
+  locale: contentLocaleSchema,
   brief: z.string().min(10).max(2000),
   platforms: z.array(z.string()).optional(),
   topK: z.number().int().min(1).max(20).optional(),
 });
 
 const GlossaryUpsertBodySchema = z.object({
-  locale: SupportedLocaleSchema,
+  locale: contentLocaleSchema,
   term: z.string().min(1).max(120),
   definition: z.string().min(1).max(1000),
   usage: z.string().max(500).optional(),
@@ -44,14 +43,14 @@ const GlossaryUpsertBodySchema = z.object({
 
 const StyleGuideUpsertBodySchema = z.object({
   id: z.string().uuid().optional(),
-  locale: SupportedLocaleSchema,
+  locale: contentLocaleSchema,
   rule: z.string().min(1).max(1000),
   example: z.string().max(500).optional(),
   category: z.string().max(60).optional(),
 });
 
 const ListByLocaleQuerySchema = z.object({
-  locale: SupportedLocaleSchema,
+  locale: contentLocaleSchema,
 });
 
 const IdParamsSchema = z.object({
@@ -200,6 +199,12 @@ class AiLocalizedRouteHandler extends BaseRouteHandler {
   }
 }
 
+/**
+ * @function aiLocalizedRoutes
+ * @description Registers the locale-native AI routes: generation, and the glossary and
+ *   style-guide CRUD, each behind `requireClientAuth`.
+ * @param app - The Fastify instance the routes are registered on.
+ */
 export const aiLocalizedRoutes: FastifyPluginAsync = async (app) => {
   const handler = new AiLocalizedRouteHandler(
     app.container.resolve<GenerateLocalizedContentUseCase>(TOKENS.GenerateLocalizedContentUseCase),

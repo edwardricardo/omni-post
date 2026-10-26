@@ -7,6 +7,7 @@
 import { BaseDomainEvent } from "./DomainEvent.js";
 import { type PublishStatusValue } from "../value-objects/PublishStatus.js";
 import { type ProviderType } from "../value-objects/Provider.js";
+import type { ContentLocale } from "../value-objects/Content.js";
 
 /**
  * Event raised when a new post is created
@@ -19,13 +20,18 @@ export class PostCreated extends BaseDomainEvent {
     readonly aggregateId: string,
     readonly projectId: string,
     readonly body: string,
-    readonly locale: string,
+    readonly locale: ContentLocale,
     readonly title?: string,
     version: number = 1
   ) {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the creation fact (post, project, body, locale and, when present, title) for the outbox.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -54,6 +60,11 @@ export class PostContentUpdated extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the previous and new body together with the content version that recorded the change.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -80,6 +91,11 @@ export class PostScheduled extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the schedule as an ISO-8601 instant plus the timezone it was chosen in.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -104,6 +120,11 @@ export class PostUnscheduled extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the schedule that was cleared, as an ISO-8601 instant.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -127,6 +148,11 @@ export class PostPublishingStarted extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the providers the publish attempt targets.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -154,6 +180,11 @@ export class PostPublished extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the publish instant as ISO-8601 together with the per-provider outcomes.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -180,6 +211,11 @@ export class PostPublishingFailed extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the failure message, the providers that failed and whether a retry is allowed.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -206,6 +242,11 @@ export class PostCancelled extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the status the post held before cancellation and, when given, the reason.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -232,6 +273,11 @@ export class PostMediaAdded extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the identity, type and URL of the media item attached to the post.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -257,6 +303,11 @@ export class PostMediaRemoved extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the identifier of the media item removed from the post.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -280,6 +331,11 @@ export class PostSubmittedForReview extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the post and the project whose review queue it entered.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -303,6 +359,11 @@ export class PostApproved extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the approved schedule as an ISO-8601 instant.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,
@@ -326,6 +387,11 @@ export class PostRejected extends BaseDomainEvent {
     super(version);
   }
 
+  /**
+   * @method toPayload
+   * @description Serialises the rejection and, when one was given, its reason.
+   * @returns Primitive-only payload for the outbox; dates are ISO-8601 strings
+   */
   toPayload(): Record<string, unknown> {
     return {
       postId: this.aggregateId,

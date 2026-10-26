@@ -58,7 +58,7 @@ export interface CreatePostOutput {
   body: string;
   title?: string;
   tags: string[];
-  locale: string;
+  locale: ContentLocale;
   status: string;
   scheduledAt?: Date;
   createdAt: Date;
@@ -85,6 +85,12 @@ export class CreatePostUseCase implements UseCase<CreatePostInput, CreatePostOut
     private readonly unitOfWork?: UnitOfWork
   ) {}
 
+  /**
+   * @method execute
+   * @description Creates a post aggregate in the caller's project, attaches its media while it is still a draft, persists it and dispatches its events. A project that does not exist or belongs to another tenant returns NOT_FOUND, so a foreign project is not disclosed.
+   * @param input - Project, body and optional title, summary, tags, locale, schedule and media
+   * @returns Result with the created post DTO, or a UseCaseError (VALIDATION_FAILED, NOT_FOUND or INTERNAL_ERROR)
+   */
   async execute(input: CreatePostInput): Promise<Result<CreatePostOutput, UseCaseError>> {
     // Validate project ID
     const projectIdResult = ProjectId.fromString(input.projectId);

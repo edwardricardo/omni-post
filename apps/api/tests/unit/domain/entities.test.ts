@@ -9,6 +9,7 @@
  */
 
 import { afterEach, describe, it, expect, vi } from "vitest";
+import assert from "node:assert/strict";
 import { fixedClock } from "@packages/vitest-shared/determinism";
 import {
   Channel,
@@ -708,6 +709,44 @@ describe("Domain Entities", () => {
       expect(result.ok).toBeTruthy();
       if (result.ok) {
         expect(result.value.locale).toBe("en");
+      }
+    });
+
+    it("creates a project in each content locale, es and en", () => {
+      for (const locale of ["es", "en"] as const) {
+        const result = Project.create({ accountId, name: "Test", locale });
+
+        assert.ok(result.ok);
+        expect(result.value.locale).toBe(locale);
+      }
+    });
+
+    it("refuses to create a project in a locale outside CONTENT_LOCALES (fr, pt)", () => {
+      for (const locale of ["fr", "pt"]) {
+        // canon-exception: test-fixture
+        const result = Project.create({ accountId, name: "Test", locale: locale as never });
+
+        assert.ok(!result.ok);
+        expect(result.error).toBeInstanceOf(InvalidValueError);
+        expect(result.error).toMatchObject({ field: "locale", value: locale });
+      }
+    });
+
+    it("updateLocale moves the project to es and refuses fr and pt, keeping its locale", () => {
+      const created = Project.create({ accountId, name: "Test", locale: "en" });
+      assert.ok(created.ok);
+      const project = created.value;
+
+      expect(project.updateLocale("es").ok).toBe(true);
+      expect(project.locale).toBe("es");
+
+      for (const locale of ["fr", "pt"]) {
+        // canon-exception: test-fixture
+        const result = project.updateLocale(locale as never);
+
+        assert.ok(!result.ok);
+        expect(result.error).toMatchObject({ field: "locale", value: locale });
+        expect(project.locale).toBe("es");
       }
     });
 

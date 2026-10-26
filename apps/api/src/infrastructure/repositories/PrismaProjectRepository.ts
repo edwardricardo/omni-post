@@ -15,6 +15,7 @@ import {
   ChannelId,
   PostId,
   EntityNotFoundError,
+  contentLocaleFromStorage,
 } from "@core/domain/index.js";
 import { withGucBoundTransaction } from "@infra/prisma/extensions/tenantGuc.js";
 import { PrismaUnitOfWork } from "@adapters/db-prisma";
@@ -23,7 +24,6 @@ import { getAmbientGucScope } from "../../security/tenantContext.js";
 import { DELETION_RECORD_LAWFUL_BASIS, computeRetainUntil } from "./deletionRecordRetention.js";
 import { recordHardDeleteImpact } from "../../metrics/deletionMetrics.js";
 import { env } from "../../config/env.js";
-import type { ContentLocale } from "@core/domain/value-objects/Content.js";
 import type {
   ProjectRepositoryPort,
   PublishLogView,
@@ -76,10 +76,14 @@ function toDomain(row: PrismaProjectRow): Project {
     }));
   }
 
+  // A stored locale outside CONTENT_LOCALES fails the read; the pre-deploy check keeps none.
+  const locale = contentLocaleFromStorage(row.locale, `Project ${row.id}`);
+  if (!locale.ok) throw locale.error;
+
   return Project.reconstitute(id, {
     accountId,
     name: row.name,
-    locale: row.locale as ContentLocale,
+    locale: locale.value,
     channelIds,
     postIds,
     isInCrisisMode: row.isInCrisisMode,
@@ -105,7 +109,10 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   constructor(private readonly prisma: PrismaClient) {}
 
   /**
-   * Find a project by its ID (excludes soft-deleted projects)
+   * @method findById
+   * @description Loads one project with its channel and post IDs, excluding soft-deleted rows.
+   * @param id - Identifier of the project to load
+   * @returns The project, or EntityNotFoundError when no live project has that ID
    */
   async findById(id: ProjectId): Promise<Result<Project, EntityNotFoundError>> {
     const row = await this.prisma.project.findFirst({
@@ -124,12 +131,15 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Find a project by its ID INCLUDING soft-deleted rows.
+   * @method findByIdIncludingDeleted
+   * @description Loads one project with its channel and post IDs, INCLUDING soft-deleted rows.
    *
    * DELIBERATE soft-delete-sweep exception: no `deletedAt: null` filter, because
    * the restore path's subject is by definition a soft-deleted row and
    * {@link findById} exists to hide exactly that row. Reserved for restore; every
    * other read here keeps the sweep.
+   * @param id - Identifier of the project to load
+   * @returns The project, or EntityNotFoundError when no row has that ID
    */
   async findByIdIncludingDeleted(id: ProjectId): Promise<Result<Project, EntityNotFoundError>> {
     const row = await this.getClient().project.findFirst({
@@ -148,7 +158,10 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Find all projects belonging to an account (excludes soft-deleted projects)
+   * @method findByAccountId
+   * @description Lists the account's projects with their channel and post IDs, newest first, excluding soft-deleted rows.
+   * @param accountId - Account whose projects are listed
+   * @returns The account's live projects, ordered by creation date descending
    */
   async findByAccountId(accountId: AccountId): Promise<Project[]> {
     const rows = await this.prisma.project.findMany({
@@ -164,7 +177,11 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Save a project (create or update via upsert)
+   * @method save
+   * @description Persists a project through an upsert keyed on its ID, serializing the crisis-mode history to ISO strings.
+   * Any thrown error is returned as a failure instead of propagating.
+   * @param project - Project aggregate to create or update
+   * @returns Success, or the error raised by the write
    */
   async save(project: Project): Promise<Result<void, Error>> {
     try {
@@ -222,7 +239,8 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Soft-delete a project (sets deletedAt = now).
+   * @method delete
+   * @description Soft-deletes a project by setting `deletedAt` to now.
    * The project becomes invisible to all standard find queries.
    * Child data (posts, channels) remains intact for audit purposes.
    *
@@ -230,6 +248,8 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
    * they land in the same transaction when a Unit of Work is active: the pair is
    * a check-then-act, and split across two connections the check can be true
    * when the act runs against a row someone else already changed.
+   * @param id - Identifier of the project to soft-delete
+   * @returns Success, or EntityNotFoundError when no live project has that ID
    */
   async delete(id: ProjectId): Promise<Result<void, EntityNotFoundError>> {
     const client = this.getClient();
@@ -247,7 +267,8 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Restore a soft-deleted project by clearing `deletedAt`, reversing the soft
+   * @method restore
+   * @description Restores a soft-deleted project by clearing `deletedAt`, reversing the soft
    * delete so standard reads return it again.
    *
    * DELIBERATE soft-delete-sweep exception: the finder targets a row that IS
@@ -264,6 +285,8 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
    * {@link delete} does: the pair is a check-then-act, and split across two
    * connections the check can be true while the act lands on a row someone else
    * already changed.
+   * @param id - Identifier of the soft-deleted project to restore
+   * @returns Success, or EntityNotFoundError when the row is absent or already live
    */
   async restore(id: ProjectId): Promise<Result<void, EntityNotFoundError>> {
     const client = this.getClient();
@@ -284,7 +307,8 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Hard-delete a project — irreversible. Reachable by an admin and by the
+   * @method hardDelete
+   * @description Hard-deletes a project — irreversible. Reachable by an admin and by the
    * owning tenant's own self-purge; the authorization split lives in
    * `HardDeleteProjectUseCase`, which gates the customer arm against the
    * project's stored account.
@@ -306,6 +330,9 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
    * ATOMIC: two statements in one transaction, so a failure (e.g. the deliberate
    * RecurringPost.templatePost RESTRICT interlock) rolls everything back.
    * UoW-aware: an outer `executeInTransaction` is joined rather than nested.
+   * @param id - Identifier of the soft-deleted project to destroy
+   * @param context - Operator identity and justification recorded on the tombstone
+   * @returns Success, or EntityNotFoundError when no soft-deleted project has that ID
    */
   async hardDelete(
     id: ProjectId,
@@ -395,7 +422,8 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Measure the blast radius of a hard delete in BOTH dimensions the transaction
+   * @method countHardDeleteImpact
+   * @description Measures the blast radius of a hard delete in BOTH dimensions the transaction
    * budget is spent on. Posts alone were never the whole cost: PostgreSQL fires one
    * referential trigger per destroyed row per referencing table, so the real cost is
    * posts MULTIPLIED BY the rows that reference them, and a project with few posts
@@ -413,6 +441,8 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
    * estimate that never needs a consistent snapshot — and because a batch
    * `$transaction` here would nest if a caller ever ran the use case inside a Unit
    * of Work.
+   * @param id - Identifier of the project about to be hard-deleted
+   * @returns The post count and the combined task and webhook-event count, also published as a metric
    */
   async countHardDeleteImpact(id: ProjectId): Promise<HardDeleteImpact> {
     const projectId = id.value;
@@ -432,8 +462,11 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Check whether an active (non-deleted) project with the given ID exists.
+   * @method exists
+   * @description Checks whether an active (non-deleted) project with the given ID exists.
    * Joins the active Unit of Work transaction when one is open.
+   * @param id - Identifier of the project to look for
+   * @returns True when a live project has that ID
    */
   async exists(id: ProjectId): Promise<boolean> {
     return this.existsOn(id, this.getClient());
@@ -452,9 +485,12 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Find a project by account ID and name (for duplicate name validation).
+   * @method findByName
+   * @description Finds a project by account ID and name (for duplicate name validation).
    * Only considers active (non-deleted) projects.
-   * Returns null when no matching project is found.
+   * @param accountId - Account that owns the project
+   * @param name - Exact project name to match
+   * @returns The matching project, or null when none is found
    */
   async findByName(accountId: AccountId, name: string): Promise<Project | null> {
     const row = await this.prisma.project.findFirst({
@@ -468,8 +504,12 @@ export class PrismaProjectRepository implements ProjectRepositoryPort {
   }
 
   /**
-   * Return the publish history for all posts in a project.
+   * @method findPublishLogsByProjectId
+   * @description Returns the publish history for all posts in a project.
    * Limited to the 100 most recent entries, ordered by creation date descending.
+   * Logs not linked to a post are omitted.
+   * @param id - Identifier of the project whose posts' publish logs are read
+   * @returns Publish log views, each with its channel's ID, handle and provider
    */
   async findPublishLogsByProjectId(id: ProjectId): Promise<PublishLogView[]> {
     const logs = await this.prisma.publishLog.findMany({

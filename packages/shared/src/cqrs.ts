@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { EventStoreEvent } from "./events.js";
+import { contentLocaleSchema, type ContentLocale } from "./types.js";
 
 /**
  * Base Command interface - represents user intentions to change state
@@ -166,7 +167,7 @@ export const CreatePostCommandSchema = z.object({
     projectId: z.string(),
     title: z.string().optional(),
     body: z.string(),
-    locale: z.string().default("en"),
+    locale: contentLocaleSchema.default("en"),
     tags: z.array(z.string()).optional(),
   }),
   metadata: z.object({
@@ -425,7 +426,7 @@ export interface PostReadModel extends ReadModel {
     status: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "FAILED";
     title?: string;
     body: string;
-    locale: string;
+    locale: ContentLocale;
     tags: string[];
     mediaUrls: string[];
     scheduledAt?: Date;
@@ -525,7 +526,14 @@ export interface PostAnalyticsReadModel extends ReadModel {
 // Utility Functions
 
 /**
- * Create a command with metadata
+ * @function createCommand
+ * @description Builds a command with a fresh id, a fresh correlation id and the current time.
+ * @param type - The command type.
+ * @param aggregateId - The id of the aggregate it targets.
+ * @param aggregateType - The type of that aggregate.
+ * @param data - The command's payload.
+ * @param metadata - Its metadata; the optional fields are copied only when present.
+ * @returns The command.
  */
 export function createCommand<T>(
   type: string,
@@ -553,7 +561,12 @@ export function createCommand<T>(
 }
 
 /**
- * Create a query with metadata
+ * @function createQuery
+ * @description Builds a query with a fresh id, a fresh correlation id and the current time.
+ * @param type - The query type.
+ * @param data - The query's parameters.
+ * @param metadata - Its metadata; the optional fields are copied only when present.
+ * @returns The query.
  */
 export function createQuery<T>(
   type: string,
@@ -575,7 +588,12 @@ export function createQuery<T>(
 }
 
 /**
- * Validate command using Zod schema
+ * @function validateCommand
+ * @description Parses a command against its Zod schema.
+ * @param command - The command, untyped.
+ * @param schema - The schema it must satisfy.
+ * @returns The parsed command, or a failure naming the first invalid field and listing every
+ *   issue.
  */
 export function validateCommand<T extends Command>(
   command: unknown,
@@ -615,7 +633,11 @@ export function validateCommand<T extends Command>(
 }
 
 /**
- * Validate query using Zod schema
+ * @function validateQuery
+ * @description Parses a query against its Zod schema.
+ * @param query - The query, untyped.
+ * @param schema - The schema it must satisfy.
+ * @returns The parsed query, or a failure listing every issue.
  */
 export function validateQuery<T extends Query>(query: unknown, schema: z.ZodType): QueryResult<T> {
   try {
@@ -652,7 +674,10 @@ function utf8ToBase64(text: string): string {
 }
 
 /**
- * Cache key generator for queries
+ * @function generateCacheKey
+ * @description Derives a query's cache key from its type and its parameters, key order ignored.
+ * @param query - The query.
+ * @returns `query:<type>:<base64 of the parameters, without + / =>`.
  */
 export function generateCacheKey(query: Query): string {
   const { type, data } = query;
@@ -686,7 +711,11 @@ export interface CQRSBus {
 }
 
 /**
- * Middleware for automatic cache key generation
+ * @function withCacheKey
+ * @description Gives a query a cache key when its metadata has none.
+ * @param query - The query.
+ * @param customKey - The key to use instead of the generated one.
+ * @returns The query unchanged when it has a key, otherwise a copy carrying one.
  */
 export function withCacheKey<T extends Query>(query: T, customKey?: string): T {
   if (!query.metadata.cacheKey) {

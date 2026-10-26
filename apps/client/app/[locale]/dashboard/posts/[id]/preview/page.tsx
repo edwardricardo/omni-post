@@ -33,6 +33,7 @@ import { ArrowLeft, Edit, Send, Calendar, Share2 } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth/authContext";
 import { useProviders } from "@/lib/hooks/useProviders";
+import { useContentLocaleLabel } from "../../useContentLocaleOptions";
 
 /**
  * @component PreviewPostPage
@@ -41,6 +42,7 @@ import { useProviders } from "@/lib/hooks/useProviders";
 export default function PreviewPostPage() {
   const router = useRouter();
   const t = useTranslations("posts");
+  const contentLocaleLabel = useContentLocaleLabel();
   const params = useParams();
   const postId = params.id as string;
 
@@ -301,7 +303,7 @@ export default function PreviewPostPage() {
                 <h4 className="text-sm font-medium text-muted-foreground">
                   {t("fields.language")}
                 </h4>
-                <p className="mt-1">{post.locale === "en" ? t("language.en") : t("language.es")}</p>
+                <p className="mt-1">{contentLocaleLabel(post.locale)}</p>
               </div>
 
               {post.tags && post.tags.length > 0 && (

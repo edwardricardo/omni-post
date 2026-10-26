@@ -106,6 +106,19 @@ describe("EventSchemaRegistry — validate correct payloads", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("refuses PostCreated v1 whose locale is fr or pt, naming the locale field", () => {
+    for (const locale of ["fr", "pt"]) {
+      const result = registry.validate("PostCreated", 1, {
+        postId: "p-1",
+        projectId: "proj-1",
+        body: "Bonjour",
+        locale,
+      });
+
+      expect(result).toEqual({ ok: false, errors: [expect.stringMatching(/^locale: /)] });
+    }
+  });
+
   it("validates PostCreated v1 with optional title present", () => {
     const result = registry.validate("PostCreated", 1, {
       postId: "post-1",

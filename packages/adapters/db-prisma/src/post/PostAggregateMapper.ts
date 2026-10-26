@@ -15,6 +15,7 @@ import {
   ContentId,
   Content,
   type ContentLocale,
+  contentLocaleFromStorage,
   PublishStatus,
   type PublishStatusValue,
   ScheduledTime,
@@ -71,11 +72,28 @@ function mapMediaTypeToPrisma(type: MediaType): MediaKind {
  */
 export class PostAggregateMapper {
   /**
-   * Map Prisma Post with relations to domain PostAggregate
+   * @method toDomain
+   * @description Maps a Prisma Post with its relations to a PostAggregate. The latest revision of
+   *   its content becomes the aggregate's content. A stored locale outside CONTENT_LOCALES or an
+   *   unknown status throws, failing the read.
+   * @param prismaPost - The Post row with its contents, media and content versions.
+   * @returns The aggregate.
    */
   static toDomain(prismaPost: PrismaPostWithRelations): PostAggregate {
     // Get the primary content (most recent revision for default locale)
     const primaryContent = prismaPost.contents.sort((a, b) => b.revision - a.revision)[0];
+
+    // A post with no content row reads as "en"; a stored locale outside CONTENT_LOCALES fails
+    // the read here, naming its row.
+    let locale: ContentLocale = "en";
+    if (primaryContent) {
+      const stored = contentLocaleFromStorage(
+        primaryContent.locale,
+        `PostContent ${primaryContent.id}`
+      );
+      if (!stored.ok) throw stored.error;
+      locale = stored.value;
+    }
 
     // Reconstitute Content from DB data — bypass empty-body validation since
     // the database is a trusted source. Posts without content records are valid
@@ -85,7 +103,7 @@ export class PostAggregateMapper {
       ...(primaryContent?.title && { title: primaryContent.title }),
       ...(primaryContent?.summary && { summary: primaryContent.summary }),
       tags: primaryContent?.tags ?? [],
-      locale: (primaryContent?.locale ?? "en") as ContentLocale,
+      locale,
     });
 
     // Parse status
@@ -148,7 +166,10 @@ export class PostAggregateMapper {
   }
 
   /**
-   * Map domain PostAggregate to Prisma create input
+   * @method toPrismaCreate
+   * @description Maps a PostAggregate to the rows its creation writes.
+   * @param aggregate - The aggregate.
+   * @returns The Post row, its first content revision and its media rows.
    */
   static toPrismaCreate(aggregate: PostAggregate): {
     post: {
@@ -214,7 +235,10 @@ export class PostAggregateMapper {
   }
 
   /**
-   * Map domain PostAggregate to Prisma update input
+   * @method toPrismaUpdate
+   * @description Maps a PostAggregate to the columns its update writes.
+   * @param aggregate - The aggregate.
+   * @returns The Post columns and the content columns.
    */
   static toPrismaUpdate(aggregate: PostAggregate): {
     post: {
@@ -249,7 +273,10 @@ export class PostAggregateMapper {
   }
 
   /**
-   * Map PostAggregate to PostReadModel for queries
+   * @method toReadModel
+   * @description Maps a PostAggregate to the read model queries return.
+   * @param aggregate - The aggregate.
+   * @returns The post's read model.
    */
   static toReadModel(aggregate: PostAggregate): {
     id: string;

@@ -13,7 +13,7 @@
 import { describe, it, beforeEach, beforeAll, afterAll, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { PrismaPostRepository } from "@adapters/db-prisma";
-import { PostId, ProjectId, PUBLISH_STATUS } from "@core/domain/index.js";
+import { PostId, ProjectId, PUBLISH_STATUS, InvalidValueError } from "@core/domain/index.js";
 import { ambientTenantContextProvider } from "../../../src/security/tenantContext.js";
 
 // ── console suppression ───────────────────────────────────────────────────────
@@ -231,6 +231,39 @@ describe("PrismaPostRepository", () => {
       expect(result.ok).toBeTruthy();
       expect(result.value.status.value).toBe("SCHEDULED");
       expect(result.value.scheduledAt !== undefined).toBeTruthy();
+    });
+  });
+
+  describe("findById — the stored content locale", () => {
+    it("reads a post whose content is in es with that locale", async () => {
+      const row = basePostRow();
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...row,
+        contents: [{ ...row.contents[0]!, locale: "es" }],
+      }));
+
+      const result = await repo.findById(PostId.fromStringUnsafe(POST_ID));
+
+      assert.ok(result.ok);
+      expect(result.value.content.locale).toBe("es");
+    });
+
+    it("fails the read with InvalidValueError naming the content row when its locale is fr", async () => {
+      const row = basePostRow();
+      prisma.post.findFirst.mockImplementation(async () => ({
+        ...row,
+        contents: [{ ...row.contents[0]!, locale: "fr" }],
+      }));
+
+      const read = repo.findById(PostId.fromStringUnsafe(POST_ID));
+
+      await expect(read).rejects.toBeInstanceOf(InvalidValueError);
+      await expect(read).rejects.toMatchObject({
+        field: "locale",
+        value: "fr",
+        message:
+          'PostContent d0000000-0000-4000-8000-000000000001 holds locale "fr", which is not a content locale (en, es)',
+      });
     });
   });
 

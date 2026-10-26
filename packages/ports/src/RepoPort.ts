@@ -6,6 +6,7 @@
  */
 import type {
   CanonicalPost,
+  ContentLocale,
   Result,
   Media,
   Account,
@@ -57,7 +58,7 @@ export type ListLogsQuery = {
 
 export type CreatePostInput = {
   projectId: string;
-  locale: "es" | "en";
+  locale: ContentLocale;
   title?: string;
   summary?: string;
   body: string;

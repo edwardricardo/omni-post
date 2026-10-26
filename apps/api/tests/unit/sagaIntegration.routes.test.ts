@@ -13,6 +13,7 @@
  */
 
 import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
+import assert from "node:assert/strict";
 import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
 import type { SagaExecutionEngine } from "../../src/saga/SagaManagerExecution.js";
@@ -185,6 +186,32 @@ describe("SagaIntegration - Post Publishing Routes", () => {
       passthroughReply
     );
     expect(publishNowResult.success).toBeTruthy();
+  });
+
+  it("refuses a new post in fr or pt in every mode, starting no saga", async () => {
+    const handler = routes.get("POST:/sagas/post-publishing/start");
+    assert.ok(handler);
+
+    for (const mode of ["draft", "schedule", "publish-now"] as const) {
+      for (const locale of ["fr", "pt"]) {
+        await expect(
+          handler(makeStartRequest({ mode, locale, body: "Bonjour" }), passthroughReply)
+        ).rejects.toThrowError(/Invalid saga start body/);
+      }
+    }
+  });
+
+  it("starts a saga for a new post in es and in en", async () => {
+    const handler = routes.get("POST:/sagas/post-publishing/start");
+    assert.ok(handler);
+
+    for (const locale of ["es", "en"]) {
+      const result = await handler(
+        makeStartRequest({ mode: "draft", locale, body: "Hola" }),
+        passthroughReply
+      );
+      expect(result.success).toBe(true);
+    }
   });
 });
 

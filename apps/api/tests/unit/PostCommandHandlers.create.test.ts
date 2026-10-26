@@ -93,6 +93,28 @@ describe("CreatePostCommandHandler", () => {
     expect(result.events === undefined || result.events.length === 0).toBe(true);
   });
 
+  it("refuses a command whose locale is fr or pt at schema validation, before the use case", async () => {
+    for (const locale of ["fr", "pt"]) {
+      const result = await handler.handle(buildCreatePostCommand({ locale }));
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/^Validation failed \(data\.locale: /);
+    }
+    expect(ctx.createPostUseCase.executeCalls.length).toBe(0);
+  });
+
+  it("passes a command in es and one in en to the use case with their locale", async () => {
+    for (const locale of ["es", "en"]) {
+      const result = await handler.handle(buildCreatePostCommand({ locale }));
+      expect(result.success).toBe(true);
+    }
+
+    const locales = ctx.createPostUseCase.executeCalls.map(
+      (input) => (input as { locale?: string }).locale
+    );
+    expect(locales).toEqual(["es", "en"]);
+  });
+
   it("rejects malformed commands at schema validation time", async () => {
     // Missing required field `body`.
     const invalidCommand = {

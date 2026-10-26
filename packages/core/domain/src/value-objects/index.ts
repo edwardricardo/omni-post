@@ -22,7 +22,15 @@ export {
 export { ShortCode } from "./ShortCode.js";
 
 // Content value objects
-export { Content, type ContentProps, type ContentLocale, type PlatformType } from "./Content.js";
+export {
+  Content,
+  type ContentProps,
+  type ContentLocale,
+  type PlatformType,
+  CONTENT_LOCALES,
+  isContentLocale,
+  contentLocaleFromStorage,
+} from "./Content.js";
 
 // Status value objects
 export { PublishStatus, type PublishStatusValue, PUBLISH_STATUS } from "./PublishStatus.js";

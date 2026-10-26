@@ -11,6 +11,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { isContentLocale, type ContentLocale } from "@shared/types";
 import { useRouter } from "@/i18n/navigation";
 import { useProjects } from "@/lib/api/hooks";
 import { ClientContentEditor } from "@/components/editor/ClientContentEditor";
@@ -20,6 +21,7 @@ import { Input } from "@packages/ui";
 import { Label } from "@packages/ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@packages/ui";
 import { ArrowLeft } from "lucide-react";
+import { useContentLocaleOptions } from "../useContentLocaleOptions";
 
 /**
  * @component NewPostPage
@@ -30,8 +32,9 @@ export default function NewPostPage() {
   const router = useRouter();
   const t = useTranslations("posts");
   const [selectedProject, setSelectedProject] = useState<string>("");
-  const [locale, setLocale] = useState<"en" | "es">("en");
+  const [locale, setLocale] = useState<ContentLocale>("en");
   const [tags, setTags] = useState<string>("");
+  const languageOptions = useContentLocaleOptions();
 
   const { data: projectsData } = useProjects();
   const projects = useMemo(() => projectsData?.data || [], [projectsData]);
@@ -90,13 +93,21 @@ export default function NewPostPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="locale">{t("fields.language")}</Label>
-              <Select value={locale} onValueChange={(value: "en" | "es") => setLocale(value)}>
+              <Select
+                value={locale}
+                onValueChange={(value) => {
+                  if (isContentLocale(value)) setLocale(value);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="en">{t("language.en")}</SelectItem>
-                  <SelectItem value="es">{t("language.es")}</SelectItem>
+                  {languageOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -89,6 +89,14 @@ export class CreatePostCommandHandler implements CommandHandler<
 
   constructor(private config: PostCommandHandlersConfig) {}
 
+  /**
+   * @method handle
+   * @description Validates the create-post command, delegates creation to the use case, then returns the new post's ID
+   * at version 0 together with the `POST_CREATED` and `CREATE_POST` events, after invalidating the project's list, search and stats caches.
+   * Failures, including thrown errors, come back as an unsuccessful result instead of propagating.
+   * @param command - Raw CQRS command, validated against the create-post schema
+   * @returns A successful result with the post ID and version 0, or an unsuccessful result carrying the validation or use-case error
+   */
   async handle(
     command: Command<unknown>
   ): Promise<CommandResult<{ postId: string; version: number }>> {
@@ -113,9 +121,7 @@ export class CreatePostCommandHandler implements CommandHandler<
         body: data.body,
         ...(data.title && { title: data.title }),
         ...(data.tags && { tags: data.tags }),
-        ...(data.locale && {
-          locale: data.locale as import("@core/domain/value-objects/Content.js").ContentLocale,
-        }),
+        ...(data.locale && { locale: data.locale }),
       });
 
       if (!result.ok) {
@@ -201,6 +207,14 @@ export class UpdatePostCommandHandler implements CommandHandler<
 
   constructor(private config: PostCommandHandlersConfig) {}
 
+  /**
+   * @method handle
+   * @description Validates the update-post command and delegates the change of body, title and tags to the use case, forwarding the caller's expected version when supplied.
+   * Emits `POST_UPDATED` and `UPDATE_POST` events and invalidates the post's caches only when at least one of those fields was provided;
+   * `mediaIds` is logged as unsupported and ignored. Failures, including thrown errors, come back as an unsuccessful result.
+   * @param command - Raw CQRS command, validated against the update-post schema
+   * @returns A successful result with a fixed version of 2, or an unsuccessful result carrying the validation or use-case error
+   */
   async handle(command: Command<unknown>): Promise<CommandResult<{ version: number }>> {
     try {
       // 1. Validate CQRS command schema
@@ -332,6 +346,14 @@ export class PublishPostCommandHandler implements CommandHandler<
 
   constructor(private config: PostCommandHandlersConfig) {}
 
+  /**
+   * @method handle
+   * @description Validates the publish-post command, loads the post, and refuses an unknown, malformed or already published post or an unresolvable channel.
+   * For each requested channel it emits a `POST_SCHEDULED` event with a generated job ID, plus a `PUBLISH_POST` user-action event, and invalidates the post's caches.
+   * It enqueues no job and changes no post state itself; thrown errors come back as an unsuccessful result.
+   * @param command - Raw CQRS command, validated against the publish-post schema
+   * @returns A successful result with the generated job IDs, or an unsuccessful result carrying the reason it was refused
+   */
   async handle(command: Command<unknown>): Promise<CommandResult<{ jobIds: string[] }>> {
     try {
       // 1. Validate CQRS command schema
@@ -491,6 +513,14 @@ export class CompletePostPublishingCommandHandler implements CommandHandler<
 
   constructor(private config: PostCommandHandlersConfig) {}
 
+  /**
+   * @method handle
+   * @description Validates the command and passes the per-channel publish outcome verbatim to the use case, which decides the post's promotion.
+   * A `COMPLETE_POST_PUBLISHING` event is emitted and the caches are invalidated only when the promotion was applied;
+   * channels the promotion could not resolve to a provider are logged as a warning. Failures, including thrown errors, come back as an unsuccessful result.
+   * @param command - Raw CQRS command, validated against the complete-publishing schema
+   * @returns A successful result with the post ID, the persisted version and whether the promotion was applied, or an unsuccessful result carrying the error
+   */
   async handle(
     command: Command<unknown>
   ): Promise<CommandResult<{ postId: string; version: number; applied: boolean }>> {
@@ -606,6 +636,14 @@ export class DeletePostCommandHandler implements CommandHandler<Command, { delet
 
   constructor(private config: PostCommandHandlersConfig) {}
 
+  /**
+   * @method handle
+   * @description Loads the post to capture its previous status, media count and schedule, then deletes it through the use case as the system caller of the publishing saga's compensation.
+   * On success it emits `POST_DELETED` and `DELETE_POST` events and invalidates the post's caches;
+   * an unknown or malformed ID and use-case failures come back as an unsuccessful result.
+   * @param command - CQRS command whose aggregate ID is the post to delete
+   * @returns A successful result with `deleted: true`, or an unsuccessful result carrying the error
+   */
   async handle(command: Command): Promise<CommandResult<{ deleted: boolean }>> {
     try {
       const { aggregateId, metadata } = command;
@@ -707,7 +745,9 @@ export class DeletePostCommandHandler implements CommandHandler<Command, { delet
 // ---------------------------------------------------------------------------
 
 /**
- * Factory function to create all post command handlers
+ * @description Builds the five post command handlers (create, update, publish, complete publishing, delete), all sharing one configuration.
+ * @param config - Use cases, repositories and Redis client the handlers depend on
+ * @returns The handlers, ready to register on the command bus
  */
 export function createPostCommandHandlers(
   config: PostCommandHandlersConfig

@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { isContentLocale, type ContentLocale } from "@shared/types";
 import { useCreateDraftViaSaga, useUpdatePost } from "@/lib/api/hooks";
 
 /**
@@ -55,7 +56,7 @@ export interface AutoSaveData {
   title?: string;
   tags?: string[];
   projectId?: string;
-  locale?: "es" | "en";
+  locale?: ContentLocale;
   selectedProviders?: string[];
   mediaFiles?: Array<{ file: File; url: string }>;
   lastSaved?: string;
@@ -104,7 +105,13 @@ export function useAutoSave(config: AutoSaveConfig) {
     if (!isBrowser()) return null;
     try {
       const raw = window.localStorage.getItem(draftKey);
-      return raw ? (JSON.parse(raw) as AutoSaveData) : null;
+      if (!raw) return null;
+      // A draft saved by an earlier build can name a language outside CONTENT_LOCALES: the
+      // draft is kept and that language is dropped.
+      const { locale, ...draft } = JSON.parse(raw) as Omit<AutoSaveData, "locale"> & {
+        locale?: unknown;
+      };
+      return { ...draft, ...(isContentLocale(locale) && { locale }) };
     } catch {
       return null;
     }
@@ -290,19 +297,15 @@ export function usePostDraft(postId?: string, onPostCreated?: (id: string) => vo
       title?: string;
       tags?: string[];
       projectId?: string;
-      /** Accepts any string for caller convenience; only "es" | "en" is forwarded. */
-      locale?: string;
+      locale?: ContentLocale;
       selectedProviders?: string[];
     }) => {
-      const narrowedLocale: "es" | "en" | undefined =
-        draft.locale === "es" || draft.locale === "en" ? draft.locale : undefined;
-
       autoSave.save({
         body: draft.content,
         ...(draft.title !== undefined && { title: draft.title }),
         ...(draft.tags !== undefined && { tags: draft.tags }),
         ...(draft.projectId !== undefined && { projectId: draft.projectId }),
-        ...(narrowedLocale !== undefined && { locale: narrowedLocale }),
+        ...(draft.locale !== undefined && { locale: draft.locale }),
         ...(draft.selectedProviders !== undefined && {
           selectedProviders: draft.selectedProviders,
         }),

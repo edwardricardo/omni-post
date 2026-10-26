@@ -7,7 +7,14 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
-import { Content, CONTENT_LOCALES } from "@core/domain/value-objects/Content.js";
+import {
+  Content,
+  CONTENT_LOCALES,
+  contentLocaleFromStorage,
+  isContentLocale,
+} from "@core/domain/value-objects/Content.js";
+import { InvalidValueError } from "@core/domain/errors/index.js";
+import { CONTENT_LOCALES as SHARED_CONTENT_LOCALES } from "@shared/types";
 import { MediaId } from "@core/domain/value-objects/EntityId.js";
 
 describe("Content value object", () => {
@@ -42,6 +49,17 @@ describe("Content value object", () => {
       const result = Content.create({ body: "Hola", locale: "es" });
       assert.ok(result.ok);
       assert.equal(result.value.locale, "es");
+    });
+
+    it("rejects with InvalidValueError a locale outside CONTENT_LOCALES (fr, pt)", () => {
+      for (const locale of ["fr", "pt"]) {
+        // canon-exception: test-fixture
+        const result = Content.create({ body: "Bonjour", locale: locale as never });
+        assert.ok(!result.ok);
+        assert.ok(result.error instanceof InvalidValueError);
+        assert.equal(result.error.field, "locale");
+        assert.equal(result.error.value, locale);
+      }
     });
 
     it("rejects empty body", () => {
@@ -377,19 +395,43 @@ describe("Content value object", () => {
   // =========================================================================
 
   describe("CONTENT_LOCALES", () => {
-    it("includes en and es", () => {
-      expect(CONTENT_LOCALES).toContain("en");
-      expect(CONTENT_LOCALES).toContain("es");
+    it("lists exactly the languages the product supports end to end: es and en", () => {
+      expect(CONTENT_LOCALES).toEqual(["en", "es"]);
     });
 
-    it("includes all expected locales", () => {
-      for (const locale of ["en", "es", "pt", "fr", "de", "it", "ja", "ko", "zh"]) {
-        expect(CONTENT_LOCALES).toContain(locale);
+    it("is the shared kernel's list itself, so every layer reads one source", () => {
+      expect(CONTENT_LOCALES).toBe(SHARED_CONTENT_LOCALES);
+    });
+
+    it("isContentLocale accepts each listed locale and refuses fr, pt, an empty string and a non-string", () => {
+      for (const locale of CONTENT_LOCALES) assert.equal(isContentLocale(locale), true);
+      for (const value of ["fr", "pt", "", "EN", undefined, 42]) {
+        assert.equal(isContentLocale(value), false);
       }
     });
+  });
 
-    it("has exactly 9 locales", () => {
-      assert.equal(CONTENT_LOCALES.length, 9);
+  // =========================================================================
+  // contentLocaleFromStorage
+  // =========================================================================
+
+  describe("contentLocaleFromStorage", () => {
+    it("returns the stored locale when it is a content locale", () => {
+      const result = contentLocaleFromStorage("es", "PostContent pc-1");
+      assert.ok(result.ok);
+      assert.equal(result.value, "es");
+    });
+
+    it("returns InvalidValueError naming the row and the value when the stored locale is fr", () => {
+      const result = contentLocaleFromStorage("fr", "PostContent pc-1");
+      assert.ok(!result.ok);
+      assert.ok(result.error instanceof InvalidValueError);
+      assert.equal(result.error.field, "locale");
+      assert.equal(result.error.value, "fr");
+      assert.equal(
+        result.error.message,
+        'PostContent pc-1 holds locale "fr", which is not a content locale (en, es)'
+      );
     });
   });
 });

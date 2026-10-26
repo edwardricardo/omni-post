@@ -125,6 +125,15 @@ describe("PrismaProjectRepository", () => {
       expect(prisma.project.findFirst.mock.calls.length).toBe(1);
     });
 
+    it("fails the read when the stored locale is not a content locale", async () => {
+      prisma.project.findFirst.mockImplementation(async () => ({ ...baseRow(), locale: "fr" }));
+      const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");
+
+      await expect(repo.findById(id)).rejects.toThrow(
+        'Project b0000000-0000-4000-8000-000000000001 holds locale "fr", which is not a content locale (en, es)'
+      );
+    });
+
     it("returns err(EntityNotFoundError) when row is null", async () => {
       prisma.project.findFirst.mockImplementation(async () => null);
       const id = ProjectId.fromStringUnsafe("b0000000-0000-4000-8000-000000000001");

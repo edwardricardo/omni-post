@@ -9,6 +9,7 @@
  */
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
+import { isContentLocale, type ContentLocale } from "@shared/types";
 import { useRouter } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { usePost, useProjects } from "@/lib/api/hooks";
@@ -39,6 +40,7 @@ import {
 } from "@packages/ui";
 import { ArrowLeft, Save, Send, Calendar, BarChart3, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { useContentLocaleOptions } from "../useContentLocaleOptions";
 
 /**
  * @component EditPostPage
@@ -50,7 +52,8 @@ export default function EditPostPage() {
   const params = useParams();
   const postId = params.id as string;
 
-  const [locale, setLocale] = useState<"en" | "es">("en");
+  const [locale, setLocale] = useState<ContentLocale>("en");
+  const languageOptions = useContentLocaleOptions();
   const [tags, setTags] = useState<string>("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -88,7 +91,7 @@ export default function EditPostPage() {
   // Initialize form data when post loads
   useEffect(() => {
     if (post) {
-      setLocale(post.locale as "en" | "es");
+      setLocale(post.locale);
       setTags(post.tags?.join(", ") || "");
     }
   }, [post]);
@@ -350,13 +353,21 @@ export default function EditPostPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="locale">{t("fields.language")}</Label>
-                  <Select value={locale} onValueChange={(value: "en" | "es") => setLocale(value)}>
+                  <Select
+                    value={locale}
+                    onValueChange={(value) => {
+                      if (isContentLocale(value)) setLocale(value);
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="en">{t("language.en")}</SelectItem>
-                      <SelectItem value="es">{t("language.es")}</SelectItem>
+                      {languageOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -397,7 +408,7 @@ export default function EditPostPage() {
             {...(post.title && { initialTitle: post.title })}
             {...(post.tags && { initialTags: post.tags })}
             {...(post.projectId && { projectId: post.projectId })}
-            {...(post.locale && { locale: post.locale })}
+            locale={locale}
             showPreview={true}
           />
         </div>
