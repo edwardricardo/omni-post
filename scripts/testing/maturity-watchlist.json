@@ -79,90 +79,18 @@
       }
     },
     {
-      "kind": "package",
-      "name": "next",
-      "version": "16.3.8",
-      "published": "2026-09-30T16:07:21.198Z",
-      "members": [
-        "@next/env@16.3.8",
-        "@next/swc-darwin-arm64@16.3.8",
-        "@next/swc-darwin-x64@16.3.8",
-        "@next/swc-linux-arm64-gnu@16.3.8",
-        "@next/swc-linux-arm64-musl@16.3.8",
-        "@next/swc-linux-x64-gnu@16.3.8",
-        "@next/swc-linux-x64-musl@16.3.8",
-        "@next/swc-win32-arm64-msvc@16.3.8",
-        "@next/swc-win32-x64-msvc@16.3.8"
-      ],
-      "entered": {
-        "date": "2026-10-01",
-        "commit": "dfc52e15",
-        "pr": 325,
-        "via": "the catalog CVE floor, a deliberate deviation from the buffer approved on 2026-10-01, 0.4 days after publication"
-      },
-      "milestones": {
-        "maturity": "2026-10-07",
-        "final": "2026-10-14"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-07",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-07, the milestone day, after 16.3.8 left the 7-day buffer at 16:07Z (published 2026-09-30T16:07:21Z). Registry: 16.3.8 is the newest 16.3.x; 16.4.0 is latest, published 2026-10-06T18:35:31Z, and matures 2026-10-13T18:35Z, the day before the final milestone. OSV: nothing for next 16.3.8 or 16.4.0, nor for @next/env or @next/swc-linux-x64-gnu 16.3.8; the seven repository advisories of 2026-09-30 that this floor closes reach OSV only as CVE records with git ranges (CVE-2026-94483 for GHSA-cjq9-62q9-8jv4, CVE-2026-103004 for GHSA-h694-7cp9-m8p3, CVE-2026-94486 for GHSA-39w2-rjm5-chcv, published 2026-10-01 and 2026-10-02), whose fixed commit b0fad0d4 is the v16.3.8 tag itself. GitHub: the global advisory search lists none affecting next@16.3.8, and the repository's newest advisories are those seven, published 2026-09-30T16:14Z to 16:15Z and fixed in 16.3.8. Release notes of 16.4.0: core and misc changes, among them upgrade prompts for vulnerable versions and a HackerOne disclosure pointer; no advisory is named as fixed. Upstream issues opened since 2026-09-30 that name 16.3.8 include two regressions, #99683 (the image optimizer ignores HTTP(S)_PROXY) and #99680 (stale route-cache entries survive an in-place deploy), and several Cache Components defects; none is a security report, and no file of apps/admin or apps/client names HTTP(S)_PROXY, cacheComponents or 'use cache'. Reachability: production, the dependencies of apps/admin and apps/client; the lockfile, parsed with yaml.safe_load_all, holds one next@16.3.8 and one @next/env@16.3.8. Works here: both portals' production builds and suites were measured green on it when it was taken (canon CVE-floor row next). Clean; the 14-day review is due 2026-10-14, when 16.4.0 is already mature."
-        },
-        "final": {
-          "date": "2026-10-14",
-          "outcome": "flagged",
-          "note": "Reviewed 2026-10-14, the milestone day; the reminder opened #563 at 2026-10-14T00:09Z. Registry, read 2026-10-14T19:27Z: 16.3.8 has no 16.3.x successor; 16.4.0 (2026-10-06T18:35:31Z) matured 2026-10-13T18:35Z, and 16.4.1 is latest since 2026-10-14T17:43:55Z, beside the backport 15.5.28 (17:36:08Z); 16.4.1 matures 2026-10-21T17:43Z. 16.4.1 is a security release: three vercel/next.js repository advisories, published 2026-10-14 between 17:46Z and 17:47Z, cover 16.3.8 and are fixed on the 16.x line only in 16.4.1: GHSA-673q-mjm6-r5xr (critical, unauthenticated remote code execution in a 'use cache' function that returns multiple typed arrays, >=16.0.0 <=16.4.0), GHSA-2464-fhr4-w9xw (critical, CVE-2026-96889, the librsvg use-after-free reached through the Image Optimization API on glibc Linux, >16.0.0 <=16.4.0; its workaround is sharp >=0.35.5, and 16.4.1 raises its optional sharp range from ^0.35.4 to ^0.35.5) and GHSA-p3m5-59mp-jv5r (high, CPU denial of service in an App Router app with at least one Server Action, >=16.0.0 <=16.4.0). OSV and GitHub's global endpoint answer 404 for all three at 19:28Z, OSV lists nothing for next 16.3.8, 16.4.0 or 16.4.1, no global advisory affects next@16.3.8, and pnpm audit --audit-level low finds no known vulnerability at 19:34:50Z: the audit gate is green over them, the shape the CVE-floor row next recorded on 2026-09-30. Of the seven repository advisories that floor closed, six reached the global database on 2026-10-07 between 20:30:55Z and 20:32:13Z with CVE ids (GHSA-cjq9-62q9-8jv4 CVE-2026-94483, GHSA-mcj8-r9mp-w47p CVE-2026-94484, GHSA-f87g-xv8r-7p7x CVE-2026-94485, GHSA-39w2-rjm5-chcv CVE-2026-94486, GHSA-4jqv-mc3x-m676 CVE-2026-94543, GHSA-3w37-wq28-93x7 CVE-2026-94544), each first patched in 16.3.8, and OSV carries them; GHSA-h694-7cp9-m8p3 still answers 404 on both and reaches OSV only as CVE-2026-103004, a git range fixed at b0fad0d4, the v16.3.8 tag. Reachability, measured: GHSA-p3m5-59mp-jv5r is REACHABLE: both portals run the App Router with Server Actions, apps/admin/app/actions/auth.ts (loginAction, logoutAction) and apps/client/app/actions/auth.ts (loginAction, completeMfaLoginAction, registerAction), behind the unauthenticated login and register pages. GHSA-2464-fhr4-w9xw is mitigated by the lockfile, parsed with yaml.safe_load_all: next 16.3.8's one sharp is 0.35.5 (CVE-floor row sharp, 2026-10-06), the advisory's own workaround. GHSA-673q-mjm6-r5xr is not reachable: no file of apps/admin, apps/client or packages/ui names 'use cache', cacheComponents or dynamicIO, though the advisory asks every affected app to upgrade. Upstream issues: 40 opened since 2026-09-30 name 16.3.8, 20 of them from 2026-10-07 on; none is a security report, the two regressions that review named (#99683, #99680) are still open and still unreached here, and no issue names 16.4.1 yet. 16.4.1 keeps 16.3.8's dependency, peer and engines ranges apart from its own version and that sharp range; #100064 (open, a Turbopack build spawning a webpack-loader pool per loader chain since 16.4.0-canary.39) needs Turbopack loader rules, and neither next.config.mjs sets one. Works here on 16.3.8: main 63028bba's CI run 38623295148 (push, 2026-10-14T19:23Z, success at 19:35:16Z) passed Build Check (pnpm --filter @apps/admin build), Frontend Tests and Storybook Stories, and f8238ea3's Production CI/CD run 38621206461 (19:08Z) built both portal images and passed their smoke step, which starts each portal and checks that it serves. Flagged, not clean: 16.3.8 is inside the range of three advisories published today, two critical and one reachable high, the audit cannot see them, and the minimal patched version, 16.4.1, is inside the buffer until 2026-10-21T17:43Z. The CVE-floor row next needs the owner's decision: raise the floor to 16.4.1 inside the buffer, the shape of the 2026-10-01 deviation, with both portals' builds and suites measured, or hold 16.3.8 until 2026-10-21T17:43Z with the reachable high recorded. The entry stays until 16.3.8 leaves the tree."
-        }
-      }
-    },
-    {
       "kind": "date",
       "id": "contract-0.16-node-26",
-      "title": "Re-check Node 26 move on 2026-10-28: LTS promotion, distroless digest, pins",
-      "due": "2026-10-28",
+      "title": "Re-check the Node 26 move once its 2026-10-28 LTS promotion is published: LTS status, distroless digest, pins",
+      "due": "2026-11-03",
       "refs": [
         "docs/technical/ADR-0038-node-26-ahead-of-lts.md, Revisit if: the 2026-10-28 re-check of the move made on 2026-10-15 (LTS promotion, distroless digest, build stage, setup-node resolution, engines floor and @types/node, Prisma's statement)",
         "branch workstream/node-26, the change that made the move; docs/development/TESTING_REFOUNDATION.md, decision D52",
         "openspec/changes/testing-refoundation/tasks.md, task 0.16",
-        "2026-10-22, branch workstream/runtime-node-26-12-1 (ADR-0038, Amendment of 2026-10-22): Node 26.12.1, the security release of 2026-10-21, was taken inside the 7-day buffer as the engines floor and in both image stages; this review also confirms that 26.12.1 is mature (it matures 2026-10-28), that nodejs.org/dist/index.json lists no newer 26.x release with security: true (one would be taken at once, ADR-0036), and that CI's setup-node and both FROM lines of the four Dockerfiles still run 26.12.1 or a later 26.x"
+        "2026-10-22, branch workstream/runtime-node-26-12-1 (ADR-0038, Amendment of 2026-10-22): Node 26.12.1, the security release of 2026-10-21, was taken inside the 7-day buffer as the engines floor and in both image stages; this review also confirms that 26.12.1 is mature (it matures 2026-10-28), that nodejs.org/dist/index.json lists no newer 26.x release with security: true (one would be taken at once, ADR-0036), and that CI's setup-node and both FROM lines of the four Dockerfiles still run 26.12.1 or a later 26.x",
+        "Read 2026-10-27, a day before the 2026-10-28 due date, by the change that records the watchlist reviews due 2026-10-28 and 2026-10-29: nodejs.org/dist/index.json at 22:13Z lists v26.12.1 (2026-10-21, security: true) as the newest release, with lts: false, so Node 26's promotion to Active LTS, scheduled for 2026-10-28, has not happened, and no 26.x security release follows 26.12.1, which matures on 2026-10-28. gcr.io/distroless/nodejs26-debian13 `latest` is sha256:e6ffd0e0ddbbcad0231684befb2c421591c2be46baa71da7d9065294c17efc0d at 22:13Z, not the pinned 456bd22a; run with podman, both images report Node v26.12.1 with OpenSSL 3.5.9, and their var/lib/dpkg/status.d differs only in tzdata and tzdata-legacy (2026c-0+deb13u1 in the pin, 2026e-0+deb13u1 in latest), no security fix. `due` moved from 2026-10-28 to 2026-11-03, the next Tuesday window, when the promotion can be confirmed. Recorded here and not under `reviews.due`, because the fact the review waits for has not happened"
       ],
       "reviews": {}
-    },
-    {
-      "kind": "package",
-      "name": "next",
-      "version": "16.4.1",
-      "published": "2026-10-14T17:43:55.246Z",
-      "members": [
-        "@next/env@16.4.1",
-        "@next/swc-darwin-arm64@16.4.1",
-        "@next/swc-darwin-x64@16.4.1",
-        "@next/swc-linux-arm64-gnu@16.4.1",
-        "@next/swc-linux-arm64-musl@16.4.1",
-        "@next/swc-linux-x64-gnu@16.4.1",
-        "@next/swc-linux-x64-musl@16.4.1",
-        "@next/swc-win32-arm64-msvc@16.4.1",
-        "@next/swc-win32-x64-msvc@16.4.1"
-      ],
-      "entered": {
-        "date": "2026-10-14",
-        "commit": "24166702",
-        "pr": 594,
-        "via": "the catalog CVE floor, about 2.4 hours after publication and 7 days before the 2026-10-21T17:43Z maturity: 16.3.8 is inside the ranges of GHSA-673q-mjm6-r5xr and GHSA-2464-fhr4-w9xw (critical) and GHSA-p3m5-59mp-jv5r (high), vercel/next.js repository advisories published 2026-10-14 between 17:46Z and 17:47Z and not yet in OSV or the GitHub global database, and 16.4.1 is the minimal patched version and latest; production, the dependencies of apps/admin and apps/client, the high reachable through their Server Actions (apps/admin/app/actions/auth.ts, apps/client/app/actions/auth.ts)"
-      },
-      "milestones": {
-        "maturity": "2026-10-21",
-        "final": "2026-10-28"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-21",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-21, the milestone day, after 16.4.1 left the 7-day buffer at 17:43:55Z (published 2026-10-14T17:43:55Z; @next/env and the swc binaries at 17:29Z); the reminder opened #671 at 17:54Z. Registry, read 2026-10-21T18:42Z: 16.4.2 is latest since 2026-10-15T20:57:24Z and matures 2026-10-22T20:57Z; it keeps every dependency, peer, optional and engines range of 16.4.1 apart from its own family's version, and its release notes list eight backports (turbo-tasks and Turbopack fixes, documentation), nothing on security; the canary is 16.5.0-canary.21. Advisories: the vercel/next.js repository lists nothing newer than the three of 2026-10-14 this floor closes (GHSA-673q-mjm6-r5xr, GHSA-2464-fhr4-w9xw, GHSA-p3m5-59mp-jv5r); OSV and GitHub's global endpoint still answer 404 for all three at 18:46Z, so pnpm audit still cannot see them. OSV lists nothing for next, @next/env or @next/swc-linux-x64-gnu at 16.4.1, nor for next 16.4.2, and no global advisory affects next@16.4.1. Upstream issues: seventeen opened since 2026-10-14 name 16.4.1. One bears on this floor: #100299 (reopened from #100298, closed 2026-10-16) shows that next's detectContentType types an SVG that begins with <!--ftypavif--> as AVIF, so under the default config (dangerouslyAllowSVG false) /_next/image hands it to sharp and librsvg; the reporter's file fires on sharp 0.35.4 and is rasterized on 0.35.5, the fix (#100347, require a valid ftyp box size) is open and unmerged, and 16.4.2 does not carry it. The client's images.remotePatterns admits any https host, so the vector is reachable, and the sharp floor, whose one copy in the lockfile is 0.35.5, is what keeps GHSA-2464-fhr4-w9xw closed, as the canon CVE-floor row sharp records. Two closed reports of braces 3.0.3 under next's ESLint tooling (#100497, #100531) reach nothing here: the lockfile holds no braces. The rest are Turbopack, cacheComponents and 'use cache' defects, none a security report; #100260 (open) reports standalone output and server RSS growing on 16.4, and both portals set output: 'standalone'; no file of apps/admin, apps/client or packages/ui names 'use cache' or cacheComponents. Works here: main ee794524's CI run 39189953529 (push, 2026-10-19T02:26Z, success) passed Build Check (the admin build), Frontend Tests and Storybook Stories on 16.4.1, and its Production CI/CD run 39189953574 passed Test and Build and Container Security for the admin and client images. Clean; the 14-day review is due 2026-10-28, when 16.4.2 is mature."
-        }
-      }
     },
     {
       "kind": "date",
@@ -221,36 +149,6 @@
           "date": "2026-10-27",
           "outcome": "clean",
           "note": "Reviewed 2026-10-27, the milestone day, after storybook 10.6.3 left the 7-day buffer at 09:52:08Z (published 2026-10-20T09:52:08Z); the reminder opened #746 at 2026-10-27T00:14:50Z. The tree holds nine of the entry's ten packages, one copy each at 10.6.3 in the lockfile, parsed with yaml.safe_load_all: storybook, @storybook/addon-a11y, addon-vitest, nextjs-vite, react, builder-vite, react-dom-shim, react-vite and vite-plugin-storybook-nextjs. @storybook/addon-docs left the tree with #737 (bea1409c, merged 2026-10-26T00:15:22Z); it was the family's last publication (11:11:50Z), so the family as held left the buffer at 09:54:07Z, after @storybook/react (09:54:06Z), not at the 11:11Z that the catalog comment in pnpm-workspace.yaml and the canon CVE-floor row storybook still state. Registry, read 2026-10-27T09:57Z: 10.6.4 is latest for all nine since 2026-10-26, published between 10:33:13Z and 10:38:18Z (storybook last), and matures 2026-11-02T10:38Z; it is the only release after 10.6.3 on 10.x, and the next tag is 11.0.0-alpha.8 (2026-10-23T09:07:38Z) for eight of them (@storybook/react-dom-shim's next is 11.0.0-alpha.1). Release notes: 10.6.4 holds one change, #36790 (merged 2026-10-21T10:01:44Z), which skips the TypeScript loader hook registration when JEST_WORKER_ID is set; v10.6.3...v10.6.4 is that merge plus the version and changelog commits, upstream main equals v10.6.4 (compare ahead 0, behind 0), and the lockfile holds no jest, so 10.6.4 changes nothing here. 10.6.3's own notes are #36671 (Addon Vitest supports Vitest 5), #36588 (the Next.js app-router mock crash on 16.4), #36732 (parentRenderTree.bfcacheId in the nextjs-vite app-router mock) and #36583 (an ArgsStore#get return type). Advisories: OSV, at 09:57Z, lists nothing for any of the nine at 10.6.3 or 10.6.4; for storybook at any version it lists four, all fixed at or below 10.6.2: GHSA-8452-54wp-rmv6, GHSA-mjf5-7g4m-gx5w, GHSA-f2ph-cmg5-wxc8 (critical, CVE-2026-114125, the floor this entry holds) and GHSA-px85-f4q5-jh77 (high, CVE-2026-114126: the dev server hands its WebSocket token to any host that loads its pages, so a LAN peer can write story files, and with the vitest addon other files; storybook and @storybook/addon-vitest >=10.0.0 <10.6.2), which reached GitHub's global database on 2026-10-22T16:31:40Z, the day after the family moved, and which the canon row storybook does not name. GitHub, at 09:58Z: no global advisory affects any of the nine at 10.6.3 or 10.6.4 (the same query for storybook@10.6.1 returns both 2026-10 advisories), and storybookjs/storybook lists four repository advisories, the same four, the newest two published there 2026-10-12T19:13Z. pnpm audit --audit-level low at 10:01:05Z finds no known vulnerability. Reachability: dev-only, the devDependencies of apps/client and packages/ui. Its script storybook dev -p 6006 passes no --host, and 10.6.3's core-server listens on host || '127.0.0.1', so the dev server is loopback-only; no vitest config re-enables browser.api allowWrite or allowExec, which 10.6.2 and later disable in the vitest addon. Upstream issues: 14 opened in storybookjs/storybook since 2026-10-20 (search complete), six of them naming 10.6.3, none a security report, none reaching this use: #37016 (open, the nextjs-vite next/cache mock lacks io) needs a component that imports next/cache, and no file of apps/client or packages/ui does; #37019 (open, controls missing under react-docgen-typescript) needs EXPERIMENTAL_useProjectService, which apps/client/.storybook/main.ts does not set; #36966 (closed, the next/link mock drops the hash of an object href) needs an object href, and neither tree has one; #36995 needs eslint-plugin-storybook, absent from the lockfile; #37031 is TurboSnap's preview-stats, unused here; #36956 (closed) asks for a configurable UniversalStore timeout; #36899 (whats-new fetched despite disableWhatsNewNotifications, reported on 10.6.2) is the dev server's manager; #37030 is the manager's sidebar search, not the a11y addon's axe run. Why it entered still holds: the ADR-0037 patch is gone (pnpm check:patched-deps reports 0 patched dependencies, no patches/ directory), next is 16.4.1, and the installed @storybook/nextjs-vite 10.6.3 carries parentRenderTree: { data: { bfcacheId: 0 } } in dist/_browser-chunks/chunk-TCVY5TW2.js. 10.6.3 still prints DEP0205 on Node 26, so test:stories keeps --disable-warning=DEP0205, which the date entry storybook-11-dep0205 tracks to 2026-11-03. The holds gate, run once at 10:00Z, exits 0: the five catalog members read 10.6.3 at or above latest mature (48 population packages, 18 below latest mature: 11 within budget, 7 held, 0 undocumented). Works here: main 56ef1629's CI run 40456529917 (push, 2026-10-27T05:39Z, success at 05:52:46Z) passed Storybook Stories, 68 of 68 tests in 9 files, at 05:40:15Z, beside Frontend Tests, Build Check and Security Audit. Clean; the 14-day review is due 2026-11-03, when 10.6.4 is mature."
-        }
-      }
-    },
-    {
-      "kind": "package",
-      "name": "vitest",
-      "version": "4.1.12",
-      "published": "2026-10-15T14:51:24.991Z",
-      "members": [
-        "@vitest/browser@4.1.12",
-        "@vitest/browser-playwright@4.1.12",
-        "@vitest/coverage-v8@4.1.12",
-        "@vitest/ui@4.1.12",
-        "@vitest/mocker@4.1.12"
-      ],
-      "entered": {
-        "date": "2026-10-21",
-        "commit": "b524e57e",
-        "pr": 674,
-        "via": "the catalog family move that is the CVE floor for GHSA-qxg6-89mg-rqv8 (moderate, CVE-2026-112949, @vitest/mocker >=2.1.0-beta.7 <4.1.12) and GHSA-xp26-3454-mjgp (moderate, CVE-2026-112950, @vitest/mocker >=4.1.11 <4.1.12), whose minimal patched version is 4.1.12; a security-tied deviation the owner pre-agreed on 2026-10-21, taken about 6.3 days after publication and about 17 hours before the 2026-10-22T14:51:25Z maturity, once the advisories turned pnpm audit red; dev-only (every vitest tier; @vitest/mocker's browser path in the apps/client stories)"
-      },
-      "milestones": {
-        "maturity": "2026-10-22",
-        "final": "2026-10-29"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-22",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-22, the milestone day, after the family left the 7-day buffer at 14:51:25Z (vitest, the last member, published 2026-10-15T14:51:24.991Z; @vitest/mocker at 14:40:12Z and the others between 14:39:46Z and 14:42:05Z); no reminder issue was open at 16:01Z, the reminder's last run having started 2026-10-21T23:54Z. Registry, read 2026-10-22T15:58Z: 4.1.12 is the V4 tag of vitest and of the eleven @vitest packages, nothing is published on 4.x after it, and the upstream v4 branch is identical to the v4.1.12 tag (compare, ahead_by 0); latest is 5.0.5 (2026-10-15T14:29:01Z, mature since 2026-10-22T14:29Z) and beta 5.1.0-beta.1 (2026-10-19). The holds gate, run once at 15:59Z, exits 0: vitest, @vitest/browser, @vitest/browser-playwright, @vitest/coverage-v8 and @vitest/ui read 4.1.12 held against 5.0.5 by the vitest hold row (52 population packages, 12 below latest mature: 4 within budget, 8 held, 0 undocumented). Advisories: OSV, at 15:58Z, lists nothing for any of the twelve family packages at 4.1.12 (vitest, @vitest/browser, browser-playwright, coverage-v8, expect, mocker, pretty-format, runner, snapshot, spy, ui, utils) and returns the two this floor closes, GHSA-qxg6-89mg-rqv8 (CVE-2026-112949) and GHSA-xp26-3454-mjgp (CVE-2026-112950), for @vitest/mocker 4.1.11; GitHub's global endpoint, at 15:59Z, lists no advisory affecting vitest@4.1.12 or @vitest/mocker@4.1.12 and the same two for @vitest/mocker@4.1.11 (global since 2026-10-21T19:54Z and 19:48Z). The vitest-dev/vitest repository has published no advisory after 2026-10-16: its newest are those two and GHSA-p458-7748-mcp3 (all 2026-10-16T07:59Z), which covers @vitest/ui and @vitest/browser >=5.0.0-beta.6 <5.0.5 only, the 5.x one the vitest hold row names. Lockfile, parsed with yaml.safe_load_all: one copy each of vitest, @vitest/mocker, browser, browser-playwright, coverage-v8, ui, runner and snapshot, all 4.1.12; storybook 10.6.3 keeps @vitest/expect and @vitest/spy 3.2.4 (with utils and pretty-format 3.2.4) beside their 4.1.12 copies, which the advisories do not name and OSV lists nothing for. Release notes: the only GitHub release after v4.1.12 is the prerelease v5.1.0-beta.1, none on 4.x; @vitest/mocker's msw peer reads ^2.4.9 at 4.1.12 and ^2.4.9 || ^3.0.0 from 5.0.4 on, unchanged in 5.0.5 and 5.1.0-beta.1, as the msw hold row cites. Upstream issues: one opened since 2026-10-21 names 4.1.12 (search API, total 1), #11689 (open, p3-minor-bug), the @vitest/ui HTML reporter throwing in onTestRunEnd when --bail cancels test files; it concerns neither module mocking, browser mode nor coverage, and nothing here passes --bail or runs the HTML test reporter (the 'html' in apps/api/vitest.config.ts is a coverage reporter). The one other since 2026-10-15, #11624 (closed 2026-10-16), is @vitest/browser-webdriverio 4.1.12 never published, which vitest 4.1.12 peers optionally as ^4.1.11 and this tree does not install. Works here: every battery run today was on 4.1.12 and GREEN (808d73d3 at 15:27Z, 773ed513 at 15:48Z, 8c6e73fd at 15:56Z), each with the api, workers, api-common and scripts suites and the client stories; main 487be6b5's CI run 39716836796 (push, 2026-10-22T03:26Z, success at 03:37Z) passed both Test Suite shards, Frontend Tests, Package Tests, Integration Tests and Storybook Stories, and the Nightly Full Test Suite run 39746669935 on it (08:17Z to 08:38Z) passed. The CI red on #675 before its merge was not vitest: its regenerated lockfile left a second next copy peered to @playwright/test 1.64.0, hence a second @sentry/nextjs the instrumentation test mock never reached. Clean; the 14-day review is due 2026-10-29."
         }
       }
     }
