@@ -1,7 +1,8 @@
 # Testing Re-foundation — Progress Tracker
 
 **Owner:** Platform engineering
-**As of:** 2026-10-27 — scalar-out: Scalar leaves; with `API_DOCS_ENABLED` the API serves only the OpenAPI
+**As of:** 2026-10-27 — WU-2.2c c1: the ledger reads subjects, duplicates and dead helpers into its
+verdict (DELETE 51, ADJUDICATE 110); M1 stays `1060 + 13`. scalar-out: Scalar leaves; with `API_DOCS_ENABLED` the API serves only the OpenAPI
 document, at `/docs/json` and `/docs/openapi.yaml`, whose server is now relative; M1 stays `1060 + 13`. api-docs: the API reference and the OpenAPI document it renders are served only where
 `API_DOCS_ENABLED` is set (default false); its two new suites move M1 to `1060 + 13`. content-languages: a post's content language has one list, `CONTENT_LOCALES`
 (`es`, `en`) in `@shared/types`, which the core re-exports; the API inputs validate against it, the
