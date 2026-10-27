@@ -1,6 +1,6 @@
 {
   "generator": "scripts/legal/subprocessors.mjs",
-  "pendingBaseline": 1,
+  "pendingBaseline": 0,
   "tooling": [
     {
       "workspace": "@packages/test-contracts",
@@ -231,10 +231,6 @@
     "@radix-ui/react-scroll-area": {
       "status": "library",
       "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
-    },
-    "@scalar/fastify-api-reference": {
-      "status": "pending",
-      "note": "Serves the API reference at `/docs/` from its bundled script, only where `API_DOCS_ENABLED` is set (off by default). The bundle names Scalar's request proxy (`proxy.scalar.com`), and whether its request client sends calls through that proxy under this configuration is not established."
     },
     "@secretlint/secretlint-rule-preset-recommend": {
       "status": "library",

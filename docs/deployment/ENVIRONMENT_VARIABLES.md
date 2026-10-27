@@ -317,10 +317,10 @@ Ensure ffmpeg is installed on the host or in the Docker image for video features
 
 ## Security (Optional)
 
-| Variable              | Required | Default | Description                                                                                                                                                                                                                  |
-| --------------------- | -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ALLOWED_MEDIA_HOSTS` | No       | --      | Comma-separated list of allowed media host domains                                                                                                                                                                           |
-| `API_DOCS_ENABLED`    | No       | `false` | Serves the OpenAPI document at `/docs/json` and `/docs/openapi.yaml`, and the reference page at `/docs/`, which the API's CSP keeps from rendering (DEF-144); the document maps every route, so leave it unset in production |
+| Variable              | Required | Default | Description                                                                                                                          |
+| --------------------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `ALLOWED_MEDIA_HOSTS` | No       | --      | Comma-separated list of allowed media host domains                                                                                   |
+| `API_DOCS_ENABLED`    | No       | `false` | Serves the OpenAPI document at `/docs/json` and `/docs/openapi.yaml`; the document maps every route, so leave it unset in production |
 
 ---
 
