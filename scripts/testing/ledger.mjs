@@ -3,10 +3,13 @@
  * @file ledger.mjs
  * @description The test ledger's command: one row per test-shaped file, runner, helper and
  *   dead-suffix file under the workspaces, `security/` and `performance/`, each test-shaped file
- *   joined to the reach engine's sources and its quarantine owner and its blocks classified,
- *   written as `ledger.json` at the repository root or checked against it. The rows, the verdict
- *   table, the summary and the rendering are `lib/ledger-core.mjs`'s; the reach report and the
- *   quarantine are read through `lib/reach-report.mjs`, which `metrics.mjs` M5 shares.
+ *   joined to the reach engine's sources and its quarantine owner, its blocks classified, its
+ *   stem's module and its copies of its siblings found, and each runner and helper joined to the
+ *   live files that reference it, written as `ledger.json` at the repository root or checked
+ *   against it. The rows, the verdict table, the duplicate scan, the summary and the rendering
+ *   are `lib/ledger-core.mjs`'s; the import graph is `lib/ledger-imports.mjs`'s, over every
+ *   tracked module, TypeScript project and command line; the reach report and the quarantine are
+ *   read through `lib/reach-report.mjs`, which `metrics.mjs` M5 shares.
  *
  *   MODES. Without `--check` it writes the ledger to `--out`, by default `ledger.json` at the root.
  *   With `--check` it compares the rendered ledger's bytes with that file and names each row that
@@ -21,7 +24,9 @@
  *   configuration could not be read) or the ledger could not be written. 3 wins over 1: an unread
  *   input stops the run before anything is written or compared, so no drift is ever named from a
  *   partial read. A file the classifier cannot read is a row (`framework: null`, verdict
- *   ADJUDICATE) and a note, not an unread input.
+ *   ADJUDICATE) and a note, not an unread input; a module or project whose references cannot be
+ *   read is a note too, and leaves every helper's and runner's importer count unmeasured, so a
+ *   partial graph never names one dead.
  *
  *   Usage: `node scripts/testing/ledger.mjs [--root <dir>] [--out <file>] [--reach <file>]
  *   [--check]`, or `pnpm ledger` and `pnpm check:ledger`.
@@ -32,14 +37,27 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { classifyFile } from "@packages/eslint-plugin-testing";
+import { binaryTexts, workspaceManifests } from "./lib/dependency-manifests.mjs";
+import { SOURCE_EXTENSIONS } from "./lib/dependency-sites.mjs";
 import {
   CANONICAL_TEST_SHAPED,
   EXCLUDED_BY_DECISION,
   buildLedger,
+  duplicatesOf,
   fileRow,
   render,
   shapeOf,
 } from "./lib/ledger-core.mjs";
+import {
+  commandReferences,
+  importClosure,
+  liveImporters,
+  moduleReferences,
+  modulesByStem,
+  projectReferences,
+  subjectOf,
+  workspaceOf,
+} from "./lib/ledger-imports.mjs";
 import {
   parseReachReport,
   quarantineOwners,
@@ -51,6 +69,7 @@ import {
   checkRecord,
   cliResult,
   isEntryPoint,
+  isObject,
   listTrackedFiles,
   messageOf,
   readText,
@@ -60,6 +79,8 @@ import { WORKSPACE_FILE, readPackageGlobs } from "./workspace-block-reader.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const LEDGER_FILE = "ledger.json";
+const ROOT_MANIFEST = "package.json";
+const PROJECT = /(^|\/)tsconfig[^/]*\.json$/;
 /** The directories outside the workspaces that hold test-shaped files of their own. */
 const SUITE_ROOTS = Object.freeze(["security/", "performance/"]);
 const USAGE =
@@ -83,6 +104,13 @@ const SPEC = Object.freeze({
  * @typedef {import("./lib/ledger-core.mjs").FileRow} FileRow
  * @typedef {import("./lib/ledger-core.mjs").Ledger} Ledger
  * @typedef {import("../../packages/eslint-plugin-testing/src/classify.js").FileClassification} FileClassification
+ * @typedef {import("./lib/ledger-imports.mjs").ImportContext} ImportContext
+ * @typedef {import("./lib/ledger-imports.mjs").WorkspacePackage} WorkspacePackage
+ *
+ * @typedef {object} Graph What the tracked files name.
+ * @property {Map<string, string[]>} references Each scanned file's references.
+ * @property {Map<string, string[]>} imports Each source module's run-time imports.
+ * @property {string[]} notes One per module or project whose references could not be read.
  *
  * @typedef {object} LedgerSeams What the suite replaces; the command passes none.
  * @property {(root: string) => Result<string[]>} [listFiles] Replaces `git ls-files`.
@@ -111,13 +139,11 @@ const SPEC = Object.freeze({
  *   the workspace manifest (a negated glob narrows and adds none), then `security/` and
  *   `performance/`. Derived, so a workspace root added to the manifest is listed with no edit; a
  *   line the reader cannot read fails rather than being skipped.
- * @param {string} root
+ * @param {string} text The text of the workspace manifest.
  * @returns {Result<string[]>} Sorted, each ending in `/`.
  */
-function scopePrefixes(root) {
-  const text = readText(root, WORKSPACE_FILE);
-  if ("error" in text) return text;
-  const globs = readPackageGlobs(text.value);
+function scopePrefixes(text) {
+  const globs = readPackageGlobs(text);
   if ("error" in globs) return globs;
   /** @type {Set<string>} */
   const prefixes = new Set(SUITE_ROOTS);
@@ -126,6 +152,80 @@ function scopePrefixes(root) {
     if (first !== undefined) prefixes.add(`${first}/`);
   }
   return { value: [...prefixes].sort() };
+}
+
+/**
+ * @description Reads the workspace packages a specifier may name: the name, the directory and the
+ *   declared dependency names of every manifest the workspace globs reach, the root's left out,
+ *   since no specifier names it.
+ * @param {string} root
+ * @param {string} text The text of the workspace manifest.
+ * @param {readonly string[]} tracked
+ * @returns {Result<WorkspacePackage[]>}
+ */
+function workspacePackages(root, text, tracked) {
+  const manifests = workspaceManifests(text, tracked);
+  if ("error" in manifests) return manifests;
+  /** @type {WorkspacePackage[]} */
+  const packages = [];
+  const fields = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
+  for (const manifest of manifests.value.filter((file) => file !== ROOT_MANIFEST)) {
+    const read = readText(root, manifest);
+    if ("error" in read) return read;
+    /** @type {unknown} */
+    let parsed;
+    try {
+      parsed = JSON.parse(read.value);
+    } catch (error) {
+      return { error: `${manifest} is not JSON: ${messageOf(error)}` };
+    }
+    const data = parsed;
+    if (!isObject(data) || typeof data["name"] !== "string") continue;
+    const depends = fields.flatMap((field) => {
+      const declared = data[field];
+      return isObject(declared) ? Object.keys(declared) : [];
+    });
+    packages.push({ name: data["name"], dir: path.posix.dirname(manifest), depends });
+  }
+  return { value: packages };
+}
+
+/**
+ * @description Reads what every tracked file names: each source module's specifiers and relative
+ *   strings, each TypeScript project's collected candidates, and each command line's source
+ *   files. A module or a project the parser cannot read is a note.
+ * @param {string} root
+ * @param {readonly string[]} files Every tracked path.
+ * @param {ImportContext} context
+ * @param {readonly string[]} candidates The helpers and runners.
+ * @returns {Result<Graph>}
+ */
+function importGraph(root, files, context, candidates) {
+  /** @type {Graph} */
+  const graph = { references: new Map(), imports: new Map(), notes: [] };
+  for (const file of files) {
+    const project = PROJECT.test(file);
+    if (!project && !SOURCE_EXTENSIONS.some((extension) => file.endsWith(extension))) continue;
+    const text = readText(root, file);
+    if ("error" in text) return text;
+    try {
+      if (project) {
+        graph.references.set(file, projectReferences(file, text.value, candidates));
+      } else {
+        const read = moduleReferences(file, text.value, context);
+        graph.references.set(file, read.references);
+        graph.imports.set(file, read.imports);
+      }
+    } catch (error) {
+      graph.notes.push(`${file}: its references could not be read: ${messageOf(error)}`);
+    }
+  }
+  const commands = binaryTexts(root, files);
+  if ("error" in commands) return commands;
+  for (const [file, text] of commands.value) {
+    graph.references.set(file, commandReferences(file, text, context.tracked));
+  }
+  return { value: graph };
 }
 
 /** A runner, a helper or a dead-suffix file: listed, not classified. */
@@ -156,8 +256,10 @@ function classified(root, file) {
 /**
  * @description Builds the ledger of a repository: lists its tracked paths, keeps the candidates
  *   under the listed directories (a path `shapeOf` names, or one a decision excludes), reads the
- *   quarantine and the reach report, classifies every test-shaped file and assembles the rows. Any
- *   input that cannot be read in full, the reach engine's own included, is the error.
+ *   quarantine, the reach report and the import graph of every tracked file, classifies every
+ *   test-shaped file, finds the duplicates among them, the module each stem names and each
+ *   helper's and runner's live importers, and assembles the rows. Any input that cannot be read
+ *   in full, the reach engine's own included, is the error.
  * @param {string} root The repository root.
  * @param {LedgerSeams} [seams] Replacements for the suite; the command passes none.
  * @returns {Result<Built>}
@@ -165,7 +267,9 @@ function classified(root, file) {
 export function build(root, seams = {}) {
   const listed = (seams.listFiles ?? listTrackedFiles)(root);
   if ("error" in listed) return listed;
-  const prefixes = scopePrefixes(root);
+  const workspace = readText(root, WORKSPACE_FILE);
+  if ("error" in workspace) return workspace;
+  const prefixes = scopePrefixes(workspace.value);
   if ("error" in prefixes) return prefixes;
   const candidates = listed.value.filter(
     (file) =>
@@ -181,20 +285,63 @@ export function build(root, seams = {}) {
   if (typeof report === "string") return { error: report };
   const labels = reachLabels(report);
   if (typeof labels === "string") return { error: labels };
-  /** @type {string[]} */
-  const notes = [];
+  const packages = workspacePackages(root, workspace.value, listed.value);
+  if ("error" in packages) return packages;
+  const context = { tracked: new Set(listed.value), packages: packages.value };
+  /** @param {string} file */
+  const carries = (file) => ["runner", "helper"].includes(shapeOf(file) ?? "");
+  const helpers = candidates.filter(carries);
+  const graph = importGraph(root, listed.value, context, helpers);
+  if ("error" in graph) return graph;
+  const notes = [...graph.value.notes];
+  /** @type {Map<string, FileClassification | null>} */
+  const classifications = new Map();
+  for (const file of candidates) {
+    const read = CANONICAL_TEST_SHAPED.test(file) ? classified(root, file) : UNCLASSIFIED;
+    if ("error" in read) return read;
+    if (read.value.note !== null) notes.push(read.value.note);
+    classifications.set(file, read.value.classification);
+  }
+  const duplicates = duplicatesOf(
+    [...classifications].flatMap(([file, classification]) =>
+      classification === null
+        ? []
+        : [
+            {
+              path: file,
+              group: workspaceOf(file, packages.value)?.dir ?? file.split("/")[0] ?? "",
+              collected: (labels.get(file) ?? []).length > 0,
+              blocks: classification.blocks,
+            },
+          ]
+    )
+  );
+  const counts =
+    graph.value.notes.length === 0 ? liveImporters(helpers, graph.value.references) : new Map();
+  const index = modulesByStem(
+    listed.value.filter(
+      (file) =>
+        shapeOf(file) === null && SOURCE_EXTENSIONS.some((extension) => file.endsWith(extension))
+    )
+  );
   /** @type {FileRow[]} */
   const rows = [];
   for (const file of candidates) {
     const testShaped = CANONICAL_TEST_SHAPED.test(file);
-    const read = testShaped ? classified(root, file) : UNCLASSIFIED;
-    if ("error" in read) return read;
-    if (read.value.note !== null) notes.push(read.value.note);
+    const imports = graph.value.imports.has(file)
+      ? importClosure(file, graph.value.imports, carries)
+      : undefined;
     const row = fileRow({
       path: file,
-      classification: read.value.classification,
+      classification: classifications.get(file) ?? null,
       collectors: testShaped ? (labels.get(file) ?? []) : [],
       quarantined: owners.get(file) ?? null,
+      subject:
+        imports === undefined
+          ? null
+          : subjectOf(file, shapeOf(file), imports, index, packages.value),
+      duplicate: duplicates.get(file) ?? null,
+      importers: counts.get(file) ?? null,
     });
     if ("error" in row) return row;
     rows.push(row.value);
