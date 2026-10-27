@@ -17,6 +17,11 @@
  *   `--reach`; the ledger's block counts must equal a direct `classifyFile` fold over the same
  *   tracked files, its test-shaped rows M1's count from `metrics.mjs --m1`, and a second run
  *   through the seam the first run's bytes.
+ *
+ *   Between them, the import graph of `scripts/testing/lib/ledger-imports.mjs` (where a specifier,
+ *   a relative string, a command line and a TypeScript project land, the live importers of each
+ *   helper, the module a test's stem names) and the core's duplicate scan, each pinned on its own
+ *   and then through `build` over one planted tree that holds every signal.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -63,6 +68,34 @@ interface BlockRow {
   readonly bodyHash: string;
 }
 
+/** The module a test's stem names. */
+interface Subject {
+  readonly stem: string;
+  readonly module: string;
+  readonly imported: boolean;
+}
+
+/** The siblings a file's blocks copy. */
+interface Duplicate {
+  readonly kind: "EXACT" | "UNION";
+  readonly of: readonly string[];
+}
+
+/** What the scans beyond the classifier found for a path. */
+interface Signals {
+  readonly subject?: Subject | null;
+  readonly duplicate?: Duplicate | null;
+  readonly importers?: number | null;
+}
+
+/** One classified file, as the duplicate scan reads it. */
+interface DuplicateInput {
+  readonly path: string;
+  readonly group: string;
+  readonly collected: boolean;
+  readonly blocks: readonly { readonly title: string; readonly bodyHash: string }[];
+}
+
 interface FileRow {
   readonly path: string;
   readonly shape: Shape | null;
@@ -76,12 +109,12 @@ interface FileRow {
   readonly excluded: string | null;
   readonly status: string;
   readonly sliceId: string | null;
-  readonly subject: null;
-  readonly duplicate: null;
+  readonly subject: Subject | null;
+  readonly duplicate: Duplicate | null;
   readonly importers: number | null;
 }
 
-interface RowInput {
+interface RowInput extends Signals {
   readonly path: string;
   readonly classification: Classification | null;
   readonly collectors: readonly string[];
@@ -139,11 +172,56 @@ type LedgerCore = {
   CANONICAL_TEST_SHAPED: RegExp;
   shapeOf: (file: string) => Shape | null;
   blockRows: (classification: Classification) => BlockRow[];
-  verdictOf: (input: { path: string; classification: Classification | null }) => MachineVerdict;
+  verdictOf: (
+    input: { path: string; classification: Classification | null } & Signals
+  ) => MachineVerdict;
   fileRow: (input: RowInput) => Result<FileRow>;
+  duplicatesOf: (inputs: readonly DuplicateInput[]) => Map<string, Duplicate>;
   summarize: (rows: readonly FileRow[]) => Summary;
   buildLedger: (rows: readonly FileRow[]) => Result<Ledger>;
   render: (ledger: Ledger) => Promise<string>;
+};
+
+/** A workspace package, as the import graph resolves bare specifiers against it. */
+interface WorkspacePackage {
+  readonly name: string;
+  readonly dir: string;
+  readonly depends: readonly string[];
+}
+
+/** What a specifier resolves against. */
+interface ImportContext {
+  readonly tracked: ReadonlySet<string>;
+  readonly packages: readonly WorkspacePackage[];
+}
+
+/** The import graph's surface, typed for the same reason. */
+type ImportsLib = {
+  workspaceOf: (file: string, packages: readonly WorkspacePackage[]) => WorkspacePackage | null;
+  moduleReferences: (
+    file: string,
+    text: string,
+    context: ImportContext
+  ) => { imports: string[]; references: string[] };
+  commandReferences: (file: string, commands: string, tracked: ReadonlySet<string>) => string[];
+  projectReferences: (file: string, text: string, candidates: readonly string[]) => string[];
+  liveImporters: (
+    candidates: readonly string[],
+    references: ReadonlyMap<string, readonly string[]>
+  ) => Map<string, number>;
+  importClosure: (
+    file: string,
+    imports: ReadonlyMap<string, readonly string[]>,
+    carries: (file: string) => boolean
+  ) => string[];
+  modulesByStem: (modules: readonly string[]) => Map<string, string[]>;
+  subjectOf: (
+    file: string,
+    shape: Shape | null,
+    imports: readonly string[],
+    index: ReadonlyMap<string, readonly string[]>,
+    packages: readonly WorkspacePackage[]
+  ) => Subject | null;
 };
 
 /** The classifier's surface the suite calls, typed for the same reason. */
@@ -202,11 +280,13 @@ const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)))
 const CORE_SCRIPT = path.join(REPO_ROOT, "scripts/testing/lib/ledger-core.mjs");
 const CLI_SCRIPT = path.join(REPO_ROOT, "scripts/testing/ledger.mjs");
 const REACH_LIB = path.join(REPO_ROOT, "scripts/testing/lib/reach-report.mjs");
+const IMPORTS_LIB = path.join(REPO_ROOT, "scripts/testing/lib/ledger-imports.mjs");
 const METRICS_SCRIPT = path.join(REPO_ROOT, "scripts/testing/metrics.mjs");
 const CLASSIFIER = path.join(REPO_ROOT, "packages/eslint-plugin-testing/src/index.js");
 const core = (await import(CORE_SCRIPT)) as LedgerCore;
 const cli = (await import(CLI_SCRIPT)) as LedgerCli;
 const reachLib = (await import(REACH_LIB)) as ReachLib;
+const imports = (await import(IMPORTS_LIB)) as ImportsLib;
 const { classifyFile } = (await import(CLASSIFIER)) as ClassifierModule;
 
 const VITEST = 'import { describe, expect, it } from "vitest";\n';
@@ -267,6 +347,7 @@ const ROW_KEYS = [
   "importers",
 ];
 const VITEST_LABEL = "vitest:apps/api/vitest.config.ts";
+const A_TEST = "apps/api/tests/unit/a.test.ts";
 
 const valueOf = <T>(result: Result<T>): T => {
   if ("error" in result) throw new Error(result.error);
@@ -591,6 +672,246 @@ describe("fileRow", () => {
   });
 });
 
+const SUBJECT_MISSED: Subject = {
+  stem: "sum",
+  module: "apps/api/src/sum.ts",
+  imported: false,
+};
+const EXACT_COPY: Duplicate = { kind: "EXACT", of: ["apps/api/tests/unit/a.test.ts"] };
+const UNION_COPY: Duplicate = { kind: "UNION", of: ["apps/api/tests/unit/a.test.ts"] };
+
+describe("verdictOf over the subject, duplicate and importer signals", () => {
+  it.each<[string, string, Source | null, Signals, Verdict | null, string]>([
+    [
+      "a helper no live file references",
+      "apps/api/tests/unit/post.test-helpers.ts",
+      null,
+      { importers: 0 },
+      "DELETE",
+      "dead-helper",
+    ],
+    [
+      "a runner no live file references",
+      "apps/api/tests/run.ts",
+      null,
+      { importers: 0 },
+      "DELETE",
+      "dead-helper",
+    ],
+    [
+      "a helper two live files reference",
+      "apps/api/tests/unit/post.test-helpers.ts",
+      null,
+      { importers: 2 },
+      "KEEP",
+      "imported",
+    ],
+    [
+      "an exact duplicate whose blocks restrict behaviour",
+      "apps/api/tests/unit/sum.test.ts",
+      "behavioural",
+      { duplicate: EXACT_COPY },
+      "DELETE",
+      "exact-duplicate",
+    ],
+    [
+      "an exact duplicate holding a title contradiction",
+      "apps/api/tests/unit/token.test.ts",
+      "contradiction",
+      { duplicate: EXACT_COPY },
+      "DELETE",
+      "exact-duplicate",
+    ],
+    [
+      "a test that never imports its stem's module",
+      "apps/api/tests/unit/sum.test.ts",
+      "behavioural",
+      { subject: SUBJECT_MISSED },
+      "ADJUDICATE",
+      "subject-not-imported",
+    ],
+    [
+      "an all-decorative test that never imports its stem's module",
+      "apps/api/tests/unit/sum.test.ts",
+      "decorative",
+      { subject: SUBJECT_MISSED },
+      "DELETE",
+      "all-decorative",
+    ],
+    [
+      "a test that imports its stem's module",
+      "apps/api/tests/unit/sum.test.ts",
+      "behavioural",
+      { subject: { ...SUBJECT_MISSED, imported: true } },
+      "KEEP",
+      "behavioural",
+    ],
+    [
+      "a union duplicate with one decorative block of two",
+      "apps/api/tests/unit/post.test.ts",
+      "mixed",
+      { duplicate: UNION_COPY },
+      "ADJUDICATE",
+      "duplicate-union",
+    ],
+    [
+      "a path decision D17 excludes, whatever the signals",
+      "apps/api/scripts/seed-demo-data.ts",
+      "decorative",
+      { duplicate: EXACT_COPY, subject: SUBJECT_MISSED },
+      "ADJUDICATE",
+      "excluded-by-decision",
+    ],
+  ])("returns the machine verdict of %s", (_case, file, source, signals, verdict, basis) => {
+    const classification = source === null ? null : classify(file, source);
+
+    expect(core.verdictOf({ path: file, classification, ...signals })).toMatchObject({
+      verdict,
+      basis,
+    });
+  });
+});
+
+describe("fileRow with the scan signals", () => {
+  it("carries the subject, the duplicate and the importer count in the row's key order", () => {
+    const test = valueOf(
+      core.fileRow({
+        path: "apps/api/tests/unit/sum.test.ts",
+        classification: classify("apps/api/tests/unit/sum.test.ts", "behavioural"),
+        collectors: [],
+        quarantined: null,
+        subject: SUBJECT_MISSED,
+        duplicate: UNION_COPY,
+      })
+    );
+    const helper = valueOf(
+      core.fileRow({
+        path: "apps/api/tests/unit/post.test-helpers.ts",
+        classification: null,
+        collectors: [],
+        quarantined: null,
+        importers: 3,
+      })
+    );
+
+    expect(Object.keys(test)).toEqual(ROW_KEYS);
+    expect(test).toMatchObject({
+      subject: SUBJECT_MISSED,
+      duplicate: UNION_COPY,
+      importers: null,
+      verdict: "ADJUDICATE",
+      basis: "subject-not-imported",
+    });
+    expect(Object.keys(test.subject ?? {})).toEqual(["stem", "module", "imported"]);
+    expect(Object.keys(test.duplicate ?? {})).toEqual(["kind", "of"]);
+    expect(helper).toMatchObject({ subject: null, duplicate: null, importers: 3, verdict: "KEEP" });
+  });
+
+  it.each<[string, RowInput, string]>([
+    [
+      "an importer count on a test-shaped file",
+      { path: A_TEST, classification: null, collectors: [], quarantined: null, importers: 1 },
+      `${A_TEST} is no runner or helper, yet carries an importer count`,
+    ],
+    [
+      "a subject on a helper",
+      {
+        path: "apps/api/tests/unit/a.test-helpers.ts",
+        classification: null,
+        collectors: [],
+        quarantined: null,
+        subject: SUBJECT_MISSED,
+      },
+      "apps/api/tests/unit/a.test-helpers.ts is not test-shaped, yet carries a subject or a duplicate",
+    ],
+  ])("returns an error for %s", (_case, input, message) => {
+    expect(core.fileRow(input)).toEqual({ error: message });
+  });
+});
+
+/** A classified file of the duplicate scan, its blocks given as `title=hash` pairs. */
+const copyInput = (
+  file: string,
+  pairs: readonly string[],
+  { group = "apps/api", collected = false }: { group?: string; collected?: boolean } = {}
+): DuplicateInput => ({
+  path: file,
+  group,
+  collected,
+  blocks: pairs.map((pair) => {
+    const [title = "", bodyHash = ""] = pair.split("=");
+    return { title, bodyHash };
+  }),
+});
+
+const FIVE = ["one=1", "two=2", "three=3", "four=4", "five=5"];
+
+describe("duplicatesOf", () => {
+  it("keeps the copy a source collects and marks the other an exact duplicate of it, titles normalised", () => {
+    const found = core.duplicatesOf([
+      copyInput("apps/api/tests/unit/a.test.ts", ["returns the sum=h1", "loads=h2"]),
+      copyInput("apps/api/tests/unit/b.test.ts", ["Loads =h2", "returns  the sum=h1"], {
+        collected: true,
+      }),
+    ]);
+
+    expect([...found]).toEqual([
+      ["apps/api/tests/unit/a.test.ts", { kind: "EXACT", of: ["apps/api/tests/unit/b.test.ts"] }],
+    ]);
+  });
+
+  it.each<[string, DuplicateInput[]]>([
+    [
+      "the same titles over different bodies",
+      [
+        copyInput("apps/api/tests/unit/a.test.ts", ["x=1"]),
+        copyInput("apps/api/tests/unit/b.test.ts", ["x=2"]),
+      ],
+    ],
+    [
+      "the same blocks in two workspaces",
+      [
+        copyInput("apps/admin/tests/a.test.ts", ["x=1"], { group: "apps/admin" }),
+        copyInput("apps/client/tests/a.test.ts", ["x=1"], { group: "apps/client" }),
+      ],
+    ],
+    [
+      "four blocks held by siblings",
+      [
+        copyInput("apps/api/tests/unit/all.test.ts", [...FIVE.slice(0, 4), "own=9"]),
+        copyInput("apps/api/tests/unit/part.test.ts", FIVE.slice(0, 4)),
+      ],
+    ],
+    [
+      "two files with no block",
+      [
+        copyInput("apps/api/tests/unit/a.test.ts", []),
+        copyInput("apps/api/tests/unit/b.test.ts", []),
+      ],
+    ],
+  ])("returns no duplicate for %s", (_case, inputs) => {
+    expect(core.duplicatesOf(inputs)).toEqual(new Map());
+  });
+
+  it("marks a file five of whose blocks its siblings hold a union duplicate of them, an exact copy left out", () => {
+    const whole = "apps/api/tests/unit/service.test.ts";
+    const first = "apps/api/tests/unit/service.first.test.ts";
+    const second = "apps/api/tests/unit/service.second.test.ts";
+    const copy = "apps/api/tests/unit/service.third.test.ts";
+
+    const found = core.duplicatesOf([
+      copyInput(whole, [...FIVE, "own=9"]),
+      copyInput(first, ["one=1", "two=2", "three=3"]),
+      copyInput(second, ["four=4", "five=5", "other=8"]),
+      copyInput(copy, ["one=1", "two=2", "three=3"]),
+    ]);
+
+    expect(found.get(whole)).toEqual({ kind: "UNION", of: [first, second] });
+    expect(found.get(copy)).toEqual({ kind: "EXACT", of: [first] });
+    expect([...found.keys()].sort()).toEqual([copy, whole].sort());
+  });
+});
+
 describe("summarize", () => {
   it("returns every count of the sample rows, keyed in a fixed order", () => {
     const summary = core.summarize(sampleRows());
@@ -894,6 +1215,225 @@ describe("reach-report.mjs", () => {
   });
 });
 
+const PACKAGES: readonly WorkspacePackage[] = [
+  { name: "@apps/api", dir: "apps/api", depends: ["@core/posts", "vitest"] },
+  { name: "@apps/client", dir: "apps/client", depends: [] },
+  { name: "@core/posts", dir: "packages/core/posts", depends: [] },
+  { name: "@core/posts-extra", dir: "packages/core/posts-extra", depends: [] },
+];
+const TRACKED = new Set([
+  "apps/api/src/post.ts",
+  "apps/api/src/sum.ts",
+  "apps/api/tests/unit/a.test.ts",
+  "apps/api/tests/unit/b.ts",
+  "apps/api/tests/unit/c.ts",
+  "apps/api/tests/unit/dir/index.ts",
+  "apps/api/tests/setup-env.ts",
+  "apps/client/lib/env.ts",
+  "apps/client/tests/x.test.ts",
+  "packages/core/posts/src/index.ts",
+  "packages/core/posts/src/PostService.ts",
+  "packages/core/posts/package.json",
+  "performance/monitoring/detector.ts",
+]);
+const CONTEXT: ImportContext = { tracked: TRACKED, packages: PACKAGES };
+
+describe("ledger-imports.mjs", () => {
+  it.each<[string, string, string, string | null]>([
+    ["a .js name, to its TypeScript twin", "./b.js", A_TEST, "apps/api/tests/unit/b.ts"],
+    ["an extensionless relative path", "../../src/post", A_TEST, "apps/api/src/post.ts"],
+    ["a directory, to its index", "./dir", A_TEST, "apps/api/tests/unit/dir/index.ts"],
+    [
+      "a workspace package, to its src index",
+      "@core/posts",
+      A_TEST,
+      "packages/core/posts/src/index.ts",
+    ],
+    [
+      "a workspace subpath, below its src",
+      "@core/posts/PostService.js",
+      A_TEST,
+      "packages/core/posts/src/PostService.ts",
+    ],
+    [
+      "the @/ alias, from the importing workspace",
+      "@/lib/env",
+      "apps/client/tests/x.test.ts",
+      "apps/client/lib/env.ts",
+    ],
+    ["a package no workspace holds", "vitest", A_TEST, null],
+    ["a package whose name only starts like a workspace's", "@core/postsy", A_TEST, null],
+    ["a relative path to no tracked file", "./missing.js", A_TEST, null],
+  ])("moduleReferences resolves %s", (_case, specifier, from, expected) => {
+    const read = imports.moduleReferences(from, `import "${specifier}";\n`, CONTEXT);
+
+    expect(read).toEqual(
+      expected === null
+        ? { imports: [], references: [] }
+        : { imports: [expected], references: [expected] }
+    );
+  });
+
+  it("moduleReferences returns the run-time imports apart from every reference, relative and workspace strings included and a root path left out", () => {
+    const text =
+      'import { post } from "../../src/post.js";\n' +
+      'import type { Sum } from "../../src/sum.js";\n' +
+      'vi.mock("./dir");\n' +
+      'const setup = ["../setup-env.ts", "b.ts", "tests/unit/c.ts", "apps/client/lib/env.ts"];\n' +
+      'const self = "./a.test.ts";\n';
+
+    expect(imports.moduleReferences(A_TEST, text, CONTEXT)).toEqual({
+      imports: ["apps/api/src/post.ts"],
+      references: [
+        "apps/api/src/post.ts",
+        "apps/api/src/sum.ts",
+        "apps/api/tests/setup-env.ts",
+        "apps/api/tests/unit/b.ts",
+        "apps/api/tests/unit/c.ts",
+        "apps/api/tests/unit/dir/index.ts",
+      ],
+    });
+  });
+
+  it("moduleReferences counts no root path a module outside every workspace names, so a lint scope keeps no file alive", () => {
+    const text = 'const scope = ["apps/api/tests/unit/c.ts", "apps/api/src/post.ts"];\n';
+
+    expect(imports.moduleReferences("eslint.config.ts", text, CONTEXT)).toEqual({
+      imports: [],
+      references: [],
+    });
+  });
+
+  it("commandReferences returns the tracked source files a command line runs, from its directory or the root", () => {
+    const commands =
+      "NODE_ENV=test tsx ../../performance/monitoring/detector.ts\n" +
+      "vitest run --config=tests/setup-env.ts\nnode apps/api/src/post.ts missing.ts";
+
+    expect(imports.commandReferences("apps/api/package.json", commands, TRACKED)).toEqual([
+      "apps/api/src/post.ts",
+      "apps/api/tests/setup-env.ts",
+      "performance/monitoring/detector.ts",
+    ]);
+  });
+
+  it("projectReferences returns the candidates a project collects by a narrow name or by its files, not by an extension", () => {
+    const candidates = [
+      "apps/api/tests/unit/port.type-test.ts",
+      "apps/api/tests/unit/helper.ts",
+      "apps/api/tests/listed.ts",
+    ];
+    const text =
+      '{\n  // pins only\n  "include": ["tests/**/*.type-test.ts", "tests/**/*.ts"],\n' +
+      '  "files": ["tests/listed.ts"]\n}\n';
+
+    expect(imports.projectReferences("apps/api/tsconfig.pins.json", text, candidates)).toEqual([
+      "apps/api/tests/listed.ts",
+      "apps/api/tests/unit/port.type-test.ts",
+    ]);
+    expect(() => imports.projectReferences("apps/api/tsconfig.json", "[", candidates)).toThrow(
+      "apps/api/tsconfig.json is not a TypeScript configuration"
+    );
+  });
+
+  it("liveImporters counts each candidate's live referencing files, through chains, helpers that only reference each other dead", () => {
+    const counts = imports.liveImporters(
+      ["used.ts", "chained.ts", "loop-a.ts", "loop-b.ts", "orphan.ts"],
+      new Map([
+        ["a.test.ts", ["used.ts"]],
+        ["b.test.ts", ["used.ts", "missing.ts"]],
+        ["used.ts", ["chained.ts"]],
+        ["loop-a.ts", ["loop-b.ts", "chained.ts"]],
+        ["loop-b.ts", ["loop-a.ts"]],
+      ])
+    );
+
+    expect([...counts]).toEqual([
+      ["used.ts", 2],
+      ["chained.ts", 1],
+      ["loop-a.ts", 0],
+      ["loop-b.ts", 0],
+      ["orphan.ts", 0],
+    ]);
+  });
+
+  it("importClosure follows the test's imports through its helpers and barrels, and no further", () => {
+    const reached = imports.importClosure(
+      A_TEST,
+      new Map([
+        [A_TEST, ["apps/api/tests/unit/a.test-helpers.ts", "packages/core/posts/src/index.ts"]],
+        ["apps/api/tests/unit/a.test-helpers.ts", ["apps/api/src/sum.ts", A_TEST]],
+        ["packages/core/posts/src/index.ts", ["packages/core/posts/src/PostService.ts"]],
+        ["apps/api/src/sum.ts", ["apps/api/src/post.ts"]],
+      ]),
+      (file) => file.endsWith(".test-helpers.ts")
+    );
+
+    expect(reached).toEqual([
+      "apps/api/src/sum.ts",
+      "apps/api/tests/unit/a.test-helpers.ts",
+      "packages/core/posts/src/PostService.ts",
+      "packages/core/posts/src/index.ts",
+    ]);
+  });
+
+  const index = imports.modulesByStem([
+    "apps/api/src/sum.ts",
+    "apps/api/src/post.ts",
+    "packages/core/posts/src/post.ts",
+    "packages/core/posts/src/PostService.ts",
+    "apps/client/lib/utils.ts",
+    "apps/client/components/utils.tsx",
+  ]);
+
+  it.each<[string, string, Shape, readonly string[], Subject | null]>([
+    [
+      "the module the test imports",
+      "apps/api/tests/unit/post.test.ts",
+      "test",
+      ["packages/core/posts/src/post.ts"],
+      { stem: "post", module: "packages/core/posts/src/post.ts", imported: true },
+    ],
+    [
+      "its own workspace's module when it imports none, before another workspace's",
+      "apps/api/tests/unit/post.flow.test.ts",
+      "test",
+      [],
+      { stem: "post", module: "apps/api/src/post.ts", imported: false },
+    ],
+    [
+      "the one module of its name in a workspace its manifest declares",
+      "apps/api/tests/integration/PostService.integration.test.ts",
+      "integration-test",
+      [],
+      { stem: "PostService", module: "packages/core/posts/src/PostService.ts", imported: false },
+    ],
+    [
+      "no module for a stem whose one module sits in a workspace its manifest does not declare",
+      "packages/core/posts/tests/sum.test.ts",
+      "test",
+      [],
+      null,
+    ],
+    [
+      "no module for a stem that names none",
+      "apps/api/tests/unit/absent.test.ts",
+      "test",
+      [],
+      null,
+    ],
+    [
+      "no module for a stem that names several",
+      "apps/client/tests/utils.test.ts",
+      "test",
+      [],
+      null,
+    ],
+    ["no module for an end-to-end spec", "apps/api/e2e/sum.spec.ts", "spec", [], null],
+  ])("subjectOf returns %s", (_case, file, shape, imported, expected) => {
+    expect(imports.subjectOf(file, shape, imported, index, PACKAGES)).toEqual(expected);
+  });
+});
+
 /**
  * A planted tree: three test-shaped files (one reached twice, two orphans, one of them
  * quarantined), a helper, a source file and a test-shaped file outside every workspace, which the
@@ -935,8 +1475,19 @@ describe("ledger.mjs build", () => {
     });
     expect(rows.get(B)).toMatchObject({ collectors: [], quarantined: null, verdict: "REWRITE" });
     expect(rows.get(C)).toMatchObject({ collectors: [], quarantined: OWNER, verdict: "DELETE" });
-    expect(rows.get(HELPER)).toMatchObject({ collectors: null, blockCount: 0, verdict: null });
+    expect(rows.get(HELPER)).toMatchObject({ collectors: null, blockCount: 0, importers: 0 });
     expect(notes).toEqual([]);
+  });
+
+  it("returns no subject, no duplicate and no importer count for test files whose stems name no module and whose blocks copy no sibling", () => {
+    const { ledger } = valueOf(built(plant(FIXTURE)));
+
+    const tests = ledger.files.filter((file) => file.collectors !== null);
+    expect(tests.map((file) => [file.subject, file.duplicate, file.importers])).toEqual([
+      [null, null, null],
+      [null, null, null],
+      [null, null, null],
+    ]);
   });
 
   it("renders the same bytes whatever order the listing gives the paths in", async () => {
@@ -992,9 +1543,120 @@ describe("ledger.mjs build", () => {
       verdict: "ADJUDICATE",
       basis: "unreadable",
     });
+    expect(result.ledger.files.find((file) => file.path === HELPER)).toMatchObject({
+      importers: null,
+      verdict: null,
+      basis: "importers-not-measured",
+    });
     expect(result.notes).toEqual([
+      expect.stringMatching(
+        new RegExp(`^${DEEP}: its references could not be read: Maximum call stack`)
+      ),
       expect.stringMatching(new RegExp(`^${DEEP}: the classifier could not read it: RangeError`)),
     ]);
+  });
+});
+
+const UNIT = "apps/api/tests/unit";
+/**
+ * A planted tree with every signal: a test that imports its stem's module and one that does not;
+ * an exact copy of a sibling; a helper a test imports through a `.js` name, and the index it
+ * imports in turn; a helper no file names, and two that name only each other; a setup file a
+ * vitest config names, a type pin a TypeScript project collects, and a script a manifest runs.
+ */
+const GRAPH: Readonly<Record<string, string>> = {
+  "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n',
+  [QUARANTINE_FILE]: JSON.stringify({ entries: [] }),
+  "apps/api/package.json": JSON.stringify({
+    name: "@apps/api",
+    scripts: { perf: "NODE_ENV=test tsx ../../performance/monitoring/detector.ts" },
+  }),
+  "apps/api/vitest.config.ts":
+    'export default { test: { setupFiles: ["./tests/setup-env.ts"] } };\n',
+  "apps/api/tsconfig.type-tests.json":
+    '{\n  // pins\n  "include": ["tests/**/*.type-test.ts"]\n}\n',
+  "apps/api/src/post.ts": "export const post = 1;\n",
+  "apps/api/src/sum.ts": "export const add = (a, b) => a + b;\n",
+  [`${UNIT}/post.test.ts`]: VITEST + 'import { post } from "../../src/post.js";\n' + RESTRICTING,
+  [`${UNIT}/sum.test.ts`]:
+    VITEST +
+    'import { factory } from "./used.test-helpers.js";\n' +
+    'it("returns the total", () => {\n  expect(add(2, 2)).toBe(4);\n});\n',
+  [`${UNIT}/copy-a.test.ts`]: SOURCES.mixed,
+  [`${UNIT}/copy-b.test.ts`]: SOURCES.mixed,
+  [`${UNIT}/used.test-helpers.ts`]:
+    'import { deep } from "./chain";\nexport const factory = deep;\n',
+  [`${UNIT}/chain/index.ts`]: "export const deep = 1;\n",
+  [`${UNIT}/orphan.test-helpers.ts`]: "export const orphan = 1;\n",
+  [`${UNIT}/loop-a.ts`]: 'import "./loop-b";\n',
+  [`${UNIT}/loop-b.ts`]: 'import "./loop-a";\n',
+  [`${UNIT}/port.type-test.ts`]: "export {};\n",
+  "apps/api/tests/setup-env.ts": "export {};\n",
+  "performance/monitoring/detector.ts": "export {};\n",
+};
+
+describe("ledger.mjs build over the import graph and the duplicate scan", () => {
+  it("returns each row's subject, duplicate, importer count and the verdict they decide, and counts them in the summary", () => {
+    const root = plant(GRAPH);
+
+    const { ledger, notes } = valueOf(
+      cli.build(root, {
+        listFiles: () => ({ value: Object.keys(GRAPH) }),
+        runReach: () => ({ violations: [], reach: {} }),
+      })
+    );
+
+    const rows = ledger.files.map((file) => [
+      file.path,
+      file.subject,
+      file.duplicate,
+      file.importers,
+      file.verdict,
+      file.basis,
+    ]);
+    expect(rows).toEqual([
+      ["apps/api/tests/setup-env.ts", null, null, 1, "KEEP", "imported"],
+      [`${UNIT}/chain/index.ts`, null, null, 1, "KEEP", "imported"],
+      [`${UNIT}/copy-a.test.ts`, null, null, null, "REWRITE", "some-decorative"],
+      [
+        `${UNIT}/copy-b.test.ts`,
+        null,
+        { kind: "EXACT", of: [`${UNIT}/copy-a.test.ts`] },
+        null,
+        "DELETE",
+        "exact-duplicate",
+      ],
+      [`${UNIT}/loop-a.ts`, null, null, 0, "DELETE", "dead-helper"],
+      [`${UNIT}/loop-b.ts`, null, null, 0, "DELETE", "dead-helper"],
+      [`${UNIT}/orphan.test-helpers.ts`, null, null, 0, "DELETE", "dead-helper"],
+      [`${UNIT}/port.type-test.ts`, null, null, 1, "KEEP", "imported"],
+      [
+        `${UNIT}/post.test.ts`,
+        { stem: "post", module: "apps/api/src/post.ts", imported: true },
+        null,
+        null,
+        "KEEP",
+        "behavioural",
+      ],
+      [
+        `${UNIT}/sum.test.ts`,
+        { stem: "sum", module: "apps/api/src/sum.ts", imported: false },
+        null,
+        null,
+        "ADJUDICATE",
+        "subject-not-imported",
+      ],
+      [`${UNIT}/used.test-helpers.ts`, null, null, 1, "KEEP", "imported"],
+      ["performance/monitoring/detector.ts", null, null, 1, "KEEP", "imported"],
+    ]);
+    expect(ledger.summary.files.byVerdict).toEqual({
+      DELETE: 4,
+      REWRITE: 1,
+      KEEP: 6,
+      ADJUDICATE: 1,
+      unmeasured: 0,
+    });
+    expect(notes).toEqual([]);
   });
 });
 
@@ -1201,6 +1863,10 @@ describe("ledger.mjs over the repository", () => {
       );
       expect(testShaped).toBe(tracked.length);
       expect(testShaped).toBe(Number(m1?.[1]) + Number(m1?.[2]));
+      const helpers = ledger.files.filter((file) =>
+        ["runner", "helper"].includes(file.shape ?? "")
+      );
+      expect(helpers.filter((file) => typeof file.importers !== "number")).toEqual([]);
     }
   );
 

@@ -98,6 +98,11 @@ const BASIS = Object.freeze(
     ALL_DECORATIVE: "all-decorative",
     SOME_DECORATIVE: "some-decorative",
     BEHAVIOURAL: "behavioural",
+    DEAD_HELPER: "dead-helper",
+    IMPORTED: "imported",
+    EXACT_DUPLICATE: "exact-duplicate",
+    SUBJECT_NOT_IMPORTED: "subject-not-imported",
+    DUPLICATE_UNION: "duplicate-union",
   })
 );
 
@@ -112,6 +117,9 @@ const RUNNER = /(^|\/)tests\/run[^/]*\.ts$/;
 const HELPER_EXTENSION = /\.(ts|tsx|js)$/;
 const TEST_DIRECTORY = /(^|\/)(tests|__tests__|test)\//;
 const SUITE_ROOT = /^(security|performance)\//;
+
+/** The fewest titles a file must share with its siblings' union to be a union duplicate. */
+const UNION_FLOOR = 5;
 
 /** The file the rendered JSON is committed as, whose Prettier configuration `render` applies. */
 const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.url));
@@ -138,20 +146,47 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  * @property {string | null} excluded The id of the decision that excludes the path, else `null`.
  * @property {"machine" | "confirmed"} status `machine` until a human confirms the verdict.
  * @property {string | null} sliceId The demolition slice the file belongs to, `null` until assigned.
- * @property {null} subject `null` until the subject-import scan exists.
- * @property {null} duplicate `null` until the duplicate scan exists.
- * @property {number | null} importers `null` until the importer scan exists.
+ * @property {Subject | null} subject The module the test's stem names, `null` when it names none.
+ * @property {Duplicate | null} duplicate The siblings the file's blocks copy, else `null`.
+ * @property {number | null} importers A helper's or runner's live referencing files, `null` for
+ *   any other row or when the references could not all be read.
  *
- * @typedef {object} RowInput What `fileRow` builds a row from.
+ * @typedef {object} Subject The module a test's stem names.
+ * @property {string} stem The test's file name before its first dot.
+ * @property {string} module Repository-relative.
+ * @property {boolean} imported Whether the test loads it at run time.
+ *
+ * @typedef {object} Duplicate The siblings of one workspace whose blocks a file's blocks copy,
+ *   title and body hash alike.
+ * @property {"EXACT" | "UNION"} kind EXACT: every block, of one sibling that stays; UNION: at least
+ *   {@link UNION_FLOOR} titles, across the siblings named.
+ * @property {string[]} of Sorted.
+ *
+ * @typedef {object} DuplicateInput One classified test-shaped file, as `duplicatesOf` reads it.
+ * @property {string} path Repository-relative.
+ * @property {string} group The workspace directory or suite root that makes files siblings.
+ * @property {boolean} collected Whether reach lists a source that collects it.
+ * @property {ReadonlyArray<{ readonly title: string, readonly bodyHash: string }>} blocks
+ *
+ * @typedef {object} Signals What the scans beyond the classifier found for a path.
+ * @property {Subject | null} [subject]
+ * @property {Duplicate | null} [duplicate]
+ * @property {number | null} [importers]
+ *
+ * @typedef {object} RowFields What `fileRow` builds a row from.
  * @property {string} path Repository-relative.
  * @property {FileClassification | null} classification `classifyFile`'s result for the path,
  *   `null` when the file was not classified.
  * @property {readonly string[]} collectors Reach's labels for the path, `[]` when it lists none.
  * @property {string | null} quarantined The owner of the path's quarantine entry, else `null`.
  *
- * @typedef {object} VerdictInput What `verdictOf` decides from.
+ * @typedef {RowFields & Signals} RowInput
+ *
+ * @typedef {object} VerdictFields What `verdictOf` decides from.
  * @property {string} path Repository-relative.
  * @property {FileClassification | null} classification
+ *
+ * @typedef {VerdictFields & Signals} VerdictInput
  *
  * @typedef {object} MachineVerdict
  * @property {Verdict | null} verdict
@@ -263,8 +298,12 @@ function orderedRow(row) {
     excluded: row.excluded,
     status: row.status,
     sliceId: row.sliceId,
-    subject: row.subject,
-    duplicate: row.duplicate,
+    subject:
+      row.subject === null
+        ? null
+        : { stem: row.subject.stem, module: row.subject.module, imported: row.subject.imported },
+    duplicate:
+      row.duplicate === null ? null : { kind: row.duplicate.kind, of: [...row.duplicate.of] },
     importers: row.importers,
   };
 }
@@ -312,28 +351,50 @@ function decided(verdict, basis, excluded = null) {
 }
 
 /**
+ * @description Decides a runner's or a helper's verdict from its live referencing files.
+ * @param {number | null} importers `null` when the references were not all read.
+ * @returns {MachineVerdict}
+ */
+function helperVerdict(importers) {
+  if (importers === null) return decided(null, BASIS.NOT_MEASURED);
+  return importers === 0
+    ? decided(VERDICT.DELETE, BASIS.DEAD_HELPER)
+    : decided(VERDICT.KEEP, BASIS.IMPORTED);
+}
+
+/**
  * @description Decides a ledger candidate's machine verdict by the first rule of the table that
  *   applies, and names that rule as the basis: (1) a decision excludes the path: ADJUDICATE, never
- *   DELETE; (2) a dead suffix: DELETE; (3) a runner or a helper: no verdict until its importers are
- *   counted; (4) no classification, or one that could not read the file: ADJUDICATE; (5) no
- *   block: ADJUDICATE; (6) a TITLE-CONTRADICTION block, or an opaque helper: ADJUDICATE; (7)
- *   every block falls under a criterion: DELETE; (8) some do: REWRITE; (9) else KEEP. D55's
- *   narrowings of the plan's rules live in the classifier, which has already applied them to the
- *   blocks read here; this table adds none.
+ *   DELETE; (2) a dead suffix: DELETE; (3) a runner or a helper: DELETE when no live file
+ *   references it, KEEP when one does, no verdict when the references were not all read; (4) no
+ *   classification, or one that could not read the file: ADJUDICATE; (5) no block: ADJUDICATE;
+ *   (6) an exact duplicate of a sibling that stays: DELETE; (7) a TITLE-CONTRADICTION block, or
+ *   an opaque helper: ADJUDICATE; (8) every block falls under a criterion: DELETE; (9) a stem
+ *   module the test never imports, or (10) a union duplicate: ADJUDICATE, the plan's mixed
+ *   signals, which no rule of its DELETE list names; (11) some blocks fall under a criterion:
+ *   REWRITE; (12) else KEEP. D55's narrowings of the plan's rules live in the classifier, which
+ *   has already applied them to the blocks read here; this table adds none.
  * @param {VerdictInput} input
  * @returns {MachineVerdict}
  */
-export function verdictOf({ path: file, classification }) {
+export function verdictOf({
+  path: file,
+  classification,
+  subject = null,
+  duplicate = null,
+  importers = null,
+}) {
   const decision = decisionOf(file);
   if (decision !== null) return decided(VERDICT.ADJUDICATE, BASIS.EXCLUDED, decision);
   const shape = shapeOf(file);
   if (shape === "disabled") return decided(VERDICT.DELETE, BASIS.DEAD_SUFFIX);
-  if (shape === "runner" || shape === "helper") return decided(null, BASIS.NOT_MEASURED);
+  if (shape === "runner" || shape === "helper") return helperVerdict(importers);
   if (classification === null || classification.framework === null) {
     return decided(VERDICT.ADJUDICATE, BASIS.UNREADABLE);
   }
   const { blocks, opaqueHelpers } = classification;
   if (blocks.length === 0) return decided(VERDICT.ADJUDICATE, BASIS.NO_BLOCKS);
+  if (duplicate?.kind === "EXACT") return decided(VERDICT.DELETE, BASIS.EXACT_DUPLICATE);
   if (blocks.some((block) => block.blockClass === BLOCK_CLASS.TITLE_CONTRADICTION)) {
     return decided(VERDICT.ADJUDICATE, BASIS.TITLE_CONTRADICTION);
   }
@@ -342,6 +403,10 @@ export function verdictOf({ path: file, classification }) {
   }
   const decorative = blocks.filter((block) => block.criteria.length > 0).length;
   if (decorative === blocks.length) return decided(VERDICT.DELETE, BASIS.ALL_DECORATIVE);
+  if (subject?.imported === false) {
+    return decided(VERDICT.ADJUDICATE, BASIS.SUBJECT_NOT_IMPORTED);
+  }
+  if (duplicate?.kind === "UNION") return decided(VERDICT.ADJUDICATE, BASIS.DUPLICATE_UNION);
   if (decorative > 0) return decided(VERDICT.REWRITE, BASIS.SOME_DECORATIVE);
   return decided(VERDICT.KEEP, BASIS.BEHAVIOURAL);
 }
@@ -349,12 +414,21 @@ export function verdictOf({ path: file, classification }) {
 /**
  * @description Builds one file's row. A row's collectors are reach's labels sorted by code unit
  *   when the file is test-shaped, and `null` otherwise. It fails closed on a path that is no
- *   ledger candidate, on a classification of another path, and on reach labels for a file that is
- *   not test-shaped, each a caller's defect that a row would hide.
+ *   ledger candidate, on a classification of another path, on reach labels, a subject or a
+ *   duplicate for a file that is not test-shaped, and on an importer count for one that is no
+ *   runner or helper, each a caller's defect that a row would hide.
  * @param {RowInput} input
  * @returns {Result<FileRow>} The row, or the reason it cannot be built.
  */
-export function fileRow({ path: file, classification, collectors, quarantined }) {
+export function fileRow({
+  path: file,
+  classification,
+  collectors,
+  quarantined,
+  subject = null,
+  duplicate = null,
+  importers = null,
+}) {
   const shape = shapeOf(file);
   if (shape === null && decisionOf(file) === null) {
     return { error: `${file} is not a ledger candidate: no shape and no decision admits it` };
@@ -368,8 +442,15 @@ export function fileRow({ path: file, classification, collectors, quarantined })
       error: `${file} is not test-shaped, yet reach lists it under ${collectors.join(", ")}`,
     };
   }
+  if (!testShaped && (subject !== null || duplicate !== null)) {
+    return { error: `${file} is not test-shaped, yet carries a subject or a duplicate` };
+  }
+  if (shape !== "runner" && shape !== "helper" && importers !== null) {
+    return { error: `${file} is no runner or helper, yet carries an importer count` };
+  }
   const blocks = classification === null ? [] : blockRows(classification);
-  const { verdict, basis, excluded } = verdictOf({ path: file, classification });
+  const signals = { subject, duplicate, importers };
+  const { verdict, basis, excluded } = verdictOf({ path: file, classification, ...signals });
   return {
     value: orderedRow({
       path: file,
@@ -384,11 +465,74 @@ export function fileRow({ path: file, classification, collectors, quarantined })
       excluded,
       status: "machine",
       sliceId: null,
-      subject: null,
-      duplicate: null,
-      importers: null,
+      ...signals,
     }),
   };
+}
+
+/**
+ * @description Reads a block as a duplicate scan compares it: its title trimmed, its whitespace
+ *   collapsed and in lower case, with the classifier's hash of its body, so a copied title over a
+ *   different body is no copy.
+ * @param {{ readonly title: string, readonly bodyHash: string }} block
+ * @returns {string}
+ */
+function copyKey(block) {
+  return `${block.title.trim().replace(/\s+/g, " ").toLowerCase()}\0${block.bodyHash}`;
+}
+
+/**
+ * @description Finds the files whose blocks copy their siblings', the files of one group.
+ *   EXACT: two or more files hold the same multiset of blocks, at least one each; the first that
+ *   a source collects, then by path, stays, and each other one is an exact duplicate of it.
+ *   UNION: a file that is no exact copy, at least {@link UNION_FLOOR} of whose blocks the other
+ *   files of its group hold between them, exact copies left out.
+ * @param {readonly DuplicateInput[]} inputs
+ * @returns {Map<string, Duplicate>} Each duplicate's finding, by path; a file with none is absent.
+ */
+export function duplicatesOf(inputs) {
+  /** @type {Map<string, Duplicate>} */
+  const found = new Map();
+  /** @type {Map<string, DuplicateInput[]>} */
+  const same = new Map();
+  for (const input of inputs.filter((file) => file.blocks.length > 0)) {
+    const key = `${input.group}\0${input.blocks.map(copyKey).sort(byCodeUnit).join("\n")}`;
+    same.set(key, [...(same.get(key) ?? []), input]);
+  }
+  for (const copies of same.values()) {
+    const [kept, ...rest] = [...copies].sort(
+      (left, right) =>
+        Number(right.collected) - Number(left.collected) || byCodeUnit(left.path, right.path)
+    );
+    if (kept === undefined) continue;
+    for (const copy of rest) found.set(copy.path, { kind: "EXACT", of: [kept.path] });
+  }
+  const siblings = inputs.filter((file) => !found.has(file.path));
+  /** @type {Map<string, Set<string>>} */
+  const holders = new Map();
+  for (const input of siblings) {
+    for (const key of input.blocks.map(copyKey)) {
+      const holder = `${input.group}\0${key}`;
+      holders.set(holder, (holders.get(holder) ?? new Set()).add(input.path));
+    }
+  }
+  for (const input of siblings) {
+    /** @type {Set<string>} */
+    const shared = new Set();
+    /** @type {Set<string>} */
+    const of = new Set();
+    for (const key of input.blocks.map(copyKey)) {
+      const others = [...(holders.get(`${input.group}\0${key}`) ?? [])];
+      for (const other of others.filter((holder) => holder !== input.path)) {
+        shared.add(key);
+        of.add(other);
+      }
+    }
+    if (shared.size >= UNION_FLOOR) {
+      found.set(input.path, { kind: "UNION", of: [...of].sort(byCodeUnit) });
+    }
+  }
+  return found;
 }
 
 /**
