@@ -603,6 +603,19 @@ export function summaryLines(record) {
 }
 
 /**
+ * @description Names the temp file a run writes `probes.json` to before renaming it onto the
+ *   target: beside the target, hidden, carrying the run's unique suffix, and ending in `.partial`,
+ *   which no ignore rule of this repository matches (`*.tmp` is ignored at the root and in
+ *   apps/api), so a temp a killed run leaves in the source tree shows in `git status`.
+ * @param {string} target The file the rename lands on.
+ * @param {string} suffix Unique to the run: its pid and a random part.
+ * @returns {string}
+ */
+export function pendingTempPath(target, suffix) {
+  return path.join(path.dirname(target), `.${path.basename(target)}.${suffix}.partial`);
+}
+
+/**
  * @description Says whether a text is a `probes.json` of this tool, of this version: the one kind of
  *   tracked file `--out` may overwrite.
  * @param {string} text

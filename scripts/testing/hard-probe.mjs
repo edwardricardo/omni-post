@@ -30,7 +30,9 @@
  *   source tree or cannot hold a private directory, git, the install or a runner could not run, the
  *   ledger or its import graph could not be built, the ledger names a block its classifier does not
  *   find, a probe left the worktree dirty, or `probes.json` could not be written; 128 plus a
- *   signal's number, a run that signal stopped. Nothing is written on any exit but 0.
+ *   signal's number, a run that signal stopped. Nothing is written on any exit but 0:
+ *   `probes.json` is written last, after the worktree is removed, so a failed or stopped run leaves
+ *   an earlier one as it was.
  *
  *   Usage: `node scripts/testing/hard-probe.mjs [--root <dir>] [--worktree-root <dir>]
  *   [--out <file>] [--seed <n>] [--limit <n> | --only <path::title>]`, or `pnpm hard-probe`. The
@@ -39,7 +41,19 @@
  * @layer infrastructure
  */
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import {
+  closeSync,
+  existsSync,
+  fchmodSync,
+  mkdtempSync,
+  openSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { constants, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,6 +66,7 @@ import {
   hashes,
   isProbesRecord,
   outcomeOf,
+  pendingTempPath,
   planProbes,
   probeCommand,
   probesRecord,
@@ -118,6 +133,8 @@ const STOP_SIGNALS = /** @type {const} */ (["SIGINT", "SIGTERM", "SIGHUP"]);
  *   Runs the install and each block.
  * @property {(root: string) => Result<ProbeLedger>} [buildLedger] Replaces the ledger's build.
  * @property {(line: string) => void} [progress] Where each step is reported, stderr by default.
+ * @property {(fd: number, text: string) => void} [writeText] Writes `probes.json`'s text into its
+ *   open temp file; the suite replaces it to fail a write after the file is open.
  *
  * @typedef {object} Options
  * @property {string} root Absolute.
@@ -126,6 +143,15 @@ const STOP_SIGNALS = /** @type {const} */ (["SIGINT", "SIGTERM", "SIGHUP"]);
  * @property {number} seed
  * @property {number | null} limit
  * @property {string | null} only
+ *
+ * @typedef {object} PendingWrite `probes.json`, rendered and not yet written.
+ * @property {string} out Absolute.
+ * @property {string} text
+ * @property {string[]} lines The summary printed once it is written.
+ * @property {string} wrote The line that says it was written.
+ *
+ * @typedef {{ result: CliResult } | { pending: PendingWrite }} Finished What a run hands back: its
+ *   result, or the `probes.json` it is ready to write, which only `main` writes.
  *
  * @typedef {object} Created What a run has created, each `null` until it exists.
  * @property {string | null} parent The private directory under `--worktree-root`.
@@ -647,12 +673,12 @@ function probingIn(target, exec, progress) {
 
 /**
  * @description Runs the probes once the worktree exists: installs it, builds its ledger and its
- *   import graph, plans and probes, then writes `probes.json`. It stops at the first step a signal
- *   reaches.
+ *   import graph, plans and probes, then renders `probes.json` and hands it back unwritten, so it is
+ *   written only once the worktree is gone. It stops at the first step a signal reaches.
  * @param {Options} options
  * @param {{ target: string, sha: string }} worktree
  * @param {ProbeSeams} seams
- * @returns {Promise<CliResult>}
+ * @returns {Promise<Finished>}
  * @throws {Stop} Exit 3 on any input or environment failure, or the signal's code once stopped.
  */
 async function probeIn(options, { target, sha }, seams) {
@@ -681,7 +707,7 @@ async function probeIn(options, { target, sha }, seams) {
   if ("error" in ledger) throw new Stop(EXIT.UNREAD, `hard-probe: unread: ${ledger.error}`);
   const planOptions = { seed: options.seed, limit: options.limit, only: options.only };
   const plan = planProbes(ledger.value, planOptions);
-  if ("error" in plan) return cliResult(EXIT.VERDICT, [`hard-probe: ${plan.error}`]);
+  if ("error" in plan) return { result: cliResult(EXIT.VERDICT, [`hard-probe: ${plan.error}`]) };
   const { probes, pool } = plan.value;
   if (options.only !== null) {
     progress(`hard-probe: 1 probe planned: only ${options.only}`);
@@ -707,18 +733,59 @@ async function probeIn(options, { target, sha }, seams) {
   const record = probesRecord({ sha, options: planOptions, entries });
   const text = await renderProbes(record);
   unlessStopped();
+  return {
+    pending: {
+      out: options.out,
+      text,
+      lines: summaryLines(record),
+      wrote: `hard-probe: wrote ${options.out}: ${entries.length} probes of ${sha}`,
+    },
+  };
+}
+
+/**
+ * @description Writes the `probes.json` a run handed back without ever truncating an earlier one:
+ *   the text goes to a temp file beside the target, created exclusively under a name carrying the
+ *   pid and a random suffix, so two runs never share it, and is then renamed onto the target. The
+ *   target is `--out`, or, when `--out` exists, the file its symbolic links resolve to, so a link
+ *   stays a link; the temp file takes an existing target's mode before the text is written, so the
+ *   rename keeps it. On any failure the temp file this run created is removed, the target is left as
+ *   it was, and the run exits 3; the summary and the `wrote` line are printed only once the rename
+ *   is done. A temp file a SIGKILL leaves inside the source tree is an untracked file no ignore rule
+ *   matches (`pendingTempPath`), so the next run refuses the dirty tree and names it, which is the
+ *   loud outcome wanted.
+ * @param {PendingWrite} pending
+ * @param {(fd: number, text: string) => void} writeText Writes the text into the open temp file.
+ * @returns {CliResult}
+ */
+function writePending({ out, text, lines, wrote }, writeText) {
+  const suffix = `${process.pid}.${randomBytes(6).toString("hex")}`;
+  /** @type {{ target: string, mode: number | null }} */
+  const existing = { target: out, mode: null };
+  let temp = "";
+  let created = false;
   try {
-    writeFileSync(options.out, text);
+    if (existsSync(out)) {
+      existing.target = realpathSync(out);
+      existing.mode = statSync(existing.target).mode & 0o7777;
+    }
+    temp = pendingTempPath(existing.target, suffix);
+    const fd = openSync(temp, "wx");
+    created = true;
+    try {
+      if (existing.mode !== null) fchmodSync(fd, existing.mode);
+      writeText(fd, text);
+    } finally {
+      closeSync(fd);
+    }
+    renameSync(temp, existing.target);
   } catch (error) {
-    throw new Stop(
-      EXIT.UNREAD,
-      `hard-probe: unread: ${options.out} could not be written: ${messageOf(error)}`
-    );
+    if (created) rmSync(temp, { force: true });
+    return cliResult(EXIT.UNREAD, [
+      `hard-probe: unread: ${out} could not be written: ${messageOf(error)}`,
+    ]);
   }
-  return cliResult(EXIT.CLEAN, [
-    ...summaryLines(record),
-    `hard-probe: wrote ${options.out}: ${entries.length} probes of ${sha}`,
-  ]);
+  return cliResult(EXIT.CLEAN, [...lines, wrote]);
 }
 
 /**
@@ -763,7 +830,9 @@ async function removeCreated(root, created) {
 
 /**
  * @description The command line, as a function: refuse what the run may not touch, create the
- *   worktree, probe in it, and remove it whatever happened, a signal included.
+ *   worktree, probe in it, and remove it whatever happened, a signal included. `probes.json` is
+ *   written last, and only when the worktree and its directory were removed and no signal stopped
+ *   the run, so a run that exits non-zero leaves an earlier `probes.json` as it was.
  * @param {readonly string[]} argv The arguments after the script path.
  * @param {ProbeSeams} [seams] Replacements for the suite; the command passes none.
  * @returns {Promise<CliResult>} The text to print and the exit code.
@@ -774,23 +843,32 @@ export async function main(argv, seams = {}) {
   const options = parsed.value;
   /** @type {Created} */
   const created = { parent: null, target: null };
-  /** @type {CliResult} */
-  let result;
+  /** @type {Finished} */
+  let finished;
   try {
-    result = await probeRun(options, seams, created);
+    finished = await probeRun(options, seams, created);
   } catch (error) {
-    result =
-      error instanceof Stop
-        ? cliResult(error.code, [error.message])
-        : cliResult(EXIT.UNREAD, [`hard-probe: unread: the run failed: ${messageOf(error)}`]);
+    finished = {
+      result:
+        error instanceof Stop
+          ? cliResult(error.code, [error.message])
+          : cliResult(EXIT.UNREAD, [`hard-probe: unread: the run failed: ${messageOf(error)}`]),
+    };
   }
   const removal = await removeCreated(options.root, created);
   if (STOPPED.signal !== null) {
     const lines = [`hard-probe: stopped by ${STOPPED.signal}`];
     return cliResult(stoppedCode(STOPPED.signal), removal === null ? lines : [...lines, removal]);
   }
-  if (removal === null) return result;
-  return { code: EXIT.UNREAD, output: result.output + cliResult(EXIT.UNREAD, [removal]).output };
+  if (removal !== null) {
+    const done =
+      "result" in finished
+        ? finished.result.output
+        : cliResult(EXIT.UNREAD, finished.pending.lines).output;
+    return { code: EXIT.UNREAD, output: done + cliResult(EXIT.UNREAD, [removal]).output };
+  }
+  if ("result" in finished) return finished.result;
+  return writePending(finished.pending, seams.writeText ?? ((fd, text) => writeFileSync(fd, text)));
 }
 
 /**
@@ -801,30 +879,36 @@ export async function main(argv, seams = {}) {
  * @param {Options} options
  * @param {ProbeSeams} seams
  * @param {Created} created Each part set once it exists.
- * @returns {Promise<CliResult>}
+ * @returns {Promise<Finished>} A refusal's result, or what `probeIn` hands back.
  * @throws {Stop} Exit 3 on any input or environment failure.
  */
 async function probeRun(options, seams, created) {
   const top = git(options.root, ["rev-parse", "--show-toplevel"]).trim();
   if (insideRepository(top, options.worktreeRoot) !== null) {
-    return cliResult(EXIT.UNREAD, [
-      `hard-probe: refused: --worktree-root ${options.worktreeRoot} lies inside the source tree`,
-    ]);
+    return {
+      result: cliResult(EXIT.UNREAD, [
+        `hard-probe: refused: --worktree-root ${options.worktreeRoot} lies inside the source tree`,
+      ]),
+    };
   }
   const own = insideRepository(top, options.out);
   if (own !== null && git(options.root, ["ls-files", "--", own]).trim() !== "") {
     const text = readText(top, own);
     if ("error" in text || !isProbesRecord(text.value)) {
-      return cliResult(EXIT.UNREAD, [
-        `hard-probe: refused: --out names ${own}, a tracked file that is no probes.json of this tool`,
-      ]);
+      return {
+        result: cliResult(EXIT.UNREAD, [
+          `hard-probe: refused: --out names ${own}, a tracked file that is no probes.json of this tool`,
+        ]),
+      };
     }
   }
   const dirty = dirtyPaths(options.root).filter((file) => file !== own);
   if (dirty.length > 0) {
-    return cliResult(EXIT.UNREAD, [
-      `hard-probe: refused: the source tree is not clean: ${dirty.join(", ")}`,
-    ]);
+    return {
+      result: cliResult(EXIT.UNREAD, [
+        `hard-probe: refused: the source tree is not clean: ${dirty.join(", ")}`,
+      ]),
+    };
   }
   const sha = git(options.root, ["rev-parse", "HEAD"]).trim();
   unlessStopped();

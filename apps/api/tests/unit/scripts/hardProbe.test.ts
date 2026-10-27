@@ -13,16 +13,21 @@
  *   runs for real, so each case reads `git worktree list` before and after.
  * @layer infrastructure
  */
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  lstatSync,
   readdirSync,
+  readlinkSync,
   rmSync,
   statSync,
+  symlinkSync,
+  writeSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -151,6 +156,7 @@ type HardProbeCore = {
   outcomeOf: (command: Command, stdout: string) => Verdict;
   subjectModules: (closure: readonly string[]) => string[];
   isProbesRecord: (text: string) => boolean;
+  pendingTempPath: (target: string, suffix: string) => string;
   hashes: (
     testText: string,
     subject: readonly { readonly path: string; readonly text: string }[]
@@ -186,6 +192,7 @@ interface ProbeSeams {
   readonly exec?: (command: string, args: readonly string[], cwd: string) => Ran;
   readonly buildLedger?: (root: string) => Result<ProbeLedger>;
   readonly progress?: (line: string) => void;
+  readonly writeText?: (fd: number, text: string) => void;
 }
 
 /** What the command prints and the exit code it ends with. */
@@ -1350,10 +1357,12 @@ describe("main", () => {
     expect(git(root, "worktree", "list", "--porcelain").match(/^worktree /gm)).toHaveLength(1);
   });
 
-  it("keeps its private directory, with the worktree in it, when git cannot remove the worktree, and names the failure", async () => {
+  it("keeps its private directory, with the worktree in it, when git cannot remove the worktree, names the failure and writes no probes.json", async () => {
     const { root } = plantRepository();
     const worktrees = scratchDir("hard-probe-worktrees-");
     const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
+    const earlier = '{ "an earlier": "run" }\n';
+    writeFileSync(out, earlier);
     const before = git(root, "worktree", "list", "--porcelain");
     const calls: Call[] = [];
     const exec = (command: string, args: readonly string[], cwd: string): Ran => {
@@ -1381,10 +1390,178 @@ describe("main", () => {
     expect(result.output).toContain(
       `hard-probe: unread: git worktree remove --force ${target} failed: `
     );
+    expect(result.output).not.toContain("hard-probe: wrote");
+    expect(readFileSync(out, "utf8")).toBe(earlier);
     expect(kept.entries).toEqual(["tree"]);
     expect(kept.registered).toContain(`worktree ${target}\n`);
     expect(readdirSync(worktrees)).toEqual([]);
     expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
+  });
+
+  it("exits 3 when probes.json cannot be written, after removing the worktree, and claims no write", async () => {
+    const { root } = plantRepository();
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const out = path.join(scratchDir("hard-probe-out-"), "missing", "probes.json");
+    const before = git(root, "worktree", "list", "--porcelain");
+    const { exec } = recorder(() => PASSING_REPORT);
+
+    const result = await cli.main(
+      ["--root", root, "--worktree-root", worktrees, "--out", out, "--only", BLOCK_ID],
+      { exec, buildLedger: () => ({ value: PROBE_LEDGER }), progress: () => undefined }
+    );
+
+    expect(result.code).toBe(3);
+    expect(result.output).toMatch(
+      new RegExp(`^hard-probe: unread: ${out} could not be written: ENOENT`)
+    );
+    expect(result.output).not.toContain("hard-probe: wrote");
+    expect(existsSync(out)).toBe(false);
+    expect(readdirSync(worktrees)).toEqual([]);
+    expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
+  });
+
+  it("leaves an earlier probes.json byte-identical, and no temp file, when the write fails after its file is open", async () => {
+    const { root } = plantRepository();
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
+    const earlier = '{ "an earlier": "run" }\n';
+    writeFileSync(out, earlier);
+    const { exec } = recorder(() => PASSING_REPORT);
+    const writeText = (fd: number, text: string): void => {
+      writeSync(fd, text.slice(0, 10));
+      throw Object.assign(new Error("ENOSPC: no space left on device, write"), { code: "ENOSPC" });
+    };
+
+    const result = await cli.main(
+      ["--root", root, "--worktree-root", worktrees, "--out", out, "--only", BLOCK_ID],
+      { exec, buildLedger: () => ({ value: PROBE_LEDGER }), progress: () => undefined, writeText }
+    );
+
+    expect(result).toEqual({
+      code: 3,
+      output: `hard-probe: unread: ${out} could not be written: ENOSPC: no space left on device, write\n`,
+    });
+    expect(readFileSync(out, "utf8")).toBe(earlier);
+    expect(readdirSync(path.dirname(out))).toEqual(["probes.json"]);
+    expect(readdirSync(worktrees)).toEqual([]);
+  });
+
+  it("removes its temp file and leaves --out as it was when the rename onto --out fails", async () => {
+    const { root } = plantRepository();
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const directory = scratchDir("hard-probe-out-");
+    const out = path.join(directory, "probes.json");
+    writeFiles(out, { "keep.txt": "mine\n" });
+    const { exec } = recorder(() => PASSING_REPORT);
+
+    const result = await cli.main(
+      ["--root", root, "--worktree-root", worktrees, "--out", out, "--only", BLOCK_ID],
+      { exec, buildLedger: () => ({ value: PROBE_LEDGER }), progress: () => undefined }
+    );
+
+    expect(result.code).toBe(3);
+    expect(result.output).toMatch(new RegExp(`^hard-probe: unread: ${out} could not be written: `));
+    expect(result.output).not.toContain("hard-probe: wrote");
+    expect(readdirSync(directory)).toEqual(["probes.json"]);
+    expect(readdirSync(out)).toEqual(["keep.txt"]);
+    expect(readdirSync(worktrees)).toEqual([]);
+  });
+
+  it("refuses a run beside a temp file an earlier run left behind, naming it, under this repository's ignore rules", async () => {
+    const { root } = plantRepository({
+      ".gitignore": readFileSync(path.join(REPO_ROOT, ".gitignore"), "utf8"),
+    });
+    const leftover = core.pendingTempPath(path.join(root, "probes.json"), "999.deadbeefcafe");
+    writeFileSync(leftover, "{\n");
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const { calls, exec } = recorder(() => PASSING_REPORT);
+
+    const result = await cli.main(["--root", root, "--worktree-root", worktrees], { exec });
+
+    expect(result).toEqual({
+      code: 3,
+      output: `hard-probe: refused: the source tree is not clean: ${path.basename(leftover)}\n`,
+    });
+    expect(readdirSync(worktrees)).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  it("follows a symlinked --out: the link stays a link, and the file it names gets the record", async () => {
+    const { root } = plantRepository();
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const directory = scratchDir("hard-probe-out-");
+    const real = path.join(directory, "kept", "probes.json");
+    writeFiles(directory, { "kept/probes.json": '{ "an earlier": "run" }\n' });
+    const link = path.join(directory, "probes.json");
+    symlinkSync(real, link);
+    const { exec } = recorder(() => PASSING_REPORT);
+
+    const result = await cli.main(
+      ["--root", root, "--worktree-root", worktrees, "--out", link, "--only", BLOCK_ID],
+      { exec, buildLedger: () => ({ value: PROBE_LEDGER }), progress: () => undefined }
+    );
+
+    expect(result.code).toBe(0);
+    expect(lstatSync(link).isSymbolicLink()).toBe(true);
+    expect(readlinkSync(link)).toBe(real);
+    expect(core.isProbesRecord(readFileSync(real, "utf8"))).toBe(true);
+    expect(readdirSync(directory).sort()).toEqual(["kept", "probes.json"]);
+    expect(readdirSync(path.dirname(real))).toEqual(["probes.json"]);
+  });
+
+  it("refuses a tracked symlinked --out whose file is a tracked file that is no probes.json, naming that file", async () => {
+    const { root } = plantRepository();
+    symlinkSync("../package.json", path.join(root, "pkg/out.json"));
+    git(root, "add", "pkg/out.json");
+    git(
+      root,
+      "-c",
+      "user.name=probe",
+      "-c",
+      "user.email=probe@example.com",
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--quiet",
+      "-m",
+      "link"
+    );
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const { calls, exec } = recorder(() => PASSING_REPORT);
+
+    const result = await cli.main(
+      ["--root", root, "--worktree-root", worktrees, "--out", path.join(root, "pkg/out.json")],
+      { exec }
+    );
+
+    expect(result).toEqual({
+      code: 3,
+      output:
+        "hard-probe: refused: --out names package.json, a tracked file that is no probes.json of this tool\n",
+    });
+    expect(readFileSync(path.join(root, "package.json"), "utf8")).toBe(
+      '{ "name": "demo", "private": true }\n'
+    );
+    expect(calls).toEqual([]);
+  });
+
+  it("keeps the mode of an earlier probes.json it replaces", async () => {
+    const { root } = plantRepository();
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
+    writeFileSync(out, '{ "an earlier": "run" }\n');
+    chmodSync(out, 0o600);
+    const { exec } = recorder(() => PASSING_REPORT);
+
+    const result = await cli.main(
+      ["--root", root, "--worktree-root", worktrees, "--out", out, "--only", BLOCK_ID],
+      { exec, buildLedger: () => ({ value: PROBE_LEDGER }), progress: () => undefined }
+    );
+
+    expect(result.code).toBe(0);
+    expect(statSync(out).mode & 0o777).toBe(0o600);
+    expect(core.isProbesRecord(readFileSync(out, "utf8"))).toBe(true);
+    expect(readdirSync(path.dirname(out))).toEqual(["probes.json"]);
   });
 
   it("never gives two runs the same path", async () => {
@@ -1548,6 +1725,7 @@ describe("main", () => {
       },
       version: 1,
     });
+    expect(readdirSync(path.dirname(out))).toEqual(["probes.json"]);
     expect(readdirSync(worktrees)).toEqual([]);
     expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
     expect(git(root, "status", "--porcelain")).toBe("");
@@ -2004,6 +2182,28 @@ describe("main", () => {
   });
 });
 
+describe("pendingTempPath", () => {
+  it.each([["probes.json"], ["apps/api/probes.json"]])(
+    "names a temp file beside %s that no ignore rule of this repository matches, so a leftover shows in git status",
+    (out) => {
+      const temp = path.relative(
+        REPO_ROOT,
+        core.pendingTempPath(path.join(REPO_ROOT, out), "12345.0123456789ab")
+      );
+      const ignored = spawnSync("git", ["check-ignore", "--no-index", "-q", temp], {
+        cwd: REPO_ROOT,
+        env: GIT_ENV,
+      });
+
+      expect(path.dirname(temp)).toBe(path.dirname(out));
+      expect(path.basename(temp).startsWith(`.${path.basename(out)}.12345.0123456789ab.`)).toBe(
+        true
+      );
+      expect(ignored.status).toBe(1);
+    }
+  );
+});
+
 /** Whether a process still runs: absent, a zombie or dead in `/proc` is not running. */
 const running = (pid: number): boolean => {
   if (existsSync("/proc/self/stat")) {
@@ -2090,21 +2290,23 @@ describe("runTool", () => {
 const HARD_PROBE = path.join(REPO_ROOT, "scripts/testing/hard-probe.mjs");
 /**
  * A `pnpm` that installs nothing, prints a reach report naming the test's collector, and runs a
- * block as a runner that only waits, its pid written where the test reads it.
+ * block as `runner` says, a shell command.
  */
-const FAKE_PNPM = [
-  "#!/bin/sh",
-  'if [ "$1" = "install" ]; then exit 0; fi',
-  `if [ "$1" = "--silent" ]; then printf '%s\\n' '${JSON.stringify({
-    ok: true,
-    violations: [],
-    errors: [],
-    reach: { [TEST_FILE]: ["vitest:pkg/vitest.config.ts"] },
-  })}'; exit 0; fi`,
-  'printf "%s\\n" "$$" > "$HARD_PROBE_TEST_RUNNER_PID"',
-  "exec sleep 30",
-  "",
-].join("\n");
+const fakePnpm = (runner: string): string =>
+  [
+    "#!/bin/sh",
+    'if [ "$1" = "install" ]; then exit 0; fi',
+    `if [ "$1" = "--silent" ]; then printf '%s\\n' '${JSON.stringify({
+      ok: true,
+      violations: [],
+      errors: [],
+      reach: { [TEST_FILE]: ["vitest:pkg/vitest.config.ts"] },
+    })}'; exit 0; fi`,
+    runner,
+    "",
+  ].join("\n");
+/** A runner that only waits, its pid written where the test reads it. */
+const FAKE_PNPM = fakePnpm('printf "%s\\n" "$$" > "$HARD_PROBE_TEST_RUNNER_PID"\nexec sleep 30');
 
 describe("a signal", () => {
   let leftovers: number[] = [];
@@ -2192,6 +2394,74 @@ describe("a signal", () => {
       expect(git(root, "status", "--porcelain")).toBe("");
       expect(readFileSync(path.join(root, SUBJECT_FILE), "utf8")).toBe(SUBJECT_TEXT);
       expect(existsSync(out)).toBe(false);
+    }
+  );
+
+  it(
+    "writes no probes.json, and leaves an earlier one as it was, when a signal arrives after the last probe",
+    { timeout: 60_000 },
+    async () => {
+      const { root } = plantRepository({
+        "packages/test-contracts/quarantine.json": '{ "entries": [] }\n',
+      });
+      const worktrees = scratchDir("hard-probe-worktrees-");
+      const bin = scratchDir("hard-probe-bin-");
+      const realGit = execFileSync("sh", ["-c", "command -v git"], {
+        encoding: "utf8",
+        env: GIT_ENV,
+      }).trim();
+      writeFileSync(path.join(bin, "pnpm"), fakePnpm("exit 0"), { mode: 0o755 });
+      // The removal of the worktree is the run's first step after its last probe, and the write
+      // follows it: a git that signals its parent there lands the signal in exactly that window.
+      writeFileSync(
+        path.join(bin, "git"),
+        [
+          "#!/bin/sh",
+          'if [ "$1" = "worktree" ] && [ "$2" = "remove" ]; then kill -INT "$PPID"; fi',
+          `exec '${realGit.replaceAll("'", "'\\''")}' "$@"`,
+          "",
+        ].join("\n"),
+        { mode: 0o755 }
+      );
+      const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
+      const earlier = '{ "an earlier": "run" }\n';
+      writeFileSync(out, earlier);
+      const before = git(root, "worktree", "list", "--porcelain");
+      const tool = spawn(
+        process.execPath,
+        [
+          HARD_PROBE,
+          "--root",
+          root,
+          "--worktree-root",
+          worktrees,
+          "--out",
+          out,
+          "--only",
+          BLOCK_ID,
+        ],
+        {
+          env: { ...GIT_ENV, PATH: `${bin}${path.delimiter}${process.env["PATH"] ?? ""}` },
+          stdio: ["ignore", "pipe", "pipe"],
+        }
+      );
+      leftovers.push(tool.pid ?? 0);
+      let stderr = "";
+      tool.stderr.on("data", (chunk: Buffer) => {
+        stderr += chunk.toString("utf8");
+      });
+
+      const code = await new Promise<number | null>((resolve) => {
+        tool.on("close", (status) => resolve(status));
+      });
+
+      expect(code).toBe(130);
+      expect(stderr).toContain(`hard-probe: [1/1] ${BLOCK_ID}: LOAD-ERROR (no-report)`);
+      expect(stderr).toContain("hard-probe: stopped by SIGINT");
+      expect(stderr).not.toContain("hard-probe: wrote");
+      expect(readFileSync(out, "utf8")).toBe(earlier);
+      expect(readdirSync(worktrees)).toEqual([]);
+      expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
     }
   );
 });
