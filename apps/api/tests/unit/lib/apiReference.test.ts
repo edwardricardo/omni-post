@@ -1,10 +1,10 @@
 /**
  * @file apiReference.test.ts
  * @description Pins the API reference gate: with the flag off no `/docs` route
- *              exists, with it on Scalar serves the page, its script and the OpenAPI
- *              document built by `@fastify/swagger` at `/docs/json` and
- *              `/docs/openapi.yaml`, the document never lists a reference route, and
- *              an enabled reference without `@fastify/swagger` refuses to register
+ *              exists; with it on the API serves the OpenAPI document built by
+ *              `@fastify/swagger` at `/docs/json` and `/docs/openapi.yaml` and nothing
+ *              else under the prefix, the document never lists those routes, and an
+ *              enabled reference without `@fastify/swagger` refuses to register
  *              instead of serving nothing.
  * @layer infrastructure
  */
@@ -14,7 +14,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { API_REFERENCE_PREFIX, registerApiReference } from "../../../src/lib/apiReference.js";
 
-const REFERENCE_URLS = [
+const PROBED_URLS = [
   "/docs",
   "/docs/",
   "/docs/json",
@@ -23,8 +23,8 @@ const REFERENCE_URLS = [
   "/docs/js/scalar.js",
 ] as const;
 
-/** Every route Scalar registers under the prefix, as Fastify reports it to `onRoute`. */
-const SCALAR_ROUTES = ["/docs", "/docs/", "/docs/js/scalar.js", "/docs/json", "/docs/openapi.yaml"];
+/** The two routes the enabled reference registers, as Fastify reports them to `onRoute`. */
+const DOCUMENT_ROUTES = ["/docs/json", "/docs/openapi.yaml"];
 
 const apps: FastifyInstance[] = [];
 const registeredUrls = new WeakMap<FastifyInstance, string[]>();
@@ -46,7 +46,7 @@ async function buildApp(enabled: boolean): Promise<FastifyInstance> {
   await app.register(fastifySwagger, {
     openapi: { info: { title: "Reference test API", version: "1.0.0" } },
   });
-  await registerApiReference(app, { enabled });
+  registerApiReference(app, { enabled });
   app.get(
     "/widgets",
     { schema: { response: { 200: { type: "object", properties: { id: { type: "string" } } } } } },
@@ -75,6 +75,19 @@ function referenceRoutes(app: FastifyInstance): string[] {
   return [...new Set(urls.filter((url) => url.startsWith(API_REFERENCE_PREFIX)))].sort();
 }
 
+/**
+ * @description Requests every probed URL and records its status code.
+ * @param app - A ready app
+ * @returns The status code of each probed URL
+ */
+async function probeStatuses(app: FastifyInstance): Promise<Record<string, number>> {
+  const statuses: Record<string, number> = {};
+  for (const url of PROBED_URLS) {
+    statuses[url] = (await app.inject({ method: "GET", url })).statusCode;
+  }
+  return statuses;
+}
+
 describe("registerApiReference", () => {
   afterEach(async () => {
     await Promise.all(apps.splice(0).map((app) => app.close()));
@@ -83,58 +96,42 @@ describe("registerApiReference", () => {
   it("serves no reference route when the reference is disabled", async () => {
     const app = await buildApp(false);
 
-    const statuses: Record<string, number> = {};
-    for (const url of REFERENCE_URLS) {
-      statuses[url] = (await app.inject({ method: "GET", url })).statusCode;
-    }
-
-    expect(statuses).toEqual(Object.fromEntries(REFERENCE_URLS.map((url) => [url, 404])));
+    expect(await probeStatuses(app)).toEqual(
+      Object.fromEntries(PROBED_URLS.map((url) => [url, 404]))
+    );
     expect(referenceRoutes(app)).toEqual([]);
   });
 
-  it("registers exactly Scalar's routes under the prefix when enabled", async () => {
+  it("serves the document at /docs/json and /docs/openapi.yaml and nothing else when enabled", async () => {
     const app = await buildApp(true);
 
-    expect(referenceRoutes(app)).toEqual([...SCALAR_ROUTES].sort());
+    expect(await probeStatuses(app)).toEqual({
+      "/docs": 404,
+      "/docs/": 404,
+      "/docs/json": 200,
+      "/docs/openapi.json": 404,
+      "/docs/openapi.yaml": 200,
+      "/docs/js/scalar.js": 404,
+    });
+    expect(referenceRoutes(app)).toEqual(DOCUMENT_ROUTES);
   });
 
-  it("serves the reference page and its script when enabled", async () => {
-    const app = await buildApp(true);
-
-    const bare = await app.inject({ method: "GET", url: API_REFERENCE_PREFIX });
-    expect(bare.statusCode).toBe(301);
-    expect(bare.headers.location).toBe(`${API_REFERENCE_PREFIX}/`);
-
-    const page = await app.inject({ method: "GET", url: `${API_REFERENCE_PREFIX}/` });
-    expect(page.statusCode).toBe(200);
-    expect(page.headers["content-type"]).toContain("text/html");
-    expect(page.body).toContain("./json");
-
-    const script = await app.inject({ method: "GET", url: `${API_REFERENCE_PREFIX}/js/scalar.js` });
-    expect(script.statusCode).toBe(200);
-  });
-
-  it("serves the OpenAPI document at /docs/json and /docs/openapi.yaml when enabled", async () => {
+  it("serves the JSON document with its paths when enabled", async () => {
     const app = await buildApp(true);
 
     const json = await app.inject({ method: "GET", url: `${API_REFERENCE_PREFIX}/json` });
-    expect(json.statusCode).toBe(200);
-    expect(json.json<{ paths: Record<string, unknown> }>().paths).toHaveProperty("/widgets");
 
-    const yaml = await app.inject({ method: "GET", url: `${API_REFERENCE_PREFIX}/openapi.yaml` });
-    expect(yaml.statusCode).toBe(200);
-    expect(yaml.body).toContain("/widgets");
+    expect(json.headers["content-type"]).toBe("application/json; charset=utf-8");
+    expect(json.json<{ paths: Record<string, unknown> }>().paths).toHaveProperty("/widgets");
   });
 
-  it("serves the JSON document at one URL only when enabled", async () => {
+  it("serves the YAML document with its paths when enabled", async () => {
     const app = await buildApp(true);
 
-    const response = await app.inject({
-      method: "GET",
-      url: `${API_REFERENCE_PREFIX}/openapi.json`,
-    });
+    const yaml = await app.inject({ method: "GET", url: `${API_REFERENCE_PREFIX}/openapi.yaml` });
 
-    expect(response.statusCode).toBe(404);
+    expect(yaml.headers["content-type"]).toBe("application/yaml; charset=utf-8");
+    expect(yaml.body).toContain("/widgets:");
   });
 
   it("keeps the OpenAPI document identical whether the reference is served or not", async () => {
@@ -145,11 +142,11 @@ describe("registerApiReference", () => {
     expect(documentedPaths(disabled)).toEqual(["/widgets"]);
   });
 
-  it("refuses to register an enabled reference without @fastify/swagger", async () => {
+  it("refuses to register an enabled reference without @fastify/swagger", () => {
     const app = Fastify({ logger: false });
     apps.push(app);
 
-    await expect(registerApiReference(app, { enabled: true })).rejects.toThrow(
+    expect(() => registerApiReference(app, { enabled: true })).toThrow(
       /@fastify\/swagger must be registered first/
     );
   });
@@ -158,10 +155,10 @@ describe("registerApiReference", () => {
     const app = Fastify({ logger: false });
     apps.push(app);
 
-    await registerApiReference(app, { enabled: false });
+    registerApiReference(app, { enabled: false });
     await app.ready();
 
-    const response = await app.inject({ method: "GET", url: `${API_REFERENCE_PREFIX}/` });
+    const response = await app.inject({ method: "GET", url: `${API_REFERENCE_PREFIX}/json` });
     expect(response.statusCode).toBe(404);
   });
 });

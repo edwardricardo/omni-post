@@ -318,10 +318,10 @@
     "@fastify/swagger": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "Dynamic import registered in every boot (index.ts:229): builds the OpenAPI document that pnpm generate:api-types dumps and that the API reference renders.",
+      "utility": "Dynamic import registered in every boot (index.ts:229): builds the OpenAPI document that pnpm generate:api-types dumps and that registerApiReference serves.",
       "replacement": "None: the generated API types and the CI drift gate read this document.",
       "decidedOn": "2026-10-26",
-      "note": "Declared in apps/api (dependencies). The document is built in every deployment and served only when API_DOCS_ENABLED is set (lib/apiReference.ts, default false); Scalar serves it at /docs/json, where a hand-rolled route listed in the document served it until 2026-10-26."
+      "note": "Declared in apps/api (dependencies). The document is built in every deployment and served only when API_DOCS_ENABLED is set (lib/apiReference.ts, default false), at /docs/json and /docs/openapi.yaml by two routes hidden from it; @scalar/fastify-api-reference, which served it until 2026-10-27, left (DEF-144)."
     },
     "@git-diff-view/file": {
       "status": "kept",
@@ -442,14 +442,6 @@
       "replacement": "The ScrollArea wrapper packages/ui exports over radix-ui (the same 1.2.10); a follow-up moves NotificationBell onto it and drops this declaration.",
       "decidedOn": "2026-10-25",
       "note": "Declared in apps/client (dependencies). Redundant with the packages/ui wrapper; the declaration leaves when NotificationBell moves onto it."
-    },
-    "@scalar/fastify-api-reference": {
-      "status": "kept",
-      "grounds": "in-use",
-      "utility": "Dynamic import in registerApiReference (lib/apiReference.ts): serves the API reference at /docs/ and the OpenAPI document at /docs/json and /docs/openapi.yaml when API_DOCS_ENABLED is set.",
-      "replacement": "None while a deployment may serve the reference; the gate keeps it off by default.",
-      "decidedOn": "2026-10-26",
-      "note": "Declared in apps/api (dependencies). Loaded only when API_DOCS_ENABLED is true (default false, DEF-142); every route it registers is hidden from the OpenAPI document."
     },
     "@sentry/node": {
       "status": "kept",

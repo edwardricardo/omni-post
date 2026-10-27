@@ -237,7 +237,7 @@ async function createApp(): Promise<FastifyInstance> {
           "and publishing across multiple platforms.",
         version: "3.1.0",
       },
-      servers: [{ url: "http://localhost:3000", description: "Local development" }],
+      servers: [{ url: "/", description: "The origin that served this document" }],
       components: {
         securitySchemes: {
           bearerAuth: {
@@ -260,7 +260,7 @@ async function createApp(): Promise<FastifyInstance> {
     },
   });
 
-  await registerApiReference(typedApp, { enabled: env.API_DOCS_ENABLED });
+  registerApiReference(typedApp, { enabled: env.API_DOCS_ENABLED });
 
   // Initialize Redis for advanced rate limiting
   const redis = createRedisConnection();
