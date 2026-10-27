@@ -163,8 +163,8 @@ catalog:
   # 09:47Z and 11:11Z, taken inside the 7-day buffer as a security-tied deviation (mature from
   # 2026-10-27T11:11Z; maturity watchlist). It carries storybookjs/storybook#36732, the next 16.4
   # fix ADR-0037 had patched into 10.6.1, and is above 10.6.2, the fix of GHSA-f2ph-cmg5-wxc8
-  # (critical, storybook and @storybook/addon-vitest >=10.0.0 <10.6.2; SECURITY_CANON CVE-floor
-  # row `storybook`). 10.6.1 before it, since 2026-10-06 (hold bump), and 10.6.0 since 2026-10-02
+  # (critical, storybook and @storybook/addon-vitest >=10.0.0 <10.6.2) and of GHSA-px85-f4q5-jh77
+  # (high; SECURITY_CANON CVE-floor row `storybook`). 10.6.1 before it, since 2026-10-06 (hold bump), and 10.6.0 since 2026-10-02
   # (slice 0.11); the family moves as one. Since 2026-10-05 (slice 0.22) @apps/client runs on
   # @storybook/nextjs-vite, and @storybook/addon-vitest runs its stories as vitest browser tests;
   # OSV lists nothing for the family at 10.6.3.
