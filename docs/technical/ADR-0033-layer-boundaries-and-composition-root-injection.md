@@ -280,7 +280,7 @@ task's error without its `taskId` or `err`.
 
 **Decision 6, PR3b, as shipped.**
 
-- **R4** (`PR v-e3`): `healthRoutes` receives `{ scheduler, checkers }` (`apps/api/src/index.ts:578-588`),
+- **R4** (`PR v-e3`): `healthRoutes` receives `{ scheduler, checkers }` (`apps/api/src/index.ts:567-577`),
   not the root's repository adapter and queue. Decision 1 lets no route receive a repository, an
   adapter or a cache manager, and `CacheHealthChecker` takes the concrete `RedisCacheManager`
   (`packages/monitoring/health-checks/src/checkers/redis.ts:114-115`), so the root builds the six

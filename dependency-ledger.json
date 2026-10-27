@@ -378,7 +378,11 @@
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "production": ["apps/api/src/index.ts"]
+          "production": ["apps/api/src/index.ts"],
+          "test": ["apps/api/tests/unit/lib/apiReference.test.ts"]
+        },
+        "config-string": {
+          "production": ["apps/api/src/lib/apiReference.ts"]
         }
       }
     },
@@ -948,7 +952,7 @@
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "production": ["apps/api/src/index.ts"]
+          "production": ["apps/api/src/lib/apiReference.ts"]
         }
       }
     },

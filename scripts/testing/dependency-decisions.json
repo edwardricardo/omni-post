@@ -318,10 +318,10 @@
     "@fastify/swagger": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "Dynamic import registered unconditionally (index.ts:228): builds the OpenAPI spec for /docs/json and for pnpm generate:api-types.",
-      "replacement": "None while /docs/json is served; gating it to non-production is the booked finding, not a replacement.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies). Registered with no environment gate (index.ts:228): /docs/json is served by every deployment with servers: http://localhost:3000; booked as a finding."
+      "utility": "Dynamic import registered in every boot (index.ts:229): builds the OpenAPI document that pnpm generate:api-types dumps and that the API reference renders.",
+      "replacement": "None: the generated API types and the CI drift gate read this document.",
+      "decidedOn": "2026-10-26",
+      "note": "Declared in apps/api (dependencies). The document is built in every deployment and served only when API_DOCS_ENABLED is set (lib/apiReference.ts, default false); Scalar serves it at /docs/json, where a hand-rolled route listed in the document served it until 2026-10-26."
     },
     "@git-diff-view/file": {
       "status": "kept",
@@ -446,10 +446,10 @@
     "@scalar/fastify-api-reference": {
       "status": "kept",
       "grounds": "in-use",
-      "utility": "Dynamic import registered unconditionally (index.ts:262): serves the API reference UI at /docs, production included.",
-      "replacement": "None while /docs is served; gating it to non-production is the booked finding, not a replacement.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies). Registered with no environment gate (index.ts:262): the API reference UI at /docs is served by every deployment; booked as a finding."
+      "utility": "Dynamic import in registerApiReference (lib/apiReference.ts): serves the API reference at /docs/ and the OpenAPI document at /docs/json and /docs/openapi.yaml when API_DOCS_ENABLED is set.",
+      "replacement": "None while a deployment may serve the reference; the gate keeps it off by default.",
+      "decidedOn": "2026-10-26",
+      "note": "Declared in apps/api (dependencies). Loaded only when API_DOCS_ENABLED is true (default false, DEF-142); every route it registers is hidden from the OpenAPI document."
     },
     "@sentry/node": {
       "status": "kept",
