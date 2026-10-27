@@ -297,7 +297,7 @@ export const AccessibilityFeatures: Story = {
           Buttons include proper ARIA attributes and descriptive text.
         </p>
         <div className="flex gap-2">
-          <Button aria-label="Add new social media post">
+          <Button aria-label="Add post for social media">
             <Plus className="mr-2 h-4 w-4" />
             Add Post
           </Button>
