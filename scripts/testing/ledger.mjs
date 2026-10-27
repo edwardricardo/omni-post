@@ -191,7 +191,7 @@ function scopePrefixes(text) {
  * @param {readonly string[]} tracked
  * @returns {Result<WorkspacePackage[]>}
  */
-function workspacePackages(root, text, tracked) {
+export function workspacePackages(root, text, tracked) {
   const manifests = workspaceManifests(text, tracked);
   if ("error" in manifests) return manifests;
   /** @type {WorkspacePackage[]} */
@@ -228,7 +228,7 @@ function workspacePackages(root, text, tracked) {
  * @param {readonly string[]} candidates The helpers and runners.
  * @returns {Result<Graph>}
  */
-function importGraph(root, files, context, candidates) {
+export function importGraph(root, files, context, candidates) {
   /** @type {Graph} */
   const graph = { references: new Map(), imports: new Map(), notes: [] };
   for (const file of files) {

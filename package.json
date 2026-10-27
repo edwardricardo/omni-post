@@ -52,6 +52,7 @@
     "check:jsdoc": "node scripts/testing/jsdoc-touched-gate.mjs",
     "check:ledger": "node scripts/testing/ledger.mjs --check",
     "ledger": "node scripts/testing/ledger.mjs",
+    "hard-probe": "node scripts/testing/hard-probe.mjs",
     "check:deps-ledger": "node scripts/testing/dependency-ledger.mjs --check",
     "deps:ledger": "node scripts/testing/dependency-ledger.mjs",
     "check:patched-deps": "node scripts/testing/patched-dependencies-gate.mjs --check",
