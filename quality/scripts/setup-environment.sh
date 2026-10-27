@@ -397,7 +397,7 @@ generate_summary() {
 💡 Next Steps:
    1. Review and update .env file with your configuration
    2. Run 'pnpm dev' to start development
-   3. Open http://localhost:3000/docs for API documentation
+   3. Set API_DOCS_ENABLED=true for the OpenAPI document at http://localhost:3000/docs/json
    4. Use VS Code for the best development experience
 
 🆘 Troubleshooting:

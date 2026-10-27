@@ -10,20 +10,6 @@ export type ClientOptions = {
   baseUrl: "http://localhost:3000" | (string & {});
 };
 
-export type GetDocsJsonData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: "/docs/json";
-};
-
-export type GetDocsJsonResponses = {
-  /**
-   * Default Response
-   */
-  200: unknown;
-};
-
 export type GetHealthData = {
   body?: never;
   path?: never;

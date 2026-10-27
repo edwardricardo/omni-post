@@ -234,7 +234,7 @@
     },
     "@scalar/fastify-api-reference": {
       "status": "pending",
-      "note": "Serves the API reference at `/docs` from its bundled script. The bundle names Scalar's request proxy (`proxy.scalar.com`), and whether its request client sends calls through that proxy under this configuration is not established."
+      "note": "Serves the API reference at `/docs/` from its bundled script, only where `API_DOCS_ENABLED` is set (off by default). The bundle names Scalar's request proxy (`proxy.scalar.com`), and whether its request client sends calls through that proxy under this configuration is not established."
     },
     "@secretlint/secretlint-rule-preset-recommend": {
       "status": "library",

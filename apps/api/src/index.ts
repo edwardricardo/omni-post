@@ -59,6 +59,7 @@ import {
 } from "./security/httpRateLimitPreHandler.js";
 import type { RateLimiterPort } from "@ports/core";
 import { createErrorHandler } from "./lib/errors/errorHandler.js";
+import { registerApiReference } from "./lib/apiReference.js";
 import { createRedisConnection, getRedisUrl } from "./lib/redis.js";
 import type { Redis } from "ioredis";
 import { Queue } from "bullmq";
@@ -259,19 +260,7 @@ async function createApp(): Promise<FastifyInstance> {
     },
   });
 
-  const scalarRef = await import("@scalar/fastify-api-reference");
-  await typedApp.register(scalarRef.default, {
-    routePrefix: "/docs",
-    configuration: {
-      theme: "kepler",
-      url: "/docs/json",
-    },
-  });
-
-  // Expose raw JSON spec
-  typedApp.get("/docs/json", async (_request, reply) => {
-    return reply.send(typedApp.swagger?.() ?? {});
-  });
+  await registerApiReference(typedApp, { enabled: env.API_DOCS_ENABLED });
 
   // Initialize Redis for advanced rate limiting
   const redis = createRedisConnection();
