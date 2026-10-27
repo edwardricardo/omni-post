@@ -1559,8 +1559,9 @@ describe("main", () => {
     );
 
     expect(result.code).toBe(0);
+    const record = readFileSync(out, "utf8");
     expect(statSync(out).mode & 0o777).toBe(0o600);
-    expect(core.isProbesRecord(readFileSync(out, "utf8"))).toBe(true);
+    expect(core.isProbesRecord(record)).toBe(true);
     expect(readdirSync(path.dirname(out))).toEqual(["probes.json"]);
   });
 
