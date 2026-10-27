@@ -287,6 +287,11 @@ const serverSchema = {
 
   // ── Feature flags ───────────────────────────────────────────────────
   ENABLE_RATE_LIMITING: boolFromString.default(true),
+  // Serves the API reference (`/docs/`) and the OpenAPI document it renders
+  // (`/docs/json`, `/docs/openapi.yaml`). The document maps every
+  // route, parameter and schema of the API, so it is off unless a deployment
+  // opts in; see `registerApiReference` in `lib/apiReference.ts`.
+  API_DOCS_ENABLED: boolFromString.default(false),
   // Headless schema-only boot for OpenAPI dump tooling. When true,
   // createApp() skips the saga/EventService background block (Redis
   // pub/sub subscriber, recovery checker) so the dump script can extract

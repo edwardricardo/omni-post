@@ -112,6 +112,24 @@ describe("env schema (apps/api/src/config/env.ts)", () => {
       expect(env.TRACING_ENABLED).toBe(true);
     });
 
+    it("leaves API_DOCS_ENABLED off when unset", async () => {
+      const env = (await loadEnvWith({ API_DOCS_ENABLED: undefined })) as {
+        API_DOCS_ENABLED: boolean;
+      };
+      expect(env.API_DOCS_ENABLED).toBe(false);
+    });
+
+    it("coerces API_DOCS_ENABLED='true' to boolean true", async () => {
+      const env = (await loadEnvWith({ API_DOCS_ENABLED: "true" })) as {
+        API_DOCS_ENABLED: boolean;
+      };
+      expect(env.API_DOCS_ENABLED).toBe(true);
+    });
+
+    it("refuses to boot on an API_DOCS_ENABLED value that is not a boolean", async () => {
+      await expect(loadEnvWith({ API_DOCS_ENABLED: "yes" })).rejects.toThrow(/API_DOCS_ENABLED/);
+    });
+
     it("coerces PORT='5000' to number 5000", async () => {
       const env = (await loadEnvWith({ PORT: "5000" })) as { PORT: number };
       expect(env.PORT).toBe(5000);

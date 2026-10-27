@@ -335,8 +335,6 @@ export type {
   GetCustomReportsData,
   GetCustomReportsResponses,
   GetData,
-  GetDocsJsonData,
-  GetDocsJsonResponses,
   GetEngagementGeographicData,
   GetEngagementGeographicResponses,
   GetEngagementTrendsData,
