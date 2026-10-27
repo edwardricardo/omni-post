@@ -10,7 +10,10 @@
  *   the worktree with `git checkout -- .` and requires an empty porcelain before the next probe.
  *   Every runner leads a process group of its own, killed whole on a timeout and swept when the
  *   runner ends, so no worker outlives its probe. The source tree is only read, and written once:
- *   `probes.json`. The worktree goes when the run ends, by `git worktree remove --force`, on failure too. The plan,
+ *   `probes.json`. The worktree sits at `tree/` inside a directory the run creates for itself under
+ *   `--worktree-root` with `mkdtemp` (a unique name, open to its owner alone), so no path another
+ *   user could plant beforehand is ever written to; it goes when the run ends, by `git worktree
+ *   remove --force` and then that directory's removal, on failure and on a signal too. The plan,
  *   the commands, the outcomes and the record are `lib/hard-probe-core.mjs`'s; the gutting is
  *   `lib/hard-probe-gut.mjs`'s.
  *
@@ -24,7 +27,7 @@
  *   3 an input or the environment failed: the source tree is not clean (its one exception is the
  *   tool's own `--out`, so an earlier run's uncommitted `probes.json` refuses nothing), `--out`
  *   names a tracked file that is no `probes.json` of this tool, `--worktree-root` lies inside the
- *   source tree, the worktree path already exists, git, the install or a runner could not run, the
+ *   source tree or cannot hold a private directory, git, the install or a runner could not run, the
  *   ledger or its import graph could not be built, the ledger names a block its classifier does not
  *   find, a probe left the worktree dirty, or `probes.json` could not be written; 128 plus a
  *   signal's number, a run that signal stopped. Nothing is written on any exit but 0.
@@ -36,7 +39,7 @@
  * @layer infrastructure
  */
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { constants, tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -123,6 +126,10 @@ const STOP_SIGNALS = /** @type {const} */ (["SIGINT", "SIGTERM", "SIGHUP"]);
  * @property {number} seed
  * @property {number | null} limit
  * @property {string | null} only
+ *
+ * @typedef {object} Created What a run has created, each `null` until it exists.
+ * @property {string | null} parent The private directory under `--worktree-root`.
+ * @property {string | null} target The worktree, `tree/` inside it.
  *
  * @typedef {object} Probing What every probe of one run reads.
  * @property {string} target The probe worktree, absolute.
@@ -736,6 +743,25 @@ async function removeWorktree(root, target) {
 }
 
 /**
+ * @description Removes what a run created: the worktree, then the private directory that held it.
+ *   A worktree git could not remove leaves that directory in place, so the registration git keeps
+ *   still points at something to inspect.
+ * @param {string} root
+ * @param {Created} created
+ * @returns {Promise<string | null>} Why a removal failed, or `null`.
+ */
+async function removeCreated(root, created) {
+  const failed = created.target === null ? null : await removeWorktree(root, created.target);
+  if (failed !== null || created.parent === null) return failed;
+  try {
+    rmSync(created.parent, { recursive: true, force: true });
+    return null;
+  } catch (error) {
+    return `hard-probe: unread: ${created.parent} could not be removed: ${messageOf(error)}`;
+  }
+}
+
+/**
  * @description The command line, as a function: refuse what the run may not touch, create the
  *   worktree, probe in it, and remove it whatever happened, a signal included.
  * @param {readonly string[]} argv The arguments after the script path.
@@ -746,8 +772,8 @@ export async function main(argv, seams = {}) {
   const parsed = parseArguments(argv);
   if ("error" in parsed) return cliResult(EXIT.USAGE, [`hard-probe: ${parsed.error}`, USAGE]);
   const options = parsed.value;
-  /** @type {{ target: string | null }} */
-  const created = { target: null };
+  /** @type {Created} */
+  const created = { parent: null, target: null };
   /** @type {CliResult} */
   let result;
   try {
@@ -758,8 +784,7 @@ export async function main(argv, seams = {}) {
         ? cliResult(error.code, [error.message])
         : cliResult(EXIT.UNREAD, [`hard-probe: unread: the run failed: ${messageOf(error)}`]);
   }
-  const removal =
-    created.target === null ? null : await removeWorktree(options.root, created.target);
+  const removal = await removeCreated(options.root, created);
   if (STOPPED.signal !== null) {
     const lines = [`hard-probe: stopped by ${STOPPED.signal}`];
     return cliResult(stoppedCode(STOPPED.signal), removal === null ? lines : [...lines, removal]);
@@ -770,12 +795,12 @@ export async function main(argv, seams = {}) {
 
 /**
  * @description Refuses a `--worktree-root` inside the source tree, an `--out` that names a tracked
- *   file which is no `probes.json` of this tool, a dirty source tree (the tool's own `--out` aside)
- *   or an existing target, then creates the worktree and probes in it. The caller removes the
- *   worktree `created` names, whatever this returns or throws.
+ *   file which is no `probes.json` of this tool, or a dirty source tree (the tool's own `--out`
+ *   aside), then creates a private directory under `--worktree-root`, the worktree at its `tree/`,
+ *   and probes in it. The caller removes what `created` names, whatever this returns or throws.
  * @param {Options} options
  * @param {ProbeSeams} seams
- * @param {{ target: string | null }} created Set once the worktree exists.
+ * @param {Created} created Each part set once it exists.
  * @returns {Promise<CliResult>}
  * @throws {Stop} Exit 3 on any input or environment failure.
  */
@@ -802,11 +827,16 @@ async function probeRun(options, seams, created) {
     ]);
   }
   const sha = git(options.root, ["rev-parse", "HEAD"]).trim();
-  const target = path.join(options.worktreeRoot, `hard-probe-${sha}`);
-  if (existsSync(target)) {
-    return cliResult(EXIT.UNREAD, [`hard-probe: refused: ${target} already exists`]);
-  }
   unlessStopped();
+  try {
+    created.parent = mkdtempSync(path.join(options.worktreeRoot, "hard-probe-"));
+  } catch (error) {
+    throw new Stop(
+      EXIT.UNREAD,
+      `hard-probe: unread: --worktree-root ${options.worktreeRoot} cannot hold a private directory: ${messageOf(error)}`
+    );
+  }
+  const target = path.join(created.parent, "tree");
   git(options.root, ["worktree", "add", "--detach", target, sha]);
   created.target = target;
   return probeIn(options, { target, sha }, seams);

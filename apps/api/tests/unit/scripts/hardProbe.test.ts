@@ -22,6 +22,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -1297,22 +1298,138 @@ describe("main", () => {
     expect(calls).toEqual([]);
   });
 
-  it("refuses a worktree path that already exists and leaves it as it was", async () => {
+  /** The private directory a run's worktree sat in, read from the install's working directory. */
+  const parentOf = (calls: readonly Call[]): string => path.dirname(calls[0]?.cwd ?? "");
+
+  it("puts its worktree in a private directory of its own under --worktree-root, never in a path planted there, and removes both", async () => {
     const { root, sha } = plantRepository();
     const worktrees = scratchDir("hard-probe-worktrees-");
-    const target = path.join(worktrees, `hard-probe-${sha}`);
-    writeFiles(target, { "keep.txt": "mine\n" });
+    const planted = path.join(worktrees, `hard-probe-${sha}`);
+    writeFiles(planted, { "keep.txt": "mine\n" });
     const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
     const before = git(root, "worktree", "list", "--porcelain");
-    const { calls, exec } = recorder(() => "");
+    let mode = 0;
+    const { calls, exec } = recorder((cwd) => {
+      mode = statSync(path.dirname(path.dirname(cwd))).mode & 0o777;
+      return PASSING_REPORT;
+    });
+
+    const result = await cli.main(
+      ["--root", root, "--worktree-root", worktrees, "--out", out, "--only", BLOCK_ID],
+      { exec, buildLedger: () => ({ value: PROBE_LEDGER }), progress: () => undefined }
+    );
+
+    expect(result.code).toBe(0);
+    const parent = parentOf(calls);
+    expect(path.dirname(parent)).toBe(worktrees);
+    expect(path.basename(parent)).toMatch(/^hard-probe-[A-Za-z0-9]{6}$/);
+    expect(calls[0]?.cwd).toBe(path.join(parent, "tree"));
+    expect(mode).toBe(0o700);
+    expect(readdirSync(worktrees)).toEqual([`hard-probe-${sha}`]);
+    expect(readdirSync(planted)).toEqual(["keep.txt"]);
+    expect(readFileSync(path.join(planted, "keep.txt"), "utf8")).toBe("mine\n");
+    expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
+  });
+
+  it("removes its private directory when git cannot add the worktree, and calls no runner", async () => {
+    const { root } = plantRepository();
+    writeFileSync(path.join(root, ".git/worktrees"), "not a directory\n");
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
+    const { calls, exec } = recorder(() => PASSING_REPORT);
 
     const result = await cli.main(["--root", root, "--worktree-root", worktrees, "--out", out], {
       exec,
     });
 
-    expect(result).toEqual({ code: 3, output: `hard-probe: refused: ${target} already exists\n` });
-    expect(readdirSync(target)).toEqual(["keep.txt"]);
-    expect(readFileSync(path.join(target, "keep.txt"), "utf8")).toBe("mine\n");
+    expect(result.code).toBe(3);
+    expect(result.output).toMatch(/^hard-probe: unread: git worktree add --detach .+ failed: /);
+    expect(readdirSync(worktrees)).toEqual([]);
+    expect(calls).toEqual([]);
+    expect(existsSync(out)).toBe(false);
+    expect(git(root, "worktree", "list", "--porcelain").match(/^worktree /gm)).toHaveLength(1);
+  });
+
+  it("keeps its private directory, with the worktree in it, when git cannot remove the worktree, and names the failure", async () => {
+    const { root } = plantRepository();
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
+    const before = git(root, "worktree", "list", "--porcelain");
+    const calls: Call[] = [];
+    const exec = (command: string, args: readonly string[], cwd: string): Ran => {
+      calls.push({ command, args: [...args], cwd });
+      if (args[0] === "install") git(root, "worktree", "lock", cwd);
+      const stdout = args[0] === "install" ? "" : PASSING_REPORT;
+      return { status: 0, stdout, stderr: "", timedOut: false, spawnError: null };
+    };
+
+    const result = await cli.main(
+      ["--root", root, "--worktree-root", worktrees, "--out", out, "--only", BLOCK_ID],
+      { exec, buildLedger: () => ({ value: PROBE_LEDGER }), progress: () => undefined }
+    );
+    const target = calls[0]?.cwd ?? "";
+    const parent = path.dirname(target);
+    const kept = {
+      entries: readdirSync(parent),
+      registered: git(root, "worktree", "list", "--porcelain"),
+    };
+    git(root, "worktree", "unlock", target);
+    git(root, "worktree", "remove", "--force", target);
+    rmSync(parent, { recursive: true, force: true });
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain(
+      `hard-probe: unread: git worktree remove --force ${target} failed: `
+    );
+    expect(kept.entries).toEqual(["tree"]);
+    expect(kept.registered).toContain(`worktree ${target}\n`);
+    expect(readdirSync(worktrees)).toEqual([]);
+    expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
+  });
+
+  it("never gives two runs the same path", async () => {
+    const { root } = plantRepository();
+    const worktrees = scratchDir("hard-probe-worktrees-");
+    const before = git(root, "worktree", "list", "--porcelain");
+    const run = async (): Promise<string> => {
+      const { calls, exec } = recorder(() => PASSING_REPORT);
+      const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
+      const result = await cli.main(
+        ["--root", root, "--worktree-root", worktrees, "--out", out, "--only", BLOCK_ID],
+        { exec, buildLedger: () => ({ value: PROBE_LEDGER }), progress: () => undefined }
+      );
+      expect(result.code).toBe(0);
+      return calls[0]?.cwd ?? "";
+    };
+
+    const first = await run();
+    const second = await run();
+
+    expect(first).not.toBe(second);
+    expect(path.dirname(path.dirname(first))).toBe(worktrees);
+    expect(path.dirname(path.dirname(second))).toBe(worktrees);
+    expect(readdirSync(worktrees)).toEqual([]);
+    expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
+  });
+
+  it("refuses a --worktree-root it cannot create a private directory in, before any worktree exists", async () => {
+    const { root } = plantRepository();
+    const worktrees = path.join(scratchDir("hard-probe-worktrees-"), "missing");
+    const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
+    const before = git(root, "worktree", "list", "--porcelain");
+    const { calls, exec } = recorder(() => PASSING_REPORT);
+
+    const result = await cli.main(["--root", root, "--worktree-root", worktrees, "--out", out], {
+      exec,
+    });
+
+    expect(result.code).toBe(3);
+    expect(result.output).toMatch(
+      new RegExp(
+        `^hard-probe: unread: --worktree-root ${worktrees} cannot hold a private directory: ENOENT`
+      )
+    );
+    expect(existsSync(worktrees)).toBe(false);
     expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
     expect(existsSync(out)).toBe(false);
     expect(calls).toEqual([]);
@@ -1321,13 +1438,12 @@ describe("main", () => {
   it("probes in one detached worktree, guts the subject for the run, restores it, writes probes.json and removes the worktree", async () => {
     const { root, sha } = plantRepository();
     const worktrees = scratchDir("hard-probe-worktrees-");
-    const target = path.join(worktrees, `hard-probe-${sha}`);
     const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
     const before = git(root, "worktree", "list", "--porcelain");
     const seen: string[] = [];
     const { calls, exec } = recorder((cwd) => {
       seen.push(readFileSync(path.join(cwd, "src/math.ts"), "utf8"));
-      seen.push(git(target, "rev-parse", "HEAD").trim());
+      seen.push(git(path.dirname(cwd), "rev-parse", "HEAD").trim());
       return `noise\n${PASSING_REPORT}\n`;
     });
     const progress: string[] = [];
@@ -1344,6 +1460,7 @@ describe("main", () => {
         "hard-probe: EXISTENCE-ONLY: 2 probes, 1 GREEN, 0 RED, 1 LOAD-ERROR, GREEN 100.0% of 1 conclusive (>= 90 %: a lint-rule candidate)\n" +
         `hard-probe: wrote ${out}: 2 probes of ${sha}\n`,
     });
+    const target = path.join(parentOf(calls), "tree");
     expect(calls).toEqual([
       { command: "pnpm", args: ["install", "--offline", "--frozen-lockfile"], cwd: target },
       {
@@ -1431,16 +1548,15 @@ describe("main", () => {
       },
       version: 1,
     });
-    expect(existsSync(target)).toBe(false);
+    expect(readdirSync(worktrees)).toEqual([]);
     expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
     expect(git(root, "status", "--porcelain")).toBe("");
     expect(readFileSync(path.join(root, SUBJECT_FILE), "utf8")).toBe(SUBJECT_TEXT);
   });
 
   it("aborts with 3, naming the files, when a probe leaves the probe worktree dirty, and still removes it", async () => {
-    const { root, sha } = plantRepository();
+    const { root } = plantRepository();
     const worktrees = scratchDir("hard-probe-worktrees-");
-    const target = path.join(worktrees, `hard-probe-${sha}`);
     const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
     const before = git(root, "worktree", "list", "--porcelain");
     const { exec } = recorder((cwd) => {
@@ -1458,13 +1574,13 @@ describe("main", () => {
       output: `hard-probe: unread: the probe worktree is not clean after probing ${BLOCK_ID}: pkg/stray.txt\n`,
     });
     expect(existsSync(out)).toBe(false);
-    expect(existsSync(target)).toBe(false);
+    expect(readdirSync(worktrees)).toEqual([]);
     expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
     expect(git(root, "status", "--porcelain")).toBe("");
   });
 
   it("returns 1 for an --only id the ledger lacks, writes nothing and removes the worktree", async () => {
-    const { root, sha } = plantRepository();
+    const { root } = plantRepository();
     const worktrees = scratchDir("hard-probe-worktrees-");
     const out = path.join(scratchDir("hard-probe-out-"), "probes.json");
     const before = git(root, "worktree", "list", "--porcelain");
@@ -1481,7 +1597,7 @@ describe("main", () => {
     });
     expect(calls).toHaveLength(1);
     expect(existsSync(out)).toBe(false);
-    expect(existsSync(path.join(worktrees, `hard-probe-${sha}`))).toBe(false);
+    expect(readdirSync(worktrees)).toEqual([]);
     expect(git(root, "worktree", "list", "--porcelain")).toBe(before);
   });
 
