@@ -18,10 +18,10 @@ At the baseline (2026-09-27T17:55:14Z) the 52 rows below accounted for themselve
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-21T22:15:17Z by `node scripts/testing/holds-gate.mjs` under Node 26.11.1,
-exit 0 with EMPTY stderr: of the 52 packages in `scripts/testing/toolchain-population.json` (51 direct, 1
-named transitive, no declared-absent candidate left), 9 sit below latest mature: 1 within the 30-day
-budget of ADR-0036, 0 past it unheld, 8 held.**
+**CURRENT, re-measured 2026-10-27T19:38:57Z by `node scripts/testing/holds-gate.mjs` under Node 26.12.1,
+exit 0 with EMPTY stderr: of the 48 packages in `scripts/testing/toolchain-population.json` (47 direct, 1
+named transitive, no declared-absent candidate left), 16 sit below latest mature: 9 within the 30-day
+budget of ADR-0036, 0 past it unheld, 7 held.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line, re-measured with
@@ -71,6 +71,8 @@ and what moved it. A slice that moves the count appends its own line, re-measure
 42. `2026-10-21T22:10:38Z` — **11** (2 within budget, 9 held, 0 undocumented): `@playwright/test` and `playwright` 1.64.0 → 1.64.1, `@testing-library/user-event` 14.6.7 → 14.6.8.
 43. `2026-10-21T22:13:23Z` — **10** (1 within budget, 9 held, 0 undocumented): `turbo` 2.11.7 → 2.11.8.
 44. `2026-10-21T22:15:17Z` — **9** (1 within budget, 8 held, 0 undocumented): `@vitejs/plugin-react` 5.1.4 → 6.1.2, and its hold row left; `msw` is the one lag within budget.
+45. `2026-10-27T19:13:04Z` — **18** (11 within budget, 7 held, 0 undocumented): the Prisma family 7.10.0 → 7.10.1. Since entry 44 the population went 52 → 48 and the held lags 8 → 7 with four removals no entry recorded: `@vitest/ui` (deps-remove-1, `ef2bc3a0`), held with the vitest family, and `@storybook/addon-docs`, `cross-env` and `eslint-plugin-react` (deps-remove-2, `bea1409c`); and ten newer releases matured inside the budget beside `msw`, each to move in a later commit of this window: `@axe-core/playwright` 4.14.0, the `@typescript-eslint` pair 8.72.0, `dependency-cruiser` 18.7.0, `eslint-plugin-jsdoc` 65.4.0, `isomorphic-dompurify` 4.6.0, `jscpd` 5.4.2, `jsdom` 30.1.3, `knip` 6.42.1 and `turbo` 2.11.9.
+46. `2026-10-27T19:38:57Z` — **16** (9 within budget, 7 held, 0 undocumented): `jsdom` 30.1.2 → 30.1.3 and `isomorphic-dompurify` 4.5.0 → 4.6.0.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
