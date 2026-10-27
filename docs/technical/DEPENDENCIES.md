@@ -364,7 +364,7 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 | husky                            | 9.1.7   | Git hooks                                                   |
 | lint-staged                      | 17.6.0  | Pre-commit staged file linting                              |
 | knip                             | 6.42.1  | Dead code detection                                         |
-| dependency-cruiser               | 18.6.0  | Architecture rules and circular dependency detection        |
+| dependency-cruiser               | 18.7.0  | Architecture rules and circular dependency detection        |
 | jscpd                            | 5.4.2   | Copy-paste detection                                        |
 
 ### Standards
