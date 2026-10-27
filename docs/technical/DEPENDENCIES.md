@@ -357,9 +357,9 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 | Tool                             | Version | Purpose                                                     |
 | -------------------------------- | ------- | ----------------------------------------------------------- |
 | eslint                           | 9.39.5  | Static analysis (flat config, v9)                           |
-| eslint-plugin-jsdoc              | 65.3.4  | JSDoc rules for the touched-files gate (`pnpm check:jsdoc`) |
-| @typescript-eslint/parser        | 8.71.2  | TypeScript parser for ESLint                                |
-| @typescript-eslint/eslint-plugin | 8.71.2  | TypeScript lint rules; moves with the parser as one pair    |
+| eslint-plugin-jsdoc              | 65.4.0  | JSDoc rules for the touched-files gate (`pnpm check:jsdoc`) |
+| @typescript-eslint/parser        | 8.72.0  | TypeScript parser for ESLint                                |
+| @typescript-eslint/eslint-plugin | 8.72.0  | TypeScript lint rules; moves with the parser as one pair    |
 | prettier                         | 3.9.10  | Code formatting                                             |
 | husky                            | 9.1.7   | Git hooks                                                   |
 | lint-staged                      | 17.6.0  | Pre-commit staged file linting                              |

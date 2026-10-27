@@ -18,9 +18,9 @@ At the baseline (2026-09-27T17:55:14Z) the 52 rows below accounted for themselve
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-27T21:55:45Z by `node scripts/testing/holds-gate.mjs` under Node 26.12.1,
+**CURRENT, re-measured 2026-10-27T22:01:59Z by `node scripts/testing/holds-gate.mjs` under Node 26.12.1,
 exit 0 with EMPTY stderr: of the 48 packages in `scripts/testing/toolchain-population.json` (47 direct, 1
-named transitive, no declared-absent candidate left), 12 sit below latest mature: 5 within the 30-day
+named transitive, no declared-absent candidate left), 9 sit below latest mature: 2 within the 30-day
 budget of ADR-0036, 0 past it unheld, 7 held.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
@@ -77,6 +77,7 @@ and what moved it. A slice that moves the count appends its own line, re-measure
 48. `2026-10-27T21:44:59Z` — **14** (7 within budget, 7 held, 0 undocumented): `knip` 6.41.0 → 6.42.1, with `oxc-parser` 0.153.0 → 0.154.0 and `unbash` 5.0.0 → 6.0.1; its 285 findings are the baseline's, so the ratchet's ledger does not move.
 49. `2026-10-27T21:49:23Z` — **13** (6 within budget, 7 held, 0 undocumented): `jscpd` 5.4.1 → 5.4.2 with its eight platform binaries, whose Rust build carries rustls 0.23.46; `check:duplicates` reads 988 clones in 1807 files against the unchanged 980-fingerprint baseline.
 50. `2026-10-27T21:55:45Z` — **12** (5 within budget, 7 held, 0 undocumented): `dependency-cruiser` 18.6.0 → 18.7.0; `check:architecture` reads the same 123 known violations, none new and none stale, so the shrink-only baseline does not move.
+51. `2026-10-27T22:01:59Z` — **9** (2 within budget, 7 held, 0 undocumented): the `@typescript-eslint` pair 8.71.2 → 8.72.0 and `eslint-plugin-jsdoc` 65.3.4 → 65.4.0, three lags at once; `pnpm lint` reads 3349 files with 0 errors and 0 warnings, and `check:jsdoc --all` reads the same 948 of 2162 files and 8837 violations on 65.3.4 and on 65.4.0.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
