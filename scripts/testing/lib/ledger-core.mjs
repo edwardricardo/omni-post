@@ -219,10 +219,18 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  * @property {DeletedCounts} deleted Zero until the ledger records deletions.
  * @property {string[]} excluded `<path>: <decision>` per excluded row, sorted by path.
  *
+ * @typedef {object} Drop What deleting a set of rows removes.
+ * @property {number} files
+ * @property {number} blocks
+ *
+ * @typedef {object} LedgerSlice One demolition slice, as `slices.json` assigns it.
+ * @property {string[]} files Its rows' paths, sorted.
+ * @property {Drop} expectedDrop What deleting its DELETE rows removes.
+ *
  * @typedef {object} Ledger
  * @property {number} version
  * @property {Summary} summary
- * @property {Record<string, never>} slices Empty until slices are assigned.
+ * @property {Record<string, LedgerSlice>} slices By id, in code-unit order; empty until assigned.
  * @property {FileRow[]} files Sorted by path.
  */
 
@@ -595,11 +603,13 @@ export function summarize(rows) {
 
 /**
  * @description Assembles the ledger: its rows sorted by path, each copied into the key order of
- *   `orderedRow`, and the summary derived from them. A path with two rows is refused.
+ *   `orderedRow`, the summary derived from them, and the slices in code-unit order of their ids,
+ *   each copied into its key order. A path with two rows is refused.
  * @param {readonly FileRow[]} rows
+ * @param {Readonly<Record<string, LedgerSlice>>} [slices] The assigned slices, by id.
  * @returns {Result<Ledger>} The ledger, or the path two rows share.
  */
-export function buildLedger(rows) {
+export function buildLedger(rows, slices = {}) {
   const files = [...rows].sort((left, right) => byCodeUnit(left.path, right.path));
   const repeated = files.find((row, index) => index > 0 && files[index - 1]?.path === row.path);
   if (repeated !== undefined) {
@@ -607,8 +617,16 @@ export function buildLedger(rows) {
     return { error: `${repeated.path} has ${count} rows` };
   }
   const ordered = files.map(orderedRow);
+  /** @type {Record<string, LedgerSlice>} */
+  const sliced = {};
+  for (const [id, slice] of Object.entries(slices).sort(([left], [right]) =>
+    byCodeUnit(left, right)
+  )) {
+    const { files: dropped, blocks } = slice.expectedDrop;
+    sliced[id] = { files: [...slice.files], expectedDrop: { files: dropped, blocks } };
+  }
   return {
-    value: { version: LEDGER_VERSION, summary: summarize(ordered), slices: {}, files: ordered },
+    value: { version: LEDGER_VERSION, summary: summarize(ordered), slices: sliced, files: ordered },
   };
 }
 

@@ -25,6 +25,7 @@
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -158,10 +159,22 @@ interface Summary {
   readonly excluded: readonly string[];
 }
 
+/** What deleting a set of rows removes. */
+interface Drop {
+  readonly files: number;
+  readonly blocks: number;
+}
+
+/** One demolition slice of the ledger. */
+interface LedgerSlice {
+  readonly files: readonly string[];
+  readonly expectedDrop: Drop;
+}
+
 interface Ledger {
   readonly version: number;
   readonly summary: Summary;
-  readonly slices: Readonly<Record<string, unknown>>;
+  readonly slices: Readonly<Record<string, LedgerSlice>>;
   readonly files: readonly FileRow[];
 }
 
@@ -256,12 +269,21 @@ interface LedgerSeams {
   readonly listFiles?: (root: string) => Result<string[]>;
   readonly runReach?: (root: string) => ReachReport | string;
   readonly render?: (ledger: Ledger) => Promise<string>;
+  readonly renderMarkdown?: (
+    ledger: Ledger,
+    machine: ReadonlyMap<string, Verdict | null>
+  ) => Promise<string>;
 }
 
-/** A built ledger, and a note per file the classifier could not read. */
+/**
+ * A built ledger, a note per file the classifier could not read, a problem per overlay entry or
+ * slice assignment refused, and each row's machine verdict before the overlay.
+ */
 interface Built {
   readonly ledger: Ledger;
   readonly notes: readonly string[];
+  readonly problems: readonly string[];
+  readonly machine: ReadonlyMap<string, Verdict | null>;
 }
 
 /** What the command prints and the exit code it ends with. */
@@ -1682,7 +1704,9 @@ describe("ledger.mjs write mode", () => {
 
     expect(result).toEqual({
       code: 0,
-      output: "ledger: wrote ledger.json: 4 files, 3 test-shaped, 5 blocks, 3 with a criterion\n",
+      output:
+        "ledger: wrote ledger.json: 4 files, 3 test-shaped, 5 blocks, 3 with a criterion\n" +
+        "ledger: wrote docs/development/testing-refoundation/LEDGER.md\n",
     });
     expect(readFileSync(ledgerFile(root), "utf8")).toBe(
       await core.render(valueOf(built(root)).ledger)
@@ -1771,12 +1795,14 @@ describe("ledger.mjs --check", () => {
     retitle(root);
     const drifted = await run(root, ["--check"]);
 
-    expect(current).toEqual({ code: 0, output: "ledger: ledger.json is current\n" });
+    const page = "ledger: docs/development/testing-refoundation/LEDGER.md is current\n";
+    expect(current).toEqual({ code: 0, output: `ledger: ledger.json is current\n${page}` });
     expect(drifted).toEqual({
       code: 1,
       output:
         `ledger: drift: ${B}: its row differs\n` +
-        "ledger: ledger.json is stale; run `pnpm ledger` and commit the result\n",
+        "ledger: ledger.json is stale; run `pnpm ledger` and commit the result\n" +
+        page,
     });
   });
 
@@ -1802,6 +1828,605 @@ describe("ledger.mjs --check", () => {
       code: 3,
       output: `ledger: unread: test-contracts reach could not read an input: ${UNREAD_INPUT}\n`,
     });
+  });
+});
+
+/** The overlay a reviewer writes, the slice assignment beside it and the page the ledger renders. */
+const ADJUDICATIONS = "docs/development/testing-refoundation/adjudications.json";
+const SLICES = "docs/development/testing-refoundation/slices.json";
+const MARKDOWN = "docs/development/testing-refoundation/LEDGER.md";
+/** sha256 of the ledger `FIXTURE` rendered to before the overlay existed, at befcdae1. */
+const C1_FIXTURE_SHA256 = "23c2df68fa9544bb2e76bc5287c643aea68f7a5de7b489edf1d8a351c18e04c8";
+
+/** B, machine REWRITE, confirmed KEEP: every field the overlay requires, each valid. */
+const CONFIRMATION = {
+  verdict: "KEEP",
+  criteria: [],
+  blocks: [`${B}::loads the module`],
+  evidence: "the hard probe turned the block red",
+  status: "confirmed",
+  reviewer: "Edward",
+  date: "2026-10-27",
+};
+
+/** `FIXTURE` with the overlay's files written as JSON. */
+const withOverlay = (files: Readonly<Record<string, unknown>>): Record<string, string> => ({
+  ...FIXTURE,
+  ...Object.fromEntries(Object.entries(files).map(([file, data]) => [file, JSON.stringify(data)])),
+});
+
+const rowOf = (ledger: Ledger, file: string): FileRow | undefined =>
+  ledger.files.find((entry) => entry.path === file);
+
+const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
+
+describe("ledger.mjs with no overlay and no slices", () => {
+  it("renders the bytes it rendered before the overlay existed, an empty overlay included", async () => {
+    const bare = valueOf(built(plant(FIXTURE)));
+    const empty = valueOf(
+      built(plant(withOverlay({ [ADJUDICATIONS]: { entries: {} }, [SLICES]: { slices: {} } })))
+    );
+
+    expect(sha256(await core.render(bare.ledger))).toBe(C1_FIXTURE_SHA256);
+    expect(await core.render(empty.ledger)).toBe(await core.render(bare.ledger));
+    expect([bare.problems, empty.problems]).toEqual([[], []]);
+  });
+});
+
+describe("ledger.mjs adjudications.json", () => {
+  it("confirms a row with the overlay's verdict, keeps its machine basis and verdict beside it, and counts it confirmed", () => {
+    const { ledger, problems, machine } = valueOf(
+      built(plant(withOverlay({ [ADJUDICATIONS]: { entries: { [B]: CONFIRMATION } } })))
+    );
+
+    expect(rowOf(ledger, B)).toMatchObject({
+      verdict: "KEEP",
+      basis: "some-decorative",
+      status: "confirmed",
+      sliceId: null,
+    });
+    expect(machine.get(B)).toBe("REWRITE");
+    expect(rowOf(ledger, A)).toMatchObject({ verdict: "KEEP", status: "machine" });
+    expect(ledger.summary.rows).toEqual({ machine: 3, confirmed: 1, total: 4 });
+    expect(ledger.summary.files.byVerdict).toEqual({
+      DELETE: 2,
+      REWRITE: 0,
+      KEEP: 2,
+      ADJUDICATE: 0,
+      unmeasured: 0,
+    });
+    expect(problems).toEqual([]);
+  });
+
+  it.each<[string, string, unknown, string]>([
+    ["a path the ledger does not list", MISSING, CONFIRMATION, "the ledger lists no such row"],
+    ["an entry that is no object", B, "KEEP", "is not an object"],
+    ["an unknown key", B, { ...CONFIRMATION, note: "x" }, "has unknown keys note"],
+    [
+      "a verdict that decides nothing",
+      B,
+      { ...CONFIRMATION, verdict: "ADJUDICATE" },
+      'has verdict "ADJUDICATE", not DELETE|REWRITE|KEEP',
+    ],
+    [
+      "a criterion outside the plan's four",
+      B,
+      { ...CONFIRMATION, criteria: ["e"] },
+      'has criteria ["e"], not distinct criteria of a|b|c|d',
+    ],
+    [
+      "a block the row does not hold",
+      B,
+      { ...CONFIRMATION, blocks: [`${B}::gone`] },
+      `has blocks ["${B}::gone"], not distinct block ids of its row`,
+    ],
+    ["no evidence", B, { ...CONFIRMATION, evidence: "" }, "has no evidence"],
+    [
+      "a status other than confirmed",
+      B,
+      { ...CONFIRMATION, status: "machine" },
+      'has status "machine", not confirmed',
+    ],
+    ["no reviewer", B, { ...CONFIRMATION, reviewer: undefined }, "has no reviewer"],
+    [
+      "a date that is no calendar day",
+      B,
+      { ...CONFIRMATION, date: "2026-02-30" },
+      'has date "2026-02-30", not a YYYY-MM-DD day',
+    ],
+  ])(
+    "refuses %s, naming the path, and leaves every row the machine's",
+    (_case, file, entry, why) => {
+      const { ledger, problems } = valueOf(
+        built(plant(withOverlay({ [ADJUDICATIONS]: { entries: { [file]: entry } } })))
+      );
+
+      expect(problems).toEqual([`${ADJUDICATIONS}: ${file}: ${why}`]);
+      expect(rowOf(ledger, B)).toMatchObject({ verdict: "REWRITE", status: "machine" });
+      expect(ledger.summary.rows.confirmed).toBe(0);
+    }
+  );
+
+  it("writes the ledger with the refused entry left out, prints the refusal and exits 1", async () => {
+    const root = plant(withOverlay({ [ADJUDICATIONS]: { entries: { [MISSING]: CONFIRMATION } } }));
+
+    const result = await run(root);
+
+    expect(result.code).toBe(1);
+    expect(result.output).toContain(
+      `ledger: refused: ${ADJUDICATIONS}: ${MISSING}: the ledger lists no such row\n`
+    );
+    expect(readLedger(ledgerFile(root)).summary.rows.confirmed).toBe(0);
+  });
+
+  it.each<[string, string, string]>([
+    ["no JSON", "{ entries", `${ADJUDICATIONS} is not JSON: `],
+    [
+      "no entries object",
+      JSON.stringify({ [B]: CONFIRMATION }),
+      `${ADJUDICATIONS} is not one object, { "entries": { ... } }`,
+    ],
+  ])("returns 3 and writes nothing when the overlay holds %s", async (_case, text, line) => {
+    const root = plant({ ...FIXTURE, [ADJUDICATIONS]: text });
+
+    const result = await run(root);
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain(`ledger: unread: ${line}`);
+    expect(existsSync(ledgerFile(root))).toBe(false);
+  });
+});
+
+describe("ledger.mjs slices.json", () => {
+  it("renders each assigned row's sliceId and the slice's sorted files and expected drop", () => {
+    const { ledger, problems } = valueOf(
+      built(plant(withOverlay({ [SLICES]: { slices: { "2.6a": { files: [C, B] } } } })))
+    );
+
+    expect(ledger.slices).toEqual({
+      "2.6a": { files: [B, C], expectedDrop: { files: 1, blocks: 2 } },
+    });
+    expect(ledger.files.map((file) => [file.path, file.sliceId])).toEqual([
+      [HELPER, null],
+      [A, null],
+      [B, "2.6a"],
+      [C, "2.6a"],
+    ]);
+    expect(problems).toEqual([]);
+  });
+
+  it("counts a confirmed DELETE in its slice's expected drop", () => {
+    const deleted = { ...CONFIRMATION, verdict: "DELETE", criteria: ["a"] };
+    const { ledger } = valueOf(
+      built(
+        plant(
+          withOverlay({
+            [ADJUDICATIONS]: { entries: { [B]: deleted } },
+            [SLICES]: { slices: { "2.6a": { files: [B, C] } } },
+          })
+        )
+      )
+    );
+
+    expect(ledger.slices["2.6a"]?.expectedDrop).toEqual({ files: 2, blocks: 4 });
+  });
+
+  it.each<
+    [string, Readonly<Record<string, unknown>>, string, Readonly<Record<string, LedgerSlice>>]
+  >([
+    [
+      "a slice id outside ADR-0039's grammar",
+      { "slice-one": { files: [C] } },
+      "slice-one: is not a slice id of ADR-0039's grammar [0-9]+(\\.[0-9]+)+[a-z]?",
+      {},
+    ],
+    [
+      "a slice that is no files object",
+      { "2.6a": [C] },
+      '2.6a: is not one object, { "files": [<distinct paths>] }',
+      {},
+    ],
+    ["a slice that lists no file", { "2.6a": { files: [] } }, "2.6a: lists no file", {}],
+    [
+      "a path the ledger does not list",
+      { "2.6a": { files: [MISSING] } },
+      `2.6a: ${MISSING}: the ledger lists no such row`,
+      { "2.6a": { files: [], expectedDrop: { files: 0, blocks: 0 } } },
+    ],
+    [
+      "a path in two slices",
+      { "2.6a": { files: [C] }, "2.6b": { files: [C] } },
+      `2.6b: ${C}: already in slice 2.6a`,
+      {
+        "2.6a": { files: [C], expectedDrop: { files: 1, blocks: 2 } },
+        "2.6b": { files: [], expectedDrop: { files: 0, blocks: 0 } },
+      },
+    ],
+  ])("refuses %s, naming it", (_case, slices, why, rendered) => {
+    const { ledger, problems } = valueOf(built(plant(withOverlay({ [SLICES]: { slices } }))));
+
+    expect(problems).toEqual([`${SLICES}: ${why}`]);
+    expect(ledger.slices).toEqual(rendered);
+  });
+
+  it("returns 1 on --check naming a planted malformed slice id, the committed ledger otherwise current", async () => {
+    const root = plant(FIXTURE);
+    await run(root);
+    writeFileSync(path.join(root, SLICES), JSON.stringify({ slices: { "2.6-a": { files: [B] } } }));
+
+    const result = await run(root, ["--check"]);
+
+    expect(result).toEqual({
+      code: 1,
+      output:
+        `ledger: refused: ${SLICES}: 2.6-a: is not a slice id of ADR-0039's grammar [0-9]+(\\.[0-9]+)+[a-z]?\n` +
+        `ledger: ${MARKDOWN} is current\n`,
+    });
+  });
+
+  it("returns 3 and writes nothing when slices.json holds no slices object", async () => {
+    const root = plant({ ...FIXTURE, [SLICES]: JSON.stringify({ "2.6a": { files: [C] } }) });
+
+    const result = await run(root);
+
+    expect(result).toEqual({
+      code: 3,
+      output: `ledger: unread: ${SLICES} is not one object, { "slices": { ... } }\n`,
+    });
+    expect(existsSync(ledgerFile(root))).toBe(false);
+  });
+});
+
+/** A seed script decision D17 excludes from every delete slice, listed beside `FIXTURE`. */
+const SEED = "apps/api/scripts/seed-demo-data.ts";
+
+describe("ledger.mjs overlay guards", () => {
+  const keep = JSON.stringify(CONFIRMATION);
+  const deleted = JSON.stringify({ ...CONFIRMATION, verdict: "DELETE", criteria: ["a"] });
+
+  it.each<[string, string, string, string]>([
+    [
+      "a path confirmed twice",
+      ADJUDICATIONS,
+      `{ "entries": { "${B}": ${keep}, "${B}": ${deleted} } }`,
+      `the key "${B}" twice under entries`,
+    ],
+    [
+      "a field written twice in one entry",
+      ADJUDICATIONS,
+      `{ "entries": { "${B}": { "verdict": "DELETE", ${keep.slice(1)} } }`,
+      `the key "verdict" twice under entries > ${B}`,
+    ],
+    [
+      "a slice declared twice",
+      SLICES,
+      `{ "slices": { "2.6a": { "files": ["${C}"] }, "2.6a": { "files": ["${B}"] } } }`,
+      'the key "2.6a" twice under slices',
+    ],
+    [
+      "a top-level key written twice",
+      SLICES,
+      '{ "slices": {}, "slices": {} }',
+      'the key "slices" twice at its top level',
+    ],
+  ])(
+    "returns 3 and writes nothing on %s, naming the file and the key",
+    async (_case, file, text, what) => {
+      const root = plant({ ...FIXTURE, [file]: text });
+
+      const result = await run(root);
+
+      expect(result).toEqual({ code: 3, output: `ledger: unread: ${file} holds ${what}\n` });
+      expect(existsSync(ledgerFile(root))).toBe(false);
+    }
+  );
+
+  it("refuses to confirm DELETE for a row decision D17 excludes, and to place it in a slice, naming the path and D17", () => {
+    const root = plant(
+      withOverlay({
+        [SEED]: "export {};\n",
+        [ADJUDICATIONS]: {
+          entries: { [SEED]: { ...CONFIRMATION, verdict: "DELETE", blocks: [] } },
+        },
+        [SLICES]: { slices: { "2.6a": { files: [SEED, C] } } },
+      })
+    );
+    const listing = [...Object.keys(FIXTURE), SEED];
+
+    const { ledger, problems } = valueOf(built(root, { listFiles: () => ({ value: listing }) }));
+
+    expect(problems).toEqual([
+      `${ADJUDICATIONS}: ${SEED}: is excluded by D17, which no confirmation turns into DELETE`,
+      `${SLICES}: 2.6a: ${SEED}: is excluded by D17 from every delete slice`,
+    ]);
+    expect(rowOf(ledger, SEED)).toMatchObject({
+      verdict: "ADJUDICATE",
+      excluded: "D17",
+      status: "machine",
+      sliceId: null,
+    });
+    expect(ledger.slices).toEqual({
+      "2.6a": { files: [C], expectedDrop: { files: 1, blocks: 2 } },
+    });
+  });
+
+  it("confirms KEEP for a row decision D17 excludes", () => {
+    const root = plant(
+      withOverlay({
+        [SEED]: "export {};\n",
+        [ADJUDICATIONS]: { entries: { [SEED]: { ...CONFIRMATION, blocks: [] } } },
+      })
+    );
+    const listing = [...Object.keys(FIXTURE), SEED];
+
+    const { ledger, problems } = valueOf(built(root, { listFiles: () => ({ value: listing }) }));
+
+    expect(problems).toEqual([]);
+    expect(rowOf(ledger, SEED)).toMatchObject({ verdict: "KEEP", status: "confirmed" });
+  });
+
+  it("reports one file, one test-shaped file and one block in the singular", async () => {
+    const files = {
+      "pnpm-workspace.yaml": FIXTURE["pnpm-workspace.yaml"] ?? "",
+      [QUARANTINE_FILE]: FIXTURE[QUARANTINE_FILE] ?? "",
+      [A]: SOURCES.behavioural,
+    };
+    const root = plant(files);
+
+    const result = await run(root, [], { listFiles: () => ({ value: Object.keys(files) }) });
+
+    expect(result.output).toContain(
+      "ledger: wrote ledger.json: 1 file, 1 test-shaped, 1 block, 0 with a criterion\n"
+    );
+  });
+});
+
+/** The page `FIXTURE` renders to with no overlay and no slice. */
+const FIXTURE_MARKDOWN = [
+  "# Test ledger",
+  "",
+  "> Generated by `scripts/testing/ledger.mjs` from the tracked tree and the `adjudications.json` and `slices.json` beside this page; never edit it by hand. `pnpm ledger` regenerates it and `pnpm check:ledger` fails when it is stale.",
+  "",
+  "## Summary",
+  "",
+  "| Measure                 | Count |",
+  "| ----------------------- | ----- |",
+  "| Files                   | 4     |",
+  "| DELETE                  | 2     |",
+  "| REWRITE                 | 1     |",
+  "| KEEP                    | 1     |",
+  "| ADJUDICATE              | 0     |",
+  "| unmeasured              | 0     |",
+  "| Machine rows            | 4     |",
+  "| Confirmed rows          | 0     |",
+  "| Blocks                  | 5     |",
+  "| Blocks with a criterion | 3     |",
+  "",
+  "## Rows without a slice",
+  "",
+  "| Path                                    | Shape  | Blocks | Decorative | Verdict | Status  | Basis           |",
+  "| --------------------------------------- | ------ | ------ | ---------- | ------- | ------- | --------------- |",
+  "| `apps/api/tests/unit/a.test-helpers.ts` | helper | 0      | 0          | DELETE  | machine | dead-helper     |",
+  "| `apps/api/tests/unit/a.test.ts`         | test   | 1      | 0          | KEEP    | machine | behavioural     |",
+  "| `apps/api/tests/unit/b.test.ts`         | test   | 2      | 1          | REWRITE | machine | some-decorative |",
+  "| `apps/api/tests/unit/c.test.ts`         | test   | 2      | 2          | DELETE  | machine | all-decorative  |",
+  "",
+].join("\n");
+
+describe("ledger.mjs LEDGER.md", () => {
+  it("writes the page beside the overlay, deterministic, with no clock and no absolute path", async () => {
+    const root = plant(FIXTURE);
+
+    const result = await run(root);
+    const page = readFileSync(path.join(root, MARKDOWN), "utf8");
+    await run(root, [], { listFiles: () => ({ value: Object.keys(FIXTURE).reverse() }) });
+
+    expect(result).toEqual({
+      code: 0,
+      output:
+        "ledger: wrote ledger.json: 4 files, 3 test-shaped, 5 blocks, 3 with a criterion\n" +
+        `ledger: wrote ${MARKDOWN}\n`,
+    });
+    expect(page).toBe(FIXTURE_MARKDOWN);
+    expect(readFileSync(path.join(root, MARKDOWN), "utf8")).toBe(page);
+    expect(page).not.toContain(root);
+    expect(page).not.toMatch(/\d{4}-\d{2}-\d{2}T|\d{2}:\d{2}:\d{2}/);
+  });
+
+  it("renders one section per slice with its expected drop, and the status column machine against confirmed", async () => {
+    const root = plant(
+      withOverlay({
+        [ADJUDICATIONS]: { entries: { [B]: CONFIRMATION } },
+        [SLICES]: { slices: { "2.6a": { files: [C, B] } } },
+      })
+    );
+
+    await run(root);
+    const page = readFileSync(path.join(root, MARKDOWN), "utf8");
+
+    const slice = page.slice(
+      page.indexOf("## Slice 2.6a"),
+      page.indexOf("## Rows without a slice")
+    );
+    const rest = page.slice(page.indexOf("## Rows without a slice"));
+    expect(slice).toContain("Expected drop: 1 file, 2 blocks.");
+    expect(slice).toMatch(
+      new RegExp(
+        `\\| \`${B}\` +\\| test +\\| 2 +\\| 1 +\\| KEEP +\\| confirmed \\(machine: REWRITE\\) +\\| some-decorative +\\|`
+      )
+    );
+    expect(slice).toMatch(
+      new RegExp(
+        `\\| \`${C}\` +\\| test +\\| 2 +\\| 2 +\\| DELETE +\\| machine +\\| all-decorative +\\|`
+      )
+    );
+    expect(rest).toContain(`\`${A}\``);
+    expect(rest).not.toContain(`\`${B}\``);
+    expect(page).toMatch(/\| Confirmed rows +\| 1 +\|/);
+  });
+
+  it("writes the page beside --out's file when --out lies outside the root, so a scratch run writes nothing into the tree", async () => {
+    const root = plant(FIXTURE);
+    const scratch = plant({});
+    const out = path.join(scratch, "ledger.json");
+
+    const result = await run(root, ["--out", out]);
+
+    expect(result.code).toBe(0);
+    expect(readFileSync(path.join(scratch, "LEDGER.md"), "utf8")).toBe(FIXTURE_MARKDOWN);
+    expect(existsSync(path.join(root, MARKDOWN))).toBe(false);
+  });
+
+  it("writes the page under docs/ when --out names a file inside the root, never a Markdown file at the root", async () => {
+    const root = plant(FIXTURE);
+
+    const result = await run(root, ["--out", ledgerFile(root)]);
+
+    expect(result.output).toContain(`ledger: wrote ${MARKDOWN}\n`);
+    expect(readFileSync(path.join(root, MARKDOWN), "utf8")).toBe(FIXTURE_MARKDOWN);
+    expect(existsSync(path.join(root, "LEDGER.md"))).toBe(false);
+  });
+
+  it("returns 3 naming the page when it cannot be written", async () => {
+    const root = plant(FIXTURE);
+    mkdirSync(path.join(root, MARKDOWN), { recursive: true });
+
+    const result = await run(root);
+
+    expect(result.code).toBe(3);
+    expect(result.output).toContain(`ledger: ${MARKDOWN} could not be written: EISDIR`);
+  });
+
+  it("returns 0 on --check over the page it wrote, and 1 naming the page once it drifts", async () => {
+    const root = plant(FIXTURE);
+    await run(root);
+
+    const current = await run(root, ["--check"]);
+    writeFileSync(path.join(root, MARKDOWN), `${FIXTURE_MARKDOWN}\nedited by hand\n`);
+    const drifted = await run(root, ["--check"]);
+
+    expect(current).toEqual({
+      code: 0,
+      output: `ledger: ledger.json is current\nledger: ${MARKDOWN} is current\n`,
+    });
+    expect(drifted).toEqual({
+      code: 1,
+      output:
+        "ledger: ledger.json is current\n" +
+        `ledger: drift: ${MARKDOWN} differs from the rendered ledger\n` +
+        `ledger: ${MARKDOWN} is stale; run \`pnpm ledger\` and commit the result\n`,
+    });
+  });
+
+  it("returns 3 on --check with no committed page, naming it and no drift of the ledger", async () => {
+    const root = plant(FIXTURE);
+    await run(root);
+    rmSync(path.join(root, MARKDOWN));
+    retitle(root);
+
+    const result = await run(root, ["--check"]);
+
+    expect(result).toEqual({
+      code: 3,
+      output: `ledger: unread: no committed page at ${MARKDOWN}; run \`pnpm ledger\` and commit it\n`,
+    });
+  });
+
+  it("returns 3 and writes nothing when the page cannot be rendered", async () => {
+    const root = plant(FIXTURE);
+
+    const result = await run(root, [], {
+      renderMarkdown: () => Promise.reject(new Error("the configuration could not be read")),
+    });
+
+    expect(result).toEqual({
+      code: 3,
+      output: `ledger: unread: ${MARKDOWN} could not be rendered: the configuration could not be read\n`,
+    });
+    expect([existsSync(ledgerFile(root)), existsSync(path.join(root, MARKDOWN))]).toEqual([
+      false,
+      false,
+    ]);
+  });
+});
+
+describe("ledger.mjs --area", () => {
+  it("prints file:line:title for every block of the matching DELETE rows, a block-less file by its path, and the expected drop, writing nothing", async () => {
+    const root = plant(FIXTURE);
+
+    const result = await run(root, ["--area", "apps/api/tests/unit/*"]);
+
+    expect(result).toEqual({
+      code: 0,
+      output:
+        `${HELPER}\n` +
+        `${C}:2:loads the module\n` +
+        `${C}:5:is pending\n` +
+        "ledger: area apps/api/tests/unit/*: expected drop 2 files, 2 blocks\n",
+    });
+    expect([existsSync(ledgerFile(root)), existsSync(path.join(root, MARKDOWN))]).toEqual([
+      false,
+      false,
+    ]);
+  });
+
+  it("lists a row the overlay confirms DELETE and leaves out a matching row it confirms KEEP", async () => {
+    const root = plant(
+      withOverlay({
+        [ADJUDICATIONS]: {
+          entries: {
+            [B]: { ...CONFIRMATION, verdict: "DELETE", criteria: ["a"] },
+            [C]: { ...CONFIRMATION, blocks: [] },
+          },
+        },
+      })
+    );
+
+    const result = await run(root, ["--area", "apps/api/tests/unit/[bc].test.ts"]);
+
+    expect(result).toEqual({
+      code: 0,
+      output:
+        `${B}:2:returns the sum\n` +
+        `${B}:5:loads the module\n` +
+        "ledger: area apps/api/tests/unit/[bc].test.ts: expected drop 1 file, 2 blocks\n",
+    });
+  });
+
+  it("returns 1 with the listing still printed when an overlay entry is refused", async () => {
+    const root = plant(withOverlay({ [ADJUDICATIONS]: { entries: { [MISSING]: CONFIRMATION } } }));
+
+    const result = await run(root, ["--area", C]);
+
+    expect(result).toEqual({
+      code: 1,
+      output:
+        `ledger: refused: ${ADJUDICATIONS}: ${MISSING}: the ledger lists no such row\n` +
+        `${C}:2:loads the module\n` +
+        `${C}:5:is pending\n` +
+        `ledger: area ${C}: expected drop 1 file, 2 blocks\n`,
+    });
+  });
+
+  it.each<[string, readonly string[], number, string]>([
+    [
+      "a glob that matches no row",
+      ["--area", "apps/web/**"],
+      1,
+      "ledger: area apps/web/** matches no row of the ledger\n",
+    ],
+    [
+      "--area with --check",
+      ["--area", "apps/**", "--check"],
+      2,
+      "ledger: --area lists a deletion and takes no --check\n",
+    ],
+    ["an empty --area", ["--area="], 2, "ledger: --area takes a non-empty value\n"],
+  ])("returns %s's code", async (_case, argv, code, line) => {
+    const result = await run(plant(FIXTURE), argv);
+
+    expect(result.code).toBe(code);
+    expect(result.output).toContain(line);
   });
 });
 
