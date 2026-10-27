@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 export type ClientOptions = {
-  baseUrl: "http://localhost:3000" | (string & {});
+  baseUrl: `${string}://${string}` | (string & {});
 };
 
 export type GetHealthData = {

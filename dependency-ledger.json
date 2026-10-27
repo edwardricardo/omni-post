@@ -2,15 +2,15 @@
   "version": 1,
   "floor": 3,
   "summary": {
-    "names": 163,
-    "production": 100,
+    "names": 162,
+    "production": 99,
     "devOnly": 63,
     "types": 9,
     "aboveFloor": 47,
-    "underFloor": 116,
+    "underFloor": 115,
     "atZero": 15,
-    "underFloorWithSites": 101,
-    "kept": 113,
+    "underFloorWithSites": 100,
+    "kept": 112,
     "remove": 3,
     "pending": 0
   },
@@ -932,27 +932,6 @@
       "sites": {
         "runtime-import": {
           "production": ["apps/client/components/notifications/NotificationBell.tsx"]
-        }
-      }
-    },
-    {
-      "name": "@scalar/fastify-api-reference",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/api/package.json",
-          "block": "dependencies",
-          "specifier": "literal"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "kept",
-      "sites": {
-        "runtime-import": {
-          "production": ["apps/api/src/lib/apiReference.ts"]
         }
       }
     },

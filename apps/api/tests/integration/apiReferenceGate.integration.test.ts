@@ -5,7 +5,7 @@
  *              answer 404. The unit suite of `registerApiReference` proves the gate on
  *              a bare Fastify instance; this file proves `createApp()` hands it the
  *              environment's value, so a deployment that sets nothing serves no
- *              reference and no OpenAPI document.
+ *              OpenAPI document, and that the document declares a relative server.
  * @layer infrastructure
  */
 
@@ -50,6 +50,16 @@ describe("API reference gate in createApp()", () => {
     }
 
     assert.deepEqual(statuses, Object.fromEntries(REFERENCE_URLS.map((url) => [url, 404])));
+  });
+
+  it("declares a relative server, so any viewer resolves against the origin that served it", () => {
+    assert.ok(app, "createApp() returned an app");
+    const document = app.swagger();
+    assert.ok("servers" in document, "the document is OpenAPI 3, which carries servers");
+
+    assert.deepEqual(document.servers, [
+      { url: "/", description: "The origin that served this document" },
+    ]);
   });
 
   it("keeps the OpenAPI document free of reference routes", () => {
