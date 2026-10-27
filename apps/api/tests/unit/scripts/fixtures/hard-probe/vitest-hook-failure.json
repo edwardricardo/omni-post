@@ -1,0 +1,58 @@
+{
+  "numTotalTestSuites": 3,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 2,
+  "numPassedTests": 0,
+  "numFailedTests": 0,
+  "numPendingTests": 2,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1793084587532,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": ["broken setup"],
+          "fullName": "broken setup runs after a failed beforeAll",
+          "status": "skipped",
+          "title": "runs after a failed beforeAll",
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        },
+        {
+          "ancestorTitles": ["broken each"],
+          "fullName": "broken each runs after a failed beforeEach",
+          "status": "skipped",
+          "title": "runs after a failed beforeEach",
+          "failureMessages": [],
+          "meta": {},
+          "tags": []
+        }
+      ],
+      "startTime": 1793084587532,
+      "endTime": 1793084587532,
+      "status": "failed",
+      "message": "",
+      "name": "/repo/pkg/tests/hooks.test.ts"
+    }
+  ]
+}
