@@ -365,7 +365,7 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 | lint-staged                      | 17.6.0  | Pre-commit staged file linting                              |
 | knip                             | 6.42.1  | Dead code detection                                         |
 | dependency-cruiser               | 18.6.0  | Architecture rules and circular dependency detection        |
-| jscpd                            | 5.4.1   | Copy-paste detection                                        |
+| jscpd                            | 5.4.2   | Copy-paste detection                                        |
 
 ### Standards
 
