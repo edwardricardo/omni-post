@@ -160,7 +160,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 | -------------------- | -------- | ------------------------------------------------- |
 | zod                  | 4.6.5    | Schema validation — TypeScript-native, composable |
 | validator            | 13.15.35 | String validation utilities                       |
-| isomorphic-dompurify | 4.5.0    | HTML sanitization                                 |
+| isomorphic-dompurify | 4.6.0    | HTML sanitization                                 |
 
 ### Observability
 
@@ -312,7 +312,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @testing-library/react    | 16.3.3  | Component testing                    |
 | @testing-library/dom      | 10.4.2  | DOM utilities                        |
 | @testing-library/jest-dom | 7.0.1   | Custom matchers                      |
-| jsdom                     | 30.1.2  | Browser environment simulation       |
+| jsdom                     | 30.1.3  | Browser environment simulation       |
 | @playwright/test          | 1.64.1  | E2E testing                          |
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
 | fast-check                | 4.10.2  | Property-based testing               |
