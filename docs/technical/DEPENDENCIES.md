@@ -68,9 +68,9 @@ The domain layer imports nothing external — no Prisma, no Fastify, no Redis. A
 
 | Package            | Version     | Purpose                | Why Chosen                           |
 | ------------------ | ----------- | ---------------------- | ------------------------------------ |
-| @prisma/client     | 7.10.0      | Generated query client | Type-safe queries from schema        |
-| @prisma/adapter-pg | 7.10.0      | Driver adapter (pg)    | Prisma 7 queries run through `pg`    |
-| prisma             | 7.10.0      | ORM + migrations       | Migration tooling, introspection     |
+| @prisma/client     | 7.10.1      | Generated query client | Type-safe queries from schema        |
+| @prisma/adapter-pg | 7.10.1      | Driver adapter (pg)    | Prisma 7 queries run through `pg`    |
+| prisma             | 7.10.1      | ORM + migrations       | Migration tooling, introspection     |
 | postgresql         | 16 (Docker) | Primary database       | ACID, JSON support, mature ecosystem |
 
 **Schema size:** 98 models. This reflects actual business complexity: post publication across 10 providers with approvals, campaigns, recurring schedules, analytics ingestion, inbox sync, AI enrichment, billing, and referrals.
