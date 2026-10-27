@@ -3,7 +3,7 @@
   "_RESIDUAL": "Keys are file+code, not file+line+message, so an unrelated edit does not churn the ledger. The cost of that choice: fixing one TS2339 in a file and introducing a different TS2339 in the SAME file leaves the count unchanged and passes. Narrow, and stated rather than discovered.",
   "totalErrors": 2109,
   "filesWithErrors": 279,
-  "testFilesInProgram": 808,
+  "testFilesInProgram": 809,
   "byCode": {
     "TS2339": 438,
     "TS18048": 382,
