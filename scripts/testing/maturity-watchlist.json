@@ -1,5 +1,5 @@
 {
-  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. A package entry leaves the list in the change that records its clean 14-day review; a date entry stays, with its `due` review recorded as the evidence that the day was reviewed; a package entry whose version leaves the tree before that review leaves the list too, because nothing is left to review. A date entry marks a contract milestone and never reviews a patched dependency: since 2026-10-15 every patch is watched by scripts/testing/patched-dependencies-gate.mjs, which reads the registry every 6 hours in the patched-dependencies workflow (fitness #48 holds its records), so the date entry patch-storybook-nextjs-vite-10.6.3 that ADR-0037 opened left the list the day the gate landed. A date entry never schedules a dependency move either: since 2026-10-14 (ADR-0036) a non-security bump is taken in the weekly Tuesday window and a toolchain lag is legal for 30 days, so the scheduled hold entries left the list, their evidence in the pull requests that took or retired each move. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
+  "description": "Package versions that entered the tree inside the 7-day maturity buffer, reviewed 7 and 14 days after publication (advisories, upstream issues, release notes), and dated milestones that ride the same list. Milestones are UTC dates derived from `published`. A review is recorded under `reviews.<milestone>` as { date, outcome: clean | flagged, note }, dated the day it is written and never later; one written up to 2 days before its milestone also carries early: { reason }, and the entry's later milestone stays due. A package entry leaves the list in the change that records its clean 14-day review; a date entry stays, with its `due` review recorded as the evidence that the day was reviewed, or, while what it waits for has not happened, its `due` moves forward with a dated `refs` line naming what was read; a package entry whose version leaves the tree before that review leaves the list too, because nothing is left to review. A date entry marks a contract milestone and never reviews a patched dependency: since 2026-10-15 every patch is watched by scripts/testing/patched-dependencies-gate.mjs, which reads the registry every 6 hours in the patched-dependencies workflow (fitness #48 holds its records), so the date entry patch-storybook-nextjs-vite-10.6.3 that ADR-0037 opened left the list the day the gate landed. A date entry never schedules a dependency move either: since 2026-10-14 (ADR-0036) a non-security bump is taken in the weekly Tuesday window and a toolchain lag is legal for 30 days, so the scheduled hold entries left the list, their evidence in the pull requests that took or retired each move. Read by scripts/testing/maturity-watchlist.mjs (--check in CI, --remind in the maturity-reminder workflow).",
   "entries": [
     {
       "kind": "package",
@@ -132,29 +132,6 @@
     },
     {
       "kind": "package",
-      "name": "fastify",
-      "version": "5.12.6",
-      "published": "2026-10-13T06:50:58.498Z",
-      "entered": {
-        "date": "2026-10-15",
-        "commit": "b90bed2f",
-        "pr": 583,
-        "via": "the catalog CVE floor, about 1.7 days after publication and about 5.3 days before the 2026-10-20T06:50Z maturity: 5.12.5 is inside the range >=5.12.2 <5.12.6 of GHSA-389g-gv7q-r4x8 (low, CVE-2026-107832, header validation bypass via case-sensitive propertyNames), a fastify/fastify repository advisory published 2026-10-13T06:51:29Z that GitHub's global database and OSV's npm records do not carry yet, and 5.12.6 is the minimal patched version (5.12.7, latest, only sets the VERSION constant 5.12.6 left at 5.12.5); production, the dependencies of apps/api and packages/api-common, not reachable: no route schema declares headers and nothing names propertyNames"
-      },
-      "milestones": {
-        "maturity": "2026-10-20",
-        "final": "2026-10-27"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-21",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-21, one day after the 2026-10-20 milestone, inside the check's 3-day grace; the reminder opened #664 at 2026-10-20T00:07Z. 5.12.6 left the 7-day buffer at 2026-10-20T06:50:58Z (published 2026-10-13T06:50:58Z). Registry, read 2026-10-21T18:42Z: 5.12.7 (2026-10-13T08:07:53Z) is latest and mature since 2026-10-20T08:07Z, and it is one commit, Bumped v5.12.7, which sets the VERSION constant 5.12.6 left at '5.12.5' (compare v5.12.6...v5.12.7); the next tag is 6.0.0-alpha.5. The lag against 5.12.7 is inside ADR-0036's 30-day budget until 2026-11-19T08:07Z, fastify is outside the holds gate's population, and the weekly window takes it. Advisories: the fastify/fastify repository lists nothing newer than GHSA-389g-gv7q-r4x8, the advisory this floor closes, and GitHub's global endpoint still answers 404 for it. OSV updated CVE-2026-107832 at 2026-10-21T02:52Z: its GIT range now fixes at 16469b9a, the v5.12.6 tag commit, instead of v5.12.5's ba235fdc, but the record still carries no npm range, so OSV's npm query lists nothing for 5.12.5, 5.12.6 or 5.12.7 and pnpm audit stays blind to it. The 5.x branch holds eight unreleased commits after v5.12.7 (an error statusCode clamped to 400 to 599, #7089; synchronous throws from custom content-type parsers contained, #7118; stream trailers, onClose disposables, a find-my-way compiler option, types and docs), none tied to an advisory. Upstream issues opened since 2026-10-15: one, #7126 (a README typo), and none names 5.12.6 or 5.12.7 (search API, total 0); the open pull requests #7131, #7135 and #7137 fix auto-HEAD routes that answer 500 to a web Response payload, and no source file of apps/api or packages/api-common constructs a web Response. Reachability, as measured on 2026-10-15 (canon CVE-floor row fastify): production, apps/api's dependencies, the advisory not reachable; the lockfile holds one fastify, 5.12.6. Works here: main ee794524's CI run 39189953529 (push, 2026-10-19T02:26Z, success) passed both API test shards and Integration Tests, and the Nightly Full Test Suite run 39567991067 on the same commit (2026-10-21T08:16Z to 08:34Z) passed with the cache bypassed and the services tier run five times in random order. Clean; the 14-day review is due 2026-10-27."
-        }
-      }
-    },
-    {
-      "kind": "package",
       "name": "next",
       "version": "16.4.1",
       "published": "2026-10-14T17:43:55.246Z",
@@ -188,62 +165,17 @@
       }
     },
     {
-      "kind": "package",
-      "name": "@types/node",
-      "version": "26.6.5",
-      "published": "2026-10-09T18:46:47.657Z",
-      "entered": {
-        "date": "2026-10-15",
-        "commit": "7ff9ad62",
-        "pr": 597,
-        "via": "the catalog pin, moved from 24.13.6 with the runtime (ADR-0038), about 5.3 days after publication and about 1.7 days before the 2026-10-16T18:46Z maturity, under the owner's 72-hour rule (a version that matures within 72 hours is taken and re-verified at its maturity instant); 26.6.4 is the latest mature 26.x and 26.6.5 is latest; every consumer's range admits it (18 transitive dependents declare *, protobufjs >=13.7.0, jsdoc-type-pratt-parser ^26.4.0, and the optional peers of vite, vitest, sharp, stripe, mysql2 and @inquirer/* are open ranges), so the tree keeps one copy; types only, no runtime code"
-      },
-      "milestones": {
-        "maturity": "2026-10-16",
-        "final": "2026-10-23"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-16",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-16, the milestone day, about 4 hours after 26.6.5 left the 7-day buffer at 18:46:47Z (published 2026-10-09T18:46:47Z); the reminder opened #625 at 17:10:34Z, before that instant. Registry, read 2026-10-16T22:38Z: 26.6.5 is latest and the newest 26.x, and nothing is published after it on any line (24.19.2, the 24.x backport, went out at 18:44:25Z the same day; no 27.x exists); the document was last modified at 26.6.5's publication. OSV, at 22:39Z: nothing for @types/node 26.6.5. GitHub: no global advisory affects @types/node at any version, and DefinitelyTyped/DefinitelyTyped lists no repository security advisory. Changes: 26.6.5 is DefinitelyTyped #75656 (merged 2026-10-09T18:24:45Z), which lets the array argument of util.styleText take a hex color; npm diff from 26.6.4 lists util.d.ts, package.json and README.md, and no file of apps, packages, scripts or infra calls styleText. No types/node change has merged since, so no release follows it. Upstream issues: DefinitelyTyped routes package reports to its Discussions, and no discussion created since 2026-10-09 names @types/node or 26.6.5; the one issue opened since, #75766, is an unfilled infrastructure template. Reachability: types only; the package holds README.md, LICENSE, package.json and 89 declaration files, and no JavaScript. The lockfile, parsed with yaml.safe_load_all, holds one copy, 26.6.5: the catalog pin, declared by 100 of the 101 importers, and the dependency of 21 snapshots (17 @types/* packages, protobufjs 7.6.5, jest-worker 27.5.1, jsdoc-type-pratt-parser 9.2.2 and mysql2 3.23.1, which takes it as a peer). It reaches the production closure only through protobufjs and those @types/* packages, as declarations nothing executes, and the engines gate holds the pin on the runtime major, 26 (canon row @types/node). Works here: main be1fa16a's CI run 38976529186 (push, 2026-10-16T22:34Z) passed 'TypeScript type check (full monorepo)' at 22:40:55Z and Build Check at 22:37:28Z, and the local battery on 3d589f07 was green from 21:44Z to 22:06Z. Clean; the 14-day review is due 2026-10-23."
-        }
-      }
-    },
-    {
       "kind": "date",
       "id": "storybook-11-dep0205",
       "title": "Storybook 11 stable? Move the family and drop --disable-warning=DEP0205 from apps/client test:stories (ADR-0038)",
-      "due": "2026-10-27",
+      "due": "2026-11-03",
       "refs": [
         "docs/technical/ADR-0038-node-26-ahead-of-lts.md, Consequences (the story run's DEP0205) and Revisit if: read npm for a stable storybook 11.x (`pnpm view storybook dist-tags`); if published and mature, move the Storybook family to it, remove the flag, and measure the story run free of DEP0205 without it; if not, move `due` to the next Tuesday window",
         "apps/client/package.json, script test:stories",
-        "Read 2026-10-21, a day after the 2026-10-20 due date (reminder #665): npm dist-tags at 18:31Z are latest 10.6.3 and next 11.0.0-alpha.7, so no stable 11.x is published; the family moved to 10.6.3 the same day, and its `storybook build` still prints `[DEP0205] DeprecationWarning: module.register() is deprecated`, so the flag stays; `due` moved from 2026-10-20 to 2026-10-27, the next Tuesday window. Recorded here and not under `reviews.due`, because a `due` review dated 2026-10-21 against the moved date would be 6 days early and the check refuses more than 2"
+        "Read 2026-10-21, a day after the 2026-10-20 due date (reminder #665): npm dist-tags at 18:31Z are latest 10.6.3 and next 11.0.0-alpha.7, so no stable 11.x is published; the family moved to 10.6.3 the same day, and its `storybook build` still prints `[DEP0205] DeprecationWarning: module.register() is deprecated`, so the flag stays; `due` moved from 2026-10-20 to 2026-10-27, the next Tuesday window. Recorded here and not under `reviews.due`, because a `due` review dated 2026-10-21 against the moved date would be 6 days early and the check refuses more than 2",
+        "Read 2026-10-27, the due date (reminder #745): npm dist-tags at 00:55Z are latest 10.6.4 (2026-10-26T10:38Z) and next 11.0.0-alpha.8 (2026-10-23T09:07Z), and the nine 11.x versions published are all alphas, so no stable 11.x is published; 10.6.4's one change (#36790) skips the TypeScript loader hook registration under Jest, the tree still runs 10.6.3, and apps/client test:stories still passes --disable-warning=DEP0205, so the flag stays; `due` moved from 2026-10-27 to 2026-11-03, the next Tuesday window. Recorded here and not under `reviews.due`, because a `due` review dated 2026-10-27 against the moved date would be 7 days early and the check refuses more than 2"
       ],
       "reviews": {}
-    },
-    {
-      "kind": "package",
-      "name": "eslint-plugin-jsdoc",
-      "version": "65.2.4",
-      "published": "2026-10-10T04:55:36.430Z",
-      "entered": {
-        "date": "2026-10-15",
-        "commit": "15de0774",
-        "pr": 605,
-        "via": "the root devDependency literal, moved from 65.1.0 about 5.5 days after publication and about 1.7 days before the 2026-10-17T04:55Z maturity, under the owner's 72-hour rule (a version that matures within 72 hours is taken and re-verified at its maturity instant); 65.2.0 is the only mature 65.2.x; between 65.1.0 and 65.2.4 only the fixers of require-jsdoc and require-param change among the rules eslint.jsdoc.config.ts names, and both are disabled there; check:jsdoc --all reads 9545 violations in 1014 files on both versions, file for file"
-      },
-      "milestones": {
-        "maturity": "2026-10-17",
-        "final": "2026-10-24"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-21",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-21, four days after the 2026-10-17 milestone and one day past the check's 3-day grace, which turned main's watchlist check red; the reminder opened #637 at 2026-10-17T16:09Z, the milestone day. Registry, read 2026-10-21T18:26Z: 65.2.4 matured 2026-10-17T04:55Z, and 20 releases follow it, 65.2.5 (2026-10-11T12:58Z) to 65.4.0 (latest, 2026-10-20T11:56Z); the latest mature is 65.3.4 (2026-10-14T11:37:41Z, mature since 2026-10-21T11:37Z), and the holds gate reads the lag as within budget (3 d of 30), so the Tuesday window of 2026-10-27 takes it, the day 65.4.0 matures (11:56Z). OSV: nothing for eslint-plugin-jsdoc at any version; GitHub: no global advisory affects 65.2.4 or 65.3.4, and gajus/eslint-plugin-jsdoc publishes no repository advisory. Release notes 65.2.5 to 65.4.0: rule fixes only, none a security fix. Of the rules eslint.jsdoc.config.ts names (check-tag-names, no-restricted-syntax, require-description, require-jsdoc, require-param, require-returns, require-tags), the mature releases change only check-tag-names under its typed option (65.3.3), which the config does not set; the younger ones change require-jsdoc with publicOnly (65.3.5, not set) and its contexts errors (65.3.14), no-restricted-syntax contexts (65.3.10) and check-tag-names @prop descriptions (65.4.0), for the window's bump to measure. Upstream issues opened since 2026-10-10: #1802, #1816, #1820 and #1822, all closed, about no-undefined-types, no-unnecessary-type-assertion and computed property names, none in a rule the config enables, and #1805, a contributor question. Works here: pnpm check:jsdoc --all runs on 65.2.4 and lists 9243 violations in 987 of 2155 in-scope files (2026-10-21T18:28Z), and the touched-files mode is a clean pass against origin/main. Clean; the 14-day review is due 2026-10-24."
-        }
-      }
     },
     {
       "kind": "package",
@@ -275,52 +207,11 @@
           "date": "2026-10-16",
           "outcome": "flagged",
           "note": "Reviewed 2026-10-16, the milestone day, about 11 hours after 5.4.1 left the 7-day buffer at 11:42:46Z (published 2026-10-09T11:42:46Z; its eight platform binaries between 11:22:33Z and 11:36:55Z); the reminder opened #626 at 17:10:34Z. Registry, read 2026-10-16T22:38Z: 5.4.1 is latest for jscpd and for each of the eight binaries, and nothing is published after it (the document was last modified at 5.4.1's publication). OSV, at 22:39Z: nothing for jscpd 5.4.1, for any of the eight binaries at 5.4.1, or for jscpd at any version. GitHub: no global advisory affects jscpd, and kucherenko/jscpd lists no repository security advisory. The binary carries four all the same: v5.4.1's rust/Cargo.lock, whose 389 crates.io packages were queried in one OSV batch, pins rustls 0.23.45, inside RUSTSEC-2026-0346 (GHSA-c8m5-c952-6cm4, Debug impls of client session values expose TLS secrets), RUSTSEC-2026-0347 (GHSA-vp88-798v-h67f, buffered application data sent to the outer server after an ECH rejection), RUSTSEC-2026-0348 (GHSA-h2v8-394m-p7vv, Brotli certificate decompression can allocate up to 1 GiB before authentication) and RUSTSEC-2026-0349 (GHSA-w44r-93j7-qv28, an unauthenticated ServerHello can downgrade later connections to classical key exchange), all four fixed in 0.23.46; the only other hit is unsafe-libyaml 0.2.11, under RUSTSEC-2024-0449, an unmaintained notice rather than a vulnerability. They are crates.io advisories inside an npm binary, so pnpm audit cannot see them. Upstream moved rustls to 0.23.46 on the default branch on 2026-10-14 (4536dc37, #1201, 'four advisories for rustls 0.23.45') and replaced unsafe-libyaml on 2026-10-12 (cb5ec8d6, #1198); no release carries either yet. Release notes: no release after v5.4.1 (2026-10-09T12:39Z); 5.4.1's own notes carry a hardening fix (#1169): its git subprocesses drop the variables git exports to hooks, a --history range or --baseline-from-ref ref starting with '-' is refused, and an API key an embeddings API echoes in an error is redacted. Upstream issues: five opened in kucherenko/jscpd since 2026-10-09; two name 5.4.1, #1195 (--history fails when log.showSignature is true, closed 2026-10-11 by #1196, unreleased) and #1210 (--semantic counts no JSX element as a call, open), and the other three are feature requests. Reachability: dev-only; one copy, the root devDependency behind pnpm check:duplicates, which no production dependency of the 101 importers reaches. In the Rust build, rustls comes in only through ureq in cpd-semantic (embed/http.rs and embed/models.rs: the embeddings API and the model downloads of --semantic), and unsafe-libyaml through serde_yaml_ng; scripts/testing/jscpd-baseline-gate.mjs runs the token scan with --update-baseline, --baseline and --silent, and .jscpd.json sets no semantic, history or network option, so no rustls advisory is reached here, nor the mode of either issue. Works here: pnpm check:duplicates exits 0 on jscpd 5.4.1 at 2026-10-16T22:40:27Z, 1000 clones in 1799 files, no stale entry and no new clone against the 992-fingerprint baseline, and main be1fa16a's CI run 38976529186 (push, 2026-10-16T22:34Z) passed Duplicate code check (jscpd) at 22:35:05Z. Flagged, not clean: the pinned binary carries four rustls advisories, unreachable here and invisible to pnpm audit, and no jscpd release with rustls 0.23.46 exists yet. The follow-up is the first jscpd release whose rust/Cargo.lock holds rustls 0.23.46 or later, taken in its own PR once mature, 7 days after its publication, with check:duplicates and a planted clone measured on it. The 14-day review is due 2026-10-23."
-        }
-      }
-    },
-    {
-      "kind": "package",
-      "name": "prettier",
-      "version": "3.9.10",
-      "published": "2026-10-10T08:35:28.472Z",
-      "entered": {
-        "date": "2026-10-15",
-        "commit": "15de0774",
-        "pr": 605,
-        "via": "the CVE floor for GHSA-4cm8-f57v-mqm6 (a prettier/prettier repository advisory, medium, CWE-400, >=3.9.0 <=3.9.9, absent from OSV and GitHub's global endpoint when taken), a deliberate deviation from the buffer that goes to the maintainer with that change, about 5.3 days after publication and about 1.7 days before the 2026-10-17T08:35Z maturity; the root devDependency literal and the transitive copy under apps/api > @react-email/render both resolve 3.9.10, and format:check reformats no file"
-      },
-      "milestones": {
-        "maturity": "2026-10-17",
-        "final": "2026-10-24"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-21",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-21, four days after the 2026-10-17 milestone and one day past the check's 3-day grace, which turned main's watchlist check red; the reminder opened #638 at 2026-10-17T16:09Z, the milestone day. Registry, read 2026-10-21T18:26Z: 3.9.10 is latest and matured 2026-10-17T08:35Z; nothing newer is published apart from the next tag 4.0.0-alpha.13 (2025-11-18). Advisories: GHSA-4cm8-f57v-mqm6, the floor this version holds, is still only a prettier/prettier repository advisory (2026-10-11T01:01:55Z, medium); GitHub's global endpoint and OSV answer 404 for it at 18:27Z, so pnpm audit still cannot see it. OSV lists nothing for prettier at any version, no global advisory affects 3.9.10, and the repository has published no newer advisory. Release notes: no release after 3.9.10. Upstream issues opened since 2026-10-10 that name 3.9.10: #20306 and #20307, non-idempotent output (a delete of a JSDoc-cast member; a member chain with an object argument at printWidth 100, this repository's width), #20293, a YAML block-scalar regression on main and unreleased, and #20303, an SCSS regression from 3.7 where the tree has no .scss file; none is a security report. Works here: pnpm format:check (prettier -c .) passes on the whole tree (2026-10-21T18:28Z), so every file is a fixed point under 3.9.10 and neither non-idempotent case occurs here; pnpm check:legal and pnpm check:support, which render their pages through prettier's API, find every page current. Lockfile: one prettier, 3.9.10. Clean; the 14-day review is due 2026-10-24."
-        }
-      }
-    },
-    {
-      "kind": "package",
-      "name": "knip",
-      "version": "6.41.0",
-      "published": "2026-10-09T07:57:03.479Z",
-      "entered": {
-        "date": "2026-10-15",
-        "commit": "e352e810",
-        "pr": 609,
-        "via": "the root devDependency literal behind the knip ratchet, moved from 6.40.0 about 6.4 days after publication and about 0.6 days before the 2026-10-16T07:57Z maturity, under the owner's 72-hour rule; it declares zod ^4.6.5, which moved the catalog zod 4.4.3 -> 4.6.5 in the same commit; its findings equal the 308-key ratchet baseline, with 0 regressions and 0 resolved"
-      },
-      "milestones": {
-        "maturity": "2026-10-16",
-        "final": "2026-10-23"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-16",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-16, the milestone day, about 14.7 hours after 6.41.0 left the 7-day buffer at 07:57:03Z (published 2026-10-09T07:57:03Z); the reminder opened #627 at 17:10:35Z. Registry, read 2026-10-16T22:38Z: 6.41.0 is latest, and nothing is published after it (the document was last modified at its own publication). OSV, at 22:39Z: nothing for knip 6.41.0 or for knip at any version. GitHub: no global advisory affects knip, and webpro-nl/knip lists no repository security advisory. Release notes: no release after knip@6.41.0 (GitHub release 2026-10-09T07:50Z); the default branch holds 24 unreleased commits since, plugin features and fixes (among them Next Turbopack alias targets #2156, framework-entry re-exports #2154, a trailing-slash cwd #2139, a GitHub Actions working-directory nested under a checkout path #2136 and Nx run-commands paths #2151), none of them a security fix. Upstream issues: seven opened in webpro-nl/knip since 2026-10-09, and GitHub's search for 6.41.0 matches five: #2130 (bun check reported as an unlisted binary, closed not planned), #2132 (the GitHub Actions plugin with a working-directory under an actions/checkout path, fixed on the default branch by #2136), #2153 (--production dropping a file a plugin registers as config, closed not planned), #2138 (documentation) and #2160 (a feature request); the other two, #2133 (@knip/create-config on a CRLF pnpm-workspace.yaml) and #2135 (a trailing slash in --directory, fixed by #2139), name no version. None reports a regression of 6.41.0, and none reaches this tree: scripts/knip-ratchet.mjs runs npx knip --reporter json from the repository root with no --production and no --directory, no workflow under .github sets an actions/checkout path or a working-directory, nothing runs bun, and @knip/create-config is not used. Reachability: dev-only; the lockfile, parsed with yaml.safe_load_all, holds one knip, 6.41.0, the root devDependency, and the production closure of the 101 importers does not reach it. Works here: pnpm check:dead-code exits 0 on knip 6.41.0 at 2026-10-16T22:40:21Z with 0 regressions against the 290-key baseline (308 when 6.41.0 was taken; eaddd360 and 2fe6d7a8 removed 18 on 2026-10-16), main be1fa16a's CI run 38976529186 (push, 2026-10-16T22:34Z) passed Dead code check (knip) at 22:35:04Z, and pnpm audit --audit-level low finds no known vulnerability at 22:48:16Z. Clean; the 14-day review is due 2026-10-23."
+        },
+        "final": {
+          "date": "2026-10-27",
+          "outcome": "flagged",
+          "note": "Reviewed 2026-10-27, four days after the 2026-10-23 milestone and one day past the check's 3-day grace, which turned the watchlist check red at 2026-10-27T00:00Z; the reminder opened #696 at 2026-10-23T17:43Z. Registry, read 2026-10-27T00:49Z: 5.4.2 is latest since 2026-10-20T16:14:40Z (GitHub release 16:14:54Z) and matures 2026-10-27T16:14Z; nothing else follows 5.4.1, and the holds gate, run once at 00:55Z, reads jscpd 5.4.1 at or above latest mature. OSV, at 00:49Z: nothing for jscpd 5.4.1 or 5.4.2, nor at any version. GitHub, at 00:50Z: no global advisory affects jscpd@5.4.1 or jscpd@5.4.2, and kucherenko/jscpd lists no repository security advisory. The binary's flag stands and has grown. One OSV batch per lock, at 00:59Z: v5.4.1's rust/Cargo.lock (389 crates.io packages) still pins rustls 0.23.45, inside RUSTSEC-2026-0346 to 0349 (fixed in 0.23.46), and now also rustls-webpki 0.103.15 (RUSTSEC-2026-0382, CVE-2026-111943, certificate verification may accept distrusted intermediates, fixed in 0.103.16), webpki-roots and webpki-root-certs 1.0.9 (RUSTSEC-2026-0381 and 0383, bundled roots trust the distrusted emSign intermediates, fixed in 1.0.10), published 2026-10-19 and 2026-10-20, and zip 8.6.0 (RUSTSEC-2026-0367 to 0369, archive extraction that keeps SUID and SGID bits and writes symlinks and permissions outside the destination, fixed in 9.0.0), published 2026-10-09 and 2026-10-10; basic-toml 0.1.10 (RUSTSEC-2026-0374) and unsafe-libyaml 0.2.11 (RUSTSEC-2024-0449) are unmaintained notices. The installed jscpd-linux-x64-gnu binary names rustls-0.23.45, rustls-webpki-0.103.15 and candle-core-0.11.0 in its strings. v5.4.2's lock (396 packages) moves rustls to 0.23.46 (#1201) and drops unsafe-libyaml (basta 0.3.2 reads YAML with serde-saphyr, #1198), so it clears the four rustls advisories, and still carries rustls-webpki 0.103.15, webpki-roots and webpki-root-certs 1.0.9, zip 8.6.0 and basic-toml 0.1.10. Upstream: master, 47 commits after v5.4.2 with no release, moved rustls-webpki to 0.103.16 and webpki-roots and webpki-root-certs to 1.0.10 on 2026-10-21 (b8c7deda, for #1233 to #1235) and dropped basic-toml (#1230); zip stays at 8.6.0, because candle-core 0.11 still needs zip 8, and upstream's cargo deny and cargo audit ignore 0367 to 0369 because jscpd extracts no archive (#1215, #1216). Release notes of 5.4.2: boundaries rules, a name-for-name pairing in --ignore-identifiers and --similarity, a health score in --history, 73 more formats by extension, and bug fixes; its two behaviour changes, `jscpd .` scanning more files and a --ignore-identifiers baseline reading as blind, do not apply here, since .jscpd.json lists the formats typescript and tsx and sets no ignoreIdentifiers, similarity, semantic or history option. Upstream issues since 2026-10-16: 17, all closed but #1257 (a jscpd:ignore-start region ends early at a /* inside a string literal; no file jscpd scans here, the TypeScript of apps and packages, uses the marker). Reachability, unchanged: dev-only, the root devDependency behind pnpm check:duplicates; rustls, rustls-webpki, webpki-roots and webpki-root-certs come in only through ureq in cpd-semantic and zip only through candle-core in cpd-semantic (the embeddings API and model downloads of --semantic), basic-toml only through askama_derive, a compile-time macro of cpd-reporter, and scripts/testing/jscpd-baseline-gate.mjs runs the token scan with no semantic, history or network option, so no flagged crate is reached here, and pnpm audit sees none of them. Lockfile, parsed with yaml.safe_load_all: one jscpd and one jscpd-linux-x64-gnu, both 5.4.1. Works here: pnpm check:duplicates exits 0 on jscpd 5.4.1 at 2026-10-27T00:52Z, 988 clones in 1806 files, no stale entry and no new clone against the 980-fingerprint baseline, and main 542d1aa4's CI run 40368759268 (push, 2026-10-26T17:27Z, success) passed Duplicate code check (jscpd) at 17:27:55Z. Flagged, not clean: 5.4.1 carries the four rustls advisories, the three emSign advisories and the three zip advisories, all unreachable here and invisible to pnpm audit. The follow-up: move to 5.4.2 once mature, 2026-10-27T16:14Z, which clears the four rustls advisories, with check:duplicates and a planted clone measured on it; the three emSign advisories wait for the first release after master's b8c7deda, and the zip ones for a candle-core on zip 9. The entry stays until 5.4.1 leaves the tree."
         }
       }
     },
