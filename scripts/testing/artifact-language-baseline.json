@@ -47,14 +47,6 @@
     "spanish": 1,
     "names": 0
   },
-  "openspec/changes/ci-live-tier-integrity/design.md": {
-    "spanish": 1,
-    "names": 0
-  },
-  "openspec/changes/project-scoped-tenant-guard/exploration.md": {
-    "spanish": 1,
-    "names": 0
-  },
   "openspec/changes/project-scoped-tenant-guard/rollout-plan.md": {
     "spanish": 0,
     "names": 1
@@ -74,10 +66,6 @@
   "openspec/changes/tenant-context-at-boundaries/proposal.md": {
     "spanish": 0,
     "names": 1
-  },
-  "openspec/changes/tenant-isolation-composite-fk/apply-progress.md": {
-    "spanish": 0,
-    "names": 6
   },
   "openspec/changes/tenant-isolation-composite-fk/proposal.md": {
     "spanish": 0,
