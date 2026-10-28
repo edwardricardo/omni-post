@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-10-04 (the register approved); 2026-10-05 (its place on the route); 2026-10-07 (the
   method, shared with the support documentation, and the ledger's entry rule)
-- **Decision-makers**: Product Owner and Maintainer, held by one person (`docs/GOVERNANCE.md`): the
+- **Decision-makers**: Product Owner and Maintainer, held by one person ([GOVERNANCE.md](../GOVERNANCE.md)): the
   Product Owner for the register, its place on the route and its qualitative columns, the Maintainer
   for its mechanics (generators, gate and templates)
 - **Consulted**: —

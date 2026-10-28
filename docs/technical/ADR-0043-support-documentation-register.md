@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-10-06 (the register and the answers Q1 to Q5, recorded in #433); 2026-10-07 (the
   method and ledger shared with the legal register, and `EXCEPTIONS.md` retired)
-- **Decision-makers**: Product Owner and Maintainer, held by one person (`docs/GOVERNANCE.md`): the
+- **Decision-makers**: Product Owner and Maintainer, held by one person ([GOVERNANCE.md](../GOVERNANCE.md)): the
   Product Owner for the register and the answers Q1 to Q4, the Maintainer for the thresholds of Q5
   and the gates
 - **Consulted**: —
