@@ -210,7 +210,7 @@ Two real defects: `PORT=3001` (`:42`) collides with Grafana in the homelab, whic
 - **Shared tooling** — `packages/vitest-shared/src/index.ts` (five contracts converge here), new `packages/test-utils/{domain,wire,persistence}`, new `packages/eslint-plugin-testing/`, `apps/api/tests/unit/helpers/**` (14 files, 3,419 lines), `apps/api/tests/integration/helpers/**`, `apps/api/tests/support/` (new home for the route-app builder).
 - **Verdict** — `.github/workflows/{ci,production-ci,nightly,performance,security-testing,audit,fitness,chaos,eval}.yml`, new `.github/rulesets/main.json`, fitness #44-#49.
 - **Environment** — new `scripts/test-env.sh` absorbing `scripts/ci-setup-test-env.sh`, `.env.test.example`, `turbo.json`, `infra/prisma/seed-e2e.ts` (new), the Telegram `apiClient` base-URL seam (the workstream's only production change).
-- **Canon and docs** — `CLAUDE.md` §Automated Compliance Checks, `docs/development/CODING_STANDARDS.md` §Testing, new `docs/development/TESTING_REFOUNDATION.md`, ADR-0025, `MASTER_PLAN_ES.md` ficha N-TEST-1, `NORMALIZATION_ROADMAP.md` §2.3, eight docs to adjudicate.
+- **Canon and docs** — `CLAUDE.md` §Automated Compliance Checks, `docs/development/CODING_STANDARDS.md` §Testing, new `docs/development/TESTING_REFOUNDATION.md`, ADR-0025, `MASTER_PLAN.md` ficha N-TEST-1, `NORMALIZATION_ROADMAP.md` §2.3, eight docs to adjudicate.
 
 ## 5. Approaches compared, and the chosen one
 

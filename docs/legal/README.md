@@ -48,7 +48,7 @@ Every qualitative item is a decision for the Product Owner, taken in short sessi
 
 ## Retro-documentation ledger
 
-The facts of work closed before the gate existed are collected once, through the retro-documentation ledger in [Master Plan](../product/MASTER_PLAN_ES.md) §5.10, shared with the support documentation of §5.15. It has one row per closed item, and its `Legal`, `Soporte` and `Lote` columns start empty.
+The facts of work closed before the gate existed are collected once, through the retro-documentation ledger in [Master Plan](../product/MASTER_PLAN.md) §5.10, shared with the support documentation of §5.15. It has one row per closed item, and its `Legal`, `Soporte` and `Lote` columns start empty.
 
 A retro batch takes ledger rows in order of exposure (credentials, OAuth, billing, mention and analytics ingestion, AI subprocessors), at most 400 lines of evidence. It reads each item once, writes its legal facts here and its support page under `docs/support/`, and marks the row with the batch's pull request number. An item with nothing to record is marked not applicable, with its reason, in the batch's pull request. Work closed after the gate documents itself in its own pull request, because the gate fails until it does.
 

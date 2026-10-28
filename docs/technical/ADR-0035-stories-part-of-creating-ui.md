@@ -39,7 +39,7 @@ Measured on 2026-10-05 at `main` `8400ba05` (the slice 0.22 measurement, Referen
    browser.
 
 CODING_STANDARDS §React Component Standards cited `docs/frontend/REACT_STANDARDS.md`, a file that
-did not exist (MASTER_PLAN_ES N-DOC-1).
+did not exist (MASTER_PLAN N-DOC-1).
 
 ## Decision
 

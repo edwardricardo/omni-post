@@ -12,7 +12,7 @@
 - **Superseded by**: —
 - **Related**: [docs/support/README.md](../support/README.md) (the generated index) and
   [\_TEMPLATE.md](../support/_TEMPLATE.md) (the page template);
-  [Master Plan](../product/MASTER_PLAN_ES.md) §5.15 (SUP-1 to SUP-7);
+  [Master Plan](../product/MASTER_PLAN.md) §5.15 (SUP-1 to SUP-7);
   [ADR-0042](ADR-0042-legal-facts-register-method.md) (the method and the ledger this flow shares)
 
 ## Context
@@ -137,7 +137,7 @@ account or post-deployment check is added, changed or retired`
 
 ## References
 
-- [Master Plan](../product/MASTER_PLAN_ES.md) §5.15, where these decisions were first recorded, at
+- [Master Plan](../product/MASTER_PLAN.md) §5.15, where these decisions were first recorded, at
   [`32e38081`](https://github.com/edwardricardo/omni-post/blob/32e38081aaed5de2c0dc565e72c468b3bcd621ce/docs/product/MASTER_PLAN_ES.md)
 - The full plan `support-docs-flow-plan.md` (`/root/.claude/omnipost-tools/research-2026-10-06/`,
   outside the repository; engram 1310 to 1313, 1315 and 1316)

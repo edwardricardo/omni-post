@@ -12,7 +12,7 @@
 - **Superseded by**: —
 - **Related**: [docs/legal/README.md](../legal/README.md) and
   [REGISTER.md](../legal/REGISTER.md) (the register this method builds);
-  [Master Plan](../product/MASTER_PLAN_ES.md) §5.10 (LEGAL-1 to LEGAL-5 and the retro-documentation
+  [Master Plan](../product/MASTER_PLAN.md) §5.10 (LEGAL-1 to LEGAL-5 and the retro-documentation
   ledger) and §5.15 (the support documentation, which shares this method);
   [ADR-0043](ADR-0043-support-documentation-register.md) (the support register)
 
@@ -143,7 +143,7 @@ variable, external account or post-deployment check is added, changed or retired
 
 ## References
 
-- [Master Plan](../product/MASTER_PLAN_ES.md) §5.10, where these decisions were first recorded, at
+- [Master Plan](../product/MASTER_PLAN.md) §5.10, where these decisions were first recorded, at
   [`32e38081`](https://github.com/edwardricardo/omni-post/blob/32e38081aaed5de2c0dc565e72c468b3bcd621ce/docs/product/MASTER_PLAN_ES.md)
 - [docs/legal/README.md](../legal/README.md): the register's conventions and its pending decisions
 - GDPR art. 30: the record of processing activities the register's sections follow

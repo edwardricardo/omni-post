@@ -10,7 +10,7 @@ This page lists requirements and does not repeat their reference material: the v
 - **Evidence.** Every row names what makes it a requirement: the workflow step, the env-schema line, the Dockerfile `ARG`, the Admin settings key, or the row of the [subprocessors inventory](../legal/inventories/subprocessors.generated.md#subprocessors).
 - **Introduced by.** The first commit that added the row's name to its evidence file (`git log -S'<name>' --reverse -- <file>`), with the pull request that merged it when there is one. `2a1673b4` is the commit that created the API env schema, so a variable older than the schema shows it; `5603d6be` is the first commit of this repository. `—` means no commit was found, never a guess.
 - **Owner.** `operator` wherever the tree names no owner.
-- **No check reads this page yet.** The derived gate, `pnpm check:deployment`, is item N-CI-8 of the [Master Plan](../product/MASTER_PLAN_ES.md): every `vars.X` and `secrets.X` a workflow reads and every env-schema variable gets a row and a classification.
+- **No check reads this page yet.** The derived gate, `pnpm check:deployment`, is item N-CI-8 of the [Master Plan](../product/MASTER_PLAN.md): every `vars.X` and `secrets.X` a workflow reads and every env-schema variable gets a row and a classification.
 
 ### Where configuration lives today
 

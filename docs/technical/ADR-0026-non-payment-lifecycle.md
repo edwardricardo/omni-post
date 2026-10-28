@@ -200,7 +200,7 @@ customer may still do, or what happens to the posts they scheduled.
 - Specification: [billing-gateways.md](../features/billing-gateways.md).
 - Pricing model and trial: [ADR-0030](ADR-0030-pricing-model.md).
 - Backlog: SMELL-184 (F13) in [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md);
-  master plan item N-COR-4 in [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md).
+  master plan item N-COR-4 in [MASTER_PLAN.md](../product/MASTER_PLAN.md).
 - Code: `packages/core/billing/src/GatewayBillingService.ts:859`, `:868`, `:899`, `:918`, `:942`;
   `apps/api/src/infrastructure/repositories/PrismaAccountBillingRepository.ts:80`;
   `apps/api/tests/unit/billing/dunning.test.ts:232`; `packages/ports/src/PaymentAdapter.ts`;

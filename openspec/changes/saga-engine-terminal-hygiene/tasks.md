@@ -226,7 +226,7 @@ Every later "the tests pass" claim in this change depends on this PR.
 
 ## Phase 2: docs + PR1 gate
 
-- [x] 2.1 `docs/product/MASTER_PLAN_ES.md:159` (and the paired `:164`) — record N-COR-2(b) as
+- [x] 2.1 `docs/product/MASTER_PLAN.md:159` (and the paired `:164`) — record N-COR-2(b) as
       CLOSED at main; the code and the planning record must stop disagreeing (delta requirement
       "the planning record states the closed item as closed").
       **Verified against the code before writing the correction**, never taken from the doc:

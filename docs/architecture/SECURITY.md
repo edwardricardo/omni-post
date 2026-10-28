@@ -191,7 +191,7 @@ Two live paths: one encrypts the secrets the platform stores, the other issues A
   hashed with Argon2id (`Argon2PasswordHasher`) and shown in plaintext once. Rotation
   issues a new key and invalidates the old one immediately. A `rotationSchedule` is
   stored but nothing applies it, and no request path authenticates with these keys yet:
-  PREG-1 in `docs/product/MASTER_PLAN_ES.md` §5.13 decides the public API's credential.
+  PREG-1 in `docs/product/MASTER_PLAN.md` §5.13 decides the public API's credential.
 
 ```typescript
 // The port the application layer depends on

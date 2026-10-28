@@ -115,7 +115,7 @@ that `packages/ports` carries says otherwise.
      `RedisCacheManager` methods `cacheStatsRoutes` calls, R6).
    - **The routes workstream, queued after N-TEST-1:** each route module moves to use cases and
      composition-root injection, area by area, as rows ARCH-1 to ARCH-22 of
-     [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md) §5.12.
+     [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.12.
    - **The deviation, in plain terms:** until its area migrates, a route module keeps resolving
      from the container, 24 of them keep reaching Prisma, a repository or the email port, and five
      keep building value objects. Those edges are admitted only as entries of ADR-0032's baseline,
@@ -204,7 +204,7 @@ that `packages/ports` carries says otherwise.
   parameters, `new OAuthFlowStore` at `:32`) and `samlRoutes.ts:192` (`new SAML`) — are named in
   their rows.
 - **Nine defects found by the sizing and its verification are queued, not fixed here**:
-  [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md) §5.11 DEF-7 to DEF-15, SMELL-194 to SMELL-202.
+  [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11 DEF-7 to DEF-15, SMELL-194 to SMELL-202.
 
 ## Revisit if
 
@@ -264,7 +264,7 @@ order. The sixth, `DataRetentionService`, takes none: its one call was an `info`
 repeated the `DATA_RETENTION_CLEANUP` audit entry. The four `info` calls went as follows:
 `GatewayBillingService`'s two, because the invoice row and the subscription status already record
 the dunning outcome and the recovery; `DlqArchivalService`'s, because the method returns its count
-(the daily task discards it, which DEF-18 of [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md)
+(the daily task discards it, which DEF-18 of [MASTER_PLAN.md](../product/MASTER_PLAN.md)
 §5.11 queues with the port failures the service swallows); and `DataRetentionService`'s, for the
 reason above.
 
@@ -276,7 +276,7 @@ its `(msg, ...args)` overload — measured the same day with pino 10.3.1 and Typ
 assignment compiles — so the type could no longer reject a logger passed without the adapter, and
 the protection would rest on a rule instead of a type. A pass-through adapter kept as a seam for a
 future backend was declined as code with no present use. The opposite order has a measured failure
-in this repository: DEF-16 of [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md) §5.11, the
+in this repository: DEF-16 of [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11, the
 scheduler's message-first `SchedulerLogger`, which receives a pino logger and records a scheduled
 task's error without its `taskId` or `err`.
 
@@ -299,7 +299,7 @@ task's error without its `taskId` or `err`.
   `Pick<Queue, "name" | "getJobCounts" | "getJobs" | "getJob" | "getJobLogs">` with a type-only
   `bullmq` import (`apps/api/src/admin/queueRoutes.ts:9,20-25`); the route imports neither
   `QUEUE_NAMES` nor the queue adapter. The construction moved from the route unchanged; DEF-25 of
-  MASTER_PLAN_ES §5.11 queues what it drops from `REDIS_URL` and its overlap with the registry's
+  MASTER_PLAN §5.11 queues what it drops from `REDIS_URL` and its overlap with the registry's
   adapter for the same queue.
 - **R6** (`PR v-e1`): `cacheStatsRoutes` receives a `CacheAdminPort`
   (`packages/ports/src/CacheAdminPort.ts:47`), the six operations the routes call, each returning a
@@ -332,7 +332,7 @@ task's error without its `taskId` or `err`.
   [LOGGING_CANON.md](../observability/LOGGING_CANON.md) §Logging & Observability,
   [CODING_STANDARDS.md](../development/CODING_STANDARDS.md) §@layer Standard Values,
   [CLAUDE.md](../../CLAUDE.md) fitness #40 and #43.
-- Plan: [MASTER_PLAN_ES.md](../product/MASTER_PLAN_ES.md) §5.11 and §5.12;
+- Plan: [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11 and §5.12;
   [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md) SMELL-194 to
   SMELL-202; [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) D49.
 - Code: `apps/api/src/index.ts:279-280,543,659`; `apps/api/src/types/fastify.d.ts:62`;

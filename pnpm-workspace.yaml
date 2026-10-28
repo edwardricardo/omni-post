@@ -219,7 +219,7 @@ catalogs:
 # (SECURITY_CANON.md §"CVE-floor pins"). Every key but `validator` moves a resolution
 # today: removing it alone changes a lockfile snapshot. The override audit of 2026-10-15
 # removed the 15 that changed none (SECURITY_CANON.md §"Override audit"); `validator`
-# pins nothing too and leaves with DC-3 and DC-4, which own it (MASTER_PLAN_ES.md).
+# pins nothing too and leaves with DC-3 and DC-4, which own it (MASTER_PLAN.md).
 # `form-data` and `postcss` left the same day by the owner's decision: each forced one
 # version on a consumer whose own range resolves a patched one (form-data 2.5.6 under
 # @types/request, postcss 8.5.23 under next), so neither held a floor. `@opentelemetry/core`

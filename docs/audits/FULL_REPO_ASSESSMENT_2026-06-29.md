@@ -1,6 +1,6 @@
 # OmniPost — Valoración Completa del Repositorio (2026-06-29)
 
-> **Estado:** informe de auditoría read-only. Es la **base de evidencia** del spine accionable `docs/product/MASTER_PLAN_ES.md` (que consolidó y reemplazó `IMPLEMENTATION_PLAN_ES.md`, retirado 2026-06-29, y `PENDING_WORK_INVENTORY.md`, congelado 2026-07-21 en [`docs/archive/PENDING_WORK_INVENTORY.md`](https://github.com/edwardricardo/omni-post/blob/cb4921bda93a39e300f1bd5203985edde8055258/docs/archive/PENDING_WORK_INVENTORY.md) y borrado del repositorio el 2026-10-17; la historia de git lo conserva). Las referencias `§N` de más abajo a `PENDING_WORK_INVENTORY` son a esa versión congelada, la del enlace.
+> **Estado:** informe de auditoría read-only. Es la **base de evidencia** del spine accionable `docs/product/MASTER_PLAN.md` (que consolidó y reemplazó `IMPLEMENTATION_PLAN_ES.md`, retirado 2026-06-29, y `PENDING_WORK_INVENTORY.md`, congelado 2026-07-21 en [`docs/archive/PENDING_WORK_INVENTORY.md`](https://github.com/edwardricardo/omni-post/blob/cb4921bda93a39e300f1bd5203985edde8055258/docs/archive/PENDING_WORK_INVENTORY.md) y borrado del repositorio el 2026-10-17; la historia de git lo conserva). Las referencias `§N` de más abajo a `PENDING_WORK_INVENTORY` son a esa versión congelada, la del enlace.
 > **Alcance temporal:** HEAD `workstream/impl-revalidation @ 07c1faa5` (2026-06-29).
 > **Owner:** Platform engineering.
 
@@ -148,7 +148,7 @@ Hay además **~63 hallazgos MEDIA/BAJA secundarios** (perf, testing, DX, dead-co
 
 **Docs faltantes prioritarios a crear:** `docs/frontend/REACT_STANDARDS.md` (P1, puntero roto), `docs/technical/README.md` (índice de ADRs 0001-0019, sigue ausente), `docs/architecture/PROVIDER_OAUTH_FLOW.md`, `docs/architecture/WORKERS.md`, `docs/development/onboarding.md` (day-1 homelab).
 
-**Conflicto de doble verdad en `docs/product` (persiste):** `FEATURE_TRACE_MATRIX_ES.md` (2026-05-17) describe el estado pre-Fase-0; `IMPLEMENTATION_PLAN_ES.md` fue **reseteado a 0/67** el 2026-06-19 (re-validación deliberada). Métricas de inversores desactualizadas: providers **11** (dicen 10), modelos Prisma **124** (dicen 97/98 — 3-way, presentar como WF1-vs-INVESTOR, no como settled), LLM providers **4** (dicen 3), modelo de imagen "DALL-E 3" (stale). Reconciliar como tarea P2 de docs.
+**Conflicto de doble verdad en `docs/product` (persiste):** `FEATURE_TRACE_MATRIX.md` (2026-05-17) describe el estado pre-Fase-0; `IMPLEMENTATION_PLAN_ES.md` fue **reseteado a 0/67** el 2026-06-19 (re-validación deliberada). Métricas de inversores desactualizadas: providers **11** (dicen 10), modelos Prisma **124** (dicen 97/98 — 3-way, presentar como WF1-vs-INVESTOR, no como settled), LLM providers **4** (dicen 3), modelo de imagen "DALL-E 3" (stale). Reconciliar como tarea P2 de docs.
 
 ---
 

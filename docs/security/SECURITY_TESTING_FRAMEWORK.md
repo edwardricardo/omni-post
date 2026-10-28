@@ -312,7 +312,7 @@ rules file, no login and no custom scan policy. The key=value file
 `security/zap/zap-config.conf`, which described a login script, cookie sessions
 and custom policies, was in no format the action reads, was read by nothing, and
 was deleted on 2026-10-10. A versioned rules file that triages each alert is the
-open work of DEF-77 in `docs/product/MASTER_PLAN_ES.md` §5.11.
+open work of DEF-77 in `docs/product/MASTER_PLAN.md` §5.11.
 
 ## 📈 Security Metrics & Reporting
 
