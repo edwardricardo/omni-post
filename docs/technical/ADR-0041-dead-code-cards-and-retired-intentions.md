@@ -3,7 +3,7 @@
 - **Status**: Accepted
 - **Date**: 2026-10-05 (cards C1 to C7 and C10, and the condition every deletion meets); 2026-10-06
   (the product questions PREG-1 to PREG-11)
-- **Decision-makers**: Product Owner and Maintainer, held by one person (`docs/GOVERNANCE.md`): the
+- **Decision-makers**: Product Owner and Maintainer, held by one person ([GOVERNANCE.md](../GOVERNANCE.md)): the
   Maintainer for what each card retires, the Product Owner for the condition that keeps each
   intention, for card C10 and for the product questions
 - **Consulted**: —

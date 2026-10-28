@@ -211,3 +211,4 @@ ADRs live in [`technical/`](technical/) as `ADR-NNNN-*.md`; ADR-0001 holds the t
 | [0038](technical/ADR-0038-node-26-ahead-of-lts.md)                            | Node 26 ahead of its LTS date                                                  |
 | [0039](technical/ADR-0039-decorative-demolition-coverage-exception.md)        | Decorative-test demolition: a coverage-floor descent under a ledger marker     |
 | [0040](technical/ADR-0040-artifact-language-and-role-attribution.md)          | English as the only artifact language; artifacts name roles, never a person    |
+| [0041](technical/ADR-0041-dead-code-cards-and-retired-intentions.md)          | Dead code: the cards C1 to C12 and the intentions each deletion retires        |
