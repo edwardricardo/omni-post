@@ -5,7 +5,7 @@
  *   + OWASP Authentication Cheat Sheet:
  *
  *   - **Account-based primary**: counter keyed by identifier (email/username)
- *     so an attacker rotating IPs cannot bypass. IP throttle is supletoria
+ *     so an attacker rotating IPs cannot bypass. IP throttle is supplementary
  *     (high threshold) to deter blast-radius without false-positives on
  *     shared NAT / proxies.
  *   - **Exponential backoff with auto-expiry**: progressive delays (1s → 300s
@@ -36,7 +36,7 @@ export interface CheckLoginAttemptInput {
   /** Account identifier (email or username). Canon-primary key for the
    * counter — IP rotation does not bypass. */
   readonly identifier: string;
-  /** Source IP. Used for supletoria IP throttle (high threshold) and
+  /** Source IP. Used for supplementary IP throttle (high threshold) and
    * anomaly detection (rapid distributed attempts from one identifier
    * across many IPs). */
   readonly ip: string;

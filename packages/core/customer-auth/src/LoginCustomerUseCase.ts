@@ -40,7 +40,7 @@ export interface LoginCustomerInput {
   readonly email: string;
   readonly password: string;
   readonly accountSlug?: string;
-  /** Source IP — forensic + IP throttle supletoria. */
+  /** Source IP — forensic + supplementary IP throttle. */
   readonly ip: string;
   /** Source user-agent — forensic + anomaly signals. */
   readonly userAgent: string;
@@ -95,6 +95,9 @@ export class LoginCustomerUseCase {
    *   on success emits `recordSuccessfulAttempt` (resets per-identifier
    *   counter). The exponential `delaySeconds` is honoured before answering
    *   to throttle the attacker.
+   * @param input - The email, password, optional account slug, source IP and user agent
+   * @returns Result with the session tokens, or an MFA challenge when the customer has MFA
+   *   enabled; otherwise a `LoginCustomerError` code
    */
   async execute(
     input: LoginCustomerInput

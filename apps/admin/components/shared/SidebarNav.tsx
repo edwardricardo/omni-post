@@ -113,8 +113,8 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /**
- * The target locale's name in the interface's language ("Spanish" on English, "inglés" on
- * Spanish), so an accessible name never mixes two languages (WCAG 3.1.2).
+ * The target locale's name in the interface's language ("Spanish" on English, and the Spanish
+ * word for English on Spanish), so an accessible name never mixes two languages (WCAG 3.1.2).
  */
 function languageName(target: string, interfaceLocale: string): string {
   // The default "code" fallback returns the code itself; the `??` only satisfies the type.

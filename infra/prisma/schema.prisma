@@ -2170,8 +2170,8 @@ enum MentionSentiment {
 }
 
 /// Brand-listening keyword tracked per project. `kind` drives Share of Voice:
-/// BRAND terms feed the numerator (mentions_marca), MARKET terms the denominator
-/// (mentions_mercado).
+/// BRAND terms feed the numerator (mentions_brand), MARKET terms the denominator
+/// (mentions_market).
 model TrackedTerm {
   id        String          @id @default(uuid())
   accountId String
