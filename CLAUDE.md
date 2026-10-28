@@ -335,7 +335,7 @@ The hook searches the prior assistant message for a line that starts with `canon
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the Maintainer's decision. Every baseline may fall and must never rise.) There are **52 checks, numbered #1-#52**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the Maintainer's decision. **#53 is held per file**: every tracked file's Spanish lines and name mentions equal its entry in `scripts/testing/artifact-language-baseline.json` in both directions, so each entry may fall and must never rise, and the file is deleted once every count is zero. Every baseline may fall and must never rise.) There are **53 checks, numbered #1-#53**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -2395,6 +2395,79 @@ pnpm check:i18n   # expect exit 0 and, on stdout:
 pnpm check:ledger   # expect exit 0 and:
 #   ledger: ledger.json is current
 #   ledger: docs/development/testing-refoundation/LEDGER.md is current
+
+# 53. Every tracked artifact is in English and names roles, never a person.
+# Threat: an artifact written in Spanish, or one that names the person who decided instead of the
+# role that decides (Product Owner, Maintainer), reads as the official record while it shuts out
+# every reader who does not read Spanish and ties each decision to one individual. Nothing counted
+# either, so every change could add more: on main @ 1939e73a, 208 tracked files outside the
+# exemptions held 2197 Spanish lines and 788 name mentions, 85 of them in the testing refoundation
+# tracker alone.
+# WHAT IT RUNS: `pnpm check:artifact-language`, which is `node
+# scripts/testing/artifact-language-gate.mjs`, pinned by
+# apps/api/tests/unit/scripts/artifactLanguageGate.test.ts. It lists the regular files git tracks
+# (`git ls-files --stage`, modes 100644 and 100755, so a symbolic link or a submodule is never read
+# through), skips a binary one (a NUL byte in its first 8000 bytes, git's own test), and counts per
+# file two things: Spanish lines, a line holding one of the characters Spanish spelling uses and
+# English never does (the acute vowels, n with tilde, u with diaeresis, the inverted question and
+# exclamation marks) or at least two distinct words of the script's list of frequent Spanish
+# function words that are rare as English words; and name mentions, each of the person's name words
+# in any case, where a letter or a digit continues a word and anything else ends it, after every
+# `github.com/edwardricardo/` URL is cut from the line up to its first character outside the
+# URL-safe set, since a permalink is an address. The GitHub handle is not a mention, so the files
+# that hold only the handle (CODEOWNERS, .github/dependabot.yml) need no exemption. It compares both
+# counts of every file with scripts/testing/artifact-language-baseline.json,
+# `{ "<path>": { "spanish": n, "names": n } }`, keyed per file and holding only files that count:
+# equal in both directions, and a file the baseline does not name must count zero.
+# EXEMPTIONS. The allowlist in the script names a file, one line of a file, a file with the English
+# twin that must be tracked beside it, or a rule over paths, with the counters it exempts and its
+# reason: docs/GOVERNANCE.md and the one `GRANT_ISSUER = "..."` line of .claude/hooks-py/_common.py
+# for names; the two `es.json` catalogs, the i18n fixtures, the Unicode fixtures, the endonym
+# comment of apps/client/components/shared/LanguageSwitcher.tsx, the Unicode fold table's generator
+# and the vendored Unicode Character Database file, DEF-151's InboxEventHandlers.ts, and
+# docs/product/INVESTOR_ES.md and MARKETING_ES.md beside their `_EN` twins, for Spanish; and for
+# both, the gate and its suite, and every `migration.sql` under infra/prisma/migrations. A new
+# exemption is a reviewed edit of the allowlist, with its reason. The generated records (ledger.json,
+# LEDGER.md, probes.json, dependency-ledger.json, the generated legal and support pages,
+# eslint-suppressions.json, the generated API types, the Unicode fold table, pnpm-lock.yaml) are
+# excluded from both counters because a generator writes them, each entry naming its generator;
+# the exclusion is structural, so it holds while a record counts zero and a record is never counted
+# twice. `--write` rewrites the baseline from the tree, or deletes it once every count is zero; from
+# then on the gate requires zero.
+# WHERE IT RUNS, and why: in the `fitness` job of fitness.yml, which installs nothing, beside #44:
+# the gate reads git's listing and the tracked files and imports nothing beyond Node's own modules.
+# The battery runs the same command as its step `artifact-language`.
+# WHAT FAILS, exit 1, each printed to stderr as `artifact-language-gate: <problem>`: a counter above
+# its baseline entry, named with its file, its count, the entry and its line numbers (`<file>:
+# spanish 1, baseline 0: new debt at line 270`); a counter below it, a stale entry to lower in the
+# same change (`stale baseline. Lower it to <n>`); an entry for a file git no longer tracks; a
+# baseline that still exists once every count is zero; no baseline while a file still counts, which
+# lists every file that counts; an exemption whose file or English twin git does not track, whose
+# rule matches no tracked file, or whose line rule matches other than exactly one line of its file;
+# an exemption that exempts no counted line today (`exempts no counted line: delete its entry`), so
+# a fixed text cannot leave an inert exemption behind; and a generated record git does not track.
+# FAIL-CLOSED, exit 3, which wins over 1: `git ls-files` failing or listing no file, a tracked file
+# that cannot be read, and a baseline that cannot be read, is not JSON, or is not an object whose
+# every entry holds exactly the two counts as non-negative integers, not both zero. A missing
+# baseline is read as zero required, never as permission. A usage error, an unknown flag, or
+# `--write` or `--root` given twice, exits 2.
+# RESIDUAL LIMITS, stated rather than implied: (1) the heuristic is a floor: Spanish with no accented
+# character and fewer than two of the listed function words on a line is invisible, and so are
+# accents written decomposed (NFD) and any file not encoded in UTF-8, such as Latin-1; (2) it also
+# counts what is not Spanish: a French, German, Italian or Portuguese word with one of the
+# characters, and two place names on one line that each begin with a Spanish article; on main @
+# 1939e73a every one of the 155 lines it counted by function words alone held Spanish; (3) it counts,
+# never names lines: a change that fixes one line of a file and adds another keeps the file's count
+# and passes, and the line numbers printed for new debt are the defence (fitness #38's tradeoff); (4)
+# a file exemption covers its whole file, so new prose in an exempt file is unseen; (5) every
+# `migration.sql` is exempt from both counters, applied or not, so a new migration's Spanish comment
+# passes before it is ever applied; (6) only the name words count: the GitHub handle and any other
+# spelling of the person are unseen, and so is a name the person never wrote out; (7) it reads the
+# working tree of the files git lists, so an untracked file is not counted until it is added.
+pnpm check:artifact-language   # expect exit 0 and one line:
+#   artifact-language-gate: <T> tracked files; <S> Spanish lines and <M> name mentions in <F> files equal scripts/testing/artifact-language-baseline.json
+node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baseline and prints one line:
+#   artifact-language-gate: wrote scripts/testing/artifact-language-baseline.json: <F> files, <S> Spanish lines, <M> name mentions
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One
@@ -2423,7 +2496,7 @@ A generic "RLS not covered" would send the reader toward the wrong fix.
 **Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
-2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #48, #50 to #52) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #48, #50 to #53) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
 3. Prove the red path — mandatory for every NEW or MODIFIED check or CI gate, fitness or otherwise: plant the violation, run the gate, and observe a REAL failure (non-zero exit / `core.setFailed`; an `::error` annotation alone leaves the job green and proves nothing), then restore the tree byte-exact (verify with `cmp` or a checksum) and re-confirm the count is 0. A gate whose red path was never demonstrated does not merge.
 4. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a backlog entry rather than locking in non-zero noise.
 
