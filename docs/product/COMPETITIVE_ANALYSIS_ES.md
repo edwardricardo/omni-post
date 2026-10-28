@@ -1,325 +1,325 @@
-# Análisis Competitivo Detallado — OmniPost vs. Mercado 2026
+# Detailed Competitive Analysis — OmniPost vs. the 2026 Market
 
-> Investigación de mercado realizada en mayo de 2026 a partir de páginas oficiales de pricing y reviews independientes (G2, Capterra, Trustpilot, SocialRails, Research.com, comparativas 2026). Las cifras de precio cambian con frecuencia: reverificar antes de usar en material externo (inversores, ventas).
+> Market research carried out in May 2026 from official pricing pages and independent reviews (G2, Capterra, Trustpilot, SocialRails, Research.com, 2026 comparisons). Price figures change often: re-verify them before using them in external material (investors, sales).
 >
-> **Leyenda de la matriz:**
+> **Matrix legend:**
 >
-> - ✅ Incluido en el plan base de pago
-> - 🔼 Solo en tier superior (se indica cuál)
-> - ➕ Add-on de pago separado (no incluido en ningún plan estándar)
-> - 🟡 Versión básica/limitada
-> - ❌ No disponible
+> - ✅ Included in the base paid plan
+> - 🔼 Only in a higher tier (which one is stated)
+> - ➕ Separate paid add-on (not included in any standard plan)
+> - 🟡 Basic/limited version
+> - ❌ Not available
 
 ---
 
-## 1. Resumen ejecutivo
+## 1. Executive summary
 
-|                                       | Competidor más peligroso      | Por qué                                                                                                                                                                           |
-| ------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Modelo de negocio (agencia LATAM)** | **Metricool**                 | Mismo segmento hispano, mismo rango de precio (~€12), agencia/multi-perfil, AI, el mejor valorado en la región                                                                    |
-| **Modelo agencia multi-cliente**      | **Sendible**                  | Client Connect, dashboards por cliente, onboarding sin passwords — lo que OmniPost intenta con multi-tenant nativo                                                                |
-| **Diferenciador "IA + analytics"**    | **Predis.ai / Vista Social**  | Predis ya predice performance pre-publicación; Vista Social entrena IA con knowledge base + brand voice por cliente. Erosionan el "diferenciador defendible" de los docs internos |
-| **Incumbente enterprise**             | **Sprout Social / Hootsuite** | Solo si OmniPost sube al segmento terciario (SSO, listening, CX)                                                                                                                  |
+|                                     | Most dangerous competitor     | Why                                                                                                                                                                             |
+| ----------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Business model (LATAM agency)**   | **Metricool**                 | Same Hispanic segment, same price range (~€12), agency/multi-profile, AI, the best rated in the region                                                                          |
+| **Multi-client agency model**       | **Sendible**                  | Client Connect, per-client dashboards, password-free onboarding — what OmniPost attempts with native multi-tenancy                                                              |
+| **"AI + analytics" differentiator** | **Predis.ai / Vista Social**  | Predis already predicts pre-publish performance; Vista Social trains AI on a knowledge base + per-client brand voice. They erode the internal docs' "defensible differentiator" |
+| **Enterprise incumbent**            | **Sprout Social / Hootsuite** | Only if OmniPost moves up to the tertiary segment (SSO, listening, CX)                                                                                                          |
 
-**Hallazgo clave:** la afirmación de [INVESTOR_ES.md](INVESTOR_ES.md) de que "ningún competidor conecta analytics + IA generativa + adaptación multi-plataforma" era válida hace ~2 años. En 2026 **Predis.ai** (predicción de engagement pre-publicación), **Vista Social** (IA entrenada con knowledge base + brand voice) y **ContentStudio** (Agentic AI sobre content discovery) ya ofrecen variantes de esa conexión. La ventaja real de OmniPost hoy es: **(a)** profundidad de plataformas (Snapchat/Telegram/Bluesky nativos), **(b)** arquitectura multi-tenant nativa para agencias, **(c)** precio por-plataforma (no por-asiento), y **(d)** funciones autónomas integradas en una sola plataforma. El "AI informado por datos" ya no es suficiente como único diferenciador.
-
----
-
-## 2. Comparativa de precios (2026)
-
-Precios mensuales en USD salvo indicación. "anual" = precio efectivo/mes con facturación anual.
-
-| Producto          | Plan entrada                        | Plan medio                        | Plan alto            | Enterprise            | Modelo de cobro           | Cuentas incluidas (entrada)  |
-| ----------------- | ----------------------------------- | --------------------------------- | -------------------- | --------------------- | ------------------------- | ---------------------------- |
-| **OmniPost**      | $12/plataforma                      | $8/plat. (4-6)                    | $6/plat. (7-10)      | —                     | **Por plataforma**        | según selección              |
-| **Metricool**     | Free / Starter $25 (5 marcas)       | Advanced $54-$172                 | —                    | Custom                | Por nº de marcas          | Free: todas menos LinkedIn/X |
-| **Buffer**        | Free / Essentials $5/canal          | Team $10/canal                    | —                    | —                     | **Por canal**             | Free: 3 canales              |
-| **Predis.ai**     | Free / Core $19                     | Rise $40                          | —                    | Enterprise+ $212      | Por créditos AI           | Core: 10 canales             |
-| **ContentStudio** | Standard $19                        | Advanced $49                      | Agency $99           | Custom                | Por créditos + cuentas    | Standard: 5 cuentas          |
-| **Sendible**      | Creator $29                         | Traction $89 / Scale $199         | Advanced $299        | Enterprise $750       | Por tier (users+perfiles) | Creator: 6 perfiles          |
-| **Loomly**        | Free / Starter $49 anual            | Beyond $249 anual                 | —                    | Custom                | Por tier                  | Starter: 12 cuentas          |
-| **Vista Social**  | Free / Professional $79 ($64 anual) | Advanced $149                     | Scale $349           | Custom                | Por tier + à-la-carte     | Professional: 15 perfiles    |
-| **Agorapulse**    | Free / Standard $99 ($79 anual)     | Professional $149 ($119)          | Advanced $199 ($149) | Custom                | **Por usuario**           | Standard: 10 perfiles        |
-| **Hootsuite**     | Standard $99/user                   | Advanced $249/user                | —                    | Custom (~$15-16k/año) | **Por usuario**           | Standard: 10 cuentas         |
-| **Sprout Social** | Essentials $99 ($79 anual)          | Standard $199 / Professional $299 | Advanced $399        | Custom                | **Por asiento**           | Essentials: 5 perfiles       |
-
-**Observación de pricing:** OmniPost, Buffer (por canal) y Metricool (por marca) son los **únicos que no penalizan equipos grandes**. Agorapulse, Hootsuite y Sprout cobran **por usuario** — un equipo de 5 en Sprout Professional ≈ **$1,495/mes**. Este es el flanco de precio más explotable de OmniPost contra los incumbentes enterprise.
+**Key finding:** the claim in [INVESTOR_ES.md](INVESTOR_ES.md) that "no competitor connects analytics + generative AI + multi-platform adaptation" was valid ~2 years ago. In 2026 **Predis.ai** (pre-publication engagement prediction), **Vista Social** (AI trained on a knowledge base + brand voice) and **ContentStudio** (Agentic AI over content discovery) already offer variants of that connection. OmniPost's real advantage today is: **(a)** platform depth (native Snapchat/Telegram/Bluesky), **(b)** a native multi-tenant architecture for agencies, **(c)** per-platform pricing (not per-seat), and **(d)** autonomous features integrated in a single platform. "Data-informed AI" is no longer enough as the only differentiator.
 
 ---
 
-## 3. Matriz maestra de features
+## 2. Price comparison (2026)
 
-### 3.1 Publicación y scheduling
+Monthly prices in USD unless stated otherwise. "annual" = effective price per month with annual billing.
+
+| Product           | Entry plan                           | Mid plan                          | Top plan             | Enterprise             | Billing model             | Accounts included (entry)    |
+| ----------------- | ------------------------------------ | --------------------------------- | -------------------- | ---------------------- | ------------------------- | ---------------------------- |
+| **OmniPost**      | $12/platform                         | $8/plat. (4-6)                    | $6/plat. (7-10)      | —                      | **Per platform**          | per selection                |
+| **Metricool**     | Free / Starter $25 (5 brands)        | Advanced $54-$172                 | —                    | Custom                 | By number of brands       | Free: all but LinkedIn and X |
+| **Buffer**        | Free / Essentials $5/channel         | Team $10/channel                  | —                    | —                      | **Per channel**           | Free: 3 channels             |
+| **Predis.ai**     | Free / Core $19                      | Rise $40                          | —                    | Enterprise+ $212       | By AI credits             | Core: 10 channels            |
+| **ContentStudio** | Standard $19                         | Advanced $49                      | Agency $99           | Custom                 | By credits + accounts     | Standard: 5 accounts         |
+| **Sendible**      | Creator $29                          | Traction $89 / Scale $199         | Advanced $299        | Enterprise $750        | Per tier (users+profiles) | Creator: 6 profiles          |
+| **Loomly**        | Free / Starter $49 annual            | Beyond $249 annual                | —                    | Custom                 | Per tier                  | Starter: 12 accounts         |
+| **Vista Social**  | Free / Professional $79 ($64 annual) | Advanced $149                     | Scale $349           | Custom                 | Per tier + à-la-carte     | Professional: 15 profiles    |
+| **Agorapulse**    | Free / Standard $99 ($79 annual)     | Professional $149 ($119)          | Advanced $199 ($149) | Custom                 | **Per user**              | Standard: 10 profiles        |
+| **Hootsuite**     | Standard $99/user                    | Advanced $249/user                | —                    | Custom (~$15-16k/year) | **Per user**              | Standard: 10 accounts        |
+| **Sprout Social** | Essentials $99 ($79 annual)          | Standard $199 / Professional $299 | Advanced $399        | Custom                 | **Per seat**              | Essentials: 5 profiles       |
+
+**Pricing observation:** OmniPost, Buffer (per channel) and Metricool (per brand) are the **only ones that do not penalize large teams**. Agorapulse, Hootsuite and Sprout charge **per user** — a team of 5 on Sprout Professional ≈ **$1,495/month**. This is OmniPost's most exploitable price flank against the enterprise incumbents.
+
+---
+
+## 3. Master feature matrix
+
+### 3.1 Publishing and scheduling
 
 | Feature                     | OmniPost         | Metricool      | Buffer        | Sendible        | Agorapulse  | Hootsuite         | Sprout       | Vista Social  | Loomly     | Predis.ai        | ContentStudio |
 | --------------------------- | ---------------- | -------------- | ------------- | --------------- | ----------- | ----------------- | ------------ | ------------- | ---------- | ---------------- | ------------- |
-| Scheduling ilimitado        | ✅               | ✅ (pago)      | 🔼 Essentials | ✅              | ✅          | ✅                | ✅           | ✅            | ✅         | 🟡 manual (Core) | ✅            |
-| Calendario visual           | ✅               | ✅             | ✅            | ✅              | ✅          | ✅                | ✅           | ✅            | ✅         | ✅               | ✅            |
+| Unlimited scheduling        | ✅               | ✅ (paid)      | 🔼 Essentials | ✅              | ✅          | ✅                | ✅           | ✅            | ✅         | 🟡 manual (Core) | ✅            |
+| Visual calendar             | ✅               | ✅             | ✅            | ✅              | ✅          | ✅                | ✅           | ✅            | ✅         | ✅               | ✅            |
 | Bulk / CSV scheduling       | ✅               | ✅             | 🟡            | ✅              | 🔼 Advanced | 🔼 Advanced (350) | ✅           | ✅            | ✅         | ✅               | ✅            |
-| Mejor hora para publicar    | ✅               | ✅             | ❌            | 🟡              | 🔼 Advanced | ✅                | ✅ (Optimal) | ✅            | ✅         | ❌               | ✅            |
-| Recycling / colas evergreen | ✅               | ❌ (debilidad) | 🟡 cola       | ✅ Smart Queues | 🔼 Advanced | ✅                | ❌           | ✅ Smart Pub. | ✅         | ❌               | ✅ categorías |
-| Variantes nativas por red   | ✅ (10 perfiles) | 🟡             | 🟡            | 🟡              | 🟡          | 🟡                | 🟡           | 🟡            | ✅ mockups | 🟡               | 🟡 grid       |
+| Best time to post           | ✅               | ✅             | ❌            | 🟡              | 🔼 Advanced | ✅                | ✅ (Optimal) | ✅            | ✅         | ❌               | ✅            |
+| Recycling/evergreen queues  | ✅               | ❌ (weak spot) | 🟡 queue      | ✅ Smart Queues | 🔼 Advanced | ✅                | ❌           | ✅ Smart Pub. | ✅         | ❌               | ✅ categories |
+| Native variants per network | ✅ (10 profiles) | 🟡             | 🟡            | 🟡              | 🟡          | 🟡                | 🟡           | 🟡            | ✅ mockups | 🟡               | 🟡 grid       |
 | Link-in-bio                 | ✅               | ✅ SmartLinks  | ✅ Start Page | ❌              | 🔼 Pro      | ❌                | ❌           | ✅ Vista Page | ❌         | ❌               |
 
-### 3.2 IA / generación de contenido
+### 3.2 AI / content generation
 
-| Feature                                       | OmniPost                     | Metricool      | Buffer   | Sendible     | Agorapulse     | Hootsuite  | Sprout          | Vista Social      | Loomly  | Predis.ai                 | ContentStudio          |
-| --------------------------------------------- | ---------------------------- | -------------- | -------- | ------------ | -------------- | ---------- | --------------- | ----------------- | ------- | ------------------------- | ---------------------- |
-| IA texto/caption                              | ✅ multi-LLM                 | ✅ 🟡 créditos | ✅ todos | ✅ ilimitado | ✅             | ✅ OwlyGPT | 🔼 Professional | ✅ créditos       | ✅ chat | ✅ core                   | ✅ créditos            |
-| IA multi-proveedor + routing                  | ✅ (GPT-4/Gemini/Perplexity) | ❌             | ❌       | ❌           | ❌             | ❌         | ❌              | ❌                | ❌      | ❌                        | ❌                     |
-| Brand Voice automático                        | ✅ inyección auto            | ❌             | ❌       | 🟡           | 🟡 Org Context | ❌         | 🟡              | ✅ knowledge base | ❌      | ✅ brand kit              | 🟡                     |
-| Contenido informado por analytics             | ✅ top performers en prompt  | ❌             | ❌       | ❌           | ❌             | ❌         | ❌              | 🟡                | ❌      | ✅ predicción pre-publish | ❌                     |
-| Generación de imagen IA                       | ✅                           | ✅             | ❌       | ✅ ilimitado | ❌             | ❌         | ❌              | ✅ 🟡 cuota       | ❌      | ✅                        | ✅ créditos            |
-| Generación de video IA                        | 🟡                           | ❌             | ❌       | ✅           | ❌             | ❌         | ❌              | ❌                | ❌      | ✅ (slideshow)            | ✅ créditos + clipping |
-| Carruseles IA                                 | 🟡                           | ❌             | ❌       | ❌           | ❌             | ❌         | ❌              | ❌                | ❌      | ✅ (feature estrella)     | ❌                     |
-| Funciones autónomas (repurpose/triage/trends) | ✅ 3                         | ❌             | ❌       | ❌           | ❌             | ❌         | ❌              | 🟡 DM auto        | ❌      | ❌                        | 🟡 Agentic AI          |
+| Feature                                       | OmniPost                     | Metricool     | Buffer | Sendible     | Agorapulse     | Hootsuite  | Sprout          | Vista Social      | Loomly  | Predis.ai                 | ContentStudio         |
+| --------------------------------------------- | ---------------------------- | ------------- | ------ | ------------ | -------------- | ---------- | --------------- | ----------------- | ------- | ------------------------- | --------------------- |
+| AI text/caption                               | ✅ multi-LLM                 | ✅ 🟡 credits | ✅ all | ✅ unlimited | ✅             | ✅ OwlyGPT | 🔼 Professional | ✅ credits        | ✅ chat | ✅ core                   | ✅ credits            |
+| Multi-provider AI + routing                   | ✅ (GPT-4/Gemini/Perplexity) | ❌            | ❌     | ❌           | ❌             | ❌         | ❌              | ❌                | ❌      | ❌                        | ❌                    |
+| Automatic Brand Voice                         | ✅ auto-injection            | ❌            | ❌     | 🟡           | 🟡 Org Context | ❌         | 🟡              | ✅ knowledge base | ❌      | ✅ brand kit              | 🟡                    |
+| Analytics-informed content                    | ✅ top performers in prompt  | ❌            | ❌     | ❌           | ❌             | ❌         | ❌              | 🟡                | ❌      | ✅ pre-publish prediction | ❌                    |
+| AI image generation                           | ✅                           | ✅            | ❌     | ✅ unlimited | ❌             | ❌         | ❌              | ✅ 🟡 quota       | ❌      | ✅                        | ✅ credits            |
+| AI video generation                           | 🟡                           | ❌            | ❌     | ✅           | ❌             | ❌         | ❌              | ❌                | ❌      | ✅ (slideshow)            | ✅ credits + clipping |
+| AI carousels                                  | 🟡                           | ❌            | ❌     | ❌           | ❌             | ❌         | ❌              | ❌                | ❌      | ✅ (flagship feature)     | ❌                    |
+| Autonomous features (repurpose/triage/trends) | ✅ 3                         | ❌            | ❌     | ❌           | ❌             | ❌         | ❌              | 🟡 DM auto        | ❌      | ❌                        | 🟡 Agentic AI         |
 
-### 3.3 Analytics y reporting
+### 3.3 Analytics and reporting
 
 | Feature                       | OmniPost | Metricool     | Buffer        | Sendible             | Agorapulse  | Hootsuite   | Sprout             | Vista Social | Loomly | Predis.ai  | ContentStudio |
 | ----------------------------- | -------- | ------------- | ------------- | -------------------- | ----------- | ----------- | ------------------ | ------------ | ------ | ---------- | ------------- |
-| Analytics cross-platform      | ✅       | ✅ (fuerte)   | 🔼 Essentials | ✅                   | ✅          | 🔼 Advanced | ✅ (best-in-class) | ✅           | ✅     | 🟡 básico  | ✅ profundo   |
-| Benchmarking competidores     | 🟡       | ✅ hasta 100  | ❌            | ❌                   | ➕ add-on   | 🟡 5 / 🔼20 | 🔼 Professional    | 🔼           | ❌     | ✅ (FB/IG) | 🔼 Advanced   |
-| Reportes personalizados       | ✅       | 🔼 Advanced   | ❌            | 🔼 Scale             | 🔼 Advanced | 🔼 Advanced | 🔼 Advanced        | ✅           | ✅     | ❌         | 🔼 Advanced   |
-| White-label reports           | ✅       | 🔼 Custom     | 🔼 Team       | ➕ add-on (Advanced) | ✅ todos    | ❌          | ❌                 | 🔼 Scale     | ❌     | ❌         | 🔼 Advanced   |
-| Analytics de ads pagados      | 🟡       | ✅ (estrella) | ❌            | ❌                   | 🔼 Advanced | ✅          | 🔼 Professional    | ❌           | ❌     | ❌         | ❌            |
+| Cross-platform analytics      | ✅       | ✅ (strong)   | 🔼 Essentials | ✅                   | ✅          | 🔼 Advanced | ✅ (best-in-class) | ✅           | ✅     | 🟡 basic   | ✅ deep       |
+| Competitor benchmarking       | 🟡       | ✅ up to 100  | ❌            | ❌                   | ➕ add-on   | 🟡 5 / 🔼20 | 🔼 Professional    | 🔼           | ❌     | ✅ (FB/IG) | 🔼 Advanced   |
+| Custom reports                | ✅       | 🔼 Advanced   | ❌            | 🔼 Scale             | 🔼 Advanced | 🔼 Advanced | 🔼 Advanced        | ✅           | ✅     | ❌         | 🔼 Advanced   |
+| White-label reports           | ✅       | 🔼 Custom     | 🔼 Team       | ➕ add-on (Advanced) | ✅ all      | ❌          | ❌                 | 🔼 Scale     | ❌     | ❌         | 🔼 Advanced   |
+| Paid ads analytics            | 🟡       | ✅ (flagship) | ❌            | ❌                   | 🔼 Advanced | ✅          | 🔼 Professional    | ❌           | ❌     | ❌         | ❌            |
 | Looker Studio / API analytics | 🟡       | 🔼 Advanced   | ❌            | ❌                   | 🔼 Advanced | ❌          | 🔼 Advanced        | ❌           | ❌     | ➕ API     | ✅ API        |
 
-### 3.4 Inbox social / engagement
+### 3.4 Social inbox / engagement
 
-| Feature                     | OmniPost      | Metricool | Buffer    | Sendible | Agorapulse    | Hootsuite     | Sprout         | Vista Social  | Loomly | Predis.ai | ContentStudio |
-| --------------------------- | ------------- | --------- | --------- | -------- | ------------- | ------------- | -------------- | ------------- | ------ | --------- | ------------- |
-| Inbox unificado             | ✅            | ✅ 🟡     | ❌ (lite) | ✅       | ✅ (estrella) | ✅            | ✅ Smart Inbox | ✅            | ✅     | ❌        | 🔼 Advanced   |
-| Triage/clasificación IA     | ✅ (estrella) | ❌        | ❌        | ❌       | 🔼 Custom     | 🔼 Advanced   | 🔼 Advanced    | ✅ DM auto    | ❌     | ❌        | 🟡 reply IA   |
-| Análisis de sentimiento     | ✅            | ❌        | ❌        | ❌       | 🔼 Advanced   | 🔼 Advanced   | 🔼 Advanced    | 🔼 Enterprise | ❌     | ❌        | ❌            |
-| Sugerencias de respuesta IA | ✅ (3 tonos)  | ❌        | 🟡        | ❌       | 🔼 Custom     | 🔼 Advanced   | ❌             | ✅            | ❌     | ❌        | ✅ Advanced   |
-| Detección de colisión       | 🟡            | ❌        | ❌        | ❌       | 🔼 Pro        | ❌            | 🔼 Advanced    | ❌            | ❌     | ❌        | ❌            |
-| Gestión de reseñas          | ❌            | 🟡        | ❌        | ❌       | ✅ Google     | ✅ Enterprise | ✅             | ✅ 6 sitios   | ❌     | ❌        | ❌            |
+| Feature                  | OmniPost      | Metricool | Buffer    | Sendible | Agorapulse    | Hootsuite     | Sprout         | Vista Social  | Loomly | Predis.ai | ContentStudio |
+| ------------------------ | ------------- | --------- | --------- | -------- | ------------- | ------------- | -------------- | ------------- | ------ | --------- | ------------- |
+| Unified inbox            | ✅            | ✅ 🟡     | ❌ (lite) | ✅       | ✅ (flagship) | ✅            | ✅ Smart Inbox | ✅            | ✅     | ❌        | 🔼 Advanced   |
+| AI triage/classification | ✅ (flagship) | ❌        | ❌        | ❌       | 🔼 Custom     | 🔼 Advanced   | 🔼 Advanced    | ✅ DM auto    | ❌     | ❌        | 🟡 AI reply   |
+| Sentiment analysis       | ✅            | ❌        | ❌        | ❌       | 🔼 Advanced   | 🔼 Advanced   | 🔼 Advanced    | 🔼 Enterprise | ❌     | ❌        | ❌            |
+| AI reply suggestions     | ✅ (3 tones)  | ❌        | 🟡        | ❌       | 🔼 Custom     | 🔼 Advanced   | ❌             | ✅            | ❌     | ❌        | ✅ Advanced   |
+| Collision detection      | 🟡            | ❌        | ❌        | ❌       | 🔼 Pro        | ❌            | 🔼 Advanced    | ❌            | ❌     | ❌        | ❌            |
+| Review management        | ❌            | 🟡        | ❌        | ❌       | ✅ Google     | ✅ Enterprise | ✅             | ✅ 6 sites    | ❌     | ❌        | ❌            |
 
-### 3.5 Colaboración, agencia y enterprise
+### 3.5 Collaboration, agency and enterprise
 
-| Feature                            | OmniPost        | Metricool   | Buffer   | Sendible                      | Agorapulse           | Hootsuite                  | Sprout        | Vista Social  | Loomly        | Predis.ai | ContentStudio  |
-| ---------------------------------- | --------------- | ----------- | -------- | ----------------------------- | -------------------- | -------------------------- | ------------- | ------------- | ------------- | --------- | -------------- |
-| Workflows de aprobación multinivel | ✅ N niveles    | 🔼 Advanced | 🔼 Team  | ✅                            | 🔼 Pro→Custom        | 🟡                         | 🔼 Advanced   | 🔼 Advanced   | ✅ (estrella) | ❌        | 🔼 Advanced    |
-| RBAC / roles personalizados        | ✅              | 🔼 Advanced | 🔼 Team  | ✅                            | 🔼 Custom            | 🔼 Enterprise              | ✅            | 🔼            | 🔼 Beyond     | 🟡        | ✅             |
-| Dashboards por cliente             | ✅ multi-tenant | ❌          | 🟡 Team  | ✅ Client Connect (Traction+) | 🔼 Profile Connector | 🟡                         | 🟡            | 🔼 Scale      | ❌            | 🟡 marcas | ✅ EasyConnect |
-| White-label de plataforma          | 🟡              | 🔼 Custom   | ❌       | ➕ add-on                     | ❌                   | ❌                         | ❌            | 🔼 Scale      | ❌            | ❌        | 🔼 Enterprise  |
-| CRM integrado (HubSpot/Salesforce) | ✅              | ❌          | ❌       | ❌                            | 🔼 Custom            | 🔼 Enterprise              | ✅            | ❌            | ❌            | ❌        | ❌             |
-| SSO (SAML/OIDC)                    | ✅              | ❌          | ❌       | 🔼 Enterprise                 | 🔼 Custom            | 🔼 Enterprise              | 🔼 Enterprise | 🔼 Enterprise | ❌            | ❌        | 🔼 Enterprise  |
-| Social listening real              | ❌              | ❌          | ❌       | 🟡                            | ➕ add-on            | 🔼 Enterprise (Talkwalker) | ➕ add-on     | ➕ $75/mo     | ❌            | ❌        | 🟡 discovery   |
-| Content discovery / curación       | 🟡 trends       | 🟡          | 🟡 Ideas | ❌                            | ❌                   | ❌                         | ❌            | ✅ Smart Pub  | 🟡 Post Ideas | ❌        | ✅ (estrella)  |
+| Feature                             | OmniPost        | Metricool   | Buffer   | Sendible                      | Agorapulse           | Hootsuite                  | Sprout        | Vista Social  | Loomly        | Predis.ai | ContentStudio  |
+| ----------------------------------- | --------------- | ----------- | -------- | ----------------------------- | -------------------- | -------------------------- | ------------- | ------------- | ------------- | --------- | -------------- |
+| Multi-level approval workflows      | ✅ N levels     | 🔼 Advanced | 🔼 Team  | ✅                            | 🔼 Pro→Custom        | 🟡                         | 🔼 Advanced   | 🔼 Advanced   | ✅ (flagship) | ❌        | 🔼 Advanced    |
+| RBAC / custom roles                 | ✅              | 🔼 Advanced | 🔼 Team  | ✅                            | 🔼 Custom            | 🔼 Enterprise              | ✅            | 🔼            | 🔼 Beyond     | 🟡        | ✅             |
+| Per-client dashboards               | ✅ multi-tenant | ❌          | 🟡 Team  | ✅ Client Connect (Traction+) | 🔼 Profile Connector | 🟡                         | 🟡            | 🔼 Scale      | ❌            | 🟡 brands | ✅ EasyConnect |
+| Platform white-label                | 🟡              | 🔼 Custom   | ❌       | ➕ add-on                     | ❌                   | ❌                         | ❌            | 🔼 Scale      | ❌            | ❌        | 🔼 Enterprise  |
+| Integrated CRM (HubSpot/Salesforce) | ✅              | ❌          | ❌       | ❌                            | 🔼 Custom            | 🔼 Enterprise              | ✅            | ❌            | ❌            | ❌        | ❌             |
+| SSO (SAML/OIDC)                     | ✅              | ❌          | ❌       | 🔼 Enterprise                 | 🔼 Custom            | 🔼 Enterprise              | 🔼 Enterprise | 🔼 Enterprise | ❌            | ❌        | 🔼 Enterprise  |
+| Real social listening               | ❌              | ❌          | ❌       | 🟡                            | ➕ add-on            | 🔼 Enterprise (Talkwalker) | ➕ add-on     | ➕ $75/mo     | ❌            | ❌        | 🟡 discovery   |
+| Content discovery / curation        | 🟡 trends       | 🟡          | 🟡 Ideas | ❌                            | ❌                   | ❌                         | ❌            | ✅ Smart Pub  | 🟡 Post Ideas | ❌        | ✅ (flagship)  |
 
 ---
 
-## 4. Ficha por competidor: features estrella + qué es base vs. coste extra
+## 4. Profile per competitor: flagship features + what is base vs. extra cost
 
-### 4.1 Metricool — _el rival más directo en LATAM_
+### 4.1 Metricool — _the most direct rival in LATAM_
 
-- **Estrella:** analytics + benchmarking de hasta 100 competidores; dashboards de **ads pagados** junto a orgánico; conector Looker Studio + reportes PDF/PPT; precio agresivo.
-- **Base (Starter ~$25):** scheduling ilimitado, inbox, IA con créditos limitados, SmartLinks.
-- **Coste extra:** **X/Twitter = +$5/mes por cuenta en TODOS los planes** (incluido Custom); LinkedIn solo en planes de pago; gestión de equipo + aprobaciones → **Advanced**; white-label + account manager → **Custom**; plantillas de reporte + Looker → **Advanced**.
-- **Debilidades:** sin social listening real, sin recycling de contenido, sin editor de video, inbox sin auto-triggers, UI anticuada, créditos IA no divulgados.
+- **Flagship:** analytics + benchmarking of up to 100 competitors; **paid ads** dashboards next to organic; Looker Studio connector + PDF/PPT reports; aggressive price.
+- **Base (Starter ~$25):** unlimited scheduling, inbox, AI with limited credits, SmartLinks.
+- **Extra cost:** **X/Twitter = +$5/month per account on ALL plans** (Custom included); LinkedIn only on paid plans; team management + approvals → **Advanced**; white-label + account manager → **Custom**; report templates + Looker → **Advanced**.
+- **Weaknesses:** no real social listening, no content recycling, no video editor, inbox without auto-triggers, dated UI, undisclosed AI credits.
 
-### 4.2 Sendible — _el benchmark de modelo agencia_
+### 4.2 Sendible — _the agency-model benchmark_
 
-- **Estrella:** dashboards white-label rebrandables con dominio propio; Client Connect (espacios por cliente); Smart Queues (recycling); **créditos IA ilimitados en todos los planes**.
-- **Base (Creator $29):** 1 user, 6 perfiles, scheduling, IA ilimitada, inbox, **solo reportes prefabricados**.
-- **Coste extra:** report builder custom → **Scale ($199)**; Client Connect/dashboards → **Traction+**; **white-label = add-on de pago, solo desde Advanced**; SSO → Enterprise.
-- **Debilidades:** listening débil (sin sentimiento ni competidores); X degradado a solo-publicación; fallos recurrentes de LinkedIn; UI recargada; precio escala fuerte a escala agencia.
+- **Flagship:** rebrandable white-label dashboards on their own domain; Client Connect (per-client spaces); Smart Queues (recycling); **unlimited AI credits on all plans**.
+- **Base (Creator $29):** 1 user, 6 profiles, scheduling, unlimited AI, inbox, **prebuilt reports only**.
+- **Extra cost:** custom report builder → **Scale ($199)**; Client Connect/dashboards → **Traction+**; **white-label = paid add-on, only from Advanced up**; SSO → Enterprise.
+- **Weaknesses:** weak listening (no sentiment, no competitors); X downgraded to publish-only; recurring LinkedIn failures; cluttered UI; price climbs steeply at agency scale.
 
-### 4.3 Agorapulse — _inbox-first, caro por usuario_
+### 4.3 Agorapulse — _inbox-first, expensive per user_
 
-- **Estrella:** inbox unificado con reglas de moderación + detección de colisión; ROI vía Google Analytics; Power Reports; AI writing assistant en todos los planes.
-- **Base (Standard $79-99/user):** 10 perfiles, scheduling, inbox, 1 regla moderación/perfil, 6 meses retención.
-- **Coste extra:** **listening = add-on de pago** (Advanced Listening, custom); Benchmarking y Advocacy = add-ons separados; **X/Twitter = add-on X Lite/X Plus**; perfiles extra = **$10/mes c/u**; pricing **por usuario** (3 users Standard ≈ $237-297/mes); SSO/HubSpot/Salesforce/AI replies → **Custom**.
-- **Debilidades:** precio por-usuario escala rapidísimo; listening y benchmarking casi duplican el precio; app móvil limitada.
+- **Flagship:** unified inbox with moderation rules + collision detection; ROI via Google Analytics; Power Reports; AI writing assistant on all plans.
+- **Base (Standard $79-99/user):** 10 profiles, scheduling, inbox, 1 moderation rule/profile, 6 months of retention.
+- **Extra cost:** **listening = paid add-on** (Advanced Listening, custom); Benchmarking and Advocacy = separate add-ons; **X/Twitter = X Lite/X Plus add-on**; extra profiles = **$10/month each**; pricing **per user** (3 Standard users ≈ $237-297/month); SSO/HubSpot/Salesforce/AI replies → **Custom**.
+- **Weaknesses:** per-user price scales very fast; listening and benchmarking almost double the price; limited mobile app.
 
-### 4.4 Hootsuite — _incumbente enterprise premium_
+### 4.4 Hootsuite — _premium enterprise incumbent_
 
-- **Estrella:** dashboard todo-en-uno; OwlyGPT; listening con Talkwalker (Enterprise); Amplify employee advocacy (Enterprise).
-- **Base (Standard $99/user):** 10 cuentas, analytics básico, listening 7 días, 5 competidores, inbox básico.
-- **Coste extra:** cuentas ilimitadas + analytics exportable + ROI + listening 30 días → **Advanced ($249/user)**; **Talkwalker listening, Amplify, Advanced Analytics, Social CRM, SSO, Salesforce, AI Reply → solo Enterprise** (~$15-16k/año); perfiles extra ~$10-20/mes.
-- **Debilidades:** UI recargada con curva de aprendizaje; analytics avanzado tras paywall; sin plan gratis; por-usuario prohibitivo para agencias pequeñas.
+- **Flagship:** all-in-one dashboard; OwlyGPT; listening with Talkwalker (Enterprise); Amplify employee advocacy (Enterprise).
+- **Base (Standard $99/user):** 10 accounts, basic analytics, 7-day listening, 5 competitors, basic inbox.
+- **Extra cost:** unlimited accounts + exportable analytics + ROI + 30-day listening → **Advanced ($249/user)**; **Talkwalker listening, Amplify, Advanced Analytics, Social CRM, SSO, Salesforce, AI Reply → Enterprise only** (~$15-16k/year); extra profiles ~$10-20/month.
+- **Weaknesses:** cluttered UI with a learning curve; advanced analytics behind a paywall; no free plan; per-user pricing prohibitive for small agencies.
 
 ### 4.5 Sprout Social — _premium analytics + CX_
 
-- **Estrella:** Smart Inbox (social CRM); analytics y reporting best-in-class; Social Listening (add-on); IA (AI Assist, sentimiento, edición de tono).
-- **Base (Standard $199/seat):** 5 perfiles, Smart Inbox, reportes básicos, gestión de reseñas — **sin aprobaciones, sin IA, sin reportes competitivos**.
-- **Coste extra:** perfiles ilimitados + IA Assist + reportes competitivos → **Professional ($299)**; sentimiento + automatización + aprobaciones + API → **Advanced ($399)**; SSO → Enterprise; **add-ons separados (precio opaco):** Premium Analytics, Social Listening, Employee Advocacy, Influencer Marketing.
-- **Debilidades:** auto-renovación agresiva + contrato 12-24 meses (queja dominante); coste por-asiento altísimo; Standard limita 5 perfiles; add-ons opacos.
+- **Flagship:** Smart Inbox (social CRM); best-in-class analytics and reporting; Social Listening (add-on); AI (AI Assist, sentiment, tone editing).
+- **Base (Standard $199/seat):** 5 profiles, Smart Inbox, basic reports, review management — **no approvals, no AI, no competitive reports**.
+- **Extra cost:** unlimited profiles + AI Assist + competitive reports → **Professional ($299)**; sentiment + automation + approvals + API → **Advanced ($399)**; SSO → Enterprise; **separate add-ons (opaque price):** Premium Analytics, Social Listening, Employee Advocacy, Influencer Marketing.
+- **Weaknesses:** aggressive auto-renewal + 12-24 month contract (the dominant complaint); very high per-seat cost; Standard caps at 5 profiles; opaque add-ons.
 
-### 4.6 Buffer — _simplicidad, precio por canal_
+### 4.6 Buffer — _simplicity, per-channel price_
 
-- **Estrella:** publicación simple con precio predecible por canal; AI Assistant en todos los tiers (incl. Free); plan gratis generoso; Ideas + Start Page.
-- **Base (Essentials $5/canal):** scheduling ilimitado, analytics avanzado, hashtag manager, IA/replies ilimitados.
-- **Coste extra:** aprobaciones + permisos + usuarios ilimitados + reportes branded + invitar clientes → **solo Team ($10/canal)**; descuento por volumen >10 canales (~$3.33/canal).
-- **Debilidades:** **sin social listening**; engagement lite (sin inbox/CRM real); analytics superficial; sin tier agencia/white-label real.
+- **Flagship:** simple publishing with a predictable per-channel price; AI Assistant on all tiers (incl. Free); generous free plan; Ideas + Start Page.
+- **Base (Essentials $5/channel):** unlimited scheduling, advanced analytics, hashtag manager, unlimited AI/replies.
+- **Extra cost:** approvals + permissions + unlimited users + branded reports + inviting clients → **Team only ($10/channel)**; volume discount >10 channels (~$3.33/channel).
+- **Weaknesses:** **no social listening**; lite engagement (no real inbox/CRM); shallow analytics; no real agency/white-label tier.
 
-### 4.7 Vista Social — _cobertura de redes + IA con knowledge base_
+### 4.7 Vista Social — _network coverage + AI with a knowledge base_
 
-- **Estrella:** **13+ redes** (incl. Bluesky, Threads, Reddit, Tumblr, Snapchat); AI Assistant entrenado con knowledge base + DM Automation; gestión de reseñas en 6 sitios; **pricing modular à-la-carte**.
-- **Base (Professional $79):** 3 users, 15 perfiles, 2.500 créditos IA, 50 imágenes IA, planning/engagement/reportes/reseñas básicos.
-- **Coste extra:** workflows multinivel + custom domains + Zapier/Make + knowledge base → **Advanced ($149)**; white-label + client connections + créditos ilimitados → **Scale ($349)**; sentimiento/premium analytics/SSO → **Enterprise**; **siempre add-on:** X/Twitter $29/mo, Listening $75/mo, Advocacy $199/mo (25 emp), perfiles/users extra.
-- **Debilidades:** X como add-on impopular; créditos IA se agotan rápido; complejidad de pricing (muchos add-ons); soporte solo email bajo Enterprise.
+- **Flagship:** **13+ networks** (incl. Bluesky, Threads, Reddit, Tumblr, Snapchat); AI Assistant trained on a knowledge base + DM Automation; review management on 6 sites; **modular à-la-carte pricing**.
+- **Base (Professional $79):** 3 users, 15 profiles, 2,500 AI credits, 50 AI images, basic planning/engagement/reports/reviews.
+- **Extra cost:** multi-level workflows + custom domains + Zapier/Make + knowledge base → **Advanced ($149)**; white-label + client connections + unlimited credits → **Scale ($349)**; sentiment/premium analytics/SSO → **Enterprise**; **always an add-on:** X/Twitter $29/mo, Listening $75/mo, Advocacy $199/mo (25 emp), extra profiles/users.
+- **Weaknesses:** X as an unpopular add-on; AI credits run out fast; pricing complexity (many add-ons); email-only support below Enterprise.
 
-### 4.8 Loomly — _colaboración/aprobaciones first_
+### 4.8 Loomly — _collaboration/approvals first_
 
-- **Estrella:** Post Ideas + tips de optimización + trends de X; workflows de aprobación custom multinivel; calendario editorial por marca; post mockups casi nativos.
-- **Base (Starter $49 anual):** IA chat, scheduling, aprobaciones, analytics avanzado — tope **3 users / 12 cuentas**.
-- **Coste extra:** custom branding + roles custom + Hashtag Manager + 2FA → **Beyond ($249 anual, salto de ~+$200/mes)**; **sin opción à-la-carte** — el 4º user o la 13ª cuenta fuerzan upgrade completo.
-- **Debilidades:** gap de precio Starter→Beyond sin tier intermedio; IA débil, sin generación de imagen; **sin listening**; fallos de publicación; sin white-label/agencia real.
+- **Flagship:** Post Ideas + optimization tips + X trends; custom multi-level approval workflows; per-brand editorial calendar; near-native post mockups.
+- **Base (Starter $49 annual):** AI chat, scheduling, approvals, advanced analytics — capped at **3 users / 12 accounts**.
+- **Extra cost:** custom branding + custom roles + Hashtag Manager + 2FA → **Beyond ($249 annual, a jump of ~+$200/month)**; **no à-la-carte option** — the 4th user or the 13th account forces a full upgrade.
+- **Weaknesses:** Starter→Beyond price gap with no middle tier; weak AI, no image generation; **no listening**; publishing failures; no real white-label/agency offering.
 
-### 4.9 Predis.ai — _IA de creación + predicción de performance_
+### 4.9 Predis.ai — _creation AI + performance prediction_
 
-- **Estrella:** generación IA (texto→post, **carruseles** = su mejor feature, text-to-video); **predicción de engagement pre-publicación**; análisis de competidores (FB/IG); automatización e-commerce (Shopify/WooCommerce).
-- **Base (Core $19):** 1 marca, 10 canales, 1.300 créditos, **sin auto-posting**, 60 análisis competidor/mes.
-- **Coste extra:** auto-posting + 4 marcas → **Rise ($40)**; marcas ilimitadas + 600 análisis + 60 canales → **Enterprise+ ($212)**; **add-ons:** canales extra $5-99/mo, +1.200 créditos $29/mo, **API custom**. IA medida por créditos en todos los tiers (video/voiceover consume por segundo).
-- **Debilidades:** video = "slideshow animado", no generativo real; diseño bajo Canva; scheduler básico; sin inbox/engagement; analytics mínimo — no sirve como SMM standalone.
+- **Flagship:** AI generation (text→post, **carousels** = its best feature, text-to-video); **pre-publication engagement prediction**; competitor analysis (FB/IG); e-commerce automation (Shopify/WooCommerce).
+- **Base (Core $19):** 1 brand, 10 channels, 1,300 credits, **no auto-posting**, 60 competitor analyses/month.
+- **Extra cost:** auto-posting + 4 brands → **Rise ($40)**; unlimited brands + 600 analyses + 60 channels → **Enterprise+ ($212)**; **add-ons:** extra channels $5-99/mo, +1,200 credits $29/mo, **custom API**. AI metered by credits on all tiers (video/voiceover consumes per second).
+- **Weaknesses:** video = "animated slideshow", not truly generative; design below Canva; basic scheduler; no inbox/engagement; minimal analytics — not usable as a standalone SMM.
 
 ### 4.10 ContentStudio — _content discovery + Agentic AI_
 
-- **Estrella:** motor de Content Discovery con **Agentic AI** (resume, añade tu opinión, distribuye); creación IA; módulo de análisis de competidores; inbox unificado + analytics profundo.
-- **Base (Standard $19):** 1 user, 5 cuentas, 1 workspace, discovery + RSS + scheduling — **sin inbox, sin aprobaciones, sin competidores, sin white-label**.
-- **Coste extra:** Social Inbox + aprobaciones + competidores + white-label reports + client dashboards → **Advanced ($49)**; users/workspaces ilimitados + créditos grandes → **Agency ($99)**; **SSO + white-label de plataforma + API completo → Enterprise**; **add-ons en todos los tiers:** cuentas ($5→$1), users (+$10), workspaces (+$10), créditos IA (+$5/100).
-- **Debilidades:** créditos IA se agotan rápido (sin opción ilimitada); Discover a veces desactualizado; curva de aprendizaje; sin plantillas de creación de video; no sustituye listening enterprise.
+- **Flagship:** Content Discovery engine with **Agentic AI** (summarizes, adds your opinion, distributes); AI creation; competitor analysis module; unified inbox + deep analytics.
+- **Base (Standard $19):** 1 user, 5 accounts, 1 workspace, discovery + RSS + scheduling — **no inbox, no approvals, no competitors, no white-label**.
+- **Extra cost:** Social Inbox + approvals + competitors + white-label reports + client dashboards → **Advanced ($49)**; unlimited users/workspaces + large credit pools → **Agency ($99)**; **SSO + platform white-label + full API → Enterprise**; **add-ons on all tiers:** accounts ($5→$1), users (+$10), workspaces (+$10), AI credits (+$5/100).
+- **Weaknesses:** AI credits run out fast (no unlimited option); Discover sometimes out of date; learning curve; no video creation templates; does not replace enterprise listening.
 
 ---
 
-## 5. Conclusiones estratégicas para OmniPost
+## 5. Strategic conclusions for OmniPost
 
-1. **El doc de inversores omite a Metricool y Sendible** — los dos competidores que más se parecen a OmniPost en modelo de negocio y mercado. Un inversor que conozca el sector lo notará. Recomendación: añadir ambos a la comparativa de [INVESTOR_ES.md](INVESTOR_ES.md).
+1. **The investor doc leaves out Metricool and Sendible** — the two competitors most like OmniPost in business model and market. An investor who knows the sector will notice. Recommendation: add both to the comparison in [INVESTOR_ES.md](INVESTOR_ES.md).
 
-2. **El "diferenciador defendible" necesita reformularse.** "IA conectada a analytics" ya lo tienen Predis.ai (predicción pre-publish), Vista Social (knowledge base) y ContentStudio (Agentic AI). El diferenciador defendible real de OmniPost es la **combinación simultánea**: 10-12 plataformas nativas (Snapchat/Telegram/Bluesky) + multi-tenant nativo + IA multi-LLM con routing + funciones autónomas + CRM + SSO **a precio por-plataforma**. Ningún competidor reúne los 6 a la vez — ese es el mensaje, no "IA + analytics" solo.
+2. **The "defensible differentiator" needs rewording.** "AI connected to analytics" is already offered by Predis.ai (pre-publish prediction), Vista Social (knowledge base) and ContentStudio (Agentic AI). OmniPost's real defensible differentiator is the **simultaneous combination**: 10-12 native platforms (Snapchat/Telegram/Bluesky) + native multi-tenancy + multi-LLM AI with routing + autonomous features + CRM + SSO **at a per-platform price**. No competitor brings all 6 together — that is the message, not "AI + analytics" alone.
 
-3. **El precio por-plataforma es el arma más fuerte.** Solo Buffer (por canal) y Metricool (por marca) no penalizan equipos; Agorapulse/Hootsuite/Sprout cobran por-usuario y se vuelven prohibitivos. Posicionar agresivamente contra el coste por-asiento.
+3. **Per-platform pricing is the strongest weapon.** Only Buffer (per channel) and Metricool (per brand) do not penalize teams; Agorapulse/Hootsuite/Sprout charge per user and become prohibitive. Position aggressively against per-seat cost.
 
-4. **Gaps de OmniPost a cubrir:** (a) **social listening real** — ausente; todos los enterprise lo tienen (aunque como add-on caro), es la objeción #1 esperable de agencias; (b) **gestión de reseñas** — Agorapulse/Sprout/Vista lo tienen, OmniPost no; (c) **white-label de plataforma maduro** — Sendible/Vista/ContentStudio lo ofrecen, es decisivo para agencias.
+4. **OmniPost gaps to close:** (a) **real social listening** — absent; every enterprise tool has it (albeit as an expensive add-on), it is the #1 objection to expect from agencies; (b) **review management** — Agorapulse/Sprout/Vista have it, OmniPost does not; (c) **mature platform white-label** — Sendible/Vista/ContentStudio offer it, it is decisive for agencies.
 
-5. **Benchmark feature-by-feature contra Sendible y Agorapulse, no contra Sprout.** Sprout/Hootsuite son referencia de precio (caros), pero el comprador-agencia de OmniPost compara funcionalmente con Sendible (modelo cliente) y Agorapulse (inbox). Ese es el set competitivo operativo.
+5. **Benchmark feature by feature against Sendible and Agorapulse, not against Sprout.** Sprout/Hootsuite are a price reference (expensive), but OmniPost's agency buyer compares functionally with Sendible (client model) and Agorapulse (inbox). That is the operative competitive set.
 
 ---
 
-## 6. Clasificación de todas las features por orden de necesidad
+## 6. Ranking of every feature by order of need
 
-> **Lente:** un producto SMM/CMS para **agencias y creadores en 2026** (caso OmniPost). La clasificación mezcla dos ejes: _cuán imprescindible es tenerla_ y _cuánto diferencia_. Escala, de mayor a menor necesidad:
+> **Lens:** an SMM/CMS product for **agencies and creators in 2026** (the OmniPost case). The ranking mixes two axes: _how indispensable it is to have_ and _how much it differentiates_. Scale, from most to least needed:
 >
-> | Nivel                    | Significado                                                                                                                     |
-> | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-> | 🟥 **Obligatoria**       | Table-stakes absoluto. Sin esto no hay producto: deal-breaker inmediato. Es base, no diferencia, pero su ausencia te elimina.   |
-> | 🟧 **Necesaria**         | El comprador-agencia la pide activamente. Paridad competitiva: su ausencia es una objeción seria de venta.                      |
-> | 🟨 **Corriente**         | Commodity de higiene: todos la tienen, ya no diferencia. Hay que tenerla bien hecha para no perder, pero hacerla no gana deals. |
-> | 🟩 **Bueno tenerla**     | Aporta valor real, sube retención/ticket o cierra objeciones. No es deal-breaker.                                               |
-> | 🟦 **Interesante**       | Emergente/innovadora. Posible diferenciador futuro, necesidad aún no probada. Apuesta, no obligación.                           |
-> | ⬛ **Pérdida de tiempo** | Bajo ROI, bloat, humo de marketing o fuera del foco del producto. No mover recursos aquí.                                       |
+> | Level                | Meaning                                                                                                                         |
+> | -------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+> | 🟥 **Mandatory**     | Absolute table-stakes. No product without it: instant deal-breaker. Base, not a differentiator, but its absence eliminates you. |
+> | 🟧 **Necessary**     | The agency buyer actively asks for it. Competitive parity: its absence is a serious sales objection.                            |
+> | 🟨 **Commonplace**   | Hygiene commodity: everyone has it, it no longer differentiates. It must be done well to not lose, but doing it wins no deals.  |
+> | 🟩 **Nice to have**  | Adds real value, raises retention/ticket size or closes objections. Not a deal-breaker.                                         |
+> | 🟦 **Interesting**   | Emerging/innovative. A possible future differentiator, a need not yet proven. A bet, not an obligation.                         |
+> | ⬛ **Waste of time** | Low ROI, bloat, marketing smoke or outside the product's focus. Do not move resources here.                                     |
 
-### 6.1 Publicación y scheduling
+### 6.1 Publishing and scheduling
 
-| Feature                                                 | En qué consiste                                                    | Nivel            | Por qué                                                                                                   |
-| ------------------------------------------------------- | ------------------------------------------------------------------ | ---------------- | --------------------------------------------------------------------------------------------------------- |
-| Scheduling ilimitado + calendario visual                | Programar posts a futuro en todas las redes desde un calendario    | 🟥 Obligatoria   | Es la razón de existir de la categoría. Sin esto no eres un SMM. Lo tienen los 10.                        |
-| Publicación nativa por red (límites, hashtags, formato) | Adaptar automáticamente cada post a las reglas de cada plataforma  | 🟥 Obligatoria   | El "publica una vez" es el value prop central; sin adaptación nativa el contenido se rompe.               |
-| Preview/mockup por canal                                | Ver exactamente cómo se verá el post antes de publicar             | 🟧 Necesaria     | Reduce errores y reproceso; las agencias lo exigen para aprobaciones de cliente. Loomly lo hace bandera.  |
-| Mejor hora para publicar                                | Recomendación algorítmica del horario de mayor engagement          | 🟨 Corriente     | Lo tienen casi todos; ya no diferencia, pero su ausencia se nota (Buffer no lo tiene y se lo critican).   |
-| Bulk / CSV scheduling                                   | Cargar decenas/cientos de posts de una vez                         | 🟧 Necesaria     | Crítico para agencias con volumen (75+ posts/día). Sin esto no escalas multi-cliente.                     |
-| Recycling / colas evergreen                             | Re-publicar automáticamente contenido perenne                      | 🟩 Bueno tenerla | Ahorra trabajo real (Sendible Smart Queues es estrella). Metricool/Loomly no lo tienen y se los critican. |
-| Primer comentario programado                            | Publicar el primer comentario (hashtags/links) junto al post       | 🟨 Corriente     | Práctica estándar de IG; barato de implementar, esperado, no diferencia.                                  |
-| Link-in-bio / página de enlaces                         | Página agregadora de links (tipo Linktree)                         | 🟩 Bueno tenerla | Sube ticket y stickiness en creadores; no es deal-breaker para agencias.                                  |
-| RSS / blog auto-posting                                 | Auto-publicar desde feeds RSS                                      | 🟦 Interesante   | Útil para content curation pero nicho; solo agencias de contenido lo valoran.                             |
-| Post templates                                          | Plantillas reutilizables de estructura de post                     | 🟨 Corriente     | Commodity de productividad; esperado, no mueve la aguja.                                                  |
-| Audience targeting / sponsoring                         | Segmentar la audiencia orgánica o promocionar desde la herramienta | 🟦 Interesante   | Pocos lo usan bien; potencial diferenciador si se liga a ads analytics.                                   |
+| Feature                                                 | What it is                                                        | Level           | Why                                                                                                      |
+| ------------------------------------------------------- | ----------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------- |
+| Unlimited scheduling + visual calendar                  | Schedule future posts on every network from a calendar            | 🟥 Mandatory    | It is the category's reason to exist. Without it you are not an SMM. All 10 have it.                     |
+| Native publishing by network (limits, hashtags, format) | Automatically adapt each post to each platform's rules            | 🟥 Mandatory    | "Publish once" is the core value prop; without native adaptation the content breaks.                     |
+| Per-channel preview/mockup                              | See exactly how the post will look before publishing              | 🟧 Necessary    | Reduces errors and rework; agencies demand it for client approvals. Loomly makes it its banner.          |
+| Best time to post                                       | Algorithmic recommendation of the highest-engagement time slot    | 🟨 Commonplace  | Almost all have it; no longer differentiates, but its absence shows (Buffer lacks it and is criticized). |
+| Bulk / CSV scheduling                                   | Load tens/hundreds of posts at once                               | 🟧 Necessary    | Critical for high-volume agencies (75+ posts/day). Without it you do not scale multi-client.             |
+| Recycling / evergreen queues                            | Automatically republish evergreen content                         | 🟩 Nice to have | Saves real work (Sendible Smart Queues is a flagship). Metricool/Loomly lack it and are criticized.      |
+| Scheduled first comment                                 | Publish the first comment (hashtags/links) together with the post | 🟨 Commonplace  | Standard IG practice; cheap to build, expected, does not differentiate.                                  |
+| Link-in-bio / links page                                | A page that aggregates links (Linktree-style)                     | 🟩 Nice to have | Raises ticket size and stickiness among creators; not a deal-breaker for agencies.                       |
+| RSS / blog auto-posting                                 | Auto-publish from RSS feeds                                       | 🟦 Interesting  | Useful for content curation but niche; only content agencies value it.                                   |
+| Post templates                                          | Reusable post-structure templates                                 | 🟨 Commonplace  | A productivity commodity; expected, does not move the needle.                                            |
+| Audience targeting / sponsoring                         | Segment the organic audience or promote from the tool             | 🟦 Interesting  | Few use it well; a potential differentiator if tied to ads analytics.                                    |
 
-### 6.2 IA y generación de contenido
+### 6.2 AI and content generation
 
-| Feature                                       | En qué consiste                                                | Nivel                | Por qué                                                                                                                                 |
-| --------------------------------------------- | -------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| IA de texto/caption                           | Generar copys/captions desde un prompt                         | 🟥 Obligatoria       | En 2026 es table-stakes; los 10 la tienen (incluso Buffer en plan gratis). Sin esto estás fuera.                                        |
-| Contenido informado por analytics reales      | Inyectar los top-performers de la cuenta en el prompt de IA    | 🟦 Interesante       | Era el diferenciador de OmniPost; Predis (predicción) y Vista (knowledge base) ya lo erosionan. Apuesta defendible si se ejecuta mejor. |
-| IA multi-proveedor con routing                | Enrutar a GPT-4/Gemini/Perplexity según la tarea               | 🟦 Interesante       | Ningún competidor lo hace; diferenciador técnico real, pero el usuario no lo "ve" — hay que traducirlo a beneficio (calidad/coste).     |
-| Brand Voice automático                        | Inyectar el tono de marca en cada generación                   | 🟧 Necesaria         | Es la queja #1 contra la IA de Hootsuite/Sprout ("genérica"). Pasó de diferenciador a expectativa.                                      |
-| Generación de imagen IA                       | Crear imágenes desde prompt                                    | 🟨 Corriente         | Sendible/Vista/Predis/ContentStudio/Metricool ya la tienen; commoditizada por el mercado.                                               |
-| Carruseles IA                                 | Generar carruseles multi-slide con estilo consistente          | 🟩 Bueno tenerla     | Feature estrella de Predis; alto valor percibido en IG/LinkedIn, todavía poco común.                                                    |
-| Generación de video IA                        | Texto→video / Reels                                            | 🟦 Interesante       | Hype alto pero output aún débil ("slideshow animado" en Predis). Apuesta, no obligación todavía.                                        |
-| Funciones autónomas (repurpose/triage/trends) | Agentes que reutilizan, clasifican y detectan tendencias solos | 🟦 Interesante       | Diferenciador real de OmniPost; ContentStudio (Agentic AI) empieza a competir. Sube switching cost.                                     |
-| Hashtag manager/generator                     | Sugerir y gestionar hashtags                                   | 🟨 Corriente         | Commodity total; esperado, cero diferenciación.                                                                                         |
-| AI alt-text                                   | Generar texto alternativo accesible                            | 🟩 Bueno tenerla     | Bajo coste, alto valor de accesibilidad/compliance; Agorapulse/Sprout lo promueven.                                                     |
-| Image-to-caption                              | La IA mira la imagen y propone el caption                      | 🟦 Interesante       | Innovador (ContentStudio); reduce fricción real, aún poco común.                                                                        |
-| Brand kit / asset library                     | Logos, colores, fuentes y stock para consistencia              | 🟩 Bueno tenerla     | Sube retención en agencias multi-marca; no es deal-breaker.                                                                             |
-| AI voiceover                                  | Locución IA para videos                                        | ⬛ Pérdida de tiempo | Nicho, consume créditos caros (Predis cobra por segundo), bajo uso real. Fuera del foco SMM.                                            |
-| Meme generator                                | Generador de memes                                             | ⬛ Pérdida de tiempo | Gimmick; no mueve retención ni ticket. Bloat.                                                                                           |
-| Blog→video / blog→carousel                    | Convertir un artículo en post visual                           | 🟦 Interesante       | Útil para content marketers; nicho, no para el comprador-agencia core.                                                                  |
-| E-commerce product → post/video               | Feed Shopify/WooCommerce → posts automáticos                   | 🟦 Interesante       | Diferenciador fuerte **solo** si el ICP es e-commerce; fuera de foco si el ICP es agencia.                                              |
-| Generación multi-idioma                       | Generar contenido en N idiomas                                 | 🟧 Necesaria         | Para el mercado LATAM/hispano de OmniPost es necesidad, no opción.                                                                      |
+| Feature                                       | What it is                                                     | Level            | Why                                                                                                                                     |
+| --------------------------------------------- | -------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| AI text/caption                               | Generate copy/captions from a prompt                           | 🟥 Mandatory     | In 2026 it is table-stakes; all 10 have it (even Buffer on its free plan). Without it you are out.                                      |
+| Content informed by real analytics            | Inject the account's top performers into the AI prompt         | 🟦 Interesting   | It was OmniPost's differentiator; Predis (prediction) and Vista (knowledge base) already erode it. A defensible bet if executed better. |
+| Multi-provider AI with routing                | Route to GPT-4/Gemini/Perplexity depending on the task         | 🟦 Interesting   | No competitor does it; a real technical differentiator, but users do not "see" it — it needs translating into a benefit (quality/cost). |
+| Automatic Brand Voice                         | Inject the brand's tone into every generation                  | 🟧 Necessary     | It is the #1 complaint about Hootsuite/Sprout's AI ("generic"). It went from differentiator to expectation.                             |
+| AI image generation                           | Create images from a prompt                                    | 🟨 Commonplace   | Sendible/Vista/Predis/ContentStudio/Metricool already have it; commoditized by the market.                                              |
+| AI carousels                                  | Generate multi-slide carousels with a consistent style         | 🟩 Nice to have  | Predis's flagship feature; high perceived value on IG/LinkedIn, still uncommon.                                                         |
+| AI video generation                           | Text→video / Reels                                             | 🟦 Interesting   | High hype but output still weak ("animated slideshow" at Predis). A bet, not yet an obligation.                                         |
+| Autonomous features (repurpose/triage/trends) | Agents that repurpose, classify and detect trends on their own | 🟦 Interesting   | A real OmniPost differentiator; ContentStudio (Agentic AI) is starting to compete. Raises switching cost.                               |
+| Hashtag manager/generator                     | Suggest and manage hashtags                                    | 🟨 Commonplace   | A total commodity; expected, zero differentiation.                                                                                      |
+| AI alt-text                                   | Generate accessible alternative text                           | 🟩 Nice to have  | Low cost, high accessibility/compliance value; Agorapulse/Sprout promote it.                                                            |
+| Image-to-caption                              | The AI looks at the image and proposes the caption             | 🟦 Interesting   | Innovative (ContentStudio); reduces real friction, still uncommon.                                                                      |
+| Brand kit / asset library                     | Logos, colors, fonts and stock for consistency                 | 🟩 Nice to have  | Raises retention in multi-brand agencies; not a deal-breaker.                                                                           |
+| AI voiceover                                  | AI narration for videos                                        | ⬛ Waste of time | Niche, consumes expensive credits (Predis charges per second), low real use. Outside the SMM focus.                                     |
+| Meme generator                                | Meme generator                                                 | ⬛ Waste of time | A gimmick; moves neither retention nor ticket size. Bloat.                                                                              |
+| Blog→video / blog→carousel                    | Turn an article into a visual post                             | 🟦 Interesting   | Useful for content marketers; niche, not for the core agency buyer.                                                                     |
+| E-commerce product → post/video               | Shopify/WooCommerce feed → automatic posts                     | 🟦 Interesting   | A strong differentiator **only** if the ICP is e-commerce; out of focus if the ICP is agencies.                                         |
+| Multi-language generation                     | Generate content in N languages                                | 🟧 Necessary     | For OmniPost's LATAM/Hispanic market it is a need, not an option.                                                                       |
 
-### 6.3 Analytics y reporting
+### 6.3 Analytics and reporting
 
-| Feature                                | En qué consiste                                           | Nivel            | Por qué                                                                                                           |
-| -------------------------------------- | --------------------------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Analytics cross-platform               | Métricas unificadas de todas las redes                    | 🟥 Obligatoria   | Sin medir resultados la herramienta no justifica su precio. Table-stakes.                                         |
-| Reportes exportables (PDF/PPT)         | Informes descargables para presentar al cliente           | 🟧 Necesaria     | Una agencia que no puede entregar un reporte al cliente no compra. Objeción inmediata.                            |
-| White-label reports                    | Reportes con la marca de la agencia, sin la del proveedor | 🟧 Necesaria     | Para el ICP agencia es casi obligatoria; Sendible/ContentStudio la gatean en tiers altos justamente porque vende. |
-| Reportes personalizables / plantillas  | Construir el informe a medida del cliente                 | 🟩 Bueno tenerla | Sube ticket (Sendible lo pone en Scale $199); valioso pero no deal-breaker en entrada.                            |
-| Benchmarking de competidores           | Comparar tu cuenta vs. rivales                            | 🟩 Bueno tenerla | Estrella de Metricool (100 competidores); alto valor percibido, aún diferencia.                                   |
-| ROI reporting (integración GA)         | Atribuir ventas/leads al social vía Google Analytics      | 🟦 Interesante   | Estrella de Agorapulse; difícil de hacer bien, fuerte si se logra (cierra la venta a marketing).                  |
-| Analytics de ads pagados               | Métricas de campañas pagas junto a orgánico               | 🟦 Interesante   | Diferenciador de Metricool; el resto casi no lo tiene. Apuesta con upside.                                        |
-| Scheduled email reports                | Envío automático periódico del informe                    | 🟨 Corriente     | Esperado en agencia; commodity, no diferencia.                                                                    |
-| Conector Looker Studio / API analytics | Exportar la data a BI externo                             | 🟩 Bueno tenerla | Lo piden agencias data-driven; gateado en tiers altos por casi todos.                                             |
-| Hashtag / audience demographics        | Tracking de hashtags y demografía de audiencia            | 🟨 Corriente     | Commodity analítico; esperado, no mueve la decisión.                                                              |
+| Feature                                 | What it is                                            | Level           | Why                                                                                                               |
+| --------------------------------------- | ----------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Cross-platform analytics                | Unified metrics across every network                  | 🟥 Mandatory    | Without measuring results the tool does not justify its price. Table-stakes.                                      |
+| Exportable reports (PDF/PPT)            | Downloadable reports to present to the client         | 🟧 Necessary    | An agency that cannot hand a report to its client does not buy. An immediate objection.                           |
+| White-label reports                     | Reports with the agency's brand, without the vendor's | 🟧 Necessary    | For the agency ICP it is near-mandatory; Sendible/ContentStudio gate it in high tiers precisely because it sells. |
+| Customizable reports / templates        | Build the report tailored to the client               | 🟩 Nice to have | Raises ticket size (Sendible puts it in Scale $199); valuable but not a deal-breaker at entry level.              |
+| Competitor benchmarking                 | Compare your account vs. rivals                       | 🟩 Nice to have | Metricool's flagship (100 competitors); high perceived value, still differentiates.                               |
+| ROI reporting (GA integration)          | Attribute sales/leads to social via Google Analytics  | 🟦 Interesting  | Agorapulse's flagship; hard to do well, strong if achieved (closes the sale to marketing).                        |
+| Paid ads analytics                      | Paid campaign metrics next to organic                 | 🟦 Interesting  | Metricool's differentiator; the rest barely have it. A bet with upside.                                           |
+| Scheduled email reports                 | Automatic periodic delivery of the report             | 🟨 Commonplace  | Expected in agencies; a commodity, does not differentiate.                                                        |
+| Looker Studio connector / analytics API | Export the data to an external BI                     | 🟩 Nice to have | Data-driven agencies ask for it; gated in high tiers by almost everyone.                                          |
+| Hashtag / audience demographics         | Hashtag tracking and audience demographics            | 🟨 Commonplace  | An analytics commodity; expected, does not move the decision.                                                     |
 
-### 6.4 Inbox social y engagement
+### 6.4 Social inbox and engagement
 
-| Feature                                  | En qué consiste                                               | Nivel            | Por qué                                                                                                   |
-| ---------------------------------------- | ------------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
-| Inbox unificado                          | Comentarios, DMs, menciones de todas las redes en una bandeja | 🟧 Necesaria     | El comprador-agencia lo espera (estrella de Agorapulse/Sprout). Buffer no lo tiene y se lo critican duro. |
-| Triage/clasificación IA del mensaje      | Clasificar cada mensaje (queja/lead/spam) automáticamente     | 🟦 Interesante   | Diferenciador de OmniPost; solo Vista/ContentStudio empiezan. Alto valor si funciona.                     |
-| Sugerencias de respuesta IA (multi-tono) | Proponer 2-3 respuestas en el brand voice                     | 🟦 Interesante   | Diferenciador real; Sprout/Agorapulse lo gatean a tiers top. Sube velocidad de soporte.                   |
-| Análisis de sentimiento                  | Detectar si el mensaje es positivo/negativo                   | 🟩 Bueno tenerla | Esperado en enterprise; gateado en tiers altos en todos. Valioso, no deal-breaker en entrada.             |
-| Saved replies / plantillas               | Respuestas guardadas reutilizables                            | 🟨 Corriente     | Commodity de soporte; esperado, cero diferenciación.                                                      |
-| Asignación / tagging de mensajes         | Asignar conversaciones a miembros del equipo                  | 🟧 Necesaria     | Sin esto un equipo de agencia no puede operar el inbox. Paridad obligada.                                 |
-| Detección de colisión                    | Avisar si dos personas responden el mismo mensaje             | 🟩 Bueno tenerla | Evita doble-respuesta vergonzosa; valorado por equipos, no deal-breaker.                                  |
-| Gestión de reseñas                       | Responder reviews de Google/Yelp/Trustpilot                   | 🟩 Bueno tenerla | **Gap de OmniPost.** Agorapulse/Sprout/Vista lo tienen; objeción esperable de agencias locales.           |
-| Traducción inline                        | Traducir el mensaje entrante en la bandeja                    | 🟦 Interesante   | Muy relevante para el ICP LATAM/multi-idioma de OmniPost; poco común.                                     |
-| Reglas de moderación / automatización    | Auto-ocultar/etiquetar/responder según reglas                 | 🟩 Bueno tenerla | Estrella de Agorapulse; ahorra trabajo a escala, gateado por valor.                                       |
+| Feature                           | What it is                                                | Level           | Why                                                                                                    |
+| --------------------------------- | --------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------ |
+| Unified inbox                     | Comments, DMs, mentions from every network in one inbox   | 🟧 Necessary    | The agency buyer expects it (Agorapulse/Sprout's flagship). Buffer lacks it and is harshly criticized. |
+| AI message triage/classification  | Classify each message (complaint/lead/spam) automatically | 🟦 Interesting  | An OmniPost differentiator; only Vista/ContentStudio are starting. High value if it works.             |
+| AI reply suggestions (multi-tone) | Propose 2-3 replies in the brand voice                    | 🟦 Interesting  | A real differentiator; Sprout/Agorapulse gate it to top tiers. Raises support speed.                   |
+| Sentiment analysis                | Detect whether the message is positive/negative           | 🟩 Nice to have | Expected in enterprise; gated in high tiers everywhere. Valuable, not a deal-breaker at entry level.   |
+| Saved replies / templates         | Reusable saved replies                                    | 🟨 Commonplace  | A support commodity; expected, zero differentiation.                                                   |
+| Message assignment / tagging      | Assign conversations to team members                      | 🟧 Necessary    | Without it an agency team cannot operate the inbox. Required parity.                                   |
+| Collision detection               | Warn when two people reply to the same message            | 🟩 Nice to have | Avoids an embarrassing double reply; valued by teams, not a deal-breaker.                              |
+| Review management                 | Reply to Google/Yelp/Trustpilot reviews                   | 🟩 Nice to have | **OmniPost gap.** Agorapulse/Sprout/Vista have it; an objection to expect from local agencies.         |
+| Inline translation                | Translate the incoming message in the inbox               | 🟦 Interesting  | Very relevant to OmniPost's LATAM/multi-language ICP; uncommon.                                        |
+| Moderation rules / automation     | Auto-hide/tag/reply according to rules                    | 🟩 Nice to have | Agorapulse's flagship; saves work at scale, gated for its value.                                       |
 
-### 6.5 Colaboración, agencia y enterprise
+### 6.5 Collaboration, agency and enterprise
 
-| Feature                                                         | En qué consiste                                                 | Nivel                | Por qué                                                                                                       |
-| --------------------------------------------------------------- | --------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Workflows de aprobación (multinivel)                            | Cadena de revisión/aprobación antes de publicar                 | 🟥 Obligatoria       | Para agencia es deal-breaker: ningún cliente deja publicar sin aprobar. Estrella de Loomly por algo.          |
-| RBAC / roles y permisos                                         | Control de quién ve/hace qué                                    | 🟧 Necesaria         | Sin roles, una agencia no puede separar clientes/equipos. Paridad obligada; gateado por casi todos.           |
-| Dashboards / espacios por cliente                               | Aislamiento de datos por cliente, vista por cliente             | 🟥 Obligatoria       | Es **el** requisito del ICP agencia multi-cliente. Es la ventaja arquitectural multi-tenant de OmniPost.      |
-| Onboarding sin compartir passwords (Client Connect/EasyConnect) | El cliente conecta sus propias cuentas                          | 🟧 Necesaria         | Bloqueante de venta a agencias serias (seguridad/compliance). Sendible/ContentStudio lo hacen bandera.        |
-| White-label de plataforma                                       | La herramienta entera con la marca de la agencia                | 🟩 Bueno tenerla     | Sube mucho el ticket y el switching cost; gateado a tiers top por todos porque vende.                         |
-| CRM integrado (HubSpot/Salesforce)                              | Sincronizar conversaciones/leads con el CRM                     | 🟦 Interesante       | Diferenciador de OmniPost vs. casi todos; fuerte para el segmento marketing/enterprise.                       |
-| SSO (SAML/OIDC)                                                 | Inicio de sesión corporativo único                              | 🟧 Necesaria         | Deal-breaker para enterprise (terciario). Todos lo gatean a Enterprise; obligado para subir de segmento.      |
-| Audit logs                                                      | Registro inmutable de acciones                                  | 🟩 Bueno tenerla     | Requisito de compliance enterprise; OmniPost ya lo tiene, úsalo como argumento.                               |
-| Social listening real                                           | Monitoreo de menciones/sentimiento/share-of-voice en web+social | 🟧 Necesaria         | **Gap crítico de OmniPost.** Objeción #1 esperable; todos los enterprise lo tienen (aunque como add-on caro). |
-| Content discovery / curación                                    | Descubrir contenido/tendencias del nicho para curar             | 🟦 Interesante       | Estrella de ContentStudio; diferencia para agencias de contenido, nicho para el resto.                        |
-| Comentarios internos / notas                                    | Discusión interna del equipo sobre un post                      | 🟨 Corriente         | Commodity de colaboración; esperado, no diferencia.                                                           |
-| Notificaciones Slack/Teams                                      | Avisar al equipo en su chat de trabajo                          | 🟨 Corriente         | Integración esperada; commodity.                                                                              |
-| Employee advocacy                                               | Empleados amplifican el contenido corporativo                   | 🟦 Interesante       | Add-on caro en Hootsuite/Vista; solo enterprise grande lo valora. Apuesta de segmento.                        |
-| Influencer marketing                                            | Descubrir/gestionar influencers                                 | ⬛ Pérdida de tiempo | Producto aparte (Sprout lo separa); fuera del foco de un SMM/CMS. No invertir aquí.                           |
-| Mobile app                                                      | App nativa iOS/Android                                          | 🟧 Necesaria         | Esperada; su ausencia o debilidad es queja recurrente (Agorapulse, Vista). Paridad obligada.                  |
-| 2FA / seguridad de cuenta                                       | Doble factor para acceso                                        | 🟥 Obligatoria       | Higiene de seguridad no negociable; manejas credenciales de terceros.                                         |
+| Feature                                                           | What it is                                                  | Level            | Why                                                                                                          |
+| ----------------------------------------------------------------- | ----------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| Approval workflows (multi-level)                                  | A review/approval chain before publishing                   | 🟥 Mandatory     | For agencies it is a deal-breaker: no client allows publishing unapproved. Loomly's flagship for a reason.   |
+| RBAC / roles and permissions                                      | Control over who sees/does what                             | 🟧 Necessary     | Without roles, an agency cannot separate clients/teams. Required parity; gated by almost everyone.           |
+| Per-client dashboards / workspaces                                | Data isolation per client, a view per client                | 🟥 Mandatory     | **The** requirement of the multi-client agency ICP. It is OmniPost's multi-tenant architectural advantage.   |
+| Onboarding without sharing passwords (Client Connect/EasyConnect) | The client connects their own accounts                      | 🟧 Necessary     | A sales blocker with serious agencies (security/compliance). Sendible/ContentStudio make it their banner.    |
+| Platform white-label                                              | The whole tool under the agency's brand                     | 🟩 Nice to have  | Raises ticket size and switching cost a lot; gated to top tiers by everyone because it sells.                |
+| Integrated CRM (HubSpot/Salesforce)                               | Sync conversations/leads with the CRM                       | 🟦 Interesting   | An OmniPost differentiator vs. almost everyone; strong for the marketing/enterprise segment.                 |
+| SSO (SAML/OIDC)                                                   | Single corporate sign-on                                    | 🟧 Necessary     | A deal-breaker for enterprise (tertiary). Everyone gates it to Enterprise; required to move up a segment.    |
+| Audit logs                                                        | An immutable record of actions                              | 🟩 Nice to have  | An enterprise compliance requirement; OmniPost already has it, use it as an argument.                        |
+| Real social listening                                             | Monitor mentions/sentiment/share-of-voice across web+social | 🟧 Necessary     | **Critical OmniPost gap.** The #1 expected objection; every enterprise tool has it (albeit a costly add-on). |
+| Content discovery / curation                                      | Discover niche content/trends to curate                     | 🟦 Interesting   | ContentStudio's flagship; differentiates for content agencies, niche for the rest.                           |
+| Internal comments / notes                                         | Internal team discussion about a post                       | 🟨 Commonplace   | A collaboration commodity; expected, does not differentiate.                                                 |
+| Slack/Teams notifications                                         | Notify the team in its work chat                            | 🟨 Commonplace   | An expected integration; a commodity.                                                                        |
+| Employee advocacy                                                 | Employees amplify the corporate content                     | 🟦 Interesting   | An expensive add-on at Hootsuite/Vista; only large enterprises value it. A segment bet.                      |
+| Influencer marketing                                              | Discover/manage influencers                                 | ⬛ Waste of time | A separate product (Sprout splits it off); outside the focus of an SMM/CMS. Do not invest here.              |
+| Mobile app                                                        | Native iOS/Android app                                      | 🟧 Necessary     | Expected; its absence or weakness is a recurring complaint (Agorapulse, Vista). Required parity.             |
+| 2FA / account security                                            | A second factor for access                                  | 🟥 Mandatory     | Non-negotiable security hygiene; you handle third-party credentials.                                         |
 
-### 6.6 Integraciones
+### 6.6 Integrations
 
-| Feature                          | En qué consiste                                   | Nivel            | Por qué                                                                                       |
-| -------------------------------- | ------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------- |
-| Canva / herramientas de diseño   | Crear/editar visuales sin salir de la herramienta | 🟧 Necesaria     | Esperada por casi todos; su ausencia obliga a saltar de app y se nota.                        |
-| Google Drive / Dropbox           | Importar media desde la nube                      | 🟨 Corriente     | Commodity de importación; esperado, no diferencia.                                            |
-| Zapier / Make                    | Automatizar con miles de apps externas            | 🟩 Bueno tenerla | Cubre el "long tail" de integraciones sin construirlas; gateado a tiers altos por valor.      |
-| API pública / MCP                | Integración programática propia                   | 🟩 Bueno tenerla | La piden agencias técnicas/enterprise; diferencia en segmento alto. OmniPost ya es API-first. |
-| WordPress / blog publishing      | Publicar también en el blog/CMS                   | 🟦 Interesante   | Relevante solo si el ICP hace content marketing long-form; nicho.                             |
-| Bitly / acortador de links + UTM | Acortar y trackear enlaces                        | 🟨 Corriente     | Commodity de tracking; esperado, cero diferenciación.                                         |
+| Feature                      | What it is                                   | Level           | Why                                                                                           |
+| ---------------------------- | -------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------- |
+| Canva / design tools         | Create/edit visuals without leaving the tool | 🟧 Necessary    | Expected by almost everyone; its absence forces switching apps, and it shows.                 |
+| Google Drive / Dropbox       | Import media from the cloud                  | 🟨 Commonplace  | An import commodity; expected, does not differentiate.                                        |
+| Zapier / Make                | Automate with thousands of external apps     | 🟩 Nice to have | Covers the "long tail" of integrations without building them; gated to high tiers for value.  |
+| Public API / MCP             | Your own programmatic integration            | 🟩 Nice to have | Tech/enterprise agencies want it; it differentiates up-market. OmniPost is already API-first. |
+| WordPress / blog publishing  | Also publish to the blog/CMS                 | 🟦 Interesting  | Relevant only if the ICP does long-form content marketing; niche.                             |
+| Bitly / link shortener + UTM | Shorten and track links                      | 🟨 Commonplace  | A tracking commodity; expected, zero differentiation.                                         |
 
-### 6.7 Lectura estratégica de la clasificación
+### 6.7 Strategic reading of the ranking
 
-- **Lo Obligatorio que OmniPost ya cubre** (scheduling+nativo, aprobaciones, dashboards por cliente, 2FA): es tu base — no es marketing, es supervivencia. Comunícalo como "lo damos por hecho", no como diferenciador.
-- **Lo Necesario donde tienes un gap** → **social listening real** y **gestión de reseñas** son las dos objeciones de venta más probables. Priorizar en roadmap antes que cualquier feature 🟦 Interesante.
-- **Tus 🟦 Interesantes son tu narrativa de diferenciación**: IA multi-LLM con routing, contenido informado por analytics, funciones autónomas, triage IA, CRM integrado, traducción inline. Ninguna sola gana; **la combinación** es el pitch (ver §5.2).
-- **No invertir en ⬛**: AI voiceover, meme generator, influencer marketing — son bloat que infla la matriz de features pero no mueve adquisición ni retención. Predis/Sprout los tienen y aun así no es lo que les compran.
-- **Cuidado con las 🟨 Corrientes**: hay que tenerlas todas y bien hechas (su ausencia te elimina por "checklist"), pero cero presupuesto de marketing — nadie cambia de herramienta por un hashtag manager.
+- **The Mandatory items OmniPost already covers** (scheduling+native, approvals, per-client dashboards, 2FA): this is your base — it is not marketing, it is survival. Communicate it as "we take it for granted", not as a differentiator.
+- **The Necessary items where you have a gap** → **real social listening** and **review management** are the two most likely sales objections. Prioritize them on the roadmap ahead of any 🟦 Interesting feature.
+- **Your 🟦 Interesting items are your differentiation narrative**: multi-LLM AI with routing, analytics-informed content, autonomous features, AI triage, integrated CRM, inline translation. None wins alone; **the combination** is the pitch (see §5.2).
+- **Do not invest in ⬛**: AI voiceover, meme generator, influencer marketing — they are bloat that inflates the feature matrix but moves neither acquisition nor retention. Predis/Sprout have them, and even so that is not what people buy them for.
+- **Careful with the 🟨 Commonplace items**: you have to have them all, done well (their absence eliminates you on the "checklist"), but zero marketing budget — nobody switches tools for a hashtag manager.
 
 ---
 
-_Fuentes principales: páginas oficiales de pricing de cada producto (mayo 2026); G2; Capterra; Trustpilot; SocialRails; Research.com; comparativas 2026 de Buffer, Zapier, Planable, SocialBu, Copyter, DigitalApplied. Las cifras de precios y la disponibilidad de features cambian con frecuencia — reverificar contra las páginas oficiales antes de usar en material externo._
+_Main sources: each product's official pricing pages (May 2026); G2; Capterra; Trustpilot; SocialRails; Research.com; 2026 comparisons by Buffer, Zapier, Planable, SocialBu, Copyter, DigitalApplied. Price figures and feature availability change often — re-verify against the official pages before using them in external material._
