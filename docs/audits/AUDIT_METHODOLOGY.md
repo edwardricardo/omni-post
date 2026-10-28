@@ -1,287 +1,287 @@
 ---
 title: Full-repo audit methodology
-description: Metodología aplicada en la auditoría F5 del 2026-05-10/11. Inventario estructurado de 1477 archivos en 5 surfaces paralelos con plantilla uniforme y reglas de detección reproducibles.
+description: Methodology applied in the F5 audit of 2026-05-10/11. A structured inventory of 1477 files across 5 parallel surfaces, with a uniform template and reproducible detection rules.
 generated: 2026-05-11
 auditor: claude-code
 ---
 
 # Full-repo audit methodology
 
-> Documento metodológico **reutilizable** de auditoría full-repo (plantilla + 6 reglas de veredicto + workflow A-E). Captura **cómo se hace** una auditoría — no los resultados. (Los outputs de la corrida F5 de 2026-05-11 — INVENTORY_SUMMARY, \_AUDIT_FINDINGS, inventory-\* — fueron retirados tras absorción en `docs/product/MASTER_PLAN_ES.md`; este doc queda como la metodología para re-auditar.)
+> A **reusable** methodology document for a full-repo audit (template + 6 verdict rules + A-E workflow). It captures **how an audit is done** — not the results. (The outputs of the F5 run of 2026-05-11 — INVENTORY_SUMMARY, \_AUDIT_FINDINGS, inventory-\* — were retired after being absorbed into `docs/product/MASTER_PLAN_ES.md`; this doc stays as the methodology for re-auditing.)
 >
-> Este documento debe permitir a un auditor futuro (humano o agente) repetir el ejercicio sobre una versión posterior del repo y obtener resultados comparables.
+> This document must let a future auditor (human or agent) repeat the exercise on a later version of the repo and obtain comparable results.
 
 ---
 
-## 1. Contexto y motivación
+## 1. Context and motivation
 
-OmniPost arrancó con `admin` y `client` como una sola aplicación. Posteriormente se hizo separación arquitectónica en dos apps Next.js distintas, pero no se confirmó formalmente que:
+OmniPost started with `admin` and `client` as a single application. Later an architectural split into two distinct Next.js apps was made, but it was never formally confirmed that:
 
-- Las dobles implementaciones se hubieran corregido.
-- No quedara código muerto residual de la separación.
-- Las features desarrolladas durante la transición hubieran sido mapeadas (no-mapeadas → posible duplicación o features fantasma).
+- The double implementations had been corrected.
+- No residual dead code was left from the split.
+- The features developed during the transition had been mapped (unmapped → possible duplication or ghost features).
 
-A esto se sumó deuda heredada: 4 apps + ~13 sub-packages + 11 social providers + ~250 DI tokens + 70+ endpoints REST + sagas + workers. La pregunta operacional concreta del usuario fue: **¿qué hay realmente en el repo, qué hace, qué está duplicado, qué está muerto, qué está implementado pero no expuesto?**
+Inherited debt added to this: 4 apps + ~13 sub-packages + 11 social providers + ~250 DI tokens + 70+ REST endpoints + sagas + workers. The Maintainer's concrete operational question was: **what is really in the repo, what does it do, what is duplicated, what is dead, what is implemented but not exposed?**
 
-La auditoría F5 responde esa pregunta como **inventario evidencia-primero**, no como sweep de fixes. No toca código fuente. Solo lee + clasifica + escribe documentos de salida.
+The F5 audit answers that question as an **evidence-first inventory**, not as a sweep of fixes. It does not touch source code. It only reads + classifies + writes output documents.
 
-## 2. Principios rectores
+## 2. Guiding principles
 
-1. **Evidencia primero, juicio después.** Cada hallazgo se ancla en un path + línea, no en intuición. Cada veredicto va con la regla que lo activó.
-2. **Plantilla uniforme cross-surface.** Los inventarios de las 5 surfaces (`api`, `workers`, `admin`, `client`, `packages`) usan el mismo formato per-archivo, lo que permite consolidación mecánica posterior.
-3. **Paralelismo cuando posible.** 4 inventarios corren simultáneamente en background después de validar formato con uno foreground. Reduce wall-clock de ~110 min secuencial a ~25 min paralelo real.
-4. **Default conservador.** Veredicto por defecto es `VÁLIDO`. Solo se marca DEAD / REDUNDANTE / FORGOTTEN-FEATURE / MISMATCH cuando hay evidencia mecánica clara.
-5. **Memoria histórica preservada.** Antes de borrar documentación obsoleta (REMEDIATION_ROADMAP, POST_BACKLOG, 130 reportes de sprint cerrados), se capturan los hechos no-obvios en memoria persistente del asistente para que la auditoría no re-clasifique como dead-code lo que es scaffolding intencional, deletions reversibles, features monetizables-en-vuelo, o dependencias declinadas explícitamente por el usuario.
-6. **Iteración por surface.** Un surface se inventaría completamente antes de pasar al siguiente. Evita context-switching y permite cross-validar reglas a medida que se aplican.
+1. **Evidence first, judgment later.** Every finding is anchored to a path + line, not to intuition. Every verdict comes with the rule that triggered it.
+2. **Uniform template across surfaces.** The inventories of the 5 surfaces (`api`, `workers`, `admin`, `client`, `packages`) use the same per-file format, which allows a later mechanical consolidation.
+3. **Parallelism when possible.** 4 inventories run simultaneously in the background after the format is validated with one in the foreground. It cuts wall-clock from ~110 min sequential to ~25 min real parallel.
+4. **Conservative default.** The default verdict is `VALID`. DEAD / REDUNDANT / FORGOTTEN-FEATURE / MISMATCH is marked only when there is clear mechanical evidence.
+5. **Historical memory preserved.** Before deleting obsolete documentation (REMEDIATION_ROADMAP, POST_BACKLOG, 130 closed sprint reports), the non-obvious facts are captured in the assistant's persistent memory, so the audit does not re-classify as dead code what is intentional scaffolding, reversible deletions, monetizable features in flight, or dependencies the Maintainer explicitly declined.
+6. **Iteration by surface.** A surface is inventoried completely before moving on to the next. It avoids context switching and allows rules to be cross-validated as they are applied.
 
-## 3. Pre-requisitos antes de arrancar
+## 3. Prerequisites before starting
 
-Antes del primer inventario, ejecutar en orden:
+Before the first inventory, run in order:
 
-1. **Limpieza de documentación obsoleta.** Generar `docs/_DOCS_INVENTORY.md` clasificando cada `.md` bajo `docs/`. Eliminar los marcados `ARCHIVE` + `DELETE`. Esto evita que la auditoría tenga que cruzar contra documentos cuya autoridad ya caducó.
-2. **Captura de contexto histórico.** Leer los documentos maestros que se van a borrar (en este caso REMEDIATION_ROADMAP.md + POST_REMEDIATION_BACKLOG.md) en su totalidad y extraer **hechos no-obvios** que no se pueden derivar leyendo el código:
-   - Scaffolding intencional (ej. `packages/providers/_template/`)
-   - Deletions reversibles por diseño
-   - Domain naming gotchas (ej. `Project` ≈ "subcuenta")
-   - Dependencias declinadas explícitamente por el usuario
-   - Features monetizables en vuelo (ej. `EventSnapshot` tier-gated)
-   - Decisiones tomadas en sesiones pasadas que afectan interpretación del código
+1. **Cleanup of obsolete documentation.** Generate `docs/_DOCS_INVENTORY.md`, classifying every `.md` under `docs/`. Delete the ones marked `ARCHIVE` + `DELETE`. This keeps the audit from having to cross-check against documents whose authority has already expired.
+2. **Capture of historical context.** Read the master documents that are going to be deleted (in this case REMEDIATION_ROADMAP.md + POST_REMEDIATION_BACKLOG.md) in full and extract **non-obvious facts** that cannot be derived by reading the code:
+   - Intentional scaffolding (e.g. `packages/providers/_template/`)
+   - Deletions reversible by design
+   - Domain naming gotchas (e.g. `Project` ≈ "subaccount")
+   - Dependencies the Maintainer explicitly declined
+   - Monetizable features in flight (e.g. tier-gated `EventSnapshot`)
+   - Decisions taken in past sessions that affect how the code is interpreted
 
-   Estos hechos se guardan a memoria persistente del asistente (`memory/project_historical_context.md`). Luego se borran los docs originales.
+   These facts are saved to the assistant's persistent memory (`memory/project_historical_context.md`). Then the original docs are deleted.
 
-3. **CI verde (mínimo viable).** Antes de auditar, mergear o consolidar trabajo en curso para que la auditoría parta de un `main` estable. En esta sesión: merge PR #57 (saga canon retrofit + 14 fixes de seguridad CWE-639/862/863 + fix CI Prisma + cleanup docs).
-4. **Branches paralelas cerradas.** No auditar mientras hay PRs abiertos del mismo equipo — el código se mueve bajo los pies. Cerrar / mergear / abandonar antes de auditar.
+3. **Green CI (minimum viable).** Before auditing, merge or consolidate work in progress so the audit starts from a stable `main`. In this session: merge PR #57 (saga canon retrofit + 14 CWE-639/862/863 security fixes + CI Prisma fix + docs cleanup).
+4. **Parallel branches closed.** Do not audit while the same team has open PRs — the code moves under your feet. Close / merge / abandon before auditing.
 
-## 4. Estructura de surfaces
+## 4. Structure of surfaces
 
-5 surfaces ortogonales que cubren el monorepo:
+5 orthogonal surfaces that cover the monorepo:
 
-| Surface    | Path raíz           | Foco                                                                                     |
+| Surface    | Root path           | Focus                                                                                    |
 | ---------- | ------------------- | ---------------------------------------------------------------------------------------- |
-| `api`      | `apps/api/src/`     | Backend Fastify: routes, use cases, domain, infra, CQRS, sagas, security, features       |
+| `api`      | `apps/api/src/`     | Fastify backend: routes, use cases, domain, infra, CQRS, sagas, security, features       |
 | `workers`  | `apps/workers/src/` | BullMQ workers, processors, recovery, metrics                                            |
-| `admin`    | `apps/admin/`       | Next.js staff portal: páginas, componentes, hooks, lib                                   |
-| `client`   | `apps/client/`      | Next.js tenant portal: páginas, componentes, hooks, lib                                  |
+| `admin`    | `apps/admin/`       | Next.js staff portal: pages, components, hooks, lib                                      |
+| `client`   | `apps/client/`      | Next.js tenant portal: pages, components, hooks, lib                                     |
 | `packages` | `packages/*/src/`   | Ports, providers (11), adapters, shared, ui, observability, monitoring, api-common, core |
 
-Tests (`*.test.ts`, `tests/`) **NO** se inventariaron en esta auditoría. Pueden ser un sexto surface si se quiere validar cobertura.
+Tests (`*.test.ts`, `tests/`) were **NOT** inventoried in this audit. They can be a sixth surface if coverage is to be validated.
 
-## 5. Plantilla per-archivo (uniforme)
+## 5. Per-file template (uniform)
 
-Cada archivo inventariado produce un bloque con esta forma:
+Every inventoried file produces a block with this shape:
 
 ```markdown
-### audit-<SURFACE>-<NNN> — <título ≤8 palabras>
+### audit-<SURFACE>-<NNN> — <title ≤8 words>
 
 - **Path:** [path/file.ts](path/file.ts)
 - **Surface:** api | workers | admin | client | packages
-- **Tipo:** route · use-case · query-handler · command-handler · domain-entity · value-object · aggregate · domain-event · repository-port · repository-impl · saga-definition · saga-step · processor · middleware · DI-tokens · DI-container · security · provider · service · adapter · types · barrel · index · config · observability · page · layout · route-handler · component · hook · lib · store · provider · port-interface · adapter-impl · provider-adapter · provider-apiClient · ui-component · ui-hook · ui-primitive · logger-factory · scheduler · circuit-breaker · health-check · base-route
+- **Type:** route · use-case · query-handler · command-handler · domain-entity · value-object · aggregate · domain-event · repository-port · repository-impl · saga-definition · saga-step · processor · middleware · DI-tokens · DI-container · security · provider · service · adapter · types · barrel · index · config · observability · page · layout · route-handler · component · hook · lib · store · provider · port-interface · adapter-impl · provider-adapter · provider-apiClient · ui-component · ui-hook · ui-primitive · logger-factory · scheduler · circuit-breaker · health-check · base-route
 - **@layer declared:** domain · application · infrastructure · MISSING · INVALID:<value>
-- **Propósito real:** <una oración — lo que hace el código, NO lo que dice el JSDoc>
-- **Exports / endpoints / handlers:** <símbolos exportados, HTTP method+path, métodos públicos>
-- **Imports significativos:** <solo cross-package / cross-app, no relativos>
-- **API endpoints consumed (frontend only):** <lista de fetch / hook invocations que fan-out a endpoints>
-- **Admin counterpart? (client only):** <path del equivalente en apps/admin/ si existe>
-- **Wiring detected (backend only):** <registrado en Container? Route registrado en index.ts? Processor spawneado?>
-- **Callers / Consumers:** <rg result capped at 5 lines, o "widely used">
-- **Veredicto preliminar:** VÁLIDO · REDUNDANTE · DEAD · FORGOTTEN-FEATURE · MISMATCH · UNKNOWN
-- **Notas:** <bullets cortos — duplicaciones, mismatches, broken imports, raw fetch, unused exports, anti-patterns>
+- **Actual purpose:** <one sentence — what the code does, NOT what the JSDoc says>
+- **Exports / endpoints / handlers:** <exported symbols, HTTP method+path, public methods>
+- **Significant imports:** <only cross-package / cross-app, not relative ones>
+- **API endpoints consumed (frontend only):** <list of fetch / hook invocations that fan out to endpoints>
+- **Admin counterpart? (client only):** <path of the equivalent in apps/admin/ if one exists>
+- **Wiring detected (backend only):** <registered in Container? Route registered in index.ts? Processor spawned?>
+- **Callers / Consumers:** <rg result capped at 5 lines, or "widely used">
+- **Preliminary verdict:** VALID · REDUNDANT · DEAD · FORGOTTEN-FEATURE · MISMATCH · UNKNOWN
+- **Notes:** <short bullets — duplications, mismatches, broken imports, raw fetch, unused exports, anti-patterns>
 ```
 
-Los campos `Wiring`, `API endpoints consumed`, `Admin counterpart` se activan según el surface.
+The `Wiring`, `API endpoints consumed` and `Admin counterpart` fields are turned on according to the surface.
 
-## 6. Veredictos y reglas de detección
+## 6. Verdicts and detection rules
 
-Cada veredicto se asigna SOLO si se cumple su regla. Sin evidencia → default `VÁLIDO` (o `UNKNOWN` si la duda persiste).
+Each verdict is assigned ONLY if its rule is met. No evidence → default `VALID` (or `UNKNOWN` if the doubt persists).
 
-### 6.1 VÁLIDO
+### 6.1 VALID
 
-Tiene callers / wiring. No tiene smells obvios. JSDoc coherente con código.
+It has callers / wiring. It has no obvious smells. Its JSDoc is consistent with the code.
 
-### 6.2 REDUNDANTE
+### 6.2 REDUNDANT
 
-Existe otro archivo en el repo con propósito ≈ idéntico:
+Another file in the repo exists with a ≈ identical purpose:
 
-- En la misma surface (e.g., dos repositorios para la misma entidad).
-- Cross-surface (e.g., `apps/admin/lib/X.ts` ↔ `apps/client/lib/X.ts` con misma firma y ≥80% diff overlap).
+- In the same surface (e.g., two repositories for the same entity).
+- Cross-surface (e.g., `apps/admin/lib/X.ts` ↔ `apps/client/lib/X.ts` with the same signature and ≥80% diff overlap).
 
-Para confirmar cross-surface, ejecutar `ls apps/<otra>/<mismo-path>` o `find apps -name "<filename>"`. Si aparece counterpart, hacer `diff` para confirmar similitud antes de marcar.
+To confirm cross-surface, run `ls apps/<other>/<same-path>` or `find apps -name "<filename>"`. If a counterpart shows up, run `diff` to confirm the similarity before marking.
 
 ### 6.3 DEAD
 
-Exportado pero **ningún caller** en el repo:
+Exported but with **no caller** in the repo:
 
-- `rg -t ts "import.*\b<symbol>\b" apps packages` → 0 resultados (excluyendo el propio archivo y tests).
-- Para routes: NO está registrado en `apps/api/src/index.ts` ni en algún router feature.
-- Para processors: NO se spawneā via `new Worker(queueName, processor)` en `apps/workers/src/index.ts`.
-- Para DI bindings: no aparece en `Container.ts`.
+- `rg -t ts "import.*\b<symbol>\b" apps packages` → 0 results (excluding the file itself and tests).
+- For routes: it is NOT registered in `apps/api/src/index.ts` or in any feature router.
+- For processors: it is NOT spawned via `new Worker(queueName, processor)` in `apps/workers/src/index.ts`.
+- For DI bindings: it does not appear in `Container.ts`.
 
 ### 6.4 FORGOTTEN-FEATURE
 
-La implementación existe + funciona localmente, pero un eslabón intermedio falta:
+The implementation exists + works locally, but an intermediate link is missing:
 
-- Use case implementado y tested, pero ninguna route lo expone.
-- Route exists pero ninguna UI la consume.
-- UI implementada que llama a endpoint que devuelve 501 / no existe.
-- Worker implementado pero el Dockerfile CMD no lo arranca → jobs encolados sin consumer.
-- Cron task implementada pero no registrada en `BackgroundTaskScheduler`.
-- Feature flag wired pero permanentemente `false`.
+- A use case implemented and tested, but no route exposes it.
+- A route exists but no UI consumes it.
+- A UI implemented that calls an endpoint that returns 501 / does not exist.
+- A worker implemented but the Dockerfile CMD does not start it → jobs queued with no consumer.
+- A cron task implemented but not registered in `BackgroundTaskScheduler`.
+- A feature flag wired but permanently `false`.
 
-Es distinto de DEAD: el código está completo pero **algo aguas-arriba o aguas-abajo bloquea su uso**.
+It is different from DEAD: the code is complete but **something upstream or downstream blocks its use**.
 
 ### 6.5 MISMATCH
 
-Contradicción interna detectable mecánicamente:
+An internal contradiction that can be detected mechanically:
 
-- Frontend llama `fetch("/api/X")` y `/api/X` no existe en el route table.
-- Frontend llama un endpoint admin (`/admin/...`) desde surface customer-facing (auth falla deterministicamente).
-- Repository impl exists pero el port binding apunta a otra clase.
-- `@layer` header dice `application` pero el path es `apps/api/src/infrastructure/...`.
-- Tipo TypeScript exportado para una API response no coincide con lo que el handler retorna.
-- Worker espera payload shape `X` pero el producer envía shape `Y`.
+- The frontend calls `fetch("/api/X")` and `/api/X` does not exist in the route table.
+- The frontend calls an admin endpoint (`/admin/...`) from a customer-facing surface (auth fails deterministically).
+- A repository impl exists but the port binding points to another class.
+- The `@layer` header says `application` but the path is `apps/api/src/infrastructure/...`.
+- A TypeScript type exported for an API response does not match what the handler returns.
+- A worker expects payload shape `X` but the producer sends shape `Y`.
 
 ### 6.6 UNKNOWN
 
-Se usa **con moderación**. Reservado para:
+Used **sparingly**. Reserved for:
 
-- Archivos que parecen vivos pero no se puede verificar wiring (DI factory dispatched, dynamic imports, callback patterns que tree-sitter no resuelve).
-- Implementaciones cuya integración requiere lectura profunda de >3 archivos cruzados.
+- Files that look alive but whose wiring cannot be verified (DI factory dispatched, dynamic imports, callback patterns that tree-sitter does not resolve).
+- Implementations whose integration needs a deep reading of >3 cross-referenced files.
 
-Default agresivo a UNKNOWN diluye la auditoría. Si dudas, prefiere VÁLIDO + nota en `Notas:` explicando la duda.
+An aggressive default to UNKNOWN dilutes the audit. If in doubt, prefer VALID + a note in `Notes:` explaining the doubt.
 
-## 7. Workflow operacional
+## 7. Operational workflow
 
-### Fase A — Inventario (foreground + paralelo)
+### Phase A — Inventory (foreground + parallel)
 
-1. **Surface piloto en foreground.** Elegir el surface más informativo (en esta sesión: `admin`, por ser el centro de la preocupación del usuario sobre duplicación). Ejecutar un agente con la plantilla completa y los criterios. Revisar el output formal: ¿está completa la enumeración? ¿son razonables los veredictos? ¿hay un balance entre VÁLIDO y los otros? Si algo está off, ajustar plantilla antes de lanzar los demás.
-2. **4 surfaces restantes en paralelo (background).** Lanzar en una sola response, con `run_in_background: true`. Cada agente:
-   - Recibe la plantilla idéntica
-   - Recibe los criterios de detección idénticos
-   - Recibe las **memory references** específicas a su surface (cosas que NO debe marcar como dead)
-   - Escribe a `docs/audits/inventory-<surface>.md`
-   - Reporta al final un resumen ≤200 palabras
-3. **Notificación automática.** A medida que cada uno termina, llega una task-notification. Se va comunicando progreso al usuario sin polling activo.
+1. **Pilot surface in the foreground.** Choose the most informative surface (in this session: `admin`, because it was the center of the Maintainer's concern about duplication). Run an agent with the full template and the criteria. Review the formal output: is the enumeration complete? are the verdicts reasonable? is there a balance between VALID and the others? If something is off, adjust the template before launching the rest.
+2. **The 4 remaining surfaces in parallel (background).** Launch them in a single response, with `run_in_background: true`. Each agent:
+   - Receives the identical template
+   - Receives the identical detection criteria
+   - Receives the **memory references** specific to its surface (things it must NOT mark as dead)
+   - Writes to `docs/audits/inventory-<surface>.md`
+   - Reports a summary of ≤200 words at the end
+3. **Automatic notification.** As each one finishes, a task notification arrives. Progress is reported to the Maintainer without active polling.
 
-### Fase B — Cross-surface mapping (mecánico)
+### Phase B — Cross-surface mapping (mechanical)
 
-Cruzar los 5 inventarios para detectar relaciones que ningún single-surface agente puede ver:
+Cross the 5 inventories to detect relationships that no single-surface agent can see:
 
-- **UI → endpoint:** para cada `fetch("/api/X")` en client/admin, verificar que `/api/X` existe en `inventory-api.md`. Lo que no existe → MISMATCH / FORGOTTEN-FEATURE.
-- **Use case → route:** para cada use case en `inventory-api.md` con veredicto VÁLIDO, verificar que algún route lo invoca. Use case sin route invocador → potencial FORGOTTEN-FEATURE.
-- **Route → use case:** routes que importan use case nunca registrado en DI → MISMATCH.
-- **Port → adapter:** ports sin adapter implementador → FORGOTTEN-FEATURE.
-- **Adapter → port:** adapters sin port binding → DEAD o MISMATCH.
-- **Worker queue → producer:** cada queue declarada debe tener un producer en `apps/api` o en otro worker. Queues huérfanas → DEAD.
-- **Duplicación admin↔client:** mismo nombre de archivo en ambos apps → candidato a consolidar a `packages/`.
+- **UI → endpoint:** for each `fetch("/api/X")` in client/admin, verify that `/api/X` exists in `inventory-api.md`. What does not exist → MISMATCH / FORGOTTEN-FEATURE.
+- **Use case → route:** for each use case in `inventory-api.md` with a VALID verdict, verify that some route invokes it. A use case with no invoking route → potential FORGOTTEN-FEATURE.
+- **Route → use case:** routes that import a use case never registered in DI → MISMATCH.
+- **Port → adapter:** ports with no implementing adapter → FORGOTTEN-FEATURE.
+- **Adapter → port:** adapters with no port binding → DEAD or MISMATCH.
+- **Worker queue → producer:** each declared queue must have a producer in `apps/api` or in another worker. Orphan queues → DEAD.
+- **admin↔client duplication:** the same file name in both apps → a candidate for consolidation into `packages/`.
 
-### Fase C — Findings consolidados (item-por-item)
+### Phase C — Consolidated findings (item by item)
 
-Tomar todos los hallazgos non-VÁLIDO de los 5 inventarios + de la fase B y catalogarlos en un solo documento (`_AUDIT_FINDINGS.md`). Cada item:
+Take all the non-VALID findings from the 5 inventories + from phase B and catalog them in a single document (`_AUDIT_FINDINGS.md`). Each item:
 
 ```markdown
-### audit-FN-NN — <título>
+### audit-FN-NN — <title>
 
-- **Categoría:** dead-code / forgotten-feature / duplication / mismatch / drift / superseded / canon-deviation
+- **Category:** dead-code / forgotten-feature / duplication / mismatch / drift / superseded / canon-deviation
 - **Surface(s):** ...
-- **Evidencia:** <paths + grep results>
-- **Recomendación honesta del auditor:** DELETE-NOW / WIRE-BACKEND / WIRE-UI / CONSOLIDATE-TO-PACKAGE / DECIDE / FIX-NOW
-- **Acción candidata:** <pasos concretos>
-- **NEEDS_EDWARD:** yes/no (¿requiere decisión de producto?)
-- **Bloqueado por:** <otros audit-FN-NN si aplica>
+- **Evidence:** <paths + grep results>
+- **Auditor's honest recommendation:** DELETE-NOW / WIRE-BACKEND / WIRE-UI / CONSOLIDATE-TO-PACKAGE / DECIDE / FIX-NOW
+- **Candidate action:** <concrete steps>
+- **NEEDS_PRODUCT_OWNER:** yes/no (does it need a product decision?)
+- **Blocked by:** <other audit-FN-NN if applicable>
 ```
 
-### Fase D — Visita punto-por-punto con el usuario
+### Phase D — Point-by-point review with the Product Owner and the Maintainer
 
-El usuario revisa cada `audit-FN-NN`. Marca:
+The Product Owner and the Maintainer review each `audit-FN-NN`. They mark:
 
-- ✅ APPROVE — ejecutar la acción candidata
-- ❌ REJECT — el hallazgo es falso positivo, se documenta por qué
-- 🔄 CHANGE-ACTION — la acción candidata no es la correcta, se documenta la alternativa
-- ⏸️ DEFER — válido pero no ahora; se agenda
+- ✅ APPROVE — run the candidate action
+- ❌ REJECT — the finding is a false positive; why is documented
+- 🔄 CHANGE-ACTION — the candidate action is not the right one; the alternative is documented
+- ⏸️ DEFER — valid but not now; it gets scheduled
 
-Output de Fase D: lista de acciones APPROVED ordenadas por bloqueador. Esa lista es el plan de ejecución.
+Phase D output: a list of APPROVED actions ordered by blocker. That list is the execution plan.
 
-### Fase E — Ejecución
+### Phase E — Execution
 
-Cada acción APPROVED se ejecuta como un commit cohesivo. Branch strategy según volumen.
+Each APPROVED action is executed as one cohesive commit. Branch strategy according to volume.
 
-## 8. Tooling utilizado
+## 8. Tooling used
 
-| Tool                                                                 | Para qué                                                                                  |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `find <path> -type f -name "*.ts" -not -path "*/node_modules/*" ...` | Enumeración de archivos por surface                                                       |
-| `head -25 <file>`                                                    | Lectura del JSDoc header + primeros imports (>90% de los archivos se clasifican con esto) |
-| `head -80 <file>`                                                    | Cuando los primeros 25 no revelan propósito                                               |
-| `rg -t ts "import.*<symbol>" apps packages \| head -10`              | Detección de callers (capped)                                                             |
-| `rg -t ts "from \"@<package>/<name>\"" apps packages`                | Detección de consumers cross-package                                                      |
-| `gh run view <id> --log-failed`                                      | Para auditorías paralelas de CI                                                           |
-| `git diff --stat <branch1>..<branch2>`                               | Para confirmar cambios entre PRs antes de mergear                                         |
-| `git ls-files --error-unmatch <file>`                                | Validar que archivos a borrar están tracked antes de `git rm`                             |
+| Tool                                                                 | Purpose                                                                         |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `find <path> -type f -name "*.ts" -not -path "*/node_modules/*" ...` | Enumerating files per surface                                                   |
+| `head -25 <file>`                                                    | Reading the JSDoc header + first imports (>90% of files are classified by this) |
+| `head -80 <file>`                                                    | When the first 25 do not reveal the purpose                                     |
+| `rg -t ts "import.*<symbol>" apps packages \| head -10`              | Caller detection (capped)                                                       |
+| `rg -t ts "from \"@<package>/<name>\"" apps packages`                | Cross-package consumer detection                                                |
+| `gh run view <id> --log-failed`                                      | For parallel CI audits                                                          |
+| `git diff --stat <branch1>..<branch2>`                               | To confirm changes between PRs before merging                                   |
+| `git ls-files --error-unmatch <file>`                                | To validate that files to delete are tracked before `git rm`                    |
 
-## 9. Time budgets por surface
+## 9. Time budgets per surface
 
-Empíricos en esta sesión (overhead promedio de un agente general-purpose):
+Empirical in this session (average overhead of a general-purpose agent):
 
-| Surface                       |    Files | Tiempo      |
+| Surface                       |    Files | Time        |
 | ----------------------------- | -------: | ----------- |
-| `admin` (foreground piloto)   |      180 | ~10 min     |
+| `admin` (foreground pilot)    |      180 | ~10 min     |
 | `workers`                     |       13 | ~5 min      |
 | `client`                      |      226 | ~10 min     |
 | `api`                         |      823 | ~17 min     |
 | `packages`                    |      235 | ~8 min      |
-| **Total wall-clock paralelo** | **1477** | **~25 min** |
-| Total secuencial estimado     |        — | ~50 min     |
+| **Total parallel wall-clock** | **1477** | **~25 min** |
+| Estimated sequential total    |        — | ~50 min     |
 
-Output total: ~5 archivos `inventory-<surface>.md`, ~5000-6000 líneas markdown agregadas.
+Total output: ~5 `inventory-<surface>.md` files, ~5000-6000 lines of markdown added.
 
-## 10. Memoria histórica — cómo no clasificar mal
+## 10. Historical memory — how not to misclassify
 
-Antes de ejecutar la auditoría, los siguientes hechos se cargaron a memoria persistente para evitar falsos positivos. Cualquier auditoría futura debe revisar `memory/project_historical_context.md` o equivalente antes de empezar:
+Before running the audit, the following facts were loaded into persistent memory to avoid false positives. Any future audit must review `memory/project_historical_context.md` or an equivalent before starting:
 
-| Categoría                      | Ejemplos                                                                                                                                                                      |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Scaffolding intencional        | `packages/providers/_template/` — env reads + raw pino son intencionales para enseñar el patrón. Fitness checks #15/#19 excluyen explícitamente este path.                    |
-| Deletions reversibles          | `apps/admin/providers/ProjectProvider.tsx` (T3-M 2026-04-29). Un futuro `ClientProjectsView` con SUPER_ADMIN gate sería entidad distinta — no revivir éste.                   |
-| Domain naming                  | `Project` entity = "subcuenta" en modelo mental del usuario. Renombrar `Project → Subaccount` es deuda.                                                                       |
-| Dependencias declinadas        | `reg-suit` (2026-05-04 y 2026-05-07), `clinic.js` permanente (2026-05-07). NO proponer reinstalar.                                                                            |
-| Features monetizables en vuelo | `EventSnapshot` tier-gated (basic 30d / pro 90d / ent 180d+); permiso `CONTENT_SNAPSHOT_MANAGE`. NO marcar como dead.                                                         |
-| Reescrituras recientes         | `apps/client/app/dashboard/channels/page.tsx` reescrita 2026-05-07 (PR-16). Acciones "Test"/"Settings" deshabilitadas eliminadas intencionalmente.                            |
-| Deuda conocida documentada     | `apps/client/components/ai/AITemplateSelector.tsx` — campos engagement/readability/virality wireados sin backend (PR-53/54/55). Marcar FORGOTTEN-FEATURE con nota explícita.  |
-| Reservado para migración       | Archivos en `apps/client/components/publishing/` pueden estar reservados para T6-D selective rescue (`ContentPreviewSystem`, `provider-previews`). NO blanket-flag como dead. |
+| Category                       | Examples                                                                                                                                                                          |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Intentional scaffolding        | `packages/providers/_template/` — env reads + raw pino are intentional, to teach the pattern. Fitness checks #15/#19 explicitly exclude this path.                                |
+| Reversible deletions           | `apps/admin/providers/ProjectProvider.tsx` (T3-M 2026-04-29). A future `ClientProjectsView` with a SUPER_ADMIN gate would be a distinct entity — do not revive this one.          |
+| Domain naming                  | `Project` entity = "subaccount" in the Product Owner's mental model. Renaming `Project → Subaccount` is debt.                                                                     |
+| Declined dependencies          | `reg-suit` (2026-05-04 and 2026-05-07), `clinic.js` permanently (2026-05-07). Do NOT propose reinstalling them.                                                                   |
+| Monetizable features in flight | Tier-gated `EventSnapshot` (basic 30d / pro 90d / ent 180d+); permission `CONTENT_SNAPSHOT_MANAGE`. Do NOT mark it as dead.                                                       |
+| Recent rewrites                | `apps/client/app/dashboard/channels/page.tsx` rewritten 2026-05-07 (PR-16). The disabled "Test"/"Settings" actions were removed intentionally.                                    |
+| Known documented debt          | `apps/client/components/ai/AITemplateSelector.tsx` — engagement/readability/virality fields wired with no backend (PR-53/54/55). Mark it FORGOTTEN-FEATURE with an explicit note. |
+| Reserved for a migration       | Files in `apps/client/components/publishing/` may be reserved for the T6-D selective rescue (`ContentPreviewSystem`, `provider-previews`). Do NOT blanket-flag them as dead.      |
 
-## 11. Output estructural
+## 11. Structural output
 
 ```
 docs/audits/
-  AUDIT_METHODOLOGY.md       ← este documento
-  INVENTORY_SUMMARY.md       ← resumen agregado de los 5 inventarios
-  _AUDIT_FINDINGS.md         ← findings consolidados item-por-item con recomendación
-  inventory-api.md           ← 992 líneas, 823 archivos
-  inventory-admin.md         ← 180 archivos
-  inventory-client.md        ← 226 archivos
-  inventory-workers.md       ← 13 archivos
-  inventory-packages.md      ← 235 archivos
+  AUDIT_METHODOLOGY.md       ← this document
+  INVENTORY_SUMMARY.md       ← aggregated summary of the 5 inventories
+  _AUDIT_FINDINGS.md         ← consolidated findings item by item, with a recommendation
+  inventory-api.md           ← 992 lines, 823 files
+  inventory-admin.md         ← 180 files
+  inventory-client.md        ← 226 files
+  inventory-workers.md       ← 13 files
+  inventory-packages.md      ← 235 files
 ```
 
-Los 5 `inventory-*.md` son **inputs**. El `INVENTORY_SUMMARY.md` es **digest**. El `_AUDIT_FINDINGS.md` es **workbench** para la fase D (visita punto-por-punto).
+The 5 `inventory-*.md` files are **inputs**. `INVENTORY_SUMMARY.md` is the **digest**. `_AUDIT_FINDINGS.md` is the **workbench** for phase D (the point-by-point review).
 
-## 12. Caveats y falsos-positivos conocidos
+## 12. Caveats and known false positives
 
-1. **Tree-sitter es ciego a dispatch dinámico.** Si un símbolo se resuelve via DI factory, dynamic `import()`, callback registry, o switch-by-string, `rg` no lo detecta como caller. Pueden surgir DEAD falsos. Mitigación: cap UNKNOWN para casos donde DI factory dispatch es plausible (especialmente CRM adapters, storage adapters).
-2. **Re-exports propagan ruido.** Un export en un barrel `index.ts` puede tener 50 callers pero ninguno toca el archivo original. Si el barrel cuenta como caller, el archivo no es DEAD aunque conceptualmente nadie lo use directamente. Solución: cuando un archivo solo tiene barrel-callers, marcar VÁLIDO pero documentar en notas.
-3. **Tests pueden ocultar uso real.** Una clase usada solo en tests NO es VÁLIDA en producción — es FORGOTTEN-FEATURE o DEAD. Filtra `rg` con `--type-not test` cuando importa.
-4. **Worker queues pueden tener producers en sagas.** No solo en routes. Verifica también `apps/api/src/saga/**` cuando un queue parece huérfana.
-5. **Feature flags activan/desactivan callers.** Un caller envuelto en `if (env.FEATURE_X)` puede estar dormant. Esto requiere revisar `apps/api/src/config/env.ts` para featue flag values en cada deployment.
+1. **Tree-sitter is blind to dynamic dispatch.** If a symbol is resolved via a DI factory, a dynamic `import()`, a callback registry, or a switch-by-string, `rg` does not detect it as a caller. False DEADs can come up. Mitigation: cap at UNKNOWN for cases where DI factory dispatch is plausible (especially CRM adapters, storage adapters).
+2. **Re-exports propagate noise.** An export in an `index.ts` barrel can have 50 callers while none of them touches the original file. If the barrel counts as a caller, the file is not DEAD even if conceptually nobody uses it directly. Solution: when a file only has barrel callers, mark it VALID but document it in the notes.
+3. **Tests can hide real usage.** A class used only in tests is NOT VALID in production — it is FORGOTTEN-FEATURE or DEAD. Filter `rg` with `--type-not test` when it matters.
+4. **Worker queues can have producers in sagas.** Not only in routes. Also check `apps/api/src/saga/**` when a queue looks orphaned.
+5. **Feature flags turn callers on and off.** A caller wrapped in `if (env.FEATURE_X)` can be dormant. This requires reviewing `apps/api/src/config/env.ts` for the feature flag values in each deployment.
 
-## 13. Reproducibilidad
+## 13. Reproducibility
 
-Para repetir esta auditoría en una versión futura del repo:
+To repeat this audit on a future version of the repo:
 
-1. Verificar branch limpio (`git status` → 0 uncommitted).
-2. Leer `docs/audits/AUDIT_METHODOLOGY.md` (este documento) y `memory/project_historical_context.md`.
-3. Re-generar `docs/_DOCS_INVENTORY.md` con la metodología documentada arriba.
-4. Ejecutar 5 inventarios (1 foreground piloto + 4 paralelos background) con las plantillas y reglas de §5-§6.
-5. Generar nuevo `INVENTORY_SUMMARY.md` y `_AUDIT_FINDINGS.md`.
-6. Comparar contra los anteriores. Las diferencias son la evolución del repo entre auditorías.
+1. Verify a clean branch (`git status` → 0 uncommitted).
+2. Read `docs/audits/AUDIT_METHODOLOGY.md` (this document) and `memory/project_historical_context.md`.
+3. Re-generate `docs/_DOCS_INVENTORY.md` with the methodology documented above.
+4. Run 5 inventories (1 foreground pilot + 4 parallel in the background) with the templates and rules of §5-§6.
+5. Generate a new `INVENTORY_SUMMARY.md` and `_AUDIT_FINDINGS.md`.
+6. Compare against the previous ones. The differences are the evolution of the repo between audits.
 
-Auditorías periódicas (cada 3-6 meses) detectan deriva.
+Periodic audits (every 3-6 months) detect drift.
