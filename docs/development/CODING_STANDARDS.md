@@ -3,7 +3,7 @@
 > Authoritative coding rules for omni-post. Auto-loaded via
 > `@docs/development/CODING_STANDARDS.md` in CLAUDE.md.
 
-**Owner:** Platform engineering
+**Owner:** Maintainers
 **Loaded:** every session (Claude Code `@`-import, depth 1)
 
 ---
@@ -449,7 +449,7 @@ An app that runs a Storybook runs it on its own dedicated port, so two can run s
 - No references to sprint numbers, implementation phases, or development timeline
 - No comments like "Added in Sprint X", "Part of Phase Y", "TODO: done" — these belong in git history, not source code
 - Inline comments only when the logic is genuinely non-obvious
-- All comments in **English**
+- All comments in **English**, under the broader artifact-language rule of [CLAUDE.md](../../CLAUDE.md) §Documentation Policy: every tracked artifact is English
 
 ---
 

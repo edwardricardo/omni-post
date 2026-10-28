@@ -3,7 +3,7 @@
 > Authoritative observability rules for omni-post. Auto-loaded via
 > `@docs/observability/LOGGING_CANON.md` in CLAUDE.md.
 
-**Owner:** Platform engineering
+**Owner:** Maintainers
 **Loaded:** every session (Claude Code `@`-import, depth 1)
 
 ---

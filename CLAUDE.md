@@ -125,27 +125,42 @@ To rebuild a graph manually: `cd <target> && graphify update .` (sub-second for 
 
 **All project documentation lives under `/docs/`.** Never create `.md` files in `apps/`, `packages/`, `infra/`, or any other directory. The only exceptions are `CLAUDE.md` (root) and `.claude/` configuration files.
 
+**Artifact language.** Every tracked artifact is written in English: code, comments, configuration, CI, documentation and plans. Four classes are exempt, and no others:
+
+- product locale data: `apps/admin/messages/es.json`, `apps/client/messages/es.json`, the i18n fixtures, a language's name written in that language, and test fixtures whose subject is non-English text;
+- a document with an English twin: `docs/product/INVESTOR_ES.md` and `docs/product/MARKETING_ES.md`;
+- immutable or third-party content: an applied Prisma migration, whose checksum Prisma verifies, and vendored third-party data;
+- detector vocabulary: the bilingual tripwire word list of `.claude/hooks-py/pre_edit_tripwire_blocker.py` and its mirror in §Mandatory Pre-Action Triggers, and the artifact-language gate with its suite, which name the words they count.
+
+Two kinds of file are left out of the count without being exempt: a generated record is counted at its source, never a second time, and a file holding a recorded defect carries that defect's ID as its reason until the defect closes. Spanish product text outside the locale files is a defect to fix, never an exception. A person's identity stays only where the roles rule below requires it, and a chat session is not an artifact. Fitness #53, the artifact-language gate, holds the remaining debt per file, and its allowlist names every exempt file with its reason ([ADR-0040](docs/technical/ADR-0040-artifact-language-and-role-attribution.md)).
+
+**Roles, never people.** An artifact names the role that decides, never the person who holds it. The Product Owner decides what the product does: priorities, the route, product and legal decisions. The Maintainer decides how it is built and delivered: architecture, merges, releases, and the grant authority of the hooks. [docs/GOVERNANCE.md](docs/GOVERNANCE.md) maps each role to its holder, with dates, and is the one document that names the person; an identity also stays where a tool or a link needs it: `github.com/edwardricardo/...` permalinks, `CODEOWNERS`, `.github/dependabot.yml` and `GRANT_ISSUER`, the issuer identity the hooks stamp on their grant files. A quote of a person is an English translation attributed to the role. An ADR names roles in MADR's `decision-makers`, `consulted` and `informed`; an accepted ADR may swap a person for a role in its metadata and prose, with its decision, status and rationale untouched and no per-file note.
+
+**Requests in feature documents.** This rule overrides two clauses of ODD: `L1` quoting the request verbatim in the user's language, and each `S#` quoting the user's exact strings verbatim. A feature document carries only an English translation of each request and of each later correction, and its `S#` quote that translation. The originals are kept verbatim in one Engram observation per feature, under topic `odd/<feature>/requests`, which holds every `L#` and is replaced whole on each update: a save under an existing topic key replaces the observation, so a separate save per `L#` would lose the earlier ones. Feature documents live under `odd/`, which git ignores, so no pull request shows them: the pull request that implements a request quotes in its body the translated `L#` it implements, and the Product Owner's approval of that pull request approves the translation, which is then the contract. Product data, such as `es` locale text, is copied as is.
+
+**Plan closure.** Every tracked plan or tracker (a document whose purpose is to schedule or track work: the Master Plan, a roadmap, a tracker) carries a fixed `## Closure` heading that names where its state, decisions, rules, lessons and pending items go when it closes; one that predates this rule gains the heading at its closure at the latest. When it closes, each of them moves to the home its `## Closure` names, the file leaves the tree, and every place that cites it gets a permalink of the form `https://github.com/edwardricardo/omni-post/blob/<sha>/<path>`, where `<sha>` is a commit that still holds the file. Only what survives is translated.
+
 ### `/docs/` Structure
 
-| Directory             | Content                                                                                                                                                                                                           |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/api/`           | Saga engine reference (`saga.md`); endpoints: `docs/architecture/API.md` and the generated route table                                                                                                            |
-| `docs/frontend/`      | `REACT_STANDARDS.md`: the story requirement and the map to the frontend rules                                                                                                                                     |
-| `docs/standards/`     | `frontend-standards.md`, the detailed frontend rules `REACT_STANDARDS.md` maps to                                                                                                                                 |
-| `docs/architecture/`  | System design and architectural decisions                                                                                                                                                                         |
-| `docs/development/`   | Developer guides, contributing, migration guides                                                                                                                                                                  |
-| `docs/features/`      | Feature specifications and design docs                                                                                                                                                                            |
-| `docs/reports/`       | Sprint reports and session logs                                                                                                                                                                                   |
-| `docs/security/`      | Security policies and audits                                                                                                                                                                                      |
-| `docs/audits/`        | The audit methodology and the full repository assessment of 2026-06-29                                                                                                                                            |
-| `docs/legal/`         | Legal facts register: the record of processing activities, generated inventories and their classifications                                                                                                        |
-| `docs/support/`       | Support documentation: one page per feature on how it works and where to look on a ticket, its generated index and the non-features list                                                                          |
-| `docs/compliance/`    | Compliance operations: `RETENTION_CALENDAR.md`, the retention window per data type and the scheduled job that enforces it                                                                                         |
-| `docs/deployment/`    | Infrastructure and deployment guides; `DEPLOYMENT_CHECKLIST.md`, what an operator configures before a deployment and verifies after it, external services included                                                |
-| `docs/runbooks/`      | Runbooks for the alerts (`alert-*.md`), the chaos scenario and a failing provider contract test                                                                                                                   |
-| `docs/technical/`     | Deep-dives and ADRs (`ADR-NNNN-*.md`, template in ADR-0001 — Status/Date/Deciders/Context/Decision/Rationale/Alternatives/Consequences/Legal impact/Support impact/Deployment impact/Revisit if/Risks/References) |
-| `docs/product/`       | Product requirements and roadmap                                                                                                                                                                                  |
-| `docs/observability/` | Logging, redaction, caching, background tasks (canon child)                                                                                                                                                       |
+| Directory             | Content                                                                                                                                                                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/api/`           | Saga engine reference (`saga.md`); endpoints: `docs/architecture/API.md` and the generated route table                                                                                                                                      |
+| `docs/frontend/`      | `REACT_STANDARDS.md`: the story requirement and the map to the frontend rules                                                                                                                                                               |
+| `docs/standards/`     | `frontend-standards.md`, the detailed frontend rules `REACT_STANDARDS.md` maps to                                                                                                                                                           |
+| `docs/architecture/`  | System design and architectural decisions                                                                                                                                                                                                   |
+| `docs/development/`   | Developer guides, contributing, migration guides                                                                                                                                                                                            |
+| `docs/features/`      | Feature specifications and design docs                                                                                                                                                                                                      |
+| `docs/reports/`       | Sprint reports and session logs                                                                                                                                                                                                             |
+| `docs/security/`      | Security policies and audits                                                                                                                                                                                                                |
+| `docs/audits/`        | The audit methodology and the full repository assessment of 2026-06-29                                                                                                                                                                      |
+| `docs/legal/`         | Legal facts register: the record of processing activities, generated inventories and their classifications                                                                                                                                  |
+| `docs/support/`       | Support documentation: one page per feature on how it works and where to look on a ticket, its generated index and the non-features list                                                                                                    |
+| `docs/compliance/`    | Compliance operations: `RETENTION_CALENDAR.md`, the retention window per data type and the scheduled job that enforces it                                                                                                                   |
+| `docs/deployment/`    | Infrastructure and deployment guides; `DEPLOYMENT_CHECKLIST.md`, what an operator configures before a deployment and verifies after it, external services included                                                                          |
+| `docs/runbooks/`      | Runbooks for the alerts (`alert-*.md`), the chaos scenario and a failing provider contract test                                                                                                                                             |
+| `docs/technical/`     | Deep-dives and ADRs (`ADR-NNNN-*.md`, template in ADR-0001 — Status/Date/Decision-makers/Consulted/Informed/Context/Decision/Rationale/Alternatives/Consequences/Legal impact/Support impact/Deployment impact/Revisit if/Risks/References) |
+| `docs/product/`       | Product requirements and roadmap                                                                                                                                                                                                            |
+| `docs/observability/` | Logging, redaction, caching, background tasks (canon child)                                                                                                                                                                                 |
 
 **Normalization Roadmap.** Cross-cutting improvements to architecture, security, DX, and operational quality are tracked in [docs/architecture/NORMALIZATION_ROADMAP.md](docs/architecture/NORMALIZATION_ROADMAP.md). Each item has a `STATUS` (PENDING / DONE) and a commit SHA on closure; consult before starting any non-feature work to avoid duplicating an in-flight item.
 
@@ -216,7 +231,9 @@ For scenarios marked **Mandatory** above, the ADR-NNNN follow-up uses:
 
 - **Status**: Accepted (canon-exception)
 - **Date**: YYYY-MM-DD
-- **Deciders**: <who approved the hotpatch>
+- **Decision-makers**: <the role that approved the hotpatch>
+- **Consulted**: <the roles whose opinion was sought, or —>
+- **Informed**: <the roles kept up to date, or —>
 
 ## What canon was broken
 
@@ -304,7 +321,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 **Push grants.** `omnipost-allow push --count K --ttl N` leaves K consecutive windows of N minutes (`--count` defaults to 1 and is at most 12; each operation keeps its default TTL, 15 minutes). Each push window allows one publication: pre-bash allows a push while a window contains now and records the command on that window's grant, and post-bash consumes that grant once the push succeeds, even when it finishes after the window closed. A failed push consumes nothing, so a retry in the same window is allowed; a grant used early does not open the next window early. Run again while grants are pending, it appends its windows after the last pending one. Grants whose window is over are pruned on every read. `omnipost-allow status` lists the pending grants with their windows, and `omnipost-allow revoke <operation>` deletes them. `sensitive-edit` takes the same `--count` and stays valid for its whole window; using it consumes nothing. Every create, claim, consumption, prune and revoke goes to `.claude/hooks.log`.
 
-**Only the owner issues grants.** No session writes `.claude/.allowed/` (pre-edit blocks every Edit/Write under it, pre-bash every Bash write construct on it) or runs `omnipost-allow` with anything but `status` (pre-bash); no token unlocks either, the `sensitive-edit` token included. Edward issues, extends and revokes grants from his own terminal. Reading the store (`ls`, `cat`, `jq`) stays allowed.
+**Only the Maintainer issues grants.** No session writes `.claude/.allowed/` (pre-edit blocks every Edit/Write under it, pre-bash every Bash write construct on it) or runs `omnipost-allow` with anything but `status` (pre-bash); no token unlocks either, the `sensitive-edit` token included. The Maintainer issues, extends and revokes grants from their own terminal ([docs/GOVERNANCE.md](docs/GOVERNANCE.md) §The hooks' grant issuer). Reading the store (`ls`, `cat`, `jq`) stays allowed.
 
 ### How to extend tripwires
 
@@ -312,7 +329,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 2. Add the regex to `pre_edit_tripwire_blocker.py` `TRIPWIRE_PATTERNS`.
 3. Reset baseline: run `grep -rn '<new pattern>' apps/ packages/` and document any pre-existing instances in a ramp-down ADR.
 
-**Owner:** Platform engineering.
+**Owner:** Maintainers.
 
 ---
 
