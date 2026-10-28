@@ -22,7 +22,7 @@ When none covers it → emits an advisory warning + logs to
 `canon-decision-gaps.log`, the calibration data for any move to a hard gate
 (exit 2).
 
-Case-by-case bypass: the env var `EDWARD_AUTHORIZED_HEURISTIC=yes` silences
+Case-by-case bypass: the env var `MAINTAINER_AUTHORIZED_HEURISTIC=yes` silences
 the warning for this invocation (recorded in the log for auditing).
 
 This hook NEVER blocks: always exit 0.
@@ -245,11 +245,11 @@ def main() -> None:
         log("all decision patterns covered by canon — silent")
         emit_no_warning(prefix)
 
-    if os.environ.get("EDWARD_AUTHORIZED_HEURISTIC") == "yes":
+    if os.environ.get("MAINTAINER_AUTHORIZED_HEURISTIC") == "yes":
         for p in gaps:
-            log_event(HEURISTIC_OVERRIDES_LOG, file_path, p["id"], "EDWARD_AUTHORIZED_HEURISTIC")
+            log_event(HEURISTIC_OVERRIDES_LOG, file_path, p["id"], "MAINTAINER_AUTHORIZED_HEURISTIC")
         log(
-            f"{len(gaps)} gaps overridden by EDWARD_AUTHORIZED_HEURISTIC for {file_path}"
+            f"{len(gaps)} gaps overridden by MAINTAINER_AUTHORIZED_HEURISTIC for {file_path}"
         )
         emit_no_warning(prefix)
 
@@ -262,11 +262,11 @@ def main() -> None:
         lines.append(f"  - **{p['id']}** — {p['description']}")
     lines.append("")
     lines.append(
-        "**Advisory** (non-blocking). Before applying the change, consider asking Edward to:"
+        "**Advisory** (non-blocking). Before applying the change, consider asking the Maintainer to:"
     )
     lines.append("  (a) start canon research for this decision, or")
     lines.append(
-        "  (b) confirm that he already authorized the heuristic (set `EDWARD_AUTHORIZED_HEURISTIC=yes` in the session)."
+        "  (b) confirm that they already authorized the heuristic (set `MAINTAINER_AUTHORIZED_HEURISTIC=yes` in the session)."
     )
     lines.append("")
     lines.append(

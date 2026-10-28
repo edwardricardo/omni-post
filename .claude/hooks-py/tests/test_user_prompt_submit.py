@@ -97,7 +97,7 @@ class FindFilesInPromptTests(unittest.TestCase):
         os.chdir(elsewhere.parent)
         self.addCleanup(os.chdir, previous)
         with mock.patch.object(ups, "PROJECT_ROOT", root):
-            out = ups.find_files_in_prompt(f"mirá apps/x.ts, {absolute} y apps/missing.ts")
+            out = ups.find_files_in_prompt(f"look at apps/x.ts, {absolute} and apps/missing.ts")
         self.assertEqual(out, ["- apps/x.ts (existing, @layer infrastructure)", f"- {absolute} (existing)"])
 
 

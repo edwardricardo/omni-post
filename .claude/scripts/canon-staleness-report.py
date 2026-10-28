@@ -9,7 +9,7 @@ Usage:
     python3 .claude/scripts/canon-staleness-report.py [--out <path>]
     python3 .claude/scripts/canon-staleness-report.py --synth-days 90 --verify-days 180
 
-Recommended cadence: quarterly. Edward reviews the output, decides which
+Recommended cadence: quarterly. The Maintainer reviews the output, decides which
 entries to refresh (new research or re-validation), and updates the .md.
 Running migrate-canon-index.py again regenerates the .json.
 """

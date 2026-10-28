@@ -11,7 +11,7 @@ so CC injects the reason into the model and lets it fix them before closing.
 Critical anti-loop: when stop_hook_active=true in the input, it exits cleanly
 without blocking again (CC is already stopping again after a previous block).
 
-Global kill switch: EDWARD_DISABLE_STOP_HOOK=yes disables the hook entirely.
+Global kill switch: MAINTAINER_DISABLE_STOP_HOOK=yes disables the hook entirely.
 """
 
 import json
@@ -26,7 +26,7 @@ from _common import PROJECT_ROOT, make_logger, read_hook_input  # noqa: E402
 HOOK_NAME = "stop"
 log, _block, _allow = make_logger(HOOK_NAME)
 
-KILL_SWITCH_ENV = "EDWARD_DISABLE_STOP_HOOK"
+KILL_SWITCH_ENV = "MAINTAINER_DISABLE_STOP_HOOK"
 
 
 def get_new_files(extensions: list[str] | None = None) -> list[str]:

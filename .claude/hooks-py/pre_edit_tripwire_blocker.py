@@ -42,8 +42,8 @@ TRIPWIRE_BLOCKS_LOG = PROJECT_ROOT / ".claude" / "tripwire-blocks.log"
 HEURISTIC_OVERRIDES_LOG = PROJECT_ROOT / ".claude" / "heuristic-overrides.log"
 
 # Canon-check signature line that bypasses tripwires.
-# Format: canon-check: <canon-file>.md §<rule-id> — <decision> autorizada porque <reason>
-# Example: canon-check: feedback/canon-research.md §no-time-bombs — bridge rechazado, ...
+# Format: canon-check: <canon-file>.md §<rule-id> — <decision> authorized because <reason>
+# Example: canon-check: feedback/canon-research.md §no-time-bombs — bridge rejected, ...
 CANON_CHECK_RE = re.compile(
     r"^canon-check:\s*\S+\.md\s+§\S.*?\s+[—\-]\s+.+",
     re.MULTILINE,
@@ -67,7 +67,7 @@ TRIPWIRE_PATTERNS: list[dict] = [
     {
         "id": "time-bomb-comment",
         # Word list derived from grep over ~/.claude/feedback/ + feedback_archive/.
-        # Bilingual (EN + ES) workaround/patch signatures that Edward has flagged
+        # Bilingual (EN + ES) workaround/patch signatures that the Maintainer has flagged
         # historically. Excludes overly generic words (TODO, defer, skip, ignore)
         # that would create high false-positive rate in legit domain code.
         "regex": re.compile(
@@ -313,10 +313,10 @@ def main() -> None:
             "Per CLAUDE.md §Mandatory Pre-Action Triggers, this Edit/Write is blocked.",
             "",
             "To proceed, the assistant's prior message must include a line:",
-            "  canon-check: <canon-file>.md §<rule-id> — <decision> autorizada porque <razón>",
+            "  canon-check: <canon-file>.md §<rule-id> — <decision> authorized because <reason>",
             "",
             "Invoke `/canon-check` to evaluate, OR",
-            "(emergency) ask Edward to run `omnipost-allow sensitive-edit` (15 min TTL).",
+            "(emergency) ask the Maintainer to run `omnipost-allow sensitive-edit` (15 min TTL).",
         ]
     )
     block("\n".join(lines))
