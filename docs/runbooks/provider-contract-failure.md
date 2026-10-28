@@ -1,7 +1,7 @@
 # Runbook — Provider Contract Test Failure
 
 > Alert: `.github/workflows/provider-sandbox.yml` (nightly) — once wired
-> SLO: `docs/observability/SLO.md#providers`
+> SLO: `docs/observability/SLO.md#business`
 > Provider catalog: 11 social providers (x, instagram, facebook, youtube, tiktok, snapchat, telegram, pinterest, linkedin, bluesky, threads) + billing gateways (Stripe, Paddle — out of scope, separate workstream).
 
 ## Symptom
