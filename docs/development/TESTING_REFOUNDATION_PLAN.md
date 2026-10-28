@@ -913,9 +913,13 @@ status under `unshare -n`; seconds = wall time of the owner pass, node start inc
   Bidirectional red: (1) plant an existence block in vitest and in node:test → lint exits 1 → restore
   (`cmp`); (2) delete a suppressed block without pruning → exit 2. A fitness pin verifies each rule
   stays at `error` (the #31 B shape). CODE ~120. PR `refound/2-lint-rules`.
-- **WU-2.5** List before deleting: commit `ledger.json`, `LEDGER.md`, `probes.json` and
-  `adjudications.json` seeded with every ADJUDICATE row. Edward approves the unambiguous DELETE set in
-  one pass, and the ADJUDICATE rows slice by slice. M6 shows machine/confirmed/total. CODE 0.
+- **WU-2.5** List before deleting: commit `ledger.json`, `LEDGER.md`, `probes.json` and an empty
+  `adjudications.json` (`{ "entries": {} }`): the overlay holds only the owner's confirmations, so it
+  starts with none, and the rows waiting for a decision are the ADJUDICATE rows of `LEDGER.md`
+  (Edward, 2026-10-28). Edward approves the unambiguous DELETE set in one pass, and the ADJUDICATE
+  rows slice by slice. `metrics.mjs` reads M4, M6 and M14 from `ledger.json`; `pnpm check:ledger`
+  becomes a battery step and a CI step (the 2.2a gate), and #37 checks a demolition marker's slice
+  against the committed ledger (ADR-0039, Revisit if). M6 shows machine/confirmed/total.
   PR `refound/2-ledger-listing`.
 
 **2.B Demolition slices** — each one: ledger `--check` green · `eslint --prune-suppressions` ·
