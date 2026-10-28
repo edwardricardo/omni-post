@@ -27,8 +27,9 @@ name: Architectural Fitness Functions
 # are only correct when a non-zero baseline cannot be eliminated immediately.
 #
 # Design: one named step per check with `if: always()` so a violation in one
-# step does NOT mask later violations — every PR sees every check. The greps run
-# in the `fitness` job, which installs nothing; a check that needs the installed
+# step does NOT mask later violations — every PR sees every check. The greps, and
+# the node scripts of #44 and #53, which read only tracked files, run in the
+# `fitness` job, which installs nothing; a check that needs the installed
 # tree runs in a job that installs it: #45 to #48, #50 and #51 in `dependency-consistency`,
 # #30, #36 and #52 in `test-contracts`. Two exceptions to `if: always()` alone: #37
 # and #47 gate the delta against the PR base, which only exists on pull_request
@@ -62,7 +63,7 @@ jobs:
         uses: actions/checkout@v7
 
       # #37 and #41 run node heredocs, #41 expanding its scope with node's fs.glob
-      # (node >= 22; stable on 24), and #44 runs a node script. The runner's default
+      # (node >= 22; stable on 24), and #44 and #53 run node scripts. The runner's default
       # node is not version-pinned, so pin it here to the version .nvmrc names. This job
       # sets up Node directly rather than through the setup-node-pnpm-cache action, because
       # that action installs pnpm and the dependency tree, and the fitness job runs zero
@@ -1784,6 +1785,19 @@ jobs:
             printf "%s\n" "$DIRECTIVES" | head -20
           fi
           if [ -n "$MISSING" ] || [ "$WCOUNT" -gt 0 ] || [ "$DCOUNT" -gt 0 ]; then
+            exit 1
+          fi
+
+      - name: "#53 Every tracked artifact is in English and names roles, never a person"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #53. The rule, its exemptions, its fail-closed paths and its residual
+          # limits live in scripts/testing/artifact-language-gate.mjs, pinned by
+          # apps/api/tests/unit/scripts/artifactLanguageGate.test.ts. It reads git's listing and the
+          # tracked files only, so it runs here, in the job that installs nothing.
+          set -euo pipefail
+          if ! node scripts/testing/artifact-language-gate.mjs; then
+            echo "::error title=Fitness #53 violation::A tracked file's Spanish lines or personal-name mentions differ from scripts/testing/artifact-language-baseline.json (new debt, or a stale entry to lower in the same change), an exemption names no tracked file, or the gate could not read one of its inputs. The artifact-language-gate lines above name each file, its counter and its lines: write the text in English, name the role (Product Owner or Maintainer), and when a count falls rewrite the baseline with node scripts/testing/artifact-language-gate.mjs --write."
             exit 1
           fi
 
