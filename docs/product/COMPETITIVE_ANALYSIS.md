@@ -51,15 +51,15 @@ Monthly prices in USD unless stated otherwise. "annual" = effective price per mo
 
 ### 3.1 Publishing and scheduling
 
-| Feature                     | OmniPost         | Metricool      | Buffer        | Sendible        | Agorapulse  | Hootsuite         | Sprout       | Vista Social  | Loomly     | Predis.ai        | ContentStudio |
-| --------------------------- | ---------------- | -------------- | ------------- | --------------- | ----------- | ----------------- | ------------ | ------------- | ---------- | ---------------- | ------------- |
-| Unlimited scheduling        | ✅               | ✅ (paid)      | 🔼 Essentials | ✅              | ✅          | ✅                | ✅           | ✅            | ✅         | 🟡 manual (Core) | ✅            |
-| Visual calendar             | ✅               | ✅             | ✅            | ✅              | ✅          | ✅                | ✅           | ✅            | ✅         | ✅               | ✅            |
-| Bulk / CSV scheduling       | ✅               | ✅             | 🟡            | ✅              | 🔼 Advanced | 🔼 Advanced (350) | ✅           | ✅            | ✅         | ✅               | ✅            |
-| Best time to post           | ✅               | ✅             | ❌            | 🟡              | 🔼 Advanced | ✅                | ✅ (Optimal) | ✅            | ✅         | ❌               | ✅            |
-| Recycling/evergreen queues  | ✅               | ❌ (weak spot) | 🟡 queue      | ✅ Smart Queues | 🔼 Advanced | ✅                | ❌           | ✅ Smart Pub. | ✅         | ❌               | ✅ categories |
-| Native variants per network | ✅ (10 profiles) | 🟡             | 🟡            | 🟡              | 🟡          | 🟡                | 🟡           | 🟡            | ✅ mockups | 🟡               | 🟡 grid       |
-| Link-in-bio                 | ✅               | ✅ SmartLinks  | ✅ Start Page | ❌              | 🔼 Pro      | ❌                | ❌           | ✅ Vista Page | ❌         | ❌               |
+| Feature                     | OmniPost         | Metricool     | Buffer        | Sendible        | Agorapulse  | Hootsuite         | Sprout       | Vista Social  | Loomly     | Predis.ai        | ContentStudio |
+| --------------------------- | ---------------- | ------------- | ------------- | --------------- | ----------- | ----------------- | ------------ | ------------- | ---------- | ---------------- | ------------- |
+| Unlimited scheduling        | ✅               | ✅ (paid)     | 🔼 Essentials | ✅              | ✅          | ✅                | ✅           | ✅            | ✅         | 🟡 manual (Core) | ✅            |
+| Visual calendar             | ✅               | ✅            | ✅            | ✅              | ✅          | ✅                | ✅           | ✅            | ✅         | ✅               | ✅            |
+| Bulk / CSV scheduling       | ✅               | ✅            | 🟡            | ✅              | 🔼 Advanced | 🔼 Advanced (350) | ✅           | ✅            | ✅         | ✅               | ✅            |
+| Best time to post           | ✅               | ✅            | ❌            | 🟡              | 🔼 Advanced | ✅                | ✅ (Optimal) | ✅            | ✅         | ❌               | ✅            |
+| Recycling/evergreen queues  | ✅               | 🔼 Advanced   | 🟡 queue      | ✅ Smart Queues | 🔼 Advanced | ✅                | ❌           | ✅ Smart Pub. | ✅         | ❌               | ✅ categories |
+| Native variants per network | ✅ (10 profiles) | 🟡            | 🟡            | 🟡              | 🟡          | 🟡                | 🟡           | 🟡            | ✅ mockups | 🟡               | 🟡 grid       |
+| Link-in-bio                 | ✅               | ✅ SmartLinks | ✅ Start Page | ❌              | 🔼 Pro      | ❌                | ❌           | ✅ Vista Page | ❌         | ❌               | ❌            |
 
 ### 3.2 AI / content generation
 
@@ -118,7 +118,7 @@ Monthly prices in USD unless stated otherwise. "annual" = effective price per mo
 - **Flagship:** analytics + benchmarking of up to 100 competitors; **paid ads** dashboards next to organic; Looker Studio connector + PDF/PPT reports; aggressive price.
 - **Base (Starter ~$25):** unlimited scheduling, inbox, AI with limited credits, SmartLinks.
 - **Extra cost:** **X/Twitter = +$5/month per account on ALL plans** (Custom included); LinkedIn only on paid plans; team management + approvals → **Advanced**; white-label + account manager → **Custom**; report templates + Looker → **Advanced**.
-- **Weaknesses:** no real social listening, no content recycling, no video editor, inbox without auto-triggers, dated UI, undisclosed AI credits.
+- **Weaknesses:** no real social listening, content recycling only from the Advanced plan, no video editor, inbox without auto-triggers, dated UI, undisclosed AI credits.
 
 ### 4.2 Sendible — _the agency-model benchmark_
 
@@ -221,7 +221,7 @@ Monthly prices in USD unless stated otherwise. "annual" = effective price per mo
 | Per-channel preview/mockup                              | See exactly how the post will look before publishing              | 🟧 Necessary    | Reduces errors and rework; agencies demand it for client approvals. Loomly makes it its banner.          |
 | Best time to post                                       | Algorithmic recommendation of the highest-engagement time slot    | 🟨 Commonplace  | Almost all have it; no longer differentiates, but its absence shows (Buffer lacks it and is criticized). |
 | Bulk / CSV scheduling                                   | Load tens/hundreds of posts at once                               | 🟧 Necessary    | Critical for high-volume agencies (75+ posts/day). Without it you do not scale multi-client.             |
-| Recycling / evergreen queues                            | Automatically republish evergreen content                         | 🟩 Nice to have | Saves real work (Sendible Smart Queues is a flagship). Metricool/Loomly lack it and are criticized.      |
+| Recycling / evergreen queues                            | Automatically republish evergreen content                         | 🟩 Nice to have | Saves real work (Sendible Smart Queues is a flagship).                                                   |
 | Scheduled first comment                                 | Publish the first comment (hashtags/links) together with the post | 🟨 Commonplace  | Standard IG practice; cheap to build, expected, does not differentiate.                                  |
 | Link-in-bio / links page                                | A page that aggregates links (Linktree-style)                     | 🟩 Nice to have | Raises ticket size and stickiness among creators; not a deal-breaker for agencies.                       |
 | RSS / blog auto-posting                                 | Auto-publish from RSS feeds                                       | 🟦 Interesting  | Useful for content curation but niche; only content agencies value it.                                   |

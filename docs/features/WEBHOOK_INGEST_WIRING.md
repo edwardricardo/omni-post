@@ -112,5 +112,5 @@ WebhookManager(prisma, redis)
 ## Notes
 
 - The pipeline is NOT deleted or rewritten: it is complete and tested. This workstream is **connect + harden**.
-- Reference for the DI migration that left everything ready: B7 (branch `workstream/prisma-di-migration`).
+- Reference for the DI migration that left everything ready: B7 (merged as `93ebcdc7`; ADR-0007).
 - Backlog: SMELL-38 in `docs/reports/roadmap-detected-smells-backlog.md`.
