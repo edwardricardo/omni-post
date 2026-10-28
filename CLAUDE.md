@@ -2422,8 +2422,9 @@ pnpm check:ledger   # expect exit 0 and:
 # EXEMPTIONS. The allowlist in the script names a file, one line of a file, a file with the English
 # twin that must be tracked beside it, or a rule over paths, with the counters it exempts and its
 # reason: docs/GOVERNANCE.md and the one `GRANT_ISSUER = "..."` line of .claude/hooks-py/_common.py
-# for names; the two `es.json` catalogs, the i18n fixtures, the Unicode fixtures, the endonym
-# comment of apps/client/components/shared/LanguageSwitcher.tsx, the Unicode fold table's generator
+# for names; the two `es.json` catalogs, the i18n fixtures, the Unicode fixtures,
+# apps/client/components/shared/LanguageSwitcher.tsx for its endonym comment, the Unicode fold table's
+# generator
 # and the vendored Unicode Character Database file, DEF-151's InboxEventHandlers.ts, and
 # docs/product/INVESTOR_ES.md and MARKETING_ES.md beside their `_EN` twins, for Spanish; and for
 # both, the gate and its suite, and every `migration.sql` under infra/prisma/migrations. A new
@@ -2432,11 +2433,13 @@ pnpm check:ledger   # expect exit 0 and:
 # eslint-suppressions.json, the generated API types, the Unicode fold table, pnpm-lock.yaml) are
 # excluded from both counters because a generator writes them, each entry naming its generator;
 # the exclusion is structural, so it holds while a record counts zero and a record is never counted
-# twice. `--write` rewrites the baseline from the tree, or deletes it once every count is zero; from
-# then on the gate requires zero.
+# twice. `--write` rewrites the baseline from the tree, or deletes it once every count is zero and
+# prints `every count is zero: deleted scripts/testing/artifact-language-baseline.json`; from then on
+# the gate requires zero. With an inert exemption `--write` still writes the baseline, then exits 1
+# on that exemption. The baseline file itself is never counted.
 # WHERE IT RUNS, and why: in the `fitness` job of fitness.yml, which installs nothing, beside #44:
 # the gate reads git's listing and the tracked files and imports nothing beyond Node's own modules.
-# The battery runs the same command as its step `artifact-language`.
+# The battery runs it through its alias, `pnpm check:artifact-language`, as its step `artifact-language`.
 # WHAT FAILS, exit 1, each printed to stderr as `artifact-language-gate: <problem>`: a counter above
 # its baseline entry, named with its file, its count, the entry and its line numbers (`<file>:
 # spanish 1, baseline 0: new debt at line 270`); a counter below it, a stale entry to lower in the
@@ -2448,7 +2451,8 @@ pnpm check:ledger   # expect exit 0 and:
 # a fixed text cannot leave an inert exemption behind; and a generated record git does not track.
 # FAIL-CLOSED, exit 3, which wins over 1: `git ls-files` failing or listing no file, a tracked file
 # that cannot be read, and a baseline that cannot be read, is not JSON, or is not an object whose
-# every entry holds exactly the two counts as non-negative integers, not both zero. A missing
+# every entry holds exactly the two counts as non-negative integers, not both zero; a baseline that
+# `--write` cannot write; and any unexpected error, printed as `the scan failed: <message>`. A missing
 # baseline is read as zero required, never as permission. A usage error, an unknown flag, or
 # `--write` or `--root` given twice, exits 2.
 # RESIDUAL LIMITS, stated rather than implied: (1) the heuristic is a floor: Spanish with no accented
@@ -2464,7 +2468,7 @@ pnpm check:ledger   # expect exit 0 and:
 # passes before it is ever applied; (6) only the name words count: the GitHub handle and any other
 # spelling of the person are unseen, and so is a name the person never wrote out; (7) it reads the
 # working tree of the files git lists, so an untracked file is not counted until it is added.
-pnpm check:artifact-language   # expect exit 0 and one line:
+node scripts/testing/artifact-language-gate.mjs   # expect exit 0 and one line:
 #   artifact-language-gate: <T> tracked files; <S> Spanish lines and <M> name mentions in <F> files equal scripts/testing/artifact-language-baseline.json
 node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baseline and prints one line:
 #   artifact-language-gate: wrote scripts/testing/artifact-language-baseline.json: <F> files, <S> Spanish lines, <M> name mentions
