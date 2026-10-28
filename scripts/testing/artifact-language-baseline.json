@@ -1,0 +1,834 @@
+{
+  ".claude/canon-candidates/approved/AXE__axe-playwright-a11y-testing.md": {
+    "spanish": 34,
+    "names": 1
+  },
+  ".claude/canon-candidates/approved/MSW__msw-v2-setup-vitest-tanstack-query.md": {
+    "spanish": 17,
+    "names": 1
+  },
+  ".claude/canon-candidates/approved/PR-43-A__state-flag-vs-domain-event.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  ".claude/canon-candidates/approved/PR-43-B__hmac-grace-window.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  ".claude/canon-candidates/approved/PR-43-C__oidc-client-secret-validation.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  ".claude/canon-candidates/approved/PR-44__audit-log-bulk-granularity.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  ".claude/canon-candidates/approved/PR-44__bulk-ops-returning.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  ".claude/canon-candidates/approved/PR-51__tanstack-query-migration-patterns.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  ".claude/commands/canon-check.md": {
+    "spanish": 12,
+    "names": 0
+  },
+  ".claude/hooks-py/pre_bash.py": {
+    "spanish": 0,
+    "names": 10
+  },
+  ".claude/hooks-py/pre_edit.py": {
+    "spanish": 0,
+    "names": 2
+  },
+  ".claude/hooks-py/pre_edit_decision_guard.py": {
+    "spanish": 0,
+    "names": 6
+  },
+  ".claude/hooks-py/pre_edit_tripwire_blocker.py": {
+    "spanish": 1,
+    "names": 2
+  },
+  ".claude/hooks-py/stop.py": {
+    "spanish": 0,
+    "names": 2
+  },
+  ".claude/hooks-py/tests/test_canon_hooks.py": {
+    "spanish": 0,
+    "names": 1
+  },
+  ".claude/hooks-py/tests/test_push_grants.py": {
+    "spanish": 0,
+    "names": 1
+  },
+  ".claude/hooks-py/tests/test_user_prompt_submit.py": {
+    "spanish": 1,
+    "names": 0
+  },
+  ".claude/scripts/canon-staleness-report.py": {
+    "spanish": 0,
+    "names": 1
+  },
+  ".claude/settings.json": {
+    "spanish": 1,
+    "names": 0
+  },
+  ".gitleaks.toml": {
+    "spanish": 0,
+    "names": 1
+  },
+  "CLAUDE.md": {
+    "spanish": 5,
+    "names": 1
+  },
+  "apps/admin/components/shared/SidebarNav.tsx": {
+    "spanish": 1,
+    "names": 0
+  },
+  "apps/api/tests/unit/scripts/ledger.test.ts": {
+    "spanish": 0,
+    "names": 1
+  },
+  "apps/api/tests/unit/scripts/supportFrontMatter.test.ts": {
+    "spanish": 0,
+    "names": 4
+  },
+  "apps/api/tests/unit/scripts/supportIndex.test.ts": {
+    "spanish": 0,
+    "names": 5
+  },
+  "apps/client/providers/ProjectProvider.tsx": {
+    "spanish": 0,
+    "names": 1
+  },
+  "canon_research_index.md": {
+    "spanish": 49,
+    "names": 3
+  },
+  "docs/architecture/ADMIN_CUSTOMER_PARITY.md": {
+    "spanish": 13,
+    "names": 0
+  },
+  "docs/architecture/NORMALIZATION_ROADMAP.md": {
+    "spanish": 183,
+    "names": 14
+  },
+  "docs/architecture/caching.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/architecture/logging.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/architecture/openapi-migration.md": {
+    "spanish": 16,
+    "names": 0
+  },
+  "docs/audits/AUDIT_METHODOLOGY.md": {
+    "spanish": 107,
+    "names": 1
+  },
+  "docs/audits/FULL_REPO_ASSESSMENT_2026-06-29.md": {
+    "spanish": 90,
+    "names": 0
+  },
+  "docs/development/ENV_BACKUP.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/development/TESTING_REFOUNDATION.md": {
+    "spanish": 1,
+    "names": 85
+  },
+  "docs/development/TESTING_REFOUNDATION_MEASUREMENTS.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "docs/development/TESTING_REFOUNDATION_PLAN.md": {
+    "spanish": 0,
+    "names": 14
+  },
+  "docs/development/knip-baseline.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/features/WEBHOOK_INGEST_WIRING_ES.md": {
+    "spanish": 40,
+    "names": 1
+  },
+  "docs/features/billing-gateways.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/features/bulk-scheduling-redesign.md": {
+    "spanish": 0,
+    "names": 5
+  },
+  "docs/features/media-storage.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "docs/legal/README.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "docs/legal/REGISTER.md": {
+    "spanish": 0,
+    "names": 16
+  },
+  "docs/observability/SLO.md": {
+    "spanish": 29,
+    "names": 0
+  },
+  "docs/product/COMPETITIVE_ANALYSIS_ES.md": {
+    "spanish": 157,
+    "names": 0
+  },
+  "docs/product/FEATURE_TRACE_MATRIX_ES.md": {
+    "spanish": 183,
+    "names": 0
+  },
+  "docs/product/MASTER_PLAN_ES.md": {
+    "spanish": 754,
+    "names": 169
+  },
+  "docs/reports/CI_CACHE_INTEGRITY_AUDIT.md": {
+    "spanish": 57,
+    "names": 0
+  },
+  "docs/reports/N_SEC_7_CLUSTER_B_MFA_DISPOSITION.md": {
+    "spanish": 18,
+    "names": 2
+  },
+  "docs/reports/UNUSED_CODE_INVENTORY.md": {
+    "spanish": 2,
+    "names": 14
+  },
+  "docs/reports/review-suggestions-book.md": {
+    "spanish": 3,
+    "names": 3
+  },
+  "docs/reports/roadmap-detected-smells-backlog.md": {
+    "spanish": 16,
+    "names": 31
+  },
+  "docs/runbooks/alert-admin-refresh-token-replay.md": {
+    "spanish": 57,
+    "names": 0
+  },
+  "docs/runbooks/alert-api-error-rate.md": {
+    "spanish": 12,
+    "names": 0
+  },
+  "docs/runbooks/alert-api-latency.md": {
+    "spanish": 14,
+    "names": 0
+  },
+  "docs/runbooks/alert-mfa-backup-code-reuse.md": {
+    "spanish": 53,
+    "names": 0
+  },
+  "docs/runbooks/alert-outbox-lag.md": {
+    "spanish": 19,
+    "names": 0
+  },
+  "docs/runbooks/alert-saga-timeout.md": {
+    "spanish": 43,
+    "names": 0
+  },
+  "docs/runbooks/chaos-saga-step-retry.md": {
+    "spanish": 28,
+    "names": 0
+  },
+  "docs/runbooks/provider-contract-failure.md": {
+    "spanish": 5,
+    "names": 0
+  },
+  "docs/security/SECRETS.md": {
+    "spanish": 5,
+    "names": 0
+  },
+  "docs/security/SECURITY_CANON.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md": {
+    "spanish": 92,
+    "names": 3
+  },
+  "docs/standards/frontend-standards.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/ADR-0012-fitness-functions-architecture-tests.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/ADR-0015-brute-force-protection-port-canon.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/ADR-0016-channel-canonical-post-targeting.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/ADR-0017-production-build-bundler.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/ADR-0018-dependency-freshness-canon.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "docs/technical/ADR-0019-pnpm-11-migration.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "docs/technical/ADR-0020-audit-actor-exclusive-arc.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "docs/technical/ADR-0020-tenant-context-at-boundaries.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "docs/technical/ADR-0021-trusted-proxy-peer-model.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "docs/technical/ADR-0022-rls-enforcement-posture.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "docs/technical/ADR-0023-unit-of-work-result-aware-transaction.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/ADR-0024-billing-currency-and-price-catalog.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "docs/technical/ADR-0025-payment-gateway-selection-and-country-routing.md": {
+    "spanish": 0,
+    "names": 6
+  },
+  "docs/technical/ADR-0026-non-payment-lifecycle.md": {
+    "spanish": 1,
+    "names": 3
+  },
+  "docs/technical/ADR-0027-consumer-sales-and-tax-handling.md": {
+    "spanish": 0,
+    "names": 4
+  },
+  "docs/technical/ADR-0028-storage-configuration-and-media-access.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "docs/technical/ADR-0029-media-upload-limits.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "docs/technical/ADR-0030-pricing-model.md": {
+    "spanish": 0,
+    "names": 15
+  },
+  "docs/technical/ADR-0031-domain-vocabulary.md": {
+    "spanish": 0,
+    "names": 5
+  },
+  "docs/technical/ADR-0032-architecture-gate-dependency-cruiser.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "docs/technical/ADR-0033-layer-boundaries-and-composition-root-injection.md": {
+    "spanish": 0,
+    "names": 4
+  },
+  "docs/technical/ADR-0034-credential-model.md": {
+    "spanish": 0,
+    "names": 5
+  },
+  "docs/technical/ADR-0035-stories-part-of-creating-ui.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "docs/technical/ADR-0036-dependency-update-cadence.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/ADR-0038-node-26-ahead-of-lts.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/ADR-0039-decorative-demolition-coverage-exception.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "docs/technical/DEPENDENCIES.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openapi-ts.config.ts": {
+    "spanish": 3,
+    "names": 0
+  },
+  "openspec/changes/archive/admin-password-reset-claim/archive-report.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/admin-password-reset-claim/design.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/admin-password-reset-claim/explore.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/admin-password-reset-claim/pre-propose-decisions.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "openspec/changes/archive/admin-password-reset-claim/proposal.md": {
+    "spanish": 0,
+    "names": 5
+  },
+  "openspec/changes/archive/admin-password-reset-claim/specs/admin-password-reset-claim/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/admin-password-reset-claim/specs/admin-refresh-rotation-claim/spec.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/admin-password-reset-claim/specs/single-use-claim-gate/spec.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/admin-password-reset-claim/tasks.md": {
+    "spanish": 0,
+    "names": 7
+  },
+  "openspec/changes/archive/admin-password-reset-claim/verify-report.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/analytics-route-port-integrity/archive-report.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/analytics-route-port-integrity/explore.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/analytics-route-port-integrity/proposal.md": {
+    "spanish": 1,
+    "names": 0
+  },
+  "openspec/changes/archive/analytics-route-port-integrity/tasks.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/analytics-route-port-integrity/verify-report.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/cross-tenant-criticals/archive-report.md": {
+    "spanish": 2,
+    "names": 0
+  },
+  "openspec/changes/archive/cross-tenant-criticals/proposal.md": {
+    "spanish": 3,
+    "names": 0
+  },
+  "openspec/changes/archive/dependency-baseline/apply-progress.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/dependency-baseline/design.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/dependency-baseline/proposal.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/dependency-baseline/tasks.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "openspec/changes/archive/dev-prod-resolution-model/proposal.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/knip-at-alias-resolution/design.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/knip-at-alias-resolution/proposal.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/knip-at-alias-resolution/specs/code-quality/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/mfa-backup-code-single-use/archive-report.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "openspec/changes/archive/mfa-backup-code-single-use/design.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/mfa-backup-code-single-use/proposal.md": {
+    "spanish": 0,
+    "names": 5
+  },
+  "openspec/changes/archive/mfa-backup-code-single-use/specs/mfa-backup-code-claim/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/mfa-backup-code-single-use/tasks.md": {
+    "spanish": 4,
+    "names": 3
+  },
+  "openspec/changes/archive/mfa-backup-code-single-use/verify-report.md": {
+    "spanish": 1,
+    "names": 4
+  },
+  "openspec/changes/archive/mfa-consolidation/tasks.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/password-reset-integrity/apply-progress.md": {
+    "spanish": 0,
+    "names": 6
+  },
+  "openspec/changes/archive/password-reset-integrity/archive-report.md": {
+    "spanish": 0,
+    "names": 4
+  },
+  "openspec/changes/archive/password-reset-integrity/explore-prior-2026-08-15.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/password-reset-integrity/explore.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/password-reset-integrity/proposal.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "openspec/changes/archive/password-reset-integrity/specs/customer-password-reset/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/password-reset-integrity/tasks.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/password-reset-integrity/verify-report.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "openspec/changes/archive/post-persistence-adapter-relocation/archive-report.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/post-persistence-adapter-relocation/design.md": {
+    "spanish": 1,
+    "names": 2
+  },
+  "openspec/changes/archive/post-persistence-adapter-relocation/explore.md": {
+    "spanish": 12,
+    "names": 4
+  },
+  "openspec/changes/archive/post-persistence-adapter-relocation/proposal.md": {
+    "spanish": 0,
+    "names": 5
+  },
+  "openspec/changes/archive/post-persistence-adapter-relocation/specs/post-persistence-adapter-boundary/spec.md": {
+    "spanish": 1,
+    "names": 0
+  },
+  "openspec/changes/archive/post-persistence-adapter-relocation/tasks.md": {
+    "spanish": 3,
+    "names": 1
+  },
+  "openspec/changes/archive/post-publish-status-integrity/apply-progress.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "openspec/changes/archive/post-publish-status-integrity/archive-report.md": {
+    "spanish": 2,
+    "names": 2
+  },
+  "openspec/changes/archive/post-publish-status-integrity/design.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "openspec/changes/archive/post-publish-status-integrity/pre-propose-decisions.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/post-publish-status-integrity/specs/post-publish-status-promotion/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/post-publish-status-integrity/tasks.md": {
+    "spanish": 1,
+    "names": 10
+  },
+  "openspec/changes/archive/post-publish-status-integrity/verify-report.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/post-read-ownership-gate/archive-report.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/post-read-ownership-gate/design.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/project-member-tenant-guard/proposal.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/recurring-post-tracked-link-tenant-guard/archive-report.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/recurring-post-tracked-link-tenant-guard/proposal.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/saga-tenant-scope-and-recovery/design.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/archive/saga-tenant-scope-and-recovery/tasks.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/tenant-rls-cost-repair/apply-progress.md": {
+    "spanish": 0,
+    "names": 5
+  },
+  "openspec/changes/archive/tenant-rls-cost-repair/explore.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/tenant-rls-cost-repair/proposal.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/tenant-rls-cost-repair/tasks.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/tombstone-retention-phase-2/archive-report.md": {
+    "spanish": 0,
+    "names": 4
+  },
+  "openspec/changes/archive/tombstone-retention-phase-2/design.md": {
+    "spanish": 0,
+    "names": 5
+  },
+  "openspec/changes/archive/tombstone-retention-phase-2/proposal.md": {
+    "spanish": 2,
+    "names": 3
+  },
+  "openspec/changes/archive/tombstone-retention-phase-2/specs/deletion-record-degradation/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/archive/tombstone-retention-phase-2/tasks.md": {
+    "spanish": 0,
+    "names": 4
+  },
+  "openspec/changes/archive/tombstone-retention-phase-2/verify-report.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/audit-actor-polymorphism/design.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/audit-actor-polymorphism/proposal.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/audit-actor-polymorphism/specs/audit-actor-attribution/spec.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/audit-actor-polymorphism/tasks.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/auth-rate-limit-integrity/proposal.md": {
+    "spanish": 1,
+    "names": 0
+  },
+  "openspec/changes/ci-live-tier-integrity/design.md": {
+    "spanish": 2,
+    "names": 0
+  },
+  "openspec/changes/project-scoped-tenant-guard/exploration.md": {
+    "spanish": 1,
+    "names": 0
+  },
+  "openspec/changes/project-scoped-tenant-guard/rollout-plan.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/saga-engine-terminal-hygiene/design.md": {
+    "spanish": 0,
+    "names": 7
+  },
+  "openspec/changes/saga-engine-terminal-hygiene/proposal.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/changes/saga-engine-terminal-hygiene/tasks.md": {
+    "spanish": 0,
+    "names": 9
+  },
+  "openspec/changes/tenant-context-at-boundaries/proposal.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/tenant-isolation-composite-fk/apply-progress.md": {
+    "spanish": 0,
+    "names": 6
+  },
+  "openspec/changes/tenant-isolation-composite-fk/proposal.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/tenant-isolation-composite-fk/tasks.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "openspec/changes/testing-refoundation/design-decisions.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/changes/testing-refoundation/design.md": {
+    "spanish": 0,
+    "names": 15
+  },
+  "openspec/changes/testing-refoundation/exploration.md": {
+    "spanish": 0,
+    "names": 5
+  },
+  "openspec/changes/testing-refoundation/proposal.md": {
+    "spanish": 0,
+    "names": 14
+  },
+  "openspec/changes/testing-refoundation/tasks-part-2.md": {
+    "spanish": 0,
+    "names": 7
+  },
+  "openspec/changes/testing-refoundation/tasks-part-3.md": {
+    "spanish": 0,
+    "names": 3
+  },
+  "openspec/changes/testing-refoundation/tasks.md": {
+    "spanish": 3,
+    "names": 27
+  },
+  "openspec/project.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/specs/admin-password-reset-claim/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/specs/admin-refresh-rotation-claim/spec.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "openspec/specs/circuit-breaker-isolation/spec.md": {
+    "spanish": 1,
+    "names": 0
+  },
+  "openspec/specs/client-ip-rate-limit/spec.md": {
+    "spanish": 1,
+    "names": 0
+  },
+  "openspec/specs/code-quality/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/specs/customer-password-reset/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/specs/deletion-record-degradation/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/specs/mfa-backup-code-claim/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/specs/post-persistence-adapter-boundary/spec.md": {
+    "spanish": 1,
+    "names": 0
+  },
+  "openspec/specs/post-publish-status-promotion/spec.md": {
+    "spanish": 0,
+    "names": 1
+  },
+  "openspec/specs/single-use-claim-gate/spec.md": {
+    "spanish": 0,
+    "names": 2
+  },
+  "packages/providers/_template/tests/integration/sandbox.template.test.ts": {
+    "spanish": 8,
+    "names": 0
+  },
+  "prometheus/alerts/api.yml": {
+    "spanish": 10,
+    "names": 0
+  },
+  "prometheus/alerts/outbox.yml": {
+    "spanish": 2,
+    "names": 0
+  },
+  "prometheus/alerts/saga.yml": {
+    "spanish": 4,
+    "names": 0
+  },
+  "prometheus/prometheus.yml": {
+    "spanish": 3,
+    "names": 0
+  },
+  "scripts/generate-api-types.ts": {
+    "spanish": 5,
+    "names": 0
+  },
+  "scripts/testing/dependency-decisions.json": {
+    "spanish": 0,
+    "names": 5
+  },
+  "scripts/testing/maturity-watchlist.json": {
+    "spanish": 0,
+    "names": 1
+  },
+  "scripts/testing/maturity-watchlist.mjs": {
+    "spanish": 0,
+    "names": 1
+  }
+}
