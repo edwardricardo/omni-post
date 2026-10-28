@@ -43,7 +43,7 @@ the three named above are `cdc63663`, `084b356e` and `6a1152aa` there. The SHAs
 cited above predate a rebase of that branch, and no ref reaches them any more:
 its remote branch was deleted when #89 closed on 2026-10-11. What its tail owes
 (Container Security as a required check, a retry or mirror for the Docker Hub
-pull) is tracked in `docs/architecture/NORMALIZATION_ROADMAP.md` §6.1.
+pull) is tracked in Master Plan §5.2, row IMAGE-1.
 
 Three properties make a naive "just bundle everything" approach wrong here:
 

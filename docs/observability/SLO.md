@@ -1,6 +1,6 @@
 # Service Level Objectives — OmniPost
 
-> §4.2 Normalization Roadmap Phase A1. Targets consolidated from
+> Phase A1 of §4.2 of the normalization roadmap ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md)). Targets consolidated from
 > `apps/api/src/metrics/*.ts` comments + `performance/config/alert-rules.json`
 >
 > - implicit decisions in `BackgroundTaskScheduler` polling intervals.
@@ -97,7 +97,7 @@ If a target does NOT have all 4 items wired, it is incomplete.
 
 Phase A1 closes: 4 alerts + 4 runbooks + 1 SLO doc + Grafana provisioning.
 
-Phase B (§4.2.b) closes the gaps: 6+ additional alerts (availability, completion rate, avg duration, publish latency, post-creation p99, publish success rate) + alertmanager wireup + Slack/PagerDuty notification routing.
+Two Master Plan rows (§5.2) close the gaps: OBS-5 (§4.2.b), the 6 additional alerts (availability, completion rate, avg duration, publish latency, post-creation p99, publish success rate), and OBS-6 (§4.2.c), the alertmanager wireup + Slack/PagerDuty notification routing.
 
 ## When to review this doc
 
@@ -111,4 +111,4 @@ Phase B (§4.2.b) closes the gaps: 6+ additional alerts (availability, completio
 - Prometheus rules: `prometheus/alerts/`
 - Grafana dashboards: `grafana/dashboards/`
 - Metrics source: `apps/api/src/metrics/`
-- Workstream: `docs/architecture/NORMALIZATION_ROADMAP.md §4.2`
+- Open work: Master Plan §5.2, rows OBS-1 to OBS-6 (`docs/product/MASTER_PLAN.md`)

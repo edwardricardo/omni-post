@@ -1,6 +1,7 @@
 # Data Retention Calendar
 
-> **Workstream:** Normalization Roadmap §4.3 — Phase A1.
+> **Workstream:** §4.3 of the normalization roadmap, phase A1 ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md)); the open
+> work is in Master Plan §5.2, rows GDPR-1 to GDPR-3.
 > **Owner:** Platform engineering · Compliance.
 > **Source of truth** for per-data-type retention windows, the field on
 > `GdprSettings` that drives each window, and the scheduled job that
@@ -15,36 +16,39 @@ default on `GdprSettings`.
 
 ## Retention matrix
 
-| Data type           | Retention                                 | Source `GdprSettings` field | Enforcement                                                                      | Status                          |
-| ------------------- | ----------------------------------------- | --------------------------- | -------------------------------------------------------------------------------- | ------------------------------- |
-| `AuditLog`          | 90 days (default)                         | `auditLogRetentionDays`     | `DataRetentionService.runRetentionCleanup` — hard delete                         | ✅ Phase A1 — DAILY             |
-| `DsarRequest`       | `dsarResponseDays` deadline (30d default) | `dsarResponseDays`          | `DataRetentionService.runRetentionCleanup` — `PENDING` past deadline → `EXPIRED` | ✅ Phase A1 — DAILY             |
-| `DataBreachReport`  | indefinite                                | n/a                         | manual (no automated retention)                                                  | ⚠ Phase D backlog               |
-| `OutboxEvent`       | indefinite                                | n/a                         | no automated retention                                                           | ❌ Phase C backlog              |
-| `StoredEvent`       | indefinite                                | n/a                         | no automated retention                                                           | ❌ Phase C backlog              |
-| `AccountCredential` | tied to `Account` lifecycle               | n/a                         | DB-level FK CASCADE on `Account` delete                                          | ⚠ no soft-delete                |
-| `CustomerUser`      | tied to `Account` lifecycle               | n/a                         | DB-level FK CASCADE on `Account` delete                                          | ⚠ Phase C: GDPR cascade pending |
-| Tenant tables (51)  | tied to `Account` lifecycle               | n/a                         | DB-level FK CASCADE on `Account` delete                                          | ⚠ Phase C: GDPR cascade pending |
-| Notice claim key    | 24 hours; SHA-256 hex, not the address    | n/a                         | Redis key TTL; `ThrottledDeletedAccountNoticeMailer` set-if-absent with expiry   | ✅ automatic — key TTL          |
+| Data type           | Retention                                 | Source `GdprSettings` field | Enforcement                                                                      | Status                         |
+| ------------------- | ----------------------------------------- | --------------------------- | -------------------------------------------------------------------------------- | ------------------------------ |
+| `AuditLog`          | 90 days (default)                         | `auditLogRetentionDays`     | `DataRetentionService.runRetentionCleanup` — hard delete                         | ✅ Phase A1 — DAILY            |
+| `DsarRequest`       | `dsarResponseDays` deadline (30d default) | `dsarResponseDays`          | `DataRetentionService.runRetentionCleanup` — `PENDING` past deadline → `EXPIRED` | ✅ Phase A1 — DAILY            |
+| `DataBreachReport`  | indefinite                                | n/a                         | manual (no automated retention)                                                  | ⚠ GDPR-3 (regulator reporting) |
+| `OutboxEvent`       | 7 days after creation, once published     | n/a                         | `OutboxCleaner` — hourly hard delete of published events older than 7 days       | ✅ automatic — HOURLY          |
+| `StoredEvent`       | indefinite                                | n/a                         | no automated retention                                                           | ❌ GDPR-2                      |
+| `AccountCredential` | tied to `Account` lifecycle               | n/a                         | DB-level FK CASCADE on `Account` delete                                          | ⚠ no soft-delete               |
+| `CustomerUser`      | tied to `Account` lifecycle               | n/a                         | DB-level FK CASCADE on `Account` delete                                          | ⚠ GDPR-2: GDPR cascade pending |
+| Tenant tables (51)  | tied to `Account` lifecycle               | n/a                         | DB-level FK CASCADE on `Account` delete                                          | ⚠ GDPR-2: GDPR cascade pending |
+| Notice claim key    | 24 hours; SHA-256 hex, not the address    | n/a                         | Redis key TTL; `ThrottledDeletedAccountNoticeMailer` set-if-absent with expiry   | ✅ automatic — key TTL         |
 
 Legend:
 
 - ✅ **Phase A1 — DAILY**: enforced by a registered `BackgroundTaskScheduler` task running every 24h.
+- ✅ **automatic — HOURLY**: enforced by a scheduled task that runs every hour (the outbox's `OutboxCleaner`).
 - ⚠ **manual / no soft-delete**: deletion happens only via explicit operator action or DB cascade; no scheduled cleanup.
 - ✅ **automatic — key TTL**: the Redis key of the deleted-account notice claim expires on its own after 24h; no scheduled job runs.
-- ❌ **no automated retention**: data accumulates indefinitely; retention work tracked under the linked roadmap sub-phase.
+- ❌ **no automated retention**: data accumulates indefinitely; retention work tracked under the linked Master Plan row.
 
 ---
 
 ## Scheduled enforcement
 
-The single scheduled task is registered in
-`apps/api/src/index.ts:825-829`:
+The data-retention task is registered in
+`apps/api/src/index.ts:964-971` (the outbox has its own hourly `OutboxCleaner`,
+started at `:901`):
 
 ```typescript
 scheduler.register(
   "data-retention-cleanup",
-  () => dataRetention.runRetentionCleanup(),
+  () =>
+    withSystemContext("system:data-retention-cleanup", () => dataRetention.runRetentionCleanup()),
   24 * 60 * 60 * 1000 // every 24h
 );
 ```
@@ -88,8 +92,8 @@ The current Phase A1 enforcement (`auditLogRetentionDays` default 90,
 `dsarResponseDays` default 30) is the strictest common denominator across
 the four regimes. Per-tenant overrides via `GdprSettings` allow tightening
 (e.g., a GDPR-strict tenant can drop `auditLogRetentionDays` to 30) but
-the system does not allow loosening past the regulatory ceiling — that
-guard is **Phase D backlog**.
+the system is meant not to allow loosening past the regulatory ceiling — that
+guard is open under Master Plan GDPR-3; today only the request schema bounds the value, to 30 to 3650 days (`apps/api/src/compliance/complianceSchemas.ts:17`).
 
 ---
 
@@ -114,22 +118,24 @@ guard is **Phase D backlog**.
 
 ---
 
-## Out of scope (linked sub-phases)
+## Out of scope (linked Master Plan rows)
 
-The following are NOT enforced by Phase A1. Each item is tracked in
-`docs/architecture/NORMALIZATION_ROADMAP.md` §4.3:
+The following are NOT enforced by Phase A1. Each item is a row of
+[Master Plan](../product/MASTER_PLAN.md) §5.2 and keeps its roadmap id:
 
-- **§4.3.b — DSAR EXPORT real dump.** Today the `exportUrl` is a manual
+- **GDPR-1 (§4.3.b) — DSAR EXPORT real dump.** Today the `exportUrl` is a manual
   operator input. A background job that (1) serializes every tenant-scoped
   table for a `requestorAccountId`, (2) uploads the dump to S3, (3) sets
   `exportUrl` + a 7-day expiration is **pending**. Requires multi-table
   serializer + S3 integration.
-- **§4.3.c — OutboxEvent / StoredEvent retention + account deletion
-  cascade.** Outbox and event sourcing tables grow unbounded. A
+- **GDPR-2 (§4.3.c) — StoredEvent retention + account deletion
+  cascade.** The event store grows unbounded (the outbox does not:
+  `OutboxCleaner` deletes published events older than 7 days, hourly). A
   retention window (typically 14-30d post-`PROCESSED`) + a GDPR-integrated
   account deletion cascade are **pending**.
-- **§4.3.d — PII masking in audit logs + regulatory reporting API.**
-  Today `AuditLog.metadata` can contain PII (IPs, user emails). A
+- **GDPR-3 (§4.3.d) — PII masking in audit logs + regulatory reporting API.**
+  Today `AuditLog.details` can contain PII (user emails; the IP has its own
+  `ipAddress` column). A
   redaction pass on persistence + a `regulatoryReportedAt` submission
   endpoint (per-breach jurisdictional reporting) are **pending**.
 

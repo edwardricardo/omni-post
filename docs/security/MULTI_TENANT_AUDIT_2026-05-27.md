@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-27
 **Branch:** `workstream/normalization-multi-tenant-guards`
-**Auditor:** S2.1d audit pass per `docs/architecture/NORMALIZATION_ROADMAP.md`
+**Auditor:** S2.1d audit pass per the normalization roadmap ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md))
 **Scope:** all 51 tenant-scoped Prisma adapters + raw SQL sites + background
 job entrypoints in `apps/api/src` and `apps/workers/src`.
 

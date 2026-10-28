@@ -110,7 +110,7 @@ Threat coverage applied to each credential type vivo en el repo:
 ## Test environment
 
 The test runner (vitest) needs the same Zod-validated env shape as production
-but with safe dummies. Canon since §1.4 (Normalization Roadmap):
+but with safe dummies. Canon since §1.4 of the normalization roadmap ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md)):
 
 | File                              | Tracked? | Purpose                                                                                                  |
 | --------------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |

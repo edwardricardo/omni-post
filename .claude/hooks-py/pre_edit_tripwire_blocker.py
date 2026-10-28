@@ -267,7 +267,7 @@ def main() -> None:
 
     # Skip Markdown documentation files. Docs legitimately mention the
     # tripwire patterns as reference (CLAUDE.md §Mandatory Pre-Action
-    # Triggers, NORMALIZATION_ROADMAP.md §1.6, etc.). The patterns are
+    # Triggers, docs/product/MASTER_PLAN.md, etc.). The patterns are
     # only meaningful inside executable code (TS/JS/Python), so scoping
     # the hook to non-.md preserves intent without false positives.
     if file_path.endswith(".md") or file_path.endswith(".mdx"):

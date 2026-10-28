@@ -138,5 +138,5 @@ moved file, use `git log --follow <new-path>`.
   tripwire in `pre_edit_tripwire_blocker.py` blocks the same pattern at write time.
 - `.dependency-cruiser.cjs` — the `no-cross-bounded-context` rule blocks at
   CI / pre-commit time.
-- `docs/architecture/NORMALIZATION_ROADMAP.md §5.1` — the workstream that
-  performed the extraction.
+- §5.1 of the normalization roadmap, [at its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md) — the workstream
+  that performed the extraction; the roadmap folded into Master Plan §5.2 on 2026-10-28.

@@ -133,7 +133,7 @@ grained admin `Permission` enum.
 - S4.4 commit `ee8d4a0` — relocation of `roleManagementService` +
   promotion of `Permission`
 - S5 commit `1734890` — burn-down of the re-export shim
-- OmniPost `docs/architecture/NORMALIZATION_ROADMAP.md §0.1` — the
+- OmniPost normalization roadmap, §0 ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md)) — the
   "@core/application boundary clean cut" tension
 - ADR-0011 — application-services-to-core workstream closure
 - File: `packages/core/domain/src/auth/Permission.ts`

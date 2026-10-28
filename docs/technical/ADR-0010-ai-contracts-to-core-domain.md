@@ -176,7 +176,7 @@ ADR rev needed unless the shape changes radically.
   relocation
 - ADR-0001 — Agent orchestration (sibling: `AIServicePort` for
   agentic flows)
-- OmniPost `docs/architecture/NORMALIZATION_ROADMAP.md §0.1`
+- OmniPost normalization roadmap, §0 ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md))
 - File: `packages/core/domain/src/ai/AIContracts.ts`
 - File: `packages/core/domain/src/repositories/AIRequestExecutorPort.ts`
 - File: `apps/api/src/ai/AIRequestExecutorAdapter.ts`

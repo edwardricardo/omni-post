@@ -1,6 +1,8 @@
 # OpenAPI Auto-Gen Migration Guide
 
-> Workstream: §3.1 Normalization Roadmap (Phase A1 closed; Phase B / §3.1.b PENDING).
+> Workstream: §3.1 of the normalization roadmap ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md); Phase A1 closed). The
+> open work is in Master Plan §5.2: API-TYPES-1 (§3.1.b, the route schemas) and API-TYPES-2
+> (§3.1.c, the typed clients).
 
 ## Summary
 
@@ -159,5 +161,5 @@ Phase A1 does NOT wire admin/client yet — the wireup is §3.1.b once more rout
 
 - **Generator boot time**: ~80s because `createApp()` initializes Redis, BullMQ, Prisma, OTel, etc. No real DB writes are needed; the Redis runtime errors (timeouts) in the log are benign — the spec is dumped BEFORE those timeouts matter.
 - **NODE_ENV=test recommended** when running locally, to skip non-critical inits.
-- **The generator does NOT run in CI today** — Phase B/§3.1.b adds it.
+- **The generator runs in CI** as the OpenAPI drift gate of `.github/workflows/ci.yml` ("Regenerate API types", then "Verify no API-types drift"), which fails when the committed output differs from a regeneration.
 - **The generated files carry `@file/@layer` JSDoc** (post-processed by the script). Do NOT edit by hand. A regeneration overwrites them.
