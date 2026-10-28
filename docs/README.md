@@ -125,15 +125,14 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 
 ## Product and plan
 
-| Document                                                                           | What it covers                                                   |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [Master Plan](product/MASTER_PLAN.md)                                              | The consolidated plan: every open item, its status and dashboard |
-| [Feature Trace Matrix](product/FEATURE_TRACE_MATRIX.md)                            | Each feature traced to the code that implements it               |
-| [Competitive Analysis](product/COMPETITIVE_ANALYSIS.md)                            | OmniPost against the 2026 market                                 |
-| Investor brief ([EN](product/INVESTOR_EN.md), [ES](product/INVESTOR_ES.md))        | Investor overview                                                |
-| Marketing ([EN](product/MARKETING_EN.md), [ES](product/MARKETING_ES.md))           | Marketing copy                                                   |
-| [Full Repository Assessment 2026-06-29](audits/FULL_REPO_ASSESSMENT_2026-06-29.md) | The audit the Master Plan is built on                            |
-| [Audit Methodology](audits/AUDIT_METHODOLOGY.md)                                   | Method of the full-repository audits                             |
+| Document                                                                    | What it covers                                                   |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [Master Plan](product/MASTER_PLAN.md)                                       | The consolidated plan: every open item, its status and dashboard |
+| [Feature Trace Matrix](product/FEATURE_TRACE_MATRIX.md)                     | Each feature traced to the code that implements it               |
+| [Competitive Analysis](product/COMPETITIVE_ANALYSIS.md)                     | OmniPost against the 2026 market                                 |
+| Investor brief ([EN](product/INVESTOR_EN.md), [ES](product/INVESTOR_ES.md)) | Investor overview                                                |
+| Marketing ([EN](product/MARKETING_EN.md), [ES](product/MARKETING_ES.md))    | Marketing copy                                                   |
+| [Audit Methodology](audits/AUDIT_METHODOLOGY.md)                            | Method of the full-repository audits                             |
 
 ## Reports
 
@@ -147,12 +146,11 @@ Live ledgers, updated as work lands:
 
 Dated evidence, cited by ADRs, fitness checks and the Master Plan:
 
-| Document                                                            | What it records                                         |
-| ------------------------------------------------------------------- | ------------------------------------------------------- |
-| [CI Cache Integrity Audit](reports/CI_CACHE_INTEGRITY_AUDIT.md)     | Integrity of the CI caches                              |
-| [N-SEC-7 Disposition](reports/N_SEC_7_CLUSTER_B_MFA_DISPOSITION.md) | Disposition of the `workstream/cluster-b-mfa` commits   |
-| [RLS Posture Red Baseline](reports/RLS_POSTURE_RED_BASELINE.md)     | Row level security observed failing before the app role |
-| [Tenant RLS A/B Measurement](reports/TENANT_RLS_AB_MEASUREMENT.md)  | Tenant isolation measurement on the post trio           |
+| Document                                                           | What it records                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------- |
+| [CI Cache Integrity Audit](reports/CI_CACHE_INTEGRITY_AUDIT.md)    | Integrity of the CI caches                              |
+| [RLS Posture Red Baseline](reports/RLS_POSTURE_RED_BASELINE.md)    | Row level security observed failing before the app role |
+| [Tenant RLS A/B Measurement](reports/TENANT_RLS_AB_MEASUREMENT.md) | Tenant isolation measurement on the post trio           |
 
 ## Legal, compliance and support
 
