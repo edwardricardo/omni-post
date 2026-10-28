@@ -83,9 +83,11 @@
   in `apps/api/vitest.config.ts` on `b053ba58`, so no verdict in the tree changes.
 - A scenario that later needs a subject adds one `SUBJECTS` entry.
 - The ledger lists each demolition slice under its work-unit id, in this grammar.
-- Residual: #37 checks the id's form, not that `ledger.json` lists it, because the ledger is not
-  committed yet. Review checks membership and M14 reconciles it; a slice that lowers a floor by more
-  than its deletion explains shows in the tracker's expected-versus-real drop.
+- Residual: #37 checks the id's form, not that `ledger.json` lists it. The ledger is committed since
+  2026-10-28 (WU-2.5), and the membership check is its own change, which lands before the first
+  slice that lowers a floor (the 2.B checklist of the plan); until then no marker exists, and review
+  checks membership. M14 reconciles it, and a slice that lowers a floor by more than its deletion
+  explains shows in the tracker's expected-versus-real drop.
 
 ## Legal impact
 
@@ -111,7 +113,9 @@ post-deployment check is added, changed or retired`
   or per-file floors replace it.
 - #37 is rebuilt over every config (WU-5.7): `SCENARIOS`, `SUBJECTS` and the inherited-marker
   refusal move with it.
-- `ledger.json` is committed: checking the slice's membership moves into #37.
+- `ledger.json` is committed: checking the slice's membership moves into #37. Fired 2026-10-28
+  (WU-2.5 committed the ledger); the move is its own change, before the first slice that lowers a
+  floor.
 
 ## Risks and Mitigations
 

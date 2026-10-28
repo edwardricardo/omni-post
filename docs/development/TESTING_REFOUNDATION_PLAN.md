@@ -917,15 +917,21 @@ status under `unshare -n`; seconds = wall time of the owner pass, node start inc
   `adjudications.json` (`{ "entries": {} }`): the overlay holds only the owner's confirmations, so it
   starts with none, and the rows waiting for a decision are the ADJUDICATE rows of `LEDGER.md`
   (Edward, 2026-10-28). Edward approves the unambiguous DELETE set in one pass, and the ADJUDICATE
-  rows slice by slice. `metrics.mjs` reads M4, M6 and M14 from `ledger.json`; `pnpm check:ledger`
-  becomes a battery step and a CI step (the 2.2a gate), and #37 checks a demolition marker's slice
-  against the committed ledger (ADR-0039, Revisit if). M6 shows machine/confirmed/total.
-  PR `refound/2-ledger-listing`.
+  rows slice by slice. `metrics.mjs` derives M6 (machine/confirmed/total) from `ledger.json`; M4 and
+  M14 wait for the ledger to record deletions and real drops, which land before the first demolition
+  slice.
+  `pnpm check:ledger` becomes fitness #52 ([D58](TESTING_REFOUNDATION.md#decisions-log)) and a
+  battery step (the 2.2a gate). #37's check of a demolition marker's slice against the
+  committed ledger (ADR-0039, Revisit if) is its own change, before the first slice that lowers a
+  floor. PR `refound/2-ledger-listing`.
 
 **2.B Demolition slices** — each one: ledger `--check` green · `eslint --prune-suppressions` ·
 tracker updated (files, tests, decorative blocks deleted, expected versus real drop) · the
 `decorative-demolition` marker if an api floor drops · lint 0/0, `tsc`, `format:check` · the full
-vitest run of the touched packages, or `run-tests.sh` for node:test.
+vitest run of the touched packages, or `run-tests.sh` for node:test. Before the first of them: the
+ledger records what a slice deletes (`summary.deleted`, each slice's real drop, which M4 and M14
+read), and before the first that lowers a floor, #37 checks the marker's slice against
+`ledger.json` (ADR-0039, Revisit if).
 
 - **WU-2.6a** Whole files (a)(b)(d): `apps/client/tests/components/ListeningCharts.test.tsx`
   (35 lines, −2 tests) · `apps/api/tests/unit/trendAnalysisService.test.ts` (731, −45; its
