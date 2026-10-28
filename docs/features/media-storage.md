@@ -2,7 +2,7 @@
 
 - **Status**: Decided 2026-10-04 — ready for implementation slices (§10)
 - **Date**: 2026-10-04
-- **Owner**: Maintainers
+- **Owner**: Product Owner and Maintainers
 - **Decisions**: [ADR-0028](../technical/ADR-0028-storage-configuration-and-media-access.md)
   (configuration, access, health) · [ADR-0029](../technical/ADR-0029-media-upload-limits.md) (upload
   limits and verification)
