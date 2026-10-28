@@ -2,9 +2,9 @@
   "version": 1,
   "summary": {
     "files": {
-      "total": 1209,
+      "total": 1210,
       "byShape": {
-        "test": 955,
+        "test": 956,
         "integration-test": 86,
         "live-test": 18,
         "spec": 9,
@@ -17,18 +17,18 @@
       "byVerdict": {
         "DELETE": 51,
         "REWRITE": 214,
-        "KEEP": 834,
+        "KEEP": 835,
         "ADJUDICATE": 110,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1209,
+      "machine": 1210,
       "confirmed": 0,
-      "total": 1209
+      "total": 1210
     },
     "blocks": {
-      "total": 15172,
+      "total": 15195,
       "decorative": 1049,
       "byClass": {
         "EMPTY": 17,
@@ -38,7 +38,7 @@
         "SELF-SKIP": 158,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 29,
-        "BEHAVIOURAL": 14094
+        "BEHAVIOURAL": 14117
       }
     },
     "deleted": {
@@ -71159,6 +71159,185 @@
       ],
       "verdict": "ADJUDICATE",
       "basis": "opaque",
+      "excluded": null,
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 23,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::allowlists every exemption the convention names, each with its reason",
+          "line": 91,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "85728d982ff5b4f1bef43717c8cec4b77b83af3128e1f6bab7285d1a41d14ae0"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 0 when every file's counts equal its baseline entry",
+          "line": 110,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b044f89a12f7511d3eb36350dd085af2ac53c6d41e805b536dbc81d14948b6ea"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 1 on a planted Spanish line, naming its file, its count and its line",
+          "line": 119,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c3c33ac97b318cc695b4a29352bf25cbffabcfe2f57813cdda915928e66c7449"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::counts two distinct stopwords on an unaccented line, but never one alone",
+          "line": 128,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "dc474bf0c99f2e89cec079c7347abfee13ee2a7a0129c54b0777dec0f24b4ccc"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 1 on a planted name, naming its file, its count and its line",
+          "line": 134,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "378d6003d8d24ac9293cd67412b2ccddc7a7d79611c0980f8f1da35698c7bafc"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::counts each name word in any case, accented or not and ended by an underscore",
+          "line": 140,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6a4fa81792a96ca76841aac811be57c21be58fa68bab317eb91748cfe8066fba"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::reads no github.com/edwardricardo/ URL as a mention, whatever path it holds",
+          "line": 149,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9dc9005b042fa246fe0587daf6b125d7428d442bcbfb304a8dd04e1e60388ba3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::skips a binary file",
+          "line": 159,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9eab33d0261991a3723af5ca96a2243c18de30ea29783c0b85abe2eec241471a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 1 on a count above its baseline entry",
+          "line": 167,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7db6038a8786b6b7928d76c944c4bc382e170e94f9df698fb162f70a7e3e6691"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 1 on a lowered count until the baseline is lowered with it",
+          "line": 175,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3b6dc2dff454fbb6feb29dc9e5a008be87524cb907d0022e92cd2ffcd720accd"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 1 on an entry for a file git does not track",
+          "line": 192,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c121abd612bf1b2a6682e1e13047612a1a8770d88438a63277babd2ac07e048c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 1 asking for the baseline's deletion once every count is zero",
+          "line": 201,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1d0df229cfa0bc7e7510de6655557fbc76ec0a6a54b71b9ae4711f805ca9a6c7"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 3 when the baseline %s",
+          "line": 218,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "367e1c6a56eb9a51aee24fffb10dd4b9d04d6c1bf1f9b7e67e06fa4f16f2af39"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 1 with no baseline while a file still counts: zero is then required",
+          "line": 236,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c94177dac043c0ff851fefd1c9f112f9fcd65ab689e3496b3e64a95e4a027dd7"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 3 when git tracks no file, so a scan that read nothing is never clean",
+          "line": 249,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b4dcc8a4881c042558feeeb9b2f806e904a451fe6f517353d8470f75f1bf73d9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::counts nothing in a file exempt from both counters",
+          "line": 258,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e74d7db38287681d938a939fb4e0760e24a760ca92d1a6167e2cb4fd59053f20"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exempts only the counter an entry names",
+          "line": 265,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "43332363b3876a91f35a8e0adf77ba17fb4ffdfa2478a62e09237675d786c2f3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exempts a Spanish edition only while its English twin is tracked",
+          "line": 275,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b3f4712d74c4de0fdeb128c86776d0add190066a06d9d6c87e98ea61890ce47d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 1 on an allowlist entry or a generated record git does not track",
+          "line": 289,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4851409b50470f86abb5d7f11421e7e07e062e5c2688a789ce1f02519909d03a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::rewrites the baseline from the tree, one entry per counted file in code-unit order",
+          "line": 305,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4d6fe46afa12a3730b44394a1b801495408e445ce140417b47a0605815afe11a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::deletes the baseline once every count is zero, and the gate then requires zero",
+          "line": 327,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "619cc06147c3fbab02a8b2ec8a9b384391d6ebef7a148c794e2f6a75fa103e5c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::exits 2 with the usage line on an unknown argument",
+          "line": 346,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "69d9d73b930655656d35a3a9d3754ac8acd6aae9dcd21607ff1408b1e8bb0bba"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/artifactLanguageGate.test.ts::checks the tree --root names, on stdout when clean and on stderr with exit 1 when not",
+          "line": 358,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "de6bc49cd9fbd4b54d9fdfdd4780dd2fb2dd556967af5eb5a22f7ed208d0d5cf"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
       "sliceId": null,

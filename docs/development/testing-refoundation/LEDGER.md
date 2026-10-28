@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1209  |
+| Files                   | 1210  |
 | DELETE                  | 51    |
 | REWRITE                 | 214   |
-| KEEP                    | 834   |
+| KEEP                    | 835   |
 | ADJUDICATE              | 110   |
 | unmeasured              | 0     |
-| Machine rows            | 1209  |
+| Machine rows            | 1210  |
 | Confirmed rows          | 0     |
-| Blocks                  | 15172 |
+| Blocks                  | 15195 |
 | Blocks with a criterion | 1049  |
 
 ## Rows without a slice
@@ -714,6 +714,7 @@
 | `apps/api/tests/unit/sagaRetryRecovery.test.ts`                                                       | test             | 2      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/schedulingRoutes.test.ts`                                                        | test             | 29     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/architectureBaseline.test.ts`                                            | test             | 6      | 0          | ADJUDICATE | machine | opaque               |
+| `apps/api/tests/unit/scripts/artifactLanguageGate.test.ts`                                            | test             | 23     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/batteryState.test.ts`                                                    | test             | 9      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/batteryVerdict.test.ts`                                                  | test             | 25     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/cookiesAndStorageInventory.test.ts`                                      | test             | 9      | 0          | KEEP       | machine | behavioural          |
