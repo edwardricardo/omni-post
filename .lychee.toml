@@ -13,6 +13,15 @@
 # Run in offline mode — only check filesystem-resolvable refs.
 offline = true
 
+# Check the `#section` anchor of every local link against the headings of the
+# file it points to. Without it a link whose target file exists passes whatever
+# its fragment says, so a translated or renamed heading breaks every inbound
+# anchored link with nothing reporting it. `anchor-only` leaves text fragments
+# (`#:~:text=`) unchecked; no tracked document uses one (2026-10-28). This is
+# the config form of `--include-fragments=anchor-only`, which lychee 0.24.2
+# reads; 0.24.2 is the default `lycheeVersion` of `lycheeverse/lychee-action@v2`.
+include_fragments = "anchor-only"
+
 no_progress = true
 
 # Exclude common build/cache dirs from path traversal. lychee reads each entry
