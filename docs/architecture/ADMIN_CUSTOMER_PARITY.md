@@ -321,7 +321,7 @@ These are the excuses that would let a real gap through, so I am naming them:
 > (`MfaService.ts:199`) and the **adapter's read** (`:91`), separated by up to 8 argon2id verifications.
 > The CAS comparand is a read taken _inside the method_, so it detects that method's lost updates and
 > never claims the code. Detail: [`mfa-backup-code-single-use/explore.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-backup-code-single-use/explore.md);
-> plan card: `MASTER_PLAN_ES.md` §1.N.A **N-SEC-5 (reopened)**.
+> plan card: `MASTER_PLAN.md` §1.N.A **N-SEC-5 (reopened)**.
 >
 > **Transferable lesson:** two byte-identical implementations prove **parity**, not **correctness**.
 > A parity audit can certify symmetry and miss that both sides are wrong.

@@ -7,7 +7,7 @@ auditor: claude-code
 
 # Full-repo audit methodology
 
-> A **reusable** methodology document for a full-repo audit (template + 6 verdict rules + A-E workflow). It captures **how an audit is done** — not the results. (The outputs of the F5 run of 2026-05-11 — INVENTORY_SUMMARY, \_AUDIT_FINDINGS, inventory-\* — were retired after being absorbed into `docs/product/MASTER_PLAN_ES.md`; this doc stays as the methodology for re-auditing.)
+> A **reusable** methodology document for a full-repo audit (template + 6 verdict rules + A-E workflow). It captures **how an audit is done** — not the results. (The outputs of the F5 run of 2026-05-11 — INVENTORY_SUMMARY, \_AUDIT_FINDINGS, inventory-\* — were retired after being absorbed into `docs/product/MASTER_PLAN.md`; this doc stays as the methodology for re-auditing.)
 >
 > This document must let a future auditor (human or agent) repeat the exercise on a later version of the repo and obtain comparable results.
 

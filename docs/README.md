@@ -115,15 +115,15 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 | [Media Storage](features/media-storage.md)                       | Storage configuration, private access, health and upload limits                                                |
 | [Bulk Scheduling Redesign](features/bulk-scheduling-redesign.md) | Post targeting model and bulk scheduling                                                                       |
 | [Templates](features/templates.md)                               | Template engine, A/B testing, versioning                                                                       |
-| [Webhook Ingest Wiring](features/WEBHOOK_INGEST_WIRING_ES.md)    | Wiring the inbound webhook ingestion pipeline                                                                  |
+| [Webhook Ingest Wiring](features/WEBHOOK_INGEST_WIRING.md)       | Wiring the inbound webhook ingestion pipeline                                                                  |
 
 ## Product and plan
 
 | Document                                                                           | What it covers                                                   |
 | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [Master Plan](product/MASTER_PLAN_ES.md)                                           | The consolidated plan: every open item, its status and dashboard |
-| [Feature Trace Matrix](product/FEATURE_TRACE_MATRIX_ES.md)                         | Each feature traced to the code that implements it               |
-| [Competitive Analysis](product/COMPETITIVE_ANALYSIS_ES.md)                         | OmniPost against the 2026 market                                 |
+| [Master Plan](product/MASTER_PLAN.md)                                              | The consolidated plan: every open item, its status and dashboard |
+| [Feature Trace Matrix](product/FEATURE_TRACE_MATRIX.md)                            | Each feature traced to the code that implements it               |
+| [Competitive Analysis](product/COMPETITIVE_ANALYSIS.md)                            | OmniPost against the 2026 market                                 |
 | Investor brief ([EN](product/INVESTOR_EN.md), [ES](product/INVESTOR_ES.md))        | Investor overview                                                |
 | Marketing ([EN](product/MARKETING_EN.md), [ES](product/MARKETING_ES.md))           | Marketing copy                                                   |
 | [Full Repository Assessment 2026-06-29](audits/FULL_REPO_ASSESSMENT_2026-06-29.md) | The audit the Master Plan is built on                            |

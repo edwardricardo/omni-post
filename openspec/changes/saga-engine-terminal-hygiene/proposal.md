@@ -18,7 +18,7 @@ Change 2 of the N.B core-publishing correctness workstream, successor of the arc
 
 ### In Scope (approved slices, approved order)
 
-- **Slice 0 — gate honesty (micro-PR, lands first):** aggregate the captured runner exit code into `run-tests.sh`'s final gate; delete the dead `TOKENS.SagaManager` registration + token; correct `docs/product/MASTER_PLAN_ES.md:159` (N-COR-2(b) is closed at main — doc drift). Every later "tests pass" claim depends on this slice.
+- **Slice 0 — gate honesty (micro-PR, lands first):** aggregate the captured runner exit code into `run-tests.sh`'s final gate; delete the dead `TOKENS.SagaManager` registration + token; correct `docs/product/MASTER_PLAN.md:159` (N-COR-2(b) is closed at main — doc drift). Every later "tests pass" claim depends on this slice.
 - **Slice 1 — durable, honest compensation state (REBUILD of the walk, not a patch):** persist `COMPENSATING` before dispatching the automatic walk; durable per-step compensation progress; `COMPENSATING` in the boot predicate with its own disposition (resume the walk in the compensation direction, never forward); admin endpoint re-drives a `COMPENSATING` row; `compensatingOrphans` finally measures the production path. Prerequisite for any claim work — today there is nothing to claim.
 - **Slice 2 — waiting ≠ failed (N-COR-2c):** REBUILD `SagaStepResult` as a discriminated union (succeeded / failed / waiting — three domain states, not a boolean); `waiting` consumes no retry budget; de-amplify `handleEvent` (an N-channel publish must not burn N-1 retries on completion events); in-process in-flight execution guard (matches the documented single-replica deployment).
 - **Slice 3 — row claims for recovery dispatch (SMELL-73):** additive nullable `claimedAt`/`claimedBy` columns; claim at **selection time in BOTH readers** (boot load + retry scan) using the `OutboxClaimService` SQL shape wrapped in the saga's own system boundary (`SagaInstance` is guard- and RLS-enrolled; `OutboxEvent` is global — the pattern is copied, not the code); scan starvation closed; `bootLoadLimit` + retry-scan page size wired through `SagaIntegrationConfig`; fitness #23 exception with its coordinated three-part edit (CLAUDE.md catalog + fitness.yml mirror + ADR). **DOWNGRADES the multi-replica constraint to "at-least-once, pending SMELL-71" — does not lift it.**
@@ -58,7 +58,7 @@ Make the truth durable first, then hand out ownership of it. Slice 0 makes the p
 | `apps/api/scripts/run-tests.sh`                                        | Modified | final-gate runner-exit aggregation                                                                                              |
 | `apps/api/src/infrastructure/container/{setupServices,types}.ts`       | Modified | delete dead registration + token                                                                                                |
 | `CLAUDE.md` + `.github/workflows/fitness.yml` + `docs/technical/ADR-*` | Mod/New  | fitness #23 exception (three-part edit) + two ADRs                                                                              |
-| `docs/product/MASTER_PLAN_ES.md`                                       | Modified | N-COR-2(b) drift correction                                                                                                     |
+| `docs/product/MASTER_PLAN.md`                                          | Modified | N-COR-2(b) drift correction                                                                                                     |
 | `apps/api/tests/**`                                                    | New/Mod  | crash-mid-compensation proof, amplification proof, claim contention, parked-window restart survival                             |
 
 ## Risks
@@ -92,7 +92,7 @@ Chained PRs to main revert independently. Slices 0-2 are code-only — clean rev
 - [ ] Both recovery readers claim rows at selection time; scan starvation closed; ownership reporting reads "at-least-once, pending SMELL-71" — not multi-replica supported.
 - [ ] `bootLoadLimit` and the retry-scan page size are settable in production via `SagaIntegrationConfig`.
 - [ ] The parked operator window survives restart via `SagaParkedWindow`; the parked saga row stays byte-identical.
-- [ ] `run-tests.sh` exits non-zero when any batch runner exits non-zero; dead `TOKENS.SagaManager` registration + token deleted; `MASTER_PLAN_ES.md` N-COR-2(b) corrected.
+- [ ] `run-tests.sh` exits non-zero when any batch runner exits non-zero; dead `TOKENS.SagaManager` registration + token deleted; `MASTER_PLAN.md` N-COR-2(b) corrected.
 - [ ] Fitness #23 exception landed as a coordinated three-part edit; both ADRs recorded.
 - [ ] 0-defect gate: lint 0/0, tsc 0, fitness greps green, CI green.
 

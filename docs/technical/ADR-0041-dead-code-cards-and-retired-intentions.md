@@ -11,7 +11,7 @@
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [UNUSED_CODE_INVENTORY.md](../reports/UNUSED_CODE_INVENTORY.md) (the inventory the
-  cards decide on); [Master Plan](../product/MASTER_PLAN_ES.md) §5.13 (the deletion units DC-1 to
+  cards decide on); [Master Plan](../product/MASTER_PLAN.md) §5.13 (the deletion units DC-1 to
   DC-14 that carry these decisions out); [ADR-0034](ADR-0034-credential-model.md) decision 11 (the
   customer `ApiKey` slice, deleted by DC-13); [ADR-0029](ADR-0029-media-upload-limits.md) (type, size,
   format and duration of uploads; no ADR named malware scanning before PREG-7)
@@ -23,7 +23,7 @@
    `f47f9670`. The Maintainer decided C1 to C7 and the Product Owner C10 that day; C8, C9, C11 and
    C12 had their intention mapped and wait for the confirmation of both roles.
 2. **The mapping.** Two read-only mappings extracted the intentions from the code itself (headers,
-   exported types, Prisma fields) and crossed them with the Master Plan, `FEATURE_TRACE_MATRIX_ES.md`,
+   exported types, Prisma fields) and crossed them with the Master Plan, `FEATURE_TRACE_MATRIX.md`,
    `ADMIN_CUSTOMER_PARITY.md`, `NORMALIZATION_ROADMAP.md` and the ADRs: 178 capabilities. Of the 54 of
    C8 to C10, 17 already had a row, 14 had a nearby row that did not name them, 3 fall under "Never"
    and 20 had no row. Of the 124 of C1 to C7, C11 and C12, 53 are already met by live code, 17 had a
@@ -88,10 +88,10 @@
    | hook `auditPlugin` (C1; not retired, repaired separately)                 | an audit row per authenticated request                                                                                                  | DEF-30                                                                                                                  |
    | `roleBasedRateLimit` (C2)                                                 | quotas per role                                                                                                                         | AUTH-RL-1 (closes L-26)                                                                                                 |
    | `auditPermissionAccess` (C2)                                              | audit of permission checks                                                                                                              | DEF-30                                                                                                                  |
-   | `requireContextPermission` (C2)                                           | permission per context or project                                                                                                       | N-AUTH-3, N-SEC-3.b, `FEATURE_TRACE_MATRIX_ES.md:112`                                                                   |
+   | `requireContextPermission` (C2)                                           | permission per context or project                                                                                                       | N-AUTH-3, N-SEC-3.b, `FEATURE_TRACE_MATRIX.md:112`                                                                      |
    | `debugPermissions` (C2)                                                   | see the effective permissions                                                                                                           | live: `GET /auth/permissions`                                                                                           |
    | `recordLoginAttempt` (C2)                                                 | record of login attempts                                                                                                                | live: `RedisBruteForceAdapter` and `AuditLog`; AUTH-AUDIT-1 (customer)                                                  |
-   | OpenAPI scheme `X-API-Key` (C2)                                           | machine authentication by key                                                                                                           | PUBAPI-1 and PUBAPI-2 (PREG-1); `FEATURE_TRACE_MATRIX_ES.md:70`; F2-API-9; DEF-7                                        |
+   | OpenAPI scheme `X-API-Key` (C2)                                           | machine authentication by key                                                                                                           | PUBAPI-1 and PUBAPI-2 (PREG-1); `FEATURE_TRACE_MATRIX.md:70`; F2-API-9; DEF-7                                           |
    | 6 keys of `adminAuthConfig` (C3)                                          | lockout, login quota, sessions, MFA per role                                                                                            | live: brute force and `maxConcurrentSessions`; AUTH-RL-1; N-SEC-5.b                                                     |
    | `OAUTH_ENCRYPTION_KEY` (C3)                                               | a key-encryption key of its own for the OAuth tokens                                                                                    | SEC-KEK-1                                                                                                               |
    | `secureSchemas.ts` except the password (C3)                               | a Zod security catalogue; restricted URLs                                                                                               | live: `inputValidation.ts`; `NORMALIZATION_ROADMAP.md` §3.1.b; SEC-SSRF-1                                               |
@@ -199,13 +199,13 @@
      `rotationSchedule` in cron format (`schema.prisma:1060-1065`) that nothing applies (F9: the API
      accepts and stores `rotationSchedule`, `apiKeyRoutes.ts:39,137`); the live machine path is
      `IntegrationApiKey` (`zap_`/`mak_`) for Zapier and Make; the canon of the public API and of MCP is
-     OAuth 2.1 (`FEATURE_TRACE_MATRIX_ES.md:373`). It asked for the credential and, with it, the
+     OAuth 2.1 (`FEATURE_TRACE_MATRIX.md:373`). It asked for the credential and, with it, the
      scheduled rotation, a grace window on rotation and the per-key limits. Card C2 had already sent
      the `ApiKey` slice (~869 lines) to the product-pass gate (Master Plan §2).
    - PREG-2: risk scoring, geolocation and new-device detection; today there are counters, lockout, a
      CAPTCHA signal and audit.
    - PREG-3: time-bound elevation and emergency access beyond the roles; customers already have a
-     per-project permission planned (`FEATURE_TRACE_MATRIX_ES.md:112`), administrators only roles.
+     per-project permission planned (`FEATURE_TRACE_MATRIX.md:112`), administrators only roles.
    - PREG-4: an approval bound to a version; `ContentVersion.approvedBy` is inert too (F7).
    - PREG-5: feature adoption, user journeys and usage retention, and on which legal basis or consent;
      it relates to LEGAL-1 and LEGAL-3 (a new SDK and new cookies).
@@ -355,7 +355,7 @@ lists the paths these decisions touch`
 
 ## References
 
-- [Master Plan](../product/MASTER_PLAN_ES.md) §5.13, where these decisions were first recorded, at
+- [Master Plan](../product/MASTER_PLAN.md) §5.13, where these decisions were first recorded, at
   [`32e38081`](https://github.com/edwardricardo/omni-post/blob/32e38081aaed5de2c0dc565e72c468b3bcd621ce/docs/product/MASTER_PLAN_ES.md)
 - [UNUSED_CODE_INVENTORY.md](../reports/UNUSED_CODE_INVENTORY.md): the inventory the cards decide on
 - The cards `dead-code-decisions.md` and the mappings `c8-c10-intent-coverage.md` and
