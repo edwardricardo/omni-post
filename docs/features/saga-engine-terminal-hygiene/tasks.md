@@ -236,7 +236,7 @@ Every later "the tests pass" claim in this change depends on this PR.
       with both citations and narrows the carry to (c) + `handleEvent` amplification + the
       in-flight guard; the N-COR-7 card stops listing `activeInstances.delete` and the terminal filter as
       carried and states they were PROMOTED into `saga-tenant-scope-and-recovery`.
-- [x] 2.2 `docs/security/MULTI_TENANT_GUARDS.md:906` — closure note on the carried-list entry for
+- [x] 2.2 `docs/security/MULTI_TENANT_GUARDS.md` §Residual gaps — recorded, NOT closed — closure note on the carried-list entry for
       the dead `TOKENS.SagaManager` registration (deleted in 1.4); leave every other carried
       residual open and pointing at PR2/PR3/PR4.
       **Done**; residuals 1-4 and the whole terminal-hygiene carry list are untouched. The paired
@@ -606,11 +606,11 @@ Every later "the tests pass" claim in this change depends on this PR.
       publish failed"). BOTH residuals are stated verbatim, and the carried-list entry #1 is marked
       CLOSED with its ownership residual restated rather than silently inherited.
 - [x] 10.4 Mirror the PR2 requirements into the living
-      `openspec/specs/saga-crash-recovery/spec.md` (the COMPENSATING deferral is REVERSED) and
+      [`saga-crash-recovery/spec.md`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/saga-crash-recovery/spec.md) (the COMPENSATING deferral is REVERSED) and
       record the new `saga-compensation-integrity` capability.
       **Done:** the deferral paragraph is struck through (kept, with the reversal and its WHY above
       it) and superseded by the inherit-and-walk requirement plus three scenarios; the new living
-      capability `openspec/specs/saga-compensation-integrity/spec.md` records the seven shipped
+      capability [`saga-compensation-integrity/spec.md`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/saga-compensation-integrity/spec.md) records the seven shipped
       requirements and the two accepted residuals.
 - [x] 10.5 **0-defect gate (PR2)**: `tsc -b apps/api` + `tsc -b packages/shared` = 0;
       `eslint --max-warnings 0` on touched `.ts` = 0; prettier clean; fitness
@@ -992,7 +992,7 @@ progress"}` while `failed > 0` stays `failed` (`:746-751`); engine-synthesized c
       `UpdatePostStatusStep` fails on the stale OCC token with a hard CONFLICT → `failed` → budget
       path → FAILED. **PR3 does NOT flip the status**; it may lawfully change failure-reason text
       and retry timing.
-      **Recorded in `openspec/specs/saga-crash-recovery/spec.md`** (revisit condition restated with
+      **Recorded in [`saga-crash-recovery/spec.md`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/saga-crash-recovery/spec.md)** (revisit condition restated with
       the two causes separated and the two assertions named) and **PROVEN**: `sagaCrashRecovery`
       **17/17** with the parked-replay scenario still ending FAILED on the version conflict —
       assertion (1) did not flip.
@@ -1041,8 +1041,8 @@ progress"}` while `failed > 0` stays `failed` (`:746-751`); engine-synthesized c
       guard's scope is stated as this-process-only twice, and the Product Owner's decision 2 (no new
       customer notification) is recorded where an operator reads it.
 - [x] 16.3 Mirror the `saga-step-outcome-contract` capability into the living specs and record the
-      parked-evidence restatement in `openspec/specs/saga-crash-recovery/spec.md`.
-      **Done:** new living capability `openspec/specs/saga-step-outcome-contract/spec.md` (six
+      parked-evidence restatement in [`saga-crash-recovery/spec.md`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/saga-crash-recovery/spec.md).
+      **Done:** new living capability [`saga-step-outcome-contract/spec.md`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/saga-step-outcome-contract/spec.md) (six
       requirements: the three-state contract, the budget exemption with `waitPollMs`, the
       no-amplification invariant, one advancer per saga with the trailing re-read, the corrected
       outcome with no new notification, and read-side normalization at both seams). The crash
@@ -1376,22 +1376,22 @@ matches neither the generic-parameter form nor tagged templates. **No CLAUDE.md 
       pseudo-lease, a park column on the saga row, `updatedAt`-derived window. Revisit if:
       SMELL-71 lands, or `compensation-expired` fires in production (dedicated compensation retry
       policy).
-- [ ] 23.2 **[M1]** Create
-      `docs/features/saga-engine-terminal-hygiene/specs/multi-tenant-isolation/spec.md` — a
-      SCOPED MODIFIED delta recording the claim UPDATE as the **second** named cross-tenant write
-      surface (after `failSagaAsSystem`), normatively constrained to `claimedAt` / `claimedBy`
-      ONLY, so the living requirement's FAIL-LOUDLY clause stays true by construction; note that
-      layer 2 still evaluates it (the RLS policy's `USING` + `WITH CHECK` both admit the
-      `__system__` sentinel — verified against migration `20260527000000`).
+- [ ] 23.2 **[M1]** Record in `docs/security/MULTI_TENANT_GUARDS.md` §"Saga engine — declared
+      system reads, rehydrated per-saga writes" the claim UPDATE as the **second** named
+      cross-tenant write surface (after `failSagaAsSystem`, today "the engine's ONLY cross-tenant
+      write"), constrained to `claimedAt` / `claimedBy` ONLY, so a saga write that disagrees with
+      its bound context still fails loudly; widen `sagaContextInvariants.static.test.ts:826` to
+      admit exactly that write; note that layer 2 still evaluates it (the RLS policy's `USING` +
+      `WITH CHECK` both admit the `__system__` sentinel — verified against migration `20260527000000`).
 - [ ] 23.3 **[C3]** `docs/reports/roadmap-detected-smells-backlog.md` — new SMELL: "fitness #23
       regex blind to generic / tagged-template raw-query forms", with the 8-file baseline attached
       so the ramp-down starts from measured reality.
 - [ ] 23.4 `docs/security/MULTI_TENANT_GUARDS.md` — claim posture, the third named system surface,
       the parked-window runbook rewritten for a DURABLE window (the per-process wording and the
       restart-loop hazard are both obsolete), and the unpark/terminalize procedure updated.
-- [ ] 23.5 Mirror the PR4 delta requirements into the living
-      `openspec/specs/saga-crash-recovery/spec.md` and
-      `openspec/specs/multi-tenant-isolation/spec.md`.
+- [ ] 23.5 Record the PR4 delta requirements in `docs/security/MULTI_TENANT_GUARDS.md` (its
+      §"Saga engine" and §"Crash recovery" sections) and in `docs/api/saga.md`; with 23.2 and
+      23.4 this replaces the mirror into the living specs `openspec/` held until 2026-10-28.
 
 ## Phase 24: PR4 wiring, gate
 

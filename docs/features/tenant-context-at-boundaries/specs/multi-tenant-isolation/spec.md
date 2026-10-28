@@ -5,6 +5,14 @@
 > ENROLLMENT. Implements ADR-0020. Chained delivery: **PR1** adds the context
 > seams (no client swap); **PR2** swaps to the guarded client, adds fitness #28
 > and the two-tenant tests. Seams MUST land before (or atomically with) the swap.
+>
+> Fitness #28 in this document is the raw-singleton injection gate this change proposed
+> and never wired; today's #28 is the trust-proxy check. The injection rule holds since
+> the composition-root swap (`433b92b6`): fitness #21 keeps the singleton out of every
+> unit but the composition roots, and
+> `apps/api/tests/integration/compositionRootTenantBinding.integration.test.ts` proves a
+> repository the root registers receives the guarded client; no check gates the roots
+> themselves (N-SEC-3 in the Master Plan).
 
 ## ADDED Requirements
 

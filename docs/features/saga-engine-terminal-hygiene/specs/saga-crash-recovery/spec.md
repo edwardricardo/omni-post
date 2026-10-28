@@ -1,7 +1,7 @@
 # Delta for saga-crash-recovery
 
 > Change `saga-engine-terminal-hygiene` (N-COR-2c + compensation integrity + SMELL-73).
-> The living spec at `openspec/specs/saga-crash-recovery/spec.md` describes what SHIPPED in
+> The former living spec ([`saga-crash-recovery/spec.md`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/saga-crash-recovery/spec.md)) described what SHIPPED in
 > `saga-tenant-scope-and-recovery`. This delta states the five requirement-level changes this
 > change makes to it, plus one addition that closes the composition hazard slice 0 removes.
 >

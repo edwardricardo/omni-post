@@ -2580,8 +2580,8 @@ const initPlanCount = (perRun: ReadonlyArray<readonly string[]>): number =>
   (perRun[0] ?? []).filter((name) => name.startsWith("InitPlan")).length;
 
 /**
- * The adjudication band, from `specs/rls-policy-form/spec.md`: a case that moves by no
- * more than 6 µs, OR by less than 1 % of its own baseline, is inside it.
+ * The adjudication band: a case that moves by no more than 6 µs, OR by less than 1 % of
+ * its own baseline, is inside it.
  *
  * The two limits are an OR rather than an AND on purpose, and the alternative is worse
  * in both directions: an absolute-only band calls every sub-millisecond case

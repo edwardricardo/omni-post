@@ -196,7 +196,7 @@ plus the paired down-migration — never a multi-slice untangle.
 Cached session decisions: **auto-chain**, **stacked-to-main**. Each slice is an
 independently reviewable PR that merges green, in dependency order (Slice 0 →
 Slice 1 → Slice 2 ∥ Transversal), with every new gate's red demonstrated before its
-merge. Strict TDD is active for all apply phases (`openspec/config.yaml`). Slice 1
+merge. Strict TDD is active for all apply phases (the ODD test-first policy). Slice 1
 will very likely exceed the 400-line budget on migrations + schema alone; the
 tasks phase forecasts the exact split within the auto-chain strategy.
 

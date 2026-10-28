@@ -176,5 +176,5 @@ wraps its Prisma client with the guard, and every repository/adapter receives th
 - Guard: `infra/prisma/src/extensions/tenantGuard.ts`; context holder:
   `apps/api/src/security/tenantContext.ts`; context precedents:
   `customerAuthMiddleware.ts:70`, `customerAuthRoutes.ts:137`, `linkRoutes.ts:211`.
-- Rollout invariants: `docs/security/MULTI_TENANT_GUARDS.md`,
-  `openspec/specs/multi-tenant-isolation/spec.md`.
+- Rollout invariants: `docs/security/MULTI_TENANT_GUARDS.md`, and the former living spec
+  [`multi-tenant-isolation/spec.md`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/multi-tenant-isolation/spec.md).

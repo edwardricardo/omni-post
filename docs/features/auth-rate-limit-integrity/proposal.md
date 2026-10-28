@@ -39,7 +39,7 @@ Delete `authRoutes.ts:334, 346, 358`, `customerAuthRoutes.ts:501, 553, 568, 580`
 
 **Argument for delete over wire:**
 
-1. **Ratified.** `openspec/specs/client-ip-rate-limit/spec.md:127` — _"no second HTTP limiter (e.g. a `config: { rateLimit: {...} }` route-config) is introduced."_ Wiring violates the change's own spec.
+1. **Ratified.** [`client-ip-rate-limit/spec.md:127`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/client-ip-rate-limit/spec.md#L127) — _"no second HTTP limiter (e.g. a `config: { rateLimit: {...} }` route-config) is introduced."_ Wiring violates the change's own spec.
 2. **Wiring installs a per-pod store.** The test's own comment records it: `authRateLimit.test.ts:140` — _"Register @fastify/rate-limit with global:false and NO Redis → uses in-memory."_ That is the cross-pod-coherence anti-pattern fitness #14 exists to block, on the credential path.
 3. **Wiring would loosen two live caps.** `/auth/refresh` and `/auth/customer/refresh` declare 20/15min against a real 5/15min. A second limiter cannot tighten a bucket it does not share; the loosest declaration wins in practice.
 4. **Two key derivations, two 429 shapes.** The plugin keys `ip + routeOptions.url + method`; ours would key the same after W1 — but in a different store, with a different body (`httpRateLimitPreHandler.ts:174-179` vs `errorResponseBuilder`).
@@ -83,7 +83,7 @@ Additional corrections landing with the change (not the two named, but the same 
 
 ### W9 — Fail-open telemetry that exists
 
-`openspec/specs/client-ip-rate-limit/spec.md:135` requires `threat_type: "http_rate_limit_failopen"`. `rg threat_type apps/api/src` returns four files (`customerAuthRoutes`, `apiMetrics`, `RedisBruteForceAdapter`, `fileUploadValidator`) — **none of them it**. Emit it on the **real** fail-open path, `RedisTokenBucketRateLimiter.ts:123-127`, under an HTTP-scoped logger rather than `module:"ai"` (`:20`), and stop logging `key` verbatim (it carries the client IP plus the full URL and is not in `REDACT_PATHS`). **Keep the preHandler catch at `:218-222`** — it still guards `resolveClientIp` and both `reply.*` calls; deleting it turns fail-open into fail-shut.
+[`client-ip-rate-limit/spec.md:135`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/client-ip-rate-limit/spec.md#L135) requires `threat_type: "http_rate_limit_failopen"`. `rg threat_type apps/api/src` returns four files (`customerAuthRoutes`, `apiMetrics`, `RedisBruteForceAdapter`, `fileUploadValidator`) — **none of them it**. Emit it on the **real** fail-open path, `RedisTokenBucketRateLimiter.ts:123-127`, under an HTTP-scoped logger rather than `module:"ai"` (`:20`), and stop logging `key` verbatim (it carries the client IP plus the full URL and is not in `REDACT_PATHS`). **Keep the preHandler catch at `:218-222`** — it still guards `resolveClientIp` and both `reply.*` calls; deleting it turns fail-open into fail-shut.
 
 ### Deliberately OUT
 
