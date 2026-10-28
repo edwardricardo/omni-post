@@ -318,7 +318,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the owner's decision. Every baseline may fall and must never rise.) There are **51 checks, numbered #1-#51**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the owner's decision. Every baseline may fall and must never rise.) There are **52 checks, numbered #1-#52**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -2339,6 +2339,45 @@ pnpm check:i18n   # expect exit 0 and, on stdout:
 #   i18n-lint: PASS
 #   admin: 2 locales (en, es), <m> messages, reference en
 #   client: 2 locales (en, es), <m> messages, reference en
+
+# 52. The committed test ledger is what the tree yields.
+# Threat: the demolition slices delete tests by the list the owner approves, and that list is
+# `ledger.json`. A ledger the tree no longer yields still reads as the approved inventory while it
+# names blocks that moved, files that left and verdicts the classifier no longer gives, so a slice
+# could delete a test nobody listed or keep one the list says goes. `pnpm check:ledger` existed and
+# ran in no workflow, battery step or hook.
+# WHAT IT RUNS: `pnpm check:ledger`, which is `node scripts/testing/ledger.mjs --check`, pinned by
+# apps/api/tests/unit/scripts/ledger.test.ts. It rebuilds the ledger from the tree (one row per
+# test-shaped file, runner, helper and dead-suffix file; each test-shaped file's blocks classified by
+# @packages/eslint-plugin-testing and joined to the reach engine's sources and the quarantine; its
+# subject, its copies and each helper's importers measured), applies the owner's overlay
+# (docs/development/testing-refoundation/adjudications.json, which holds only confirmations, and
+# slices.json beside it), and compares the rendered bytes with `ledger.json` at the root and with
+# docs/development/testing-refoundation/LEDGER.md.
+# WHERE IT RUNS, and why: in the test-contracts job of fitness.yml, beside #30 and #36, because the
+# ledger runs the reach engine, which needs the installed tree that job installs. #44 reads a `#N`
+# step name from any job. The battery runs the same command as its step `ledger`.
+# WHAT FAILS, exit 1: a row of `ledger.json` or the page that differs from the rebuilt one, each
+# differing row named by its path and a differing summary or page named as a whole; and an overlay
+# entry or slice assignment the ledger refuses (a path the ledger does not list, a status other
+# than `confirmed`, a slice id outside ADR-0039's grammar, a path in two slices). The repair is
+# `pnpm ledger`, committed with the change that moved the rows: a test file added, edited, renamed
+# or removed, or a source change that moves a subject or an importer count.
+# FAIL-CLOSED, exit 3, which wins over 1: `git ls-files` failing or listing no test-shaped file; the
+# workspace manifest, the quarantine or a listed file unreadable; the reach engine printing no report
+# or reporting an input of its own unread; an overlay or slice file that is no JSON, writes a key
+# twice or is not its one object; no committed `ledger.json` or page; and an unreadable Prettier
+# configuration. A usage error exits 2.
+# RESIDUAL LIMITS, stated rather than implied: (1) the check proves the committed record is what the
+# tree yields, never that a machine verdict is right: an owner confirmation in the overlay is what
+# settles a row; (2) `probes.json`, the hard probe's record beside the ledger, is not checked: each
+# probe names the hashes of its test and its subject, so a stale probe can be told apart, but nothing
+# compares them with the tree; (3) the ledger's own limits hold, stated in the header of
+# scripts/testing/ledger.mjs: a module or project whose references cannot be read leaves every
+# importer count unmeasured rather than read as zero.
+pnpm check:ledger   # expect exit 0 and:
+#   ledger: ledger.json is current
+#   ledger: docs/development/testing-refoundation/LEDGER.md is current
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One
@@ -2367,7 +2406,7 @@ A generic "RLS not covered" would send the reader toward the wrong fix.
 **Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
-2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #48, #50) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #48, #50 to #52) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
 3. Prove the red path — mandatory for every NEW or MODIFIED check or CI gate, fitness or otherwise: plant the violation, run the gate, and observe a REAL failure (non-zero exit / `core.setFailed`; an `::error` annotation alone leaves the job green and proves nothing), then restore the tree byte-exact (verify with `cmp` or a checksum) and re-confirm the count is 0. A gate whose red path was never demonstrated does not merge.
 4. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a backlog entry rather than locking in non-zero noise.
 

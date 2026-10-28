@@ -19,13 +19,16 @@
  *
  *   M5 runs the reach engine of `packages/test-contracts`, which asks every collector what it runs
  *   and takes seconds, so the suite runs `--all` once and every case reads that one output; only
- *   the single-metric case runs `--m5` again, under the same budget.
+ *   the single-metric case runs `--m5` again, under the same budget. M6's branches for a ledger it
+ *   cannot read run the script inside throwaway git repositories, each in a private directory that
+ *   `mkdtempSync` creates, so the committed ledger is never touched.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
@@ -39,7 +42,7 @@ const TRACKER = path.join(REPO_ROOT, "docs", "development", "TESTING_REFOUNDATIO
  * tracker's Now column byte for byte. Everything else names a run, an absent artefact, a metric
  * no lint rule counts yet, or the network, and says so in its own source field.
  */
-const DERIVED_IDS = ["M1", "M3", "M5", "M7", "M8"] as const;
+const DERIVED_IDS = ["M1", "M3", "M5", "M6", "M7", "M8"] as const;
 
 /**
  * The budget of one run that includes M5. The reach engine took about 3 s on an idle machine on
@@ -166,6 +169,52 @@ describe("testing re-foundation metrics script", () => {
 
     it("exits non-zero on an unknown flag rather than printing nothing", () => {
       expect(() => runMetrics(["--m99", "--offline"])).toThrow();
+    });
+  });
+
+  describe("M6 over a ledger of its own", () => {
+    const repos: string[] = [];
+
+    /** Runs `--m6` at the root of a fresh git repository holding `ledger` as its ledger.json. */
+    const m6In = (ledger: string | null): MetricLine | undefined => {
+      const repo = mkdtempSync(path.join(os.tmpdir(), "metrics-m6-"));
+      repos.push(repo);
+      execFileSync("git", ["init", "-q"], { cwd: repo });
+      if (ledger !== null) writeFileSync(path.join(repo, "ledger.json"), ledger);
+      const stdout = execFileSync(process.execPath, [METRICS_SCRIPT, "--m6", "--offline"], {
+        encoding: "utf8",
+        cwd: repo,
+      });
+      return parseMetricLines(stdout)[0];
+    };
+
+    afterAll(() => {
+      for (const repo of repos) rmSync(repo, { recursive: true, force: true });
+    });
+
+    it("derives machine / confirmed / total from summary.rows", () => {
+      const line = m6In(
+        JSON.stringify({ summary: { rows: { machine: 3, confirmed: 1, total: 4 } } })
+      );
+
+      expect(line).toEqual({
+        id: "M6",
+        value: "3 / 1 / 4",
+        source: "derived: ledger.json summary.rows, machine / confirmed / total",
+      });
+    });
+
+    it.each([
+      ["no ledger.json", null, "unavailable: ledger.json is not present in the tree yet"],
+      ["a ledger.json that is no JSON", '{ "summary": ', "unavailable: ledger.json is not JSON"],
+      ["a ledger.json that is null", "null", "unavailable: ledger.json holds no summary.rows"],
+      [
+        "a count that is not an integer",
+        JSON.stringify({ summary: { rows: { machine: "3", confirmed: 1, total: 4 } } }),
+        "unavailable: ledger.json holds no summary.rows",
+      ],
+    ])("reads as unavailable, never as zeros, given %s", (_case, ledger, source) => {
+      expect(m6In(ledger)).toEqual({ id: "M6", value: "—", source });
     });
   });
 });

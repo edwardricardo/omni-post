@@ -36,7 +36,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=31
+PLANNED_STEPS=32
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -187,6 +187,9 @@ step i18n pnpm check:i18n
 # `no-circular` cycle check over one resolved import graph. Its `warn`-severity
 # rules print `warn` lines, which this battery reads as RED.
 step architecture pnpm check:architecture
+# Fitness #52: the committed test ledger and its page are what the tree yields, and every
+# overlay entry and slice assignment applies.
+step ledger pnpm check:ledger
 step metrics node scripts/testing/metrics.mjs --all --offline
 # Every client story as a vitest browser test in headless Chromium: it renders,
 # its play function runs, and axe at `error` and the console contract can fail it.

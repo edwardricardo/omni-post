@@ -28,3 +28,9 @@ apps/api/src/security/nameDigest/unicodeData.generated.ts linguist-generated=tru
 
 # Vendored Unicode Character Database inputs — upstream data, not our source.
 apps/api/ucd/** linguist-vendored=true
+
+# The test ledger and the hard probe's record are generated, by `pnpm ledger` and
+# `pnpm hard-probe`; `pnpm check:ledger` holds ledger.json to the tree, and LEDGER.md is the
+# page people read.
+ledger.json linguist-generated=true
+probes.json linguist-generated=true

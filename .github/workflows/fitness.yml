@@ -30,7 +30,7 @@ name: Architectural Fitness Functions
 # step does NOT mask later violations — every PR sees every check. The greps run
 # in the `fitness` job, which installs nothing; a check that needs the installed
 # tree runs in a job that installs it: #45 to #48, #50 and #51 in `dependency-consistency`,
-# #30 and #36 in `test-contracts`. Two exceptions to `if: always()` alone: #37
+# #30, #36 and #52 in `test-contracts`. Two exceptions to `if: always()` alone: #37
 # and #47 gate the delta against the PR base, which only exists on pull_request
 # events — their `if` adds that event condition and the step is skipped
 # (visibly, not silently green) on push runs.
@@ -2031,7 +2031,8 @@ jobs:
     name: Test Contracts
     runs-on: ubuntu-latest
     # On a developer machine the reach engine lists every collector in about 3 s and the scope check
-    # resolves every vitest config in about 2 s; the rest of the budget is checkout and install. The
+    # resolves every vitest config in about 2 s, and #52 rebuilds the test ledger, its own reach run
+    # included, in about 9 s; the rest of the budget is checkout and install. The
     # job takes 42-66 s in the runs since 2026-10-08, but three of them spent 248-326 s in
     # setup-node-pnpm-cache, inside the pnpm self-installer (an `npm install` of the pnpm bootstrap)
     # while the npm registry was slow, and the slowest finished 15 s inside the old 6-minute budget.
@@ -2114,5 +2115,24 @@ jobs:
           set -euo pipefail
           if ! pnpm --filter @packages/test-contracts scopes; then
             echo "::error title=Fitness #36 violation::A positive test.include or coverage.include glob of a vitest config matches no tracked file, a scope holds no positive glob, a config does not resolve, or the tracked configs fall below the floor. The S1 and error lines above name each config and glob. Repoint or delete the glob; a scope that moved is a new scope, not a repoint."
+            exit 1
+          fi
+
+      - name: "#52 The committed test ledger is what the tree yields"
+        if: always()
+        run: |
+          # Mirrors CLAUDE.md #52. `pnpm check:ledger` runs `node scripts/testing/ledger.mjs
+          # --check`: it rebuilds the test ledger from the tree (every test-shaped file, runner,
+          # helper and dead-suffix file, each file's blocks classified and joined to the reach
+          # engine's sources and the quarantine), applies the owner's overlay in
+          # docs/development/testing-refoundation/ (adjudications.json, slices.json), and compares
+          # the bytes with ledger.json at the root and with LEDGER.md beside the overlay. A
+          # differing row, or an overlay entry or slice assignment it refuses, exits 1; an input it
+          # cannot read in full exits 3; either fails this step. It runs in this job because the
+          # ledger runs the reach engine, which needs the installed tree. Pinned by
+          # apps/api/tests/unit/scripts/ledger.test.ts.
+          set -euo pipefail
+          if ! pnpm check:ledger; then
+            echo "::error title=Fitness #52 violation::The committed test ledger is not what the tree yields: a row of ledger.json or LEDGER.md differs from the rebuilt one, an overlay entry or slice assignment is refused, or an input could not be read. The ledger lines above name each differing row, or the summary or page that differs. Run pnpm ledger and commit the regenerated ledger.json and LEDGER.md with the change that moved the rows; fix or remove a refused overlay entry."
             exit 1
           fi
