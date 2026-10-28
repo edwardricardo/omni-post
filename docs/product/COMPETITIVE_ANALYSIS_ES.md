@@ -87,27 +87,27 @@ Monthly prices in USD unless stated otherwise. "annual" = effective price per mo
 
 ### 3.4 Social inbox / engagement
 
-| Feature                     | OmniPost      | Metricool | Buffer    | Sendible | Agorapulse    | Hootsuite     | Sprout         | Vista Social  | Loomly | Predis.ai | ContentStudio |
-| --------------------------- | ------------- | --------- | --------- | -------- | ------------- | ------------- | -------------- | ------------- | ------ | --------- | ------------- |
-| Unified inbox               | ✅            | ✅ 🟡     | ❌ (lite) | ✅       | ✅ (flagship) | ✅            | ✅ Smart Inbox | ✅            | ✅     | ❌        | 🔼 Advanced   |
-| Triage/classification by AI | ✅ (flagship) | ❌        | ❌        | ❌       | 🔼 Custom     | 🔼 Advanced   | 🔼 Advanced    | ✅ DM auto    | ❌     | ❌        | 🟡 AI reply   |
-| Sentiment analysis          | ✅            | ❌        | ❌        | ❌       | 🔼 Advanced   | 🔼 Advanced   | 🔼 Advanced    | 🔼 Enterprise | ❌     | ❌        | ❌            |
-| AI reply suggestions        | ✅ (3 tones)  | ❌        | 🟡        | ❌       | 🔼 Custom     | 🔼 Advanced   | ❌             | ✅            | ❌     | ❌        | ✅ Advanced   |
-| Collision detection         | 🟡            | ❌        | ❌        | ❌       | 🔼 Pro        | ❌            | 🔼 Advanced    | ❌            | ❌     | ❌        | ❌            |
-| Review management           | ❌            | 🟡        | ❌        | ❌       | ✅ Google     | ✅ Enterprise | ✅             | ✅ 6 sites    | ❌     | ❌        | ❌            |
+| Feature                  | OmniPost      | Metricool | Buffer    | Sendible | Agorapulse    | Hootsuite     | Sprout         | Vista Social  | Loomly | Predis.ai | ContentStudio |
+| ------------------------ | ------------- | --------- | --------- | -------- | ------------- | ------------- | -------------- | ------------- | ------ | --------- | ------------- |
+| Unified inbox            | ✅            | ✅ 🟡     | ❌ (lite) | ✅       | ✅ (flagship) | ✅            | ✅ Smart Inbox | ✅            | ✅     | ❌        | 🔼 Advanced   |
+| AI triage/classification | ✅ (flagship) | ❌        | ❌        | ❌       | 🔼 Custom     | 🔼 Advanced   | 🔼 Advanced    | ✅ DM auto    | ❌     | ❌        | 🟡 AI reply   |
+| Sentiment analysis       | ✅            | ❌        | ❌        | ❌       | 🔼 Advanced   | 🔼 Advanced   | 🔼 Advanced    | 🔼 Enterprise | ❌     | ❌        | ❌            |
+| AI reply suggestions     | ✅ (3 tones)  | ❌        | 🟡        | ❌       | 🔼 Custom     | 🔼 Advanced   | ❌             | ✅            | ❌     | ❌        | ✅ Advanced   |
+| Collision detection      | 🟡            | ❌        | ❌        | ❌       | 🔼 Pro        | ❌            | 🔼 Advanced    | ❌            | ❌     | ❌        | ❌            |
+| Review management        | ❌            | 🟡        | ❌        | ❌       | ✅ Google     | ✅ Enterprise | ✅             | ✅ 6 sites    | ❌     | ❌        | ❌            |
 
 ### 3.5 Collaboration, agency and enterprise
 
-| Feature                            | OmniPost        | Metricool   | Buffer   | Sendible                      | Agorapulse           | Hootsuite                  | Sprout        | Vista Social  | Loomly        | Predis.ai | ContentStudio  |
-| ---------------------------------- | --------------- | ----------- | -------- | ----------------------------- | -------------------- | -------------------------- | ------------- | ------------- | ------------- | --------- | -------------- |
-| Multi-level approval workflows     | ✅ N levels     | 🔼 Advanced | 🔼 Team  | ✅                            | 🔼 Pro→Custom        | 🟡                         | 🔼 Advanced   | 🔼 Advanced   | ✅ (flagship) | ❌        | 🔼 Advanced    |
-| RBAC / custom roles                | ✅              | 🔼 Advanced | 🔼 Team  | ✅                            | 🔼 Custom            | 🔼 Enterprise              | ✅            | 🔼            | 🔼 Beyond     | 🟡        | ✅             |
-| Per-client dashboards              | ✅ multi-tenant | ❌          | 🟡 Team  | ✅ Client Connect (Traction+) | 🔼 Profile Connector | 🟡                         | 🟡            | 🔼 Scale      | ❌            | 🟡 brands | ✅ EasyConnect |
-| Platform white-label               | 🟡              | 🔼 Custom   | ❌       | ➕ add-on                     | ❌                   | ❌                         | ❌            | 🔼 Scale      | ❌            | ❌        | 🔼 Enterprise  |
-| Connected CRM (HubSpot/Salesforce) | ✅              | ❌          | ❌       | ❌                            | 🔼 Custom            | 🔼 Enterprise              | ✅            | ❌            | ❌            | ❌        | ❌             |
-| SSO (SAML/OIDC)                    | ✅              | ❌          | ❌       | 🔼 Enterprise                 | 🔼 Custom            | 🔼 Enterprise              | 🔼 Enterprise | 🔼 Enterprise | ❌            | ❌        | 🔼 Enterprise  |
-| Real social listening              | ❌              | ❌          | ❌       | 🟡                            | ➕ add-on            | 🔼 Enterprise (Talkwalker) | ➕ add-on     | ➕ $75/mo     | ❌            | ❌        | 🟡 discovery   |
-| Content discovery / curation       | 🟡 trends       | 🟡          | 🟡 Ideas | ❌                            | ❌                   | ❌                         | ❌            | ✅ Smart Pub  | 🟡 Post Ideas | ❌        | ✅ (flagship)  |
+| Feature                             | OmniPost        | Metricool   | Buffer   | Sendible                      | Agorapulse           | Hootsuite                  | Sprout        | Vista Social  | Loomly        | Predis.ai | ContentStudio  |
+| ----------------------------------- | --------------- | ----------- | -------- | ----------------------------- | -------------------- | -------------------------- | ------------- | ------------- | ------------- | --------- | -------------- |
+| Multi-level approval workflows      | ✅ N levels     | 🔼 Advanced | 🔼 Team  | ✅                            | 🔼 Pro→Custom        | 🟡                         | 🔼 Advanced   | 🔼 Advanced   | ✅ (flagship) | ❌        | 🔼 Advanced    |
+| RBAC / custom roles                 | ✅              | 🔼 Advanced | 🔼 Team  | ✅                            | 🔼 Custom            | 🔼 Enterprise              | ✅            | 🔼            | 🔼 Beyond     | 🟡        | ✅             |
+| Per-client dashboards               | ✅ multi-tenant | ❌          | 🟡 Team  | ✅ Client Connect (Traction+) | 🔼 Profile Connector | 🟡                         | 🟡            | 🔼 Scale      | ❌            | 🟡 brands | ✅ EasyConnect |
+| Platform white-label                | 🟡              | 🔼 Custom   | ❌       | ➕ add-on                     | ❌                   | ❌                         | ❌            | 🔼 Scale      | ❌            | ❌        | 🔼 Enterprise  |
+| Integrated CRM (HubSpot/Salesforce) | ✅              | ❌          | ❌       | ❌                            | 🔼 Custom            | 🔼 Enterprise              | ✅            | ❌            | ❌            | ❌        | ❌             |
+| SSO (SAML/OIDC)                     | ✅              | ❌          | ❌       | 🔼 Enterprise                 | 🔼 Custom            | 🔼 Enterprise              | 🔼 Enterprise | 🔼 Enterprise | ❌            | ❌        | 🔼 Enterprise  |
+| Real social listening               | ❌              | ❌          | ❌       | 🟡                            | ➕ add-on            | 🔼 Enterprise (Talkwalker) | ➕ add-on     | ➕ $75/mo     | ❌            | ❌        | 🟡 discovery   |
+| Content discovery / curation        | 🟡 trends       | 🟡          | 🟡 Ideas | ❌                            | ❌                   | ❌                         | ❌            | ✅ Smart Pub  | 🟡 Post Ideas | ❌        | ✅ (flagship)  |
 
 ---
 
@@ -218,7 +218,7 @@ Monthly prices in USD unless stated otherwise. "annual" = effective price per mo
 | ------------------------------------------------------- | ----------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------- |
 | Unlimited scheduling + visual calendar                  | Schedule future posts on every network from a calendar            | 🟥 Mandatory    | It is the category's reason to exist. Without it you are not an SMM. All 10 have it.                     |
 | Native publishing by network (limits, hashtags, format) | Automatically adapt each post to each platform's rules            | 🟥 Mandatory    | "Publish once" is the core value prop; without native adaptation the content breaks.                     |
-| Preview/mockup per channel                              | See exactly how the post will look before publishing              | 🟧 Necessary    | Reduces errors and rework; agencies demand it for client approvals. Loomly makes it its banner.          |
+| Per-channel preview/mockup                              | See exactly how the post will look before publishing              | 🟧 Necessary    | Reduces errors and rework; agencies demand it for client approvals. Loomly makes it its banner.          |
 | Best time to post                                       | Algorithmic recommendation of the highest-engagement time slot    | 🟨 Commonplace  | Almost all have it; no longer differentiates, but its absence shows (Buffer lacks it and is criticized). |
 | Bulk / CSV scheduling                                   | Load tens/hundreds of posts at once                               | 🟧 Necessary    | Critical for high-volume agencies (75+ posts/day). Without it you do not scale multi-client.             |
 | Recycling / evergreen queues                            | Automatically republish evergreen content                         | 🟩 Nice to have | Saves real work (Sendible Smart Queues is a flagship). Metricool/Loomly lack it and are criticized.      |
@@ -252,54 +252,54 @@ Monthly prices in USD unless stated otherwise. "annual" = effective price per mo
 
 ### 6.3 Analytics and reporting
 
-| Feature                               | What it is                                            | Level           | Why                                                                                                               |
-| ------------------------------------- | ----------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Cross-platform analytics              | Unified metrics across every network                  | 🟥 Mandatory    | Without measuring results the tool does not justify its price. Table-stakes.                                      |
-| Exportable reports (PDF/PPT)          | Downloadable reports to present to the client         | 🟧 Necessary    | An agency that cannot hand a report to its client does not buy. An immediate objection.                           |
-| White-label reports                   | Reports with the agency's brand, without the vendor's | 🟧 Necessary    | For the agency ICP it is near-mandatory; Sendible/ContentStudio gate it in high tiers precisely because it sells. |
-| Customizable reports / templates      | Build the report tailored to the client               | 🟩 Nice to have | Raises ticket size (Sendible puts it in Scale $199); valuable but not a deal-breaker at entry level.              |
-| Competitor benchmarking               | Compare your account vs. rivals                       | 🟩 Nice to have | Metricool's flagship (100 competitors); high perceived value, still differentiates.                               |
-| ROI reporting (GA integration)        | Attribute sales/leads to social via Google Analytics  | 🟦 Interesting  | Agorapulse's flagship; hard to do well, strong if achieved (closes the sale to marketing).                        |
-| Paid ads analytics                    | Paid campaign metrics next to organic                 | 🟦 Interesting  | Metricool's differentiator; the rest barely have it. A bet with upside.                                           |
-| Scheduled email reports               | Automatic periodic delivery of the report             | 🟨 Commonplace  | Expected in agencies; a commodity, does not differentiate.                                                        |
-| Looker Studio connector/API analytics | Export the data to an external BI                     | 🟩 Nice to have | Data-driven agencies ask for it; gated in high tiers by almost everyone.                                          |
-| Hashtag / audience demographics       | Hashtag tracking and audience demographics            | 🟨 Commonplace  | An analytics commodity; expected, does not move the decision.                                                     |
+| Feature                                 | What it is                                            | Level           | Why                                                                                                               |
+| --------------------------------------- | ----------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Cross-platform analytics                | Unified metrics across every network                  | 🟥 Mandatory    | Without measuring results the tool does not justify its price. Table-stakes.                                      |
+| Exportable reports (PDF/PPT)            | Downloadable reports to present to the client         | 🟧 Necessary    | An agency that cannot hand a report to its client does not buy. An immediate objection.                           |
+| White-label reports                     | Reports with the agency's brand, without the vendor's | 🟧 Necessary    | For the agency ICP it is near-mandatory; Sendible/ContentStudio gate it in high tiers precisely because it sells. |
+| Customizable reports / templates        | Build the report tailored to the client               | 🟩 Nice to have | Raises ticket size (Sendible puts it in Scale $199); valuable but not a deal-breaker at entry level.              |
+| Competitor benchmarking                 | Compare your account vs. rivals                       | 🟩 Nice to have | Metricool's flagship (100 competitors); high perceived value, still differentiates.                               |
+| ROI reporting (GA integration)          | Attribute sales/leads to social via Google Analytics  | 🟦 Interesting  | Agorapulse's flagship; hard to do well, strong if achieved (closes the sale to marketing).                        |
+| Paid ads analytics                      | Paid campaign metrics next to organic                 | 🟦 Interesting  | Metricool's differentiator; the rest barely have it. A bet with upside.                                           |
+| Scheduled email reports                 | Automatic periodic delivery of the report             | 🟨 Commonplace  | Expected in agencies; a commodity, does not differentiate.                                                        |
+| Looker Studio connector / analytics API | Export the data to an external BI                     | 🟩 Nice to have | Data-driven agencies ask for it; gated in high tiers by almost everyone.                                          |
+| Hashtag / audience demographics         | Hashtag tracking and audience demographics            | 🟨 Commonplace  | An analytics commodity; expected, does not move the decision.                                                     |
 
 ### 6.4 Social inbox and engagement
 
-| Feature                                 | What it is                                                | Level           | Why                                                                                                    |
-| --------------------------------------- | --------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------ |
-| Unified inbox                           | Comments, DMs, mentions from every network in one inbox   | 🟧 Necessary    | The agency buyer expects it (Agorapulse/Sprout's flagship). Buffer lacks it and is harshly criticized. |
-| AI triage/classification of the message | Classify each message (complaint/lead/spam) automatically | 🟦 Interesting  | An OmniPost differentiator; only Vista/ContentStudio are starting. High value if it works.             |
-| AI reply suggestions (multi-tone)       | Propose 2-3 replies in the brand voice                    | 🟦 Interesting  | A real differentiator; Sprout/Agorapulse gate it to top tiers. Raises support speed.                   |
-| Sentiment analysis                      | Detect whether the message is positive/negative           | 🟩 Nice to have | Expected in enterprise; gated in high tiers everywhere. Valuable, not a deal-breaker at entry level.   |
-| Saved replies / templates               | Reusable saved replies                                    | 🟨 Commonplace  | A support commodity; expected, zero differentiation.                                                   |
-| Message assignment / tagging            | Assign conversations to team members                      | 🟧 Necessary    | Without it an agency team cannot operate the inbox. Required parity.                                   |
-| Collision detection                     | Warn when two people reply to the same message            | 🟩 Nice to have | Avoids an embarrassing double reply; valued by teams, not a deal-breaker.                              |
-| Review management                       | Reply to Google/Yelp/Trustpilot reviews                   | 🟩 Nice to have | **OmniPost gap.** Agorapulse/Sprout/Vista have it; an objection to expect from local agencies.         |
-| Inline translation                      | Translate the incoming message in the inbox               | 🟦 Interesting  | Very relevant to OmniPost's LATAM/multi-language ICP; uncommon.                                        |
-| Moderation rules / automation           | Auto-hide/tag/reply according to rules                    | 🟩 Nice to have | Agorapulse's flagship; saves work at scale, gated for its value.                                       |
+| Feature                           | What it is                                                | Level           | Why                                                                                                    |
+| --------------------------------- | --------------------------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------ |
+| Unified inbox                     | Comments, DMs, mentions from every network in one inbox   | 🟧 Necessary    | The agency buyer expects it (Agorapulse/Sprout's flagship). Buffer lacks it and is harshly criticized. |
+| AI message triage/classification  | Classify each message (complaint/lead/spam) automatically | 🟦 Interesting  | An OmniPost differentiator; only Vista/ContentStudio are starting. High value if it works.             |
+| AI reply suggestions (multi-tone) | Propose 2-3 replies in the brand voice                    | 🟦 Interesting  | A real differentiator; Sprout/Agorapulse gate it to top tiers. Raises support speed.                   |
+| Sentiment analysis                | Detect whether the message is positive/negative           | 🟩 Nice to have | Expected in enterprise; gated in high tiers everywhere. Valuable, not a deal-breaker at entry level.   |
+| Saved replies / templates         | Reusable saved replies                                    | 🟨 Commonplace  | A support commodity; expected, zero differentiation.                                                   |
+| Message assignment / tagging      | Assign conversations to team members                      | 🟧 Necessary    | Without it an agency team cannot operate the inbox. Required parity.                                   |
+| Collision detection               | Warn when two people reply to the same message            | 🟩 Nice to have | Avoids an embarrassing double reply; valued by teams, not a deal-breaker.                              |
+| Review management                 | Reply to Google/Yelp/Trustpilot reviews                   | 🟩 Nice to have | **OmniPost gap.** Agorapulse/Sprout/Vista have it; an objection to expect from local agencies.         |
+| Inline translation                | Translate the incoming message in the inbox               | 🟦 Interesting  | Very relevant to OmniPost's LATAM/multi-language ICP; uncommon.                                        |
+| Moderation rules / automation     | Auto-hide/tag/reply according to rules                    | 🟩 Nice to have | Agorapulse's flagship; saves work at scale, gated for its value.                                       |
 
 ### 6.5 Collaboration, agency and enterprise
 
-| Feature                                               | What it is                                                  | Level            | Why                                                                                                          |
-| ----------------------------------------------------- | ----------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
-| Approval workflows (multi-level)                      | A review/approval chain before publishing                   | 🟥 Mandatory     | For agencies it is a deal-breaker: no client allows publishing unapproved. Loomly's flagship for a reason.   |
-| RBAC / roles and permissions                          | Control over who sees/does what                             | 🟧 Necessary     | Without roles, an agency cannot separate clients/teams. Required parity; gated by almost everyone.           |
-| Per-client dashboards / spaces                        | Data isolation per client, a view per client                | 🟥 Mandatory     | **The** requirement of the multi-client agency ICP. It is OmniPost's multi-tenant architectural advantage.   |
-| Password-free onboarding (Client Connect/EasyConnect) | The client connects their own accounts                      | 🟧 Necessary     | A sales blocker with serious agencies (security/compliance). Sendible/ContentStudio make it their banner.    |
-| Platform white-label                                  | The whole tool under the agency's brand                     | 🟩 Nice to have  | Raises ticket size and switching cost a lot; gated to top tiers by everyone because it sells.                |
-| Connected CRM (HubSpot/Salesforce)                    | Sync conversations/leads with the CRM                       | 🟦 Interesting   | An OmniPost differentiator vs. almost everyone; strong for the marketing/enterprise segment.                 |
-| SSO (SAML/OIDC)                                       | Single corporate sign-on                                    | 🟧 Necessary     | A deal-breaker for enterprise (tertiary). Everyone gates it to Enterprise; required to move up a segment.    |
-| Audit logs                                            | An immutable record of actions                              | 🟩 Nice to have  | An enterprise compliance requirement; OmniPost already has it, use it as an argument.                        |
-| Real social listening                                 | Monitor mentions/sentiment/share-of-voice across web+social | 🟧 Necessary     | **Critical OmniPost gap.** The #1 expected objection; every enterprise tool has it (albeit a costly add-on). |
-| Content discovery / curation                          | Discover niche content/trends to curate                     | 🟦 Interesting   | ContentStudio's flagship; differentiates for content agencies, niche for the rest.                           |
-| Internal comments / notes                             | Internal team discussion about a post                       | 🟨 Commonplace   | A collaboration commodity; expected, does not differentiate.                                                 |
-| Slack/Teams notifications                             | Notify the team in its work chat                            | 🟨 Commonplace   | An expected integration; a commodity.                                                                        |
-| Employee advocacy                                     | Employees amplify the corporate content                     | 🟦 Interesting   | An expensive add-on at Hootsuite/Vista; only large enterprises value it. A segment bet.                      |
-| Influencer marketing                                  | Discover/manage influencers                                 | ⬛ Waste of time | A separate product (Sprout splits it off); outside the focus of an SMM/CMS. Do not invest here.              |
-| Mobile app                                            | Native iOS/Android app                                      | 🟧 Necessary     | Expected; its absence or weakness is a recurring complaint (Agorapulse, Vista). Required parity.             |
-| 2FA / account security                                | A second factor for access                                  | 🟥 Mandatory     | Non-negotiable security hygiene; you handle third-party credentials.                                         |
+| Feature                                                           | What it is                                                  | Level            | Why                                                                                                          |
+| ----------------------------------------------------------------- | ----------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| Approval workflows (multi-level)                                  | A review/approval chain before publishing                   | 🟥 Mandatory     | For agencies it is a deal-breaker: no client allows publishing unapproved. Loomly's flagship for a reason.   |
+| RBAC / roles and permissions                                      | Control over who sees/does what                             | 🟧 Necessary     | Without roles, an agency cannot separate clients/teams. Required parity; gated by almost everyone.           |
+| Per-client dashboards / workspaces                                | Data isolation per client, a view per client                | 🟥 Mandatory     | **The** requirement of the multi-client agency ICP. It is OmniPost's multi-tenant architectural advantage.   |
+| Onboarding without sharing passwords (Client Connect/EasyConnect) | The client connects their own accounts                      | 🟧 Necessary     | A sales blocker with serious agencies (security/compliance). Sendible/ContentStudio make it their banner.    |
+| Platform white-label                                              | The whole tool under the agency's brand                     | 🟩 Nice to have  | Raises ticket size and switching cost a lot; gated to top tiers by everyone because it sells.                |
+| Integrated CRM (HubSpot/Salesforce)                               | Sync conversations/leads with the CRM                       | 🟦 Interesting   | An OmniPost differentiator vs. almost everyone; strong for the marketing/enterprise segment.                 |
+| SSO (SAML/OIDC)                                                   | Single corporate sign-on                                    | 🟧 Necessary     | A deal-breaker for enterprise (tertiary). Everyone gates it to Enterprise; required to move up a segment.    |
+| Audit logs                                                        | An immutable record of actions                              | 🟩 Nice to have  | An enterprise compliance requirement; OmniPost already has it, use it as an argument.                        |
+| Real social listening                                             | Monitor mentions/sentiment/share-of-voice across web+social | 🟧 Necessary     | **Critical OmniPost gap.** The #1 expected objection; every enterprise tool has it (albeit a costly add-on). |
+| Content discovery / curation                                      | Discover niche content/trends to curate                     | 🟦 Interesting   | ContentStudio's flagship; differentiates for content agencies, niche for the rest.                           |
+| Internal comments / notes                                         | Internal team discussion about a post                       | 🟨 Commonplace   | A collaboration commodity; expected, does not differentiate.                                                 |
+| Slack/Teams notifications                                         | Notify the team in its work chat                            | 🟨 Commonplace   | An expected integration; a commodity.                                                                        |
+| Employee advocacy                                                 | Employees amplify the corporate content                     | 🟦 Interesting   | An expensive add-on at Hootsuite/Vista; only large enterprises value it. A segment bet.                      |
+| Influencer marketing                                              | Discover/manage influencers                                 | ⬛ Waste of time | A separate product (Sprout splits it off); outside the focus of an SMM/CMS. Do not invest here.              |
+| Mobile app                                                        | Native iOS/Android app                                      | 🟧 Necessary     | Expected; its absence or weakness is a recurring complaint (Agorapulse, Vista). Required parity.             |
+| 2FA / account security                                            | A second factor for access                                  | 🟥 Mandatory     | Non-negotiable security hygiene; you handle third-party credentials.                                         |
 
 ### 6.6 Integrations
 
@@ -316,7 +316,7 @@ Monthly prices in USD unless stated otherwise. "annual" = effective price per mo
 
 - **The Mandatory items OmniPost already covers** (scheduling+native, approvals, per-client dashboards, 2FA): this is your base — it is not marketing, it is survival. Communicate it as "we take it for granted", not as a differentiator.
 - **The Necessary items where you have a gap** → **real social listening** and **review management** are the two most likely sales objections. Prioritize them on the roadmap ahead of any 🟦 Interesting feature.
-- **Your 🟦 Interesting items are your differentiation narrative**: multi-LLM AI with routing, analytics-informed content, autonomous features, AI triage, connected CRM, inline translation. None wins alone; **the combination** is the pitch (see §5.2).
+- **Your 🟦 Interesting items are your differentiation narrative**: multi-LLM AI with routing, analytics-informed content, autonomous features, AI triage, integrated CRM, inline translation. None wins alone; **the combination** is the pitch (see §5.2).
 - **Do not invest in ⬛**: AI voiceover, meme generator, influencer marketing — they are bloat that inflates the feature matrix but moves neither acquisition nor retention. Predis/Sprout have them, and even so that is not what people buy them for.
 - **Careful with the 🟨 Commonplace items**: you have to have them all, done well (their absence eliminates you on the "checklist"), but zero marketing budget — nobody switches tools for a hashtag manager.
 
