@@ -35,10 +35,10 @@ You invoked `/canon-check` because you are about to make a decision that may vio
 After verdict ✅:
 
 ```
-canon-check: <canon-file> §<rule-id> — <decision> authorized because <canonical reason>
+canon-check: <canon-file>.md §<rule-id> — <decision> authorized because <canonical reason>
 ```
 
-The pre-edit tripwire blocker hook searches the prior assistant message for a line that starts with `canon-check:` and then carries a `.md` path, a `§` rule id, a dash (`—` or `-`) and text after it (`CANON_CHECK_RE` in `.claude/hooks-py/pre_edit_tripwire_blocker.py`). If absent or malformed, the next Edit/Write is blocked.
+The pre-edit tripwire blocker hook searches the prior assistant message for a line that starts with `canon-check:`, then a `.md` path as its first word, a `§` rule id, a dash (`—` or `-`) with a space on each side, and text after it (`CANON_CHECK_RE` in `.claude/hooks-py/pre_edit_tripwire_blocker.py`). If absent or malformed, the next Edit/Write is blocked.
 
 ## Examples
 

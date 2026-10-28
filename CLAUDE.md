@@ -302,7 +302,7 @@ A non-zero count is FINE — that's the design. A growing count without paired A
 To bypass a tripwire, the assistant message preceding the Edit/Write **must** contain a line of this exact form:
 
 ```
-canon-check: <canon-file> §<rule-id> — <decision> authorized because <canonical reason>
+canon-check: <canon-file>.md §<rule-id> — <decision> authorized because <canonical reason>
 ```
 
 Examples (valid):
@@ -313,7 +313,7 @@ canon-check: ARCHITECTURE_CANON.md §Saga.compensable — cross-context import `
 canon-check: feedback/audit-deletion.md §three-questions — comment `// TODO §X.Y` authorized after (1) is it a time-bomb? no — TTL is 1 session, (2) is there an ADR? yes ADR-NNNN, (3) is the remediation testable? yes.
 ```
 
-The hook searches the prior assistant message for a line that starts with `canon-check:` and then carries a `.md` path, a `§` rule id, a dash (`—` or `-`) and text after it (`CANON_CHECK_RE` in `.claude/hooks-py/pre_edit_tripwire_blocker.py`). If absent or malformed, the Edit/Write is blocked.
+The hook searches the prior assistant message for a line that starts with `canon-check:`, then a `.md` path as its first word, a `§` rule id, a dash (`—` or `-`) with a space on each side, and text after it (`CANON_CHECK_RE` in `.claude/hooks-py/pre_edit_tripwire_blocker.py`). If absent or malformed, the Edit/Write is blocked.
 
 ### Bypass via authorization token
 

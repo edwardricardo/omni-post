@@ -554,19 +554,18 @@ jobs:
           #     a multi-line Prisma.sql; a periodic manual audit is documented in
           #     `docs/security/MULTI_TENANT_AUDIT_2026-05-27.md`.
           #   - packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts (relocated from
-          #     apps/api/src/infrastructure/unitofwork/ with the Post persistence adapters):
-          #     emits set_config('app.account_id', ..., true) to bind the RLS GUC at tx start —
-          #     THE canonical entry point for tenant scope in transactions. INERT TODAY, stated
-          #     so nobody reads it as coverage: the statement is a TAGGED TEMPLATE
-          #     (tx.$queryRaw`...`) and this regex is anchored on `\(`, so the line has never
-          #     matched (SMELL-111's class). Kept because it turns live the day SMELL-111 closes
-          #     the regex; deleting it instead needs authorisation (backlog).
-          #   - packages/adapters/db-prisma/src entered this scope with that relocation.
-          #     Measured at entry: 0 paren-form calls. Its one tagged-template site,
-          #     resilience.ts:308 (prisma.$queryRaw`SELECT 1`, a connection probe touching no
-          #     tenant table), is invisible to this regex for the same reason and gets NO
-          #     exception line — a second inert line would be fat, not coverage; SMELL-111's
-          #     closure enrols it.
+          #     apps/api/src/infrastructure/unitofwork/ with the Post persistence adapters): emits
+          #     `set_config('app.account_id', ..., true)` to bind the RLS GUC at tx start — THE
+          #     canonical entry point for tenant scope in transactions. INERT TODAY, stated so nobody
+          #     reads it as coverage: the statement is a TAGGED TEMPLATE (tx.$queryRaw`...`) and this
+          #     regex is anchored on `\(`, so the line has never matched (SMELL-111's class). Kept
+          #     because it turns live the day SMELL-111 closes the regex; deleting it instead needs
+          #     authorisation (backlog).
+          #   - packages/adapters/db-prisma/src entered this scope with that relocation. Measured at
+          #     entry: 0 paren-form calls. Its one tagged-template site, resilience.ts:308
+          #     (prisma.$queryRaw`SELECT 1`, a connection probe touching no tenant table), is
+          #     invisible to this regex for the same reason and gets NO exception line — a second
+          #     inert line would be fat, not coverage; SMELL-111's closure enrols it.
           MATCHES=$(grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
             apps/api/src apps/workers/src packages/adapters/db-prisma/src --include="*.ts" 2>/dev/null | \
             grep -vE "/extensions/tenantGuard|/infrastructure/container/|/tests/|\.test\." | \
