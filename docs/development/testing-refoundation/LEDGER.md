@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1210  |
 | Confirmed rows          | 0     |
-| Blocks                  | 15195 |
+| Blocks                  | 15200 |
 | Blocks with a criterion | 1049  |
 
 ## Rows without a slice
@@ -714,7 +714,7 @@
 | `apps/api/tests/unit/sagaRetryRecovery.test.ts`                                                       | test             | 2      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/schedulingRoutes.test.ts`                                                        | test             | 29     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/architectureBaseline.test.ts`                                            | test             | 6      | 0          | ADJUDICATE | machine | opaque               |
-| `apps/api/tests/unit/scripts/artifactLanguageGate.test.ts`                                            | test             | 23     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/scripts/artifactLanguageGate.test.ts`                                            | test             | 28     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/batteryState.test.ts`                                                    | test             | 9      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/batteryVerdict.test.ts`                                                  | test             | 25     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/cookiesAndStorageInventory.test.ts`                                      | test             | 9      | 0          | KEEP       | machine | behavioural          |
