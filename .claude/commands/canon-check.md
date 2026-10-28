@@ -15,15 +15,15 @@ You invoked `/canon-check` because you are about to make a decision that may vio
    - `docs/observability/LOGGING_CANON.md` — logging, redaction, caching, tasks
    - `~/.claude/feedback/workflow.md` — commits, push, branching, asking
    - `~/.claude/feedback/canon-research.md` — research first, no patches, no time-bombs
-   - `~/.claude/feedback/audit-deletion.md` — 3 preguntas, orphan ≠ delete, pattern not instance
+   - `~/.claude/feedback/audit-deletion.md` — 3 questions, orphan ≠ delete, pattern not instance
    - `~/.claude/feedback/runtime-contract.md` — frontend-backend coupling, MSW canon, smoke tests
    - `~/.claude/feedback/tools-infra.md` — pnpm, LXC, DB migrations, version pinning
 
 2. **For each applicable rule, write:**
 
    ```
-   - <canon-file> §<rule>: ✅ AUTORIZA — <reason>   OR
-   - <canon-file> §<rule>: ❌ PROHÍBE — <reason>
+   - <canon-file> §<rule>: ✅ AUTHORIZES — <reason>   OR
+   - <canon-file> §<rule>: ❌ FORBIDS — <reason>
    ```
 
 3. **Emit verdict:**
@@ -35,10 +35,10 @@ You invoked `/canon-check` because you are about to make a decision that may vio
 After verdict ✅:
 
 ```
-canon-check: <canon-file> §<rule-id> — <decision> autorizada porque <razón canónica>
+canon-check: <canon-file> §<rule-id> — <decision> authorized because <canonical reason>
 ```
 
-The pre-edit tripwire blocker hook greps the prior assistant message for `^canon-check:`. If absent or malformed, the next Edit/Write is blocked.
+The pre-edit tripwire blocker hook searches the prior assistant message for a line that starts with `canon-check:` and then carries a `.md` path, a `§` rule id, a dash (`—` or `-`) and text after it (`CANON_CHECK_RE` in `.claude/hooks-py/pre_edit_tripwire_blocker.py`). If absent or malformed, the next Edit/Write is blocked.
 
 ## Examples
 
@@ -48,12 +48,12 @@ The pre-edit tripwire blocker hook greps the prior assistant message for `^canon
 DECISION: "use absolute path @core/security/X from inside packages/core/application/src/ai/"
 
 RULE CHECK:
-- feedback/canon-research.md §no-time-bombs: ❌ PROHÍBE — workaround sin prevention real;
-  cross-package import resolverá pero deja debt invisible.
-- ARCHITECTURE_CANON.md §Hexagonal: ❌ PROHÍBE — cross-context import sin port viola
+- feedback/canon-research.md §no-time-bombs: ❌ FORBIDS — workaround without real prevention;
+  the cross-package import will resolve but leaves invisible debt.
+- ARCHITECTURE_CANON.md §Hexagonal: ❌ FORBIDS — a cross-context import without a port violates
   "dependency direction is always inward".
 
-REJECTED: resolver vía SecurityClassifierPort (existe ya en @ports/core).
+REJECTED: resolve via SecurityClassifierPort (it already exists in @ports/core).
 ```
 
 ### Example 2 — pattern choice (authorized)
@@ -62,14 +62,14 @@ REJECTED: resolver vía SecurityClassifierPort (existe ya en @ports/core).
 DECISION: "extract embeddings to packages/core/embeddings/ as shared kernel"
 
 RULE CHECK:
-- ARCHITECTURE_CANON.md §DDD Aggregates: ✅ AUTORIZA — shared kernel es patrón canónico
-  (Evans, "Domain-Driven Design" §14.2) cuando ≥2 contexts dependen del mismo modelo.
-- feedback/canon-research.md §research-first: ✅ AUTORIZA — verifiqué que embeddings tiene
-  3 consumers (ai, glossary, style-guide) y todos consumen el mismo método embedSingle.
+- ARCHITECTURE_CANON.md §DDD Aggregates: ✅ AUTHORIZES — a shared kernel is a canonical pattern
+  (Evans, "Domain-Driven Design" §14.2) when ≥2 contexts depend on the same model.
+- feedback/canon-research.md §research-first: ✅ AUTHORIZES — I verified that embeddings has
+  3 consumers (ai, glossary, style-guide) and all of them consume the same embedSingle method.
 
-canon-check: ARCHITECTURE_CANON.md §DDD-Aggregates — embeddings shared kernel autorizado
-porque 3 contexts (ai/glossary/style-guide) lo consumen con el mismo modelo, cumpliendo
-el criterio de shared-kernel (Evans §14.2).
+canon-check: ARCHITECTURE_CANON.md §DDD-Aggregates — embeddings shared kernel authorized
+because 3 contexts (ai/glossary/style-guide) consume it with the same model, meeting
+the shared-kernel criterion (Evans §14.2).
 ```
 
 ### Example 3 — hotfix override
@@ -78,11 +78,11 @@ el criterio de shared-kernel (Evans §14.2).
 DECISION: "add // canon-exception: hotfix:INC-1234 in apps/api/src/billing/X.ts"
 
 RULE CHECK:
-- CLAUDE.md §Pragmatic-Exceptions hotfix: ✅ AUTORIZA — P0/P1 incident con incident-id,
-  ADR follow-up mandatorio en ≤5 días.
+- CLAUDE.md §Pragmatic-Exceptions hotfix: ✅ AUTHORIZES — P0/P1 incident with an incident-id,
+  ADR follow-up mandatory within ≤5 days.
 
-canon-check: CLAUDE.md §Pragmatic-Exceptions §hotfix — marker autorizado;
-ADR-NNNN follow-up programado para 2026-06-02.
+canon-check: CLAUDE.md §Pragmatic-Exceptions §hotfix — marker authorized;
+ADR-NNNN follow-up scheduled for 2026-06-02.
 ```
 
 ## When to invoke `/canon-check`

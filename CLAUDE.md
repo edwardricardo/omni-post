@@ -191,7 +191,7 @@ Quick map of what lives where:
 | [docs/observability/LOGGING_CANON.md](docs/observability/LOGGING_CANON.md)               | Logging, redaction, caching, tasks |
 | [docs/architecture/NORMALIZATION_ROADMAP.md](docs/architecture/NORMALIZATION_ROADMAP.md) | Roadmap of cross-cutting work      |
 
-Fitness `#24` (below) enforces that each child exists + has `## How to extend` + `**Owner:**` — anti-borrado guardrail.
+Fitness `#24` (below) enforces that each child exists + has `## How to extend` + `**Owner:**` — anti-deletion guardrail.
 
 ---
 
@@ -302,18 +302,18 @@ A non-zero count is FINE — that's the design. A growing count without paired A
 To bypass a tripwire, the assistant message preceding the Edit/Write **must** contain a line of this exact form:
 
 ```
-canon-check: <canon-file> §<rule-id> — <decision> autorizada porque <razón canónica>
+canon-check: <canon-file> §<rule-id> — <decision> authorized because <canonical reason>
 ```
 
 Examples (valid):
 
 ```
-canon-check: feedback/canon-research.md §no-time-bombs — bridge `// TODO §5.1.c` rechazado; resolución vía port.
-canon-check: ARCHITECTURE_CANON.md §Saga.compensable — cross-context import `@core/saga` autorizado porque saga engine es transversal infra, no bounded context.
-canon-check: feedback/audit-deletion.md §3-preguntas — comment `// TODO §X.Y` autorizado tras (1) ¿es time-bomb? no — TTL es 1 sesión, (2) ¿hay ADR? sí ADR-NNNN, (3) ¿la remediación es testable? sí.
+canon-check: feedback/canon-research.md §no-time-bombs — bridge `// TODO §5.1.c` rejected; resolution via port.
+canon-check: ARCHITECTURE_CANON.md §Saga.compensable — cross-context import `@core/saga` authorized because the saga engine is transversal infra, not a bounded context.
+canon-check: feedback/audit-deletion.md §three-questions — comment `// TODO §X.Y` authorized after (1) is it a time-bomb? no — TTL is 1 session, (2) is there an ADR? yes ADR-NNNN, (3) is the remediation testable? yes.
 ```
 
-The hook greps the prior assistant message for `^canon-check:`. If absent or malformed, the Edit/Write is blocked.
+The hook searches the prior assistant message for a line that starts with `canon-check:` and then carries a `.md` path, a `§` rule id, a dash (`—` or `-`) and text after it (`CANON_CHECK_RE` in `.claude/hooks-py/pre_edit_tripwire_blocker.py`). If absent or malformed, the Edit/Write is blocked.
 
 ### Bypass via authorization token
 
@@ -335,7 +335,7 @@ The hook greps the prior assistant message for `^canon-check:`. If absent or mal
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the owner's decision. Every baseline may fall and must never rise.) There are **52 checks, numbered #1-#52**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the Maintainer's decision. Every baseline may fall and must never rise.) There are **52 checks, numbered #1-#52**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -596,13 +596,13 @@ grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
   grep -vE "/extensions/tenantGuard|/infrastructure/container/|/tests/|\.test\." | \
   grep -vE "/events/EventStore\.ts|/PrismaStyleGuideRuleRepository\.ts|/PrismaGlossaryRepository\.ts" | \
   grep -vE "/db-prisma/src/unitofwork/PrismaUnitOfWork\.ts" | wc -l
-# Excepciones (al cierre de S2.1d) — todas son audited-safe, no known-gap:
-#   - events/EventStore.ts: StoredEvent es tabla global (no accountId). OK.
+# Exceptions (as of the close of S2.1d) — all are audited-safe, no known-gap:
+#   - events/EventStore.ts: StoredEvent is a global table (no accountId). OK.
 #   - PrismaStyleGuideRuleRepository.ts + PrismaGlossaryRepository.ts:
-#     raw pgvector UPDATEs — AUDITED S2.1d, ambas filtran por
-#     `AND "accountId" = ${requireTenantContext().accountId}`. CWE-639 cerrado.
-#     Razón de quedar en excepción: el regex no puede validar el AND clause en
-#     un Prisma.sql multilínea; auditoría manual periódica documentada en
+#     raw pgvector UPDATEs — AUDITED S2.1d, both filter by
+#     `AND "accountId" = ${requireTenantContext().accountId}`. CWE-639 closed.
+#     Why they stay an exception: the regex cannot validate the AND clause in
+#     a multi-line Prisma.sql; a periodic manual audit is documented in
 #     `docs/security/MULTI_TENANT_AUDIT_2026-05-27.md`.
 #   - packages/adapters/db-prisma/src/unitofwork/PrismaUnitOfWork.ts (relocated from
 #     apps/api/src/infrastructure/unitofwork/ with the Post persistence adapters): emits
@@ -618,7 +618,7 @@ grep -rnE "\.\\\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe)\(" \
 #     invisible to this regex for the same reason and gets NO exception line — a second
 #     inert line would be fat, not coverage; SMELL-111's closure enrols it.
 
-# 24. Canon child docs MUST exist + have §How to extend + Owner (anti-borrado).
+# 24. Canon child docs MUST exist + have §How to extend + Owner (anti-deletion).
 # Hard-zero (any missing file or missing required section fails CI). Acts as a
 # deletion guardrail: any PR that deletes a canon child or strips its required
 # structure hard-fails CI before merge. The 4 children are auto-loaded via
@@ -1300,7 +1300,7 @@ echo "$COUNT"   # expect 0
 # integration commit and set the baseline to that measured value (the two
 # concurrent B1 slices move it); delete the baseline together with the last
 # remaining read (or with the package).
-# FILE EXCEPTIONS — every entry audited-safe or owner-adjudicated, each with a
+# FILE EXCEPTIONS — every entry audited-safe or adjudicated by the Product Owner, each with a
 # remove-when; the list may only shrink. Five entries LEFT the previous form of
 # this list: PrismaAccountRepository, PrismaProjectRepository and
 # PrismaChannelRepository now carry the greppable marker at their hard-delete
@@ -1319,7 +1319,7 @@ echo "$COUNT"   # expect 0
 #   - CustomerAccountBillingService.ts + gatewaySwitchProcessor.ts +
 #     realtimeWebhookBroadcaster.ts + PrismaAccountBillingRepository.ts:
 #     FLAGGED deliberate-candidates — billing webhooks, gateway switches and
-#     realtime broadcasts may legitimately resolve a deleted row. Owner
+#     realtime broadcasts may legitimately resolve a deleted row. Product Owner
 #     decision pending; each gets the filter or the marker when adjudicated.
 # RESIDUAL LIMITS, stated honestly (the form every check of this suite follows):
 #   (1) a where built by a distant builder or variable is invisible — that
@@ -2099,10 +2099,10 @@ JSDOC_BASE_REF="${FITNESS_BASE_REF:-origin/main}" pnpm check:jsdoc   # expect ex
 # 48. Every patched dependency has its record, its patch file and its ADR, and is watched until resolved.
 # Threat: a dependency patched through `patchedDependencies` in pnpm-workspace.yaml runs code no
 # published release carries. CLAUDE.md §Problem-Solving Standards forbids a temporary patch, so each
-# one exists only by an owner's decision in its own ADR (ADR-0037 is the first), and nothing tied the
+# one exists only by a Maintainer's decision in its own ADR (ADR-0037 is the first), and nothing tied the
 # key to that decision or to the release that ends it: a key with no record, a record whose patch
 # file or ADR is gone, or a file under patches/ that no record names reads as justified while nothing
-# justifies it, and a patch whose fix has shipped keeps running after its reason ended. The owner's
+# justifies it, and a patch whose fix has shipped keeps running after its reason ended. The Maintainer's
 # rule of 2026-10-15: every patch is monitored all the time until it is resolved.
 # WHAT IT RUNS: `pnpm check:patched-deps`, which is `node scripts/testing/patched-dependencies-gate.mjs
 # --check`, pinned by apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts. It reads the
@@ -2207,7 +2207,7 @@ RULES_RE='vitest/(expect-expect|no-conditional-expect|valid-expect|no-standalone
 grep -cE "\"($RULES_RE)\": *(\"(off|warn)\"|[01]\b|\[ *(\"(off|warn)\"|[01]\b))" "$CONFIG"   # expect 0
 git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!eslint.config.ts' | wc -l   # expect 0
 
-# 50. Every direct dependency proves its use with real sites in the tree, or carries the owner's decision.
+# 50. Every direct dependency proves its use with real sites in the tree, or carries the Maintainer's decision.
 # Threat: a direct dependency is declared, pinned, patched and audited for years with nothing asking
 # what uses it. #45's subprocessors inventory records which dependencies reach production, never
 # whether anything loads them. On 2026-10-22 `@monaco-editor/react`, `@fastify/rate-limit`,
@@ -2235,7 +2235,7 @@ git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!es
 # fixtures; their imports still count. The command renders the record,
 # dependency-ledger.json at the root (every name's declarations and `bin` names, and for a name
 # under the floor its real count and its sites by kind and class), compares it byte for byte with
-# the committed one, and joins every name with the owner's decisions in
+# the committed one, and joins every name with the Maintainer's decisions in
 # scripts/testing/dependency-decisions.json: `kept` (a ground from a closed list, its utility, the
 # replacement weighed, decidedOn), `remove` (utility, replacement, decidedOn, an optional slice) or
 # `pending` (an optional note); a name under the floor with no entry is pending. The modules and the
@@ -2265,7 +2265,7 @@ git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!es
 # declaration added or removed, a name crossing the floor, a site of a name under it added, moved
 # or removed, a decision written. A clean checkout reproduces it byte for byte.
 # RATCHET. `pendingBaseline` is the check's one counted residual: the names under the floor that
-# wait for the owner's decision, 128 when this check landed. It may fall and must never rise, and
+# wait for the Maintainer's decision, 128 when this check landed. It may fall and must never rise, and
 # the check holds it EXACT, so the change that decides a pending name lowers the baseline in the
 # same diff or goes red, and a new name under the floor goes red until it is decided or the
 # baseline is raised in a visible edit, for review to refuse.
@@ -2284,7 +2284,7 @@ git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!es
 # apps/, packages/ or infra/ exits 3 too: fail-closed by design, cleared by tracking or deleting it.
 # RESIDUAL LIMITS, stated rather than implied: (1) JSON, YAML and Markdown configs are not scanned
 # for package names, so a plugin named only there (.secretlintrc.json, .size-limit.json) reads as
-# zero sites and the owner's entry names the file; (2) a string literal equal to a package name in
+# zero sites and the Maintainer's entry names the file; (2) a string literal equal to a package name in
 # a config-class JS/TS file counts as a site even when it is data, and so does a string-literal
 # type (`type P = "x"`): an over-count toward `kept`, never toward removal; (3) a package loaded by
 # code the tree does not track, the generated Prisma client, reads as zero sites, and a JSDoc
@@ -2358,7 +2358,7 @@ pnpm check:i18n   # expect exit 0 and, on stdout:
 #   client: 2 locales (en, es), <m> messages, reference en
 
 # 52. The committed test ledger is what the tree yields.
-# Threat: the demolition slices delete tests by the list the owner approves, and that list is
+# Threat: the demolition slices delete tests by the list the Maintainer approves, and that list is
 # `ledger.json`. A ledger the tree no longer yields still reads as the approved inventory while it
 # names blocks that moved, files that left and verdicts the classifier no longer gives, so a slice
 # could delete a test nobody listed or keep one the list says goes. `pnpm check:ledger` existed and
@@ -2367,7 +2367,7 @@ pnpm check:i18n   # expect exit 0 and, on stdout:
 # apps/api/tests/unit/scripts/ledger.test.ts. It rebuilds the ledger from the tree (one row per
 # test-shaped file, runner, helper and dead-suffix file; each test-shaped file's blocks classified by
 # @packages/eslint-plugin-testing and joined to the reach engine's sources and the quarantine; its
-# subject, its copies and each helper's importers measured), applies the owner's overlay
+# subject, its copies and each helper's importers measured), applies the Maintainer's overlay
 # (docs/development/testing-refoundation/adjudications.json, which holds only confirmations, and
 # slices.json beside it), and compares the rendered bytes with `ledger.json` at the root and with
 # docs/development/testing-refoundation/LEDGER.md.
@@ -2386,7 +2386,7 @@ pnpm check:i18n   # expect exit 0 and, on stdout:
 # twice or is not its one object; no committed `ledger.json` or page; and an unreadable Prettier
 # configuration. A usage error exits 2.
 # RESIDUAL LIMITS, stated rather than implied: (1) the check proves the committed record is what the
-# tree yields, never that a machine verdict is right: an owner confirmation in the overlay is what
+# tree yields, never that a machine verdict is right: a Maintainer confirmation in the overlay is what
 # settles a row; (2) `probes.json`, the hard probe's record beside the ledger, is not checked: each
 # probe names the hashes of its test and its subject, so a stale probe can be told apart, but nothing
 # compares them with the tree; (3) the ledger's own limits hold, stated in the header of

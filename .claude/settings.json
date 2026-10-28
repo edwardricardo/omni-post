@@ -1,5 +1,5 @@
 {
-  "_README": "Hooks Python para OmniPost — Batch 6 agrega Stop hook con auditoría de cierre.",
+  "_README": "Python hooks for OmniPost — Batch 6 adds the Stop hook with its closing audit.",
 
   "hooks": {
     "PreToolUse": [
