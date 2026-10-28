@@ -105,7 +105,7 @@ Landed portions are real (`config/env.ts:278` `TRUSTED_PROXY_HOP_COUNT`, `index.
 #### 5. `35d44f4f` — customer actors visible across the audit read path
 
 **What it fixes:** `byActorType` stats bucket, `customerUser` in the audit read includes, a formatted export column, and `actorType` through the admin compliance view. 24 files, ~1850 insertions of already-reviewed work.
-**Absent from main on four independent axes** (re-verified): `apps/api/src/audit/auditExportColumns.ts` does not exist; `rg byActorType` → 0 hits repo-wide; the two test files are absent; and main's own `openspec/changes/audit-actor-polymorphism/tasks.md:200-226` has every A2 task `- [ ]`.
+**Absent from main on four independent axes** (re-verified): `apps/api/src/audit/auditExportColumns.ts` does not exist; `rg byActorType` → 0 hits repo-wide; the two test files are absent; and main's own `docs/features/audit-actor-polymorphism/tasks.md:200-226` has every A2 task `- [ ]`.
 **Four live blind spots:**
 
 1. `apps/api/src/audit/auditService.ts:287-293` `groupBy({ by: ["userId"], where: { …, userId: { not: null } } })` → a CUSTOMER row (`userId` null, `customerUserId` set) is filtered out of `topUsers` before the join; `:304-305` `user?.name || "Unknown"`.
