@@ -42,53 +42,5 @@
   "openspec/changes/testing-refoundation/tasks.md": {
     "spanish": 3,
     "names": 27
-  },
-  "openspec/project.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/specs/admin-password-reset-claim/spec.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/specs/admin-refresh-rotation-claim/spec.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "openspec/specs/circuit-breaker-isolation/spec.md": {
-    "spanish": 1,
-    "names": 0
-  },
-  "openspec/specs/client-ip-rate-limit/spec.md": {
-    "spanish": 1,
-    "names": 0
-  },
-  "openspec/specs/code-quality/spec.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/specs/customer-password-reset/spec.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/specs/deletion-record-degradation/spec.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/specs/mfa-backup-code-claim/spec.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/specs/post-persistence-adapter-boundary/spec.md": {
-    "spanish": 1,
-    "names": 0
-  },
-  "openspec/specs/post-publish-status-promotion/spec.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/specs/single-use-claim-gate/spec.md": {
-    "spanish": 0,
-    "names": 2
   }
 }
