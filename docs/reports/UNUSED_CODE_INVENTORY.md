@@ -165,7 +165,7 @@ This is the Maintainer's "five mechanisms" question, enumerated. It is grouped b
 
 #### `roleBasedRateLimit()` — `apps/api/src/auth/rbacMiddleware.ts:201-222` · DANGEROUS · DEAD_CODE
 
-**Claims** role-tiered quotas: SUPER_ADMIN 1000/15min, ADMIN 500, SUPPORT 200. **Actually** the body calls only `reply.header("X-RateLimit-Limit"/"-Window"/"-Role")` (`:217-219`) — it never counts, never stores, never 429s. A client reading those headers is told a quota exists that is not enforced. It also has zero production call sites (only `tests/unit/rbacMiddleware.test.ts:34`), so the headers never even ship. **Misleads** any API consumer building backoff logic off the advertised headers. **Fix:** DELETE — removing it also removes the false headers. Already scoped by the in-flight change on this branch: `openspec/changes/auth-rate-limit-integrity/design.md:281` records the identical verdict (M5) and warns that `rbacMiddleware.ts:241` is a _different_ function (`auditMiddleware`) that must survive. Reconcile with that change; do not open a parallel edit. ~22 LOC.
+**Claims** role-tiered quotas: SUPER_ADMIN 1000/15min, ADMIN 500, SUPPORT 200. **Actually** the body calls only `reply.header("X-RateLimit-Limit"/"-Window"/"-Role")` (`:217-219`) — it never counts, never stores, never 429s. A client reading those headers is told a quota exists that is not enforced. It also has zero production call sites (only `tests/unit/rbacMiddleware.test.ts:34`), so the headers never even ship. **Misleads** any API consumer building backoff logic off the advertised headers. **Fix:** DELETE — removing it also removes the false headers. Already scoped by the in-flight change on this branch: `docs/features/auth-rate-limit-integrity/design.md:283` records the identical verdict (M5) and warns that `rbacMiddleware.ts:241` is a _different_ function (`auditMiddleware`) that must survive. Reconcile with that change; do not open a parallel edit. ~22 LOC.
 
 #### The 7 `config: { rateLimit: {...} }` blocks — DANGEROUS · DEAD_CODE
 
@@ -173,7 +173,7 @@ This is the Maintainer's "five mechanisms" question, enumerated. It is grouped b
 
 **Correction to the first sweep:** **four** of the seven guard paths with no `STANDARD_ROUTE_RULES` coverage, not three — `/auth/logout`, `/auth/customer/register`, `/auth/customer/request-password-reset` (`:568`), and `/auth/customer/reset-password` (`:580`). The `password-reset*` glob collapsed two distinct routes with distinct handlers. Deleting the blocks after adding only 3 rules leaves a credential-reset endpoint at the 100/min default — a net regression on exactly the surface this exists to protect.
 
-**Fix:** delete the 7 blocks, add **4** rules to `STANDARD_ROUTE_RULES`, drop the dep, delete the misleading test. **OWNER-DECIDES**, already scoped by `openspec/changes/auth-rate-limit-integrity`.
+**Fix:** delete the 7 blocks, add **4** rules to `STANDARD_ROUTE_RULES`, drop the dep, delete the misleading test. **OWNER-DECIDES**, already scoped by `docs/features/auth-rate-limit-integrity/`.
 
 #### `ApiKey.rateLimit` + the OpenAPI `X-API-Key` scheme — DANGEROUS · PLANNED
 
@@ -650,7 +650,7 @@ This is the clearest case in the codebase of the Maintainer's question, so it is
 
 **What retiring the others costs:**
 
-- #3 — delete. ~22 LOC. Already adjudicated on this branch (`auth-rate-limit-integrity/design.md:281` records the same verdict and warns that `rbacMiddleware.ts:241` is a _different_ function, `auditMiddleware`, that must survive). Reconcile with that change rather than opening a parallel edit.
+- #3 — delete. ~22 LOC. Already adjudicated on this branch (`docs/features/auth-rate-limit-integrity/design.md:283` records the same verdict and warns that `rbacMiddleware.ts:241` is a _different_ function, `auditMiddleware`, that must survive). Reconcile with that change rather than opening a parallel edit.
 - #4 — delete the 7 blocks, add **4** rules to `STANDARD_ROUTE_RULES` (`/auth/logout`, `/auth/customer/register`, `/auth/customer/request-password-reset`, `/auth/customer/reset-password`), drop the dep, delete the ~300-line test. **Deleting the blocks without adding all four rules is a net regression** — `/auth/customer/reset-password` falls back to 100/min.
 - #5 — either wire it (one preHandler keying `RateLimiterPort` on the stored value, which also closes the API-key auth gap in 4.1) or stop echoing the field to clients.
 - Dashboard — delete; close **FN-010/FN-027** _in the plan_ rather than silently.
@@ -816,7 +816,7 @@ The organising principle: **four changes are already queued and each one already
 
 ### 8.1 Ride along with what is already queued
 
-**→ `auth-rate-limit-integrity`** (already deletes `roleBasedRateLimit`, `design.md:281` M5; already scopes `@fastify/rate-limit`, `proposal.md:38`)
+**→ `auth-rate-limit-integrity`** (already deletes `roleBasedRateLimit`, `design.md:283` M5; already scopes `@fastify/rate-limit`, `proposal.md:38`)
 
 - The seven `config: { rateLimit }` blocks (`authRoutes.ts:334,346,358`; `customerAuthRoutes.ts:501,553,568,580`) — delete them and add **four** `STANDARD_ROUTE_RULES` entries, not three. `/auth/customer/reset-password` (`customerAuthRoutes.ts:580`) is a fourth uncovered path; deleting on the three-rule plan regresses a credential-reset endpoint to the 100/min default.
 - The dead rows in the live table. Verification enumerated **16**, not 3: eleven analytics/webhook/audit prefixes, a fourth `/ml` row at `httpRateLimitPreHandler.ts:80` the first pass missed, and `/publish/` + `/media/` in `STANDARD_ROUTE_RULES` — which means the STRICT and UPLOAD presets are unreachable too. Walk the table row by row against registered route literals; do not patch three lines.

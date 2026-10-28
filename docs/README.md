@@ -122,6 +122,8 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 | [Project-Scoped Tenant Guard](features/project-scoped-tenant-guard/rollout-plan.md)     | Sequential guard rollout to the 9 `projectId`-only models, ranked by importance and complexity                 |
 | [Audit Actor Polymorphism](features/audit-actor-polymorphism/proposal.md)               | Audit rows attributed to an admin, customer or system actor, so customer rows are no longer dropped            |
 | [Saga Engine Terminal Hygiene](features/saga-engine-terminal-hygiene/proposal.md)       | Saga terminal states that tell the truth about compensation, and recovery that owns every row                  |
+| [Rate-Limit Integrity](features/auth-rate-limit-integrity/proposal.md)                  | Rate-limit buckets keyed by client IP, matched route and method; per-principal keying stated as intent only    |
+| [Principal-Derived Authority](features/principal-derived-authority/proposal.md)         | Authority derived from the authenticated principal, never from client-controlled input                         |
 
 ## Product and plan
 
