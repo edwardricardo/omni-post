@@ -4,7 +4,7 @@
 
 ## Scope
 
-This runbook covers the **local development `.env` file** at the repo root (`/home/edward/projects/omni-post/.env`). It does NOT cover production secrets — those follow `docs/security/SECRETS.md` and `docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md`.
+This runbook covers the **local development `.env` file** at the repo root (`<repo-root>/.env`). It does NOT cover production secrets — those follow `docs/security/SECRETS.md` and `docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md`.
 
 ## Risk model
 

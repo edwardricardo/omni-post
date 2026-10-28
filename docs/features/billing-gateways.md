@@ -2,7 +2,7 @@
 
 - **Status**: Decided 2026-10-04 — ready for implementation slices (§10)
 - **Date**: 2026-10-04
-- **Owner**: Edward / Platform engineering
+- **Owner**: Maintainers
 - **Decisions**: [ADR-0024](../technical/ADR-0024-billing-currency-and-price-catalog.md) (currency and
   price catalog) · [ADR-0025](../technical/ADR-0025-payment-gateway-selection-and-country-routing.md)
   (gateway selection and routing) · [ADR-0026](../technical/ADR-0026-non-payment-lifecycle.md)

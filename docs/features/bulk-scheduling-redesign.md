@@ -2,7 +2,7 @@
 
 - **Status**: Decision-complete (§8 closed 2026-06-01) — ready for ADR + decomposition into implementation PRs (§9)
 - **Date**: 2026-06-01
-- **Owner**: Edward / Platform engineering
+- **Owner**: Maintainers
 - **Scope**: the **app-wide post→channel targeting model** (single/conventional
   posts AND bulk), plus the bulk-scheduling redesign that adopts it
 - **Supersedes the current**: `packages/core/bulk-scheduling/*` flow
@@ -13,7 +13,7 @@
 
 ## 0. Canonical targeting model (app-wide) — investigation result
 
-This is **not** a bulk-only concern. The mental model (Edward): the client
+This is **not** a bulk-only concern. The mental model (Product Owner): the client
 creates a **canonical post** on their account, then **selects which channels** it
 goes to. Targeting is **by channel** (the concrete connected account); the
 **provider is derived from the channel**, never chosen independently.
@@ -194,7 +194,7 @@ Bulk-scheduling clones it:
   `dedupeKey` = `bulk-${batchId}-${itemId}-${channelId}` → BullMQ `jobId` dedup;
   consumer keeps its status guard + `postId` reuse). Throw-to-retry → outbox
   backoff → DLQ. The **outbox cleaner** auto-removes processed events.
-- **Reconciliation backstop** (per Edward, "most complete"): a scheduler sweep
+- **Reconciliation backstop** (per the Maintainer, "most complete"): a scheduler sweep
   (mirror `SagaManagerLifecycle.startRetryRecoveryChecker`) recovers batches
   stuck with PENDING items after N minutes — re-driving from the DLQ'd outbox
   event (where the post-intent survives). Covers a relay/DLQ failure.
@@ -229,7 +229,7 @@ B" question in favour of durable content on the manifest.
 ### 8.1 Where the durable post-intent lives (manifest vs outbox payload)
 
 For durability, the per-row content + selected channels must be durable at
-confirm so a failed enqueue is recoverable. Two homes, given Edward's "don't
+confirm so a failed enqueue is recoverable. Two homes, given the Maintainer's "don't
 persist extra DB data unless auto-cleaned":
 
 - **CONFIRMED (2026-06-01) — outbox event payload (auto-cleaned).** At confirm, in one TX:
@@ -237,7 +237,7 @@ persist extra DB data unless auto-cleaned":
   progress UI: PENDING→SCHEDULED/FAILED, ~as today) **+ a `BulkSchedule*` outbox
   event whose payload carries the content + selected channels**. The relay turns
   it into per-channel publish jobs; the **outbox cleaner auto-removes processed
-  events** (the auto-delete mechanism Edward asked about). The content is durable
+  events** (the auto-delete mechanism the Maintainer asked about). The content is durable
   only as long as needed; the manifest gains **no content columns**. Reconciliation
   re-drives stuck/DLQ'd outbox events. Best fit for "transient + minimal DB".
 - Alternative — content columns on the manifest item (body/schedule/media/
