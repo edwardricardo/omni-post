@@ -1,116 +1,116 @@
-# WEBHOOK-INGEST — Cableado del pipeline de ingestión inbound
+# WEBHOOK-INGEST — Wiring the inbound ingestion pipeline
 
-> **Estado:** workstream **capturado, NO ejecutado** (origen: B7 del maratón prisma→DI #21).
-> **Premisa:** el pipeline de ingestión ya existe, está migrado a DI y testeado; lo que falta es
-> **cablearlo** (ruta inbound + bootstrap + pasar el broadcaster) y blindarlo (appsec + E2E).
-> No reimplementar lo que ya está; sólo conectar y verificar runtime real.
+> **Status:** workstream **captured, NOT executed** (origin: B7 of the prisma→DI #21 marathon).
+> **Premise:** the ingestion pipeline already exists, is migrated to DI and tested; what is missing is
+> **wiring it** (inbound route + bootstrap + passing the broadcaster) and hardening it (appsec + E2E).
+> Do not reimplement what is already there; only connect it and verify the real runtime.
 
-## Contexto
+## Context
 
-Durante B7 se auditó funcionalmente el subsistema `apps/api/src/webhooks/`. Hallazgo: **11 de 13 archivos
-forman un pipeline de ingestión inbound completo pero huérfano** (forgotten-feature, NO dead — se confirmó
-auditando la feature completa + sus ~600 tests). B7 lo migró a DI (threading de `PrismaClient` por todo el
-cascade, #21 17→4) y lo dejó **DI-ready**, pero **no lo cableó** (decisión de Edward: "DI ahora + cablear
-como workstream aparte").
+During B7 the `apps/api/src/webhooks/` subsystem was audited functionally. Finding: **11 of 13 files
+form a complete but orphaned inbound ingestion pipeline** (forgotten-feature, NOT dead — confirmed
+by auditing the whole feature + its ~600 tests). B7 migrated it to DI (threading `PrismaClient` through the whole
+cascade, #21 17→4) and left it **DI-ready**, but **did not wire it** (the Product Owner's decision: "DI now + wire
+as a separate workstream").
 
-### Lo que YA existe y funciona (testeado)
+### What ALREADY exists and works (tested)
 
 ```
 WebhookManager(prisma, redis)
   └ createWebhookJobProcessor(prisma, redis)
       └ WebhookJobProcessor(prisma, redis)            BullMQ: WEBHOOK_PROCESSING + WEBHOOK_DEAD_LETTER (+ MENTION_INGEST producer)
           └ UniversalWebhookHandler(prisma, broadcaster?, mentionEnqueue?)
-              ├ checkDuplicateEvent → getWebhookSubscription → verifyWithGraceWindow (HMAC + rotación)
+              ├ checkDuplicateEvent → getWebhookSubscription → verifyWithGraceWindow (HMAC + rotation)
               ├ processor.parse → storeWebhookEvent → processor.process → markEventProcessed
               ├ handleEventFailure (retry/backoff) → moveToDeadLetterQueue
               └ 8 processors (facebook, instagram, x, youtube, tiktok, linkedin, snapchat, telegram)
-                   process(): resuelve channel/publishLog/post, actualiza analytics,
+                   process(): resolves channel/publishLog/post, updates analytics,
                               broadcaster.broadcastEngagement/PostStatus (SSE) + mentionEnqueue (worker)
 ```
 
-- `WebhookManager` también expone CRUD de suscripciones (secretKey HMAC + verifyToken + setup-instructions por
+- `WebhookManager` also exposes subscription CRUD (HMAC secretKey + verifyToken + setup-instructions per
   provider), stats, retry, cleanup.
-- `RealtimeWebhookBroadcaster` (SSE, **vivo**, registrado en el container) y `WebhookDashboardService`
-  (dashboard admin, **vivo**) son los 2 de 13 que sí están cableados — consumen el modelo de eventos que el
-  pipeline persiste.
+- `RealtimeWebhookBroadcaster` (SSE, **live**, registered in the container) and `WebhookDashboardService`
+  (admin dashboard, **live**) are the 2 of 13 that are wired — they consume the event model that the
+  pipeline persists.
 
-### Lo que FALTA (el cableado)
+### What is MISSING (the wiring)
 
-1. **Ruta inbound HTTP** — no existe ningún endpoint que reciba eventos de los providers. Hoy ningún webcap
-   externo llega al `WebhookManager.processIncomingWebhook(...)`.
-2. **Bootstrap / composition root** — `WebhookManager` no se construye en ningún sitio (sin token ni registro
-   en el container; sin arranque en `apps/workers`).
-3. **Gap del broadcaster** — `webhookJobProcessor.ts` construye el handler con
-   `new UniversalWebhookHandler(this.prisma, undefined, mentionEnqueue)` → **broadcaster = `undefined`**. Aun
-   cableando la ruta, el path de SSE en vivo queda apagado hasta pasar el `RealtimeWebhookBroadcaster` resuelto
-   del container.
+1. **Inbound HTTP route** — no endpoint exists that receives events from the providers. Today no external
+   webhook reaches `WebhookManager.processIncomingWebhook(...)`.
+2. **Bootstrap / composition root** — `WebhookManager` is not constructed anywhere (no token, no registration
+   in the container; no startup in `apps/workers`).
+3. **Broadcaster gap** — `webhookJobProcessor.ts` builds the handler with
+   `new UniversalWebhookHandler(this.prisma, undefined, mentionEnqueue)` → **broadcaster = `undefined`**. Even
+   with the route wired, the live SSE path stays dark until the `RealtimeWebhookBroadcaster` resolved
+   from the container is passed in.
 
-## Diseño objetivo (a implementar en este workstream)
+## Target design (to implement in this workstream)
 
-### 1. Ruta inbound `/webhooks/:provider`
+### 1. Inbound route `/webhooks/:provider`
 
-- **`GET /webhooks/:provider`** — handshake de verificación. Meta (Facebook/Instagram) envía
-  `hub.mode=subscribe`, `hub.verify_token`, `hub.challenge`; el handler valida `hub.verify_token` contra el
-  `verifyToken` de la suscripción y responde el `hub.challenge` en texto plano. Otros providers que usen
-  challenge propio se ramifican aquí por `:provider`.
-- **`POST /webhooks/:provider`** — recepción del evento. Lee el **raw body** (necesario para HMAC — no el JSON
-  ya parseado/reserializado), extrae la firma del header per-provider, y delega en
+- **`GET /webhooks/:provider`** — verification handshake. Meta (Facebook/Instagram) sends
+  `hub.mode=subscribe`, `hub.verify_token`, `hub.challenge`; the handler validates `hub.verify_token` against the
+  subscription's `verifyToken` and answers with the `hub.challenge` in plain text. Other providers that use
+  their own challenge branch here by `:provider`.
+- **`POST /webhooks/:provider`** — event reception. Reads the **raw body** (required for HMAC — not the JSON
+  already parsed/reserialized), extracts the signature from the per-provider header, and delegates to
   `webhookManager.processIncomingWebhook(provider, eventType, eventId, signature, payload, headers, accountId?, projectId?)`,
-  que encola en BullMQ. Responder `200`/`202` rápido (los providers reintentan ante no-2xx) y procesar async.
-- **Sin auth de cliente** (es tráfico server-to-server de la plataforma) — la autenticidad se prueba por
-  **firma HMAC**, no por sesión. Registrar la ruta fuera del `requireClientAuth`/`requireAdminAuth`.
-- Captura del raw body: configurar un content-type parser de Fastify que preserve el buffer crudo para esta
-  ruta (o `addContentTypeParser` scoped), porque la verificación de firma debe correr sobre los bytes exactos.
+  which enqueues in BullMQ. Answer `200`/`202` fast (providers retry on a non-2xx) and process async.
+- **No client auth** (it is server-to-server traffic from the platform) — authenticity is proven by the
+  **HMAC signature**, not by a session. Register the route outside `requireClientAuth`/`requireAdminAuth`.
+- Raw body capture: configure a Fastify content-type parser that keeps the raw buffer for this
+  route (or a scoped `addContentTypeParser`), because signature verification must run over the exact bytes.
 
 ### 2. Bootstrap (composition root)
 
-- Añadir `TOKENS.WebhookManager` y registrarlo en un composition root:
-  `new WebhookManager(container.resolve(TOKENS.PrismaClient), redis)`. El cascade interno
-  (`createWebhookJobProcessor` → `WebhookJobProcessor` → `UniversalWebhookHandler` → 8 processors) se
-  autoconstruye con el `prisma`/`redis` inyectados.
-- Decidir operativamente dónde vive el consumer BullMQ: **in-process en `apps/api`** (como repurpose/triage/
-  trend/bulk-schedule) **o** como ejecutable dedicado en `apps/workers` con su propio composition root. Ambas
-  son canon (CLAUDE.md §"Composition root per executable") siempre que el core de aplicación sea compartido,
-  no duplicado.
+- Add `TOKENS.WebhookManager` and register it in a composition root:
+  `new WebhookManager(container.resolve(TOKENS.PrismaClient), redis)`. The internal cascade
+  (`createWebhookJobProcessor` → `WebhookJobProcessor` → `UniversalWebhookHandler` → 8 processors) builds
+  itself from the injected `prisma`/`redis`.
+- Decide operationally where the BullMQ consumer lives: **in-process in `apps/api`** (like repurpose/triage/
+  trend/bulk-schedule) **or** as a dedicated executable in `apps/workers` with its own composition root. Both
+  are canon (CLAUDE.md §"Composition root per executable") as long as the application core is shared,
+  not duplicated.
 
-### 3. Cerrar el gap del broadcaster
+### 3. Close the broadcaster gap
 
-- Pasar el `RealtimeWebhookBroadcaster` resuelto del container al handler:
-  `new UniversalWebhookHandler(prisma, broadcaster, mentionEnqueue)` dentro de `createWebhookJobProcessor` /
-  `WebhookJobProcessor` (threading del broadcaster como ya se hace con prisma). Con esto, `process()` de los
-  processors emite SSE en vivo a los dashboards conectados.
+- Pass the `RealtimeWebhookBroadcaster` resolved from the container to the handler:
+  `new UniversalWebhookHandler(prisma, broadcaster, mentionEnqueue)` inside `createWebhookJobProcessor` /
+  `WebhookJobProcessor` (threading the broadcaster the way prisma already is). With this, `process()` in the
+  processors emits live SSE to the connected dashboards.
 
-### 4. Verificación de firma per-provider (canon)
+### 4. Per-provider signature verification (canon)
 
-- Cada provider firma distinto (header + algoritmo + encoding). Ya está modelado en
-  `AbstractWebhookProcessor` (`signaturePrefix`, `signatureEncoding`, `getHmacAlgorithm`) y en
-  `verifyWithGraceWindow` (rotación de secreto con ventana de gracia). El workstream debe **confirmar contra
-  el canon de cada provider** (doc oficial de cada API) el header exacto y el algoritmo, y cubrir cada uno con
-  test de firma válida/ inválida/ rotada.
+- Each provider signs differently (header + algorithm + encoding). It is already modeled in
+  `AbstractWebhookProcessor` (`signaturePrefix`, `signatureEncoding`, `getHmacAlgorithm`) and in
+  `verifyWithGraceWindow` (secret rotation with a grace window). The workstream must **confirm against
+  each provider's canon** (each API's official docs) the exact header and the algorithm, and cover each one with
+  a valid/ invalid/ rotated signature test.
 
-### 5. Appsec (obligatorio antes de exponer)
+### 5. Appsec (mandatory before exposing it)
 
-- **Replay**: deduplicación por `eventId` ya existe (`checkDuplicateEvent`); validar además ventana temporal /
-  `timestamp` donde el provider lo provea.
-- **Timing-safe compare** de la firma (ya usa `constantTimeCompare` en la base — verificar que ningún path lo
-  evada).
-- **DoS**: límite de tamaño de payload, rate-limit por IP/suscripción de la ruta inbound, y back-pressure de
-  BullMQ (ya hay `attempts`/`backoff`/DLQ).
-- **Tenancy**: el evento resuelve `channel`/`post` por `providerAccountId`; confirmar que no haya cross-tenant
-  al mapear a `accountId`/`projectId`.
-- Revisar con `appsec-security-auditor` (la superficie inbound es alto-riesgo).
+- **Replay**: deduplication by `eventId` already exists (`checkDuplicateEvent`); also validate a time window /
+  `timestamp` where the provider supplies one.
+- **Timing-safe compare** of the signature (the base already uses `constantTimeCompare` — verify that no path
+  bypasses it).
+- **DoS**: a payload size limit, a per-IP/per-subscription rate limit on the inbound route, and BullMQ
+  back-pressure (`attempts`/`backoff`/DLQ already exist).
+- **Tenancy**: the event resolves `channel`/`post` by `providerAccountId`; confirm there is no cross-tenant
+  access when mapping to `accountId`/`projectId`.
+- Review with `appsec-security-auditor` (the inbound surface is high-risk).
 
 ### 6. Tests + E2E
 
-- Unit: ya cubierto (parse/verify/process/manager/handler/dlq).
-- Integración: ruta inbound (challenge GET + POST con firma válida/inválida/rotada) vía `app.inject` con prisma
-  fake inyectado.
-- E2E real: `curl` al endpoint inbound desplegado con un payload firmado de cada provider y verificar que el
-  evento se persiste, el worker procesa, el SSE emite y (si aplica) el mention-worker recibe el job. Smoke-test
-  contra el entorno dev real (no sólo mocks).
+- Unit: already covered (parse/verify/process/manager/handler/dlq).
+- Integration: inbound route (challenge GET + POST with a valid/invalid/rotated signature) via `app.inject` with an injected
+  fake prisma.
+- Real E2E: `curl` to the deployed inbound endpoint with a signed payload from each provider, and verify that the
+  event is persisted, the worker processes it, the SSE emits and (where it applies) the mention-worker receives the job. Smoke-test
+  against the real dev environment (not only mocks).
 
-## Notas
+## Notes
 
-- El pipeline NO se borra ni se reescribe: está completo y testeado. Este workstream es **conectar + blindar**.
-- Referencia de la migración DI que dejó todo listo: B7 (rama `workstream/prisma-di-migration`).
-- Backlog: SMELL-38 en `docs/reports/roadmap-detected-smells-backlog.md`.
+- The pipeline is NOT deleted or rewritten: it is complete and tested. This workstream is **connect + harden**.
+- Reference for the DI migration that left everything ready: B7 (branch `workstream/prisma-di-migration`).
+- Backlog: SMELL-38 in `docs/reports/roadmap-detected-smells-backlog.md`.
