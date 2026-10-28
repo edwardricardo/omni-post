@@ -249,9 +249,9 @@ DataBreachReport
 `TENANT_SCOPED_MODELS` is not a policy switch. Every name in it is an
 **assertion that the row carries an `accountId` column** for the guard to filter
 on. Adding a name whose model has no such column does not tighten isolation — it
-takes the model OFFLINE. Measured against the committed guard and the generated
-client (`Post`, `PostContent` and `PostMedia` contain zero occurrences of
-`accountId`, versus 45 in `Channel`):
+takes the model OFFLINE. Measured before the Post trio gained the column, against the
+committed guard and the generated client (`Post`, `PostContent` and `PostMedia` then
+held zero occurrences of `accountId`, versus 45 in `Channel`):
 
 | Bound context                        | What the guard does at `tenantGuardCheck` | Result on a column-less model                                                                       |
 | ------------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -290,11 +290,11 @@ asserts a strict 1:1 between `getTenantScopedModels()` and the `tenant_isolation
 rows in `pg_policies`, in BOTH directions, so the Set and the policies move in the
 same change or the suite goes red.
 
-`Post`, `PostContent` and `PostMedia` are owned by Slice 8 of
-`openspec/changes/project-scoped-tenant-guard/rollout-plan.md` (tier 4, gated by
-the Slice 6 out-of-context caller audit). Until that slice runs they stay on the
-transitively-scoped list above and are protected by the explicit
-`project: { accountId }` predicate, not by the guard.
+`Post`, `PostContent` and `PostMedia` were planned as Slice 8 of
+`docs/features/project-scoped-tenant-guard/rollout-plan.md`. Their enrollment moved to
+Slice 1 of `tenant-isolation-composite-fk` (`docs/features/tenant-isolation-composite-fk/`),
+which landed it: they carry a non-null `accountId`, are enrolled in both guard layers and
+sit on the tenant-scoped list above. See §"Post trio promotion" below.
 
 > **Note (Slice 1, 2026-07-14):** `ExternalNotificationConfig` was PROMOTED
 > from this transitively-scoped list to the tenant-scoped list above — it now
