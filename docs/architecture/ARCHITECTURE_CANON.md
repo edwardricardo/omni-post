@@ -3,7 +3,7 @@
 > Authoritative rules for system architecture in omni-post. Auto-loaded via
 > `@docs/architecture/ARCHITECTURE_CANON.md` in CLAUDE.md.
 
-**Owner:** Platform engineering
+**Owner:** Maintainers
 **Loaded:** every session (Claude Code `@`-import, depth 1)
 
 ---

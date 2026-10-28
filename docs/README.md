@@ -12,6 +12,7 @@ This page indexes the living documents under `docs/`. [`CLAUDE.md`](../CLAUDE.md
 | [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md)    | Variable reference by category; Master Plan DEF-97 tracks the required ones it misses                                               |
 | [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks, reach, CI, the `node:test` runner, chaos, provider contract and end-to-end tests, gates that cannot fail, open findings |
 | [Coding Standards](development/CODING_STANDARDS.md)             | TypeScript, Result, error handling, testing, naming, JSDoc (canon)                                                                  |
+| [Governance](GOVERNANCE.md)                                     | The two roles, Product Owner and Maintainer, who holds each and since when, and where decisions are recorded                        |
 
 Quick start, with the versions `package.json` pins (Node `>=26.12.1 <27`, pnpm 12.6.0):
 
@@ -208,3 +209,5 @@ ADRs live in [`technical/`](technical/) as `ADR-NNNN-*.md`; ADR-0001 holds the t
 | [0036](technical/ADR-0036-dependency-update-cadence.md)                       | Dependency update cadence: security immediate, a Tuesday window, 30-day budget |
 | [0037](technical/ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)       | A patched `@storybook/nextjs-vite` 10.6.1 for next 16.4                        |
 | [0038](technical/ADR-0038-node-26-ahead-of-lts.md)                            | Node 26 ahead of its LTS date                                                  |
+| [0039](technical/ADR-0039-decorative-demolition-coverage-exception.md)        | Decorative-test demolition: a coverage-floor descent under a ledger marker     |
+| [0040](technical/ADR-0040-artifact-language-and-role-attribution.md)          | English as the only artifact language; artifacts name roles, never a person    |
