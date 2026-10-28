@@ -1,7 +1,7 @@
 # `auth-rate-limit-integrity` — Delta Specs
 
 > **Change:** `auth-rate-limit-integrity` · **Repo:** `/root/omni-post` · **Branch:** `workstream/auth-rate-limit-integrity`
-> **Inputs:** [explore.md](./explore.md) (diagnosis, adversarially verified) · [proposal.md](./proposal.md) (decision, W1–W9)
+> **Inputs:** [explore.md](https://github.com/edwardricardo/omni-post/blob/b87b76ac80fbb971ac4c5733e94327d79c02d972/openspec/changes/auth-rate-limit-integrity/explore.md) (diagnosis, adversarially verified) · [proposal.md](./proposal.md) (decision, W1–W9)
 >
 > Behaviour only. Every requirement below states what MUST be observably true of the running system or of the
 > repository as a whole; none names a file, a symbol, a library, or a data shape. RFC 2119 keywords are normative.
@@ -588,7 +588,7 @@ caller network identity other than through the canonical resolution.
 | R7              | The absence of any honest end-to-end enforcement proof                | W6 (proof tier)     |
 | R8              | The second layer; the one login door lacking it                       | W7                  |
 | R9              | Whether the kill switch survives, either answer                       | W7 (design fork F5) |
-| R10             | The owner's ruling: stage-two keying is not built here                | W8 (intent wording) |
+| R10             | The Maintainer's ruling: stage-two keying is not built here           | W8 (intent wording) |
 | R11             | Documentation transcribed from inert declarations                     | W8                  |
 | R12             | Amends `client-ip-rate-limit` — one authority                         | W2, W3              |
 | R13             | Amends `client-ip-rate-limit` — both halves; single resolver          | W1, W7              |

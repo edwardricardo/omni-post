@@ -219,7 +219,7 @@
 
 5. **Still open outside this mapping, unchanged:** FN-023 and FN-025 (engagement prediction and the
    AI quality fields, Master Plan §5.3), the quota figures per role or plan that stage 2 of AUTH-RL-1
-   needs (`openspec/changes/auth-rate-limit-integrity/design.md:379`), and the KPI set of BI-KPI-1.
+   needs (`docs/features/auth-rate-limit-integrity/design.md:379`), and the KPI set of BI-KPI-1.
 
 ## Rationale
 

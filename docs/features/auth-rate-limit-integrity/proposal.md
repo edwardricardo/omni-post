@@ -7,7 +7,7 @@
 
 # auth-rate-limit-integrity — Proposal
 
-> Diagnóstico y evidencia: [explore.md](./explore.md). Este documento es la decisión.
+> Diagnosis and evidence: [explore.md](https://github.com/edwardricardo/omni-post/blob/b87b76ac80fbb971ac4c5733e94327d79c02d972/openspec/changes/auth-rate-limit-integrity/explore.md). This document is the decision.
 
 ## 5 · What this change does
 
@@ -164,7 +164,7 @@ Parity is **bidirectional and interleaved** today — which is itself the eviden
 Two endpoints authenticate the same `adminUser` table: `/auth/login` (`authServiceCore.ts:165` → `PrismaAdminUserRepository`) and `/admin/auth/login` (`AdminAuthService.ts:81`). One has a brute-force port and a route-pattern key; the other has neither, and its only frontend client (`apps/admin/lib/api/clients/authClient.ts:31`) is re-exported but called by no component.
 **(a)** Inject `BruteForceProtectionPort` into `AuthServiceCore` — small, provable, closes the asymmetry now, leaves a redundant door standing.
 **(b)** Delete the whole `/auth/*` AuthService HTTP surface (six routes, `authRoutes.ts:330-390`) and repoint the portal — the correct end state, but a redo of the auth stack rather than the limiter.
-Default assumed by this proposal: **(a)**, with (b) named as its own change. The owner's "redo, don't patch" rule argues for (b); reviewability argues for (a). **Genuine fork; needs a decision before W7.**
+Default assumed by this proposal: **(a)**, with (b) named as its own change. The Maintainer's "redo, don't patch" rule argues for (b); reviewability argues for (a). **Genuine fork; needs a decision before W7.**
 
 **F2 — Does `keyBy: "principal"` land now?**
 `SECURITY_CANON §Rate Limiting` prefers an authenticated principal. `HttpRateLimitRule` (`:24-30`) cannot express it, and there is a real obstacle: the global preHandler (`index.ts:438`) runs **before** route-level `requireClientAuth`, so `request.auth` is unpopulated when the key is computed. Adding the dimension means either a second post-auth limiter stage or moving the hook — both are architectural. **(a)** ship IP-only and state the canon gap honestly in W8; **(b)** design the two-stage key now.
