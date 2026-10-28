@@ -4,7 +4,7 @@ Make cross-tenant rows **unwritable by the database engine** for transitively-ow
 entities, starting with the product's core trio (`Post` / `PostContent` / `PostMedia`),
 by adopting Option **A′**: denormalized `accountId` + composite foreign key over a
 unique constraint — after first proving that RLS enforces anything at all. This
-formalizes a decision already signed by Edward (master plan, re-confirmed 2026-09-06);
+formalizes a decision already signed by the Maintainer (master plan, re-confirmed 2026-09-06);
 the full research with verbatim-verified sources is
 [`docs/technical/TENANT_ISOLATION_RESEARCH.md`](https://github.com/edwardricardo/omni-post/blob/f74fec943c5dc71e7c928dca61638f90d105aeca/docs/technical/TENANT_ISOLATION_RESEARCH.md)
 (removed from the repository on 2026-10-17; git history keeps it) and this proposal stays within its scope.

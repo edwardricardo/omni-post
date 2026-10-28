@@ -7,7 +7,7 @@
 > its delta specs, the divergence is now resolved by explicit amendment — in the spec where the
 > design won the merits (coverage-gate tier, child-index exemption), in this document where the
 > spec won (batched backfill everywhere, trio query-contract inside Slice 1).
-> Addendum 2026-09-07 — **Slice 0d (request-scoped tenant binding)**, the slice the owner
+> Addendum 2026-09-07 — **Slice 0d (request-scoped tenant binding)**, the slice the Maintainer
 > signed after PR3's cutover measurement (ADR-0022 §Runtime cutover: owner 177/177, app role
 > 170/177): decisions D-S0d-1…D-S0d-4, rollout re-staged, falsifiable claims 13–19, and a new
 > `rls-enforcement` requirement (request-scoped binding) added to the delta spec.

@@ -19,50 +19,6 @@
     "spanish": 0,
     "names": 14
   },
-  "docs/features/audit-actor-polymorphism/design.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "docs/features/audit-actor-polymorphism/proposal.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "docs/features/audit-actor-polymorphism/specs/audit-actor-attribution/spec.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "docs/features/audit-actor-polymorphism/tasks.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "docs/features/project-scoped-tenant-guard/rollout-plan.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "docs/features/saga-engine-terminal-hygiene/design.md": {
-    "spanish": 0,
-    "names": 7
-  },
-  "docs/features/saga-engine-terminal-hygiene/proposal.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "docs/features/saga-engine-terminal-hygiene/tasks.md": {
-    "spanish": 0,
-    "names": 9
-  },
-  "docs/features/tenant-context-at-boundaries/proposal.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "docs/features/tenant-isolation-composite-fk/proposal.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "docs/features/tenant-isolation-composite-fk/tasks.md": {
-    "spanish": 0,
-    "names": 3
-  },
   "docs/reports/N_SEC_7_CLUSTER_B_MFA_DISPOSITION.md": {
     "spanish": 18,
     "names": 2

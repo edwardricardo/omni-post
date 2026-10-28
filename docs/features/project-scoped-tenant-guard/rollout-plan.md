@@ -1,7 +1,7 @@
 # project-scoped-tenant-guard — Sequential Rollout Plan
 
 > Classification of the 9 projectId-only models by **importance × complexity**, driving a
-> sequential per-slice rollout (Edward's directive: classify, then execute sequentially; each
+> sequential per-slice rollout (the Product Owner's directive: classify, then execute sequentially; each
 > slice is its own full-SDD change). Produced by the classification workflow; every claim
 > verified at source. **7 of the 9 models carry a LIVE cross-tenant IDOR today.**
 
