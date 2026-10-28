@@ -117,7 +117,7 @@ process. A dispatch arriving mid-run is coalesced into a single trailing pass,
 so an event is never lost and N simultaneous events never become N executions.
 This guard is in-process by construction and says nothing about concurrent
 replicas: the deployment remains single-replica, and cross-process ownership is
-the row-claim work that `saga-crash-recovery` owns.
+the row-claim work of `docs/features/saga-engine-terminal-hygiene` (phases 17 to 21 of its tasks).
 
 ---
 

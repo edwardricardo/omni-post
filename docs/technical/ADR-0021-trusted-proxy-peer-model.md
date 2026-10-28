@@ -193,8 +193,10 @@ silently does nothing is its own trap.
 
 - Read-only display of the effective topology (mode + ranges) on an operator
   surface, so a misconfigured deployment is visible without reading env.
-- `openspec/specs/client-ip-rate-limit/spec.md` still describes the hop-count
-  selection and needs re-specification against this model.
+- The former `client-ip-rate-limit` spec
+  ([`client-ip-rate-limit/spec.md`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/client-ip-rate-limit/spec.md))
+  described the hop-count selection; it was retired on 2026-10-28, and SECURITY_CANON
+  §Rate Limiting is the living specification of this model.
 
 ## References
 
