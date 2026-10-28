@@ -141,7 +141,7 @@
 
 - **No bug** in current implementation. This canon entry **validates** the existing pattern + documents rationale + flags an upper-bound improvement.
 
-## Edward's review
+## Maintainer's review
 
 - [ x] Sources are sufficient (3: OWASP A09:2025 + OWASP Logging Cheat Sheet + AWS CloudTrail)
 - [ x] Recommendations match project values (validates current PR-44 design)

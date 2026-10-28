@@ -28,7 +28,7 @@ Direct `import pino from "pino"` in `apps/api/src/**` is forbidden by CI fitness
 
 ## Why three factories instead of one
 
-Edward asked the same question. The answer is **scope of the responsibility each factory carries**.
+The Maintainer asked the same question. The answer is **scope of the responsibility each factory carries**.
 
 ### apps/api/src/lib/logger.ts — credentials hot path
 

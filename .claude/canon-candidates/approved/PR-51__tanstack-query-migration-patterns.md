@@ -232,7 +232,7 @@ For new hooks created in PR-51 sub-batches and any future feature work:
 - `apps/client/hooks/api/useSchedulingDashboardSidebar.ts` — NEW hook consuming the factory.
 - `apps/client/lib/api/clients/schedulingClient.ts` — NEW transport-level client (if not already present).
 
-## Edward's review
+## Maintainer's review
 
 - [x] Sources are sufficient (5: TanStack v5 docs ×3 + tkdodo ×2)
 - [x] Recommendations match project values (incremental migration, no bulk rewrite, factory for new code only)

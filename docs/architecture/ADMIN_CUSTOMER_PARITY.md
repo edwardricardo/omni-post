@@ -207,9 +207,9 @@ Terminology: **admin** = `AdminUser` / `AdminSession` surface (`/admin/auth/*`, 
 
 ### The headline
 
-**The owner's worry is broadly right but not uniformly right, and the exceptions are load-bearing.** Admin leads on twice as many axes as customer — but customer leads on the axes where a mistake is _hardest to retrofit_, and admin carries the single largest unrated hole in the codebase.
+**The Maintainer's worry is broadly right but not uniformly right, and the exceptions are load-bearing.** Admin leads on twice as many axes as customer — but customer leads on the axes where a mistake is _hardest to retrofit_, and admin carries the single largest unrated hole in the codebase.
 
-**Where admin is AHEAD** (the owner already knows this, but for completeness): durable hashed sessions and everything downstream of them (rotation, listing, revoke, revoke-all, revoke-on-credential-change, concurrent cap, idle expiry, CSRF); password history + reuse prevention + an authenticated change-password endpoint; real password-strength enforcement; permission enforcement at all; the entire auth audit trail; permission-gated audit reads; rate limits on the reset paths; a bot gate; operator-settable lockout; the atomic single-statement credential write; the credential-free read DTO; and most of the shared UI chrome (theme, skip link, permission-denied, loading, help).
+**Where admin is AHEAD** (the Maintainer already knows this, but for completeness): durable hashed sessions and everything downstream of them (rotation, listing, revoke, revoke-all, revoke-on-credential-change, concurrent cap, idle expiry, CSRF); password history + reuse prevention + an authenticated change-password endpoint; real password-strength enforcement; permission enforcement at all; the entire auth audit trail; permission-gated audit reads; rate limits on the reset paths; a bot gate; operator-settable lockout; the atomic single-statement credential write; the credential-free read DTO; and most of the shared UI chrome (theme, skip link, permission-denied, loading, help).
 
 **Where admin is BEHIND — read this part carefully:**
 
@@ -308,23 +308,23 @@ These are the excuses that would let a real gap through, so I am naming them:
 
 ### (b) MFA backup-code single-use
 
-> ## ⛔ ESTA AFIRMACIÓN ES FALSA — corregida 2026-08-16
+> ## ⛔ THIS CLAIM IS FALSE — corrected 2026-08-16
 >
-> **La race de single-use NO está cerrada: está ROTA idénticamente en ambos lados.** El párrafo de abajo
-> leyó "los dos adapters tienen la misma forma CAS" y concluyó "cerrada idénticamente"; la lectura correcta
-> era **rota idénticamente**. La refutación no es analítica: una adjudicación dedicada **corrió el código** y
-> reprodujo el doble minteo **6 de 6 veces** con un escalonamiento de 5-30 ms entre las dos verificaciones.
+> **The single-use race is NOT closed: it is BROKEN identically on both sides.** The paragraph below
+> read "the two adapters have the same CAS shape" and concluded "closed identically"; the correct reading
+> was **broken identically**. The refutation is not analytical: a dedicated adjudication **ran the code** and
+> reproduced the double mint **6 out of 6 times** with a 5-30 ms stagger between the two verifications.
 >
-> El error de razonamiento vale más que la corrección: el CAS _sí_ cierra la ventana **simultánea** (que es
-> la única que ejercita el test citado abajo, vía `Promise.all`), y por eso el código y sus pruebas se leen
-> coherentes. La ventana explotable es otra — está entre la **lectura decisoria del servicio**
-> (`MfaService.ts:199`) y la **lectura del adapter** (`:91`), separadas por hasta 8 verificaciones argon2id.
-> El comparando del CAS es una lectura tomada _dentro del método_, así que detecta lost-updates de ese
-> método, nunca reclama el código. Detalle: `openspec/changes/mfa-backup-code-single-use/explore.md`;
-> ficha del plan: `MASTER_PLAN_ES.md` §1.N.A **N-SEC-5 (re-abierto)**.
+> The reasoning error is worth more than the correction: the CAS _does_ close the **simultaneous** window (which is
+> the only one the test cited below exercises, via `Promise.all`), and that is why the code and its tests read
+> as coherent. The exploitable window is a different one — it lies between the **service's deciding read**
+> (`MfaService.ts:199`) and the **adapter's read** (`:91`), separated by up to 8 argon2id verifications.
+> The CAS comparand is a read taken _inside the method_, so it detects that method's lost updates and
+> never claims the code. Detail: `openspec/changes/mfa-backup-code-single-use/explore.md`;
+> plan card: `MASTER_PLAN_ES.md` §1.N.A **N-SEC-5 (reopened)**.
 >
-> **Lección transferible:** que dos implementaciones sean byte-idénticas prueba **paridad**, no **corrección**.
-> Una auditoría de paridad puede certificar simetría y pasar por alto que ambos lados están mal.
+> **Transferable lesson:** two byte-identical implementations prove **parity**, not **correctness**.
+> A parity audit can certify symmetry and miss that both sides are wrong.
 
 **Critical premise correction, verified:** _the single-use race is already closed, identically, on both sides._ `PrismaCustomerMfaUserRepository.ts:99-123` and `PrismaAdminMfaUserRepository.ts:94-118` are byte-identical JSONB compare-and-swap; both disambiguate `count===0` into `ALREADY_USED` vs `NOT_FOUND`; the port documents it (`MfaUserRepositoryPort.ts:96-117`); the CAS loser is rejected and audited HIGH (`MfaService.ts:238-270`); and **both** adapter unit suites carry the same five cases including "row vanished between snapshot and CAS" (`PrismaAdminMfaUserRepository.test.ts:337`). **There is no adapter divergence to fix.** If the change was scoped around closing that race, its scope needs restating before it starts.
 

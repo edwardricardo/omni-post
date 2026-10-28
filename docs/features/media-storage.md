@@ -2,7 +2,7 @@
 
 - **Status**: Decided 2026-10-04 — ready for implementation slices (§10)
 - **Date**: 2026-10-04
-- **Owner**: Edward / Platform engineering
+- **Owner**: Product Owner and Maintainers
 - **Decisions**: [ADR-0028](../technical/ADR-0028-storage-configuration-and-media-access.md)
   (configuration, access, health) · [ADR-0029](../technical/ADR-0029-media-upload-limits.md) (upload
   limits and verification)
@@ -203,7 +203,7 @@ read on 2026-10-04:
 | Threads   | JPEG or PNG, 8 MB                  | not supported         | MOV or MP4, 1 GB, ≤300 s                                         | —                                            | https://developers.facebook.com/docs/threads/overview                                                                                                    |
 
 Where the research flags a contradiction (LinkedIn video, Facebook Page video, Pinterest sizes,
-Snapchat images), the slice records the source of each figure and Edward confirms the value used.
+Snapchat images), the slice records the source of each figure and the Product Owner confirms the value used.
 
 ## 7. State machines
 
@@ -292,4 +292,4 @@ cap), with its tests and documentation in the same change.
   the exact values are set and tested in STOR-5.
 - **When exactly the lock is set**: at the first stored object; STOR-3 picks the event that records
   it (for example the first upload confirmed by verification).
-- **Contradictory network figures** in the research (§6) need Edward's confirmation in STOR-8.
+- **Contradictory network figures** in the research (§6) need the Product Owner's confirmation in STOR-8.

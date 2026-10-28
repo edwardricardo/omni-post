@@ -2,11 +2,11 @@
 
 > Workstream: §3.1 Normalization Roadmap (Phase A1 closed; Phase B / §3.1.b PENDING).
 
-## Resumen
+## Summary
 
-El backend Fastify (`apps/api`) emite un spec OpenAPI 3.0 vía `@fastify/swagger`. El spec se transforma a tipos TypeScript canónicos via `@hey-api/openapi-ts` y se consume desde admin/client como tipos importables.
+The Fastify backend (`apps/api`) emits an OpenAPI 3.0 spec through `@fastify/swagger`. The spec is transformed into canonical TypeScript types through `@hey-api/openapi-ts` and consumed by admin/client as importable types.
 
-**Pipeline actual:**
+**Current pipeline:**
 
 ```
 Route schema (Zod)
@@ -22,13 +22,13 @@ apps/api/scripts/dump-openapi-spec.ts  →  /tmp/omnipost-openapi.json
 packages/shared/src/api-generated/{types.gen.ts, index.ts}
 ```
 
-**Comando para regenerar:** `pnpm generate:api-types`
+**Command to regenerate:** `pnpm generate:api-types`
 
-Requiere: PostgreSQL + Redis up (porque `createApp()` se conecta). En CI los services del job test los proveen.
+Requires: PostgreSQL + Redis up (because `createApp()` connects). In CI, the test job's services provide them.
 
-## Configuración crítica (canon)
+## Critical configuration (canon)
 
-`fastify-type-provider-zod` v6+ requiere TRES wirings — sin los tres, el spec emite Zod raw (`{ def: ... }`) y los tipos generados son `{[key:string]: unknown}`:
+`fastify-type-provider-zod` v6+ requires THREE wirings — without all three, the spec emits raw Zod (`{ def: ... }`) and the generated types are `{[key:string]: unknown}`:
 
 ```typescript
 // apps/api/src/index.ts
@@ -44,14 +44,14 @@ typedApp.setValidatorCompiler(validatorCompiler); // 1️⃣
 typedApp.setSerializerCompiler(serializerCompiler); // 2️⃣
 
 await typedApp.register(fastifySwagger.default, {
-  transform: jsonSchemaTransform, // 3️⃣ — sin esto el spec queda mal
+  transform: jsonSchemaTransform, // 3️⃣ — without this the spec comes out wrong
   openapi: {/* ... */},
 });
 ```
 
-## Recipe para migrar una ruta a Zod schema
+## Recipe for migrating a route to a Zod schema
 
-**Antes** (status quo actual de ~342 rutas):
+**Before** (the current status quo of ~342 routes):
 
 ```typescript
 const ProjectIdParamsSchema = z.object({ projectId: z.string().uuid() });
@@ -70,7 +70,7 @@ fastify.get(
 );
 ```
 
-**Después** (post-§3.1.b migration):
+**After** (post-§3.1.b migration):
 
 ```typescript
 const ProjectIdParamsSchema = z.object({ projectId: z.string().uuid() });
@@ -94,16 +94,16 @@ fastify.get(
     },
   },
   async (request, reply) => {
-    // request.params está tipado desde params schema; no más validateRequest manual
+    // request.params is typed from the params schema; no more manual validateRequest
     const { projectId } = request.params;
     // ... handler body
   }
 );
 ```
 
-Migración por ruta toma ~5-15 min. La 342 routes restantes → §3.1.b (~50-60h total).
+Migrating one route takes ~5-15 min. The 342 remaining routes → §3.1.b (~50-60h total).
 
-## Consumo desde frontend (admin/client)
+## Consumption from the frontend (admin/client)
 
 The fetch client is not a separate package: the standalone `@hey-api/client-fetch` was removed on
 2026-10-03 (decision D35 in `docs/development/TESTING_REFOUNDATION.md`), because npm deprecates it as
@@ -122,12 +122,12 @@ export const apiClient = createClient({
   credentials: "include",
 });
 
-// Llamado tipado:
+// Typed call:
 const { data, error } = await apiClient.get<GetHealthResponses>({ url: "/health" });
-// `data.status` es: 'healthy' | 'degraded' | 'unhealthy' — type-narrowed.
+// `data.status` is: 'healthy' | 'degraded' | 'unhealthy' — type-narrowed.
 ```
 
-Phase A1 NO wire admin/client aún — el wireup es §3.1.b una vez que más rutas estén migradas (3 health endpoints no son consumed por UI de admin/client).
+Phase A1 does NOT wire admin/client yet — the wireup is §3.1.b once more routes are migrated (the 3 health endpoints are not consumed by the admin/client UI).
 
 ## Phase A1 (DONE) vs Phase B / §3.1.b (PENDING)
 
@@ -137,27 +137,27 @@ Phase A1 NO wire admin/client aún — el wireup es §3.1.b una vez que más rut
 
 - `@hey-api/openapi-ts` v0.99.0 installed (pinned exact). It replaced 0.97.3 on 2026-10-04; from the same spec, 0.97.3 and 0.99.0 generate byte-identical types. `@hey-api/client-fetch` v0.13.1 was installed beside it
   and removed on 2026-10-03 (decision D35): deprecated, and bundled inside openapi-ts since 0.73.
-- `openapi-ts.config.ts` en repo root.
+- `openapi-ts.config.ts` at the repo root.
 - `scripts/generate-api-types.ts` + `apps/api/scripts/dump-openapi-spec.ts`.
-- `pnpm generate:api-types` script en root package.json.
-- `jsonSchemaTransform` agregado al swagger plugin (root cause de "tipos vacíos").
-- `js-yaml` override removido (forzaba v3 cuando consumers modernos quieren v4).
-- 3 health routes (`/health`, `/health/live`, `/health/ready`) migradas con response schemas Zod completos.
-- `packages/shared/src/api-generated/{types.gen.ts, index.ts}` committed (414 paths tipados, 3 con response schemas reales, los demás con response `{[key:string]: unknown}` esperando migración).
-- Stop hook compliance: el generator post-procesa con `@file/@layer` headers JSDoc para que sobreviva regens.
+- `pnpm generate:api-types` script in the root package.json.
+- `jsonSchemaTransform` added to the swagger plugin (the root cause of "empty types").
+- `js-yaml` override removed (it forced v3 when modern consumers want v4).
+- 3 health routes (`/health`, `/health/live`, `/health/ready`) migrated with complete Zod response schemas.
+- `packages/shared/src/api-generated/{types.gen.ts, index.ts}` committed (414 typed paths, 3 with real response schemas, the rest with a `{[key:string]: unknown}` response awaiting migration).
+- Stop hook compliance: the generator post-processes with `@file/@layer` JSDoc headers so they survive regenerations.
 
 ### Phase B / §3.1.b — PENDING
 
 ⏭ **Backlog:**
 
-- Migrar las ~342 rutas restantes a Zod schemas completos (params, query, body, response). Trabajo progresivo, por route file.
-- Wirear admin `apps/admin/lib/api/typed-client.ts` + ≥1 call typed.
-- Wirear client `apps/client/lib/api/typed-client.ts` + ≥2 calls typed.
-- Gate de drift en CI: step en `.github/workflows/ci.yml` que corre `pnpm generate:api-types` + falla si `git diff` muestra cambios en `packages/shared/src/api-generated/`. Bloqueado en esta sesión por `omnipost-allow sensitive-edit` token intermittency — 10 LOC follow-up.
+- Migrate the ~342 remaining routes to complete Zod schemas (params, query, body, response). Progressive work, one route file at a time.
+- Wire admin `apps/admin/lib/api/typed-client.ts` + ≥1 typed call.
+- Wire client `apps/client/lib/api/typed-client.ts` + ≥2 typed calls.
+- Drift gate in CI: a step in `.github/workflows/ci.yml` that runs `pnpm generate:api-types` + fails if `git diff` shows changes in `packages/shared/src/api-generated/`. Blocked in this session by `omnipost-allow sensitive-edit` token intermittency — 10 LOC follow-up.
 
-## Caveats conocidos
+## Known caveats
 
-- **Boot time del generator**: ~80s porque `createApp()` inicializa Redis, BullMQ, Prisma, OTel, etc. No se necesita real DB writes; los runtime errors de Redis (timeouts) en el log son benignos — el spec se dumpea ANTES de que esos timeouts importen.
-- **NODE_ENV=test recomendado** al correr local para skip de inits no críticos.
-- **El generator NO corre en CI hoy** — Phase B/§3.1.b lo agrega.
-- **Los archivos generados llevan `@file/@layer` JSDoc** (post-procesado por el script). NO editar a mano. Regen sobrescribe.
+- **Generator boot time**: ~80s because `createApp()` initializes Redis, BullMQ, Prisma, OTel, etc. No real DB writes are needed; the Redis runtime errors (timeouts) in the log are benign — the spec is dumped BEFORE those timeouts matter.
+- **NODE_ENV=test recommended** when running locally, to skip non-critical inits.
+- **The generator does NOT run in CI today** — Phase B/§3.1.b adds it.
+- **The generated files carry `@file/@layer` JSDoc** (post-processed by the script). Do NOT edit by hand. A regeneration overwrites them.

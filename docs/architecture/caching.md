@@ -25,7 +25,7 @@ Direct construction of a per-class `Map<>` cache, or instantiation of `RedisCach
 
 ## Why a port instead of using `RedisCacheManager` directly
 
-Edward asked the same question. The answer is **scope of consumer coupling**.
+The Maintainer asked the same question. The answer is **scope of consumer coupling**.
 
 ### Consumers don't need the full manager surface
 

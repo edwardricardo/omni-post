@@ -43,6 +43,7 @@ The four canon documents are loaded into every agent session by `CLAUDE.md`.
 | [Logging](architecture/logging.md)                                 | Logger threat model and redaction                                 |
 | [Secrets and Environment](architecture/secrets-and-env.md)         | Typed env modules, test environment, secret handling rationale    |
 | [OpenAPI Migration](architecture/openapi-migration.md)             | Route schemas to OpenAPI to the generated TypeScript types        |
+| [Canon Research Index](architecture/CANON_RESEARCH_INDEX.md)       | The research sources behind each canon rule                       |
 | [Service Level Objectives](observability/SLO.md)                   | SLOs and the Prometheus queries behind them                       |
 | [React Standards](frontend/REACT_STANDARDS.md)                     | Story requirement and the map to the frontend rules               |
 | [Frontend Standards](standards/frontend-standards.md)              | Detailed rules for `apps/admin` and `apps/client`                 |
