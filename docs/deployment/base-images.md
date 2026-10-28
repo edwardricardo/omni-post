@@ -5,7 +5,7 @@
 > identical for all four and a fact repeated four times is a fact that will be
 > corrected in one of them.
 
-**Owner:** Platform engineering
+**Owner:** Maintainers
 
 ---
 
@@ -273,6 +273,27 @@ for an unrelated advisory. It does two things:
 `workers`, `admin` and `client` carry no native module of their own, so step 1 is
 the whole of their coverage — the step says so in its own output rather than
 letting a silent pass read as more than it is.
+
+---
+
+## When CI runs the images
+
+**Decided on 2026-10-05 by the Maintainer (option A).** `production-ci.yml` runs
+on pull requests against `main`, `omni-post-cc`, `feature/**` and `workstream/**`,
+the same list as `ci.yml`, so every stacked pull request runs the whole workflow,
+`Container Security` included. #419 delivered it (merge `7d73b00d`), the pull
+request that brought `production-ci.yml` to the branch list of `ci.yml`.
+
+- **Cost:** four image builds plus Trivy on every push of a stacked pull
+  request, with the GHA cache and a 20-minute timeout per image.
+- **Why:** the chain gets back the container signal, whose absence let the six
+  defects of the image repair (landed with #304, merge `9e5175e4`, on
+  2026-09-25) get this far; and every stacked pull request carries the required
+  check `Test and Build`, which a pull request against a `workstream/*` parent
+  did not have (measured on 2026-10-05 on #410, which stayed `BLOCKED` after its
+  retarget).
+- **Rejected:** the two options measured beside it, a workflow of its own with a
+  `paths` filter, and keeping the validation local.
 
 ---
 
