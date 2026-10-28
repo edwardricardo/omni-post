@@ -42,6 +42,13 @@ Also swap `index.ts:301` (`createPrismaRepoAdapter`). `setupReferralUseCases` sw
 
 ### D3 — Fitness #28 (raw-singleton injection gate) [SENSITIVE — orchestrator]
 
+Fitness #28 in this document is the raw-singleton injection gate this change proposed and
+never wired; today's #28 is the trust-proxy check. The injection rule holds since the
+composition-root swap (`433b92b6`): fitness #21 keeps the singleton out of every unit but the
+composition roots, and `apps/api/tests/integration/compositionRootTenantBinding.integration.test.ts`
+proves a repository the root registers receives the guarded client; no check gates the roots
+themselves (N-SEC-3 in the Master Plan).
+
 - **Part A** (baseline today: 12 → 0 at PR2):
   `grep -rlE "import \{[^}]*\bprisma\b[^}]*\} from \"@infra/prisma\"" apps/api/src/infrastructure/container --include="*.ts" | grep -vE "/setup\.ts$" | wc -l # expect 0`
   (`setup.ts` excluded: its only match is a JSDoc `@example`; it receives prisma via options.)
@@ -54,6 +61,9 @@ Also swap `index.ts:301` (`createPrismaRepoAdapter`). `setupReferralUseCases` sw
   unenrolled; saga boundary context is deferred with the workers slice.
 
 ### D4 — Context-at-boundary invariant (#29, PR1) [SENSITIVE — orchestrator]
+
+Fitness #29 in this document is the static presence check this change proposed and never
+wired; today's #29 is the client-IP header check, and no check pins these seams' binders.
 
 Static presence check (#24/#25 style): `samlRoutes.ts` + `oidcRoutes.ts` MUST contain
 `bindSsoTenantContext`; `webhookAdminRoutes.ts` MUST contain `withTenantContext`; `index.ts`
