@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-15
-- **Deciders**: Platform engineering
+- **Decision-makers**: Maintainers
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 

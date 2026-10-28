@@ -2,7 +2,9 @@
 
 - **Status**: Accepted (revised 2026-07-15 — `turbopack.root` default changed from `os.homedir()` to the monorepo root following ADR-0019's `enableGlobalVirtualStore: false`, see §4(a) update note. Prior revision 2026-06-16: the dev/test/CI resolution model is now codified as a TWO-MECHANISM contract, see §1c; supersedes the binary "prod=dist / dev=paths" framing of §1/§3b. Prior revision 2026-06-15: production build is TRANSPILE-ONLY per-package `tsc` emit; the tsup bundle is rejected, see §1 + Alternatives)
 - **Date**: 2026-06-14 (transpile-only revision: 2026-06-15; resolution-model revision: 2026-06-16; turbopack-root revision: 2026-07-15)
-- **Deciders**: Edward + Claude
+- **Decision-makers**: Maintainer + Claude
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 

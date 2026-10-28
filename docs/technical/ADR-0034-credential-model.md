@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-06
-- **Deciders**: Edward
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: — (no accepted ADR; it takes the number and the place of the narrower "ADR-0034 — channel
   credentials, one cipher" that DEF-29 PR 2 planned under its task T-2.4 and never wrote, see Context)
 - **Superseded by**: —
@@ -71,7 +73,7 @@ What is not right is the inconsistency around that core, and it is measured, not
    (`auth/oidcRoutes.ts:63-70`), lost on restart and invisible to other pods, while the provider OAuth flow already
    keeps the same state in Redis with a TTL (`auth/oauth/OAuthFlowStore.ts`).
 
-Four decisions were taken by Edward on 2026-10-06 and are recorded in engram: D1+D2 final (#1305, after the correction
+Four decisions were taken by the Maintainer on 2026-10-06 and are recorded in engram: D1+D2 final (#1305, after the correction
 #1304 that D2 had been framed without ADR-0025/0028 in view), D3 (#1303) and D4 (#1306). This document records them as
 one model, so that the surgical unit (DEF-37), the write-path redesign, the key-custody units and the plaintext fixes
 all implement the same rule instead of four local ones.
@@ -350,7 +352,7 @@ unification is decision 3 below, which PR 2 applies and cites instead of recordi
    a separate location from the data, and OWASP Key Management retires a KEK by re-wrapping the DEKs under its
    replacement. Envelope encryption behind a port gives the project that shape today with the env ring and tomorrow
    with Vault or a cloud KMS, without touching a caller; two real adapters (`env`, `vault`) prove the port is neutral
-   rather than a wrapper around one SDK (Edward's reasoning in D3: leave the infrastructure as close as possible to the
+   rather than a wrapper around one SDK (the Maintainer's reasoning in D3: leave the infrastructure as close as possible to the
    future implementation, and say plainly what is uncertified).
 3. **The AAD binding is kept and made uniform, not reinvented.** It is the project's existing control against
    ciphertext substitution (ADR-0022 relies on it), the same idea as a KMS encryption context, and it stays in our layer
@@ -444,12 +446,12 @@ records when it exists, and which this section states ahead of LEGAL-2's templat
 
 - **Telegram's bot token class.** The adapter expects a per-channel `botToken` + `chatId` (T-class) while an Admin
   `SOCIAL_TELEGRAM.botToken` group exists (P-op), the single-platform-bot model a comparable product runs. Which model
-  the product wants is a §2F slice 1 decision for Edward; the taxonomy admits either, not both.
+  the product wants is a §2F slice 1 decision for the Product Owner; the taxonomy admits either, not both.
 - **CRM app registrations.** Today the client posts the HubSpot/Salesforce tokens (`crmRoutes.ts:35-36`) and no server-side
   code exchange exists. When one is built, the client secrets follow decision 2 (Admin, `CRM_*` groups); whether the
   platform's app or the customer's own app connects the CRM is a product decision not taken here.
 - **The analytics measurement secret** is placed in Admin by the rule of decision 2 (an operator-provisioned external
-  service); it was not named in D1+D2 and is confirmed with Edward in the unit that moves it.
+  service); it was not named in D1+D2 and is confirmed with the Maintainer in the unit that moves it.
 
 ## Revisit if
 

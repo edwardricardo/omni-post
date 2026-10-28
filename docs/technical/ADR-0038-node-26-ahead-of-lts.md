@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-15
-- **Deciders**: Edward (owner)
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Amended**: 2026-10-22, §"Amendment of 2026-10-22: Node 26.12.1" (the `engines.node` floor and
@@ -17,7 +19,7 @@
 
 The runtime moves from Node 24 to Node 26 on 2026-10-15, thirteen days before Node 26 becomes Active
 LTS on 2026-10-28. One change raises `.nvmrc`, the `engines.node` of all 101 manifests, the
-`@types/node` pin, the CI setup and both stages of the four images. The owner accepts the risk of
+`@types/node` pin, the CI setup and both stages of the four images. The Maintainer accepts the risk of
 running a Current release for those thirteen days, and the maturity watchlist re-checks the move on
 2026-10-28.
 
@@ -26,7 +28,7 @@ running a Current release for those thirteen days, and the maturity watchlist re
 1. **The plan.** Slice `0.16` moved the runtime on Node 26's Active LTS date, 2026-10-28, under the
    rule "the runtime follows LTS, never Current". Decisions D46 and D51 kept it a dated unit outside
    Phase 0, and the watchlist's date entry `contract-0.16-node-26` was due that day.
-2. **The program.** On 2026-10-14 the owner started a dependency catch-up whose first rule is "Node
+2. **The program.** On 2026-10-14 the Maintainer started a dependency catch-up whose first rule is "Node
    first": every later unit, from the inventory recalibration to the family bumps, is measured on
    the runtime it will run on. Node 24 enters Maintenance on 2026-10-20 (`nodejs/Release`,
    `schedule.json`).
@@ -61,14 +63,14 @@ running a Current release for those thirteen days, and the maturity watchlist re
 
 ## Decision
 
-The owner, 2026-10-14 (18:0x EDT): move to Node 26 now, document the early move, and re-check the
+The Maintainer, 2026-10-14 (18:0x EDT): move to Node 26 now, document the early move, and re-check the
 package state on 2026-10-28.
 
 1. **Runtime.** `.nvmrc` holds `26`; `engines.node` is `>=26.11.1 <27` in the root `package.json` and
    in the other 100 workspace manifests. Amended on 2026-10-22: `>=26.12.1 <27`
    (§"Amendment of 2026-10-22: Node 26.12.1").
 2. **Types.** `@types/node` moves to the 26 line: 26.6.5, `latest`, taken inside the 7-day buffer under
-   the owner's 72-hour rule (it matures 2026-10-16T18:46Z), with a maturity watchlist entry.
+   the Maintainer's 72-hour rule (it matures 2026-10-16T18:46Z), with a maturity watchlist entry.
 3. **Images.** The build stage of all four Dockerfiles is
    `node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567`; the production stage is
    `gcr.io/distroless/nodejs26-debian13@sha256:746f728c8b61c9beb5d0350f054b4049c4cef0ae71d5b3f8f33bc57904bbc37e`, the `latest` index (v26.12.0), still run
@@ -106,7 +108,7 @@ package state on 2026-10-28.
 
 ## Alternatives Considered
 
-- **Wait for the LTS date.** The original plan. Rejected by the owner: every unit of the catch-up
+- **Wait for the LTS date.** The original plan. Rejected by the Maintainer: every unit of the catch-up
   until 2026-10-28 would be certified on Node 24 and certified again after the move, while Node 24
   enters Maintenance on 2026-10-20.
 - **Move only CI.** Rejected: production would run a major the tests never ran on, and the engines
@@ -174,7 +176,7 @@ package state on 2026-10-28.
     for its TypeScript loader when `loadMainConfig` reads `.storybook/main.ts`, in 10.6.1 and in
     10.6.2, the latest release. Only 11.0.0-alpha.6 calls `module.registerHooks()` on Node 26, and
     10.6.1's loader hook is asynchronous, which `registerHooks()` does not accept, so no patch can
-    move it. The owner chose, on 2026-10-15, to silence DEP0205 in that one process until a stable
+    move it. The Maintainer chose, on 2026-10-15, to silence DEP0205 in that one process until a stable
     Storybook 11 is installed: `apps/client` runs `test:stories` as
     `NODE_OPTIONS="${NODE_OPTIONS:-} --disable-warning=DEP0205" vitest run --config
 vitest.stories.config.ts`, which appends to the caller's `NODE_OPTIONS` and keeps `vitest` the
@@ -215,7 +217,7 @@ vitest.stories.config.ts`, which appends to the caller's `NODE_OPTIONS` and keep
 
 ## Amendment of 2026-10-22: Node 26.12.1
 
-The owner, 2026-10-22: take Node 26.12.1, the security release of 2026-10-21, now, in both stages of
+The Maintainer, 2026-10-22: take Node 26.12.1, the security release of 2026-10-21, now, in both stages of
 the four images and as the `engines.node` floor. It is the case "A 26.x security release" of
 §"Revisit if", and a deviation inside the 7-day buffer, as ADR-0036 takes every security floor:
 26.12.1 was published on 2026-10-21 and matures on 2026-10-28, the day of Node 26's LTS promotion

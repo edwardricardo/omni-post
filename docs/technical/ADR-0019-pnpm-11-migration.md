@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-07-15
-- **Deciders**: Edward Velasquez
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: — (see "Relationship to ADR-0018" below — this ADR **reverses one scoping clause** of ADR-0018, it does not supersede it)
 - **Superseded by**: —
 
@@ -256,7 +258,7 @@ ledger is untouched; only its **file location** moved from
 ## Later change (2026-10-03)
 
 The sections above record the migration as it was decided and are left as written. On 2026-10-03
-Edward removed two of the `allowBuilds` entries of item 3 and the `@secretlint/node` patch of item 2
+the Maintainer removed two of the `allowBuilds` entries of item 3 and the `@secretlint/node` patch of item 2
 (decision D40 in `docs/development/TESTING_REFOUNDATION.md`), on the evidence below, measured under
 pnpm 12.6.0.
 

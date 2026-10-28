@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-05
-- **Deciders**: Edward
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0033](ADR-0033-layer-boundaries-and-composition-root-injection.md) (the
@@ -207,7 +209,7 @@ A gate that reports a clean graph it never read is worse than no gate
 | A baseline entry hides a new violation on the same edge                                                              | Entries match on `from`, `to` and rule. A new import between two modules already listed is that same edge, and it is repaired with it                                                                                                                                                   |
 | The baseline is regenerated in `full` mode and absorbs a new violation                                               | The file is versioned; a grown entry count shows in the diff of the pull request that grows it, and review refuses it, as for the ratchets of fitness #30 and #38                                                                                                                       |
 | A rule pattern stops matching after a path moves, and the rule passes over nothing                                   | PR #408 found two rules that would have gone blind once imports resolved and gave them resolved-path patterns. Every rule change carries its red proof ([CLAUDE.md](../../CLAUDE.md) §Automated Compliance Checks, "Extending the suite", step 3)                                       |
-| The renamed required check blocks every merge                                                                        | Edward updates the branch protection before PR #408 merges — done on 2026-10-05 at 05:59Z through the API on his instruction: `Code Quality (knip + jscpd + madge)` → `Code Quality (knip + jscpd)`, 19 required checks before and after                                                |
+| The renamed required check blocks every merge                                                                        | The Maintainer updates the branch protection before PR #408 merges — done on 2026-10-05 at 05:59Z through the API on their instruction: `Code Quality (knip + jscpd + madge)` → `Code Quality (knip + jscpd)`, 19 required checks before and after                                      |
 | 18.5.0 changes behaviour                                                                                             | A new release waits in a pre-registered hold row until it matures; then the pin moves and the rules' red proofs re-run on one tree under the old and the new version, recorded in Consequences. A layer-rule plant must resolve: an unresolvable one fires `not-to-unresolvable`        |
 
 ## Implementation notes (2026-10-05)

@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-09-04
-- **Deciders**: Edward Velasquez, Platform engineering
+- **Decision-makers**: Maintainers
+- **Consulted**: —
+- **Informed**: —
 
 ## Context
 

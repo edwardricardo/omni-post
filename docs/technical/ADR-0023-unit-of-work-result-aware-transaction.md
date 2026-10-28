@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-09-15
-- **Deciders**: Edward
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Amends**: ADR-0005 (Unit of Work with `PrismaUnitOfWork` + `AsyncLocalStorage`), additively

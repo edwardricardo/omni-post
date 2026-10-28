@@ -3,7 +3,9 @@
 - **Status**: Accepted (resolved 2026-10-21 — the Storybook family moved to 10.6.3, which carries
   #36732, and the patch, its record and the Dockerfiles' `COPY patches/` left with it; issue #666)
 - **Date**: 2026-10-15
-- **Deciders**: Edward (owner)
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0018](ADR-0018-dependency-freshness-canon.md) (exact pins and the 7-day
@@ -51,11 +53,11 @@ The maturity watchlist reviews it every two or three days, and it leaves with th
    | Canary builds                                        | none: npm lists no version built from either PR                                                                                |
 
 5. **The rule.** CLAUDE.md §Problem-Solving Standards forbids a temporary patch. An exception needs
-   the owner's decision, and this ADR records it.
+   the Maintainer's decision, and this ADR records it.
 
 ## Decision
 
-The owner, 2026-10-15: _"Patch today, well documented, under constant review until it is resolved —
+The Maintainer, 2026-10-15: _"Patch today, well documented, under constant review until it is resolved —
 add it to the watchlist until then."_
 
 1. **One patched dependency**: `@storybook/nextjs-vite@10.6.1`, through pnpm's

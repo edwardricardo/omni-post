@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-04
-- **Deciders**: Edward
+- **Decision-makers**: Product Owner
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0025](ADR-0025-payment-gateway-selection-and-country-routing.md) (routing-change
@@ -57,7 +59,7 @@ customer may still do, or what happens to the posts they scheduled.
    - Each gateway's own automatic cancellation is configured **not to cancel first**: it leaves the
      subscription past due or unpaid, so the decision is always OmniPost's.
    - **At the cut-off the gateway stops charging on its own schedule, but the subscription stays
-     alive** (Edward, 2026-10-04: "La subscripción se cancela el día 30"). Its automatic retries are
+     alive** (the Product Owner, 2026-10-04: "The subscription is canceled on day 30"). Its automatic retries are
      stopped so it cannot charge behind OmniPost's back, and the open invoice remains payable
      through the embedded payment form of point 5, which reactivates the account.
    - **The gateway subscription is canceled on day 30 of the payment-only lock**, through the
@@ -169,7 +171,7 @@ customer may still do, or what happens to the posts they scheduled.
 
 - **Resolved 2026-10-04 — when the gateway subscription is canceled.** Two decisions of that day
   read differently: the dunning decision canceled at the gateway when the N-attempt limit was
-  reached, the lock-duration decision after the 30-day lock. Edward resolved it the same evening:
+  reached, the lock-duration decision after the 30-day lock. The Product Owner resolved it the same evening:
   the subscription is canceled on day 30 of the lock, and at the cut-off the gateway only stops its
   own retries (point 1).
 - **The read-only window is 72 hours**, stated as fixed; only N and the lock length were made

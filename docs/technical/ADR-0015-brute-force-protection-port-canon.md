@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-30
-- **Deciders**: Platform engineering
+- **Decision-makers**: Maintainers
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 
@@ -22,7 +24,7 @@ The remediation must close three problems at once:
 - **Architectural drift** — one canon, one port, one adapter (Hexagonal §Ports & Adapters).
 - **Operational footprint** — no per-instance state machines (`new BF(...)` inside a service constructor); the port is composed in the DI root and injected.
 
-External canon consulted (research 2026-05-30, after Edward's correction on "research first, no patches"):
+External canon consulted (research 2026-05-30, after the Maintainer's correction on "research first, no patches"):
 
 - **NIST SP 800-63B-4** §rate-limiting (finalised 2025-07): verifier SHALL implement per-account rate-limiting; prefers progressive throttling over hard lockout (DoS-conscious).
 - **OWASP Authentication Cheat Sheet** §Account Lockout: counter per **account** (not IP — IP rotation evades IP-based counters); auto-expiry; CAPTCHA after few failures; MFA is the primary defence, BF protection is the secondary layer.
