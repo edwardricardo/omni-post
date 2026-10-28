@@ -1,27 +1,27 @@
 /**
  * @file sandbox.template.test.ts
- * @description Template para sandbox integration tests por-provider (§3.2.c
- *   PENDING). Copiar este archivo a `packages/providers/<provider>/tests/
- *   integration/sandbox.test.ts`, reemplazar los placeholders <PROVIDER> y
- *   las assertions con la lógica real del adapter.
+ * @description Template for per-provider sandbox integration tests (still
+ *   pending). Copy this file to `packages/providers/<provider>/tests/
+ *   integration/sandbox.test.ts`, and replace the <PROVIDER> markers and
+ *   the assertions with the adapter's real logic.
  *
- *   Patrón "skip when no creds": el test se ejecuta SOLO cuando las env vars
- *   están presentes. Local dev sin creds → skip. CI sin creds → skip. CI con
- *   GitHub Secrets configurados → corre + atrapa upstream API drift.
+ *   "Skip when no creds" pattern: the test runs ONLY when the env vars
+ *   are present. Local dev without creds → skip. CI without creds → skip. CI
+ *   with GitHub Secrets configured → runs + catches upstream API drift.
  *
- *   Setup checklist por provider (Phase B):
- *   1. Provisionar sandbox app en el developer portal del provider
+ *   Setup checklist per provider:
+ *   1. Provision a sandbox app in the provider's developer portal
  *      (Meta/X/LinkedIn/TikTok/etc).
- *   2. Agregar `<PROVIDER>_TEST_*` env vars a GitHub Actions Secrets.
- *   3. Copiar este template a `packages/providers/<provider>/tests/
- *      integration/sandbox.test.ts` y reemplazar placeholders.
- *   4. Habilitar el `provider-sandbox.yml` workflow (§3.2.d).
+ *   2. Add `<PROVIDER>_TEST_*` env vars to GitHub Actions Secrets.
+ *   3. Copy this template to `packages/providers/<provider>/tests/
+ *      integration/sandbox.test.ts` and replace the markers.
+ *   4. Enable the `provider-sandbox.yml` workflow.
  *
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
 
-// Replace `EXAMPLE` con el nombre del provider en UPPER_SNAKE_CASE.
+// Replace `EXAMPLE` with the provider's name in UPPER_SNAKE_CASE.
 const SKIP = !process.env.EXAMPLE_TEST_ACCESS_TOKEN || !process.env.EXAMPLE_TEST_ACCOUNT_ID;
 
 describe.skipIf(SKIP)("ExampleAdapter — sandbox integration", () => {
@@ -31,8 +31,8 @@ describe.skipIf(SKIP)("ExampleAdapter — sandbox integration", () => {
     // 3. Call adapter.publish(...).
     // 4. Assert response shape matches what the adapter's port expects.
     //
-    // Si esto rompe en nightly: el API upstream cambió y el adapter
-    // necesita ser actualizado.
+    // If this breaks in the nightly run: the upstream API changed and the
+    // adapter needs updating.
 
     // Example:
     // const adapter = new ExampleAdapter();
@@ -48,15 +48,15 @@ describe.skipIf(SKIP)("ExampleAdapter — sandbox integration", () => {
   });
 
   it("validates credentials against the real sandbox auth endpoint", async () => {
-    // Verifica que `adapter.validateCredentials(creds)` retorna ok=true para
-    // creds válidas. Atrapa cambios en el auth endpoint/scope requirements.
+    // Checks that `adapter.validateCredentials(creds)` returns ok=true for
+    // valid creds. Catches changes in the auth endpoint/scope requirements.
 
     expect(true).toBe(true); // placeholder
   });
 
-  // Agregar más assertions según el contract crítico del provider:
+  // Add more assertions for the provider's critical contract:
   // - fetchAnalytics → response shape
   // - deletePost → idempotency
-  // - rate limit headers → expected fields presentes
+  // - rate limit headers → expected fields present
   // - error responses → adapter wrap correctly
 });

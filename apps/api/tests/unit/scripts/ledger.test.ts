@@ -1845,7 +1845,7 @@ const CONFIRMATION = {
   blocks: [`${B}::loads the module`],
   evidence: "the hard probe turned the block red",
   status: "confirmed",
-  reviewer: "Edward",
+  reviewer: "Maintainer",
   date: "2026-10-27",
 };
 
