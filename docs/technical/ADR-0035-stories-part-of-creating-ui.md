@@ -46,9 +46,9 @@ did not exist (MASTER_PLAN_ES N-DOC-1).
 Two decisions by the Maintainer, applied by slice 0.22 (tracker D29):
 
 - **D29, 2026-10-02:** measure the Storybook, keep what runs, remove what does not, backfill a
-  runnable story per component, and make stories part of creating UI ("el plan no es removerlo, es
-  medir lo actual y ver si funciona"; "integrar la herramienta al flow de creacion de artefactos de
-  la UI").
+  runnable story per component, and make stories part of creating UI ("the plan is not to remove
+  it, it is to measure what exists and see whether it works"; "integrate the tool into the flow that
+  creates the UI's artifacts").
 - **Option A, 2026-10-05:** the runner is `@storybook/nextjs-vite` with `@storybook/addon-vitest`
   on vitest browser mode with Playwright.
 
