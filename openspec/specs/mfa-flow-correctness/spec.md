@@ -7,7 +7,7 @@
 >
 > Source of truth: change `mfa-consolidation` (N-SEC-5, Cluster B), PR1/PR2 (route
 > subject-targeting fix) and PR3 (`d2bd7b40`/`7f95bf2e`, legacy service deletion).
-> Design detail: `openspec/changes/archive/mfa-consolidation/design.md`
+> Design detail: [`openspec/changes/archive/mfa-consolidation/design.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-consolidation/design.md)
 > (Decisions 4 and 6).
 >
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Each requirement
@@ -122,5 +122,5 @@ regenerate, and force-disable.)
 Companion capability: `customer-login-mfa-challenge` retires a separate orphan
 route (`POST /auth/mfa/verify`, the login-time verify endpoint) as part of
 introducing the real customer login MFA gate — see that capability's spec.
-Companion audit trail: `openspec/changes/archive/mfa-consolidation/design.md`
+Companion audit trail: [`openspec/changes/archive/mfa-consolidation/design.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-consolidation/design.md)
 (Decisions 4, 6), `verify-report.md` (PR1, PR2, PR3 sections).

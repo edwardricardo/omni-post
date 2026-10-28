@@ -9,7 +9,7 @@
 > Source of truth: change `mfa-consolidation` (N-SEC-5, Cluster B). PR1 (`005b7252`)
 > completed the service and its DI wiring; PR2b-1 (`da8ef686`) closed a TOTP-replay
 > gap discovered during the login-challenge exploration (NIST SP 800-63B §5.1.5.2).
-> Design detail: `openspec/changes/archive/mfa-consolidation/design.md`
+> Design detail: [`openspec/changes/archive/mfa-consolidation/design.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-consolidation/design.md)
 > (Decisions 1–2) and `design-pr2b.md` (Decision 2).
 >
 > Change `mfa-backup-code-single-use` (PR #246, `fdda5d25`) strengthened "Backup-code
@@ -18,7 +18,7 @@
 > cost-not-control requirement. The claim contract itself (at most one claim per
 > `(userId, codeIndex)`, immutable winner timestamp, the conformance suite, the
 > reachable alarm) lives in the companion `mfa-backup-code-claim` capability. Design
-> detail: `openspec/changes/archive/mfa-backup-code-single-use/design.md` (Decisions
+> detail: [`openspec/changes/archive/mfa-backup-code-single-use/design.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-backup-code-single-use/design.md) (Decisions
 > D1–D7).
 >
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Each requirement
@@ -322,7 +322,7 @@ guarantee via `MfaVerificationPort`. Companion capability: `mfa-backup-code-clai
 claim contract that this capability's backup-code parity requirement now defers to —
 at most one claim per `(userId, codeIndex)`, immutable winner timestamp, the
 port-conformance suite, the reachable reuse alarm). Archived change artifacts:
-`openspec/changes/archive/mfa-consolidation/design.md` (Decisions 1–3),
+[`openspec/changes/archive/mfa-consolidation/design.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-consolidation/design.md) (Decisions 1–3),
 `design-pr2b.md` (Decision 2), `verify-report.md` (PR1, PR2b-1 sections);
-`openspec/changes/archive/mfa-backup-code-single-use/design.md` (Decisions D1–D7),
+[`openspec/changes/archive/mfa-backup-code-single-use/design.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-backup-code-single-use/design.md) (Decisions D1–D7),
 `archive-report.md` (defect disposition, the §6.1 SQL-capture corroboration).
