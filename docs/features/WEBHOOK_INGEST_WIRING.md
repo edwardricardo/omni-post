@@ -108,6 +108,10 @@ WebhookManager(prisma, redis)
 - Real E2E: `curl` to the deployed inbound endpoint with a signed payload from each provider, and verify that the
   event is persisted, the worker processes it, the SSE emits and (where it applies) the mention-worker receives the job. Smoke-test
   against the real dev environment (not only mocks).
+- Tenant seam: `apps/api/tests/integration/preAuthInboundWebhookTenantIsolation.integration.test.ts` drives the processor
+  directly today, one probe job through `processWebhookJob` under the declared `system:inbound-webhook` context, because
+  nothing constructs `WebhookManager`. Once the route is wired, the seam's live-path assertion runs through the route, beside
+  the two-account test DEF-152 asks for.
 
 ## Notes
 

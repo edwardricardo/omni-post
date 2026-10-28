@@ -159,7 +159,7 @@ export class MyUseCase {
 
 - Domain event → Outbox write — **in the same DB transaction** as the aggregate save
 - Outbox relay uses `SELECT FOR UPDATE SKIP LOCKED` — no double-dispatch
-- After dispatch, mark event `PROCESSED` atomically
+- After dispatch, mark the event published atomically: one `UPDATE` sets its `publishedAt` (`OutboxEvent` has no status column)
 - Integration events carry **only** primitive-serializable data — no domain objects in BullMQ payloads
 - Every consumer handler is **idempotent** — processing twice = same result as processing once
 - Every dispatched event type has a registered schema version
