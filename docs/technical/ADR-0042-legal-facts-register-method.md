@@ -83,11 +83,11 @@
 
 ## Alternatives Considered
 
-- **Revisit every closed unit to collect its facts.** Rejected by rule 2: what is derived from the
-  code enters through the generators.
-- **Draft the qualitative columns now.** Rejected by rule 4: they are decisions, closed in short
-  sessions.
-- **One read per register.** Rejected by rule 3: each closed item is read once and feeds both.
+None recorded: the plan records the rules, not the options weighed. What each rule excludes:
+
+- rule 2 excludes revisiting closed units to collect facts the code already holds;
+- rule 3 excludes reading a closed item once for each register;
+- rule 4 excludes drafting the qualitative columns before they are decided.
 
 ## Consequences
 
@@ -101,6 +101,9 @@
 
 - The qualitative columns stay "pending decision" until the Product Owner's sessions close them.
 - The retro pass is its own body of work, batch by batch, until the ledger is marked.
+- Rule 1 is recorded as decided, not as built: as landed, each inventory page records the sha256
+  prefix of its classification file and of its normalized scan result, and no source-file hash
+  ([CLAUDE.md](../../CLAUDE.md) fitness #45, "RECORDED FACTS ONLY").
 
 ## Legal impact
 
@@ -132,11 +135,11 @@ variable, external account or post-deployment check is added, changed or retired
 
 ## Risks and Mitigations
 
-| Risk                                          | Mitigation                                                               |
-| --------------------------------------------- | ------------------------------------------------------------------------ |
-| A closed item's facts are never collected     | The ledger lists every closed item that touches data or credentials      |
-| An open item ships without its facts          | The gate stops its closing pull request until it documents them (rule 3) |
-| A qualitative column is written as if decided | Rule 4: it stays "pending decision" until the Product Owner's session    |
+| Risk                                          | Mitigation                                                                                                                                                                         |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A closed item's facts are never collected     | An item that reaches `[x]` with a change touching data or credentials enters the ledger; one closed with the gate on `main` is documented by its own closing pull request (rule 3) |
+| An open item ships without its facts          | The gate stops its closing pull request until it documents them (rule 3)                                                                                                           |
+| A qualitative column is written as if decided | Rule 4: it stays "pending decision" until the Product Owner's session                                                                                                              |
 
 ## References
 

@@ -83,12 +83,12 @@
 
 ## Alternatives Considered
 
-- **A translated support register as a second source.** Rejected by Q1: a translation is a later
-  derivative.
-- **Operator-only pieces documented only in the runbooks.** Rejected by Q2: they get their own page,
-  and the runbooks link to it.
-- **An approval for every product-document correction.** Rejected by Q3.
-- **A table of dated exceptions.** Retired on 2026-10-07 (decision 8).
+None recorded: the plan records the answers, not the options weighed. What each answer excludes:
+
+- Q1 excludes a translation as a second source;
+- Q2 excludes documenting the operator-only pieces in the runbooks alone;
+- Q3 excludes an approval for each correction of a product document;
+- decision 8 retires the table of dated exceptions, `EXCEPTIONS.md`.
 
 ## Consequences
 
