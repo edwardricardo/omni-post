@@ -1,18 +1,19 @@
 /**
  * @file openapi-ts.config.ts
- * @description Config for `@hey-api/openapi-ts` (§3.1 Normalization Roadmap).
- *   Genera tipos TypeScript desde el OpenAPI spec emitido por Fastify.
+ * @description Config for `@hey-api/openapi-ts`, whose design and status the OpenAPI
+ *   auto-generation entry of `docs/architecture/NORMALIZATION_ROADMAP.md` records.
+ *   Generates TypeScript types from the OpenAPI spec emitted by Fastify.
  *
  *   Workflow:
- *     1. `scripts/generate-api-types.ts` bootea `createApp()` y dumpea
- *        `app.swagger()` a `/tmp/omnipost-openapi.json`.
- *     2. `pnpm exec openapi-ts` lee este config + el spec dumped y escribe
- *        a `packages/shared/src/api-generated/`.
+ *     1. `scripts/generate-api-types.ts` boots `createApp()` and dumps
+ *        `app.swagger()` to `/tmp/omnipost-openapi.json`.
+ *     2. `pnpm exec openapi-ts` reads this config + the dumped spec and writes
+ *        to `packages/shared/src/api-generated/`.
  *
- *   Plugins habilitados (minimal):
- *     - `@hey-api/typescript`: solo tipos (types.gen.ts). Sin SDK ni runtime
- *       client por ahora — Phase A es type-only. Phase B podrá agregar
- *       `@hey-api/sdk` cuando los frontends consuman más endpoints.
+ *   Plugins enabled (minimal):
+ *     - `@hey-api/typescript`: types only (types.gen.ts). No SDK and no runtime
+ *       client for now — the output is type-only. `@hey-api/sdk` can be added
+ *       when the frontends consume more endpoints.
  *
  * @layer infrastructure
  */
@@ -23,7 +24,7 @@ export default defineConfig({
   output: {
     path: "packages/shared/src/api-generated",
   },
-  // `postProcess: ['prettier']` reemplaza el deprecated `format: 'prettier'`.
+  // `postProcess: ['prettier']` replaces the deprecated `format: 'prettier'`.
   postProcess: ["prettier"],
   plugins: ["@hey-api/typescript"],
 });
