@@ -826,7 +826,7 @@ Before merging any frontend PR:
 | --- | ---------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------- |
 | 1   | "onSuccess/onError in mutations" (ambiguous about queries) | Explicitly: removed from queries in v5, required in mutations | TanStack Query v5 breaking change |
 | 2   | `staleTime`, no mention of `gcTime`                        | `gcTime` required (formerly `cacheTime`)                      | v5 terminology                    |
-| 3   | Size limits mechanical only                                | Added §1.2 Single Responsibility semantic heuristics          | Edward decision 2026-04-18        |
+| 3   | Size limits mechanical only                                | Added §1.2 Single Responsibility semantic heuristics          | Maintainer decision 2026-04-18    |
 | 4   | No Server Components mention                               | Added §1.4 Server vs Client Components                        | Next.js 16 App Router default     |
 | 5   | React.memo/useCallback/useMemo unconditional               | Added React Compiler note (§3.3, §6)                          | Next 16 ships compiler stable     |
 | 6   | Catch block example inline in "TypeScript" section         | Moved to `CODE_STANDARDS.md` §2.3 as transversal              | Avoid duplication with backend    |
