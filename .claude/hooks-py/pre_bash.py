@@ -263,7 +263,7 @@ def gate_sensitive_path_writes_require_token(command: str, cwd: Path | None = No
         f"It is the SAME gate pre-edit applies to Edit/Write — with the gate only "
         f"on Edit, a `python3`, an `sd -i` or a `>` went around it without anyone "
         f"noticing.\n"
-        f"Ask Edward to run 'omnipost-allow sensitive-edit' (TTL 15 min), "
+        f"Ask the Maintainer to run 'omnipost-allow sensitive-edit' (TTL 15 min), "
         f"as for push. If the command only READS, rewrite it without "
         f"write constructs on that path."
     )
@@ -367,8 +367,8 @@ def gate_grant_store_is_owner_only(command: str, cwd: Path | None = None) -> Non
         return
     block(
         f"Bash writes the grant store (.claude/.allowed/): {how}. No session writes it, "
-        f"with or without a token: only Edward issues, extends or revokes grants, from "
-        f"his own terminal, with 'omnipost-allow'. Reading it (ls, eza, cat, bat, jq) "
+        f"with or without a token: only the Maintainer issues, extends or revokes grants, from "
+        f"their own terminal, with 'omnipost-allow'. Reading it (ls, eza, cat, bat, jq) "
         f"stays allowed; 'omnipost-allow status' lists what is pending."
     )
 
@@ -387,7 +387,7 @@ _GRANT_CLI_FALLBACK_RE = re.compile(r"(?<![\w-])omnipost-allow(?![\w-])(?!\s+sta
 def gate_only_the_owner_issues_grants(command: str) -> None:
     """Blocks every run of `omnipost-allow` except `omnipost-allow status`.
 
-    Grants are the owner's act: a session that ran `omnipost-allow push` would
+    Grants are the Maintainer's act: a session that ran `omnipost-allow push` would
     authorize itself. The CLI is read as `grant_cli_invocations` reads it —
     by basename or path, through `bash -c`, a substitution, `python3 <path>`,
     a wrapper such as `timeout` or `xargs` — and a line the tokenizer cannot
@@ -408,29 +408,29 @@ def gate_only_the_owner_issues_grants(command: str) -> None:
             return
         how = _describe_invocation(refused[0])
     block(
-        f"{how}. Grants are the owner's: only Edward issues, extends or revokes them, from "
-        f"his own terminal; no token unlocks this. A session may run 'omnipost-allow status' "
-        f"and nothing else. Ask Edward in chat."
+        f"{how}. Grants are the Maintainer's: only the Maintainer issues, extends or revokes "
+        f"them, from their own terminal; no token unlocks this. A session may run "
+        f"'omnipost-allow status' and nothing else. Ask the Maintainer in chat."
     )
 
 
 _PUSH_MESSAGES = {
     "missing": (
-        "Remote publish requires authorization. Ask Edward in chat; "
-        "he runs 'omnipost-allow push' (or 'omnipost-allow push --count K --ttl N' for "
+        "Remote publish requires authorization. Ask the Maintainer in chat; "
+        "the Maintainer runs 'omnipost-allow push' (or 'omnipost-allow push --count K --ttl N' for "
         "consecutive windows) and you retry."
     ),
     "corrupt": (
-        "Authorization token corrupt. Edward must inspect "
+        "Authorization token corrupt. The Maintainer must inspect "
         ".claude/.allowed/push, delete it ('omnipost-allow revoke push'), and re-run 'omnipost-allow push'."
     ),
     "malformed": (
         "Authorization token malformed (missing/invalid expires_at or grants). "
-        "Edward must re-run 'omnipost-allow push'."
+        "The Maintainer must re-run 'omnipost-allow push'."
     ),
     "expired": (
         "Authorization token expired: every push window is over. "
-        "Ask Edward for a fresh one via 'omnipost-allow push'."
+        "Ask the Maintainer for a fresh one via 'omnipost-allow push'."
     ),
 }
 
@@ -455,10 +455,12 @@ def gate_git_push_requires_token(command: str) -> None:
     if check.reason == "not-yet-open" and check.next_opens_at is not None:
         message = (
             f"Authorization not yet open: the next window opens at {format_local(check.next_opens_at)}. "
-            f"Each window allows one publication; retry once it opens, or ask Edward."
+            f"Each window allows one publication; retry once it opens, or ask the Maintainer."
         )
     else:
-        message = _PUSH_MESSAGES.get(check.reason, f"Authorization unavailable ({check.reason}). Ask Edward in chat.")
+        message = _PUSH_MESSAGES.get(
+            check.reason, f"Authorization unavailable ({check.reason}). Ask the Maintainer in chat."
+        )
     block(message)
 
 
@@ -587,7 +589,7 @@ def main() -> None:
     log(f"inspecting: {command}")
     session_cwd = Path(data.get("cwd") or PROJECT_ROOT)
 
-    # The two owner-only gates come first and no token reaches them.
+    # The two Maintainer-only gates come first and no token reaches them.
     gate_only_the_owner_issues_grants(command)
     gate_grant_store_is_owner_only(command, session_cwd)
     gate_sensitive_path_writes_require_token(command, session_cwd)

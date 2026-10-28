@@ -1,5 +1,5 @@
 """Tests of the grant store: push windows, their claim and consumption, the CLI
-that issues them, and the owner-only blocks around the store and the CLI.
+that issues them, and the Maintainer-only blocks around the store and the CLI.
 
 Every test points `_common.ALLOWED_TOKENS_DIR` and `_common.LOG_PATH` at a
 temporary directory and freezes `_common.now_utc`: none reads or writes the
@@ -187,7 +187,7 @@ class GrantWindowsTests(_GrantStoreCase):
             with self.subTest(text=text):
                 self.write_file("push", text)
                 self.assertEqual(_common.check_grant_token("push", self.log), reason)
-                self.assertTrue((self.store / "push").exists(), "an unreadable file is left for the owner to inspect")
+                self.assertTrue((self.store / "push").exists(), "an unreadable file is left for the Maintainer to inspect")
 
 
 class PushGateTests(_GrantStoreCase):
@@ -577,7 +577,7 @@ class GrantCliBlockTests(_GrantStoreCase):
             with self.subTest(command=command):
                 verdict, message = self.pre(command)
                 self.assertEqual(verdict, "blocked(2)")
-                self.assertIn("only Edward issues", message)
+                self.assertIn("only the Maintainer issues", message)
 
     def test_a_publication_another_gate_refuses_claims_nothing(self):
         verdict, _ = self.pre("git push origin a && omnipost-allow push")

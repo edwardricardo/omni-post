@@ -76,8 +76,8 @@ def main() -> None:
     if is_grant_store(file_path):
         block(
             f"{file_path} is in the grant store (.claude/.allowed/). No session writes it, "
-            f"with or without a token: only Edward issues, extends or revokes grants, from his "
-            f"own terminal, with 'omnipost-allow'. Ask him in chat."
+            f"with or without a token: only the Maintainer issues, extends or revokes grants, from "
+            f"their own terminal, with 'omnipost-allow'. Ask the Maintainer in chat."
         )
 
     matched = is_sensitive(file_path)
@@ -90,7 +90,7 @@ def main() -> None:
 
     block(
         f"{file_path} matches sensitive pattern '{matched}' (token: {status}). "
-        f"Time-boxed authorization by token: ask Edward to run "
+        f"Time-boxed authorization by token: ask the Maintainer to run "
         f"'omnipost-allow sensitive-edit' (TTL 15 min), as for push."
     )
 

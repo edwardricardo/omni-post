@@ -705,7 +705,7 @@ def runs_git_push(command: str, depth: int = 0) -> bool:
     return any(runs_git_push(script, depth + 1) for script in scripts)
 
 
-# The command that issues grants. Only the owner runs it, from his own
+# The command that issues grants. Only the Maintainer runs it, from their own
 # terminal; a session may run `omnipost-allow status` and nothing else.
 GRANT_CLI = "omnipost-allow"
 GRANT_CLI_MENTION_RE = re.compile(r"(?<![\w-])omnipost-allow(?![\w-])")
@@ -980,7 +980,7 @@ def now_utc() -> datetime:
 
 
 def format_local(moment: datetime) -> str:
-    """`moment` in the machine's local time, the clock the owner reads."""
+    """`moment` in the machine's local time, the clock the Maintainer reads."""
     return moment.astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
 
 

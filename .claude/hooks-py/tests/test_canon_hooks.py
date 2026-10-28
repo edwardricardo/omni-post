@@ -122,7 +122,9 @@ class DecisionGuardWithoutIndexTests(unittest.TestCase):
     index, the guard reports the blindness and does NOT emit a DECISION GAP — a
     gap emitted without an index is false, since there is nothing to compare."""
 
-    def _run_main(self, tmp: str, index_document: str | None, notices: Path | None = None) -> str:
+    def _run_main(
+        self, tmp: str, index_document: str | None, notices: Path | None = None, authorized: str = ""
+    ) -> str:
         index = Path(tmp) / "canon-index.json"
         if index_document is not None:
             index.write_text(index_document)
@@ -137,8 +139,9 @@ class DecisionGuardWithoutIndexTests(unittest.TestCase):
         with mock.patch.object(guard, "canon_index_path", return_value=index), \
                 mock.patch.object(guard, "log"), \
                 mock.patch.object(guard, "DECISION_GAPS_LOG", Path(tmp) / "gaps.log"), \
+                mock.patch.object(guard, "HEURISTIC_OVERRIDES_LOG", Path(tmp) / "overrides.log"), \
                 mock.patch.object(_common, "NOTICES_LOG", notices or Path(tmp) / "notices.log"), \
-                mock.patch.dict(os.environ, {"EDWARD_AUTHORIZED_HEURISTIC": ""}), \
+                mock.patch.dict(os.environ, {"MAINTAINER_AUTHORIZED_HEURISTIC": authorized}), \
                 mock.patch.object(sys, "stdin", io.StringIO(json.dumps(payload))), \
                 contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as raised:
             guard.main()
@@ -170,6 +173,14 @@ class DecisionGuardWithoutIndexTests(unittest.TestCase):
             context = json.loads(self._run_main(tmp, '{"entries": {}}'))["hookSpecificOutput"]["additionalContext"]
         self.assertIn("DECISION GAP", context)
         self.assertIn("jwt-algorithm", context)
+
+    def test_the_maintainer_authorization_silences_the_gap_and_records_the_override(self):
+        # The input of the positive control above, with the Maintainer's case-by-case bypass set.
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self._run_main(tmp, '{"entries": {}}', authorized="yes")
+            overrides = (Path(tmp) / "overrides.log").read_text(encoding="utf-8")
+        self.assertEqual(out, "")
+        self.assertIn("jwt-algorithm\tMAINTAINER_AUTHORIZED_HEURISTIC", overrides)
 
 
 if __name__ == "__main__":
