@@ -340,6 +340,15 @@ Repeated login failures are throttled separately, by backoff and account lockout
 - Failed OTP attempts are logged and contribute to account lockout after repeated failures
 - Successful OTP validation requires both the OTP and the session ID from the initial login
 
+### Accepted residuals of the single-use claims
+
+Each single-use credential is consumed by one compare-and-swap the database serialises. Four costs of that design are accepted, and each is named at its site so a reader meets it where the code is; a change that closes one updates its site and this list.
+
+- **Admin password reset confirm.** The `PASSWORD_RESET_COMPLETED` security event and the session revocation run after the claim, outside it: a throw in either leaves the password already changed while the caller receives a 500 (`apps/api/src/admin/auth/PasswordService.ts:381-385`).
+- **Admin refresh rotation.** Two concurrent refreshes of one token, the two-tabs case, leave one winner, and the losing tab signs in again. A detected replay is refused without revoking the rest of the session family, so where the loser was the legitimate holder the other pair stays live until it expires (`apps/api/src/auth/authServiceSession.ts:184-190`; [runbook](../runbooks/alert-admin-refresh-token-replay.md)). Family revocation has no owner yet (DEF-153 in the Master Plan).
+- **Backup-code sibling claims.** Two concurrent verifications of different backup codes for the same user can collide: the refused one raises the `MFA_BACKUP_CODE_REUSE_REJECTED` audit event and the reuse alarm it did not earn, but its code stays unconsumed and a retry succeeds (`packages/ports/src/MfaUserRepositoryPort.ts:106-112`; [runbook](../runbooks/alert-mfa-backup-code-reuse.md)).
+- **The used-index filter is a cost optimisation, not the control.** `MfaService` skips a backup-code index its snapshot already shows consumed only to save argon2 work; the snapshot predates the hashing window, so it is stale exactly when it would matter. The adapter claim is the single-use authority, and removing the skip changes cost and nothing else (`apps/api/src/admin/auth/MfaService.ts:235-240`).
+
 ### CSRF Protection
 
 - The `sameSite: lax` cookie setting prevents cross-site request forgery

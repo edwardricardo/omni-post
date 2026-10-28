@@ -401,7 +401,7 @@ sit on the tenant-scoped list above. See §"Post trio promotion" below.
 > assertion is a DEFERRED obligation (backlog SMELL-59): when a route/use case that WRITES
 > `ProjectMember` is wired, it MUST validate that BOTH `projectId` (→ `Project`) and
 > `memberId` (→ `CustomerUser`) belong to the caller's account before persist, and this
-> doc + `openspec/specs/multi-tenant-isolation/spec.md` MUST be updated to enumerate it.
+> document MUST be updated to enumerate it.
 >
 > **3-step enrollment applied (canon checklist):** (1) appended `projectMember` to the
 > `TENANT_SCOPED_MODELS` Set in `infra/prisma/src/extensions/tenantGuard.ts` (56 → 57);
@@ -467,7 +467,7 @@ sit on the tenant-scoped list above. See §"Post trio promotion" below.
 > (`channelRoutes.ts` `hardDeleteChannel`) and the single-channel force-reauth
 > (`channelReauthRoutes.ts` → `UpdateChannelAuthStateUseCase`). Both wrap their guarded work in
 > the sanctioned `withSystemContext` bypass (mirroring the admin MFA force-disable precedent) so
-> the guard bypasses + audits the cross-tenant admin op instead of throwing
+> the guard bypasses the cross-tenant admin op (and records nothing) instead of throwing
 > `TenantContextMissingError`. The provider mass force-reauth (`massReauthRoutes.ts`) does NOT
 > need the wrap today because its bulk ops use `updateManyAndReturn`, which is not yet a guarded
 > operation — a latent isolation gap carried in the roadmap backlog sweep, not a live break.
@@ -667,22 +667,47 @@ Context is established once at each pre-auth entry boundary, per ADR-0020
 (`tenant context at boundaries`). Where the tenant is derivable at the boundary
 the seam binds a `TenantContext` (which USES the guard — the read is physically
 scoped); where the operation is genuinely cross-tenant before attribution it
-binds a declared `SystemContext` (audited bypass).
+binds a declared `SystemContext` (a declared bypass, not an audited one: the guard
+records nothing at runtime, see §"How to use `withSystemContext()`").
 
 | Boundary                                                       | Seam                                                                                                                                                                                                                                                                                            | Context                                                  |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | SSO SAML/OIDC public routes (`/auth/{saml,oidc}/:accountId/*`) | `makeTenantParamPreHandler("accountId")` (`security/tenantParamPreHandler.ts`)                                                                                                                                                                                                                  | tenant — `accountId` from the URL path param             |
-| Tenant health route (`/health/tenant/:tenantId/...`)           | `makeTenantParamPreHandler("tenantId")` — `tenantId` IS the account id (health monitor resolves projects by `accountId`)                                                                                                                                                                        | tenant — inert until the bootstrap client is guarded     |
+| Tenant health route (`/health/tenant/:tenantId/...`)           | `makeTenantParamPreHandler("tenantId")` — `tenantId` IS the account id (health monitor resolves projects by `accountId`)                                                                                                                                                                        | tenant — guarded since `433b92b6`, no two-tenant proof   |
 | Integration API-key auth (Zapier/Make)                         | `integrationAuthMiddleware`: key lookup + verify under `system:integration-key-auth`, then `enterTenantContext({accountId})` on match                                                                                                                                                           | system → tenant                                          |
 | Billing webhooks (Stripe/Paddle)                               | `billingWebhookRoutes`: handler body wrapped in `system:billing-webhook`                                                                                                                                                                                                                        | system (declared)                                        |
 | Inbound provider webhooks (BullMQ)                             | `webhookJobProcessor`: job fns + status listeners wrapped in `system:inbound-webhook`                                                                                                                                                                                                           | system (declared)                                        |
 | OAuth callback (`/auth/callback/:provider`)                    | `handleOAuthCallback` body wrapped in `withTenantContext({accountId: record.accountId})` from the consumed OAuth flow record; a guarded `projectRepository.findById` probe rejects a foreign/stale `projectId` (NotFound → error redirect) BEFORE token exchange or `Channel` persist (Slice 7) | tenant — `accountId` from the consumed OAuth flow record |
+| Customer pre-identity auth (`/auth/customer/*`, six handlers)  | `customerAuthRoutes`: the whole body of register, login, MFA login, refresh, request-password-reset and reset-password runs under `withSystemContext`; four pass an exported `CUSTOMER_*_SYSTEM_REASON` constant (`auth/customerAuthSystemReasons.ts`), login and MFA login inline literals     | system (declared), whole handler                         |
 
 The three new `withSystemContext()` reasons (`system:integration-key-auth`,
 `system:billing-webhook`, `system:inbound-webhook`) each survive because the
 account is unknown at that point (key-prefix lookup, gateway-customer→account
 mapping, webhook subscription resolution by provider). They are covered by the
 two-tenant `preAuth*TenantIsolation` integration suites.
+
+The customer pre-identity handlers (A9) resolve their subject by a value that is
+unique by construction — an e-mail address across accounts, a refresh token, a
+reset token — or, for register, by an account that does not exist yet, so the
+resolution precedes attribution and cannot be pre-scoped. Register, refresh,
+request-password-reset and reset-password answer their contract under the guarded
+client (`apps/api/tests/integration/customerPasswordReset.integration.test.ts`,
+"the four pre-identity handlers answer their contract response"), and
+`apps/api/tests/unit/auth/customerAuthSystemReasons.test.ts` pins their four
+reason constants. Login and MFA login still pass inline literals (§"Escalated to
+backlog", item 8).
+
+**Each seam states how far its system scope extends, and why.** The scope covers
+either the whole handler — defensible when every write that follows is keyed by a
+globally unique value or by a row id the resolution itself returned, so the write is
+self-scoping — or only the resolution, with tenant context re-entered for the write
+once the account is known. The extent is a design choice; leaving it unstated is
+not, because an undeclared extent is how a bypass grows past the operation that
+needed it. All six A9 seams wrap the handler's use-case call, which holds every
+database read and write of the flow; the request validation before it and the response
+mapping after it reach no enrolled model and run outside it. Register, refresh,
+request-password-reset and reset-password state why in a comment at the call, and login
+states that it runs the whole flow; MFA login states no extent (item 8).
 
 ### Saga engine — declared system reads, rehydrated per-saga writes
 
@@ -1539,28 +1564,51 @@ bypass tenant enforcement.
 
 ## How to use `withSystemContext()`
 
+`withSystemContext()` is function-scoped: the bypass lasts while its callback runs
+(`systemStorage.run`, `apps/api/src/security/tenantContext.ts:137-139`) and ends when it
+returns. No ambient primitive that enters a system context for the rest of a request (an
+`enterSystemContext`) is added, because it would disable the guard for every later query of
+that request.
+
 Legitimate cross-tenant operations bypass the guard via an explicit
-marker:
+marker. The inbound-webhook worker shows the shape: it resolves the provider
+subscription before any account is known, so its job runs under a declared reason
+(`apps/api/src/webhooks/webhookJobProcessor.ts`):
 
 ```typescript
-import { withSystemContext } from "apps/api/src/security/tenantContext.js";
+import { withSystemContext } from "../security/tenantContext.js";
 
-// Background job: data retention sweep across all tenants
-await withSystemContext("system:data-retention-sweep", async () => {
-  await retentionService.runRetentionCleanup();
-});
+/** Declared once, as an exported constant, beside the boundary that uses it. */
+export const INBOUND_WEBHOOK_SYSTEM_REASON = "system:inbound-webhook";
 
-// Admin impersonation flow
-await withSystemContext(`admin-impersonation:userId=${adminId}`, async () => {
-  return adminAccountService.exportTenantData(targetAccountId);
+// Inside the worker: every enrolled-model read and write of the job runs here.
+return withSystemContext(INBOUND_WEBHOOK_SYSTEM_REASON, async () => {
+  // ...
 });
 ```
+
+**The reason string.** In production code a reason is a fixed string declared once
+as an exported constant: `INBOUND_WEBHOOK_SYSTEM_REASON`
+(`apps/api/src/webhooks/webhookJobProcessor.ts`), `SAGA_SYSTEM_REASON`
+(`apps/api/src/saga/sagaTenant.ts`) and the four `CUSTOMER_*_SYSTEM_REASON`
+constants (`apps/api/src/auth/customerAuthSystemReasons.ts`) are the ones the tree
+declares. A reason is never an inline literal introduced at a call site, and it
+never interpolates request data: a reason built from an id or an address makes the
+set of declared bypasses unbounded. The constant is the boundary's whole
+auditability, because the guard records nothing (below), so being able to find
+every declared bypass by its constant is the only review a bypass gets.
+`apps/api/tests/unit/auth/customerAuthSystemReasons.test.ts` pins the four A9
+constants, and `apps/api/tests/unit/saga/sagaContextInvariants.static.test.ts`
+("system-context reason is the single declared constant") pins the saga engine's.
+The tree does not meet the rule everywhere yet: §"Escalated to backlog", item 8,
+counts the call sites that diverge.
 
 The Prisma guard:
 
 - Detects `SystemContext` is active → skips tenant enforcement.
-- Emits an audit event capturing the `reason` whenever a query runs
-  under the bypass. The audit row is reviewable post-hoc.
+- Records nothing: it emits no audit event and writes no row when a query runs
+  under the bypass (`infra/prisma/src/extensions/tenantGuard.ts:20-21`). The
+  declared reason is not a runtime audit record.
 
 ### When NOT to use `withSystemContext()`
 
@@ -1717,6 +1765,37 @@ tenant scope, so each such read was inspected:
 | `PrismaChannelRepository.hardDelete` cascades                         | SAFE                     | the child `deleteMany` calls run after a guarded channel resolve, under the caller's context                                                                                                                                                                                                      |
 | `PrismaAnalyticsReadRepository.getDailySummary` / `getMonthlySummary` | **LATENT GAP, not live** | both accept a raw `channelId` with zero tenant resolution. Their only caller (`GetHistoricalAnalyticsQuery`) ignores its own `projectId` input, and its token is registered but resolved by NO route — dead wiring. Escalated below rather than widened into this slice                           |
 
+## External-API circuit breaker — cache keys and the operations that stay uncached
+
+The breaker of `packages/adapters/external-apis/src/circuitBreaker.ts` caches a
+provider response when the call sets `cacheEnabled: true`, under a key that folds
+the call's `cacheKeyDiscriminant`. Its isolation is proven once, at the breaker:
+every call runs its own closure whatever its key
+(`packages/adapters/external-apis/tests/circuitBreakerTenantIsolation.test.ts:106`),
+and a call with no discriminant caches nothing (`:136`). Three rules hold each call
+site to that proof:
+
+- **The discriminant folds a per-tenant secret**, a credential or a refresh token
+  (`hashCallScope(credentials, ...)`), never only a public identifier such as a
+  `channelId` or a file path: a public value is forgeable and is no tenant boundary.
+  A site with no per-tenant secret to fold sets `cacheEnabled: false`.
+- **A new `cacheEnabled: true` site is classified before it lands** as `secret`,
+  `PII` or `benign`. A `secret` or `PII` provider site carries an end-to-end anchor
+  with a same-tenant fetch count: two identical reads make exactly one network call
+  (for example
+  `packages/providers/snapchat/tests/SnapchatApiClient.cacheIsolation.test.ts:98`).
+- **These operations stay uncached**, because they carry per-call secrets or are
+  writes: TikTok `exchange-code-for-token` and `refresh-access-token`
+  (`packages/providers/tiktok/src/authService.ts:189`, `:247`), Snapchat
+  `refresh-token` (`packages/providers/snapchat/src/apiClient.ts:314`), and Facebook
+  `upload-media` and `post-to-page` (`packages/providers/facebook/src/apiClient.ts:370`,
+  `:456`). Caching any of them would reintroduce the cross-tenant leak on the most
+  sensitive paths.
+
+No check gates these rules: the docblock of `call` says only that the discriminant
+is "typically `hashCallScope(creds)`" (`circuitBreaker.ts:726`), and no test reads
+the uncached list as a whole. Review holds them.
+
 ## Escalated to backlog (open, tracked)
 
 Recorded here so they cannot be lost; none is a live exploit today.
@@ -1762,6 +1841,36 @@ Recorded here so they cannot be lost; none is a live exploit today.
    composite-FK shape already sketched for `ProjectMember` (SMELL-59): a unique
    `(id, accountId)` on `Project` plus a composite FK
    `Channel(projectId, accountId) → Project(id, accountId)`.
+8. **System-context reasons outside the declared form** (§"How to use
+   `withSystemContext()`"). Measured on 2026-10-28, 37 production calls pass a
+   reason: 10 an exported constant, 18 an inline literal and 9 a string built from
+   request data, a route parameter or (for the post batch hard delete) a body field.
+   Three were named when the A9 seams were declared: the
+   customer login and MFA login handlers pass the literals `customer-login` and
+   `customer-mfa-login` (`apps/api/src/auth/customerAuthRoutes.ts:209`, `:287`;
+   MFA login also states no extent), and the Admin MFA force-disable builds
+   `` `admin-mfa-force-disable:customer:${userId}` ``
+   (`apps/api/src/auth/mfaRoutes.ts:392`). The other eight interpolated reasons
+   are `system:account-restore:` and `system:account-hard-delete:` plus the account
+   id (`apps/api/src/accounts/accountRoutes.ts:394`, `:482`), the project restore
+   and hard delete (`apps/api/src/projects/projectRoutes.ts:593`, `:763`), the
+   channel hard delete (`apps/api/src/channels/channelRoutes.ts:584`), the post
+   batch hard delete (`apps/api/src/posts/postRoutes.ts:506`), the channel force
+   re-authentication (`apps/api/src/admin/channelReauthRoutes.ts:56`) and the
+   webhook secret rotation (`apps/api/src/admin/webhookAdminRoutes.ts:60`). The
+   other sixteen literals are static: the ten scheduler ticks of
+   `apps/api/src/index.ts` (`:951` to `:1119`), `system:billing-webhook`
+   (`apps/api/src/billing/billingWebhookRoutes.ts:200`, `:254`),
+   `system:integration-key-auth` (`apps/api/src/auth/integrationAuthMiddleware.ts:134`),
+   `public-link-redirect` (`apps/api/src/links/linkRoutes.ts:211`),
+   `shortcode-uniqueness-probe`
+   (`apps/api/src/infrastructure/repositories/PrismaTrackedLinkRepository.ts:286`)
+   and `recurrence-sweep` (`apps/api/src/recurring/RecurrenceScheduler.ts:82`).
+   None widens what a query may reach: nothing reads the reason at runtime, and the
+   bypass comes from the wrap, not from its string. The cost is review: an inline
+   literal is found only by searching every call site, and an interpolated one makes
+   the set of declared bypasses unbounded. Closing the item moves each reason to an
+   exported constant.
 
 ---
 
