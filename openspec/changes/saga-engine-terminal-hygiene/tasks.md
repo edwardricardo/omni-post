@@ -587,8 +587,8 @@ Every later "the tests pass" claim in this change depends on this PR.
       file the moment it existed. `bash -n run-tests.sh` clean.
 - [x] 10.2 `docs/observability/SLO.md` — the saga section reflects the resumed-COMPENSATING
       lifecycle and the new `compensation-expired` reason.
-      **Done:** the orphan SLI row now reads `min_over_time(...)` under a renamed "COMPENSATING sin
-      drenar" target ("un walk en curso NO cuenta"), a new "Rollbacks sin terminar" row covers
+      **Done:** the orphan SLI row now reads `min_over_time(...)` under a renamed "COMPENSATING
+      undrained" target ("an ongoing walk does NOT count"), a new "Unfinished rollbacks" row covers
       `compensation-expired`, the recovery-health regex gains `compensation`, and a new note explains
       the lifecycle and why the alert is a FLOOR rather than a `max()`.
 - [x] 10.3 `docs/security/MULTI_TENANT_GUARDS.md` — rewrite the compensating-orphan runbook
