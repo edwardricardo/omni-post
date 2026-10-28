@@ -83,7 +83,7 @@
 
 ### Recommendation: AVOID
 
-- **Grace windows > 168h (7 days)** — beyond a week, the "rotation in progress" framing breaks down. The system has effectively two valid secrets indefinitely. Stripe caps at 24h; we should cap meaningfully tighter than our current 720h (30 days). **REFACTOR CANDIDATE**: tighten `MAX_GRACE_HOURS` from `24*30` to `24*7` (168h, 7 days). Edward's call.
+- **Grace windows > 168h (7 days)** — beyond a week, the "rotation in progress" framing breaks down. The system has effectively two valid secrets indefinitely. Stripe caps at 24h; we should cap meaningfully tighter than our current 720h (30 days). **REFACTOR CANDIDATE**: tighten `MAX_GRACE_HOURS` from `24*30` to `24*7` (168h, 7 days). The Maintainer's call.
 - **Auto-rotate without operator-controlled cutover** — our implementation is admin-triggered and matches the Stripe model. Don't move to background automation without further research (would need a new canon entry).
 - **Silent fallback (no log)** — never accept a webhook with the old secret without emitting an audit event. Already handled.
 
@@ -161,7 +161,7 @@
   - `WEBHOOK_GRACE_WINDOW_DEFAULT_HOURS = 24` — matches Stripe ✓.
   - `MIN_GRACE_HOURS = 1` — reasonable floor; not contested by any source.
 
-## Edward's review
+## Maintainer's review
 
 - [x] Sources are sufficient (4 from official platform docs — Stripe, GitHub, Slack, Shopify)
 - [x] Recommendations match project values

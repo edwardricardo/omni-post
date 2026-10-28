@@ -167,7 +167,7 @@ When promoting:
   - When tenant notifications are added (likely PR-? in a future wave): `ChannelMarkedForReauth` event becomes natural fit. Notification service subscribes.
   - When SOC2 audit aggregator is built (likely follow-up to PR-42 dashboard): may benefit from event-sourced audit stream rather than ad-hoc log-table-grep.
 
-## Edward's review
+## Maintainer's review
 
 - [x ] Sources are sufficient (3: Fowler + Microsoft DDD synthesis + Vernon)
 - [ x] Recommendations match project values (validates current PR-43-A design + sets criterion for future)

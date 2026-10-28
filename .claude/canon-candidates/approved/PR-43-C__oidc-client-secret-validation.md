@@ -149,7 +149,7 @@
 - **Files that already align with this canon**:
   - None — the entire flow needs the chain refactor.
 
-## Edward's review
+## Maintainer's review
 
 - [x] Sources are sufficient (4: openid-client docs × 2 + RFC 6749 + OIDC Core 1.0)
 - [x] Recommendations match project values

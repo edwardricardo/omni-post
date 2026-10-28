@@ -2,29 +2,29 @@
 
 ## Metadata
 
-- **Task surfacing this gap**: Phase 2 audit-toolkit activation. Initial audit dijo "axe-core 4.10.3 instalado pero cero `injectAxe`/`toHaveNoViolations` — dormido". Re-audit con grep correcto (`AxeBuilder`) revela que SÍ hay helpers wireados en ambos apps, pero con drift de defaults y cobertura mínima (1 spec en admin, 0 en client).
-- **Specific decision**: cuál es el canon para (a) WCAG tag set, (b) impact severity threshold (qué impacta debe fallar CI vs warning), (c) ubicación del helper, (d) cobertura mínima por app (qué páginas deben tener spec a11y), (e) qué hacer con la divergencia entre admin (`expectPageToBeAccessible` standalone fn con defaults strict) y client (`CustomAssertions.expectPageToBeAccessible` method con defaults laxos).
+- **Task surfacing this gap**: Phase 2 audit-toolkit activation. The initial audit said "axe-core 4.10.3 installed but zero `injectAxe`/`toHaveNoViolations` — dormant". A re-audit with the correct grep (`AxeBuilder`) shows that there ARE helpers wired in both apps, but with drifted defaults and minimal coverage (1 spec in admin, 0 in client).
+- **Specific decision**: what the canon is for (a) the WCAG tag set, (b) the impact severity threshold (which impact must fail CI vs warn), (c) the helper's location, (d) the minimum coverage per app (which pages must have an a11y spec), (e) what to do about the divergence between admin (`expectPageToBeAccessible`, a standalone fn with strict defaults) and client (`CustomAssertions.expectPageToBeAccessible`, a method with lax defaults).
 - **Decision date**: 2026-05-07
 - **Synthesized by**: claude-opus-4-7
 - **Status**: pending
 
 ## Why this gap exists
 
-**Existing canon adjacent**: ninguna entry en canon-index.json sobre a11y testing. Helpers ya existen en código pero no hay regla pinned ni cobertura uniforme.
+**Existing canon adjacent**: no entry in canon-index.json about a11y testing. Helpers already exist in code, but there is no pinned rule and no uniform coverage.
 
-**State actual del repo**:
+**Current state of the repo**:
 
-- `apps/admin/tests/e2e/utils/a11y.ts` — standalone `expectPageToBeAccessible(page, opts)` con defaults `tags: ['wcag2a','wcag2aa']` + `includedImpacts: ['serious','critical']`. Usado en `apps/admin/tests/e2e/a11y.spec.ts` (smoke de login, 1 test).
-- `apps/client/tests/e2e/utils/assertions.ts` — `CustomAssertions.expectPageToBeAccessible(opts)` con defaults `tags: ['wcag2a','wcag2aa']` + `includedImpacts: ['minor','moderate','serious','critical']`. **No hay specs que lo usen** (`tests/e2e/tests/` solo tiene analytics/auth/publishing/visual; ningún `a11y.spec.ts`).
-- Drift de defaults: client falla CI por `minor` + `moderate` también — demasiado noisy para baseline. admin solo bloquea `serious` + `critical` lo cual es la práctica industria (Deque docs).
+- `apps/admin/tests/e2e/utils/a11y.ts` — standalone `expectPageToBeAccessible(page, opts)` with defaults `tags: ['wcag2a','wcag2aa']` + `includedImpacts: ['serious','critical']`. Used in `apps/admin/tests/e2e/a11y.spec.ts` (login smoke, 1 test).
+- `apps/client/tests/e2e/utils/assertions.ts` — `CustomAssertions.expectPageToBeAccessible(opts)` with defaults `tags: ['wcag2a','wcag2aa']` + `includedImpacts: ['minor','moderate','serious','critical']`. **No spec uses it** (`tests/e2e/tests/` only has analytics/auth/publishing/visual; no `a11y.spec.ts`).
+- Defaults drift: client fails CI on `minor` + `moderate` too — too noisy for a baseline. admin blocks only `serious` + `critical`, which is industry practice (Deque docs).
 
-**Why default heuristic is insufficient**: sin canon, los desarrolladores futuros copian helper de un app u otro y propagan el drift. Además, falta WCAG 2.1 en los tags (admin solo cubre 2.0). Y la cobertura es 1 página total — necesitamos baseline ampliado.
+**Why default heuristic is insufficient**: without a canon, future developers copy the helper from one app or the other and propagate the drift. Also, WCAG 2.1 is missing from the tags (admin only covers 2.0). And the coverage is 1 page in total — we need a wider baseline.
 
 ## Research scope
 
 - **Search keywords**: `playwright a11y axe wcag tag set`, `axe-core impact severity ci threshold`, `@axe-core/playwright canonical pattern`.
 - **Sources targeted**: Playwright official docs, Deque (axe-core authors) API docs, axe-core-npm GitHub README.
-- **Sources excluidas**: jest-axe content (different library, different API); blog posts pre-WCAG 2.1.
+- **Sources excluded**: jest-axe content (different library, different API); blog posts pre-WCAG 2.1.
 
 ## Sources consulted
 
@@ -38,80 +38,80 @@
   - Scoping methods: `.include(selector)`, `.exclude(selector)`, `.disableRules(['rule-id'])`.
   - Fixture pattern recommended for reuse: extend `test` with `makeAxeBuilder` factory that pre-applies tags + common excludes.
   - "AxeBuilder.analyze() will scan the page in its current state" — must interact (login, navigate, expand menu) before `.analyze()` if testing dynamic states.
-- **My reading**: el patrón canónico de la documentación oficial mapea 1-to-1 con lo que admin's helper ya hace. Diff: tags (admin tiene solo wcag2; canon recomienda agregar wcag21).
+- **My reading**: the canonical pattern of the official documentation maps 1-to-1 onto what admin's helper already does. Diff: tags (admin has only wcag2; the canon recommends adding wcag21).
 
 ### [2] Deque — axe API documentation — [deque.com](https://www.deque.com/axe/core-documentation/api-documentation/)
 
 - **Fetched**: 2026-05-07
-- **Authority**: Deque Systems — autores de axe-core.
+- **Authority**: Deque Systems — the authors of axe-core.
 - **Key claims**:
-  - Tag canon para producción: `wcag2aa` (baseline legal), `wcag21aa` (industry default actual), `wcag22aa` (latest standard 2023). El tag `best-practice` es opcional — recomendado pero no legal-binding.
+  - Tag canon for production: `wcag2aa` (legal baseline), `wcag21aa` (current industry default), `wcag22aa` (latest standard, 2023). The `best-practice` tag is optional — recommended but not legally binding.
   - **Impact severity levels**: `minor`, `moderate`, `serious`, `critical`.
-  - **CI strategy recomendada**: fail pipeline en `serious` + `critical`; `moderate` + `minor` como warnings/informational. Razón: `serious`/`critical` son blockers reales de uso (e.g., screen reader no puede navegar); `minor`/`moderate` son refinements. Bloquear CI en `minor` genera fatiga y se desactivan.
-  - `color-contrast` rule: expensive (paint-level analysis); recomendado correr en small set de páginas representativas, no en cada test.
+  - **Recommended CI strategy**: fail the pipeline on `serious` + `critical`; `moderate` + `minor` as warnings/informational. Reason: `serious`/`critical` are real usage blockers (e.g., a screen reader cannot navigate); `minor`/`moderate` are refinements. Blocking CI on `minor` causes fatigue, and the checks get disabled.
+  - `color-contrast` rule: expensive (paint-level analysis); recommended to run on a small set of representative pages, not in every test.
   - Violation object shape: `{ id, impact, description, helpUrl, nodes }`.
-- **My reading**: confirma que el default de admin (`['serious', 'critical']`) está alineado con Deque guidance; el default de client (`['minor','moderate','serious','critical']`) es overshoot.
+- **My reading**: it confirms that admin's default (`['serious', 'critical']`) is aligned with Deque guidance; client's default (`['minor','moderate','serious','critical']`) overshoots.
 
 ### [3] axe-core-npm — @axe-core/playwright README — [github.com](https://github.com/dequelabs/axe-core-npm/blob/develop/packages/playwright/README.md)
 
 - **Fetched**: 2026-05-07
 - **Authority**: axe-core-npm official package README.
 - **Key claims**:
-  - API surface completa: `.analyze()`, `.include()`, `.exclude()`, `.withRules()`, `.withTags()`, `.disableRules()`, `.options()`, `.setLegacyMode()`.
-  - Sin global setup — instancia `AxeBuilder` per-test con `page`.
-  - "Automatically injects into all frames" por default. `setLegacyMode(true)` desactiva cross-origin frame testing.
-  - Patch version de axe-core matches semver — minor bumps OK, major no.
-- **My reading**: no global config simplifica el wiring. Helpers existentes ya siguen el patrón.
+  - Full API surface: `.analyze()`, `.include()`, `.exclude()`, `.withRules()`, `.withTags()`, `.disableRules()`, `.options()`, `.setLegacyMode()`.
+  - No global setup — instantiate `AxeBuilder` per test with `page`.
+  - "Automatically injects into all frames" by default. `setLegacyMode(true)` disables cross-origin frame testing.
+  - axe-core's patch versions match semver — minor bumps are OK, major ones are not.
+- **My reading**: having no global config simplifies the wiring. The existing helpers already follow the pattern.
 
 ## Synthesis
 
 ### Recommendation: USE — canonical helper signature aligned across both apps
 
-For E2E a11y testing in `apps/admin/tests/e2e/` y `apps/client/tests/e2e/`:
+For E2E a11y testing in `apps/admin/tests/e2e/` and `apps/client/tests/e2e/`:
 
-1. **Canonical helper signature** (ya implementada en admin, replicar en client):
+1. **Canonical helper signature** (already implemented in admin; replicate it in client):
    ```typescript
    export async function expectPageToBeAccessible(
      page: Page,
      options: A11yOptions = {}
    ): Promise<void>;
    ```
-2. **Defaults canon**:
-   - `tags: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']` — WCAG 2.0 + 2.1, Level A + AA. Cobertura legal estándar.
-   - `includedImpacts: ['serious', 'critical']` — fail CI solo en estos dos. `minor`/`moderate` quedan como warnings (no fallan pipeline).
-   - `exclude: []` — no global excludes; cada spec añade los suyos según contexto.
-3. **Helper location**: `apps/<app>/tests/e2e/utils/a11y.ts` — standalone export (NO method on a class). Más simple de tree-shake + más reusable.
-4. **Spec coverage baseline**: cada app tiene `a11y.spec.ts` cubriendo al menos:
-   - Página pública crítica (login).
-   - Una página post-login representativa (dashboard / inbox / scheduling).
-     Más páginas se agregan incrementalmente cuando una nueva ruta cae bajo "compliance scope".
-5. **Tag override por spec**: para páginas que necesitan WCAG 2.2 explícitamente (e.g., ARIA Authoring patterns nuevos), `expectPageToBeAccessible(page, { tags: [...defaults, 'wcag22aa'] })`.
-6. **Impact override por spec**: para páginas legacy sabidas con violations `moderate` en remediation, `includedImpacts: ['serious', 'critical']` (el default ya — sin override). Para auditoría temporal estricta: `includedImpacts: ['minor', 'moderate', 'serious', 'critical']` con time-boxed scope (no committed).
+2. **Canon defaults**:
+   - `tags: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']` — WCAG 2.0 + 2.1, Level A + AA. Standard legal coverage.
+   - `includedImpacts: ['serious', 'critical']` — fail CI only on these two. `minor`/`moderate` stay as warnings (they do not fail the pipeline).
+   - `exclude: []` — no global excludes; each spec adds its own according to context.
+3. **Helper location**: `apps/<app>/tests/e2e/utils/a11y.ts` — standalone export (NOT a method on a class). Simpler to tree-shake + more reusable.
+4. **Spec coverage baseline**: each app has an `a11y.spec.ts` covering at least:
+   - A critical public page (login).
+   - A representative post-login page (dashboard / inbox / scheduling).
+     More pages are added incrementally when a new route falls under "compliance scope".
+5. **Tag override per spec**: for pages that explicitly need WCAG 2.2 (e.g., new ARIA Authoring patterns), `expectPageToBeAccessible(page, { tags: [...defaults, 'wcag22aa'] })`.
+6. **Impact override per spec**: for known legacy pages with `moderate` violations under remediation, `includedImpacts: ['serious', 'critical']` (already the default — no override). For a temporary strict audit: `includedImpacts: ['minor', 'moderate', 'serious', 'critical']` with a time-boxed scope (not committed).
 
 ### Recommendation: ALIGN — fix the client helper drift
 
-`apps/client/tests/e2e/utils/assertions.ts:CustomAssertions.expectPageToBeAccessible` actualmente usa `includedImpacts: ['minor','moderate','serious','critical']` como default — overshoot vs canon. Action:
+`apps/client/tests/e2e/utils/assertions.ts:CustomAssertions.expectPageToBeAccessible` currently uses `includedImpacts: ['minor','moderate','serious','critical']` as its default — an overshoot vs the canon. Action:
 
-- **Opción A (preferida)**: refactor a standalone function en `apps/client/tests/e2e/utils/a11y.ts` (mirror del admin), con defaults canon. Dejar el method en `CustomAssertions` como deprecated wrapper que llama a la function nueva (preserva backward-compat con specs que ya usen el class).
-- **Opción B**: solo cambiar los defaults en el class method. Más conservador, mismo objetivo. Aceptable pero deja la divergencia estructural.
+- **Option A (preferred)**: refactor to a standalone function in `apps/client/tests/e2e/utils/a11y.ts` (a mirror of admin's), with canon defaults. Leave the method in `CustomAssertions` as a deprecated wrapper that calls the new function (it preserves backward compatibility with specs that already use the class).
+- **Option B**: only change the defaults in the class method. More conservative, same goal. Acceptable, but it leaves the structural divergence.
 
-Recomiendo Opción A — alinea con admin + simplifica.
+I recommend Option A — it aligns with admin + simplifies.
 
 ### Recommendation: AVOID
 
-- **`includedImpacts: ['minor', 'moderate', 'serious', 'critical']` como default global**. Genera CI noise; los devs desactivan el job. Para auditoría profunda, usar override per-spec con time-box.
-- **`best-practice` tag en CI**. Recomendaciones, no requirements legales. Pueden generar violaciones que no son bugs reales (e.g., "no h1" en una page que es content-fragment). Activar solo si product/design valida la lista de mejoras.
-- **`disableRules(['color-contrast'])` global**. Tentación cuando theme switching falla. Mejor: scope per-page con `.exclude()` los selectores que dependen del theme + asegurar que el test corra en un theme conocido (Playwright fixture).
-- **AxeBuilder en unit tests Vitest**. AxeBuilder es Playwright-only (necesita un browser real). Para component-level a11y use jest-axe con jsdom (separate canon entry, future).
-- **Snapshot de `violations` array completo**. Frágil — cualquier cambio en help URL o description rompe el snapshot. Usar `violationFingerprints({ id, nodes.target })` si snapshot es necesario.
+- **`includedImpacts: ['minor', 'moderate', 'serious', 'critical']` as a global default**. It generates CI noise; the devs disable the job. For a deep audit, use a per-spec override with a time box.
+- **`best-practice` tag in CI**. Recommendations, not legal requirements. They can generate violations that are not real bugs (e.g., "no h1" on a page that is a content fragment). Turn it on only if product/design validates the list of improvements.
+- **Global `disableRules(['color-contrast'])`**. A temptation when theme switching fails. Better: scope it per page, with `.exclude()` on the selectors that depend on the theme + make sure the test runs in a known theme (Playwright fixture).
+- **AxeBuilder in Vitest unit tests**. AxeBuilder is Playwright-only (it needs a real browser). For component-level a11y use jest-axe with jsdom (a separate canon entry, future).
+- **Snapshot of the full `violations` array**. Fragile — any change in a help URL or description breaks the snapshot. Use `violationFingerprints({ id, nodes.target })` if a snapshot is needed.
 
 ### Tradeoffs / decision tree
 
-- **Page pública crítica (auth)**: spec mínimo + defaults canon. Bloqueo en serious/critical.
-- **Page post-auth core (dashboard)**: spec con login fixture primero, después analyze. Defaults canon.
-- **Page con embed externo (charts third-party)**: `.exclude('.recharts-wrapper')` o similar para evitar reportar violations que no podemos arreglar.
-- **Page con animation / theme switching**: spec con `await page.waitForLoadState('networkidle')` + setear theme conocido antes de analyze.
-- **Page con dynamic state (modal abierto)**: trigger el modal, `await page.locator('[role="dialog"]').waitFor()`, después analyze.
+- **Critical public page (auth)**: minimal spec + canon defaults. Blocking on serious/critical.
+- **Core post-auth page (dashboard)**: spec with the login fixture first, then analyze. Canon defaults.
+- **Page with an external embed (third-party charts)**: `.exclude('.recharts-wrapper')` or similar, to avoid reporting violations we cannot fix.
+- **Page with animation / theme switching**: spec with `await page.waitForLoadState('networkidle')` + set a known theme before analyze.
+- **Page with dynamic state (open modal)**: trigger the modal, `await page.locator('[role="dialog"]').waitFor()`, then analyze.
 
 ### Pinned values / flags
 
@@ -121,7 +121,7 @@ Recomiendo Opción A — alinea con admin + simplifica.
 - **Helper location**: `apps/<app>/tests/e2e/utils/a11y.ts` — one file per app, exporting one function.
 - **Spec location**: `apps/<app>/tests/e2e/a11y.spec.ts` — one file per app, growing list of `test()` blocks per page.
 - **Library version**: `@axe-core/playwright@4.10.2` (already pinned exact in apps/{admin,client}/package.json).
-- **Coverage minimum**: 2 páginas per app (1 público + 1 post-login).
+- **Coverage minimum**: 2 pages per app (1 public + 1 post-login).
 
 ## Proposed canon-index.json entry
 
@@ -170,7 +170,7 @@ Recomiendo Opción A — alinea con admin + simplifica.
 **Files that ALIGN with canon (validation, light update only)**:
 
 - `apps/admin/tests/e2e/utils/a11y.ts` — canon-aligned shape. **Extend defaults** to include `wcag21a` + `wcag21aa` tags.
-- `apps/admin/tests/e2e/a11y.spec.ts` — keeps working; tag bump pasa por el helper sin cambio en la spec.
+- `apps/admin/tests/e2e/a11y.spec.ts` — keeps working; the tag bump goes through the helper with no change to the spec.
 
 **Files MODIFY (drift fix)**:
 
@@ -185,7 +185,7 @@ Recomiendo Opción A — alinea con admin + simplifica.
 
 - Other spec files in either app — no a11y assertions added retroactively.
 
-## Edward's review
+## Maintainer's review
 
 - [x] Sources are sufficient (3: Playwright docs + Deque + axe-core-npm)
 - [x] Recommendations match project values (drift fix + minimal coverage baseline)

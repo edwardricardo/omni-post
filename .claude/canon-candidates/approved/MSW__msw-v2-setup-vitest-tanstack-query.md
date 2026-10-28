@@ -2,8 +2,8 @@
 
 ## Metadata
 
-- **Task surfacing this gap**: Phase 2 audit-toolkit activation (MSW instalado a v2.14.3 pero sin handlers ni server). PR-51 canon entry ya documentó "MSW for tests: not yet wired in the repo" como future work.
-- **Specific decision**: how should MSW v2 be wired across `apps/admin` y `apps/client` — handlers per-domain o flat? `setupServer` en `tests/mocks/server.ts` o donde? `onUnhandledRequest: warn|error|bypass` para los tests del repo? lifecycle hooks (beforeAll/afterEach/afterAll) en setup file global o per-test-file?
+- **Task surfacing this gap**: Phase 2 audit-toolkit activation (MSW installed at v2.14.3 but with no handlers and no server). The PR-51 canon entry already documented "MSW for tests: not yet wired in the repo" as future work.
+- **Specific decision**: how should MSW v2 be wired across `apps/admin` and `apps/client` — handlers per domain or flat? `setupServer` in `tests/mocks/server.ts` or where? `onUnhandledRequest: warn|error|bypass` for the repo's tests? lifecycle hooks (beforeAll/afterEach/afterAll) in a global setup file or per test file?
 - **Decision date**: 2026-05-07
 - **Synthesized by**: claude-opus-4-7
 - **Status**: approved (2026-05-07) — **corrected post-implementation**: the original draft proposed a global `vitest.config.ts setupFiles` entry for MSW lifecycle. Implementation revealed this rejects 65 legacy tests using `vi.stubGlobal('fetch')` because MSW intercepts at the http/undici layer below the fetch global. The corrected pattern (reflected in canon-index.json) is per-test-file lifecycle: each MSW-aware file imports the server and wires `beforeAll/afterEach/afterAll` inside its own scope. Strict `'error'` is preserved within each opted-in file; legacy tests untouched.
@@ -12,19 +12,19 @@
 
 **Existing canon adjacent**:
 
-- `tanstack-query-v5-migration-patterns-from-raw-fetch` (recién creada, 2026-05-07) — establece el patrón TanStack pero deja MSW out-of-scope con nota explícita "Hook tests use vi.mock(...) directly. Wiring MSW is a separate canon entry — track as future work."
+- `tanstack-query-v5-migration-patterns-from-raw-fetch` (just created, 2026-05-07) — establishes the TanStack pattern but leaves MSW out of scope with an explicit note "Hook tests use vi.mock(...) directly. Wiring MSW is a separate canon entry — track as future work."
 - React Hooks pattern entry — covers React rules; no MSW guidance.
-- No canon entry sobre cómo organizar MSW handlers, dónde vive el `setupServer`, qué hooks de Vitest invocar, ni qué `onUnhandledRequest` strategy usar.
+- No canon entry on how to organize MSW handlers, where the `setupServer` lives, which Vitest hooks to invoke, or which `onUnhandledRequest` strategy to use.
 
-**What's missing**: la canon necesita pinear (a) la organización del código de mocks (handlers per-domain vs flat, server location), (b) el lifecycle de Vitest setup, (c) la default strategy para requests no-mockeados (warn/error/bypass), (d) el formato de respuesta de los handlers para que match el envelope `{ ok, data }` canónico del backend.
+**What's missing**: the canon needs to pin (a) the organization of the mock code (handlers per domain vs flat, server location), (b) the Vitest setup lifecycle, (c) the default strategy for unmocked requests (warn/error/bypass), (d) the response format of the handlers, so that it matches the backend's canonical `{ ok, data }` envelope.
 
-**Why default heuristic is insufficient**: MSW v2 cambió API materialmente vs v1 (rest → http, ResponseComposer → HttpResponse, setupServer/setupWorker reorganizado). Mi memoria mezcla v1+v2. Sin verificación me iría con v1 syntax. Además, "Stop mocking fetch" (Kent C. Dodds, citado por tkdodo) es una decisión de arquitectura de tests que vale documentarse: por qué MSW > vi.stubGlobal('fetch').
+**Why default heuristic is insufficient**: MSW v2 changed the API materially vs v1 (rest → http, ResponseComposer → HttpResponse, setupServer/setupWorker reorganized). My memory mixes v1+v2. Without verification I would go with v1 syntax. Also, "Stop mocking fetch" (Kent C. Dodds, cited by tkdodo) is a test-architecture decision worth documenting: why MSW > vi.stubGlobal('fetch').
 
 ## Research scope
 
 - **Search keywords**: `msw v2 vitest setup`, `msw setupServer node`, `msw onUnhandledRequest`, `msw http.get HttpResponse`, `tkdodo testing react query msw`.
-- **Sources targeted**: docs oficiales MSW (mswjs.io) + tkdodo blog (canonical para TanStack Query testing patterns).
-- **Sources excluidas**: tutoriales Medium pre-v2; videos YouTube (no auditable); contenido sobre MSW v1 (API materialmente diferente).
+- **Sources targeted**: the official MSW docs (mswjs.io) + the tkdodo blog (canonical for TanStack Query testing patterns).
+- **Sources excluded**: pre-v2 Medium tutorials; YouTube videos (not auditable); content about MSW v1 (materially different API).
 
 ## Sources consulted
 
@@ -34,9 +34,9 @@
 - **Authority**: MSW official documentation v2.
 - **Key claims**:
   - Setup pattern: `import { setupServer } from 'msw/node'; export const server = setupServer(...handlers)`.
-  - Vitest lifecycle canónico: `beforeAll(() => server.listen())` / `afterEach(() => server.resetHandlers())` / `afterAll(() => server.close())`.
-  - `server.use(http.get(...))` para overrides per-test (NO sobrescribe handlers globales hasta `resetHandlers`).
-- **My reading**: el lifecycle es invariante — los 3 hooks van en un setup file global, no en cada test file. Los overrides per-test usan `server.use()` dentro del `it()` que necesita el escenario distinto.
+  - Canonical Vitest lifecycle: `beforeAll(() => server.listen())` / `afterEach(() => server.resetHandlers())` / `afterAll(() => server.close())`.
+  - `server.use(http.get(...))` for per-test overrides (it does NOT overwrite the global handlers until `resetHandlers`).
+- **My reading**: the lifecycle is invariant — the 3 hooks go in a global setup file, not in each test file. Per-test overrides use `server.use()` inside the `it()` that needs the different scenario.
 
 ### [2] MSW v2 — server.listen() options — [mswjs.io](https://mswjs.io/docs/api/setup-server/listen)
 
@@ -44,9 +44,9 @@
 - **Authority**: MSW official documentation v2.
 - **Key claims**:
   - `onUnhandledRequest` accepts: `'warn'` (default — log warning + perform request), `'error'` (log error + halt), `'bypass'` (silent + perform), or custom function.
-  - Pre-built option `isCommonAssetRequest()` para excluir `/assets/` etc. del check.
-  - Custom callback ejemplo: `server.listen({ onUnhandledRequest(request, print) { ... print.warning() } })`.
-- **My reading**: `'error'` es el strict default correcto para tests — fuerza que cada endpoint que un componente toca esté declarado en handlers. `'warn'` (default) deja pasar requests reales lo cual rompe el sandbox. `'bypass'` desactiva el check completo (peor). Para nuestro repo: `'error'` global con whitelist explícita si aparece algún case especial.
+  - Pre-built option `isCommonAssetRequest()` to exclude `/assets/` etc. from the check.
+  - Custom callback example: `server.listen({ onUnhandledRequest(request, print) { ... print.warning() } })`.
+- **My reading**: `'error'` is the correct strict default for tests — it forces every endpoint a component touches to be declared in handlers. `'warn'` (the default) lets real requests through, which breaks the sandbox. `'bypass'` turns the whole check off (worse). For our repo: a global `'error'` with an explicit whitelist if a special case appears.
 
 ### [3] MSW v2 — Getting Started (REST handlers) — [mswjs.io](https://mswjs.io/docs/getting-started)
 
@@ -54,28 +54,28 @@
 - **Authority**: MSW official documentation v2.
 - **Key claims**:
   - `import { http, HttpResponse } from 'msw'`. Handler factories: `http.get/post/put/patch/delete(path, resolver)`.
-  - Path patterns con `:param` (`/users/:id`) y resolver recibe `{ request, params, cookies }`.
+  - Path patterns with `:param` (`/users/:id`), and the resolver receives `{ request, params, cookies }`.
   - Body: `await request.json()` async. Response: `HttpResponse.json(body, { status?, headers? })`.
   - Error: `HttpResponse.json({ error: 'msg' }, { status: 500 })`.
-- **My reading**: la API v2 es minimal y predecible. Para nuestro envelope `{ ok, data }`, los handlers son one-liners: `http.get('/api/backend/...', () => HttpResponse.json({ ok: true, data: [...] }))`. Tests que ejercitan errores: `HttpResponse.json({ ok: false, error: 'boom' }, { status: 500 })`.
+- **My reading**: the v2 API is minimal and predictable. For our `{ ok, data }` envelope, the handlers are one-liners: `http.get('/api/backend/...', () => HttpResponse.json({ ok: true, data: [...] }))`. Tests that exercise errors: `HttpResponse.json({ ok: false, error: 'boom' }, { status: 500 })`.
 
 ### [4] tkdodo — Testing React Query — [tkdodo.eu](https://tkdodo.eu/blog/testing-react-query)
 
 - **Fetched**: 2026-05-07
 - **Authority**: Dominik Dorfmeister (tkdodo) — TanStack Query maintainer.
 - **Key claims**:
-  - "Stop mocking fetch" (Kent C. Dodds) — MSW es "your single source of truth when it comes to mocking your apis".
-  - MSW funciona en Node + browser + Storybook + Cypress + DevTools — un solo handler set para todo.
-  - QueryClient test setup: `retry: false` es **crítico** porque "React Query defaults to three retries with exponential backoff" — sin esto, error tests timeoutean.
+  - "Stop mocking fetch" (Kent C. Dodds) — MSW is "your single source of truth when it comes to mocking your apis".
+  - MSW works in Node + browser + Storybook + Cypress + DevTools — a single handler set for everything.
+  - QueryClient test setup: `retry: false` is **critical** because "React Query defaults to three retries with exponential backoff" — without it, error tests time out.
   - createWrapper pattern: fresh QueryClient per test (`useState(() => new QueryClient({...}))` o helper function).
   - Awaiting state transitions: `await waitFor(() => expect(result.current.isSuccess).toBe(true))`.
-- **My reading**: el motivo arquitectónico para MSW > `vi.stubGlobal('fetch')`: con MSW, los handlers son source-of-truth compartida entre unit/integration/E2E (Playwright también puede usarlos). Con `vi.stubGlobal`, cada test redefine la respuesta inline → drift inevitable. La inversión vale para tests con >2-3 endpoints distintos.
+- **My reading**: the architectural reason for MSW > `vi.stubGlobal('fetch')`: with MSW, the handlers are a source of truth shared across unit/integration/E2E (Playwright can use them too). With `vi.stubGlobal`, each test redefines the response inline → drift is inevitable. The investment pays off for tests with >2-3 distinct endpoints.
 
 ## Synthesis
 
 ### Recommendation: USE — MSW v2 with strict per-test overrides
 
-For all new HTTP-based test work in `apps/admin/tests/` y `apps/client/tests/`:
+For all new HTTP-based test work in `apps/admin/tests/` and `apps/client/tests/`:
 
 1. **`tests/mocks/handlers/<domain>.ts`** per-domain handler files (e.g. `scheduling.ts`, `accounts.ts`, `auth.ts`). Each exports an array `<domain>Handlers: HttpHandler[]`.
 2. **`tests/mocks/handlers/index.ts`** barrel: `export const handlers = [...schedulingHandlers, ...accountsHandlers, ...]`.
@@ -97,7 +97,7 @@ PR-51.A's test `useSchedulingDashboardSidebar.test.tsx` currently uses `vi.stubG
 - **`onUnhandledRequest: 'warn'` (the default)** — silent passes through unhandled requests to the real network. In jsdom this fails differently per environment; in CI it's flakier. `'error'` makes the test sandbox actually a sandbox.
 - **Inline `vi.fn()` mockResponseOnce chains for >3 calls** — that's the brittle pattern MSW solves. Break the test or write handlers.
 - **`vi.mock('@/lib/api/clients/...')` for HTTP behavior** — mocks the layer above the boundary. Lose coverage of the transport (`request<T>()`'s envelope unwrapping, `ApiError.fromResponse` parsing). MSW intercepts at the network boundary, exercising the full transport.
-- **Sharing one `server` instance across `apps/admin` y `apps/client`** — they have different proxies, types, and handlers. Each app gets its own `tests/mocks/server.ts`.
+- **Sharing one `server` instance across `apps/admin` and `apps/client`** — they have different proxies, types, and handlers. Each app gets its own `tests/mocks/server.ts`.
 - **MSW worker (`setupWorker`) for unit tests** — that's for browser/Storybook. Vitest jsdom uses Node's request interception via `setupServer`.
 
 ### Tradeoffs / decision tree
@@ -170,26 +170,26 @@ PR-51.A's test `useSchedulingDashboardSidebar.test.tsx` currently uses `vi.stubG
 
 **Files NEW under this canon (this commit + PR-51.A test migration)**:
 
-- `apps/client/tests/mocks/handlers/scheduling.ts` — handlers para `/api/backend/campaigns?projectId=...` y `/api/backend/team?projectId=...`
+- `apps/client/tests/mocks/handlers/scheduling.ts` — handlers for `/api/backend/campaigns?projectId=...` and `/api/backend/team?projectId=...`
 - `apps/client/tests/mocks/handlers/index.ts` — barrel
 - `apps/client/tests/mocks/server.ts` — `setupServer(...handlers)`
-- Extender `apps/client/tests/setup.ts` (o crear si no existe en location wireada por `vitest.config.ts`).
+- Extend `apps/client/tests/setup.ts` (or create it if it does not exist at the location `vitest.config.ts` wires).
 
 **Files MODIFY (POC migration)**:
 
-- `apps/client/tests/integration/useSchedulingDashboardSidebar.test.tsx` — remove `vi.stubGlobal('fetch', mockFetch)`, use `server.use(http.X(...))` para los casos de error/edge inside individual it() blocks. Default success case lo cubre el handler global.
+- `apps/client/tests/integration/useSchedulingDashboardSidebar.test.tsx` — remove `vi.stubGlobal('fetch', mockFetch)`, use `server.use(http.X(...))` for the error/edge cases inside individual it() blocks. The global handler covers the default success case.
 
 **Files NOT touched** (until naturally opened):
 
-- `apps/client/tests/integration/useMarkMessageRead.test.tsx` — still on vi.stubGlobal. Migra cuando se toque por otra razón.
+- `apps/client/tests/integration/useMarkMessageRead.test.tsx` — still on vi.stubGlobal. It migrates when it is touched for another reason.
 - `apps/client/tests/integration/*.test.tsx` — same.
-- `apps/admin/tests/` — admin app no se incluye en este POC; sigue patrón propio. Same canon aplica cuando se inicie su MSW wiring.
+- `apps/admin/tests/` — the admin app is not included in this POC; it keeps its own pattern. The same canon applies when its MSW wiring starts.
 
 **Dependencies**:
 
-- `msw@2.14.3` ya en `node_modules/.pnpm/` (transitiva via Next.js). No hace falta agregar a package.json — MSW es directly importable. (NOTA: si CI bloquea por dep no declarada, agregar `"msw": "2.14.3"` exact pin a `apps/client/package.json` devDependencies.)
+- `msw@2.14.3` already in `node_modules/.pnpm/` (transitive via Next.js). There is no need to add it to package.json — MSW is directly importable. (NOTE: if CI blocks on an undeclared dep, add a `"msw": "2.14.3"` exact pin to `apps/client/package.json` devDependencies.)
 
-## Edward's review
+## Maintainer's review
 
 - [x] Sources are sufficient (4: MSW docs ×3 + tkdodo)
 - [x] Recommendations match project values (incremental migration, no bulk rewrite, strict onUnhandledRequest)

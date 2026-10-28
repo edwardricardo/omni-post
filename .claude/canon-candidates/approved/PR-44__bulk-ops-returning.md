@@ -147,11 +147,11 @@
 - **Files that already align with this canon**:
   - None — this is a refactor of existing 2-query patterns to the canonical 1-query.
 
-## Edward's review
+## Maintainer's review
 
 - [x] Sources are sufficient (4 from official Prisma docs + Postgres docs + GitHub canonical issue)
 - [x] Recommendations match project values
 - [x] Pinned values reasonable for our scale + threat model
 - [x] Approve append to `canon_research_index.md`
 - [x] Trigger refactor commit on the 3 repo methods + tests
-- Notes: Edward approved on 2026-05-07. Refactor applied (3 repo methods + tests); canon entry appended; canon-index.json regenerated (127 → 128 entries).
+- Notes: the Maintainer approved on 2026-05-07. Refactor applied (3 repo methods + tests); canon entry appended; canon-index.json regenerated (127 → 128 entries).
