@@ -232,7 +232,7 @@ Engine checks this at the top of `executeSaga` — terminal sagas never re-execu
 
 ## Dependency Injection
 
-**This is the canon for ALL dependency injection in the codebase. Any new code, and any code being modified, MUST follow it. The F1-API-3 bulk-schedule worker + the `refactor/prisma-di-migration` workstream are the reference implementations.**
+**This is the canon for ALL dependency injection in the codebase. Any new code, and any code being modified, MUST follow it. The bulk-schedule worker (`apps/api/src/bulk-scheduling/bulkScheduleWorker.ts`) + the prisma→DI workstream (merge commit `93ebcdc7`, ADR-0007) are the reference implementations.**
 
 - **130+ tokens** — every new dependency gets a `TOKENS.MY_DEPENDENCY` symbol
 - Registration in `Container.ts` composition root only
