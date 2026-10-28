@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-04
-- **Deciders**: Edward
+- **Decision-makers**: Product Owner
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0024](ADR-0024-billing-currency-and-price-catalog.md) (price catalog and
@@ -84,14 +86,14 @@ Measured on `main` at `bad953f2`:
    - Admin sets the grace date X. Affected customers are notified that after X their payment option
      changes, and that they must accept the change — set up payment on the new gateway — before X.
    - They receive a **weekly reminder showing the date** until they accept or X arrives. This
-     default was stated to Edward and stands unless he corrects it; it shares the deadline-reminder
+     default was stated to the Product Owner and stands unless the Product Owner corrects it; it shares the deadline-reminder
      mechanism of [ADR-0026](ADR-0026-non-payment-lifecycle.md).
    - The old gateway's subscription stops at X: it is set to cancel at the end of the period aligned
      to X.
    - **A customer who has not accepted by X is suspended, and the new gateway is not charged.**
    - The existing per-account switch flow is generalised into this: a country-wide batch with an
      Admin-set grace date instead of a fixed 24/48-hour schedule.
-7. **The seller's country of establishment is an Admin field** (a default stated to Edward, not
+7. **The seller's country of establishment is an Admin field** (a default stated to the Product Owner, not
    objected to). The tax registrations Admin asks for on the Stripe path derive from it. It is
    configuration rather than code because the application may be sold to another owner, established
    elsewhere.
@@ -125,7 +127,7 @@ Measured on `main` at `bad953f2`:
   reasons while being charged USD; currency and gateway are separate maps.
 - **Two editable lists, one per gateway, validated against each other.** Rejected for the single map
   (point 4).
-- **A fixed routing list in code.** Not chosen: Edward asked for include/exclude per gateway in
+- **A fixed routing list in code.** Not chosen: the Product Owner asked for include/exclude per gateway in
   Admin.
 - **Switch customers immediately when routing changes.** Rejected: it would end paid periods early
   or charge a new gateway without the customer's set-up.
@@ -158,8 +160,8 @@ Measured on `main` at `bad953f2`:
 
 - **The exact seed list.** The decision names regions ("the EU, the UK, Norway, Switzerland, Canada,
   Australia, New Zealand and similar VAT/GST regimes"), not ISO codes. The implementation slice
-  proposes the full ISO list, including which "similar regimes" it adds, for Edward to confirm.
-- **Resolved 2026-10-04 — what "suspended" means at a missed routing deadline.** Edward: the
+  proposes the full ISO list, including which "similar regimes" it adds, for the Product Owner to confirm.
+- **Resolved 2026-10-04 — what "suspended" means at a missed routing deadline.** The Product Owner: the
   account goes through the same flow as a non-payment suspension in
   [ADR-0026](ADR-0026-non-payment-lifecycle.md) — 72 hours read-only with scheduled posts paused,
   then the 30-day payment-only lock with weekly deadline notices, then cancellation — with the

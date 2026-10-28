@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-06
-- **Deciders**: Edward
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Amends**: [CODING_STANDARDS.md](../development/CODING_STANDARDS.md) §Test Framework Rules (a row for
@@ -41,12 +43,12 @@ did not exist (MASTER_PLAN_ES N-DOC-1).
 
 ## Decision
 
-Two decisions by Edward, applied by slice 0.22 (tracker D29):
+Two decisions by the Maintainer, applied by slice 0.22 (tracker D29):
 
 - **D29, 2026-10-02:** measure the Storybook, keep what runs, remove what does not, backfill a
-  runnable story per component, and make stories part of creating UI ("el plan no es removerlo, es
-  medir lo actual y ver si funciona"; "integrar la herramienta al flow de creacion de artefactos de
-  la UI").
+  runnable story per component, and make stories part of creating UI ("the plan is not to remove
+  it, it is to measure what exists and see whether it works"; "integrate the tool into the flow that
+  creates the UI's artifacts").
 - **Option A, 2026-10-05:** the runner is `@storybook/nextjs-vite` with `@storybook/addon-vitest`
   on vitest browser mode with Playwright.
 
@@ -93,7 +95,7 @@ the flow and the gate, and links `docs/standards/frontend-standards.md` as the d
    on real defects: icon-only buttons and inputs with no accessible name, a controlled input with no
    `onChange`, text under the 4.5:1 contrast ratio. Fourteen were fixed in the stories and three by
    correcting two Light-theme tokens, `--destructive` and `--muted-foreground`, to meet WCAG AA
-   (Edward, 2026-10-06).
+   (the Maintainer, 2026-10-06).
 2. **A real browser, because those defects need one.** axe-core's README states that its
    `color-contrast` rule is known not to work with JSDOM, so the jsdom suites cannot see the
    contrast failures the first run found.

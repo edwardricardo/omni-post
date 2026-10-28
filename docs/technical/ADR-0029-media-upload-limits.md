@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-04
-- **Deciders**: Edward
+- **Decision-makers**: Product Owner and Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0028](ADR-0028-storage-configuration-and-media-access.md) (storage configuration
@@ -10,7 +12,7 @@
 
 ## Context
 
-Edward asked for upload limits that are "neither much more restrictive nor much more permissive than
+The Product Owner asked for upload limits that are "neither much more restrictive nor much more permissive than
 the competition". The research ([research-2026-10-04-storage.md](https://github.com/edwardricardo/omni-post/blob/7b3ec1ac7dd7e1d8096ef6b03ad805b9a17d5d81/docs/reports/research-2026-10-04-storage.md),
 Report 1) read the limits of 13 competitors and the official publishing-API limits of the 11
 networks OmniPost publishes to. The findings that shape this decision:

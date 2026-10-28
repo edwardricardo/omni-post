@@ -442,7 +442,7 @@ Publishing a post to 10 platforms simultaneously, with retries, dead letter queu
 
 ### Why separate CustomerUser from AdminUser?
 
-Platform owner (Edward) and customers are different user types with different permissions, different data access, and different security requirements. Separate JWT secrets, separate middleware, separate session cookies. A customer token cannot access admin routes by design.
+The platform owner and customers are different user types with different permissions, different data access, and different security requirements. Separate JWT secrets, separate middleware, separate session cookies. A customer token cannot access admin routes by design.
 
 ### Why provider+account pricing instead of seats?
 

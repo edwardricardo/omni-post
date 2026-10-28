@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-14
-- **Deciders**: Edward (owner)
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Amends**: [ADR-0018](ADR-0018-dependency-freshness-canon.md) (its "latest stable" is reached in
@@ -23,12 +25,12 @@ Measured in the week to 2026-10-14 ([TESTING_REFOUNDATION_MEASUREMENTS.md](../de
    release past the 7-day buffer, and exits 1 on any lag no row of `SECURITY_CANON.md`
    §"Build-tool version holds" names. The only ways to stay green were a bump on the day of the
    instant or a row written before it.
-2. **That made every maturity instant a unit.** The owner counted nine in the week. Among those
+2. **That made every maturity instant a unit.** The Maintainer counted nine in the week. Among those
    the log records: `knip` 6.39.0, `jscpd` 5.4.0 and `dependency-cruiser` 18.5.0 on 2026-10-07,
    `vite` 8.3.2 on 2026-10-08, `turbo` 2.11.7 on 2026-10-09, `jsdom` 30.1.2 on 2026-10-11,
    `isomorphic-dompurify` 4.5.0 and `knip` 6.40.0 on 2026-10-13, and `eslint-plugin-jsdoc` 65.2.0,
    the `@playwright/test` pair 1.64.0 and the `size-limit` pair 14.2.0 on 2026-10-14. Each took a
-   bump or a row, a certification and a push. The owner's words: "un loop de nunca acabar".
+   bump or a row, a certification and a push. The Maintainer's words: "a never-ending loop".
 3. **Twice `main` went red with nothing wrong.** `jsdom` 30.1.2 matured at 2026-10-11T09:15Z with no
    row, and the gate failed on `main` and on #549 until the bump; `isomorphic-dompurify` 4.5.0
    matured at 2026-10-13T09:29Z and the gate failed on `main` from 09:30Z until its bump. A red that
@@ -38,18 +40,18 @@ Measured in the week to 2026-10-14 ([TESTING_REFOUNDATION_MEASUREMENTS.md](../de
    for as long as it stands. `eslint-plugin-jsdoc` 65.2.0 matured at 2026-10-14T08:22Z and the gate
    read the lag as held by a row nobody read. The maturity watchlist added a second clock for the
    same moves: eight `hold-*` date entries due between 2026-10-07 and 2026-10-19.
-5. **The owner's usage budget resets on Tuesdays.** Bumps compete with the route for that budget.
+5. **The Maintainer's usage budget resets on Tuesdays.** Bumps compete with the route for that budget.
 
 ## Decision
 
-The owner's four points (2026-10-14):
+The Maintainer's four points (2026-10-14):
 
 1. **Security floors are unchanged and immediate.** A real advisory, cross-derived from OSV,
    GitHub, the repository advisories and the changelog, raises a floor to the minimal patched
    version, measured, over the 7-day buffer when it must. It is the only dependency event that
    interrupts the route.
 2. **Every other bump waits for one weekly window: every Tuesday, or the first day worked after
-   it**, subject to the owner's budget. One digest lists what the window can take; bumps are grouped
+   it**, subject to the Maintainer's budget. One digest lists what the window can take; bumps are grouped
    by family, and each unit is certified as before. Outside the window no non-security bump is
    taken.
 3. **The staleness budget is 30 days.** The holds gate goes red only when the installed version has
@@ -58,7 +60,7 @@ The owner's four points (2026-10-14):
 4. **Scheduled rows and the watchlist's `hold-*` date entries are retired.** A row stays for a real
    hold only: a peer range that blocks the move, a measured breakage, or a recorded decision.
 
-The design choices, stated so the owner can override any of them:
+The design choices, stated so the Maintainer can override any of them:
 
 - **The budget counts from the maturity instant of the OLDEST unmet stable release**: a lag turns
   red 30 days after that release matured, that is 37 days after publication, because a release
@@ -151,7 +153,7 @@ post-deployment check is added, changed or retired`
 
 - The population widens to production direct dependencies: the budget and the window are then
   re-decided for code that ships.
-- The owner's budget day moves: the window moves with it.
+- The Maintainer's budget day moves: the window moves with it.
 - A lag reaches the budget twice in a row for the same package: the window is not keeping up, and
   the row needs a real reason or the package a deliberate unit.
 - A row that schedules a move comes back in other words: the refusal is widened, never relaxed.
@@ -181,4 +183,4 @@ post-deployment check is added, changed or retired`
 - Code: `scripts/testing/holds-gate.mjs` and its suite
   `apps/api/tests/unit/scripts/holdsGate.test.ts`; `scripts/testing/maturity-watchlist.json`;
   `.github/workflows/fitness.yml` (step "Testing toolchain holds"); `.github/dependabot.yml`
-- Owner decision: 2026-10-14, engram #1613
+- Maintainer decision: 2026-10-14, engram #1613

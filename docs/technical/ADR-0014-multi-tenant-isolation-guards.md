@@ -2,7 +2,9 @@
 
 - **Status**: Accepted (retroactive record)
 - **Date**: 2026-05-28 (decisions implemented 2026-05-23 → 2026-05-27)
-- **Deciders**: Platform engineering
+- **Decision-makers**: Maintainers
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 

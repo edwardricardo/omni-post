@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-06-19
-- **Deciders**: Edward Velasquez, Platform engineering
+- **Decision-makers**: Maintainers
+- **Consulted**: —
+- **Informed**: —
 - **Amended by**: [ADR-0036](ADR-0036-dependency-update-cadence.md) (update cadence,
   2026-10-14)
 

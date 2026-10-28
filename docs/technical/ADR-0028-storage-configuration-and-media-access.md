@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-04
-- **Deciders**: Edward
+- **Decision-makers**: Product Owner and Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0029](ADR-0029-media-upload-limits.md) (upload limits and post-upload
@@ -12,7 +14,7 @@
 
 ## Context
 
-On 2026-10-04 Edward decided that Google Cloud Storage and Azure Blob Storage join S3 and
+On 2026-10-04 the Product Owner decided that Google Cloud Storage and Azure Blob Storage join S3 and
 DigitalOcean Spaces as selectable storage, chosen once at the initial deploy; that storage health
 must come from each platform's own API; and that moving storage between platforms is a future
 research item, not a feature now. The storage research
@@ -119,7 +121,7 @@ measured on `main` at `bad953f2` show how far the code is from that:
 
 ## Alternatives Considered
 
-- **Configure storage in the deploy environment only** (option A). Not chosen: Edward chose Admin
+- **Configure storage in the deploy environment only** (option A). Not chosen: the Product Owner chose Admin
   setup; either way one of the two sources had to go.
 - **Keep both the environment and Admin.** Rejected: that is F15.
 - **Public buckets with persisted public URLs** (today's implicit design). Rejected for private

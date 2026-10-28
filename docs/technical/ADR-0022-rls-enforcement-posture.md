@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-09-07
-- **Deciders**: Edward Velasquez, Platform engineering
+- **Decision-makers**: Maintainers
+- **Consulted**: —
+- **Informed**: —
 
 ## Context
 
@@ -81,7 +83,7 @@ environment. **No row is inferred from another.**
 
 | Environment                              | Connecting role                                                                                       | `SUPERUSER`                              | `BYPASSRLS`                              | Owns RLS-covered tables        | How measured                                                                                                                         |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| dev (`omnipost-infra` LXC, `omnipostdb`) | `postgres` → `omnipost_app` once the owner applies the `.env` flip                                    | `postgres`: yes · `omnipost_app`: **no** | `postgres`: yes · `omnipost_app`: **no** | `omnipost_app`: **0 tables**   | Live query as `omnipost_app` over a real LOGIN connection, 2026-09-08: `rolsuper=f, rolbypassrls=f, rolcanlogin=t`; owned tables = 0 |
+| dev (`omnipost-infra` LXC, `omnipostdb`) | `postgres` → `omnipost_app` once the Maintainer applies the `.env` flip                               | `postgres`: yes · `omnipost_app`: **no** | `postgres`: yes · `omnipost_app`: **no** | `omnipost_app`: **0 tables**   | Live query as `omnipost_app` over a real LOGIN connection, 2026-09-08: `rolsuper=f, rolbypassrls=f, rolcanlogin=t`; owned tables = 0 |
 | test                                     | Same database and role as dev — `.env` and `.env.test` both point at `omnipost-infra:5432/omnipostdb` | as dev                                   | as dev                                   | as dev                         | Read of both env files; this is a shared-database FACT, not an inference from dev                                                    |
 | CI (Integration Tests job)               | `postgres` → `omnipost_app` for the application steps once task 6d.6 applies the workflow hunks       | `postgres`: yes · `omnipost_app`: **no** | `postgres`: yes · `omnipost_app`: **no** | migration role owns the tables | Static read of the COMMITTED `.github/workflows/ci.yml`, labelled as such: no CI job has been observed on the flipped channel yet    |
 | staging                                  | **Does not exist**                                                                                    | n/a                                      | n/a                                      | n/a                            | No such deployment today                                                                                                             |

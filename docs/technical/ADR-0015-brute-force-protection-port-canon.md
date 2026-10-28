@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-30
-- **Deciders**: Platform engineering
+- **Decision-makers**: Maintainers
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 
@@ -22,7 +24,7 @@ The remediation must close three problems at once:
 - **Architectural drift** — one canon, one port, one adapter (Hexagonal §Ports & Adapters).
 - **Operational footprint** — no per-instance state machines (`new BF(...)` inside a service constructor); the port is composed in the DI root and injected.
 
-External canon consulted (research 2026-05-30, after Edward's correction on "research first, no patches"):
+External canon consulted (research 2026-05-30, after the Maintainer's correction on "research first, no patches"):
 
 - **NIST SP 800-63B-4** §rate-limiting (finalised 2025-07): verifier SHALL implement per-account rate-limiting; prefers progressive throttling over hard lockout (DoS-conscious).
 - **OWASP Authentication Cheat Sheet** §Account Lockout: counter per **account** (not IP — IP rotation evades IP-based counters); auto-expiry; CAPTCHA after few failures; MFA is the primary defence, BF protection is the secondary layer.
@@ -40,7 +42,7 @@ Six methods, two read (`checkLoginAttempt`, `getStats`), four write (`recordFail
 ### Adapter behaviour (canon-aligned)
 
 1. **Account-based primary counter** — keyed by `identifier`. Default lockout threshold = 10 failures inside a rolling 15-minute window; auto-expiry after 30 minutes (DoS-conscious). An attacker rotating IPs against a single account still trips the lockout — IP rotation does NOT bypass.
-2. **IP throttle supletoria** — default block threshold = 200 failures, much higher than the per-identifier threshold to avoid false-positives on shared NAT / proxies. Auto-expiry 60 min.
+2. **Supplementary IP throttle** — default block threshold = 200 failures, much higher than the per-identifier threshold to avoid false-positives on shared NAT / proxies. Auto-expiry 60 min.
 3. **Exponential backoff** — `1s → 2s → 4s → 8s → ...` capped at 300s (5 min). Caller honours the returned `delaySeconds` before answering, throttling the attacker without indefinitely locking the legitimate user.
 4. **CAPTCHA threshold = 3** — after 3 failures, `checkLoginAttempt` returns `captchaRequired=true`. Defence-in-depth, not preventive on first attempt.
 5. **No `redis.keys()` O(N)** — `getStats` reads explicit counters (`bf:stats:lockout-total`, `bf:stats:ip-block-total`, `bf:stats:recent-failures`) maintained atomically on each lockout/block emit.

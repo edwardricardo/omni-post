@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-15
-- **Deciders**: Platform engineering
+- **Decision-makers**: Maintainers
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 
@@ -135,7 +137,7 @@ order:
 - Refactor regressions are impossible: any attempt to undo a
   canon decision (e.g., re-introduce `@layer application` in
   apps/api/src after S5) fails the corresponding fitness check.
-- New rule introduction is mechanical: a 3-edit recipe Edward can
+- New rule introduction is mechanical: a 3-edit recipe the Maintainer can
   execute or ask Claude to execute in 10 minutes.
 
 **Negative / costs**

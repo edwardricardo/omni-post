@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-07-16
-- **Deciders**: Edward Velasquez
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: — (reshapes the wrapping approach drafted in the Slice-6a design; see "Relationship to the tenant-guard rollout")
 - **Superseded by**: —
 
@@ -139,7 +141,7 @@ wraps its Prisma client with the guard, and every repository/adapter receives th
   - **The ratchet** — a committed blast-radius snapshot; a NEW context-miss OR a stale
     allowlist entry fails CI, so the net tightens as remediation closes each class.
 - Migration is larger than a swap-and-wrap, and is done deliberately now rather than
-  carried as latent risk — an explicit decision to pay the cost up front (Edward,
+  carried as latent risk — an explicit decision to pay the cost up front (the Maintainer,
   2026-07-16).
 - The rollout's Slice-6 work is reshaped around this principle (guarded-client injection +
   boundary context) instead of the swap-plus-scattered-wraps draft.

@@ -10,18 +10,18 @@ The skeleton of OmniPost's record of processing activities, laid out on the elem
 
 | #   | Section                                                                | GDPR art. 30(1) | Status                             |
 | --- | ---------------------------------------------------------------------- | --------------- | ---------------------------------- |
-| 1   | [Identity of the controller](#1-identity-of-the-controller)            | (a)             | `pending decision (owner: Edward)` |
-| 2   | [Purposes of processing](#2-purposes-of-processing)                    | (b)             | `pending decision (owner: Edward)` |
-| 3   | [Legal bases per purpose](#3-legal-bases-per-purpose)                  | —               | `pending decision (owner: Edward)` |
+| 1   | [Identity of the controller](#1-identity-of-the-controller)            | (a)             | `pending decision (Product Owner)` |
+| 2   | [Purposes of processing](#2-purposes-of-processing)                    | (b)             | `pending decision (Product Owner)` |
+| 3   | [Legal bases per purpose](#3-legal-bases-per-purpose)                  | —               | `pending decision (Product Owner)` |
 | 4   | [Categories of data subjects](#4-categories-of-data-subjects)          | (c)             | `generated`                        |
 | 5   | [Categories of personal data](#5-categories-of-personal-data)          | (c)             | `generated`                        |
 | 6   | [Recipients and subprocessors](#6-recipients-and-subprocessors)        | (d)             | `generated`                        |
-| 7   | [Transfers to third countries](#7-transfers-to-third-countries)        | (e)             | `pending decision (owner: Edward)` |
+| 7   | [Transfers to third countries](#7-transfers-to-third-countries)        | (e)             | `pending decision (Product Owner)` |
 | 8   | [Retention and erasure](#8-retention-and-erasure)                      | (f)             | `linked`                           |
 | 9   | [Security measures](#9-technical-and-organisational-security-measures) | (g)             | `linked`                           |
 | 10  | [Cookies and browser storage](#10-cookies-and-browser-storage)         | —               | `generated`                        |
 | 11  | [OAuth permissions per provider](#11-oauth-permissions-per-provider)   | —               | `generated`                        |
-| 12  | [Consent and acceptance evidence](#12-consent-and-acceptance-evidence) | —               | `pending decision (owner: Edward)` |
+| 12  | [Consent and acceptance evidence](#12-consent-and-acceptance-evidence) | —               | `pending decision (Product Owner)` |
 | 13  | [Commercial and billing rules](#13-commercial-and-billing-rules)       | —               | `linked`                           |
 
 A dash in the art. 30(1) column marks a section the register keeps although that paragraph does not list it.
@@ -32,19 +32,19 @@ A dash in the art. 30(1) column marks a section the register keeps although that
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `generated`                        | Points at an inventory page under `inventories/`; a generator writes it, nobody edits it.       |
 | `linked`                           | Points at an existing document that is the source of truth for the element.                     |
-| `pending decision (owner: Edward)` | Empty until Edward decides; one line names the decision that fills it.                          |
+| `pending decision (Product Owner)` | Empty until the Product Owner decides; one line names the decision that fills it.               |
 | `upcoming (unit <name>)`           | A generator in its own unit of Master Plan §5.10 fills it when it lands; nothing is listed now. |
 
 ### Decisions that span every section
 
-**Status:** `pending decision (owner: Edward)`
+**Status:** `pending decision (Product Owner)`
 
 - **Frameworks beyond the GDPR.** Which other privacy frameworks the register answers to. The Admin compliance settings already hold a `defaultJurisdiction` value (`GDPR`, `LGPD`, `CCPA`, `PIPEDA` or `OTHER`, default `GDPR`); that setting is configuration, not this decision.
 - **Final language of the register.** The register is written in English today.
 
 ## 1. Identity of the controller
 
-**Status:** `pending decision (owner: Edward)`
+**Status:** `pending decision (Product Owner)`
 
 Decision: the controller's name and contact details, its representative and data protection officer, and the role OmniPost holds (controller or processor) in each processing activity.
 
@@ -52,13 +52,13 @@ Fact: the Admin compliance settings (`GdprSettings`, edited through `apps/admin/
 
 ## 2. Purposes of processing
 
-**Status:** `pending decision (owner: Edward)`
+**Status:** `pending decision (Product Owner)`
 
 Decision: the list of purposes for which the application processes personal data. LEGAL-1 inventories them; sections 3 and 12 depend on that list.
 
 ## 3. Legal bases per purpose
 
-**Status:** `pending decision (owner: Edward)`
+**Status:** `pending decision (Product Owner)`
 
 Decision: the legal basis of each purpose in section 2, once that list exists.
 
@@ -83,7 +83,7 @@ The generator reads `infra/prisma/schema.prisma`, takes every field whose name m
 
 The category vocabulary, in the generator's order: `identifier`, `contact`, `credential`, `technical`, `content`, `financial`, `behavioural`, `special`. The page's Category column assigns each `personal` field one of them.
 
-The `pending` rows are listed on the page with Status `pending`, each with a note saying why it may or may not concern a natural person. Resolving them is a decision (owner: Edward). The classification's `pendingBaseline` holds their count: it cannot rise, and a fall lowers the baseline in the same change.
+The `pending` rows are listed on the page with Status `pending`, each with a note saying why it may or may not concern a natural person. Resolving them is a decision (Product Owner). The classification's `pendingBaseline` holds their count: it cannot rise, and a fall lowers the baseline in the same change.
 
 ## 6. Recipients and subprocessors
 
@@ -97,7 +97,7 @@ The classification's `pendingBaseline` holds the count of `pending` rows: it can
 
 ## 7. Transfers to third countries
 
-**Status:** `pending decision (owner: Edward)`
+**Status:** `pending decision (Product Owner)`
 
 Decision: which transfers outside the EEA exist and the safeguard each relies on; it reads the recipient list of section 6.
 
@@ -113,7 +113,7 @@ Decision: which transfers outside the EEA exist and the safeguard each relies on
 
 Soft-deletable models carry a `deletedAt` mark, and a hard delete of an account or a project writes a `DeletionRecord` tombstone in the same transaction, which keeps the deleted name in plaintext until `retainUntil` and is then reduced to its keyed digest by `DeletionRecordDegrader`.
 
-Pending within this section: the retention period per data class (owner: Edward). The calendar records the windows the code applies today.
+Pending within this section: the retention period per data class (Product Owner). The calendar records the windows the code applies today.
 
 ## 9. Technical and organisational security measures
 
@@ -133,7 +133,7 @@ The generator scans the source of the API, both portals and `packages/ui` for ev
 
 Each lifetime is stated as the code sets it, not as its comment says. Reading them that way surfaced two defects, tracked in the [Master Plan](../product/MASTER_PLAN_ES.md) as **DEF-52** (the lifetime of the API's `refreshToken` cookie) and **DEF-53** (the lifetime of `admin-session` when the Admin backend proxy renews it).
 
-Pending within this section: whether any of these needs consent, under the consent policy of section 12 (owner: Edward).
+Pending within this section: whether any of these needs consent, under the consent policy of section 12 (Product Owner).
 
 ## 11. OAuth permissions per provider
 
@@ -147,7 +147,7 @@ The mismatches the page lists are tracked as defects in the [Master Plan](../pro
 
 ## 12. Consent and acceptance evidence
 
-**Status:** `pending decision (owner: Edward)`
+**Status:** `pending decision (Product Owner)`
 
 Decision: LEGAL-5 — how acceptance of the terms, the privacy notice and the DPA is recorded per version, and whether `ConsentRecord` stays for purposes whose basis is consent or is removed. It waits for the purposes of section 2.
 

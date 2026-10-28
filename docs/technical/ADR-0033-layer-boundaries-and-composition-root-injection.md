@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-05
-- **Deciders**: Edward
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Amends**: [ADR-0007](ADR-0007-di-composition-root.md) (its rule "Routes resolve use cases only
@@ -85,7 +87,7 @@ that `packages/ports` carries says otherwise.
    neither imports `TOKENS` nor calls `container.resolve`. It receives use cases and queries, plus
    the HTTP-side collaborators the adapter itself needs, such as the scheduler that sends the
    heartbeat of its own SSE connection; never the Prisma client, a repository, an adapter, a
-   provider client or a cache manager. Decided by Edward on 2026-10-05; option A, route-level resolution as canon, is rejected
+   provider client or a cache manager. Decided by the Maintainer on 2026-10-05; option A, route-level resolution as canon, is rejected
    (Alternatives).
 2. **The guards get their dependencies from the root as well.** Until they do, the `container`
    decoration stays on Fastify for them alone; the route rule does not depend on it.
@@ -147,7 +149,7 @@ that `packages/ports` carries says otherwise.
    in the application layer; what changes is only who owns the interface.
 4. **Primitives into the use case keep construction in one place.** HTTP, the workers and any later
    delivery mechanism build the same value objects the same way (ADR-0002's shared core).
-5. **Staging keeps the route Edward fixed** — the Testing Refoundation, then the legal register,
+5. **Staging keeps the route the Product Owner fixed** — the Testing Refoundation, then the legal register,
    then the master plan in its order. The full migration is about 17,000 CODE lines; doing it now
    would displace N-TEST-1. The gate and its baseline stop the debt from growing meanwhile.
 
@@ -266,7 +268,7 @@ the dunning outcome and the recovery; `DlqArchivalService`'s, because the method
 §5.11 queues with the port failures the service swallows); and `DataRetentionService`'s, for the
 reason above.
 
-**D-R10 confirmed as shipped.** Edward confirmed D-R10 as shipped on 2026-10-05, in a veto
+**D-R10 confirmed as shipped.** The Maintainer confirmed D-R10 as shipped on 2026-10-05, in a veto
 session: the port keeps pino's `(context, message)` order, and the composition root passes the
 factory's logger with no adapter class. Two alternatives were declined. A message-first port with a
 `PinoLoggerAdapter` was declined because a raw pino logger satisfies a message-first port through

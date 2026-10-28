@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-07-09
-- **Deciders**: Edward Velasquez
+- **Decision-makers**: Maintainer
+- **Consulted**: —
+- **Informed**: —
 
 ## Context
 

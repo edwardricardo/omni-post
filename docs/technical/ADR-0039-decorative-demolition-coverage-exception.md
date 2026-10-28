@@ -2,8 +2,10 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-19
-- **Deciders**: Edward (owner) — decision D2 of the Testing Refoundation tracker (2026-09-27); plan
-  approval 2026-10-05 and 2026-10-19
+- **Decision-makers**: Maintainer — decision D2 of the Testing Refoundation tracker (2026-09-27);
+  plan approval 2026-10-05 and 2026-10-19
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [CLAUDE.md](../../CLAUDE.md) §Pragmatic Exceptions and fitness #37;

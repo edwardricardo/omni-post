@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-06-01
-- **Deciders**: Edward / Platform engineering
+- **Decision-makers**: Maintainers
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Design doc**: `docs/features/bulk-scheduling-redesign.md` (full model + flow)

@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-04
-- **Deciders**: Edward
+- **Decision-makers**: Product Owner
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0031](ADR-0031-domain-vocabulary.md) (the vocabulary used here),
@@ -62,9 +64,9 @@ re-read `StripePaymentAdapter.ts:190-197`, the client's `pricing.ts`, `seed.ts:7
   "Social accounts"; the investor document means an agency's client accounts. ADR-0031 settles it:
   the multiplier's unit is a workspace.
 
-### Edward's starting model, and what the research changed
+### The Product Owner's starting model, and what the research changed
 
-Edward first described a usage-based model: expansion at any time, prorated to the end of the
+The Product Owner first described a usage-based model: expansion at any time, prorated to the end of the
 current month; reduction allowed without refund; the units contracted at the start keep their price
 until the end of the contracted term, later additions pay the current list price; a longer
 commitment buys a lower price; and leaving early costs a penalty of a percentage of the remaining
@@ -127,7 +129,7 @@ then established:
    multiplier per term (monthly is ×1.0, the list price). Each currency's amounts are hand-set and
    round. A currency is complete — and only then can countries be mapped to it — when every rule has
    a value in it.
-3. **A bundle is a template** (2026-10-04, option B with Edward's condition): a named list of
+3. **A bundle is a template** (2026-10-04, option B with the Product Owner's condition): a named list of
    platforms, one channel each (Agency Full = all 11; Starter = X, Instagram, Facebook), that saves
    the customer picking network by network.
    - Its price is **never hand-set**. It is always computed by the same rules as the same manual
@@ -139,7 +141,7 @@ then established:
      `maxPostsPerMonth` and `maxChannels`; `PricingCalculator.findCheaperBundle` is removed, because
      a bundle can never cost differently from the same selection.
 4. **A commitment is a prepaid term** (2026-10-04, option A): 1, 3, 6, 12, 18 or 24 months, paid
-   upfront, each with its term multiplier. Edward added 3 months as long enough to measure results
+   upfront, each with its term multiplier. The Product Owner added 3 months as long enough to measure results
    and shorter than 6.
    - **Consumers choose up to 12 months.** CMA37 para 6.70: "tie-ins of over 12 months have been
      found to be unfair"; § 309 Nr. 9 BGB allows up to two years only with conditions.
@@ -153,7 +155,7 @@ then established:
    channels — added during a prepaid term pays the then-current list price **with that term's
    multiplier**: the "normal price" is the price without the original lock, not without the term
    discount. It is charged at once, prorated to the end of the paid term, so everything renews on one
-   date. On the monthly term that is the end of the month, which was Edward's original rule.
+   date. On the monthly term that is the end of the month, which was the Product Owner's original rule.
    **Illustration** (continuing point 1): at the start of month 5, after the 4–7 tier rose to $9,
    workspace B connects a sixth channel. It pays $9 × 0.9 × 0.80 = $6.48 a month, about $51.84 for
    the eight remaining months, charged now; B's first five channels keep their locked $8-based price.
@@ -163,7 +165,7 @@ then established:
      unit = amount paid for it − (months used × that unit's monthly list price), with rules 1 to 3
      of point 8: a started month counts as used, the refund is never negative, and nothing extra is
      ever charged.
-   - **Example** (Edward): a workspace lists at $50 a month; a 6-month term at 10% off costs $45 a
+   - **Example** (the Product Owner): a workspace lists at $50 a month; a 6-month term at 10% off costs $45 a
      month, so $270 was paid. The workspace is removed during month 4: 4 months used × $50 = $200,
      refund $70. That equals months 5 and 6 ($90) minus the $20 discount already enjoyed.
    - **On the monthly term there is no refund**: the current month counts as used, and the reduction
@@ -176,7 +178,7 @@ then established:
    refund = amount paid − (months used × monthly list price)
    ```
 
-   Equivalently, the remaining amount minus the promotion already enjoyed. **Example** (Edward): a
+   Equivalently, the remaining amount minus the promotion already enjoyed. **Example** (the Product Owner): a
    $100 monthly list price, 12 months at 20% off = $960 paid; leaving after 4 months refunds
    $960 − 4 × $100 = $560. Four rules:
    1. A started month counts as used, and access continues to the end of that month.
@@ -196,7 +198,7 @@ then established:
    high-risk for consumers in Germany, the UK, France, Spain, Italy and Quebec, and Paddle's buyer
    terms §6 make it unenforceable there for any buyer.
 10. **List-price changes reach a subscriber only at a renewal, with 30 days' notice** (the notice
-    period is configurable in Admin; a default stated to Edward and not objected to). A change takes
+    period is configurable in Admin; a default stated to the Product Owner and not objected to). A change takes
     effect at the first renewal that falls at least the notice period after the notice.
 11. **Trial: 14 days**, configurable in Admin, replacing today's two values (14 at registration, 7
     with tier `PRO` in `TrialManagementService`). **Resolved 2026-10-05 (option B): the trial
@@ -214,9 +216,9 @@ then established:
     workspace, 3 channels, a monthly cap on scheduled posts, 1 member, a storage cap and an AI-token
     cap; the values are in "Initial values" below.
 13. **The monthly AI pool is per channel**, configurable in Admin, replacing platforms ×
-    `accountCount` × 10,000 tokens (a default stated to Edward and not objected to); the initial value
+    `accountCount` × 10,000 tokens (a default stated to the Product Owner and not objected to); the initial value
     is 10,000 tokens per paid channel per month.
-14. **Removed** (defaults stated to Edward and not objected to, plus what follows from points 1–4):
+14. **Removed** (defaults stated to the Product Owner and not objected to, plus what follows from points 1–4):
     - the separate "max projects" limit: workspaces are what is paid, so `Account.maxProjects`,
       `AccountSubscription.maxProjects` and the project-creation quota check go;
     - the server's yearly × 12 and the client's yearly × 10, replaced by term multipliers;
@@ -279,7 +281,7 @@ then established:
 
 ## Initial values
 
-Edward, 2026-10-05: realistic, test-worthy initial values now, tuned later. Every value is
+The Product Owner, 2026-10-05: realistic, test-worthy initial values now, tuned later. Every value is
 Admin-configurable per currency and is seed data, not a constant in code. Competitor anchors:
 Buffer about $6 a channel, Hootsuite about $10 an account, Metricool €16 / $20 a brand, Later
 Starter $25.
@@ -350,7 +352,7 @@ Starter $25.
   gameable by deleting and recreating workspaces.
 - **Workspace multiplier graduated from the most to the least expensive workspace.** Rejected: too
   hard to compute by hand.
-- **An exit fee of a percentage of the remaining contract value** (Edward's first description).
+- **An exit fee of a percentage of the remaining contract value** (the Product Owner's first description).
   Rejected: high-risk for consumers in Germany, the UK, France, Spain, Italy and Quebec, and
   unenforceable through Paddle.
 - **A commitment billed monthly, with an exit charge or a clawback charge.** Rejected: Paddle's buyer
@@ -358,7 +360,7 @@ Starter $25.
   monthly, for businesses, on Stripe only — was not chosen, because it would work on one gateway.
 - **Monthly-only plans**, the fallback if commitments proved unworkable. Not needed: prepaid terms
   work the same on both gateways.
-- **Expansion prorated to the end of the current month on a prepaid term** (Edward's first
+- **Expansion prorated to the end of the current month on a prepaid term** (the Product Owner's first
   description). Superseded: one interval per subscription would leave two renewal dates.
 - **Added units at the list price without the term multiplier.** Not chosen: the "normal price" is
   the price without the lock, not without the term discount.
@@ -401,7 +403,7 @@ Starter $25.
 
 Each blocks the slice named in [billing-gateways.md](../features/billing-gateways.md) §11.
 
-**Resolved 2026-10-05** (Edward; decisions 16 to 24 and "Initial values" above): the default values;
+**Resolved 2026-10-05** (the Product Owner; decisions 16 to 24 and "Initial values" above): the default values;
 expansion across a tier boundary (the lock is a ceiling, credited by the refund rule); empty
 workspaces; what removing a unit is; which list price a refund uses; the scope of early-exit rule 4
 (every customer, within 14 days of the first payment); limits during a trial (all features, capped

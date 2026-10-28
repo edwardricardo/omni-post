@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-04
-- **Deciders**: Edward
+- **Decision-makers**: Product Owner
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0025](ADR-0025-payment-gateway-selection-and-country-routing.md) (gateway
@@ -12,10 +14,10 @@
 ## Context
 
 OmniPost charges through two gateways, Stripe and Paddle, so customers on both sides of the world
-can pay. Edward's rule for them is that **both must work exactly the same**: same price, same
+can pay. The Product Owner's rule for them is that **both must work exactly the same**: same price, same
 currency, same flow, whichever gateway a customer lands on.
 
-On the night of 2026-10-04 his first answer on currency was: payments are canonical in USD, and
+On the night of 2026-10-04 the Product Owner's first answer on currency was: payments are canonical in USD, and
 European customers see the amount converted to EUR for display. Three research reports were run on
 that answer ([research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md), Reports 1
 to 3). They showed that a display-only conversion is the weakest of the available options:
@@ -116,7 +118,7 @@ the gateways (point 3) is an open point of ADR-0030.
 
 ## Alternatives Considered
 
-- **A. Display-only EUR, charge USD** (Edward's first answer, the Buffer model plus an estimate).
+- **A. Display-only EUR, charge USD** (the Product Owner's first answer, the Buffer model plus an estimate).
   Superseded by this decision: European buyers would see a USD line and an issuer FX fee on their
   statement, so the EUR shown would never be what they pay, and the consumer-law exposure rests on
   how prominently the binding USD total is shown.

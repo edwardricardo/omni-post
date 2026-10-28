@@ -32,7 +32,7 @@ const CHECK_OPTIONS = { check: FLAG, today: DATE };
 const REMIND_OPTIONS = { remind: FLAG, "dry-run": FLAG, today: DATE };
 /** Days past its milestone an unrecorded review may stay before `--check` fails. */
 const GRACE_DAYS = 3;
-/** Days a review with an early reason may precede its milestone; Edward set it on 2026-10-05. */
+/** Days a review with an early reason may precede its milestone; the Maintainer set it on 2026-10-05. */
 const EARLY_DAYS = 2;
 /** Days from publication to each package milestone. @type {Record<string, number>} */
 const MILESTONE_DAYS = { maturity: 7, final: 14 };

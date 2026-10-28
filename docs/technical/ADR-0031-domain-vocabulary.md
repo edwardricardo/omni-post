@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-04
-- **Deciders**: Edward
+- **Decision-makers**: Product Owner
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0030](ADR-0030-pricing-model.md) (the pricing model written in this vocabulary)
@@ -29,7 +31,7 @@ counts. Measured on `main` at `bad953f2`, the word means three different things:
 mapped the plan model listed it as undetermined (research
 [Report 5](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md#report-5-plan-model-map)).
 
-The other words drift too. Edward calls a project an "equipo" or a "subcuenta": a space per client
+The other words drift too. The Product Owner calls a project an "equipo" or a "subcuenta": a space per client
 or brand, with its own members and platforms. The code's `packages/core/team` module, however,
 manages the account's users (`InviteTeamMemberUseCase`, `RemoveTeamMemberUseCase`,
 `UpdateTeamMemberRoleUseCase`), so "team" in the code is not a project. A person is a
@@ -43,7 +45,7 @@ manages the account's users (`InviteTeamMemberUseCase`, `RemoveTeamMemberUseCase
    | Term             | Meaning                                                                                                                                      |
    | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
    | **Organization** | The customer who signs up and pays. It owns the subscription, the workspaces and the members                                                 |
-   | **Workspace**    | A space per client or brand inside an organization, with its own members and channels. Edward's "equipo" or "subcuenta"                      |
+   | **Workspace**    | A space per client or brand inside an organization, with its own members and channels. The Product Owner's "equipo" or "subcuenta"           |
    | **Member**       | A person who belongs to an organization and is assigned to one or more of its workspaces                                                     |
    | **Channel**      | One connected social account on a platform. It belongs to one workspace, and it is the unit of price ([ADR-0030](ADR-0030-pricing-model.md)) |
 
@@ -69,7 +71,7 @@ manages the account's users (`InviteTeamMemberUseCase`, `RemoveTeamMemberUseCase
 | Platform (not renamed) | The `Provider` enum, 11 values (`infra/prisma/schema.prisma:1174`, `packages/shared/src/types.ts:197-209`)        | "provider", "network"                         |
 
 "Platform" is how the pricing documents name a social network; it is listed for reading the code,
-and is not part of the four terms Edward decided.
+and is not part of the four terms the Product Owner decided.
 
 ## Rationale
 
@@ -127,7 +129,7 @@ and is not part of the four terms Edward decided.
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | A document mixes the old and new names and is read wrongly              | Documents use the new terms and name code through the mapping table                                                            |
 | The rename weakens tenant isolation for a moment                        | The rename carries `TENANT_SCOPED_MODELS`, the row-level-security setting and fitness #38–#40 in the same change; no exception |
-| "Team" is renamed to "Workspace" by analogy with Edward's word "equipo" | Point 4: the `team` module follows Member                                                                                      |
+| "Team" becomes "Workspace" by analogy with the Product Owner's "equipo" | Point 4: the `team` module follows Member                                                                                      |
 
 ## References
 

@@ -2,7 +2,9 @@
 
 - **Status**: Accepted
 - **Date**: 2026-10-04
-- **Deciders**: Edward
+- **Decision-makers**: Product Owner
+- **Consulted**: —
+- **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [ADR-0024](ADR-0024-billing-currency-and-price-catalog.md) (tax-exclusive prices),
@@ -12,7 +14,7 @@
 
 ## Context
 
-Edward asked whether OmniPost should sell only to businesses or to individuals as well. The answer
+The Product Owner asked whether OmniPost should sell only to businesses or to individuals as well. The answer
 decides which consumer-law and tax obligations apply, and on which gateway path they fall.
 
 The research ([research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md), Reports 3
@@ -68,11 +70,11 @@ and 4) established:
    5. **A reminder before an annual renewal is charged.**
    6. **An optional "buying as a business" checkbox plus VAT ID** at checkout.
 2. **Prices are displayed tax-exclusive**; a consumer sees the VAT-inclusive total before the order
-   button (a default stated to Edward and not objected to). This matches every competitor that
+   button (a default stated to the Product Owner and not objected to). This matches every competitor that
    states a policy (Report 1) and the `tax_behavior: "exclusive"` of
    [ADR-0024](ADR-0024-billing-currency-and-price-catalog.md).
 3. **The B2B reverse charge applies only when the VAT ID's verification status is `verified`** (a
-   default stated to Edward and not objected to). On the Stripe path OmniPost gates it itself,
+   default stated to the Product Owner and not objected to). On the Stripe path OmniPost gates it itself,
    because Stripe Tax would apply it on number format alone; `pending`, `unverified` and
    `unavailable` all mean the customer is charged VAT as a consumer.
 4. **On the Stripe path, OmniPost applies the EU two-evidence location rule.** Every invoice keeps

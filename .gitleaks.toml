@@ -144,7 +144,7 @@ regexes = ['''GenerateIntegrationApiKey''']
 # allowlisted above by path+regex. The historical occurrences cannot be
 # removed without rewriting history (487 commit hashes change, force-push
 # to `workstream/impl-roadmap`, breaks any outstanding clone/PR).
-# Per Edward's call (2026-05-20), the conservative path is to exclude the
+# Per the Maintainer's call (2026-05-20), the conservative path is to exclude the
 # audited commits by hash from `gitleaks detect`. Future commits remain
 # scanned in full.
 

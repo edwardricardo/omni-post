@@ -33,7 +33,7 @@ The check is a gate: fitness check #45 runs `pnpm check:legal` on every push to 
 
 ## Pending decisions
 
-Every qualitative item is a decision for Edward, taken in short sessions when it falls due. Until then its place in [`REGISTER.md`](REGISTER.md) stays empty with the status `pending decision (owner: Edward)`.
+Every qualitative item is a decision for the Product Owner, taken in short sessions when it falls due. Until then its place in [`REGISTER.md`](REGISTER.md) stays empty with the status `pending decision (Product Owner)`.
 
 | Decision                                                   | Where it lands                                     |
 | ---------------------------------------------------------- | -------------------------------------------------- |
