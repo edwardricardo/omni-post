@@ -10,7 +10,7 @@
 >
 > **Success criterion.** `git log --all --oneline -- .env` returns 0 lines + every external service running with new secrets + apps redeployed green.
 >
-> **Status (2026-10-15): IN FORCE, NOT EXECUTED.** The rotation and the history purge happen at the move to production (`SECRETS-ROTATION-GOLIVE`, `docs/product/MASTER_PLAN_ES.md` §5.2). The dual-key window of §7 and the re-encryption of §10 describe what the code does not do yet: CRED-6 and CRED-11 (DEF-45) are still open. §2, §3 and §7 to §10 are the permanent procedure that [`SECRETS.md`](./SECRETS.md) links to; §1, §4 and §5 are the L-591 incident part; §6 (the checklist) serves both.
+> **Status (2026-10-15): IN FORCE, NOT EXECUTED.** The rotation and the history purge happen at the move to production (`SECRETS-ROTATION-GOLIVE`, `docs/product/MASTER_PLAN.md` §5.2). The dual-key window of §7 and the re-encryption of §10 describe what the code does not do yet: CRED-6 and CRED-11 (DEF-45) are still open. §2, §3 and §7 to §10 are the permanent procedure that [`SECRETS.md`](./SECRETS.md) links to; §1, §4 and §5 are the L-591 incident part; §6 (the checklist) serves both.
 >
 > **Division of authority.** [`SECRETS.md`](./SECRETS.md) is the catalog (which secrets exist and where they live); this document is the how (the procedure); the Master Plan carries only what is left to do.
 
@@ -22,7 +22,7 @@
 
 **L-591** — `.env` tracked in git with real secrets. Documented in:
 
-- The original finding L-591 (`.env` git-tracked with secrets). The pending work (the real rotation + the history purge) lives in `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2). The originating audit docs (LATERAL_FINDINGS, D0v4, REMEDIATION_ROADMAP) were retired after their absorption into the consolidated plan.
+- The original finding L-591 (`.env` git-tracked with secrets). The pending work (the real rotation + the history purge) lives in `docs/product/MASTER_PLAN.md` → `SECRETS-ROTATION-GOLIVE` (§5.2). The originating audit docs (LATERAL_FINDINGS, D0v4, REMEDIATION_ROADMAP) were retired after their absorption into the consolidated plan.
 
 ### Scope correction (found on 2026-04-21 while exploring T0-A)
 
@@ -389,7 +389,7 @@ git status
 
 ### Final note
 
-If the whole checklist passes: **L-591 CLOSED**. The tail (the real rotation + the history purge) stays tracked in `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2); mark it closed there once it is done.
+If the whole checklist passes: **L-591 CLOSED**. The tail (the real rotation + the history purge) stays tracked in `docs/product/MASTER_PLAN.md` → `SECRETS-ROTATION-GOLIVE` (§5.2); mark it closed there once it is done.
 
 ---
 
@@ -574,5 +574,5 @@ If something fails catastrophically during the rotation (DB unreachable, prod se
 
 ## Annex B — Cross-references
 
-- `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2, rotation + history purge at go-live) · `L-546` ADMIN_PASSWORD fallback (§5.7) · `L-623` password123 in CI = accepted-dev-fixture (§5.7). The originating roadmaps (REMEDIATION_ROADMAP, LATERAL_FINDINGS) were retired after their absorption.
+- `docs/product/MASTER_PLAN.md` → `SECRETS-ROTATION-GOLIVE` (§5.2, rotation + history purge at go-live) · `L-546` ADMIN_PASSWORD fallback (§5.7) · `L-623` password123 in CI = accepted-dev-fixture (§5.7). The originating roadmaps (REMEDIATION_ROADMAP, LATERAL_FINDINGS) were retired after their absorption.
 - CLAUDE.md — "Automated Compliance Checks" (fitness functions already wired in CI).
