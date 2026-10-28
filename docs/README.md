@@ -108,14 +108,20 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 
 ## Features
 
-| Document                                                         | What it covers                                                                                                 |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [Provider Capabilities](features/provider-capabilities.md)       | Capability matrix, per-provider details, authentication, rate limits, the adapter interface, adding a provider |
-| [Billing Gateways](features/billing-gateways.md)                 | Payment gateways and country routing                                                                           |
-| [Media Storage](features/media-storage.md)                       | Storage configuration, private access, health and upload limits                                                |
-| [Bulk Scheduling Redesign](features/bulk-scheduling-redesign.md) | Post targeting model and bulk scheduling                                                                       |
-| [Templates](features/templates.md)                               | Template engine, A/B testing, versioning                                                                       |
-| [Webhook Ingest Wiring](features/WEBHOOK_INGEST_WIRING.md)       | Wiring the inbound webhook ingestion pipeline                                                                  |
+| Document                                                                                | What it covers                                                                                                 |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [Provider Capabilities](features/provider-capabilities.md)                              | Capability matrix, per-provider details, authentication, rate limits, the adapter interface, adding a provider |
+| [Billing Gateways](features/billing-gateways.md)                                        | Payment gateways and country routing                                                                           |
+| [Media Storage](features/media-storage.md)                                              | Storage configuration, private access, health and upload limits                                                |
+| [Bulk Scheduling Redesign](features/bulk-scheduling-redesign.md)                        | Post targeting model and bulk scheduling                                                                       |
+| [Templates](features/templates.md)                                                      | Template engine, A/B testing, versioning                                                                       |
+| [Webhook Ingest Wiring](features/WEBHOOK_INGEST_WIRING.md)                              | Wiring the inbound webhook ingestion pipeline                                                                  |
+| [Tenant Isolation Composite FK](features/tenant-isolation-composite-fk/proposal.md)     | Tenant isolation by construction: denormalized `accountId` with composite foreign keys                         |
+| [Tenant Context at Boundaries](features/tenant-context-at-boundaries/proposal.md)       | Tenant context established at entry boundaries instead of per-call system-context wraps                        |
+| [Tenant Context Coverage Harness](features/tenant-context-coverage-harness/proposal.md) | Runtime harness that finds every surface reaching the tenant guard with no bound context                       |
+| [Project-Scoped Tenant Guard](features/project-scoped-tenant-guard/rollout-plan.md)     | Sequential guard rollout to the 9 `projectId`-only models, ranked by importance and complexity                 |
+| [Audit Actor Polymorphism](features/audit-actor-polymorphism/proposal.md)               | Audit rows attributed to an admin, customer or system actor, so customer rows are no longer dropped            |
+| [Saga Engine Terminal Hygiene](features/saga-engine-terminal-hygiene/proposal.md)       | Saga terminal states that tell the truth about compensation, and recovery that owns every row                  |
 
 ## Product and plan
 

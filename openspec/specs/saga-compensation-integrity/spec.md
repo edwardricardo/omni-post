@@ -8,7 +8,7 @@
 >
 > Established by change `saga-engine-terminal-hygiene` (S1), branch
 > `workstream/saga-engine-terminal-hygiene`, delivered as PR2 of four chained PRs. The delta
-> lives in `openspec/changes/saga-engine-terminal-hygiene/specs/saga-compensation-integrity/spec.md`;
+> lives in `docs/features/saga-engine-terminal-hygiene/specs/saga-compensation-integrity/spec.md`;
 > this file is the cumulative source of truth and describes the behavior that SHIPPED.
 >
 > This capability is the RECOVERY-TRUTH axis of the saga engine. `saga-crash-recovery` owns

@@ -6,7 +6,7 @@
 >
 > Established by change `saga-engine-terminal-hygiene` (S2), branch
 > `workstream/saga-engine-terminal-hygiene`, delivered as PR3 of four chained PRs. The delta
-> lives in `openspec/changes/saga-engine-terminal-hygiene/specs/saga-step-outcome-contract/spec.md`;
+> lives in `docs/features/saga-engine-terminal-hygiene/specs/saga-step-outcome-contract/spec.md`;
 > this file is the cumulative source of truth and describes the behavior that SHIPPED.
 >
 > This capability is the CORRECTNESS axis of step execution. `saga-crash-recovery` owns which

@@ -8,7 +8,7 @@
 
 - `[SENSITIVE]` — touches `infra/prisma/schema.prisma`, `infra/prisma/migrations/**`,
   `apps/api/src/auth/**`, `apps/api/src/admin/auth/**`, or `apps/api/src/security/**`.
-  Requires an active `omnipost-allow sensitive-edit` token (15-min TTL, owner-issued).
+  Requires an active `omnipost-allow sensitive-edit` token (15-min TTL, Maintainer-issued).
 - `[RED]` write the failing test first · `[GREEN]` implement to pass (Strict TDD).
 - Every verify command is a **single test file**, LXC-safe (heap-cap `--max-old-space-size`,
   `timeout` wrapper). Integration files need `pnpm db:up` first.
@@ -30,21 +30,21 @@ Two windows, ordered so one token covers each cluster; **schema/migration FIRST*
 
 ## Review Workload Forecast
 
-| Field                   | Value                                                                                                     |
-| ----------------------- | --------------------------------------------------------------------------------------------------------- |
-| Estimated changed lines | A1 ~560–650, A2 ~230–280 (total ~800–930)                                                                 |
-| 400-line budget risk    | High (A1) · Medium (A2)                                                                                   |
-| Chained PRs recommended | Yes                                                                                                       |
-| Suggested split         | A1 → A2 (owner-fixed, stacked-to-main; do NOT reorder). Internal A1 cut: the 28 wraps as their own commit |
-| Delivery strategy       | ask-on-risk (owner already fixed the A1/A2 stacked-to-main split)                                         |
-| Chain strategy          | stacked-to-main                                                                                           |
+| Field                   | Value                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Estimated changed lines | A1 ~560–650, A2 ~230–280 (total ~800–930)                                                                      |
+| 400-line budget risk    | High (A1) · Medium (A2)                                                                                        |
+| Chained PRs recommended | Yes                                                                                                            |
+| Suggested split         | A1 → A2 (Maintainer-fixed, stacked-to-main; do NOT reorder). Internal A1 cut: the 28 wraps as their own commit |
+| Delivery strategy       | ask-on-risk (the Maintainer already fixed the A1/A2 stacked-to-main split)                                     |
+| Chain strategy          | stacked-to-main                                                                                                |
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes
 Chain strategy: stacked-to-main
 400-line budget risk: High
 
-A1 exceeds 400 lines as an owner-fixed single PR (schema + port + seam + 28 wraps +
+A1 exceeds 400 lines as a Maintainer-fixed single PR (schema + port + seam + 28 wraps +
 DSAR + ADR + tests cannot sub-split without breaking the atomic RED→GREEN block-order
 guarantee). A1 needs maintainer `size:exception`; the 28-wraps isolated commit is the
 review-focus aid. A2 is within budget.
@@ -167,7 +167,7 @@ Dependency diagram: `📍 A1 → A2` · `A1 ⛔ blocks mfa-consolidation PR2`.
 ### Phase A1.7 — ADR + guards + verify prep
 
 - [x] 7.1 Author `docs/technical/ADR-0020-audit-actor-exclusive-arc.md` from the design outline
-      (ADR-0001 template: Status Accepted · Date · Deciders Edward Velasquez · Context · Decision ·
+      (ADR-0001 template: Status Accepted · Date · Deciders Maintainer · Context · Decision ·
       Rationale · Alternatives · Consequences · Revisit-if · Risks · References; include the
       down-migration SQL block: drop CHECK, index, FK, both columns, TYPE).
 - [x] 7.2 Regression guard: keep the PR1 MFA suite green (orchestrator baseline: 106 tests) —
@@ -187,7 +187,7 @@ Dependency diagram: `📍 A1 → A2` · `A1 ⛔ blocks mfa-consolidation PR2`.
       (design Decision 4) — `sdd-verify` MUST treat it as satisfied, NOT a gap. No spec edit required.
 - [x] 7.5 A1 PR description: state **"A1 hard-blocks `mfa-consolidation` PR2"**; include the
       dependency diagram (`📍 A1 → A2`, `A1 ⛔ MFA PR2`); ship ADR-0020 in this PR; note the isolated
-      28-wraps commit; record `size:exception` rationale (owner-fixed single PR > 400 lines).
+      28-wraps commit; record `size:exception` rationale (Maintainer-fixed single PR > 400 lines).
 - [x] 7.6 0-defect gate: `eslint --max-warnings 0`, `tsc` clean, fitness #3/#9/#10/#21/#23
       hard-zero, LXC-safe single-file test runs green.
 

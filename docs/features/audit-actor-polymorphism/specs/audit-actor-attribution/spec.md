@@ -130,5 +130,5 @@ rule). RED: before the change, a customer-actor insert violates the AdminUser FK
 `actorType` does not exist. GREEN: the FK resolves, `actorType` backfills correctly,
 and the exclusive-arc CHECK rejects dual-FK inserts. LXC: run a single test file,
 heap-capped (`--max-old-space-size`), under a `timeout` wrapper — never the full
-suite at once. ADR-0020 (exclusive-arc decision, deciders: Edward Velasquez) and any
+suite at once. ADR-0020 (exclusive-arc decision, deciders: Maintainer) and any
 new source file carry JSDoc `@file/@description/@layer` (fitness #9/#10).

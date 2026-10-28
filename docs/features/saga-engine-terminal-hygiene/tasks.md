@@ -18,12 +18,12 @@
 > SHALL RE-READ the persisted status before re-entering.** PR2 ships the refusal (it is PR2 that
 > makes a durable `COMPENSATING` row exist); PR3 ships the trailing-rerun re-read.
 >
-> Edward's three product decisions are FIXED inputs: (1) the admin re-drive RESUMES from durable
+> The Product Owner's three product decisions are FIXED inputs: (1) the admin re-drive RESUMES from durable
 > per-step progress, never restarts the walk; (2) NO new customer notification accompanies the
 > `FAILED → COMPLETED` correction; (3) the `compensatingOrphans` alert thresholds move INSIDE
 > PR2's diff.
 >
-> **Zero-patch rule (Edward, permanent):** if an executed probe diverges from the design's trace
+> **Zero-patch rule (Maintainer, permanent):** if an executed probe diverges from the design's trace
 > — P2 in Phase 3 above all — STOP, report, and re-decide the design point. Do not patch around
 > a refuted trace.
 
@@ -77,7 +77,7 @@
 | 400-line budget risk    | High                                                                                      |
 | Chained PRs recommended | Yes                                                                                       |
 | Suggested split         | PR 1 (S0 gate honesty, micro) → PR 2 (S1 compensation) → PR 3 (S2 outcome) → PR 4 (S3+S4) |
-| Delivery strategy       | ask-on-risk — already RESOLVED by Edward (chained PRs)                                    |
+| Delivery strategy       | ask-on-risk — already RESOLVED by the Maintainer (chained PRs)                            |
 | Chain strategy          | stacked-to-main (cached)                                                                  |
 
 Decision needed before apply: No
@@ -537,7 +537,7 @@ Every later "the tests pass" claim in this change depends on this PR.
       return, which is new in this slice and would otherwise have been the only silent one left.
 - [x] 9.2 [GREEN] `SagaManagerLifecycle.compensateSaga:730-732` accepts
       `status ∈ {FAILED, COMPENSATING}`; for COMPENSATING it dispatches the walk, which RESUMES
-      from durable progress (Edward's decision 1 — never restarts from step 0; "restart" falls out
+      from durable progress (the Product Owner's decision 1 — never restarts from step 0; "restart" falls out
       naturally as "no persisted successes yet"). Terminal sagas stay refused, and the re-drive is
       not a way around the canon re-execution guard.
 - [x] 9.3 [GREEN] Unit-pin the re-drive: a `COMPENSATING` row is accepted (not refused for wrong
@@ -554,7 +554,7 @@ Every later "the tests pass" claim in this change depends on this PR.
       resume pass drains. It remains a GAUGE (a level each process re-measures), never an event
       counter, exactly as the spec requires. `/sagas/metrics` and the boot WARN carry the new
       meaning.
-- [x] 9.5 [GREEN] `prometheus/alerts/saga.yml` **in this same PR** (Edward's decision 3):
+- [x] 9.5 [GREEN] `prometheus/alerts/saga.yml` **in this same PR** (the Product Owner's decision 3):
       `SagaCompensatingOrphans` description at `:84` rewritten (the engine DOES resume these now),
       its condition re-tuned from "any > 0 is admin-endpoint leakage" to "a COMPENSATING count
       that does not drain across two boot observations" so a transient walk does not page; and
@@ -799,7 +799,7 @@ Every later "the tests pass" claim in this change depends on this PR.
       from an error string or a boolean; every `SagaStepResult` consumer branches on the
       discriminator exhaustively; the in-flight guard is described as IN-PROCESS in code, logs and
       docs and never as a cross-process guarantee; **no notification / email / push / in-app
-      message dispatch is added on the outcome transition** (Edward's decision 2 — the
+      message dispatch is added on the outcome transition** (the Product Owner's decision 2 — the
       static scenario "no notification path is added on this transition").
       **Shipped as 14 new static assertions in four describes** (the three-case contract, one
       advancer per saga, the no-new-message scan over every source this slice touches, and the
@@ -998,7 +998,7 @@ progress"}` while `failed > 0` stays `failed` (`:746-751`); engine-synthesized c
       assertion (1) did not flip.
 - [x] 15.4 [GREEN] The customer-facing correction: a multi-channel publish whose channels all
       succeed reaches terminal SUCCESS on the EXISTING status surfaces, and **no new
-      notification, email, push or in-app message is introduced** (Edward's decision 2). Prove it
+      notification, email, push or in-app message is introduced** (the Product Owner's decision 2). Prove it
       with the 11.4 static scenario plus an integration assertion on the existing saga status
       surface (`tests/integration/sagaCustomerFlow.test.ts`, LIVE-API evidence run).
       **Shipped:** the status endpoint reports step outcomes in the three-state vocabulary (a step
@@ -1038,7 +1038,7 @@ progress"}` while `failed > 0` stays `failed` (`:746-751`); engine-synthesized c
       the per-outcome engine behavior, the measured defect it closes, and the in-process scope of
       the guard; the execution flow now names the waiting branch. In `MULTI_TENANT_GUARDS.md`
       carried residuals **2, 3 and 4 are struck through and CLOSED** with what shipped, the
-      guard's scope is stated as this-process-only twice, and Edward's decision 2 (no new
+      guard's scope is stated as this-process-only twice, and the Product Owner's decision 2 (no new
       customer notification) is recorded where an operator reads it.
 - [x] 16.3 Mirror the `saga-step-outcome-contract` capability into the living specs and record the
       parked-evidence restatement in `openspec/specs/saga-crash-recovery/spec.md`.
@@ -1363,7 +1363,7 @@ matches neither the generic-parameter form nor tagged templates. **No CLAUDE.md 
 
 - [ ] 23.1 Create `docs/technical/ADR-NNNN-saga-row-ownership-and-park-record.md` (ADR-0001
       template: Status/Date/Deciders/Context/Decision/Rationale/Alternatives/Consequences/
-      Revisit-if/Risks/References). Status Proposed → Accepted; Deciders Edward. Decisions:
+      Revisit-if/Risks/References). Status Proposed → Accepted; Deciders Maintainer. Decisions:
       (1) lease-based row claims taken at SELECTION time in both readers via `SagaClaimService`
       inside the saga system boundary; (2) lease 10 min = 2× outbox, bounded by batch-drain below
       and the 30-min horizon above; (3') **fitness #23 is BLIND to the claim SQL's syntax**
@@ -1377,7 +1377,7 @@ matches neither the generic-parameter form nor tagged templates. **No CLAUDE.md 
       SMELL-71 lands, or `compensation-expired` fires in production (dedicated compensation retry
       policy).
 - [ ] 23.2 **[M1]** Create
-      `openspec/changes/saga-engine-terminal-hygiene/specs/multi-tenant-isolation/spec.md` — a
+      `docs/features/saga-engine-terminal-hygiene/specs/multi-tenant-isolation/spec.md` — a
       SCOPED MODIFIED delta recording the claim UPDATE as the **second** named cross-tenant write
       surface (after `failSagaAsSystem`), normatively constrained to `claimedAt` / `claimedBy`
       ONLY, so the living requirement's FAIL-LOUDLY clause stays true by construction; note that

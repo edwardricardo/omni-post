@@ -27,65 +27,9 @@
     "spanish": 16,
     "names": 31
   },
-  "openspec/changes/audit-actor-polymorphism/design.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "openspec/changes/audit-actor-polymorphism/proposal.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "openspec/changes/audit-actor-polymorphism/specs/audit-actor-attribution/spec.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "openspec/changes/audit-actor-polymorphism/tasks.md": {
-    "spanish": 0,
-    "names": 2
-  },
   "openspec/changes/auth-rate-limit-integrity/proposal.md": {
     "spanish": 1,
     "names": 0
-  },
-  "openspec/changes/ci-live-tier-integrity/design.md": {
-    "spanish": 1,
-    "names": 0
-  },
-  "openspec/changes/project-scoped-tenant-guard/exploration.md": {
-    "spanish": 1,
-    "names": 0
-  },
-  "openspec/changes/project-scoped-tenant-guard/rollout-plan.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/changes/saga-engine-terminal-hygiene/design.md": {
-    "spanish": 0,
-    "names": 7
-  },
-  "openspec/changes/saga-engine-terminal-hygiene/proposal.md": {
-    "spanish": 0,
-    "names": 2
-  },
-  "openspec/changes/saga-engine-terminal-hygiene/tasks.md": {
-    "spanish": 0,
-    "names": 9
-  },
-  "openspec/changes/tenant-context-at-boundaries/proposal.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/changes/tenant-isolation-composite-fk/apply-progress.md": {
-    "spanish": 0,
-    "names": 6
-  },
-  "openspec/changes/tenant-isolation-composite-fk/proposal.md": {
-    "spanish": 0,
-    "names": 1
-  },
-  "openspec/changes/tenant-isolation-composite-fk/tasks.md": {
-    "spanish": 0,
-    "names": 3
   },
   "openspec/changes/testing-refoundation/design-decisions.md": {
     "spanish": 0,

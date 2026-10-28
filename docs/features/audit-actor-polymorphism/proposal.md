@@ -14,7 +14,7 @@ Customer-actor audit rows are silently dropped. `AuditLog.userId` carries an FK 
 - Write path: propagate `customerUserId` + `actorType` through `AuditLogCreateInput` / `AuditLogRecordDto`, `PrismaAuditLogRepository`, `InMemoryAuditLogRepository`, `AuditableService` (customer-actor seam for MFA), `AuditService.log`, `AuditLogger.log` (optional fields only).
 - `anonymizeUser` extended to customer actors (DSAR) — `actorType` survives anonymization.
 - Read path (second PR): `AuditService.getLogs`/`getStats`, `AuditLogger.getStatistics`, CSV export column, API response shape, `apps/admin` frontend type.
-- ADR-0020 (next free number after ADR-0019) documenting the exclusive-arc decision. Deciders: Edward Velasquez.
+- ADR-0020 (next free number after ADR-0019) documenting the exclusive-arc decision. Deciders: Maintainer.
 - Unit + integration tests, including a customer-actor row persisted against a real database.
 
 ### Out of Scope

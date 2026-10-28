@@ -2,7 +2,7 @@
 
 ## Intent
 
-Change 2 of the N.B core-publishing correctness workstream, successor of the archived `saga-tenant-scope-and-recovery` (main = 63c10f07). Terminal-lifecycle and ownership hygiene of the saga engine: the engine must **tell the truth about compensation**, **never lose a customer publish to retry-budget amplification**, and **own every non-terminal row it inherits**. The exploration's factual map is file:line-verified at main; its slicing was approved by Edward verbatim — this proposal formalizes it, it does not re-litigate it.
+Change 2 of the N.B core-publishing correctness workstream, successor of the archived `saga-tenant-scope-and-recovery` (main = 63c10f07). Terminal-lifecycle and ownership hygiene of the saga engine: the engine must **tell the truth about compensation**, **never lose a customer publish to retry-budget amplification**, and **own every non-terminal row it inherits**. The exploration's factual map is file:line-verified at main; its slicing was approved by the Product Owner verbatim — this proposal formalizes it, it does not re-litigate it.
 
 ## Problem statement (verified at main 63c10f07)
 
@@ -98,7 +98,7 @@ Chained PRs to main revert independently. Slices 0-2 are code-only — clean rev
 
 ## Proposal question round (assumptions needing user review)
 
-Edward approved the exploration's slicing verbatim; no scope question remains. Three product assumptions the proposal makes inside that scope — correct any and the proposal updates:
+The Product Owner approved the exploration's slicing verbatim; no scope question remains. Three product assumptions the proposal makes inside that scope — correct any and the proposal updates:
 
 1. **Admin re-drive semantics (slice 1):** assumed `compensateSaga` accepts `COMPENSATING` in addition to `FAILED` and RESUMES the walk from durable progress (never restarts it from step 0). OK?
 2. **Customer visibility of slice 2's outcome change:** publishes that FAIL today will COMPLETE after slice 2 — assumed no new customer notification; existing saga status endpoints only, messaging deferred to the client-UX change. OK?

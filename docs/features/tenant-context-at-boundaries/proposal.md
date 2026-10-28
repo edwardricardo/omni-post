@@ -1,8 +1,8 @@
 # Proposal: Tenant context at boundaries (reshaped Slice 6, N-SEC-3)
 
 > Implements **ADR-0020**. Supersedes the drafted approach in
-> `openspec/changes/api-guarded-client-injection/` — the guarded-client injection and
-> fitness #28 survive; the per-call `withSystemContext` wrapping is replaced by
+> [`openspec/changes/api-guarded-client-injection/`](https://github.com/edwardricardo/omni-post/tree/e33fadb763be6e23dc79be89a7335869234a5afe/openspec/changes/api-guarded-client-injection) — the guarded-client injection and
+> its proposed raw-client gate survive (that gate, then numbered fitness #28, was never wired; see N-SEC-3 in the Master Plan); the per-call `withSystemContext` wrapping is replaced by
 > context established at entry boundaries.
 
 ## Why
@@ -97,7 +97,7 @@ Chaining PR2 on PR1 enforces it.
 Extract `apps/api/src/security/tenantContext.ts` to a shared package (**single ALS holder —
 must not fork**), wrap `workerPrisma` with the guard, establish per-job context, and fix the
 mention cross-tenant dedup (`@@unique([provider, externalId])` global → collision). **Blocked
-on Edward's product decision**: is one mention row per public post global (today), or should
+on the Product Owner's product decision**: is one mention row per public post global (today), or should
 each tenant get its own (→ `@@unique([accountId, provider, externalId])`)?
 
 ## Non-Goals
