@@ -68,6 +68,15 @@ FALLBACK = Path("/session/cwd")
 class RunsGitPushTests(unittest.TestCase):
     """What the publication gate and the token consumer count as a publication."""
 
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._log = mock.patch.object(_common, "LOG_PATH", Path(self._tmp.name) / "hooks.log")
+        self._log.start()
+
+    def tearDown(self):
+        self._log.stop()
+        self._tmp.cleanup()
+
     def test_the_line_that_consumed_a_token_on_2026_10_02_is_not_a_publication(self) -> None:
         line = (
             "cd /root/omni-post-worktrees/hooks-1 && git status --porcelain | wc -l && "
@@ -148,6 +157,15 @@ class ShellReadingTests(unittest.TestCase):
 
 
 class CommitReposTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self._log = mock.patch.object(_common, "LOG_PATH", Path(self._tmp.name) / "hooks.log")
+        self._log.start()
+
+    def tearDown(self):
+        self._log.stop()
+        self._tmp.cleanup()
+
     def test_leading_cd_with_and(self):
         self.assertEqual(commit_repos("cd /wt && git commit -m x", FALLBACK), [Path("/wt")])
 
