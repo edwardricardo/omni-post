@@ -1,6 +1,6 @@
 # Canon Research Index
 
-Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo research para evitar re-investigar.
+External sources validated per batch. Consult it BEFORE any new research, to avoid re-investigating.
 
 ---
 
@@ -8,13 +8,13 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 
 ### knip — recognized canon
 
-- Ya documentado en commit `e4ccb89` (T1-E revisitado). Effective TypeScript 2026 + Vercel adoption.
+- Already documented in commit `e4ccb89` (T1-E revisited). Effective TypeScript 2026 + Vercel adoption.
 
-### jscpd — defaults para monorepos TypeScript
+### jscpd — defaults for TypeScript monorepos
 
 - **URL:** https://github.com/kucherenko/jscpd
-- **Resumen:** `minTokens: 50`, `threshold: 1` (% duplicación), `format: ts/tsx/js/jsx`, ignore `tests/**`, `fixtures/**`, `dist/**`, `.next/**`, `generated/**`, `**/*.stories.tsx`. `exitCode: 1` para hard-fail en CI.
-- **Consumido por:** B-tools-1 (2026-05-04) — creación de `jscpd.json` (config previo era defaults inline).
+- **Summary:** `minTokens: 50`, `threshold: 1` (% duplication), `format: ts/tsx/js/jsx`, ignore `tests/**`, `fixtures/**`, `dist/**`, `.next/**`, `generated/**`, `**/*.stories.tsx`. `exitCode: 1` for a hard fail in CI.
+- **Consumed by:** B-tools-1 (2026-05-04) — creation of `jscpd.json` (the previous config was inline defaults).
 
 ---
 
@@ -23,8 +23,8 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 ### Brute-force / credential-stuffing protection — OWASP + NIST
 
 - **URLs:** https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html · https://pages.nist.gov/800-63-4/sp800-63b.html (SP 800-63B-4)
-- **Resumen (canon):** NIST **SHALL** = rate-limiting de intentos fallidos por cuenta (prefiere throttling sobre lockout duro: umbral alto ~100 + delays progresivos + IP throttle + CAPTCHA). OWASP: el contador de fallos se asocia a la **CUENTA, no a la IP** (atacantes rotan IPs; IP solo throttle supletorio, ojo NAT/compartida); lockout con auto-expiry o duración **exponencial**, consciente de **DoS** (permitir forgot-password aun bloqueado); **CAPTCHA** tras unos pocos fallos (defense-in-depth, no preventivo); **MFA** = defensa #1 (99.9% per Microsoft).
-- **Consumido por:** B2 del maratón prisma→DI (2026-05-24) — auditoría de las 3 impls divergentes (admin Prisma / customer rate-limit-only / huérfano Redis). Diseño de homologación en `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md` (workstream BF-HOMOLOG, backlog SMELL-35).
+- **Summary (canon):** NIST **SHALL** = rate-limiting of failed attempts per account (it prefers throttling over a hard lockout: a high threshold ~100 + progressive delays + IP throttle + CAPTCHA). OWASP: the failure counter is associated with the **ACCOUNT, not the IP** (attackers rotate IPs; IP only as a supplementary throttle, watch out for NAT/shared addresses); lockout with auto-expiry or an **exponential** duration, **DoS**-aware (allow forgot-password even while locked); **CAPTCHA** after a few failures (defense-in-depth, not preventive); **MFA** = defense #1 (99.9% per Microsoft).
+- **Consumed by:** B2 of the prisma→DI marathon (2026-05-24) — audit of the 3 divergent implementations (admin Prisma / customer rate-limit-only / orphan Redis). Homologation design in `docs/security/BRUTE_FORCE_HOMOLOGATION_ES.md` (workstream BF-HOMOLOG, backlog SMELL-35).
 
 ---
 
@@ -33,30 +33,30 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 ### @axe-core/playwright — canonical helper pattern
 
 - **URL:** https://github.com/dequelabs/axe-core-npm/tree/develop/packages/playwright
-- **Resumen:** `new AxeBuilder({ page }).withTags(["wcag2a","wcag2aa"]).analyze()` devuelve `{ violations: Violation[] }`. Patrón canónico: helper file `tests/e2e/utils/a11y.ts` reutilizable por specs. Filtrar por `impact in ["serious","critical"]` para no fallar por minor/moderate noise.
-- **Consumido por:** B-tools-1 (2026-05-04) — `apps/admin/tests/e2e/utils/a11y.ts` espeja patrón ya implementado en `apps/client/tests/e2e/utils/assertions.ts`.
+- **Summary:** `new AxeBuilder({ page }).withTags(["wcag2a","wcag2aa"]).analyze()` returns `{ violations: Violation[] }`. Canonical pattern: a helper file `tests/e2e/utils/a11y.ts` reusable by specs. Filter by `impact in ["serious","critical"]` so as not to fail on minor/moderate noise.
+- **Consumed by:** B-tools-1 (2026-05-04) — `apps/admin/tests/e2e/utils/a11y.ts` mirrors the pattern already implemented in `apps/client/tests/e2e/utils/assertions.ts`.
 
 ---
 
 ## Visual Regression
 
-### reg-suit — storage backend (NO existe `reg-publish-github-plugin`)
+### reg-suit — storage backend (`reg-publish-github-plugin` does NOT exist)
 
 - **URL:** https://github.com/reg-viz/reg-suit
-- **Resumen:** reg-suit canon tiene plugins oficiales: `reg-publish-s3-plugin`, `reg-publish-gcs-plugin`, `reg-publish-fs-plugin`. **NO** existe un plugin oficial para "snapshots en branch del repo". `reg-notify-github-plugin` solo notifica vía PR comment, no almacena. Decisión de storage es prerequisito para wirear reg-suit.
-- **Consumido por:** B-tools-1 (2026-05-04) — reg-suit DEFERIDO a PR-48 (decisión de storage pendiente).
+- **Summary:** the reg-suit canon has official plugins: `reg-publish-s3-plugin`, `reg-publish-gcs-plugin`, `reg-publish-fs-plugin`. There is **NO** official plugin for "snapshots in a branch of the repo". `reg-notify-github-plugin` only notifies via a PR comment; it does not store. The storage decision is a prerequisite for wiring reg-suit.
+- **Consumed by:** B-tools-1 (2026-05-04) — reg-suit DEFERRED to PR-48 (storage decision pending).
 
 ---
 
 ## Git Hygiene
 
-(referencias previas — T1-C revisitado canon, commit `57e3c30`)
+(previous references — T1-C canon revisited, commit `57e3c30`)
 
 ---
 
 ## Logging / Observability
 
-(referencias previas — apps/api/src/lib/logger.ts canon — ver CLAUDE.md §Logging)
+(previous references — apps/api/src/lib/logger.ts canon — see CLAUDE.md §Logging)
 
 ---
 
@@ -65,20 +65,20 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 ### Next.js useRouter — current canon (v15/v16)
 
 - **URL:** https://nextjs.org/docs/app/api-reference/functions/use-router
-- **Resumen:** `<Link>` es default para nav declarativa. `useRouter().push()` para nav programática post-mutation. `window.location.href = ...` legítimo para redirects externos (Stripe, OAuth) — false-positive si la URL apunta a third-party (PR-9 documenta los 4 sitios válidos).
-- **Consumido por:** T2-E original (2026-04-23) + revisitado canon (2026-05-04) — confirmado vigente, sin cambios de canon.
+- **Summary:** `<Link>` is the default for declarative nav. `useRouter().push()` for programmatic nav after a mutation. `window.location.href = ...` is legitimate for external redirects (Stripe, OAuth) — a false positive if the URL points to a third party (PR-9 documents the 4 valid sites).
+- **Consumed by:** original T2-E (2026-04-23) + canon revisited (2026-05-04) — confirmed current, no canon changes.
 
 ### React declarative UI — alert/prompt/confirm replacement
 
 - **URL:** https://react.dev/learn/managing-state
-- **Resumen:** state-driven UI (Dialog primitives) es canon. Nativos `alert/prompt/confirm` rompen accesibilidad (sin focus trap, sin aria-modal, sin Escape custom) y bloquean el event loop. Reemplazar por componentes controlados (`<Dialog>`, `<ConfirmDialog>`, `<InputDialog>`).
-- **Consumido por:** T2-E original (2026-04-23) — migración completa en apps/client + apps/admin. T2-E revisitado canon (2026-05-04) confirma 0 residuales.
+- **Summary:** state-driven UI (Dialog primitives) is canon. The native `alert/prompt/confirm` break accessibility (no focus trap, no aria-modal, no custom Escape) and block the event loop. Replace them with controlled components (`<Dialog>`, `<ConfirmDialog>`, `<InputDialog>`).
+- **Consumed by:** original T2-E (2026-04-23) — complete migration in apps/client + apps/admin. T2-E canon revisited (2026-05-04) confirms 0 residuals.
 
 ### WAI-ARIA APG Modal Dialog
 
 - **URL:** https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/
-- **Resumen:** `role="dialog"` + `aria-modal="true"` + `aria-labelledby` + Escape + focus trap + focus return on close. Radix Dialog primitive cumple out-of-the-box; no inventar custom modals.
-- **Consumido por:** T2-E (2026-04-23) — `ConfirmDialog.tsx` + `InputDialog.tsx` movidos a packages/ui usan Radix internamente.
+- **Summary:** `role="dialog"` + `aria-modal="true"` + `aria-labelledby` + Escape + focus trap + focus return on close. The Radix Dialog primitive complies out of the box; do not invent custom modals.
+- **Consumed by:** T2-E (2026-04-23) — `ConfirmDialog.tsx` + `InputDialog.tsx`, moved to packages/ui, use Radix internally.
 
 ---
 
@@ -87,20 +87,20 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 ### Turborepo configuration — env + globalEnv + outputs
 
 - **URL:** https://turborepo.com/docs/reference/configuration
-- **Resumen:** per-task `env` declara vars que entran al cache hash. NO declarar = cache poisoning. `globalEnv` aplica a todas. `outputs` vacío cachea solo logs. `globalDependencies` para files que afectan toda la build.
-- **Consumido por:** T2-F original (2026-04-23) + revisitado canon (2026-05-04) — confirmado vigente: globalEnv + 5 task env declarations canon-aligned.
+- **Summary:** per-task `env` declares the vars that enter the cache hash. NOT declaring = cache poisoning. `globalEnv` applies to all. An empty `outputs` caches only logs. `globalDependencies` for files that affect the whole build.
+- **Consumed by:** original T2-F (2026-04-23) + canon revisited (2026-05-04) — confirmed current: globalEnv + 5 canon-aligned task env declarations.
 
 ### GitHub Actions caching — hashFiles + restore-keys
 
 - **URL:** https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows
-- **Resumen:** key debe usar `hashFiles(lockfile)` para invalidación automática. `restore-keys` escalonado. Sin esto, false hits o nunca hittea.
-- **Consumido por:** T2-F (2026-04-23) — composite action local `./.github/actions/setup-node-pnpm-cache` implementa el patrón. T2-F revisitado canon (2026-05-04) detectó 1 job (secretlint, introducido por B-tools-2) que reimplementaba setup manual sin cache — fix aplicado.
+- **Summary:** the key must use `hashFiles(lockfile)` for automatic invalidation. Staggered `restore-keys`. Without this, false hits, or it never hits.
+- **Consumed by:** T2-F (2026-04-23) — the local composite action `./.github/actions/setup-node-pnpm-cache` implements the pattern. T2-F canon revisited (2026-05-04) detected 1 job (secretlint, introduced by B-tools-2) that re-implemented the setup by hand with no cache — fix applied.
 
 ### size-limit — fail on threshold exceed, never swallow with `|| true`
 
 - **URL:** https://github.com/ai/size-limit
-- **Resumen:** size-limit existe específicamente para fallar CI cuando el bundle excede el threshold declarado. `pnpm exec size-limit > out.json || true` neutraliza el propósito. Patrón canónico: separar fail-check del JSON capture en steps distintos.
-- **Consumido por:** T2-F revisitado canon (2026-05-04) — fix de `audit.yml:235` con `|| true` preexistente desde commit `fd256a2` (no era regresión; T2-F original solo audit'ó ci.yml).
+- **Summary:** size-limit exists specifically to fail CI when the bundle exceeds the declared threshold. `pnpm exec size-limit > out.json || true` neutralizes the purpose. Canonical pattern: separate the fail-check from the JSON capture in distinct steps.
+- **Consumed by:** T2-F canon revisited (2026-05-04) — fix of `audit.yml:235` with an `|| true` that had existed since commit `fd256a2` (it was not a regression; the original T2-F only audited ci.yml).
 
 ---
 
@@ -109,20 +109,20 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 ### neverthrow / Result<T,E> canon — current
 
 - **URL:** https://github.com/supermacro/neverthrow
-- **Resumen:** `Result<T, E>` pattern. Throws OK en boundaries con libs (e.g., crypto, HTTP) y condiciones excepcionales. NO throw en domain/application — propaga via Result. Custom Result en `packages/shared/src/types.ts:71-76` es SoT del repo (`Ok<T> | Err<E>` + helpers `ok`, `err`, `isOk`, `isErr`, `unwrap`, `unwrapOr`).
-- **Consumido por:** T2-G original (2026-04-23) + revisitado canon (2026-05-04) — confirmado vigente, sin cambios de canon. Fitness #4 sigue clean (0 raw throws en domain/application).
+- **Summary:** the `Result<T, E>` pattern. Throws are OK at boundaries with libs (e.g., crypto, HTTP) and for exceptional conditions. NO throw in domain/application — propagate via Result. The custom Result in `packages/shared/src/types.ts:71-76` is the repo's SoT (`Ok<T> | Err<E>` + the helpers `ok`, `err`, `isOk`, `isErr`, `unwrap`, `unwrapOr`).
+- **Consumed by:** original T2-G (2026-04-23) + canon revisited (2026-05-04) — confirmed current, no canon changes. Fitness #4 is still clean (0 raw throws in domain/application).
 
 ### DomainError hierarchy — apps/api/src/domain/errors/DomainError.ts
 
 - **URL:** internal — `apps/api/src/domain/errors/DomainError.ts`
-- **Resumen:** abstract `DomainError` + subclasses typed (`InvariantViolationError`, `EntityNotFoundError`, `InvalidValueError`, etc.). Reuse hierarchy en use cases — NO crear errors redundantes (e.g., `PricingError` cuando `InvariantViolationError` aplica).
-- **Consumido por:** T2-G (2026-04-23) — PricingCalculator usa `InvariantViolationError`. Revisitado canon (2026-05-04) confirma sigue vigente.
+- **Summary:** an abstract `DomainError` + typed subclasses (`InvariantViolationError`, `EntityNotFoundError`, `InvalidValueError`, etc.). Reuse the hierarchy in use cases — do NOT create redundant errors (e.g., `PricingError` when `InvariantViolationError` applies).
+- **Consumed by:** T2-G (2026-04-23) — PricingCalculator uses `InvariantViolationError`. Canon revisited (2026-05-04) confirms it is still current.
 
-### Boundary-throw patterns — legítimos en infrastructure layer
+### Boundary-throw patterns — legitimate in the infrastructure layer
 
-- **Resumen:** `if (!result.ok) throw AppError.externalService(...)` en `apps/api/src/ai/aiService.ts` y `if (!result.ok) throw new Error(...)` en `apps/api/src/saga/SagaIntegration.ts` son canon-aligned: convierten Result en throw en el boundary del layer (HTTP error handler / queue worker reject). NO confundir con anti-pattern Result-then-throw dentro de domain/application.
-- **`as Result<X, E>` casts en application use cases:** 9 sitios canon-aligned con el patrón Unit of Work documentado en [CLAUDE.md §Unit of Work] — `let result: Result<X, E> = ok(undefined) as Result<X, E>;` requerido para mutación dentro de `unitOfWork.executeInTransaction`.
-- **Consumido por:** T2-G revisitado canon (2026-05-04) — clarificación de patrones legítimos en boundary layer detectados durante audit.
+- **Summary:** `if (!result.ok) throw AppError.externalService(...)` in `apps/api/src/ai/aiService.ts` and `if (!result.ok) throw new Error(...)` in `apps/api/src/saga/SagaIntegration.ts` are canon-aligned: they convert a Result into a throw at the layer boundary (HTTP error handler / queue worker reject). Do NOT confuse them with the Result-then-throw anti-pattern inside domain/application.
+- **`as Result<X, E>` casts in application use cases:** 9 canon-aligned sites with the Unit of Work pattern documented in [CLAUDE.md §Unit of Work] — `let result: Result<X, E> = ok(undefined) as Result<X, E>;` is required for mutation inside `unitOfWork.executeInTransaction`.
+- **Consumed by:** T2-G canon revisited (2026-05-04) — clarification of the legitimate boundary-layer patterns detected during the audit.
 
 ---
 
@@ -131,18 +131,18 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 ### Nielsen Norman empty-state guidance
 
 - **URL:** https://www.nngroup.com/articles/empty-state-interface-design/
-- **Resumen:** empty-state honesto = status real + contextual message + CTA. Nunca placeholder engañoso (fake metrics, scores hardcoded, model-name labels que no reflejan modelo actual). Aplicable a métricas, empty lists, loading states, fallback content.
-- **Consumido por:** T2-H original (2026-04-23) — removió fake metrics/scores/model-names. T2-H revisitado canon (2026-05-04) confirmó canon vigente; detectó deuda dead types orphans + 4 fields planeados para client.
+- **Summary:** an honest empty state = real status + contextual message + CTA. Never a misleading placeholder (fake metrics, hardcoded scores, model-name labels that do not reflect the current model). Applies to metrics, empty lists, loading states, fallback content.
+- **Consumed by:** original T2-H (2026-04-23) — removed fake metrics/scores/model names. T2-H canon revisited (2026-05-04) confirmed the canon is current; it detected orphan dead-types debt + 4 fields planned for client.
 
-### Dead code detection — 3-questions gate (canon interno)
+### Dead code detection — 3-questions gate (internal canon)
 
 - **URL:** internal — `~/.claude/projects/.../memory/feedback_three_questions_before_delete.md`
-- **Resumen:** ANTES de declarar código huérfano y removerlo, responder explícitamente: **(Q1)** ¿Qué es? (tipo, propósito declarado en JSDoc, signature). **(Q2)** ¿Para qué se supone que fue creado? (intent original, business value). **(Q3)** ¿Existe algo actualmente que haga lo que se supone que hace? (consumers reales + funcionalidad alternativa + feature roadmap). Decision rule: Q3=NO+sin roadmap → safe remove; Q3=NO+podría-ser-feature-pendiente → AskUserQuestion; Q3=SÍ → no es dead.
-- **Consumido por:** T2-H revisitado canon (2026-05-04) — Edward agregó al preflight `pre_delete_gate`. Aplicado evitó remove erróneo de 4 fields que resultaron ser features planeadas para client (migrate hecho + 3 backlog entries en lugar de delete).
+- **Summary:** BEFORE declaring code orphaned and removing it, answer explicitly: **(Q1)** What is it? (type, purpose declared in the JSDoc, signature). **(Q2)** What was it supposedly created for? (original intent, business value). **(Q3)** Does anything currently do what it is supposed to do? (real consumers + alternative functionality + feature roadmap). Decision rule: Q3=NO+no roadmap → safe remove; Q3=NO+could-be-a-pending-feature → AskUserQuestion; Q3=YES → it is not dead.
+- **Consumed by:** T2-H canon revisited (2026-05-04) — the Maintainer added it to the `pre_delete_gate` preflight. Applying it avoided the wrong removal of 4 fields that turned out to be features planned for client (migrate done + 3 backlog entries instead of a delete).
 
 ---
 
-## Architecture / Hexagonal monorepo — distribución de código
+## Architecture / Hexagonal monorepo — code distribution
 
 ### Explicit Architecture (Graça) + domain-driven-hexagon (Sairyss) + Composition Root (Seemann) + Nx library-first
 
@@ -151,20 +151,20 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
   - https://github.com/Sairyss/domain-driven-hexagon
   - https://blog.ploeh.dk/2011/07/28/CompositionRoot/ · https://blog.ploeh.dk/2019/06/17/composition-root-location/
   - https://dev.to/artnikbrothers/the-8020-library-first-monorepo-why-your-apps-should-be-almost-empty-1gom · https://nx.dev/blog/virtuous-cycle-of-workspace-structure
-- **Resumen (canon backend-flavored):** Application Core = Application layer (use-cases + **ports**) + Domain layer
-  (entities/VOs/eventos/servicios). _"Ports belong inside the business logic, adapters belong outside"_ (Graça);
-  dependencias hacia adentro; **un solo core para múltiples entry-points** (HTTP, queue, CLI). Capas concretas TS:
-  domain (entities/aggregates/VOs/domain-events/errors + repository ports), application (use-cases/handlers/DTOs),
-  interface (controllers + HTTP DTOs), infrastructure (repo impls/adapters/ORM) — Sairyss. **Un composition root por
-  ejecutable** en el entry-point; el DI container no se filtra al core — Seemann. **Apps = contenedores de
-  despliegue, no de código**; lógica en libs; boundaries **enforced** no por convención — Nx library-first
-  (backend: Graça/Sairyss/Seemann mandan; Nx informa el packaging).
-- **Verificación:** WebFetch real de las 4 (2026-05). Graça/Sairyss/Seemann = citas literales confirmadas; Nx 80/20 =
-  fuente frontend-flavored (aplica el packaging, no el taxonomy feature/ui/state).
-- **Consumido por:** decisión Opción A (core→`packages/@core`) + grafo objetivo en
-  [`docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md`](https://github.com/edwardricardo/omni-post/blob/0086df48af32db3980680158e8b76ada41358dbf/docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md) (2026-05; removed from the repository on 2026-10-17; git history keeps it, and the link is its last version). Existe debate canónico legítimo: modular-monolith /
-  in-process consumers (la Opción B usada para resolver DUP-01/02) también es canon — ambos extremos del espectro
-  decoupling↔simplicidad.
+- **Summary (backend-flavored canon):** Application Core = Application layer (use cases + **ports**) + Domain layer
+  (entities/VOs/events/services). _"Ports belong inside the business logic, adapters belong outside"_ (Graça);
+  dependencies point inward; **a single core for multiple entry points** (HTTP, queue, CLI). Concrete TS layers:
+  domain (entities/aggregates/VOs/domain events/errors + repository ports), application (use cases/handlers/DTOs),
+  interface (controllers + HTTP DTOs), infrastructure (repo impls/adapters/ORM) — Sairyss. **One composition root per
+  executable**, at the entry point; the DI container does not leak into the core — Seemann. **Apps = deployment
+  containers, not code containers**; logic lives in libs; boundaries **enforced**, not by convention — Nx library-first
+  (backend: Graça/Sairyss/Seemann rule; Nx informs the packaging).
+- **Verification:** a real WebFetch of all 4 (2026-05). Graça/Sairyss/Seemann = literal quotes confirmed; Nx 80/20 = a
+  frontend-flavored source (the packaging applies, not the feature/ui/state taxonomy).
+- **Consumed by:** the Option A decision (core→`packages/@core`) + the target graph in
+  [`docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md`](https://github.com/edwardricardo/omni-post/blob/0086df48af32db3980680158e8b76ada41358dbf/docs/architecture/TARGET_ARCHITECTURE_CANON_ES.md) (2026-05; removed from the repository on 2026-10-17; git history keeps it, and the link is its last version). There is a legitimate canonical debate: modular monolith /
+  in-process consumers (Option B, used to resolve DUP-01/02) is canon too — both ends of the
+  decoupling↔simplicity spectrum.
 
 ---
 
@@ -172,18 +172,18 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 
 - **URLs:**
   - https://blog.ploeh.dk/2011/07/28/CompositionRoot/
-  - "Dependency Injection Principles, Practices, and Patterns" (Seemann & van Deursen) — patrón _Primitive Dependencies_
-  - https://khorikov.org/posts/2019-07-31-commands-primitives/ (primitivos cruzan boundaries)
-- **Resumen:** una application use-case que necesita un valor de configuración (URL base, model name, connection
-  string) **NO** debe inyectar un objeto de configuración amplio (`IConfiguration`/`AppConfig` god-object) — eso es un
-  smell de **Service Locator** que oculta las dependencias reales del consumidor. El **Composition Root** (único lugar
-  que lee la config tipada/validada) resuelve e **inyecta los valores específicos como primitivos** por constructor
-  (_Primitive Dependencies_). El dominio queda puro (Khorikov): sin DI ni config; valores cruzan como primitivos/DTOs.
-- **Verificación:** WebSearch 2026-05 (DEV/Clean-Arch sources + ploeh + khorikov.org); confirmado el patrón Primitive
-  Dependencies y el anti-patrón del config-object amplio.
-- **Consumido por:** A6.1 (2026-05-25) — quitar `config/env` de 5 use-cases inyectando `clientUrl` /
-  `embeddingModel`+`embeddingDimensions` desde `setup*.ts`; NO se creó un `AppConfigPort`. Aplica a las demás
-  sub-fases de A6 que necesiten inyectar config (no ports de servicio).
+  - "Dependency Injection Principles, Practices, and Patterns" (Seemann & van Deursen) — the _Primitive Dependencies_ pattern
+  - https://khorikov.org/posts/2019-07-31-commands-primitives/ (primitives cross boundaries)
+- **Summary:** an application use case that needs a configuration value (base URL, model name, connection
+  string) must **NOT** inject a broad configuration object (an `IConfiguration`/`AppConfig` god object) — that is a
+  **Service Locator** smell that hides the consumer's real dependencies. The **Composition Root** (the only place
+  that reads the typed/validated config) resolves and **injects the specific values as primitives** by constructor
+  (_Primitive Dependencies_). The domain stays pure (Khorikov): no DI and no config; values cross as primitives/DTOs.
+- **Verification:** WebSearch 2026-05 (DEV/Clean-Arch sources + ploeh + khorikov.org); the Primitive
+  Dependencies pattern and the broad config-object anti-pattern confirmed.
+- **Consumed by:** A6.1 (2026-05-25) — removing `config/env` from 5 use cases by injecting `clientUrl` /
+  `embeddingModel`+`embeddingDimensions` from `setup*.ts`; NO `AppConfigPort` was created. It applies to the other
+  A6 sub-phases that need to inject config (not service ports).
 
 ---
 
@@ -191,31 +191,31 @@ Fuentes externas validadas por batch. Consultar ANTES de cualquier nuevo researc
 
 ### Verification-by-fetch 2026-05-04 (retroactive)
 
-Los 4 batches T2-E/F/G/H del 2026-05-04 fueron atestados como `r2_canon_exhaustive: yes` SIN haber hecho fetch real de las URLs canónicas — fue uso de conocimiento general, NO consulta directa. Edward detectó el fallo de proceso y solicitó verificación retroactiva. Los fetches se ejecutaron post-commit `e36e8aa` y los hallazgos quedan documentados acá para transparencia + reglas 2/3 honestas a futuro.
+The 4 batches T2-E/F/G/H of 2026-05-04 were attested as `r2_canon_exhaustive: yes` WITHOUT a real fetch of the canonical URLs — it was use of general knowledge, NOT direct consultation. The Maintainer detected the process failure and requested a retroactive verification. The fetches were run after commit `e36e8aa`, and the findings are documented here for transparency + honest rules 2/3 going forward.
 
-| Canon URL                                              | Fetch result             | Cita exacta confirmada                                                                                                    | Notas                                                                                                                                           |
-| ------------------------------------------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| nextjs.org/docs/app/api-reference/functions/use-router | ✅ v16.2.4 vigente       | YES — `<Link>` recommended, useRouter para programmatic                                                                   | Sin patrones nuevos disruptivos                                                                                                                 |
-| react.dev/learn/managing-state                         | 🟡 implícito             | NO — guía no prohíbe explícitamente alert/prompt/confirm                                                                  | Mi atestación fue interpretación canónica, no quote literal del doc oficial                                                                     |
-| w3.org/WAI/ARIA/apg/patterns/dialog-modal/             | ✅ vigente               | YES — role/aria-modal/labelledby/focus-trap/Escape/return                                                                 | ARIA 1.1 establecido, sin updates post-2024                                                                                                     |
-| turborepo.dev/docs/reference/configuration             | ✅ + 🆕                  | YES — per-task env, globalEnv, outputs[]                                                                                  | **NUEVO no documentado en T2-F:** `globalConfiguration`, `filterUsingTasks`, `watchUsingTaskInputs`, OTEL observability experimental            |
-| docs.github.com/en/actions/.../caching-dependencies    | ✅ patrón básico         | YES — hashFiles + restore-keys                                                                                            | Doc fetch no menciona immutable cache/attestations — pueden existir en otros chunks                                                             |
-| github.com/ai/size-limit                               | ✅ + 🟡                  | YES — `\|\| true` neutraliza enforcement                                                                                  | **Mi fix de separar fail-check del JSON capture es decisión beyond docs** (interpretación correcta del spirit, no patrón documentado en README) |
-| github.com/supermacro/neverthrow                       | ✅ vigente               | YES — Result<T,E>, boundary throws OK                                                                                     | v8.2.0 Feb 2025, sin breaking. APIs estables                                                                                                    |
-| nngroup.com/articles/empty-state-interface-design/     | 🟡 3 pilares confirmados | PARCIAL — guía 3 pilares (status + contextual + CTA) confirmada; "no fake metrics/scores" NO está explícito en el article | Article es Kaplan 2021, sin updates posteriores. Mi atestación de "guidance contra fake metrics" fue interpretación canónica del spirit         |
+| Canon URL                                              | Fetch result           | Exact quote confirmed                                                                                                          | Notes                                                                                                                                                                        |
+| ------------------------------------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| nextjs.org/docs/app/api-reference/functions/use-router | ✅ v16.2.4 current     | YES — `<Link>` recommended, useRouter for programmatic                                                                         | No disruptive new patterns                                                                                                                                                   |
+| react.dev/learn/managing-state                         | 🟡 implicit            | NO — the guide does not explicitly forbid alert/prompt/confirm                                                                 | My attestation was a canonical interpretation, not a literal quote of the official doc                                                                                       |
+| w3.org/WAI/ARIA/apg/patterns/dialog-modal/             | ✅ current             | YES — role/aria-modal/labelledby/focus-trap/Escape/return                                                                      | ARIA 1.1 established, no updates after 2024                                                                                                                                  |
+| turborepo.dev/docs/reference/configuration             | ✅ + 🆕                | YES — per-task env, globalEnv, outputs[]                                                                                       | **NEW, not documented in T2-F:** `globalConfiguration`, `filterUsingTasks`, `watchUsingTaskInputs`, experimental OTEL observability                                          |
+| docs.github.com/en/actions/.../caching-dependencies    | ✅ basic pattern       | YES — hashFiles + restore-keys                                                                                                 | The doc fetch does not mention immutable cache/attestations — they may exist in other chunks                                                                                 |
+| github.com/ai/size-limit                               | ✅ + 🟡                | YES — `\|\| true` neutralizes enforcement                                                                                      | **My fix of separating the fail-check from the JSON capture is a decision beyond the docs** (a correct interpretation of the spirit, not a pattern documented in the README) |
+| github.com/supermacro/neverthrow                       | ✅ current             | YES — Result<T,E>, boundary throws OK                                                                                          | v8.2.0 Feb 2025, no breaking changes. Stable APIs                                                                                                                            |
+| nngroup.com/articles/empty-state-interface-design/     | 🟡 3 pillars confirmed | PARTIAL — the 3-pillar guidance (status + contextual + CTA) confirmed; "no fake metrics/scores" is NOT explicit in the article | The article is Kaplan 2021, with no later updates. My attestation of "guidance against fake metrics" was a canonical interpretation of the spirit                            |
 
 ### Turborepo future flags — backlog candidate
 
-- **Detectado durante verification 2026-05-04:** turborepo.dev/docs documenta features que NO consideré en T2-F:
-  - `globalConfiguration`: experimental flag para shared task config
-  - `filterUsingTasks`: filter dependency graph by task patterns
-  - `watchUsingTaskInputs`: watch mode con input granularity
-  - **OTEL observability** experimental
-- **Acción sugerida:** abrir backlog entry para evaluar adopción de flags relevantes (especialmente OTEL que conecta con observability stack del repo).
-- **Estado:** documentado acá. No tracked como PR todavía — esperar decisión Edward.
+- **Detected during the 2026-05-04 verification:** turborepo.dev/docs documents features I did NOT consider in T2-F:
+  - `globalConfiguration`: an experimental flag for shared task config
+  - `filterUsingTasks`: filter the dependency graph by task patterns
+  - `watchUsingTaskInputs`: watch mode with input granularity
+  - experimental **OTEL observability**
+- **Suggested action:** open a backlog entry to evaluate adopting the relevant flags (especially OTEL, which connects with the repo's observability stack).
+- **Status:** documented here. Not yet tracked as a PR — waiting for the Maintainer's decision.
 
 ### Process correction — going forward
 
-- **Antes de declarar `r2_canon_exhaustive: yes`** en cualquier batch futuro: ejecutar WebFetch real de cada URL citada. Resumir cita exacta vs interpretación.
-- **Atestación honesta:** distinguir "cita literal del canon" vs "interpretación canónica del spirit". Ambas pueden ser válidas, pero deben marcarse distinto.
-- **Cuando WebFetch revele drift** (canon nuevo, breaking changes, dead URLs): documentar acá + abrir backlog entry si requiere adopción.
+- **Before declaring `r2_canon_exhaustive: yes`** in any future batch: run a real WebFetch of every cited URL. Summarize the exact quote vs the interpretation.
+- **Honest attestation:** distinguish "a literal quote of the canon" from "a canonical interpretation of the spirit". Both can be valid, but they must be marked differently.
+- **When a WebFetch reveals drift** (new canon, breaking changes, dead URLs): document it here + open a backlog entry if it requires adoption.
