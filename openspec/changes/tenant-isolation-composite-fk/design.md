@@ -410,7 +410,7 @@ All hand-shaped from `--create-only`, each opening with `SET lock_timeout` /
 `SET statement_timeout` (squawk `require-timeout-settings` is active). Timestamps strictly
 ascending in this order (the migration-ordering assertion from the archived
 `external-notification-tenant-guard` design applies: RLS last, columns first —
-`openspec/changes/archive/external-notification-tenant-guard/design.md`). Names follow
+[`openspec/changes/archive/external-notification-tenant-guard/design.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/external-notification-tenant-guard/design.md)). Names follow
 `<timestamp>_<snake_case_description>` per `docs/architecture/schema-conventions.md`
 §Migration naming — no phase-marker prefixes.
 

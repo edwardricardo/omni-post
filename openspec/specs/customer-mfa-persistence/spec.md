@@ -7,7 +7,7 @@
 >
 > Source of truth: change `mfa-consolidation` (N-SEC-5, Cluster B), PR2 (`c89b7d95`,
 > schema) and PR3 (backfill + legacy retirement). Design detail:
-> `openspec/changes/archive/mfa-consolidation/design.md` (Decision 3).
+> [`openspec/changes/archive/mfa-consolidation/design.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-consolidation/design.md) (Decision 3).
 >
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Each requirement
 > carries Given/When/Then acceptance scenarios. Requirements marked
@@ -134,6 +134,6 @@ newly added columns, so a rollback introduces no data loss on pre-existing data.
 3. **Amending a MERGE-BLOCKING requirement** — requires an ADR; these are the
    acceptance criteria that closed N-SEC-5 and must not silently regress.
 
-Companion audit trail: `openspec/changes/archive/mfa-consolidation/design.md`
+Companion audit trail: [`openspec/changes/archive/mfa-consolidation/design.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-consolidation/design.md)
 (Decision 3), `verify-report.md` (PR2, PR3 sections — including the post-verify
 remediation of the `verifyIntegrity` field-naming finding).

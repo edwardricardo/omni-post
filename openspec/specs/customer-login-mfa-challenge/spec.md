@@ -12,7 +12,7 @@
 > added mid-change after `sdd-explore` (`exploration-pr2b.md`) found that customer
 > login never challenged MFA at all (`LoginCustomerUseCase` never read
 > `mfaEnabled`), a gap distinct from the persistence/routing work PR1–PR3 closed.
-> Full architecture: `openspec/changes/archive/mfa-consolidation/design-pr2b.md`.
+> Full architecture: [`openspec/changes/archive/mfa-consolidation/design-pr2b.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-consolidation/design-pr2b.md).
 >
 > RFC 2119 keywords (MUST / SHALL / SHOULD / MAY) are normative. Each requirement
 > carries Given/When/Then acceptance scenarios. Requirements marked
@@ -229,6 +229,6 @@ enroll→login→challenge→complete smoke/e2e run is a merge-readiness checkli
 item, not a code gap (every individual link is proven at its own layer — unit,
 real-Redis integration, and route level).
 
-Companion audit trail: `openspec/changes/archive/mfa-consolidation/design-pr2b.md`
+Companion audit trail: [`openspec/changes/archive/mfa-consolidation/design-pr2b.md`](https://github.com/edwardricardo/omni-post/blob/e7e7e0e5d7b0d50b69048e36f24145cf273c3086/openspec/changes/archive/mfa-consolidation/design-pr2b.md)
 (Decisions 1–10), `exploration-pr2b.md`, `verify-report.md` (PR2b-1, PR2b-2, PR2b-3
 sections, including the post-verify remediation that closed the tenant-binding gap).

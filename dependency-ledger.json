@@ -865,10 +865,7 @@
           ]
         },
         "config-string": {
-          "test": ["apps/api/tests/unit/scripts/holdsGate.test.ts"],
-          "config": [
-            "openspec/changes/archive/admin-password-reset-claim/evidence/probe-reset-claim-sql-v3.mts"
-          ]
+          "test": ["apps/api/tests/unit/scripts/holdsGate.test.ts"]
         }
       }
     },
