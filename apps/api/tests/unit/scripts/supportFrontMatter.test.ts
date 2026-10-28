@@ -41,7 +41,7 @@ status: 'live'
 verified:
   sha: ${SHA}
   date: 2026-10-07
-  by: edward
+  by: Maintainer
 covers:
   - Publish a post now
   - "Schedule: later # not a comment"
@@ -59,7 +59,7 @@ a key set twice | status: 'live'\n | status: 'live'\nstatus: live\n | :5: status
 an item that is not indented | covers:\n  - Publish | covers:\n- Publish | :10: no "key: value", "  - item" or "  key: value"
 an indented line under a value | status: 'live'\n | status: 'live'\n  - x\n | :5: no "key: value", "  - item" or "  key: value"
 a key line after the items of a list | "Schedule: later # not a comment"\n | "Schedule: later # not a comment"\n  at: noon\n | :12: no "key: value", "  - item" or "  key: value"
-an item after the keys of a map | by: edward\n | by: edward\n  - x\n | :9: no "key: value", "  - item" or "  key: value"`
+an item after the keys of a map | by: Maintainer\n | by: Maintainer\n  - x\n | :9: no "key: value", "  - item" or "  key: value"`
   .trim()
   .split("\n")
   .map((row) => row.split(" | ").map((cell) => cell.replaceAll("\\n", "\n")));
@@ -84,7 +84,7 @@ describe("parseFrontMatter", () => {
       feature: "publishing",
       owner: "Platform engineering",
       status: "live",
-      verified: { sha: SHA, date: "2026-10-07", by: "edward" },
+      verified: { sha: SHA, date: "2026-10-07", by: "Maintainer" },
       covers: ["Publish a post now", "Schedule: later # not a comment"],
     });
     expect(body).toEqual(["# Publishing", ""]);

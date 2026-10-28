@@ -27,7 +27,7 @@ const { PAGE, TEMPLATE, SECTIONS, buildIndex } = (await import(MODULE)) as Index
 
 const DOC = "docs/support/publishing.md";
 const SHA = "0123456789abcdef0123456789abcdef01234567";
-const STAMP = `Last verified against main ${SHA} on 2026-10-07 by edward`;
+const STAMP = `Last verified against main ${SHA} on 2026-10-07 by Maintainer`;
 const FRONT = `---
 feature: publishing
 owner: Platform engineering # a team
@@ -35,7 +35,7 @@ status: live
 verified:
   sha: ${SHA}
   date: 2026-10-07
-  by: edward
+  by: Maintainer
 paths:
   - apps/api/src/posts/
 covers:
@@ -62,7 +62,7 @@ a missing key | owner: Platform engineering # a team\n | - | : front matter has 
 a feature that is no file name | feature: publishing | feature: shipping | : feature is "shipping", not the file name publishing
 an empty owner | owner: Platform engineering # a team | owner: "" | : owner is empty
 an unknown status | status: live | status: done | : status is "done", not live|partial|planned
-a stamp with another key | by: edward\n | by: edward\n  at: noon\n | : verified must hold sha, date and by, and no other key
+a stamp with another key | by: Maintainer\n | by: Maintainer\n  at: noon\n | : verified must hold sha, date and by, and no other key
 a stamp sha that is no commit | sha: ${SHA} | sha: abc | : verified sha "abc" is no 40-hex commit
 a stamp date that is no day | date: 2026-10-07 | date: 2026-02-30 | : verified date "2026-02-30" is no YYYY-MM-DD date
 a path that does not exist | src/posts/\n | src/gone.ts\n | : paths: apps/api/src/gone.ts does not exist
@@ -136,7 +136,7 @@ describe("the index", () => {
     put(DOC, GOOD.replace(FENCE, "Prose."));
     const prose = await build();
     put(DOC, GOOD.replace("Platform engineering", "Support"));
-    const cells = "`0123456789` on 2026-10-07 by edward | Publish a post now; Schedule: later";
+    const cells = "`0123456789` on 2026-10-07 by Maintainer | Publish a post now; Schedule: later";
     const row = `| [publishing](publishing.md) | live   | ${cells} | register:9, subprocessors:stripe |`;
 
     expect(first.markdown).toContain(`${row} Platform engineering |`);

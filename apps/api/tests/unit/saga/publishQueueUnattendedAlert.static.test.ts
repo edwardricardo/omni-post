@@ -119,17 +119,14 @@ describe("an unattended publish queue is audible inside the saga horizon", () =>
     expect(existsSync(runbookPath)).toBe(true);
     const runbook = readFileSync(runbookPath, "utf8");
 
-    // The runbook is written in the language the rest of that document uses, so
-    // the phrasings below accept either — the assertion is about the STATEMENT
-    // being present, not about which language states it.
+    // The phrasings below accept small variants of the wording — the assertion is
+    // about the STATEMENT being present, not about its exact words.
     expect({
       namesTheAlert: runbook.includes("PublishQueueUnattended"),
       // The reading that prevents a destructive retry: the cohort terminalizes
       // under reason="timeout", and that does NOT prove nothing was published.
       statesTheTerminalReason: /reason="timeout"|reason='timeout'/.test(runbook),
-      warnsBeforeRetrying:
-        /does not (prove|mean) (that )?nothing was published/i.test(runbook) ||
-        /NO prueba que no se haya publicado nada/i.test(runbook),
+      warnsBeforeRetrying: /does not (prove|mean) (that )?nothing was published/i.test(runbook),
       // Every rule in this repo is evaluated but routed nowhere yet; a runbook
       // that implies someone gets paged is a promise the system does not keep.
       statesRoutingIsPending: /routing pending/i.test(runbook),

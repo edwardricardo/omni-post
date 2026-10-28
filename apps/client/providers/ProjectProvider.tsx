@@ -4,7 +4,7 @@
  * @file ProjectProvider.tsx
  * @description React context provider that resolves the active project and
  *              account for the multi-tenant client app. Each Account owns N
- *              Projects (in Edward's mental model: "subcuentas"); each Project
+ *              Projects (in the Product Owner's mental model: "sub-accounts"); each Project
  *              partitions channels, posts, and provider connections.
  *
  *              Data fetching is delegated to TanStack Query (`useQuery`):
@@ -101,6 +101,11 @@ function writeStoredSelection(accountId: string, projectId: string): void {
 // Provider component
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolves the active account and project and provides them to its children. While the
+ * queries load, fail or find no account or project it renders a loading, error or empty state in their
+ * place; with both initial ids given it skips the queries.
+ */
 export function ProjectProvider({
   children,
   initialProjectId,
@@ -299,6 +304,12 @@ export function ProjectProvider({
 // Hook
 // ---------------------------------------------------------------------------
 
+/**
+ * @hook useProject
+ * @description Reads the active project context. Throws when called outside a
+ *              `ProjectProvider`.
+ * @returns The active `projectId` and `accountId`, and their setters
+ */
 export function useProject(): ProjectContextValue {
   const context = useContext(ProjectContext);
   if (!context) {

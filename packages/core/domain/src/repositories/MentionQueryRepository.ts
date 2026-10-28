@@ -2,8 +2,8 @@
  * @file MentionQueryRepository.ts
  * @description Read-model query repository port for the brand-listening corpus.
  *   Returns flat DTOs (CQRS read side) for the mention feed and computes Share
- *   of Voice over the normalized corpus. SoV is `mentions_marca / mentions_mercado`
- *   where marca = BRAND-attributed or own-brand (webhook) mentions and mercado =
+ *   of Voice over the normalized corpus. SoV is `mentions_brand / mentions_market`
+ *   where brand = BRAND-attributed or own-brand (webhook) mentions and market =
  *   MARKET-attributed mentions.
  * @layer domain
  */

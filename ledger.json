@@ -67480,7 +67480,7 @@
           "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "d9d60c1703483d27f17596de37002cb0477d2da871c666fb05ff9d27eecf1090"
+          "bodyHash": "1226b1dafe4bc1fb88eb6bb00ae6132914c5a57c9fb3f2e42143838d8b0bc032"
         }
       ],
       "verdict": "KEEP",
@@ -76208,7 +76208,7 @@
           "line": 79,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "6d84cbb26c28248a6fcdcc7b2c9d91c2b71431d09883a2d462d6dcb56b0c81ef"
+          "bodyHash": "1f9679b61811d44a7ea568653be3ba5b2b013fc8aa2b59453f99c404aae295a0"
         },
         {
           "id": "apps/api/tests/unit/scripts/supportFrontMatter.test.ts::reads a key with no item as an empty list, and skips blank and comment lines",
@@ -76317,7 +76317,7 @@
           "line": 134,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "70f24b1fb0eef8272e7e81c44b213b924a0994dc00d1f7603b1feec6dd542083"
+          "bodyHash": "d046845e49eeab4d6051f09e94005a073b663d2f7c45488992f2d306dd083dd4"
         },
         {
           "id": "apps/api/tests/unit/scripts/supportIndex.test.ts::renders an empty index without docs, and a scope error without its contract",

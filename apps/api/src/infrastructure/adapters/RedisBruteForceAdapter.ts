@@ -4,7 +4,7 @@
  *
  *   Canon properties:
  *
- *   1. **Account-based primary** (identifier counter); IP throttle supletoria
+ *   1. **Account-based primary** (identifier counter); supplementary IP throttle
  *      with high threshold (~100) so shared NAT / proxies don't false-positive.
  *   2. **Exponential backoff** with auto-expiry (1s → 300s cap, 30min window).
  *   3. **CAPTCHA threshold = 3** failures.
@@ -44,7 +44,7 @@ export interface RedisBruteForceConfig {
   /** Account-based: per-identifier failure threshold for the rate-limit
    * window (drives `attemptsRemaining`). Default 5. */
   readonly maxFailedAttemptsPerIdentifier: number;
-  /** IP-based: high-threshold supletoria. Default 100 (canon: avoid
+  /** IP-based: supplementary, high threshold. Default 100 (canon: avoid
    * false-positive on shared NAT/proxies). */
   readonly maxFailedAttemptsPerIp: number;
   /** Rolling window over which failures are counted. Default 15 min. */
@@ -62,7 +62,7 @@ export interface RedisBruteForceConfig {
   /** Lockout TTL in minutes (auto-expiry, DoS-conscious). Default 30. */
   readonly lockoutDurationMinutes: number;
 
-  /** IP-based block threshold (very high — supletoria). Default 200. */
+  /** IP-based block threshold (very high — supplementary). Default 200. */
   readonly ipBlockThreshold: number;
   /** IP block TTL in minutes. Default 60. */
   readonly ipBlockDurationMinutes: number;
@@ -116,10 +116,18 @@ export class RedisBruteForceAdapter implements BruteForceProtectionPort {
     this.ipBlockPrefix = `${ns}bf:ipblock:`;
   }
 
+  /**
+   * @method checkLoginAttempt
+   * @description Decides whether a login attempt may proceed: refuses it while the source IP is
+   *   blocked or the account is locked out, and otherwise returns the throttle delay and the
+   *   CAPTCHA flag computed from the current failure counters. Fails open on a Redis error.
+   * @param input - The account identifier, source IP and user agent of the attempt
+   * @returns The verdict, with the delay, the CAPTCHA flag and, when refused, the reason and expiry
+   */
   async checkLoginAttempt(input: CheckLoginAttemptInput): Promise<CheckLoginAttemptResult> {
     const { identifier, ip } = input;
     try {
-      // IP block check (supletoria, high threshold).
+      // IP block check (supplementary, high threshold).
       const ipBlock = await this.checkIpBlock(ip);
       if (ipBlock) {
         this.metrics.metrics.securityThreats.inc({
@@ -180,6 +188,13 @@ export class RedisBruteForceAdapter implements BruteForceProtectionPort {
     }
   }
 
+  /**
+   * @method recordFailedAttempt
+   * @description Records a failed attempt in the per-identifier and per-IP counters, applies the
+   *   account lockout or the IP block when a threshold is crossed, and writes the audit event.
+   *   Best-effort on a Redis error: the error is logged and the attempt proceeds.
+   * @param input - The account identifier, source IP, user agent and failure reason
+   */
   async recordFailedAttempt(input: RecordAttemptInput): Promise<void> {
     const { identifier, ip, userAgent, failureReason } = input;
     const timestamp = Date.now();
@@ -191,7 +206,7 @@ export class RedisBruteForceAdapter implements BruteForceProtectionPort {
         .expire(this.emailFailuresPrefix + identifier, this.config.failureWindowMinutes * 60)
         .exec();
 
-      // Per-IP supletoria counter.
+      // Per-IP supplementary counter.
       await this.redis
         .multi()
         .zadd(this.ipFailuresPrefix + ip, timestamp, `${timestamp}-${Math.random()}`)
@@ -207,7 +222,7 @@ export class RedisBruteForceAdapter implements BruteForceProtectionPort {
 
       // Lockout check (account primary).
       await this.checkAndApplyAccountLockout(identifier);
-      // IP block check (supletoria).
+      // IP block check (supplementary).
       await this.checkAndApplyIpBlock(ip);
 
       // Audit trail (durable).
@@ -225,6 +240,12 @@ export class RedisBruteForceAdapter implements BruteForceProtectionPort {
     }
   }
 
+  /**
+   * @method recordSuccessfulAttempt
+   * @description Records a successful attempt: clears the identifier's failure counter and
+   *   lockout, keeps the IP counter, and writes the audit event. Best-effort on a Redis error.
+   * @param input - The account identifier, source IP and user agent of the attempt
+   */
   async recordSuccessfulAttempt(input: Omit<RecordAttemptInput, "failureReason">): Promise<void> {
     const { identifier, ip, userAgent } = input;
     try {
@@ -248,6 +269,14 @@ export class RedisBruteForceAdapter implements BruteForceProtectionPort {
     }
   }
 
+  /**
+   * @method unlockAccount
+   * @description Admin override that clears an account's lockout and failure counter, and
+   *   writes an audit event attributed to the admin.
+   * @param identifier - The account identifier (email or username) to unlock
+   * @param byAdminId - The id of the admin who unlocks it
+   * @returns `true` when a lockout was cleared; `false` when none was active or Redis failed
+   */
   async unlockAccount(identifier: string, byAdminId: string): Promise<boolean> {
     try {
       const wasLocked = await this.redis.exists(this.accountLockoutPrefix + identifier);
@@ -273,6 +302,14 @@ export class RedisBruteForceAdapter implements BruteForceProtectionPort {
     }
   }
 
+  /**
+   * @method unblockIp
+   * @description Admin override that clears a source IP's block and failure counter, and writes
+   *   an audit event attributed to the admin.
+   * @param ip - The source IP to unblock
+   * @param byAdminId - The id of the admin who unblocks it
+   * @returns `true` when a block was cleared; `false` when none was active or Redis failed
+   */
   async unblockIp(ip: string, byAdminId: string): Promise<boolean> {
     try {
       const wasBlocked = await this.redis.exists(this.ipBlockPrefix + ip);
@@ -298,6 +335,12 @@ export class RedisBruteForceAdapter implements BruteForceProtectionPort {
     }
   }
 
+  /**
+   * @method getStats
+   * @description Reads the explicit stats counters, without scanning keys.
+   * @returns The lockout and IP-block totals and the failure and suspicious-activity counts, or
+   *   zeros when Redis fails
+   */
   async getStats(): Promise<BruteForceStats> {
     // Canon: no redis.keys() O(N). Counters maintained explicitly on each
     // lockout / block emit. Stats reflect cumulative totals + window-based
