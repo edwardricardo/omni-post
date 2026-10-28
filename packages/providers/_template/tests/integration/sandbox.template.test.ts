@@ -44,14 +44,14 @@ describe.skipIf(SKIP)("ExampleAdapter — sandbox integration", () => {
     // expect(result.ok).toBe(true);
     // expect(result.value.providerPostId).toMatch(/^\d+$/);
 
-    expect(true).toBe(true); // placeholder until real assertions
+    expect(true).toBe(true); // stand-in assertion: replace it with the real ones above
   });
 
   it("validates credentials against the real sandbox auth endpoint", async () => {
     // Checks that `adapter.validateCredentials(creds)` returns ok=true for
     // valid creds. Catches changes in the auth endpoint/scope requirements.
 
-    expect(true).toBe(true); // placeholder
+    expect(true).toBe(true); // stand-in assertion: replace it with the provider's real check
   });
 
   // Add more assertions for the provider's critical contract:

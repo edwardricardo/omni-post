@@ -103,7 +103,7 @@ function writeStoredSelection(accountId: string, projectId: string): void {
 
 /**
  * Resolves the active account and project and provides them to its children. While the
- * queries load, fail or find no project it renders a loading, error or empty state in their
+ * queries load, fail or find no account or project it renders a loading, error or empty state in their
  * place; with both initial ids given it skips the queries.
  */
 export function ProjectProvider({
