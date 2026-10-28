@@ -8,7 +8,7 @@ Mode: read-only. Every fact I assert below was re-verified against the tree at `
 
 ### L1-C1 — The named owner requires `config: { rateLimit }`, which R4 abolishes → **AMEND**
 
-**Verified.** `openspec/changes/principal-derived-authority/proposal.md:155`: _"`pre-identity-auth` requires a `config.rateLimit`"_, and `:147` cites `authRoutes.ts:334,346,358` + `customerAuthRoutes.ts:501` — four of the seven blocks C9 deletes — as its precedent. R4.1/R4.2 are MERGE-BLOCKING here and fitness #33 locks the class shut. The collision is real and neither document knew.
+**Verified.** `docs/features/principal-derived-authority/proposal.md:172`: _"`pre-identity-auth` requires a `config.rateLimit`"_, and `:164` cites `authRoutes.ts:334,346,358` + `customerAuthRoutes.ts:501` — four of the seven blocks C9 deletes — as its precedent. R4.1/R4.2 are MERGE-BLOCKING here and fitness #33 locks the class shut. The collision is real and neither document knew.
 
 I refuse one implicit premise: this change does **not** owe accommodation to an un-landed draft. `principal-derived-authority` has zero commits and is untracked; R4 is a ratified merge-blocking requirement of the change actually in flight. The draft adapts, not the spec.
 
@@ -44,7 +44,7 @@ I also refuse _"stage 1 introduces it on the credential surface"_. Today's key f
 
 The design planned to amend the _living_ spec in C9. That is the wrong document and, worse, it is not the binding one: the delta spec for this change re-ratifies fail-open and marks it merge-blocking. A design cannot contradict its own merge blocker by amending a different file.
 
-**On the merits, the design's own evidence argues against it.** §7 puts `/auth/refresh`, `/auth/customer/refresh`, `/admin/auth/refresh` on AUTH; those are credential surface. `deny` therefore converts a Redis outage into a **total authentication outage** — login _and_ session refresh, on both portals, while the rest of the system runs fine on Postgres (`authServiceCore.ts:74-75` and every `hasRedis` guard). The explore names a Redis memory-amplification vector driven by attacker input (§D1). Failing closed on a store an attacker can pressure hands them an authentication kill switch. Fail-closed also does not restore the account layer, which fails open independently (`RedisBruteForceAdapter.ts:165,179`).
+**On the merits, the design's own evidence argues against it.** §7 puts `/auth/refresh`, `/auth/customer/refresh`, `/admin/auth/refresh` on AUTH; those are credential surface. `deny` therefore converts a Redis outage into a **total authentication outage** — login _and_ session refresh, on both portals, while the rest of the system runs fine on Postgres (`authServiceCore.ts:74-75` and every `hasRedis` guard). The [explore](https://github.com/edwardricardo/omni-post/blob/b87b76ac80fbb971ac4c5733e94327d79c02d972/openspec/changes/auth-rate-limit-integrity/explore.md) names a Redis memory-amplification vector driven by attacker input (§D1). Failing closed on a store an attacker can pressure hands them an authentication kill switch. Fail-closed also does not restore the account layer, which fails open independently (`RedisBruteForceAdapter.ts:165,179`).
 
 **Amendment.** `onStoreFailure` is deleted from the rule type — not defaulted to `allow`, deleted. A dimension with one legal value is dead weight, and R10's corollary (do not ship a knob you cannot honour) applies by analogy. What survives from C9 is the honest, provable half: `degraded` on `RateLimitDecision`, `threat_type: "http_rate_limit_failopen"` on an HTTP-scoped logger without `key`, and the Prometheus counter. The residual (a Redis outage removes every credential control at once) is named in §9 with its owner: a durable, Postgres-backed account lockout, which is the only fix that does not trade a bypass for an outage.
 
@@ -148,7 +148,7 @@ Two of the unlisted sites are load-bearing: `oidcRoutes.ts:413` and `samlRoutes.
 
 ### N1 — The rule table is fiction in the direction nobody looked
 
-The explore found two **shadowed** rows (`:66`, `:76`). The other direction — rules whose `path` prefix matches **no registered route pattern**:
+The [explore](https://github.com/edwardricardo/omni-post/blob/b87b76ac80fbb971ac4c5733e94327d79c02d972/openspec/changes/auth-rate-limit-integrity/explore.md) found two **shadowed** rows (`:66`, `:76`). The other direction — rules whose `path` prefix matches **no registered route pattern**:
 
 | Rule              | Path                                      | What actually exists                                                         |
 | ----------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
@@ -397,7 +397,7 @@ Every **authenticated** route stays IP-keyed. Two faces:
 
 ### 5.4 The owner — withdrawn and respecified
 
-**`principal-derived-authority` is not the owner.** Verified: zero commits, untracked, and its own §2 enrols only the plugins it rewrites — none of which contains a route left exposed here. Naming it would be a guarantee with no backing in a spec's Owner field.
+**`principal-derived-authority` is not the owner.** Verified when this design was written: zero commits, untracked, and its own §2 enrols only the plugins it rewrites — none of which contains a route left exposed here. Naming it would be a guarantee with no backing in a spec's Owner field.
 
 Per-principal keying is **intent, with no owning change in the tree today**. Its shape is specified here so the handoff is real: a second, principal-keyed charge inside `requireClientAuth` and `requireAdminAuth` (§5.2), consuming the same policy module and store, whose **precondition is an amendment to R2** admitting exactly two named layers, and whose second precondition is a decided set of per-principal capacities. `SECURITY_CANON §Rate Limiting`'s sentence _"Prefer an authenticated principal over IP when one exists"_ is reworded in C13 as intent naming that shape — leaving it standing while shipping stage 1 would be this change's own defect relocated into a canon document.
 
@@ -452,7 +452,7 @@ The adapter sets it in its catch, **stops logging `key`**, and stops owning the 
 
 **Why the counter is not optional:** `index.ts:389-399` registers `auditMiddleware` and `metricsMiddleware` inside plain (non-`fastify-plugin`) child registrations owning zero routes, so their hooks never run. That is out of scope (§9) — but it means this limiter's 429s produce no audit row and no HTTP metric, so C10's telemetry is the subsystem's **only** signal.
 
-`httpRateLimitPreHandler.ts:218-222` is **not touched** (explore killed claim #2).
+`httpRateLimitPreHandler.ts:218-222` is **not touched** ([explore](https://github.com/edwardricardo/omni-post/blob/b87b76ac80fbb971ac4c5733e94327d79c02d972/openspec/changes/auth-rate-limit-integrity/explore.md) killed claim #2).
 
 ---
 
@@ -534,7 +534,7 @@ A bracketed reference such as `[docs/x.md:12]` links to the version of the page 
 
 ## 10 · Spec amendments this design requires · **AMENDED AT GATE**
 
-Each is a wording change the tasks phase must land in `openspec/changes/auth-rate-limit-integrity/specs/` **before** the requirement it touches is implemented. Every one exists because a spec currently promises something the tree contradicts — the defect class this change exists to remove.
+Each is a wording change the tasks phase must land in `docs/features/auth-rate-limit-integrity/specs.md` **before** the requirement it touches is implemented. Every one exists because a spec currently promises something the tree contradicts — the defect class this change exists to remove.
 
 | #        | Requirement        | Change                                                                                                                                                                                                                                                                           | Driven by                 |
 | -------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |

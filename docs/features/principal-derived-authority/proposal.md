@@ -20,7 +20,7 @@
 
 | Item                                                                                                                    | Why it is here                                                                                                                                                                                                                         |
 | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1 and D4, rebuilt (§4)                                                                                                 | The two owner-signed CRITICALs                                                                                                                                                                                                         |
+| D1 and D4, rebuilt (§4)                                                                                                 | The two CRITICALs the Product Owner signed                                                                                                                                                                                             |
 | The mechanism — three legs (§3)                                                                                         | The class must be structurally unable to regrow; neither CRITICAL is closed by any one leg alone                                                                                                                                       |
 | Fitness **#30** (actor from the wire), **#31b** (client scope with no principal awareness), new **#32** (brand forgery) | §7                                                                                                                                                                                                                                     |
 | Repairing fitness **#23**                                                                                               | It has never fired once; the documented pipeline returns **0** while 16 raw-SQL sites exist (§7)                                                                                                                                       |
@@ -249,7 +249,7 @@ Underneath, leg B's `tenantRoot` strategy makes this durable rather than merely 
 
 ---
 
-## 6. Product decisions the owner must confirm
+## 6. Product decisions the Product Owner must confirm
 
 1. **Who may read the activity feed, and what does it show?**
    _Recommendation:_ rebuild as `GET /account/activity`, scoped to the principal's account, gated on the seeded `audit:read` (held by higher customer roles, not every member), showing the account's own actions with customer actors hydrated, admin/system actions as a non-identifying label, and no raw request URLs.
@@ -257,7 +257,7 @@ Underneath, leg B's `tenantRoot` strategy makes this durable rather than merely 
 
 2. **Is account administration a customer capability at all?**
    _Recommendation:_ **no.** Create, list and delete become admin-only (`admin/accountLifecycleRoutes.ts` already owns them). The customer side keeps only "my account" read (`account:read`) and update of `name` (`account:manage`).
-   _Open sub-question the owner must settle:_ `maxProjects` is currently customer-writable through `PUT /accounts/:accountId` (`:257`). _Recommendation:_ it becomes admin-only — a tenant raising its own quota is a billing-boundary bypass, not a settings change. Consequence of keeping it customer-writable: the plan limit is advisory.
+   _Open sub-question the Product Owner must settle:_ `maxProjects` is currently customer-writable through `PUT /accounts/:accountId` (`:257`). _Recommendation:_ it becomes admin-only — a tenant raising its own quota is a billing-boundary bypass, not a settings change. Consequence of keeping it customer-writable: the plan limit is advisory.
 
 3. **Should an undeclared route fail closed at startup?**
    _Recommendation:_ **yes, within enrolled scope, in this change** — an undeclared route inside the gate's scope prevents boot with the offending method+url named. **No, not globally in this change** — a global hook needs a ~484-entry exemption list, which is a suppression list; enrolment is the inverse polarity and CI ratchets it toward global.
