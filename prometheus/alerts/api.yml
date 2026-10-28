@@ -1,5 +1,5 @@
-# API alerts — §4.2 Normalization Roadmap Phase A1.
-# Métricas fuente: prom-client custom en apps/api/src/metrics/apiMetrics.ts.
+# API alerts.
+# Source metrics: the custom prom-client metrics in apps/api/src/metrics/apiMetrics.ts.
 groups:
   - name: api
     interval: 30s
@@ -12,7 +12,7 @@ groups:
           component: api
         annotations:
           summary: "API p99 latency > 1s for 5min"
-          description: "p99 HTTP request duration ha excedido 1000ms por más de 5min sostenido. Indica saturación de DB, dependencias externas lentas, o algún endpoint con regression."
+          description: "p99 HTTP request duration has exceeded 1000ms for more than 5min, sustained. It points to DB saturation, slow external dependencies, or an endpoint with a regression."
           runbook: docs/runbooks/alert-api-latency.md
           slo: docs/observability/SLO.md#api
 
@@ -24,13 +24,13 @@ groups:
           component: api
         annotations:
           summary: "API 5xx error rate > 5% for 5min"
-          description: "Tasa de 5xx ha excedido 5% por más de 5min. Crítico — afecta a usuarios reales. Investigá deploys recientes + logs Sentry + Grafana api-performance dashboard."
+          description: "The 5xx rate has exceeded 5% for more than 5min. Critical — it affects real users. Investigate recent deploys + Sentry logs + the Grafana api-performance dashboard."
           runbook: docs/runbooks/alert-api-error-rate.md
           slo: docs/observability/SLO.md#api
 
-      # Sin `for:`: la ventana [15m] del `increase()` ya es el suavizado, y un
-      # `for:` agregaría una segunda demora sobre una serie que en estado normal
-      # se mantiene en cero. Sin `slo:`: ninguna definición de SLO cubre
+      # No `for:`: the [15m] window of `increase()` is already the smoothing, and a
+      # `for:` would add a second delay on a series that stays at zero in the
+      # normal state. No `slo:`: no SLO definition covers
       # api_security_threats_total.
       - alert: MfaBackupCodeReuseRejected
         expr: increase(api_security_threats_total{threat_type="mfa_backup_code_reuse"}[15m]) > 0
@@ -39,12 +39,12 @@ groups:
           component: api
         annotations:
           summary: "MFA backup code reuse refused — a consumed recovery code was presented again"
-          description: "El claim del backup code rechazó al menos un intento de consumir un código ya consumido en los últimos 15 minutos. En estado normal esta serie se mantiene en cero, por lo que cualquier emisión sostenida es señal de reutilización de credenciales de recuperación. Consultar el runbook antes de escalar: una colisión entre claims de índices distintos del mismo usuario produce un falso positivo documentado."
+          description: "The backup code claim refused at least one attempt to consume an already consumed code in the last 15 minutes. In the normal state this series stays at zero, so any sustained emission is a sign that recovery credentials are being reused. Read the runbook before escalating: a collision between claims on different indexes of the same user produces a documented false positive."
           runbook: docs/runbooks/alert-mfa-backup-code-reuse.md
 
-      # Misma forma que la regla de arriba y por las mismas razones: sin `for:`
-      # (la ventana [15m] del `increase()` ya suaviza una serie que en estado
-      # normal está en cero) y sin `slo:` (ningún SLO cubre
+      # Same shape as the rule above, for the same reasons: no `for:` (the [15m]
+      # window of `increase()` already smooths a series that is at zero in the
+      # normal state) and no `slo:` (no SLO covers
       # api_security_threats_total).
       - alert: AdminRefreshTokenReplayRejected
         expr: increase(api_security_threats_total{threat_type="admin_refresh_token_replay"}[15m]) > 0
@@ -53,5 +53,5 @@ groups:
           component: api
         annotations:
           summary: "Admin refresh token replay refused — a rotated refresh token was presented again"
-          description: "El claim de rotación rechazó al menos un refresh token ya rotado en los últimos 15 minutos. La revocación en vuelo (logout o revocación administrativa entre la lectura y la escritura) NO emite esta serie: se audita aparte como SESSION_REVOKED_MIDFLIGHT. Consultar el runbook antes de escalar: un refresh simultáneo desde dos pestañas produce un falso positivo documentado."
+          description: "The rotation claim refused at least one already rotated refresh token in the last 15 minutes. An in-flight revocation (a logout or an administrative revocation between the read and the write) does NOT emit this series: it is audited separately as SESSION_REVOKED_MIDFLIGHT. Read the runbook before escalating: a simultaneous refresh from two tabs produces a documented false positive."
           runbook: docs/runbooks/alert-admin-refresh-token-replay.md

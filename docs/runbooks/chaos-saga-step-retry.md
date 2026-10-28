@@ -3,35 +3,35 @@
 > Tests: `apps/api/tests/chaos/saga-step-retry-recovery.integration.test.ts` (retry recovery)
 > and `apps/api/tests/chaos/sagaWaitAmplification.integration.test.ts` (the three-state outcome).
 
-## Invariante validada
+## Invariant validated
 
-Un saga step retryable que falla transiently (e.g., timeout HTTP, conflict de optimistic lock) debe ser **retomado por el recovery scheduler** y reach `COMPLETED` sin pérdida del saga, AÚN si el proceso muere entre intentos.
+A retryable saga step that fails transiently (e.g., an HTTP timeout, an optimistic lock conflict) must be **resumed by the recovery scheduler** and reach `COMPLETED` without losing the saga, EVEN if the process dies between attempts.
 
-La invariante apoya en TRES propiedades del saga engine:
+The invariant rests on THREE properties of the saga engine:
 
-1. **Persistencia de retry state** — cuando un step falla (outcome `failed`) con retry policy en scope, `nextRetryAt` se persiste a `SagaInstance` (no in-memory setTimeout). Source: `apps/api/src/saga/SagaManagerExecution.ts`, rama `stepResult.outcome === "failed"` dentro de `runSagaSteps`.
-2. **Recovery poll** — `SagaManagerLifecycle.startRetryRecoveryChecker()` registra una task que cada 5s busca `SagaInstance` con `status IN (RUNNING, PENDING)` y `nextRetryAt ≤ now`. Source: `apps/api/src/saga/SagaManagerLifecycle.ts`, task `saga-retry-recovery`.
-3. **Resume from persisted state** — `executionEngine.executeSagaAsync(sagaId, trigger)` retoma el saga desde el step actual usando la `compensationData` previa.
+1. **Retry state persistence** — when a step fails (outcome `failed`) with a retry policy in scope, `nextRetryAt` is persisted to `SagaInstance` (not an in-memory setTimeout). Source: `apps/api/src/saga/SagaManagerExecution.ts`, the `stepResult.outcome === "failed"` branch inside `runSagaSteps`.
+2. **Recovery poll** — `SagaManagerLifecycle.startRetryRecoveryChecker()` registers a task that every 5s looks for `SagaInstance` rows with `status IN (RUNNING, PENDING)` and `nextRetryAt ≤ now`. Source: `apps/api/src/saga/SagaManagerLifecycle.ts`, task `saga-retry-recovery`.
+3. **Resume from persisted state** — `executionEngine.executeSagaAsync(sagaId, trigger)` resumes the saga from the current step using the previous `compensationData`.
 
-Si CUALQUIERA de las 3 se rompe → este test falla → potencial data loss entre crashes.
+If ANY of the 3 breaks → this test fails → potential data loss between crashes.
 
-## El contrato de outcomes (lo que cambió, y por qué el vocabulario viejo ya no aplica)
+## The outcome contract (what changed, and why the old vocabulary no longer applies)
 
-Un step responde **una de tres cosas**, y sólo una de ellas es un intento:
+A step answers **one of three things**, and only one of them is an attempt:
 
-| Outcome     | Significa                               | Qué hace el engine                                                                                        |
-| ----------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `succeeded` | el efecto ocurrió                       | avanza al siguiente step y limpia el bookkeeping de retry                                                 |
-| `failed`    | no va a salir bien como están las cosas | gasta UN retry; agotado el presupuesto, compensa (pre-pivot) o falla (pivot en adelante)                  |
-| `waiting`   | todavía no se decide (trabajo externo)  | **NO gasta retry**, no escribe error, no emite evento de step; re-arma el poll (`SAGA_WAIT_POLL_MS`, 30s) |
+| Outcome     | Meaning                              | What the engine does                                                                                   |
+| ----------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `succeeded` | the effect happened                  | advances to the next step and clears the retry bookkeeping                                             |
+| `failed`    | it will not work out as things stand | spends ONE retry; with the budget spent, it compensates (pre-pivot) or fails (from the pivot on)       |
+| `waiting`   | not decided yet (external work)      | **spends NO retry**, writes no error, emits no step event; re-arms the poll (`SAGA_WAIT_POLL_MS`, 30s) |
 
-Consecuencias operativas que hay que tener presentes al diagnosticar:
+Operational consequences to keep in mind while diagnosing:
 
-- **`nextRetryAt` significa DOS cosas.** Un retry vencido y un poll re-armado usan la misma columna. El desempate es `retryCount`: en `0` la fila está ESPERANDO (el step no falló nunca), en `> 0` está reintentando después de fallas reales. La disposición de boot `nextRetryAt-owned-by-checker` cubre las dos.
-- **Ya no existe el sobre de ~35 s.** Un publish cuyos jobs no terminan no muere por presupuesto agotado: espera, y termina por el horizonte del saga (30 min) si nadie lo avanza. Si buscabas "¿por qué esto tardó un minuto?", la respuesta suele ser un intervalo de poll, no un retry.
-- **`success: false` ya no existe** como valor, ni `handleStepFailure()` como método (nunca existió: el manejo vive inline en `runSagaSteps`).
+- **`nextRetryAt` means TWO things.** A due retry and a re-armed poll use the same column. The tie-breaker is `retryCount`: at `0` the row is WAITING (the step never failed), at `> 0` it is retrying after real failures. The boot disposition `nextRetryAt-owned-by-checker` covers both.
+- **The ~35 s envelope no longer exists.** A publish whose jobs do not finish does not die of an exhausted budget: it waits, and it ends by the saga horizon (30 min) if nobody advances it. If you were looking for "why did this take a minute?", the answer is usually a poll interval, not a retry.
+- **`success: false` no longer exists** as a value, nor `handleStepFailure()` as a method (it never existed: the handling lives inline in `runSagaSteps`).
 
-## Cómo correrlo manualmente
+## How to run it by hand
 
 ```bash
 cd apps/api
@@ -39,43 +39,43 @@ NODE_OPTIONS="--max-old-space-size=3072" node --import tsx --conditions developm
   --test-force-exit tests/chaos/saga-step-retry-recovery.integration.test.ts
 ```
 
-Resultado esperado: 1 suite + 1 test verde en ~150ms.
+Expected result: 1 suite + 1 test green in ~150ms.
 
-NO requiere DB/Redis up — usa mocks del `tests/unit/sagaManager.test-helpers.ts`. La "chaos" aquí es ejercer el ciclo de retry-recovery con un step que falla deterministicamente N veces.
+It does NOT need DB/Redis up — it uses the mocks of `tests/unit/sagaManager.test-helpers.ts`. The "chaos" here is exercising the retry-recovery cycle with a step that fails deterministically N times.
 
-El segundo test chaos, `sagaWaitAmplification.integration.test.ts`, corre igual (sin servicios) y pinea la aritmética del fan-out: cuatro canales que publican bien llegan a `COMPLETED` sin gastar un solo retry, y un canal que falla de verdad sigue gastando presupuesto y terminando en `FAILED`.
+The second chaos test, `sagaWaitAmplification.integration.test.ts`, runs the same way (no services) and pins the fan-out arithmetic: four channels that publish fine reach `COMPLETED` without spending a single retry, and a channel that really fails still spends budget and ends in `FAILED`.
 
-## Qué hacer si falla
+## What to do if it fails
 
-### Caso 1: el test reach timeout sin alcanzar COMPLETED
+### Case 1: the test hits its timeout without reaching COMPLETED
 
-Indica que el recovery scheduler NO está retomando el saga. Posibles causas:
+It indicates the recovery scheduler is NOT resuming the saga. Possible causes:
 
-1. **`nextRetryAt` no se persiste**: revisá la rama `failed` de `runSagaSteps` — persiste `nextRetryAt` junto con el step event, en la misma transacción tenant-scoped.
-2. **El scheduler taskId cambió**: el test llama `scheduler.triggerTask("saga-retry-recovery")`. Si el id registrado cambió, actualizar el test.
-3. **El recovery query no encuentra el saga**: `findMany({ where: { status: { in: ["RUNNING","PENDING"] }, nextRetryAt: { lte: now, not: null } } })` — verificar que la combinación `status` + `nextRetryAt` se persiste correctamente.
+1. **`nextRetryAt` is not persisted**: check the `failed` branch of `runSagaSteps` — it persists `nextRetryAt` together with the step event, in the same tenant-scoped transaction.
+2. **The scheduler taskId changed**: the test calls `scheduler.triggerTask("saga-retry-recovery")`. If the registered id changed, update the test.
+3. **The recovery query does not find the saga**: `findMany({ where: { status: { in: ["RUNNING","PENDING"] }, nextRetryAt: { lte: now, not: null } } })` — check that the `status` + `nextRetryAt` combination is persisted correctly.
 
-### Caso 2: el test reach COMPLETED pero `attempts < 3`
+### Case 2: the test reaches COMPLETED but `attempts < 3`
 
-Indica que el saga COMPLETÓ sin pasar por el flujo de retry. Posibles causas:
+It indicates the saga COMPLETED without going through the retry flow. Possible causes:
 
-1. **El step no está dentro del retry policy scope**: la definición de saga debe declarar `retryPolicy`.
-2. **El step devuelve `waiting` donde debería devolver `failed`**: `waiting` NO gasta presupuesto, así que un step mal clasificado nunca reintenta — y peor, oculta una dependencia caída detrás de "todavía no terminó". La regla de autoría está en el docblock de `SagaStepResult`: `waiting` es lo que **se vuelve decidible volviendo a preguntar**; todo lo demás es `failed`, incluido "no pude observar".
+1. **The step is not inside the retry policy scope**: the saga definition must declare `retryPolicy`.
+2. **The step returns `waiting` where it should return `failed`**: `waiting` does NOT spend budget, so a misclassified step never retries — and worse, it hides a dependency that is down behind "not finished yet". The authoring rule is in the `SagaStepResult` docblock: `waiting` is what **becomes decidable by asking again**; everything else is `failed`, "I could not observe" included.
 
-### Caso 3: assertion `nextRetryAt should be cleared after success` falla
+### Case 3: assertion `nextRetryAt should be cleared after success` fails
 
-Indica que el saga COMPLETÓ pero `nextRetryAt` no se limpió. Posibles causas:
+It indicates the saga COMPLETED but `nextRetryAt` was not cleared. Possible causes:
 
-1. **El camino de éxito no limpia el marcador**: en `runSagaSteps`, el step `succeeded` hace `delete instance.nextRetryAt` antes de persistir.
-2. **El saga COMPLETÓ via path distinto al retry-recovery** (ej. el step succedió en su primer intento). Verificar `attempts >= 3` en el assert anterior.
+1. **The success path does not clear the marker**: in `runSagaSteps`, the `succeeded` step does `delete instance.nextRetryAt` before persisting.
+2. **The saga COMPLETED through a path other than retry-recovery** (e.g., the step succeeded on its first attempt). Check `attempts >= 3` in the previous assert.
 
-### Caso 4: la amplificación volvió (el test de fan-out se pone rojo)
+### Case 4: the amplification came back (the fan-out test turns red)
 
-`sagaWaitAmplification.integration.test.ts` en rojo con `retryCount > 0` significa que el step de espera volvió a reportar "todavía no terminó" como una falla, o que el engine dejó de eximir `waiting` del presupuesto. Ese fue el defecto que hacía que un publish de 4 canales terminara `FAILED` con los 4 canales publicados: no lo parchees en el test.
+`sagaWaitAmplification.integration.test.ts` red with `retryCount > 0` means that the waiting step went back to reporting "not finished yet" as a failure, or that the engine stopped exempting `waiting` from the budget. That was the defect that made a 4-channel publish end `FAILED` with all 4 channels published: do not patch it in the test.
 
-## Referencias
+## References
 
-- Source saga engine: `apps/api/src/saga/SagaManager.ts`, `SagaManagerLifecycle.ts`, `SagaManagerExecution.ts`.
-- Contrato de outcomes: `packages/shared/src/saga.ts` (`SagaStepResult`), `docs/api/saga.md`.
+- Saga engine source: `apps/api/src/saga/SagaManager.ts`, `SagaManagerLifecycle.ts`, `SagaManagerExecution.ts`.
+- Outcome contract: `packages/shared/src/saga.ts` (`SagaStepResult`), `docs/api/saga.md`.
 - Test helpers: `apps/api/tests/chaos/chaos-helpers.ts`, `apps/api/tests/unit/sagaManager.test-helpers.ts`.
 - What exists and where it runs: [Testing Infrastructure, section 5](../development/TESTING_INFRASTRUCTURE.md#5-chaos-scenarios).

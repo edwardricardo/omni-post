@@ -3,41 +3,41 @@
 > Alert: `prometheus/alerts/api.yml`
 > SLO: `docs/observability/SLO.md#api`
 
-## Síntoma
+## Symptom
 
-p99 HTTP request duration ha excedido 1000ms por más de 5min sostenido.
+p99 HTTP request duration has exceeded 1000ms for more than 5min, sustained.
 
-## Qué detecta
+## What it detects
 
-Saturación de DB, dependencias externas lentas, o algún endpoint con regression. La métrica `http_duration_bucket` agrupa todos los endpoints — el spike puede venir de un endpoint específico.
+DB saturation, slow external dependencies, or an endpoint with a regression. The `http_duration_bucket` metric groups every endpoint — the spike may come from one specific endpoint.
 
-## Diagnóstico paso-a-paso
+## Step-by-step diagnosis
 
-1. **Identificar el endpoint afectado**: abrir Grafana `api-performance` dashboard → filtrar por path. ¿Es un endpoint específico (e.g., `/ai/generate-localized`)? ¿O todos los endpoints?
-2. **Inspeccionar deploys recientes**: `git log --oneline --since="6 hours ago"`. Hay deploy a main reciente que pueda haber introducido regression?
-3. **Verificar Jaeger traces**: tracer.internal/search → filtrar últimos 30min → encontrar trazas > 1s → identificar el span dominante:
-   - DB span lento → DB locks / missing index / connection pool exhausted.
-   - Provider span lento (OpenAI, Twitter, etc.) → upstream API down — check `provider_publish_*` metrics + `https://status.<provider>.com`.
-   - Internal compute lento → identificar la función + profile local.
-4. **Verificar carga**: `httpRequests` rate / qué CPU/memory en host?
+1. **Identify the affected endpoint**: open the Grafana `api-performance` dashboard → filter by path. Is it one specific endpoint (e.g., `/ai/generate-localized`)? Or every endpoint?
+2. **Inspect recent deploys**: `git log --oneline --since="6 hours ago"`. Is there a recent deploy to main that may have introduced a regression?
+3. **Check the Jaeger traces**: tracer.internal/search → filter the last 30min → find traces > 1s → identify the dominant span:
+   - Slow DB span → DB locks / missing index / connection pool exhausted.
+   - Slow provider span (OpenAI, Twitter, etc.) → upstream API down — check the `provider_publish_*` metrics + `https://status.<provider>.com`.
+   - Slow internal compute → identify the function + profile it locally.
+4. **Check the load**: `httpRequests` rate / what CPU/memory on the host?
 
 ## Remediation
 
-Por causa raíz:
+By root cause:
 
-- **DB-bound**: scale Postgres connection pool (env `DATABASE_URL` + `connection_limit` param). Add index si falta. Re-run query plan con `EXPLAIN ANALYZE`.
-- **Provider-bound**: el circuit breaker (`packages/monitoring/circuit-breaker`) debería abrir en 60s. Si está abierto y la alerta persiste, el fallback strategy puede estar dejando passar carga al provider. Disable el endpoint vía feature flag temporal.
-- **Internal compute**: rollback el deploy reciente vía `git revert <sha> && git push`. Investigar root cause en branch separada.
-- **Carga genuina**: scale apps/api horizontally. Verify Redis cache hit rate — si baja, calentar caches.
+- **DB-bound**: scale the Postgres connection pool (env `DATABASE_URL` + the `connection_limit` param). Add an index if one is missing. Re-run the query plan with `EXPLAIN ANALYZE`.
+- **Provider-bound**: the circuit breaker (`packages/monitoring/circuit-breaker`) should open within 60s. If it is open and the alert persists, the fallback strategy may be letting load through to the provider. Disable the endpoint with a short-lived feature flag.
+- **Internal compute**: roll back the recent deploy with `git revert <sha> && git push`. Investigate the root cause on a separate branch.
+- **Genuine load**: scale apps/api horizontally. Verify the Redis cache hit rate — if it drops, warm the caches.
 
-## Cuándo escalar vs cuándo es ruido
+## When to escalate and when it is noise
 
-- **Ruido**: spike de 5min seguido de auto-recovery (carga puntual, e.g., job cron). Si la alert se cierra en <10min y no hay user impact reportado, document + close.
-- **Escalar**: alerta persiste > 15min OR alerta `ApiErrorRateHigh` co-fires.
+- **Noise**: a 5min spike followed by automatic recovery (a one-off load, e.g., a cron job). If the alert closes in <10min and no user impact is reported, document + close.
+- **Escalate**: the alert persists > 15min OR the `ApiErrorRateHigh` alert co-fires.
 
 ## Links
 
 - Grafana dashboard: `api-performance.json` panel "Request duration p50/p95/p99"
 - Jaeger UI: `tracer.internal`
-- Métrica: `http_duration_bucket{job="api"}`
+- Metric: `http_duration_bucket{job="api"}`
 - SLO target: API latency p99 < 1000ms (`docs/observability/SLO.md#api`)

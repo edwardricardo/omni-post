@@ -68,12 +68,12 @@ encrypted-at-rest credential downstream.
 | Name                      | Format                  | Used by                                         | Encrypts                                                                                                                                                         | Rotation cadence  | Notes                                                                                                                                                                           |
 | ------------------------- | ----------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PLATFORM_ENCRYPTION_KEY` | base64-decoded 32 bytes | `EncryptionService`, `ChannelCredentialsCrypto` | Class A columns: `Channel.credentials`, `PlatformCredential.*`, `AccountCredential.*`, `OidcConfiguration.clientSecret`, `ExternalNotificationConfig.webhookUrl` | NIST 1 year (KEK) | `keyVersion` graceful-rotation window: prior keys live in `PLATFORM_ENCRYPTION_KEY_V{N}` during cutover. AAD-bound `EncryptionContext`                                          |
-| `OAUTH_ENCRYPTION_KEY`    | hex-decoded 32 bytes    | No reader                                       | Nothing: no model has the `ProviderConnection` columns it was described as protecting                                                                            | NIST 1 year (KEK) | Required at boot (`apps/api/src/config/env.ts`) and named in `secretCatalog.ts`; wiring or deleting it is the owner's decision in `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16 |
+| `OAUTH_ENCRYPTION_KEY`    | hex-decoded 32 bytes    | No reader                                       | Nothing: no model has the `ProviderConnection` columns it was described as protecting                                                                            | NIST 1 year (KEK) | Required at boot (`apps/api/src/config/env.ts`), named in `secretCatalog.ts`; wiring or deleting it is the Maintainer's choice in `docs/reports/UNUSED_CODE_INVENTORY.md` §2.16 |
 
 **Generation.** `openssl rand -base64 32` for `PLATFORM_ENCRYPTION_KEY`,
 `openssl rand -hex 32` for `OAUTH_ENCRYPTION_KEY`.
 
-**Rotation procedure.** [T0A §3](./T0A_SECRETS_ROTATION_RUNBOOK.md#3-platform_encryption_key--consideración-especial)
+**Rotation procedure.** [T0A §3](./T0A_SECRETS_ROTATION_RUNBOOK.md#3-platform_encryption_key--special-consideration)
 documents the special handling required (re-wrap of all DEKs, dual-key
 validity windows, audit verification).
 
@@ -350,7 +350,7 @@ in one of five classes:
 
 Rotation = re-wrap with the new KEK version using the
 `*KeyVersion` discriminator. Procedure in
-[T0A §3](./T0A_SECRETS_ROTATION_RUNBOOK.md#3-platform_encryption_key--consideración-especial)
+[T0A §3](./T0A_SECRETS_ROTATION_RUNBOOK.md#3-platform_encryption_key--special-consideration)
 and [T0A §10](./T0A_SECRETS_ROTATION_RUNBOOK.md#10-re-encryption-procedure-when-aad-changes)
 (when AAD changes).
 
@@ -381,7 +381,7 @@ upgrade on next login.
 Shared secrets — omni-post generates, the provider stores. Rotation
 procedure: regenerate locally, push to provider via their API or UI,
 update the `WebhookSubscription` row. Detailed rotation cadence in
-[T0A §7](./T0A_SECRETS_ROTATION_RUNBOOK.md#7-cryptoperiods-canónicos-nist-sp-800-57-part-1-rev-5).
+[T0A §7](./T0A_SECRETS_ROTATION_RUNBOOK.md#7-canonical-cryptoperiods-nist-sp-800-57-part-1-rev-5).
 
 ### 6.4 Class E — Temporary tokens
 
@@ -519,7 +519,7 @@ password to one only the operator knows.
 
 Cryptoperiods consolidated from NIST SP 800-57 Part 1 Rev 5. Detailed
 schedule template in
-[T0A §7](./T0A_SECRETS_ROTATION_RUNBOOK.md#7-cryptoperiods-canónicos-nist-sp-800-57-part-1-rev-5).
+[T0A §7](./T0A_SECRETS_ROTATION_RUNBOOK.md#7-canonical-cryptoperiods-nist-sp-800-57-part-1-rev-5).
 
 | Category                                                                            | Cadence                        | Rotation method                                                           |
 | ----------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------- |
@@ -592,7 +592,7 @@ Immediate steps:
 2. Add it as the new active version (bump `keyVersion`); keep the
    compromised key in the prior-version map for the duration of re-wrap.
 3. Run the re-wrap campaign for every Class A column
-   (procedure: [T0A §3](./T0A_SECRETS_ROTATION_RUNBOOK.md#3-platform_encryption_key--consideración-especial)).
+   (procedure: [T0A §3](./T0A_SECRETS_ROTATION_RUNBOOK.md#3-platform_encryption_key--special-consideration)).
 4. Verify via the audit log that no decrypt operations happened with
    the compromised key after rotation.
 5. Drop the compromised key from env once verification is complete.
@@ -671,7 +671,7 @@ Immediate steps:
 
 ### D.6 Contact
 
-Emergency contact list and escalation path: [T0A Anexo A](./T0A_SECRETS_ROTATION_RUNBOOK.md#anexo-a--contacto-emergencia).
+Emergency contact list and escalation path: [T0A Annex A](./T0A_SECRETS_ROTATION_RUNBOOK.md#annex-a--emergency-contact).
 
 ---
 

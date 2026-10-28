@@ -4,7 +4,7 @@
 > SLO: `docs/observability/SLO.md#providers`
 > Provider catalog: 11 social providers (x, instagram, facebook, youtube, tiktok, snapchat, telegram, pinterest, linkedin, bluesky, threads) + billing gateways (Stripe, Paddle — out of scope, separate workstream).
 
-## Síntoma
+## Symptom
 
 A nightly contract test for one of the 11 social providers fails. The test asserts that:
 
@@ -13,7 +13,7 @@ A nightly contract test for one of the 11 social providers fails. The test asser
 
 A failure means the upstream API contract drifted from what our adapter assumes — **breaking change in production is now a clock**.
 
-## Severidad
+## Severity
 
 - **HIGH** if the provider is one of the active publishing platforms in customer use (publish flow blocked).
 - **MEDIUM** if the failure is on a low-traffic provider OR limited to a non-critical endpoint (e.g., analytics ingestion vs. post publishing).
@@ -21,7 +21,7 @@ A failure means the upstream API contract drifted from what our adapter assumes 
 
 The runbook caller decides severity from the failing test name + provider's customer footprint.
 
-## Qué detecta
+## What it detects
 
 Contract tests use [MSW](https://mswjs.io/) (Mock Service Worker, v2.x) to intercept HTTP traffic from the provider adapter. Each provider has a `tests/integration/contract.test.ts` that:
 
@@ -35,7 +35,7 @@ A test failure means either:
 - **Request shape drift**: our adapter sends a request the handler does not match (we changed something, OR the provider changed required fields/headers).
 - **Response shape drift**: the handler emits a payload our adapter no longer parses (provider changed response field names/types).
 
-## Diagnóstico paso-a-paso
+## Step-by-step diagnosis
 
 1. **Identify the failing provider + endpoint.** The CI failure annotation shows the test file path:
 
@@ -78,7 +78,7 @@ A test failure means either:
    | Provider response schema changed | Update Zod response schema + parser. Re-record MSW fixture.                                             |
    | Auth flow changed                | OAuth2 scope additions / token TTL changes → coordinate with `apps/api/src/auth/`.                      |
 
-## Resolución por clase
+## Resolution by class
 
 ### Request shape drift (we send something wrong)
 
@@ -109,7 +109,7 @@ If the contract test failure represents a breaking change **already in effect** 
 3. If yes → P1 hotfix: revert any local change to the provider adapter, OR cut a quick adapter update + deploy.
 4. If no → the contract test is alerting on a future change. Schedule the adapter update + provider deprecation date.
 
-## Cómo confirmar la fix
+## How to confirm the fix
 
 1. Local contract test green: `pnpm --filter @providers/<provider> test contract.test.ts`.
 2. CI green on the PR.
@@ -121,7 +121,7 @@ If the contract test failure represents a breaking change **already in effect** 
 - Subscribe to each provider's API changelog / developer mailing list (manual operator burden until automated).
 - Add Sentry alert for the same error class in production (linked to provider issuer field) once Sentry alerting wiring lands.
 
-## Referencias
+## References
 
 - Provider contract tests: [Testing Infrastructure, section 6](../development/TESTING_INFRASTRUCTURE.md#6-provider-contract-tests)
 - MSW 2.x docs: https://mswjs.io/docs/
