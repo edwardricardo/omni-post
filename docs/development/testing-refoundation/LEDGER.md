@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1209  |
 | Confirmed rows          | 0     |
-| Blocks                  | 15170 |
+| Blocks                  | 15172 |
 | Blocks with a criterion | 1049  |
 
 ## Rows without a slice
@@ -743,7 +743,7 @@
 | `apps/api/tests/unit/scripts/supportFrontMatter.test.ts`                                              | test             | 9      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/supportIndex.test.ts`                                                    | test             | 10     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/supportNonFeatures.test.ts`                                              | test             | 9      | 0          | KEEP       | machine | behavioural          |
-| `apps/api/tests/unit/scripts/testingMetrics.test.ts`                                                  | test             | 7      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/scripts/testingMetrics.test.ts`                                                  | test             | 9      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/secureSchemas.basic.test.ts`                                                     | test             | 31     | 1          | REWRITE    | machine | some-decorative      |
 | `apps/api/tests/unit/secureSchemas.query.test.ts`                                                     | test             | 38     | 2          | REWRITE    | machine | some-decorative      |
 | `apps/api/tests/unit/secureSchemas.social.test.ts`                                                    | test             | 31     | 0          | KEEP       | machine | behavioural          |

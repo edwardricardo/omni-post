@@ -28,7 +28,7 @@
       "total": 1209
     },
     "blocks": {
-      "total": 15170,
+      "total": 15172,
       "decorative": 1049,
       "byClass": {
         "EMPTY": 17,
@@ -38,7 +38,7 @@
         "SELF-SKIP": 158,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 29,
-        "BEHAVIOURAL": 14092
+        "BEHAVIOURAL": 14094
       }
     },
     "deleted": {
@@ -76451,56 +76451,70 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 7,
+      "blockCount": 9,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::refuses to read an empty table, so no case can pass over rows it never saw",
-          "line": 109,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4853670a249c13c685be97e125ebf479e14e0b2720cac3a0296137168c48f200"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::prints every metric the tracker declares, in order, exactly once",
-          "line": 113,
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8c997f5a9c3e81b9c1930f4044e339401c54ab7b92086cb23ea66a47bf033c54"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::names a source class and a reason for every metric it cannot derive",
-          "line": 124,
+          "line": 127,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98a792fc7dbfb81f16a83828a663796a809af19c58fb1f0099c5b968360a7ba7"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::derives exactly the metrics the tracker says are derived from the tree",
-          "line": 132,
+          "line": 135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b38e6aa45f049ed09195e0130ac0a728a627e1acb3a7d403f3ba8325ceb2ec4b"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::reproduces every derived value of the Now column byte for byte",
-          "line": 142,
+          "line": 145,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "36db07871a306ee181ac9e0f8e4f2055ea52caf2fa88e9d2ee9efbdfc47c0c1a"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::prints the same line alone as it does inside the whole table",
-          "line": 154,
+          "line": 157,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c63f09e23efcced5d89644713ff85608b8588c4f93b29fca3597fad71dbaf1c7"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::exits non-zero on an unknown flag rather than printing nothing",
-          "line": 167,
+          "line": 170,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "693e39e9854d2c1f11bf73523b7e2ea7e4df8c6a2f49d4af6b62e37bc550b0ec"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::derives machine / confirmed / total from summary.rows",
+          "line": 195,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d839ff039b8c99a339eaef42a8e3d6013b2eabd083838e97f23f6ff48e67de21"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::reads as unavailable, never as zeros, given %s",
+          "line": 207,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c542da6f073b17a0f2cf21f2ceae12579a88f9e0a0f47245c8a689dc95c39907"
         }
       ],
       "verdict": "KEEP",

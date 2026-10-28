@@ -343,12 +343,49 @@ function fromSuppressions(id, rules) {
 /**
  * @param {string} id
  * @param {string} artefact
+ * @param {string} pending What the present artefact does not hold yet, completing the reason.
  * @returns {Metric}
  */
-function fromArtefact(id, artefact) {
+function fromArtefact(id, artefact, pending) {
   const file = path.join(REPO_ROOT, artefact);
   if (!existsSync(file)) return { id, value: UNKNOWN, source: absent(artefact) };
-  return { id, value: UNKNOWN, source: `unavailable: ${artefact} needs its own reader` };
+  return { id, value: UNKNOWN, source: `unavailable: ${artefact} ${pending}` };
+}
+
+/** The committed test ledger, `scripts/testing/ledger.mjs`'s output, which M4, M6 and M14 read. */
+const LEDGER = "ledger.json";
+
+/**
+ * M6: the ledger's rows as `machine / confirmed / total`, the counts its `summary.rows` holds once
+ * the owner's overlay is applied. A file that is no JSON, or a summary without the three integer
+ * counts, is reported as unreadable rather than read as zeros, and leaves the other metrics printed.
+ *
+ * @returns {Metric}
+ */
+function m6() {
+  const file = path.join(REPO_ROOT, LEDGER);
+  if (!existsSync(file)) return { id: "M6", value: UNKNOWN, source: absent(LEDGER) };
+  /** @type {unknown} */
+  let ledger;
+  try {
+    ledger = JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return { id: "M6", value: UNKNOWN, source: `unavailable: ${LEDGER} is not JSON` };
+  }
+  const summary =
+    typeof ledger === "object" && ledger !== null
+      ? /** @type {{ summary?: { rows?: Record<string, unknown> } }} */ (ledger).summary
+      : undefined;
+  const rows = summary?.rows;
+  const counts = ["machine", "confirmed", "total"].map((key) => rows?.[key]);
+  if (!counts.every((count) => Number.isInteger(count))) {
+    return { id: "M6", value: UNKNOWN, source: `unavailable: ${LEDGER} holds no summary.rows` };
+  }
+  return {
+    id: "M6",
+    value: counts.join(" / "),
+    source: `derived: ${LEDGER} summary.rows, machine / confirmed / total`,
+  };
 }
 
 /**
@@ -380,9 +417,13 @@ function metricTable(offline) {
       compute: () => pasted("M2", "the local vitest run summary and the integration tier summary"),
     },
     { id: "M3", compute: () => fromSuppressions("M3", SUPPRESSED_RULES.M3) },
-    { id: "M4", compute: () => fromArtefact("M4", "ledger.json") },
+    {
+      id: "M4",
+      compute: () =>
+        fromArtefact("M4", LEDGER, "records no deletion yet: summary.deleted stays at zero"),
+    },
     { id: "M5", compute: m5 },
-    { id: "M6", compute: () => fromArtefact("M6", "ledger.json") },
+    { id: "M6", compute: m6 },
     { id: "M7", compute: m7 },
     { id: "M8", compute: m8 },
     {
@@ -392,9 +433,15 @@ function metricTable(offline) {
     },
     { id: "M10", compute: () => pasted("M10", "the named CI run of the end-to-end job") },
     { id: "M11", compute: () => pasted("M11", "the named CI run of the load job") },
-    { id: "M12", compute: () => fromArtefact("M12", "mutation-floors.json") },
+    {
+      id: "M12",
+      compute: () => fromArtefact("M12", "mutation-floors.json", "needs its own reader"),
+    },
     { id: "M13", compute: () => fromSuppressions("M13", SUPPRESSED_RULES.M13) },
-    { id: "M14", compute: () => fromArtefact("M14", "ledger.json") },
+    {
+      id: "M14",
+      compute: () => fromArtefact("M14", LEDGER, "records no slice's real drop yet"),
+    },
     { id: "M15", compute: () => m15(offline) },
     {
       id: "M16",
