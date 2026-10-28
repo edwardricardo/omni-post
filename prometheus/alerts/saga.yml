@@ -1,7 +1,9 @@
-# Saga alerts — §4.2 Normalization Roadmap Phase A1.
-# Métricas fuente: SagaManagerLifecycle + sagas_failed_total counter.
-# Invariante: las sagas son críticas para correctness distribuida (pre-pivot
-# rollback semantics); timeout spike indica step que cuelga.
+# Saga alerts.
+# Source metrics: the saga engine's (sagas_failed_total, saga_waiting_rows,
+# saga_recovery_*, saga_compensating_orphans) and the publish queue's
+# (publish_queue_waiting, publish_queue_consumers).
+# Invariant: sagas are critical to distributed correctness (pre-pivot
+# rollback semantics); a timeout spike indicates a step that hangs.
 groups:
   - name: saga
     interval: 30s
@@ -14,7 +16,7 @@ groups:
           component: saga
         annotations:
           summary: "More than 3 sagas timed out in 10min"
-          description: "El SagaManagerLifecycle.startTimeoutChecker (60s poll) marcó más de 3 sagas como FAILED por timeout en 10min. Esto indica step que cuelga (provider API down, DB deadlock, infinite loop). Inspeccionar Grafana saga-health dashboard + Jaeger traces. NO incluye las filas parkeadas: esas terminan con reason='parked-expired' y tienen su propia alerta, porque su causa (nadie actuó dentro de la ventana del operador) y su runbook son distintos."
+          description: "SagaManagerLifecycle.startTimeoutChecker (60s poll) marked more than 3 sagas FAILED by timeout in 10min. This indicates a step that hangs (provider API down, DB deadlock, infinite loop). Inspect the Grafana saga-health dashboard + Jaeger traces. It does NOT include parked rows: those end with reason='parked-expired' and have their own alert, because their cause (nobody acted inside the operator window) and their runbook are different."
           runbook: docs/runbooks/alert-saga-timeout.md
           slo: docs/observability/SLO.md#saga
 
@@ -26,7 +28,7 @@ groups:
           component: saga
         annotations:
           summary: "A parked saga was terminalized because nobody acted inside its operator window"
-          description: "Una saga cortada en (o pasado) su pivot quedó PARKED y nadie la resolvió: el timeout checker la llevó a FAILED una ventana completa (30min por defecto) después del momento del parking. La saga canon prohíbe un RUNNING infinito, así que la fila SÍ termina — pero el efecto externo del pivot pudo haber ocurrido, así que este FAILED no significa 'no se publicó'. Cotejar contra el proveedor antes de reintentar nada. Si esto se repite, o el volumen de parking excede lo que un humano puede revisar (SagaParkedAtPivot), o la ventana es demasiado corta para el turno de guardia."
+          description: "A saga cut at (or past) its pivot was left PARKED and nobody resolved it: the timeout checker drove it to FAILED one full window (30min by default) after the moment it was parked. The saga canon forbids an infinite RUNNING, so the row DOES end — but the pivot's external effect may have happened, so this FAILED does not mean 'nothing was published'. Check against the provider before retrying anything. If this repeats, either the parking volume exceeds what a human can review (SagaParkedAtPivot), or the window is too short for the on-call shift."
           runbook: docs/security/MULTI_TENANT_GUARDS.md
           slo: docs/observability/SLO.md#saga
 
@@ -163,7 +165,7 @@ groups:
           component: publish
         annotations:
           summary: "Publish work is enqueued and nothing is consuming it"
-          description: "For five continuous minutes the publish queue held enqueued work and the broker reported NO consumer registered for it — not once. Both terms are required: consumers alone would page on a deliberate scale-to-zero over an empty queue, and waiting depth alone is an ordinary burst. A CEILING (max_over_time) is used deliberately — one scrape that saw a consumer proves attendance — and the unknown sentinel (-1, published when the broker cannot answer its client registry) fails the `== 0` predicate, so a queue whose state could not be READ never pages as an outage. Rule window: 5m lookback + 5m hold = satisfiable at 10 minutes, one third of the 30-minute saga horizon. END-TO-END latency is larger and is NOT that number: scrape and evaluation add ~25s, and the broker's client registry can lag a vanished process by up to its socket reap (~5min at common defaults), so treat ~15 minutes as the measured worst case. What it does NOT prove: registration is not throughput — a consumer that is wedged or paused still holds its registration, so this rule cannot see a worker that is attached and stuck. OPERATOR MEANING: affected sagas stay non-terminal for up to the horizon and then terminalize under reason='timeout'. A terminal failure under that reason does NOT mean nothing was published — the provider may already hold the post. Check the provider before retrying anything. Routing pending §4.2.b: this rule is EVALUATED, not delivered."
+          description: "For five continuous minutes the publish queue held enqueued work and the broker reported NO consumer registered for it — not once. Both terms are required: consumers alone would page on a deliberate scale-to-zero over an empty queue, and waiting depth alone is an ordinary burst. A CEILING (max_over_time) is used deliberately — one scrape that saw a consumer proves attendance — and the unknown sentinel (-1, published when the broker cannot answer its client registry) fails the `== 0` predicate, so a queue whose state could not be READ never pages as an outage. Rule window: 5m lookback + 5m hold = satisfiable at 10 minutes, one third of the 30-minute saga horizon. END-TO-END latency is larger and is NOT that number: scrape and evaluation add ~25s, and the broker's client registry can lag a vanished process by up to its socket reap (~5min at common defaults), so treat ~15 minutes as the measured worst case. What it does NOT prove: registration is not throughput — a consumer that is wedged or paused still holds its registration, so this rule cannot see a worker that is attached and stuck. OPERATOR MEANING: affected sagas stay non-terminal for up to the horizon and then terminalize under reason='timeout'. A terminal failure under that reason does NOT mean nothing was published — the provider may already hold the post. Check the provider before retrying anything. Routing pending: this rule is EVALUATED, not delivered."
           runbook: docs/runbooks/alert-saga-timeout.md
           slo: docs/observability/SLO.md#saga
 
@@ -175,6 +177,6 @@ groups:
           component: publish
         annotations:
           summary: "The publish attendance signal itself stopped arriving"
-          description: "No sample of publish_queue_consumers has been seen for ten minutes. This guards the rule above against its own blind spot: max_over_time over an ABSENT series yields no result, so if the API that publishes this series is down, or its scrape target is misconfigured, PublishQueueUnattended silently stops firing — at the moment closest to the incident. This says the OBSERVER is missing, not that the queue is unattended; the two are different problems with different remedies. Check that the API is up and that its /metrics endpoint is being scraped. Routing pending §4.2.b: this rule is EVALUATED, not delivered."
+          description: "No sample of publish_queue_consumers has been seen for ten minutes. This guards the rule above against its own blind spot: max_over_time over an ABSENT series yields no result, so if the API that publishes this series is down, or its scrape target is misconfigured, PublishQueueUnattended silently stops firing — at the moment closest to the incident. This says the OBSERVER is missing, not that the queue is unattended; the two are different problems with different remedies. Check that the API is up and that its /metrics endpoint is being scraped. Routing pending: this rule is EVALUATED, not delivered."
           runbook: docs/runbooks/alert-saga-timeout.md
           slo: docs/observability/SLO.md#saga

@@ -1,7 +1,7 @@
-# Outbox alerts — §4.2 Normalization Roadmap Phase A1.
-# Métricas fuente: outbox_pending_events gauge (OutboxRelay poll metric).
-# Invariante: en steady-state, el relay procesa eventos casi en realtime; un
-# pending count alto indica relay stuck o downstream consumer saturado.
+# Outbox alerts.
+# Source metric: the outbox_pending_events gauge (OutboxRelay poll metric).
+# Invariant: in steady state the relay processes events almost in real time; a
+# high pending count indicates a stuck relay or a saturated downstream consumer.
 groups:
   - name: outbox
     interval: 30s
@@ -14,6 +14,6 @@ groups:
           component: outbox
         annotations:
           summary: "Outbox has >100 pending events for 5min — relay may be stuck"
-          description: "El outbox relay debería procesar eventos en <1s en steady-state. Pending > 100 sostenido indica relay crasheado, lease expirado pero no reclaimable, o downstream BullMQ saturado. El OutboxClaimService lease (5min) debería re-claim — si no, el relay process murió. Inspeccionar Grafana outbox dashboard + apps/api logs."
+          description: "The outbox relay should process events in <1s in steady state. Pending > 100, sustained, indicates a crashed relay, an expired lease that cannot be reclaimed, or a saturated downstream BullMQ. The OutboxClaimService lease (5min) should re-claim — if it does not, the relay process died. Inspect the Grafana outbox dashboard + apps/api logs."
           runbook: docs/runbooks/alert-outbox-lag.md
           slo: docs/observability/SLO.md#outbox
