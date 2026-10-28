@@ -3,120 +3,120 @@
 > Alert: `prometheus/alerts/saga.yml`
 > SLO: `docs/observability/SLO.md#saga`
 
-## Síntoma
+## Symptom
 
-Más de 3 sagas fueron marcadas FAILED por timeout en los últimos 10min.
+More than 3 sagas were marked FAILED by timeout in the last 10min.
 
-## Severidad: CRITICAL
+## Severity: CRITICAL
 
-Saga timeout = un saga step quedó colgado > 30min (timeout default). Si pre-pivot → compensation se ejecuta. Si post-pivot → estado inconsistente posible. Crítico.
+Saga timeout = a saga step hung > 30min (the default timeout). If pre-pivot → compensation runs. If post-pivot → an inconsistent state is possible. Critical.
 
-## Qué detecta
+## What it detects
 
-El horizonte se evalúa en DOS lugares, con una sola implementación (`SagaManagerLifecycle.terminalizeIfPastHorizon`):
+The horizon is evaluated in TWO places, with a single implementation (`SagaManagerLifecycle.terminalizeIfPastHorizon`):
 
-- el timeout checker (`saga-timeout-checker`, poll 60s) recorre las sagas que este proceso trackea;
-- **y todo avanzador**: antes de mover una saga, la pasada de ejecución pregunta lo mismo. Eso cubre las filas que el proceso NUNCA trackeó (diferidas por el techo de boot, o cargadas por id), que antes dependían del presupuesto de reintentos para terminar.
+- the timeout checker (`saga-timeout-checker`, 60s poll) walks the sagas this process tracks;
+- **and every advancer**: before moving a saga, the execution pass asks the same question. That covers the rows the process NEVER tracked (deferred by the boot ceiling, or loaded by id), which used to depend on the retry budget to end.
 
-Compara `Date.now() - instance.startedAt` contra `definition.timeout` y llama `failSaga(instance, "Saga timeout exceeded", "timeout")`. Las filas parked y las COMPENSATING tienen sus propios horizontes (ventana de operador y liveness del walk) y NO caen en este.
+It compares `Date.now() - instance.startedAt` against `definition.timeout` and calls `failSaga(instance, "Saga timeout exceeded", "timeout")`. Parked rows and COMPENSATING rows have their own horizons (the operator window and the walk's liveness) and do NOT fall under this one.
 
-**LA CAUSA DOMINANTE CAMBIÓ.** Un step que espera trabajo externo (los jobs de publish) ya no gasta presupuesto de reintentos: responde `waiting`, se re-arma cada `SAGA_WAIT_POLL_MS` (default 30 s) y sólo termina por ESTE horizonte. Antes, "workers caídos" moría en ~35 s como `reason="step-failure"` y nunca llegaba a esta alerta; ahora es la causa más probable de un pico de timeouts, y llega media hora después del incidente real, con todo el cohorte junto.
+**THE DOMINANT CAUSE CHANGED.** A step that waits on external work (the publish jobs) no longer spends retry budget: it answers `waiting`, re-arms every `SAGA_WAIT_POLL_MS` (default 30 s) and only ends by THIS horizon. Before, "workers down" died in ~35 s as `reason="step-failure"` and never reached this alert; now it is the most likely cause of a timeout spike, and it arrives half an hour after the real incident, with the whole cohort at once.
 
-Causas comunes, en orden de probabilidad hoy:
+Common causes, in order of likelihood today:
 
-- **BullMQ jobs encolados pero no procesados (workers caídos o sin consumir).** Mirá primero `saga_waiting_rows` y su alerta `SagaWaitingRowsAccumulating`: si venía subiendo, el incidente empezó ahí, ~30 min antes de este pico.
-- Step que espera HTTP a un provider down (sin circuit breaker timeout o con timeout demasiado largo).
-- DB deadlock en una transacción que el step inicia.
-- Recovery scheduler crasheó y los retries/polls quedaron sin procesar.
+- **BullMQ jobs enqueued but not processed (workers down or not consuming).** Look at `saga_waiting_rows` and its alert `SagaWaitingRowsAccumulating` first: if it was rising, the incident started there, ~30 min before this spike.
+- A step waiting on HTTP to a provider that is down (no circuit breaker timeout, or a timeout that is too long).
+- A DB deadlock in a transaction the step starts.
+- The recovery scheduler crashed and the retries/polls were left unprocessed.
 
-## La población que espera (mirá esto ANTES del pico)
+## The waiting population (look at this BEFORE the spike)
 
 ```sql
--- Sagas esperando trabajo externo AHORA: RUNNING con re-entrada programada.
--- retryCount = 0 => está esperando; > 0 => está reintentando tras fallas reales.
+-- Sagas waiting on external work NOW: RUNNING with a scheduled re-entry.
+-- retryCount = 0 => it is waiting; > 0 => it is retrying after real failures.
 SELECT id, "definitionId", "currentStep", "retryCount", "nextRetryAt", "startedAt"
 FROM "SagaInstance"
 WHERE status = 'RUNNING' AND "nextRetryAt" IS NOT NULL
 ORDER BY "startedAt";
 ```
 
-La misma población está en Prometheus como `saga_waiting_rows` (gauge medido en el scrape). Un nivel que sube y no drena es trabajo que se empieza y no se termina; el scan pagina 50 filas cada 5 s, así que por encima de ~300 sagas en espera la latencia del poll también empieza a crecer.
+The same population is in Prometheus as `saga_waiting_rows` (a gauge measured at scrape time). A level that rises and does not drain is work that is started and not finished; the scan pages 50 rows every 5 s, so above ~300 waiting sagas the poll latency starts to grow as well.
 
-## Sin consumidor en la cola `publish` (`PublishQueueUnattended`)
+## No consumer on the `publish` queue (`PublishQueueUnattended`)
 
-> Reglas: `PublishQueueUnattended` (critical) y su acompañante `PublishQueueSignalMissing` (warning), en `prometheus/alerts/saga.yml`.
-> **Routing pending §4.2.b**: hoy TODAS las reglas de este repo se EVALÚAN pero no se entregan — el bloque `alertmanagers:` de `prometheus/prometheus.yml` está comentado. Nadie recibe una notificación push por esto; hay que mirarlo.
+> Rules: `PublishQueueUnattended` (critical) and its companion `PublishQueueSignalMissing` (warning), in `prometheus/alerts/saga.yml`.
+> **Routing pending §4.2.c**: today ALL the rules of this repo are EVALUATED but not delivered — the `alertmanagers:` block of `prometheus/prometheus.yml` is commented out. Nobody receives a push notification for this; someone has to look at it.
 
-Esta es la señal temprana del pico de timeouts descrito arriba, y llega antes del daño.
+This is the early signal of the timeout spike described above, and it arrives before the damage.
 
-**Qué dice exactamente.** Durante 5 minutos continuos hubo trabajo encolado en `publish` y el broker no reportó NI UNA VEZ un consumidor registrado para esa cola. Los dos términos son obligatorios: sólo consumidores dispararía ante un scale-to-zero deliberado con la cola vacía, y sólo profundidad de cola dispararía ante cualquier ráfaga normal.
+**What it says exactly.** For 5 continuous minutes there was work enqueued in `publish` and the broker did NOT report, NOT ONCE, a consumer registered for that queue. Both terms are required: consumers alone would fire on a deliberate scale-to-zero with the queue empty, and queue depth alone would fire on any ordinary burst.
 
-**Ventana.** Lookback 5m + `for: 5m` = la regla se satisface a los **10 minutos**, un tercio del horizonte de 30 minutos. La latencia extremo-a-extremo es MAYOR y no es ese número: scrape y evaluación suman ~25 s, y el registro de clientes del broker puede arrastrar un proceso desaparecido hasta su reap de socket (~5 min con los defaults habituales). Peor caso medido: **~15 minutos**, todavía la mitad del horizonte.
+**Window.** Lookback 5m + `for: 5m` = the rule is satisfied at **10 minutes**, one third of the 30-minute horizon. The end-to-end latency is LARGER and is not that number: scrape and evaluation add ~25 s, and the broker's client registry can keep a vanished process until its socket reap (~5 min with the usual defaults). Measured worst case: **~15 minutes**, still half the horizon.
 
-**Qué NO prueba.** Registro no es throughput. Un consumidor trabado (loop bloqueado, lock retenido) o pausado sigue registrado, así que esta regla no lo ve. Tampoco dice nada sobre si ese consumidor logra publicar: sólo que hay algo escuchando.
+**What it does NOT prove.** Registration is not throughput. A wedged consumer (blocked loop, held lock) or a paused one stays registered, so this rule does not see it. Nor does it say anything about whether that consumer manages to publish: only that something is listening.
 
-**`-1` no es cero.** `publish_queue_consumers` publica `-1` cuando la cuenta NO se pudo leer (el broker rechaza `CLIENT LIST`, el puerto falló, o el proveedor no está instalado). Un gauge de Prometheus no tiene null, y la regla dispara con `== 0`: el centinela negativo falla ese predicado a propósito, para que una pregunta sin respuesta nunca pagine como una caída. Si ves `-1`, el problema es de observabilidad, no de consumo.
+**`-1` is not zero.** `publish_queue_consumers` publishes `-1` when the count could NOT be read (the broker refuses `CLIENT LIST`, the port failed, or the provider is not installed). A Prometheus gauge has no null, and the rule fires on `== 0`: the negative sentinel fails that predicate on purpose, so that an unanswered question never pages as an outage. If you see `-1`, the problem is observability, not consumption.
 
-**Lectura para el operador — leer antes de tocar nada.** Las sagas afectadas quedan NO terminales hasta el horizonte y después terminalizan bajo `reason="timeout"`. **Un fallo terminal bajo esa razón NO prueba que no se haya publicado nada**: el pivot ya encoló los jobs, y un worker que vuelve puede haberlos drenado, o el provider puede haber recibido el post antes de que se perdiera el evento de completado. Verificá en el provider ANTES de reintentar cualquier cosa; un reintento a ciegas publica dos veces.
+**Reading for the operator — read before touching anything.** The affected sagas stay NON-terminal until the horizon and then terminalize under `reason="timeout"`. **A terminal failure under that reason does NOT prove that nothing was published**: the pivot already enqueued the jobs, and a worker that comes back may have drained them, or the provider may have received the post before the completion event was lost. Check the provider BEFORE retrying anything; a blind retry publishes twice.
 
 **Handling.**
 
-1. `curl -s localhost:3000/health/dependency/queue | jq .details` — `consumers: 0` confirma la caída; `null` significa desconocido, no cero.
-2. Verificá que el proceso de workers esté vivo y con `/health/ready` en 200 (puerto `METRICS_PORT`, default 3300). Su readiness ya exige un consumidor por cada cola del pipeline de publish, así que un 503 nombra cuál falta.
-3. Si los workers están caídos: levantalos (`pnpm dev:workers`) y observá `publish_queue_waiting` drenar. Las sagas parkeadas retoman en un intervalo de poll más un tick de scan — no hace falta re-dispararlas a mano.
-4. Recién después, para las sagas que YA terminalizaron bajo `reason="timeout"`, seguí el paso 1 de "Remediation" con la verificación en el provider primero.
+1. `curl -s localhost:3000/health/dependency/queue | jq .details` — `consumers: 0` confirms the outage; `null` means unknown, not zero.
+2. Check that the workers process is alive and answers 200 on `/health/ready` (port `METRICS_PORT`, default 3300). Its readiness already requires one consumer per queue of the publish pipeline, so a 503 names the one that is missing.
+3. If the workers are down: bring them up (`pnpm dev:workers`) and watch `publish_queue_waiting` drain. The parked sagas resume within one poll interval plus one scan tick — there is no need to re-trigger them by hand.
+4. Only then, for the sagas that ALREADY terminalized under `reason="timeout"`, follow step 1 of "Remediation", with the check on the provider first.
 
-Si la regla que falta es `PublishQueueSignalMissing`, el problema es el OBSERVADOR, no la cola: la API que publica la serie está caída o su target de scrape está mal configurado. `PublishQueueUnattended` deja de evaluarse en silencio en ese estado, que es justo el momento más cercano al incidente.
+If the rule that fires is `PublishQueueSignalMissing`, the problem is the OBSERVER, not the queue: the API that publishes the series is down or its scrape target is misconfigured. `PublishQueueUnattended` stops being evaluated, silently, in that state, which is exactly the moment closest to the incident.
 
-## Diagnóstico paso-a-paso
+## Step-by-step diagnosis
 
-1. **Identificar las sagas afectadas**: query DB:
+1. **Identify the affected sagas**: DB query:
    ```sql
    SELECT id, "definitionId", "currentStep", "errorMessage", "startedAt"
    FROM "SagaInstance"
    WHERE status = 'FAILED' AND "errorMessage" LIKE '%timeout%'
    ORDER BY "startedAt" DESC LIMIT 10;
    ```
-2. **¿Todas la misma `definitionId`?** Si sí, regression en un saga específico. Si no, infra issue (DB/Redis/workers).
-3. **¿Todas el mismo `currentStep`?** Identifica el step que cuelga. Inspeccionar su `execute()` source.
-4. **Jaeger trace del primer saga**: buscar `saga.execute` span > 30min. ¿Qué descendiente span está corriendo cuando timeout fires? (Probablemente provider call o DB query.)
-5. **BullMQ queue depths**: `pnpm --filter @apps/api exec node --eval "..." -e "console.log(await queue.getJobCounts())"` — ¿hay jobs `active` pero no se procesan? Workers caídos?
-6. **Recovery scheduler health**: ¿está corriendo? `pnpm --filter @apps/api exec node` y verificar logs "Saga retry recovery scan" cada 5s.
+2. **All the same `definitionId`?** If so, a regression in one specific saga. If not, an infra issue (DB/Redis/workers).
+3. **All the same `currentStep`?** It identifies the step that hangs. Inspect its `execute()` source.
+4. **Jaeger trace of the first saga**: search for a `saga.execute` span > 30min. Which descendant span is running when the timeout fires? (Probably a provider call or a DB query.)
+5. **BullMQ queue depths**: `pnpm --filter @apps/api exec node --eval "..." -e "console.log(await queue.getJobCounts())"` — are there `active` jobs that are not being processed? Workers down?
+6. **Recovery scheduler health**: is it running? `pnpm --filter @apps/api exec node` and check for the "Saga retry recovery scan" logs every 5s.
 
 ## Remediation
 
-- **Step que cuelga en provider call**: agregar timeout al circuit breaker del provider. Investigar root cause (provider lento? auth expired?).
-- **DB deadlock**: identificar la query + agregar `SELECT FOR UPDATE NOWAIT` o reordenar locks. Si frecuente, revisar isolation level.
-- **Workers caídos**: restart `apps/workers` pod. Investigar OOM/crash logs. Las sagas que estaban esperando NO se perdieron: al volver los workers, sus eventos de completado las avanzan, y las que ya no tienen evento las levanta el poll dentro de un intervalo.
-- **La cola de latencia es esperable, no un bug**: cuando el evento de completado corre contra la actualización de estado de la cola, la saga espera un intervalo de poll antes de ver el desenlace. Si eso es demasiado para tu despliegue, bajá `SAGA_WAIT_POLL_MS` (mínimo 1000) — a cambio de más lecturas de la cola por saga.
-- **Recovery scheduler stuck**: restart `apps/api` (lifecycle se re-inicializa en init()).
+- **Step hanging on a provider call**: add a timeout to the provider's circuit breaker. Investigate the root cause (slow provider? expired auth?).
+- **DB deadlock**: identify the query + add `SELECT FOR UPDATE NOWAIT` or reorder the locks. If it is frequent, review the isolation level.
+- **Workers down**: restart the `apps/workers` pod. Investigate the OOM/crash logs. The sagas that were waiting were NOT lost: when the workers come back, their completion events advance them, and the poll picks up within one interval the ones that no longer have an event.
+- **The latency tail is expected, not a bug**: when the completion event races the queue's state update, the saga waits one poll interval before it sees the outcome. If that is too much for your deployment, lower `SAGA_WAIT_POLL_MS` (minimum 1000) — at the cost of more queue reads per saga.
+- **Recovery scheduler stuck**: restart `apps/api` (the lifecycle re-initializes in init()).
 
 ## Manual saga recovery
 
-Si las sagas FAILED son recoverable (estado consistente al momento del timeout), trigger manual:
+If the FAILED sagas are recoverable (a consistent state at the moment of the timeout), trigger them by hand:
 
 ```bash
-# Identifica sagas:
+# Identify the sagas:
 psql -c "SELECT id FROM \"SagaInstance\" WHERE status = 'FAILED' AND \"errorMessage\" LIKE '%timeout%'"
 
-# Re-trigger via HTTP admin endpoint:
+# Re-trigger through the HTTP admin endpoint:
 curl -X POST localhost:3000/admin/saga/<sagaId>/continue
 ```
 
-Si NO son recoverable (estado roto, e.g., post-pivot side effects ya ejecutados parcialmente):
+If they are NOT recoverable (a broken state, e.g., post-pivot side effects already partially executed):
 
-- Manual cleanup según el saga: ej. `post-publishing-saga` puede requerir publicar el post manualmente vía admin UI + marcar saga COMPENSATED.
+- Manual cleanup according to the saga: e.g., `post-publishing-saga` may require publishing the post by hand through the admin UI + marking the saga COMPENSATED.
 
-## Cuándo escalar
+## When to escalate
 
-- 3+ sagas distintas timing out simultáneamente con misma `currentStep` → likely infra/provider issue, no saga bug.
-- Si ningún saga del mismo type COMPLETÓ en últimos 30min → producto degradado, page on-call.
+- 3+ distinct sagas timing out at the same time with the same `currentStep` → likely an infra/provider issue, not a saga bug.
+- If no saga of the same type COMPLETED in the last 30min → the product is degraded; page on-call.
 
 ## Links
 
 - Grafana: `business-metrics.json` panel "Sagas by status"
-- Tabla: `SagaInstance` en Postgres
-- Source: `apps/api/src/saga/SagaManagerLifecycle.ts` — `startTimeoutChecker` (task `saga-timeout-checker`) y `terminalizeIfPastHorizon` (el mismo horizonte, preguntado por cualquier avanzador)
+- Table: `SagaInstance` in Postgres
+- Source: `apps/api/src/saga/SagaManagerLifecycle.ts` — `startTimeoutChecker` (task `saga-timeout-checker`) and `terminalizeIfPastHorizon` (the same horizon, asked by any advancer)
 - Config: `SAGA_WAIT_POLL_MS` (`apps/api/src/config/env.ts`, default 30000)
-- Related runbook: `chaos-saga-step-retry.md` (entiende el flujo de retry/recovery)
+- Related runbook: `chaos-saga-step-retry.md` (understand the retry/recovery flow)
 - SLO: completion rate > 99% (`docs/observability/SLO.md#saga`)

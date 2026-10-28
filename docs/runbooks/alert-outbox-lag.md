@@ -3,22 +3,22 @@
 > Alert: `prometheus/alerts/outbox.yml`
 > SLO: `docs/observability/SLO.md#outbox`
 
-## Síntoma
+## Symptom
 
-`outbox_pending_events > 100` por más de 5min sostenido.
+`outbox_pending_events > 100` for more than 5min, sustained.
 
-## Qué detecta
+## What it detects
 
-El outbox relay debería procesar eventos en <1s en steady-state. Pending sustained > 100 indica:
+The outbox relay should process events in <1s in steady state. Pending sustained > 100 indicates:
 
-1. Relay crasheado en el proceso apps/api.
-2. Claim leases (5min) no se están liberando (deadlock interno).
-3. Downstream consumer (BullMQ) saturado — relay claims OK pero handlers crashing.
-4. Spike puntual de carga (e.g., bulk operation) — debería auto-resolverse.
+1. The relay crashed in the apps/api process.
+2. Claim leases (5min) are not being released (an internal deadlock).
+3. The downstream consumer (BullMQ) is saturated — the relay claims fine but the handlers are crashing.
+4. A one-off load spike (e.g., a bulk operation) — it should resolve itself.
 
-## Diagnóstico paso-a-paso
+## Step-by-step diagnosis
 
-1. **Conteo exacto en DB**:
+1. **Exact count in the DB**:
 
    ```sql
    SELECT count(*), status FROM "OutboxEvent"
@@ -26,37 +26,37 @@ El outbox relay debería procesar eventos en <1s en steady-state. Pending sustai
    GROUP BY status;
    ```
 
-   - Si todos `PENDING` y zero `CLAIMED`: relay no está claiming → relay process down.
-   - Si muchos `CLAIMED` con `claimedAt` viejo: leases stuck. El lease expira en 5min, debería auto-recover. Si no, hay bug.
+   - If all are `PENDING` and zero are `CLAIMED`: the relay is not claiming → the relay process is down.
+   - If many are `CLAIMED` with an old `claimedAt`: the leases are stuck. A lease expires in 5min and should recover by itself. If it does not, there is a bug.
 
-2. **Logs apps/api**: buscar `"OutboxRelay"` últimos 30min. Hay errores `"Outbox claim failed"` repetidos?
+2. **apps/api logs**: search for `"OutboxRelay"` over the last 30min. Are there repeated `"Outbox claim failed"` errors?
 
-3. **Procesos vivos**: el relay corre **in-process** vía `BackgroundTaskScheduler.register("outbox-relay", ...)`. Si apps/api está running, el relay DEBERÍA estar corriendo. `curl /health/detailed` → check si el dependency check del outbox aparece.
+3. **Live processes**: the relay runs **in-process** through `BackgroundTaskScheduler.register("outbox-relay", ...)`. If apps/api is running, the relay SHOULD be running. `curl /health/detailed` → check whether the outbox dependency check appears.
 
-4. **Downstream BullMQ queue depths**: si los handlers que consumen del outbox están saturados, el `messageId` unique constraint impedirá re-publish pero los items no se marcarán `PROCESSED`.
+4. **Downstream BullMQ queue depths**: if the handlers that consume from the outbox are saturated, the `messageId` unique constraint will prevent a re-publish, but the items will not be marked `PROCESSED`.
 
-5. **Recently-released code**: ¿hay change reciente al `OutboxRelay.ts` o `OutboxClaimService.ts`? `git log apps/api/src/infrastructure/outbox/ --since="24 hours ago"`.
+5. **Recently released code**: is there a recent change to `OutboxRelay.ts` or `OutboxClaimService.ts`? `git log apps/api/src/infrastructure/outbox/ --since="24 hours ago"`.
 
 ## Remediation
 
-- **Relay process down**: restart `apps/api`. El `OutboxClaimService` reclaim leases automáticamente al boot.
-- **Stuck CLAIMED leases**: si el restart no los limpia, manual cleanup:
+- **Relay process down**: restart `apps/api`. `OutboxClaimService` reclaims the leases automatically at boot.
+- **Stuck CLAIMED leases**: if the restart does not clear them, clean them up by hand:
   ```sql
   UPDATE "OutboxEvent" SET status = 'PENDING', "claimedAt" = NULL
   WHERE status = 'CLAIMED' AND "claimedAt" < NOW() - INTERVAL '10 minutes';
   ```
-- **Downstream BullMQ saturated**: scale workers (e.g., apps/workers pod count). Investigar si algún handler tiene bug que crashea + retries acumulan.
-- **Spike puntual**: monitorear 10min más. Si baja, document + close. Si no, treat como una de las causas anteriores.
+- **Downstream BullMQ saturated**: scale the workers (e.g., the apps/workers pod count). Investigate whether a handler has a bug that crashes it while retries pile up.
+- **One-off spike**: watch it for 10 more min. If it drops, document + close. If not, treat it as one of the causes above.
 
-## Cuándo escalar
+## When to escalate
 
-- Pending > 1000 sostenido > 15min → page on-call (data loss risk si Postgres se queda sin storage).
-- Si después de restart el lag sigue subiendo en lugar de bajar → bug en el relay, escalar a backend.
+- Pending > 1000 sustained > 15min → page on-call (data loss risk if Postgres runs out of storage).
+- If after the restart the lag keeps rising instead of falling → a bug in the relay; escalate to backend.
 
 ## Links
 
 - Grafana: `business-metrics.json` panel "Outbox pending events"
-- Tabla: `OutboxEvent` en Postgres
+- Table: `OutboxEvent` in Postgres
 - Source: `apps/api/src/infrastructure/outbox/OutboxRelay.ts`, `OutboxClaimService.ts`
-- Métrica: `outbox_pending_events` gauge
+- Metric: `outbox_pending_events` gauge
 - SLO: pending < 100 steady-state, time-to-publish p99 < 30s (`docs/observability/SLO.md#outbox`)

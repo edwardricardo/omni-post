@@ -1,88 +1,88 @@
 # T0-A — Secrets Rotation Runbook
 
-> **Propósito.** Guía paso a paso para que Edward rote todos los secrets expuestos como resultado del finding L-591 (`.env` tracked en repo público).
+> **Purpose.** A step-by-step guide for the Maintainer to rotate every secret exposed as a result of finding L-591 (`.env` tracked in a public repo).
 >
-> **Scope.** Este documento NO ejecuta rotación — describe CÓMO hacerla fuera del plan T0-A. La parte ejecutada en código es: untrack de `.env`, regeneración de `.env.example`, y este runbook.
+> **Scope.** This document does NOT perform the rotation — it describes HOW to do it outside the T0-A plan. The part done in code is: untracking `.env`, regenerating `.env.example`, and this runbook.
 >
-> **Audiencia.** Edward (dueño del repo / operador).
+> **Audience.** The Maintainer (who owns and operates the repository).
 >
-> **Fecha creación.** 2026-04-21.
+> **Created.** 2026-04-21.
 >
-> **Criterio de éxito.** `git log --all --oneline -- .env` retorna 0 líneas + todos los servicios externos corriendo con nuevos secrets + apps redeployadas verde.
+> **Success criterion.** `git log --all --oneline -- .env` returns 0 lines + every external service running with new secrets + apps redeployed green.
 >
-> **Estado (2026-10-15): VIGENTE, NO EJECUTADO.** La rotación y la purga de historia se hacen al pasar a producción (`SECRETS-ROTATION-GOLIVE`, `docs/product/MASTER_PLAN_ES.md` §5.2). La ventana de doble clave de §7 y el re-cifrado de §10 describen lo que el código aún no hace: CRED-6 y CRED-11 (DEF-45) siguen abiertos. Los §2, §3 y §7 a §10 son el procedimiento permanente al que enlaza [`SECRETS.md`](./SECRETS.md); los §1, §4 y §5 son la parte del incidente L-591; el §6 (checklist) sirve a ambas.
+> **Status (2026-10-15): IN FORCE, NOT EXECUTED.** The rotation and the history purge happen at the move to production (`SECRETS-ROTATION-GOLIVE`, `docs/product/MASTER_PLAN_ES.md` §5.2). The dual-key window of §7 and the re-encryption of §10 describe what the code does not do yet: CRED-6 and CRED-11 (DEF-45) are still open. §2, §3 and §7 to §10 are the permanent procedure that [`SECRETS.md`](./SECRETS.md) links to; §1, §4 and §5 are the L-591 incident part; §6 (the checklist) serves both.
 >
-> **Reparto de autoridad.** [`SECRETS.md`](./SECRETS.md) es el catálogo (qué secrets existen y dónde viven); este documento es el cómo (el procedimiento); el Plan Maestro lleva solo lo que falta por hacer.
+> **Division of authority.** [`SECRETS.md`](./SECRETS.md) is the catalog (which secrets exist and where they live); this document is the how (the procedure); the Master Plan carries only what is left to do.
 
 ---
 
-## §1. Contexto del incidente
+## §1. Incident context
 
-### Finding origen
+### Originating finding
 
-**L-591** — `.env` tracked en git con secrets reales. Documentado en:
+**L-591** — `.env` tracked in git with real secrets. Documented in:
 
-- Finding original L-591 (`.env` git-tracked con secrets). El trabajo pendiente (rotación real + purga de historia) vive en `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2). Los docs de auditoría de origen (LATERAL_FINDINGS, D0v4, REMEDIATION_ROADMAP) fueron retirados tras absorción en el plan consolidado.
+- The original finding L-591 (`.env` git-tracked with secrets). The pending work (the real rotation + the history purge) lives in `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2). The originating audit docs (LATERAL_FINDINGS, D0v4, REMEDIATION_ROADMAP) were retired after their absorption into the consolidated plan.
 
-### Corrección de scope (descubierta 2026-04-21 en exploración T0-A)
+### Scope correction (found on 2026-04-21 while exploring T0-A)
 
-El finding original describió `apps/api/.env` como el archivo tracked. La realidad:
+The original finding described `apps/api/.env` as the tracked file. The reality:
 
-- **Root `.env`** (no `apps/api/.env`) es el archivo tracked en git.
-- `apps/api/.env` nunca estuvo tracked (gitignored correctamente desde el inicio).
-- L-591 se mantiene CRITICAL — solo cambia el archivo afectado.
+- **Root `.env`** (not `apps/api/.env`) is the file tracked in git.
+- `apps/api/.env` was never tracked (correctly gitignored from the start).
+- L-591 stays CRITICAL — only the affected file changes.
 
-### Exposición
+### Exposure
 
-- **Repo:** `https://github.com/edwardricardo/omni-post.git` — **PÚBLICO en GitHub**
-- **Primer commit con `.env`:** `5603d6b` (2026-03-08)
-- **Tiempo de exposición activa:** ~44 días
-- **Commits afectados:** 6 (historia completa del archivo)
+- **Repo:** `https://github.com/edwardricardo/omni-post.git` — **PUBLIC on GitHub**
+- **First commit with `.env`:** `5603d6b` (2026-03-08)
+- **Active exposure time:** ~44 days
+- **Affected commits:** 6 (the file's whole history)
 
-### Qué se considera comprometido
+### What counts as compromised
 
-Todo valor presente en root `.env` durante los últimos 44 días. Verificar contra commits:
+Every value present in root `.env` during the last 44 days. Check against the commits:
 
 ```bash
 git log --all --oneline -- .env
-# Para cada commit SHA, inspeccionar:
+# For each commit SHA, inspect:
 git show <SHA>:.env
 ```
 
-**⚠️ Asumir comprometidos** todos los secrets documentados en §2 hasta que se rotan, aunque el diff histórico muestre cambios parciales.
+**⚠️ Assume compromised** every secret documented in §2 until it is rotated, even if the historical diff shows partial changes.
 
 ---
 
-## §2. Lista completa de secrets a rotar
+## §2. Full list of secrets to rotate
 
-Tabla agrupada por dominio. **43+ variables** entre root `.env` + `apps/api/.env`.
+Table grouped by domain. **43+ variables** across root `.env` + `apps/api/.env`.
 
 ### §2.1 Database (PostgreSQL)
 
-| Key                   | Servicio                                                  | Acción                                                             | Prioridad |
-| --------------------- | --------------------------------------------------------- | ------------------------------------------------------------------ | --------- |
-| `DATABASE_URL`        | PostgreSQL managed (Railway/Supabase/AWS RDS — confirmar) | Crear nuevo usuario DB + nueva password + update connection string | CRÍTICA   |
-| `SHADOW_DATABASE_URL` | PostgreSQL managed                                        | Idem — puede reusar misma instancia con nuevo password             | ALTA      |
+| Key                   | Service                                                 | Action                                                             | Priority |
+| --------------------- | ------------------------------------------------------- | ------------------------------------------------------------------ | -------- |
+| `DATABASE_URL`        | Managed PostgreSQL (Railway/Supabase/AWS RDS — confirm) | Create a new DB user + new password + update the connection string | CRITICAL |
+| `SHADOW_DATABASE_URL` | Managed PostgreSQL                                      | Same — it can reuse the same instance with a new password          | HIGH     |
 
 **Procedure:**
 
-1. Log in al panel del DB provider.
-2. Crear nuevo role/user con misma permisos (`CREATE USER new_user WITH PASSWORD '...' ;`).
+1. Log in to the DB provider's panel.
+2. Create a new role/user with the same permissions (`CREATE USER new_user WITH PASSWORD '...' ;`).
 3. `GRANT ALL PRIVILEGES ON DATABASE omnipostdb TO new_user;`
-4. Revoke al user antiguo (o deshabilitar login): `ALTER USER old_user NOLOGIN;`
-5. Construir nueva `DATABASE_URL` y `SHADOW_DATABASE_URL`.
-6. Update `.env` local + deploy platform.
+4. Revoke the old user (or disable its login): `ALTER USER old_user NOLOGIN;`
+5. Build the new `DATABASE_URL` and `SHADOW_DATABASE_URL`.
+6. Update the local `.env` + the deploy platform.
 
 ### §2.2 Auth / JWT
 
-| Key                   | Servicio | Acción                 | Prioridad |
-| --------------------- | -------- | ---------------------- | --------- |
-| `ADMIN_JWT_SECRET`    | Interno  | `openssl rand -hex 64` | CRÍTICA   |
-| `JWT_ACCESS_SECRET`   | Interno  | `openssl rand -hex 64` | CRÍTICA   |
-| `JWT_REFRESH_SECRET`  | Interno  | `openssl rand -hex 64` | CRÍTICA   |
-| `CUSTOMER_JWT_SECRET` | Interno  | `openssl rand -hex 64` | CRÍTICA   |
+| Key                   | Service  | Action                 | Priority |
+| --------------------- | -------- | ---------------------- | -------- |
+| `ADMIN_JWT_SECRET`    | Internal | `openssl rand -hex 64` | CRITICAL |
+| `JWT_ACCESS_SECRET`   | Internal | `openssl rand -hex 64` | CRITICAL |
+| `JWT_REFRESH_SECRET`  | Internal | `openssl rand -hex 64` | CRITICAL |
+| `CUSTOMER_JWT_SECRET` | Internal | `openssl rand -hex 64` | CRITICAL |
 
-**Efecto secundario:** rotar estos secrets invalida **todas las sesiones activas**. Usuarios y admins deben re-login. Comunicar con anticipación o aceptar downtime.
+**Side effect:** rotating these secrets invalidates **every active session**. Users and admins must log in again. Announce it in advance or accept downtime.
 
 **Procedure:**
 
@@ -90,180 +90,180 @@ Tabla agrupada por dominio. **43+ variables** entre root `.env` + `apps/api/.env
 for key in ADMIN_JWT_SECRET JWT_ACCESS_SECRET JWT_REFRESH_SECRET CUSTOMER_JWT_SECRET; do
   echo "$key=$(openssl rand -hex 64)"
 done
-# Copiar output al .env local + deploy platform
+# Copy the output to the local .env + the deploy platform
 ```
 
 ### §2.3 Admin bootstrap
 
-| Key              | Servicio | Acción                                             | Prioridad |
-| ---------------- | -------- | -------------------------------------------------- | --------- |
-| `ADMIN_EMAIL`    | Interno  | Cambiar si email fue visible en commits públicos   | MEDIA     |
-| `ADMIN_PASSWORD` | Interno  | Generar password fuerte: `openssl rand -base64 24` | CRÍTICA   |
+| Key              | Service  | Action                                            | Priority |
+| ---------------- | -------- | ------------------------------------------------- | -------- |
+| `ADMIN_EMAIL`    | Internal | Change if the email was visible in public commits | MEDIUM   |
+| `ADMIN_PASSWORD` | Internal | Generate a strong one: `openssl rand -base64 24`  | CRITICAL |
 
-**Nota:** L-546 (T4-V) implementará fail-fast si falta `ADMIN_PASSWORD`. Por ahora, asegurar que el valor en `.env` sea robusto.
+**Note:** L-546 (T4-V) will implement a fail-fast when `ADMIN_PASSWORD` is missing. For now, make sure the value in `.env` is strong.
 
 ### §2.4 AI Providers
 
-| Key                  | Servicio         | URL rotación                                                     | Prioridad |
-| -------------------- | ---------------- | ---------------------------------------------------------------- | --------- |
-| `OPENAI_API_KEY`     | OpenAI           | <https://platform.openai.com/api-keys> → "Revoke" + "Create new" | CRÍTICA   |
-| `PERPLEXITY_API_KEY` | Perplexity       | <https://www.perplexity.ai/settings/api> → rotate key            | CRÍTICA   |
-| `GEMINI_API_KEY`     | Google AI Studio | <https://aistudio.google.com/apikey> → rotate                    | CRÍTICA   |
+| Key                  | Service          | Rotation URL                                                     | Priority |
+| -------------------- | ---------------- | ---------------------------------------------------------------- | -------- |
+| `OPENAI_API_KEY`     | OpenAI           | <https://platform.openai.com/api-keys> → "Revoke" + "Create new" | CRITICAL |
+| `PERPLEXITY_API_KEY` | Perplexity       | <https://www.perplexity.ai/settings/api> → rotate key            | CRITICAL |
+| `GEMINI_API_KEY`     | Google AI Studio | <https://aistudio.google.com/apikey> → rotate                    | CRITICAL |
 
-**Verificar:** después de revoke, monitor dashboards por 24h para detectar uso no autorizado con la key vieja.
+**Check:** after the revoke, monitor the dashboards for 24h to detect unauthorized use of the old key.
 
 ### §2.5 Billing (Stripe)
 
-| Key                     | Servicio | URL rotación                                                                       | Prioridad |
-| ----------------------- | -------- | ---------------------------------------------------------------------------------- | --------- |
-| `STRIPE_SECRET_KEY`     | Stripe   | <https://dashboard.stripe.com/apikeys> → rotate secret key                         | CRÍTICA   |
-| `STRIPE_WEBHOOK_SECRET` | Stripe   | <https://dashboard.stripe.com/webhooks> → roll signing secret per webhook endpoint | CRÍTICA   |
+| Key                     | Service | Rotation URL                                                                       | Priority |
+| ----------------------- | ------- | ---------------------------------------------------------------------------------- | -------- |
+| `STRIPE_SECRET_KEY`     | Stripe  | <https://dashboard.stripe.com/apikeys> → rotate secret key                         | CRITICAL |
+| `STRIPE_WEBHOOK_SECRET` | Stripe  | <https://dashboard.stripe.com/webhooks> → roll signing secret per webhook endpoint | CRITICAL |
 
-**⚠️ Orden importante:**
+**⚠️ The order matters:**
 
-1. Crear nueva secret key en Stripe (no revocar la vieja aún)
-2. Update deploy platform con nueva key
-3. Redeploy app (workers + api)
-4. Verify health check (Stripe calls funcionando)
-5. Revoke la vieja key
-6. Repeat para webhook secret: update Stripe endpoint signing secret → deploy → verify → old secret rolls off automáticamente
+1. Create a new secret key in Stripe (do not revoke the old one yet)
+2. Update the deploy platform with the new key
+3. Redeploy the app (workers + api)
+4. Verify the health check (Stripe calls working)
+5. Revoke the old key
+6. Repeat for the webhook secret: update the Stripe endpoint signing secret → deploy → verify → the old secret rolls off automatically
 
 ### §2.6 Email (Resend)
 
-| Key              | Servicio | URL rotación                                    | Prioridad |
-| ---------------- | -------- | ----------------------------------------------- | --------- |
-| `RESEND_API_KEY` | Resend   | <https://resend.com/api-keys> → delete + create | ALTA      |
+| Key              | Service | Rotation URL                                    | Priority |
+| ---------------- | ------- | ----------------------------------------------- | -------- |
+| `RESEND_API_KEY` | Resend  | <https://resend.com/api-keys> → delete + create | HIGH     |
 
-### §2.7 URLs y config
+### §2.7 URLs and config
 
-| Key                                  | Acción                                     | Prioridad |
-| ------------------------------------ | ------------------------------------------ | --------- |
-| `APP_URL`, `CLIENT_URL`, `ADMIN_URL` | Sin acción salvo que el host haya cambiado | BAJA      |
+| Key                                  | Action                                | Priority |
+| ------------------------------------ | ------------------------------------- | -------- |
+| `APP_URL`, `CLIENT_URL`, `ADMIN_URL` | No action unless the host has changed | LOW      |
 
 ### §2.8 Observability
 
-| Key                           | Servicio       | Acción                                                | Prioridad |
-| ----------------------------- | -------------- | ----------------------------------------------------- | --------- |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTel collector | Sin acción salvo que el endpoint sea privado expuesto | BAJA      |
+| Key                           | Service        | Action                                               | Priority |
+| ----------------------------- | -------------- | ---------------------------------------------------- | -------- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTel collector | No action unless the endpoint is private and exposed | LOW      |
 
 ### §2.9 Redis
 
-| Key         | Servicio                             | Acción                                     | Prioridad |
-| ----------- | ------------------------------------ | ------------------------------------------ | --------- |
-| `REDIS_URL` | Redis managed (Upstash/Railway/etc.) | Rotate password si tiene auth; rebuild URL | ALTA      |
+| Key         | Service                              | Action                                     | Priority |
+| ----------- | ------------------------------------ | ------------------------------------------ | -------- |
+| `REDIS_URL` | Managed Redis (Upstash/Railway/etc.) | Rotate password if auth is on; rebuild URL | HIGH     |
 
 ---
 
-## §3. PLATFORM_ENCRYPTION_KEY — consideración especial
+## §3. PLATFORM_ENCRYPTION_KEY — special consideration
 
-**Esta clave es diferente al resto.** Encripta valores en la tabla `PlatformCredential` (credentials OAuth de providers sociales de cada tenant almacenadas en DB).
+**This key is different from the rest.** It encrypts values in the `PlatformCredential` table (each tenant's OAuth credentials for the social providers, stored in the DB).
 
-### Si se rota la key
+### If the key is rotated
 
-Los valores encriptados existentes **dejan de ser descifrables** con la nueva key. Consecuencias:
+The existing encrypted values **can no longer be decrypted** with the new key. Consequences:
 
-- Todos los canales conectados (Twitter, Instagram, Facebook, etc.) fallan al intentar publicar.
-- Los tokens OAuth almacenados quedan inaccesibles.
-- Usuarios deben re-conectar cada canal (re-OAuth flow).
+- Every connected channel (Twitter, Instagram, Facebook, etc.) fails when it tries to publish.
+- The stored OAuth tokens become inaccessible.
+- Users must reconnect every channel (re-OAuth flow).
 
-### Opciones
+### Options
 
-**Opción A — Conservadora (recomendada por default):**
+**Option A — Conservative (recommended by default):**
 
-- **No rotar** `PLATFORM_ENCRYPTION_KEY` salvo evidencia específica de que esta key fue expuesta.
-- Verificar en git history si esta key estuvo en root `.env`: `git log -p --all -S "PLATFORM_ENCRYPTION_KEY" .env`
-- Si el grep muestra el valor en commits públicos → forzar **Opción B**.
-- Si la key solo estaba en `apps/api/.env` (nunca tracked) → mantener.
+- **Do not rotate** `PLATFORM_ENCRYPTION_KEY` unless there is specific evidence that this key was exposed.
+- Check in the git history whether this key was in root `.env`: `git log -p --all -S "PLATFORM_ENCRYPTION_KEY" .env`
+- If the grep shows the value in public commits → force **Option B**.
+- If the key was only in `apps/api/.env` (never tracked) → keep it.
 
-**Opción B — Paranoid (si hay exposure confirmado):**
+**Option B — Paranoid (if the exposure is confirmed):**
 
-Plan de migración:
+Migration plan:
 
-1. Generar nueva key: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
-2. Escribir script de migración: lee `PlatformCredential`, desencripta con key vieja, encripta con key nueva, guarda.
-3. Parar workers (`publishWorker`, `analyticsIngestWorker`, `inboxSyncWorker`) durante migración.
-4. Ejecutar script en DB prod (con backup hecho ANTES).
-5. Swap key en `.env` + deploy.
-6. Restart workers.
-7. Verify: probar publicación en canal de prueba.
+1. Generate a new key: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+2. Write a migration script: it reads `PlatformCredential`, decrypts with the old key, encrypts with the new key, saves.
+3. Stop the workers (`publishWorker`, `analyticsIngestWorker`, `inboxSyncWorker`) during the migration.
+4. Run the script on the prod DB (with a backup taken BEFORE).
+5. Swap the key in `.env` + deploy.
+6. Restart the workers.
+7. Verify: test a publication on a test channel.
 
-**Alternativa a Opción B — Forzar re-OAuth:**
+**Alternative to Option B — Force a re-OAuth:**
 
-- Truncate table `PlatformCredential` (o soft-delete registros).
-- Notificar a tenants: "Tu canal debe reconectarse por razones de seguridad".
-- Cada tenant re-autoriza cada canal → nuevos tokens se encriptan con key nueva.
-- Impacto usuario mayor pero sin riesgo de data migration.
+- Truncate the `PlatformCredential` table (or soft-delete its records).
+- Notify the tenants: "Your channel must be reconnected for security reasons".
+- Each tenant re-authorizes each channel → the new tokens are encrypted with the new key.
+- A larger user impact, but no data migration risk.
 
-### Verificación de exposición de esta key específica
+### Checking whether this specific key was exposed
 
 ```bash
-# Buscar PLATFORM_ENCRYPTION_KEY en git history
+# Search the git history for PLATFORM_ENCRYPTION_KEY
 git log -p --all -S "PLATFORM_ENCRYPTION_KEY" -- .env
-# Si muestra líneas con valor — exposed, Opción B
-# Si muestra solo nombre de variable sin valor — no exposed, Opción A
+# If it shows lines with a value — exposed, Option B
+# If it shows only the variable name with no value — not exposed, Option A
 ```
 
 ---
 
 ## §4. Git history purge
 
-**⚠️ Operación destructiva e irreversible desde el remote.** Ejecutar solo después de:
+**⚠️ A destructive operation, irreversible from the remote.** Run it only after:
 
-1. Todos los secrets nuevos generados y en deploy platform
-2. Apps redeployadas con nuevos secrets y verificadas verde
-3. Backup local del repo actual (off-site)
-4. Comunicación a colaboradores (si aplica)
+1. Every new secret is generated and on the deploy platform
+2. The apps are redeployed with the new secrets and verified green
+3. A local backup of the current repo (off-site)
+4. Collaborators are informed (if applicable)
 
-### Opción recomendada: git-filter-repo
+### Recommended option: git-filter-repo
 
 ```bash
-# Instalar si no está
+# Install it if it is missing
 pip install git-filter-repo
 
-# Ejecutar desde el root del repo (asegurarse de estar en rama correcta)
+# Run from the repo root (make sure you are on the right branch)
 git filter-repo --invert-paths --path .env --force
 
-# Esto reescribe TODA la historia — .env deja de existir en cualquier commit
+# This rewrites the WHOLE history — .env no longer exists in any commit
 ```
 
-### Alternativa: BFG Repo-Cleaner
+### Alternative: BFG Repo-Cleaner
 
 ```bash
-# Más amigable pero requiere Java
+# Friendlier, but it requires Java
 wget https://repo1.maven.org/maven2/com/madgag/bfg/1.14.0/bfg-1.14.0.jar
 java -jar bfg-1.14.0.jar --delete-files .env
 git reflog expire --expire=now --all
 git gc --prune=now --aggressive
 ```
 
-### Force push al remote público
+### Force push to the public remote
 
 ```bash
 # Verify local state
-git log --all --oneline -- .env   # debe retornar 0 líneas
+git log --all --oneline -- .env   # must return 0 lines
 
 # Force push — invalidates clones
 git push --force origin --all
 git push --force origin --tags
 ```
 
-### Checklist pre-force-push
+### Pre-force-push checklist
 
-- [ ] Todos los secrets nuevos confirmados activos en servicios externos
-- [ ] Deploy platforms (Vercel + backend) ya corriendo con nuevos secrets
-- [ ] Health checks verdes en `/health` y endpoints críticos
-- [ ] Webhook de Stripe confirmado recibiendo con nuevo secret
-- [ ] Backup del repo actual: `git clone --bare <repo> backup-pre-purge.git` guardado off-site
-- [ ] Comunicación a colaboradores (si hay) — deben re-clone después
-- [ ] PR/merges en flight manejadas (cerrar/postpone antes del purge)
+- [ ] Every new secret confirmed active in the external services
+- [ ] Deploy platforms (Vercel + backend) already running with the new secrets
+- [ ] Health checks green on `/health` and the critical endpoints
+- [ ] Stripe webhook confirmed receiving with the new secret
+- [ ] Backup of the current repo: `git clone --bare <repo> backup-pre-purge.git` stored off-site
+- [ ] Collaborators informed (if any) — they must re-clone afterwards
+- [ ] In-flight PRs/merges handled (close or postpone them before the purge)
 
 ### Post-purge
 
 ```bash
-# Verificar que el remote público ya no contiene .env
+# Check that the public remote no longer contains .env
 git clone https://github.com/edwardricardo/omni-post.git /tmp/verify-clone
 cd /tmp/verify-clone
-git log --all --oneline -- .env   # debe retornar 0 líneas
+git log --all --oneline -- .env   # must return 0 lines
 ```
 
 ---
@@ -272,45 +272,45 @@ git log --all --oneline -- .env   # debe retornar 0 líneas
 
 ### Frontend (admin + client) — Vercel
 
-Confirmado en repo: `apps/admin/vercel.json` y `apps/client/vercel.json` existen.
+Confirmed in the repo: `apps/admin/vercel.json` and `apps/client/vercel.json` exist.
 
 **Procedure:**
 
 1. Log in: <https://vercel.com/dashboard>
-2. Seleccionar proyecto `omnipost-admin` → Settings → Environment Variables
-3. Update cada variable con nuevo valor
-4. Triggers: Production, Preview, Development (según aplique)
+2. Select the `omnipost-admin` project → Settings → Environment Variables
+3. Update each variable with its new value
+4. Triggers: Production, Preview, Development (as applicable)
 5. Save
 6. Deployments → Redeploy (latest commit) → Production
-7. Verify: visitar URL → pantalla de login carga → no errores console
-8. Repetir para `omnipost-client`
+7. Verify: visit the URL → the login screen loads → no console errors
+8. Repeat for `omnipost-client`
 
-### Backend — plataforma pendiente confirmar
+### Backend — platform still to be confirmed
 
-**⚠️ No hay `fly.toml`, `railway.json`, `render.yaml` en el repo.**
+**⚠️ There is no `fly.toml`, `railway.json` or `render.yaml` in the repo.**
 
-**Edward: confirma aquí el backend platform:**
+**Maintainer: confirm the backend platform here:**
 
 ```
-BACKEND_DEPLOY_PLATFORM: <COMPLETAR — Railway / Fly.io / Render / Heroku / Kubernetes / VPS / otro>
-BACKEND_PROJECT_URL: <URL del dashboard>
+BACKEND_DEPLOY_PLATFORM: <FILL IN — Railway / Fly.io / Render / Heroku / Kubernetes / VPS / other>
+BACKEND_PROJECT_URL: <dashboard URL>
 ```
 
-### Steps genéricos por plataforma
+### Generic steps per platform
 
 **Railway:**
 
-1. <https://railway.app/dashboard> → proyecto
-2. Service → Variables → Update cada key
-3. Service se redeploya automáticamente
-4. Logs → verify no errores env missing
+1. <https://railway.app/dashboard> → project
+2. Service → Variables → Update each key
+3. The service redeploys automatically
+4. Logs → verify there are no missing-env errors
 
 **Fly.io:**
 
 ```bash
 fly secrets set DATABASE_URL="..." -a <app-name>
 fly secrets set JWT_ACCESS_SECRET="..." -a <app-name>
-# ... etc para cada key
+# ... and so on for each key
 fly deploy -a <app-name>
 ```
 
@@ -322,12 +322,12 @@ fly deploy -a <app-name>
 
 **VPS / self-hosted:**
 
-1. SSH al server
-2. Update `.env` file (con nuevos valores, CUIDADO: no commitear)
-3. `pm2 reload <app>` o `systemctl restart <service>`
+1. SSH into the server
+2. Update the `.env` file (with the new values; CAREFUL: do not commit it)
+3. `pm2 reload <app>` or `systemctl restart <service>`
 4. Check logs
 
-### Verificar post-deploy
+### Post-deploy check
 
 ```bash
 curl https://<your-api-host>/health
@@ -341,18 +341,18 @@ curl https://<your-api-host>/health
 ### Secret hygiene
 
 ```bash
-# Ningún .env tracked en git
-git ls-files | grep -E "\.env$"   # → vacío
+# No .env tracked in git
+git ls-files | grep -E "\.env$"   # → empty
 
-# Historia purga
-git log --all --oneline -- .env   # → vacío
+# History purged
+git log --all --oneline -- .env   # → empty
 
-# .env.example sin valores reales
+# .env.example without real values
 grep -E "=.+[a-zA-Z0-9]{20,}" .env.example apps/api/.env.example | \
-  grep -v "CHANGE_ME\|localhost\|your"   # → vacío (solo matches en placeholders)
+  grep -v "CHANGE_ME\|localhost\|your"   # → empty (matches only in placeholders)
 ```
 
-### Servicio funcionando
+### Service running
 
 ```bash
 # Health check API
@@ -364,39 +364,39 @@ curl -s -o /dev/null -w "%{http_code}" https://<admin-url>/login   # → 200
 # Client loads
 curl -s -o /dev/null -w "%{http_code}" https://<client-url>   # → 200
 
-# Stripe webhook acepta signed requests (desde dashboard Stripe → "Send test webhook")
-# → 200 en logs del backend
+# The Stripe webhook accepts signed requests (from the Stripe dashboard → "Send test webhook")
+# → 200 in the backend logs
 ```
 
-### Integridad de datos
+### Data integrity
 
-- [ ] Login admin funciona (JWT secrets funcionales)
-- [ ] Login cliente funciona
-- [ ] Publicar post en canal de prueba (verifica providers API keys + PLATFORM_ENCRYPTION_KEY)
-- [ ] Billing: crear suscripción de prueba (verifica Stripe keys)
-- [ ] Email: trigger password reset (verifica Resend)
+- [ ] Admin login works (the JWT secrets work)
+- [ ] Customer login works
+- [ ] Publish a post on a test channel (checks the provider API keys + PLATFORM_ENCRYPTION_KEY)
+- [ ] Billing: create a test subscription (checks the Stripe keys)
+- [ ] Email: trigger a password reset (checks Resend)
 
-### Git local
+### Local git
 
 ```bash
 git status
 # Expected:
-#   .env sigue en disk (gitignored)
+#   .env is still on disk (gitignored)
 #   .env.example committed
 #   apps/api/.env.example committed
 #   docs/security/T0A_SECRETS_ROTATION_RUNBOOK.md committed
 ```
 
-### Observación final
+### Final note
 
-Si toda la checklist pasa: **L-591 CERRADO**. El tail (rotación real + purga de historia) queda trackeado en `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2); marcar cerrado ahí al completarlo.
+If the whole checklist passes: **L-591 CLOSED**. The tail (the real rotation + the history purge) stays tracked in `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2); mark it closed there once it is done.
 
 ---
 
-## §7. Cryptoperiods canónicos (NIST SP 800-57 Part 1 Rev 5)
+## §7. Canonical cryptoperiods (NIST SP 800-57 Part 1 Rev 5)
 
-Período de validez recomendado por NIST por clase de clave criptográfica.
-**Operational target** = lo que aplicamos en este repo (suele ser más conservador que el NIST upper bound).
+The validity period NIST recommends per class of cryptographic key.
+**Operational target** = what this repo applies (usually more conservative than the NIST upper bound).
 
 | Secret class                                                                                                  | NIST originator usage | NIST recipient usage | Operational target          | Rationale                                                                                                                                                                              |
 | ------------------------------------------------------------------------------------------------------------- | --------------------- | -------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -564,15 +564,15 @@ scope. Audit emission is suppressed for backfills via a dedicated
 
 ---
 
-## Anexo A — Contacto emergencia
+## Annex A — Emergency contact
 
-Si durante la rotación algo falla catastróficamente (DB inaccesible, servicio prod caído):
+If something fails catastrophically during the rotation (DB unreachable, prod service down):
 
-1. **No hacer force-push** hasta que la situación esté estable.
-2. Rollback al deploy anterior (Vercel: previous deployment; backend: deploy previous commit).
-3. Diagnosticar con logs antes de continuar.
+1. **Do not force-push** until the situation is stable.
+2. Roll back to the previous deploy (Vercel: previous deployment; backend: deploy previous commit).
+3. Diagnose with the logs before continuing.
 
-## Anexo B — Cross-references
+## Annex B — Cross-references
 
-- `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2, rotación + purga de historia a go-live) · `L-546` ADMIN_PASSWORD fallback (§5.7) · `L-623` password123 en CI = accepted-dev-fixture (§5.7). Los roadmaps de origen (REMEDIATION_ROADMAP, LATERAL_FINDINGS) fueron retirados tras absorción.
-- CLAUDE.md — "Automated Compliance Checks" (fitness functions ya wired en CI).
+- `docs/product/MASTER_PLAN_ES.md` → `SECRETS-ROTATION-GOLIVE` (§5.2, rotation + history purge at go-live) · `L-546` ADMIN_PASSWORD fallback (§5.7) · `L-623` password123 in CI = accepted-dev-fixture (§5.7). The originating roadmaps (REMEDIATION_ROADMAP, LATERAL_FINDINGS) were retired after their absorption.
+- CLAUDE.md — "Automated Compliance Checks" (fitness functions already wired in CI).
