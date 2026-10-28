@@ -153,7 +153,7 @@
       "utility": "Builds the YouTube Analytics client twice per YouTubeApiClient (apiClient.ts:96, never read; analytics.ts:133 for YouTubeAnalyticsService, whose four methods have no production caller); the channel analytics the adapter returns come from the Data API today.",
       "replacement": "None: the Analytics API is the source F2-API-12 types.",
       "decidedOn": "2026-10-25",
-      "note": "Master Plan F2-API-12 (typed fetchAnalytics contract on ProviderAdapter and the analytics model) wires it; the owner's decision of 2026-10-25. Declared in packages/providers/youtube (dependencies)."
+      "note": "Master Plan F2-API-12 (typed fetchAnalytics contract on ProviderAdapter and the analytics model) wires it; the Product Owner's decision of 2026-10-25. Declared in packages/providers/youtube (dependencies)."
     },
     "cloudinary": {
       "status": "remove",
@@ -193,7 +193,7 @@
       "utility": "parse() and its element guards drive scripts/testing/i18n-lint.mjs, fitness #51 (pnpm check:i18n), which holds every portal's catalogs to its routing's locales, valid ICU, and the default locale's keys and argument names (admin 1,311 messages and client 2,232 at the 2026-10-26 run, both passing).",
       "replacement": "None: the ICU MessageFormat parser the i18n check is built on.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in the root (devDependencies) as the literal 3.5.18 since 2026-10-26, when the two per-portal validators it served, apps/admin/scripts/i18n-validate.mjs and apps/client/scripts/i18n-validate.mjs, which only their unrun package script i18n:lint called, were replaced by the one gate, run by the battery step i18n and the Dependency Consistency job; the owner decided that unit on 2026-10-25 and kept the ground tool. 3.5.18 is the newest version the tree holds as one copy: intl-messageformat pins this parser exactly, and use-intl declares intl-messageformat ^11.1.0, whose newest release, 11.2.15, pins 3.5.18 (measured 2026-10-15)."
+      "note": "Declared in the root (devDependencies) as the literal 3.5.18 since 2026-10-26, when the two per-portal validators it served, apps/admin/scripts/i18n-validate.mjs and apps/client/scripts/i18n-validate.mjs, which only their unrun package script i18n:lint called, were replaced by the one gate, run by the battery step i18n and the Dependency Consistency job; the Maintainer decided that unit on 2026-10-25 and kept the ground tool. 3.5.18 is the newest version the tree holds as one copy: intl-messageformat pins this parser exactly, and use-intl declares intl-messageformat ^11.1.0, whose newest release, 11.2.15, pins 3.5.18 (measured 2026-10-15)."
     },
     "@types/validator": {
       "status": "remove",
@@ -351,9 +351,9 @@
       "status": "kept",
       "grounds": "in-use",
       "utility": "StateGraph/Annotation/interrupt build the repurpose graph; MemorySaver/Command run it; resolved by the GENERATE_REPURPOSE consumer (index.ts:1142).",
-      "replacement": "None: the owner kept the repurpose agent on 2026-10-25; a hand-written state machine would re-implement the graph, its interrupts and its checkpoints.",
+      "replacement": "None: the Product Owner kept the repurpose agent on 2026-10-25; a hand-written state machine would re-implement the graph, its interrupts and its checkpoints.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies). Kept by the owner's decision of 2026-10-25: the repurpose agent stays, so @langchain/core and zod-to-json-schema stay as its peers."
+      "note": "Declared in apps/api (dependencies). Kept by the Product Owner's decision of 2026-10-25: the repurpose agent stays, so @langchain/core and zod-to-json-schema stay as its peers."
     },
     "@marsidev/react-turnstile": {
       "status": "kept",
@@ -473,7 +473,7 @@
       "utility": "Editor extension (character count) of the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
       "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (Edward's go-ahead); the client template editor is the live site."
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
     },
     "@tiptap/extension-color": {
       "status": "kept",
@@ -505,7 +505,7 @@
       "utility": "Editor extension (placeholder) of the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
       "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (Edward's go-ahead); the client template editor is the live site."
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
     },
     "@tiptap/extension-text-style": {
       "status": "kept",
@@ -529,7 +529,7 @@
       "utility": "useEditor and EditorContent in the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
       "replacement": "None: the editor's React binding (useEditor, EditorContent).",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (Edward's go-ahead); the client template editor is the live site."
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
     },
     "@tiptap/starter-kit": {
       "status": "kept",
@@ -537,7 +537,7 @@
       "utility": "The base extensions of the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
       "replacement": "None: the editor's base extensions.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (Edward's go-ahead); the client template editor is the live site."
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
     },
     "argon2": {
       "status": "kept",
@@ -705,7 +705,7 @@
       "utility": "create() of the shared notification store, used by the client's NotificationBell and useNotificationStream. apps/admin declares zustand too, but admin's re-export lib/stores/notificationStore.ts is imported only by its own test.",
       "replacement": "None: the engine of the shared notification store.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/admin, apps/client, packages/shared (dependencies and peerDependencies). apps/admin declares it too, for a re-export (lib/stores/notificationStore.ts) only its own test imports; packages/shared declares zustand as an optional peer, so that test resolves it through admin's declaration, and the declaration leaves together with the re-export and its test (DC-12, awaiting Edward), not before."
+      "note": "Declared in apps/admin, apps/client, packages/shared (dependencies and peerDependencies). apps/admin declares it too, for a re-export (lib/stores/notificationStore.ts) only its own test imports; packages/shared declares zustand as an optional peer, so that test resolves it through admin's declaration, and the declaration leaves together with the re-export and its test (DC-12, awaiting the Product Owner), not before."
     },
     "@eslint/js": {
       "status": "kept",
