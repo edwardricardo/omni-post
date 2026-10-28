@@ -399,7 +399,7 @@ _Changed: the tail decomposition is corrected, the lever's magnitude is correcte
 
 The original design modelled the tail as poll-quantized and pre-authorized `SAGA_WAIT_POLL_MS: "5000"` as the sole lever. The mechanism is more specific, and the repo already documents it.
 
-**The measured 59.7 s decomposes as** (`docs/observability/SLO.md`, §"La cola de latencia": _"~60 s hasta un FAILED con la causa real, de los cuales ~30 s son ese intervalo"_):
+**The measured 59.7 s decomposes as** (`docs/observability/SLO.md`, §"The latency tail": _"~60 s until a FAILED with the real cause, of which ~30 s are that interval"_):
 
 | Term                                                                                                                       | Value                               | Moves with CPU? | Moves with the lever? |
 | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | --------------- | --------------------- |
