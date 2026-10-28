@@ -495,7 +495,7 @@ be documented with its enforced allowance; a documented credential route with no
 
 ## Capability `client-ip-rate-limit` — MODIFIED Requirements
 
-The existing living spec for `client-ip-rate-limit` stays in force in full. Two of its requirements are amended.
+The former living spec `client-ip-rate-limit` ([`client-ip-rate-limit/spec.md`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/client-ip-rate-limit/spec.md)) was retired on 2026-10-28. SECURITY_CANON §Rate Limiting holds its client-IP rules and `docs/security/AUTH.md` §Rate Limiting the AUTH figures; its fail-open telemetry was never emitted (no code under `apps/api/src` writes `http_rate_limit_failopen`), and R6 and R12 of this change own it. R12 and R13 below amend two of its requirements as they stood at its retirement (the pinned copy above), named in their headings; once this change ships, their text belongs in SECURITY_CANON §Rate Limiting, which holds those rules today.
 
 ---
 

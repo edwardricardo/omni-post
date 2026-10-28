@@ -2,9 +2,9 @@
  * @file customerAuthSystemReasons.test.ts
  * @description Pins the declared system-context reason constants for the four customer
  *   pre-identity auth seams: the fixed-set `system:customer-*` form, mutual
- *   distinctness, and staticness (no request data can enter a constant, so the
- *   declared-bypass set stays bounded and grep-able — the property the
- *   tenant-context-boundaries A9 static scenario requires).
+ *   distinctness, and staticness: no request data can enter a constant, so the
+ *   declared-bypass set stays bounded and grep-able. That is the reason-string rule
+ *   of MULTI_TENANT_GUARDS.md §"How to use withSystemContext()".
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";

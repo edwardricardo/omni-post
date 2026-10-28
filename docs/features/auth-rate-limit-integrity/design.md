@@ -40,7 +40,7 @@ I also refuse _"stage 1 introduces it on the credential surface"_. Today's key f
 
 ### L2-BLOCKER — C9's fail-closed credential surface contradicts R6 [MERGE-BLOCKING] and R12.3 → **AMEND** (the design yields)
 
-**Verified on both spec layers.** Delta spec R6 header: _"The limiter fails open when its backing store is unavailable"_ [MERGE-BLOCKING]; R6.1 requires the request to reach its handler; R6.4 extends it to every internal failure; R12.3 requires the posture _"has not been flipped to fail-closed"_. The ratified living spec agrees: `openspec/specs/client-ip-rate-limit/spec.md:119` (_"MUST remain fail-open with loud telemetry"_) and `:135` (_"the posture is not changed to fail-closed"_).
+**Verified on both spec layers.** Delta spec R6 header: _"The limiter fails open when its backing store is unavailable"_ [MERGE-BLOCKING]; R6.1 requires the request to reach its handler; R6.4 extends it to every internal failure; R12.3 requires the posture _"has not been flipped to fail-closed"_. The ratified living spec agrees: [`client-ip-rate-limit/spec.md:119`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/client-ip-rate-limit/spec.md#L119) (_"MUST remain fail-open with loud telemetry"_) and [`:135`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/client-ip-rate-limit/spec.md#L135) (_"the posture is not changed to fail-closed"_).
 
 The design planned to amend the _living_ spec in C9. That is the wrong document and, worse, it is not the binding one: the delta spec for this change re-ratifies fail-open and marks it merge-blocking. A design cannot contradict its own merge blocker by amending a different file.
 
@@ -424,7 +424,7 @@ _(Changed: `onStoreFailure: "deny"` is deleted entirely. Drove: L2-BLOCKER.)_
 
 ### The decision: **fail-open everywhere, loudly**
 
-The design previously declared posture per rule and denied on the credential surface. That contradicts R6 [MERGE-BLOCKING], R6.1, R6.4 and R12.3 in this change's own delta spec, and `client-ip-rate-limit/spec.md:119,135` besides. It is withdrawn.
+The design previously declared posture per rule and denied on the credential surface. That contradicts R6 [MERGE-BLOCKING], R6.1, R6.4 and R12.3 in this change's own delta spec, and [`client-ip-rate-limit/spec.md:119,135`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/client-ip-rate-limit/spec.md#L119) besides. It is withdrawn.
 
 It is also wrong on the merits. Because `/auth/refresh`, `/auth/customer/refresh` and `/admin/auth/refresh` are credential surface (§7), `deny` turns a Redis outage into a **complete authentication outage** on both portals while the rest of the product runs on Postgres — and the design's own justification (_"login does not need Redis to work"_, `authServiceCore.ts:74-75`) is the proof of that cost, not a mitigation of it. An attacker who can pressure Redis would hold an authentication kill switch. Fail-closed does not restore the account layer either; it fails open independently (`RedisBruteForceAdapter.ts:165,179`).
 
@@ -446,7 +446,7 @@ The adapter sets it in its catch, **stops logging `key`**, and stops owning the 
 
 ### Making it observable
 
-1. `threat_type: "http_rate_limit_failopen"` (required by `client-ip-rate-limit/spec.md:135`, present nowhere in `apps/api/src`), on an HTTP-scoped logger, with `{ pattern, classification }` and **without** `key` (R6.3).
+1. `threat_type: "http_rate_limit_failopen"` (required by [`client-ip-rate-limit/spec.md:135`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/client-ip-rate-limit/spec.md#L135), present nowhere in `apps/api/src`), on an HTTP-scoped logger, with `{ pattern, classification }` and **without** `key` (R6.3).
 2. A Prometheus counter alongside the existing ones (`apiMetrics.ts:12-34` shape): `http_rate_limit_degraded_total`.
 3. `unclassified_route` telemetry if the runtime STANDARD safety net ever fires (§3.2).
 
@@ -546,7 +546,7 @@ Each is a wording change the tasks phase must land in `docs/features/auth-rate-l
 | **SA-6** | R11.1 (falsifier)  | The documented figures are **generated** from the snapshot by the dumper; the comparison is a build step, not a transcription check.                                                                                                                                             | L3-W (R11.1)              |
 | **SA-7** | R1.5               | Scope the independence claim to the **derivation**, with the topology precondition stated (`hops ≥ 1` and an XFF-setting edge). At `hops = 0` distinct portal-borne callers share a bucket — a pre-existing configuration state (N8), not a property of the derivation.          | L3-W (R1.5), L1-C3        |
 
-**No amendment to R6, R12.3, or `client-ip-rate-limit/spec.md:119,135`.** The design yields on fail-open.
+**No amendment to R6, R12.3, or [`client-ip-rate-limit/spec.md:119,135`](https://github.com/edwardricardo/omni-post/blob/3c9eeb4bfb972cf01c43eb42fb182d11c540bf44/openspec/specs/client-ip-rate-limit/spec.md#L119).** The design yields on fail-open.
 
 ---
 
