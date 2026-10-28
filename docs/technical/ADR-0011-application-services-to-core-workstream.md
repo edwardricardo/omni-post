@@ -143,9 +143,9 @@ If we discover that 2+ contexts in `@core/application/` need to
 diverge into independent deployables (e.g., billing becomes a
 separate service), we revisit by splitting `@core/application/
 <context>/` into separate packages (`packages/billing-application`,
-`packages/compliance-application`, etc.). The Normalization Roadmap
-§0.2 + §5.1 already track this as a deferred refactor with
-explicit trigger events.
+`packages/compliance-application`, etc.). The normalization roadmap
+§0.2 + §5.1 ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md)) already track this as a deferred
+refactor with explicit trigger events.
 
 ## Risks and Mitigations
 
@@ -154,14 +154,14 @@ explicit trigger events.
 | New `@layer application` file appears in `apps/api/src/` | Fitness `#22 No @layer application in apps/api/src` hard-zero CI gate.                                                                                                                    |
 | Future code review accepts inverted-dependency imports   | Depcruise rules `core-application-no-infrastructure` block at PR time.                                                                                                                    |
 | Port surface grows inconsistent across services          | Two emerging patterns: (a) low-level port (e.g., `PlatformCredentialRepository` raw envelope storage), (b) port-as-service-port (e.g., `EmailPort`). Code review picks the right pattern. |
-| `@core/application/` becomes a monolith blob             | Bounded contexts are kept as sub-folders. If 2+ contexts have zero cross-imports, ROADMAP §5.1 triggers a split into separate packages.                                                   |
+| `@core/application/` becomes a monolith blob             | Bounded contexts are kept as sub-folders. If 2+ contexts have zero cross-imports, they split into separate packages, as the normalization roadmap's §5.1 did (`b4819864`).                |
 | Cross-context port re-use without proper boundary        | Each context owns its ports under `@core/domain/repositories/`. Ports shared across contexts (e.g., `AuditEmitterPort`, `EmailPort`) are explicitly cross-cutting.                        |
 
 ## References
 
 - 22 commits of the workstream: `git log workstream/application-services-to-core ^main` (now merged to main, ending at `1734890`)
 - OmniPost [`docs/architecture/APPLICATION_SERVICES_TO_CORE_ROADMAP_ES.md`](https://github.com/edwardricardo/omni-post/blob/f0f38adc34958966dcdb7718f682235f6399c709/docs/architecture/APPLICATION_SERVICES_TO_CORE_ROADMAP_ES.md) — workstream roadmap with phase breakdown (removed from the repository on 2026-10-17; git history keeps it, and the link is its last version)
-- OmniPost `docs/architecture/NORMALIZATION_ROADMAP.md` — successor doc capturing post-closure improvements
+- OmniPost normalization roadmap ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md)) — successor doc capturing post-closure improvements; it folded into Master Plan §5.2 on 2026-10-28
 - ADR-0002 — Hexagonal Architecture (the macro pattern this workstream realized)
 - ADR-0005 — Unit of Work (concrete adoption in S3.4c)
 - ADR-0009 — Permission enum promotion (S4.4)

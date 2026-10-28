@@ -267,7 +267,7 @@ scale.
 
 - [docs/security/MULTI_TENANT_GUARDS.md](../security/MULTI_TENANT_GUARDS.md) — detailed strategy + 51-table list + runbooks (canon source for this ADR)
 - [docs/security/MULTI_TENANT_AUDIT_2026-05-27.md](../security/MULTI_TENANT_AUDIT_2026-05-27.md) — retroactive audit and pgvector fix
-- [docs/architecture/NORMALIZATION_ROADMAP.md](../architecture/NORMALIZATION_ROADMAP.md) — §2.1 closure
+- [The normalization roadmap at its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md) — §2.1 closure
 - [CWE-639: Authorization Bypass Through User-Controlled Key](https://cwe.mitre.org/data/definitions/639.html)
 - PostgreSQL Row Security Policies — [https://www.postgresql.org/docs/current/ddl-rowsecurity.html](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
 - OWASP A01:2021 Broken Access Control

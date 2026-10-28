@@ -159,7 +159,7 @@ owner moved it to 2026-10-15 ([D52](TESTING_REFOUNDATION.md#decisions-log)). The
   module, `ledger.json`, `eslint-suppressions.json` per rule, and a pasted vitest/TAP summary.
   Acceptance: at the base SHA it reproduces the Baseline column byte for byte. CODE ~150.
 - **WU-T.3** Ficha `N-TEST-1` in `MASTER_PLAN.md §1 N.C` (plus notes on N-CI-2/N-CI-3 and the
-  dashboard) and `NORMALIZATION_ROADMAP.md §2.3` subsuming §2.2.b, §3.2.b, §4.1.b/c (texts in
+  dashboard) and [the normalization roadmap's §2.3](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md) subsuming §2.2.b, §3.2.b, §4.1.b/c (texts in
   §Medidor). Acceptance: fitness #24 green, links resolve. CODE ~70.
 - **WU-T.4** Testing-toolchain alignment BEFORE the reach contract (signed 2026-09-27, D20):
   (a) measure with `pnpm outdated -r --format json` plus `pnpm view <pkg> time --json` the date of

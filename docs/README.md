@@ -35,7 +35,6 @@ The four canon documents are loaded into every agent session by `CLAUDE.md`.
 | [Coding Standards](development/CODING_STANDARDS.md)                | TypeScript, testing, naming, JSDoc                                |
 | [Security Canon](security/SECURITY_CANON.md)                       | Secrets, environment, tenant isolation, rate limiting, CVE floors |
 | [Logging Canon](observability/LOGGING_CANON.md)                    | Logger factories, background tasks, caching                       |
-| [Normalization Roadmap](architecture/NORMALIZATION_ROADMAP.md)     | Cross-cutting architecture, security and DX work, with status     |
 | [Bounded Contexts](architecture/BOUNDED_CONTEXTS.md)               | The core packages and what each context owns                      |
 | [Admin and Customer Parity](architecture/ADMIN_CUSTOMER_PARITY.md) | Ledger of admin and customer behaviour that must match            |
 | [Schema Conventions](architecture/schema-conventions.md)           | Prisma schema conventions                                         |

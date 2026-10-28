@@ -184,7 +184,7 @@ Gentleman-Skills/
 # graphify knowledge-graph outputs (regenerable)
 graphify-out/
 
-# CLAUDE.local.md — per-dev personal Claude memory (§1.6 of Normalization Roadmap)
+# CLAUDE.local.md — per-dev personal Claude memory
 CLAUDE.local.md
 
 # CodeGraph local index (per-target, never committed)

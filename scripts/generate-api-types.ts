@@ -20,8 +20,8 @@
  *   Regenerate after every schema change in a migrated route. A CI drift
  *   gate fails when the committed files do not match the regeneration.
  *
- *   The OpenAPI auto-generation entry of `docs/architecture/NORMALIZATION_ROADMAP.md` records
- *   its design and status.
+ *   `docs/architecture/openapi-migration.md` records its design, and the API-TYPES-1 row of
+ *   `docs/product/MASTER_PLAN.md` its open work.
  *
  * @layer infrastructure
  */

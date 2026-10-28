@@ -2,7 +2,7 @@
 
 > Alert: `prometheus/alerts/api.yml`
 > Metric: `api_security_threats_total{threat_type="mfa_backup_code_reuse", endpoint="mfa_verify"}`
-> **Routing pending §4.2.c**: today ALL the rules of this repo are EVALUATED but not delivered — the `alertmanagers:` block of `prometheus/prometheus.yml` is commented out. Nobody receives a push notification for this; someone has to look at it.
+> **Routing pending OBS-6** (Master Plan §5.2, roadmap §4.2.c): today ALL the rules of this repo are EVALUATED but not delivered — the `alertmanagers:` block of `prometheus/prometheus.yml` is commented out. Nobody receives a push notification for this; someone has to look at it.
 
 ## Symptom
 

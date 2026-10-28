@@ -45,7 +45,7 @@ The same population is in Prometheus as `saga_waiting_rows` (a gauge measured at
 ## No consumer on the `publish` queue (`PublishQueueUnattended`)
 
 > Rules: `PublishQueueUnattended` (critical) and its companion `PublishQueueSignalMissing` (warning), in `prometheus/alerts/saga.yml`.
-> **Routing pending §4.2.c**: today ALL the rules of this repo are EVALUATED but not delivered — the `alertmanagers:` block of `prometheus/prometheus.yml` is commented out. Nobody receives a push notification for this; someone has to look at it.
+> **Routing pending OBS-6** (Master Plan §5.2, roadmap §4.2.c): today ALL the rules of this repo are EVALUATED but not delivered — the `alertmanagers:` block of `prometheus/prometheus.yml` is commented out. Nobody receives a push notification for this; someone has to look at it.
 
 This is the early signal of the timeout spike described above, and it arrives before the damage.
 
