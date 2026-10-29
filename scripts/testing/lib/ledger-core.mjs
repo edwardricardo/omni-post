@@ -121,6 +121,14 @@ const SUITE_ROOT = /^(security|performance)\//;
 /** The fewest titles a file must share with its siblings' union to be a union duplicate. */
 const UNION_FLOOR = 5;
 
+/**
+ * The coverage metrics a deleted slice may record a floor descent of, in the order fitness #37
+ * reads them from `apps/api/vitest.config.ts`: the floors a `decorative-demolition` marker lowers.
+ */
+export const FLOOR_METRICS = Object.freeze(
+  /** @type {const} */ (["lines", "functions", "branches", "statements"])
+);
+
 /** The file the rendered JSON is committed as, whose Prettier configuration `render` applies. */
 const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.url));
 
@@ -216,16 +224,32 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  * @property {FileCounts} files
  * @property {RowCounts} rows
  * @property {BlockCounts} blocks
- * @property {DeletedCounts} deleted Zero until the ledger records deletions.
+ * @property {DeletedCounts} deleted The sum of every deleted slice's recorded drop, zero while no
+ *   slice records one.
  * @property {string[]} excluded `<path>: <decision>` per excluded row, sorted by path.
  *
  * @typedef {object} Drop What deleting a set of rows removes.
  * @property {number} files
  * @property {number} blocks
  *
- * @typedef {object} LedgerSlice One demolition slice, as `slices.json` assigns it.
+ * @typedef {object} Floor One coverage floor a deleted slice lowered.
+ * @property {number} from The floor before the slice's pull request.
+ * @property {number} to The floor after it, below `from`.
+ *
+ * @typedef {object} LiveSlice A demolition slice whose files are still rows, as `slices.json`
+ *   assigns it.
  * @property {string[]} files Its rows' paths, sorted.
  * @property {Drop} expectedDrop What deleting its DELETE rows removes.
+ *
+ * @typedef {object} DeletedSlice A demolition slice `slices.json` records deleted.
+ * @property {string[]} files Its paths, sorted: those that left the tree and the rows it keeps.
+ * @property {Drop} deleted Its drop as `slices.json` records it, frozen: never recomputed from
+ *   rows, which a deleted file no longer has.
+ * @property {Record<string, Floor>} floors Its floor descents by metric, in the order of
+ *   {@link FLOOR_METRICS}, empty when it lowered none.
+ *
+ * @typedef {LiveSlice | DeletedSlice} LedgerSlice One demolition slice: live until `slices.json`
+ *   records its deletion.
  *
  * @typedef {object} Ledger
  * @property {number} version
@@ -240,11 +264,12 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  */
 
 /**
- * @description Reads the decision that excludes a path.
+ * @description Reads the decision that excludes a path, whether the tree still holds it or not:
+ *   the verdict table reads it for a row, the slice assignment for a path a slice records deleted.
  * @param {string} file Repository-relative.
  * @returns {string | null} The decision's id, or `null` when none excludes the path.
  */
-function decisionOf(file) {
+export function decisionOf(file) {
   return Object.hasOwn(EXCLUDED_BY_DECISION, file) ? (EXCLUDED_BY_DECISION[file] ?? null) : null;
 }
 
@@ -559,12 +584,30 @@ function countBy(keys, values) {
 }
 
 /**
- * @description Derives the summary from the rows alone, so it can never disagree with them.
- *   `deleted` stays zero until the ledger records deletions.
+ * @description Adds up what the deleted slices recorded: the files and the blocks of every
+ *   slice that carries `deleted`, a live slice adding nothing.
+ * @param {Readonly<Record<string, LedgerSlice>>} slices
+ * @returns {DeletedCounts}
+ */
+function deletedBy(slices) {
+  let files = 0;
+  let blocks = 0;
+  for (const slice of Object.values(slices)) {
+    if (!("deleted" in slice)) continue;
+    files += slice.deleted.files;
+    blocks += slice.deleted.blocks;
+  }
+  return { files, blocks };
+}
+
+/**
+ * @description Derives the summary from the rows, so its counts can never disagree with them,
+ *   and `deleted` from the slices, the sum of the drops the deleted ones record.
  * @param {readonly FileRow[]} rows
+ * @param {Readonly<Record<string, LedgerSlice>>} [slices] The assigned slices, by id.
  * @returns {Summary}
  */
-export function summarize(rows) {
+export function summarize(rows, slices = {}) {
   const blocks = rows.flatMap((row) => row.blocks);
   const verdicts = [...Object.values(VERDICT), UNMEASURED];
   const excluded = rows
@@ -596,15 +639,38 @@ export function summarize(rows) {
         blocks.map((block) => block.blockClass)
       ),
     },
-    deleted: { files: 0, blocks: 0 },
+    deleted: deletedBy(slices),
     excluded,
   };
 }
 
 /**
+ * @description Copies a slice into the ledger's key order: a deleted slice as its paths, its
+ *   recorded drop and its floor descents in the order of {@link FLOOR_METRICS}, a live slice as
+ *   its paths and its expected drop, so the rendered keys are these literals' whatever a caller
+ *   passes.
+ * @param {LedgerSlice} slice
+ * @returns {LedgerSlice}
+ */
+function orderedSlice(slice) {
+  if (!("deleted" in slice)) {
+    const { files: dropped, blocks } = slice.expectedDrop;
+    return { files: [...slice.files], expectedDrop: { files: dropped, blocks } };
+  }
+  /** @type {Record<string, Floor>} */
+  const floors = {};
+  for (const metric of FLOOR_METRICS) {
+    const floor = slice.floors[metric];
+    if (floor !== undefined) floors[metric] = { from: floor.from, to: floor.to };
+  }
+  const { files: dropped, blocks } = slice.deleted;
+  return { files: [...slice.files], deleted: { files: dropped, blocks }, floors };
+}
+
+/**
  * @description Assembles the ledger: its rows sorted by path, each copied into the key order of
- *   `orderedRow`, the summary derived from them, and the slices in code-unit order of their ids,
- *   each copied into its key order. A path with two rows is refused.
+ *   `orderedRow`, the summary derived from them and from the slices, and the slices in code-unit
+ *   order of their ids, each copied into its key order. A path with two rows is refused.
  * @param {readonly FileRow[]} rows
  * @param {Readonly<Record<string, LedgerSlice>>} [slices] The assigned slices, by id.
  * @returns {Result<Ledger>} The ledger, or the path two rows share.
@@ -622,11 +688,15 @@ export function buildLedger(rows, slices = {}) {
   for (const [id, slice] of Object.entries(slices).sort(([left], [right]) =>
     byCodeUnit(left, right)
   )) {
-    const { files: dropped, blocks } = slice.expectedDrop;
-    sliced[id] = { files: [...slice.files], expectedDrop: { files: dropped, blocks } };
+    sliced[id] = orderedSlice(slice);
   }
   return {
-    value: { version: LEDGER_VERSION, summary: summarize(ordered), slices: sliced, files: ordered },
+    value: {
+      version: LEDGER_VERSION,
+      summary: summarize(ordered, sliced),
+      slices: sliced,
+      files: ordered,
+    },
   };
 }
 

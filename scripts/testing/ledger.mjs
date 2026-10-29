@@ -7,13 +7,15 @@
  *   stem's module and its copies of its siblings found, and each runner and helper joined to the
  *   live files that reference it, then the human overlay applied (the confirmations of
  *   `docs/development/testing-refoundation/adjudications.json`, the slices of `slices.json`
- *   beside it), written as `ledger.json` at the repository root and `LEDGER.md` beside the
- *   overlay, or checked against them. The rows, the verdict table, the duplicate scan, the
- *   summary and the rendering are `lib/ledger-core.mjs`'s; the overlay and the deletion a set of
- *   rows stands for are `lib/ledger-overlay.mjs`'s; the page is `lib/ledger-markdown.mjs`'s; the
- *   import graph is `lib/ledger-imports.mjs`'s, over every tracked module, TypeScript project and
- *   command line; the reach report and the quarantine are read through `lib/reach-report.mjs`,
- *   which `metrics.mjs` M5 shares.
+ *   beside it, a deleted slice with the drop and floor descents it records, its deleted paths the
+ *   ones `git ls-files` no longer lists and `summary.deleted` their sum), written as `ledger.json`
+ *   at the repository root and `LEDGER.md` beside the overlay, or checked against them. The rows,
+ *   the verdict table, the duplicate scan, the summary and the rendering are
+ *   `lib/ledger-core.mjs`'s; the overlay and the deletion a set of rows stands for are
+ *   `lib/ledger-overlay.mjs`'s; the page is `lib/ledger-markdown.mjs`'s; the import graph is
+ *   `lib/ledger-imports.mjs`'s, over every tracked module, TypeScript project and command line;
+ *   the reach report and the quarantine are read through `lib/reach-report.mjs`, which
+ *   `metrics.mjs` M5 shares.
  *
  *   MODES. Without `--check` it writes the ledger to `--out`, by default `ledger.json` at the
  *   root, and the page to `docs/development/testing-refoundation/LEDGER.md`, never a Markdown file
@@ -396,7 +398,8 @@ export function build(root, seams = {}) {
   if ("error" in adjudications) return adjudications;
   const slices = optionalText(root, SLICES_FILE);
   if ("error" in slices) return slices;
-  const overlaid = applyOverlay(rows, { adjudications: adjudications.value, slices: slices.value });
+  const texts = { adjudications: adjudications.value, slices: slices.value };
+  const overlaid = applyOverlay(rows, texts, context.tracked);
   if ("error" in overlaid) return overlaid;
   const ledger = buildLedger(overlaid.value.rows, overlaid.value.slices);
   if ("error" in ledger) return ledger;

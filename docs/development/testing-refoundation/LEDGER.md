@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1210  |
 | Confirmed rows          | 0     |
-| Blocks                  | 15200 |
+| Blocks                  | 15217 |
 | Blocks with a criterion | 1049  |
 
 ## Rows without a slice
@@ -728,7 +728,7 @@
 | `apps/api/tests/unit/scripts/jscpdBaselineGate.test.ts`                                               | test             | 13     | 0          | ADJUDICATE | machine | opaque               |
 | `apps/api/tests/unit/scripts/jsdocRules.test.ts`                                                      | test             | 11     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/jsdocTouchedGate.test.ts`                                                | test             | 18     | 0          | ADJUDICATE | machine | opaque               |
-| `apps/api/tests/unit/scripts/ledger.test.ts`                                                          | test             | 77     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/scripts/ledger.test.ts`                                                          | test             | 94     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/legalInventoryLib.test.ts`                                               | test             | 23     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/legalSourceScan.test.ts`                                                 | test             | 8      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/scripts/listedTestFiles.test.ts`                                                 | test             | 9      | 0          | KEEP       | machine | behavioural          |

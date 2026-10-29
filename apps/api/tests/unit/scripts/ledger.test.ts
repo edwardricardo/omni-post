@@ -165,10 +165,21 @@ interface Drop {
   readonly blocks: number;
 }
 
-/** One demolition slice of the ledger. */
+/** A coverage floor before and after the descent a deleted slice's pull request carried. */
+interface Floor {
+  readonly from: number;
+  readonly to: number;
+}
+
+/**
+ * One demolition slice of the ledger: a live slice's expected drop, or a deleted slice's recorded
+ * drop and floor descents.
+ */
 interface LedgerSlice {
   readonly files: readonly string[];
-  readonly expectedDrop: Drop;
+  readonly expectedDrop?: Drop;
+  readonly deleted?: Drop;
+  readonly floors?: Readonly<Record<string, Floor>>;
 }
 
 interface Ledger {
@@ -2347,6 +2358,363 @@ describe("ledger.mjs LEDGER.md", () => {
       false,
       false,
     ]);
+  });
+});
+
+/** Two test files a landed slice deleted: neither is planted nor listed, so the tree holds neither. */
+const D = "apps/api/tests/unit/d.test.ts";
+const E = "apps/api/tests/unit/e.test.ts";
+/** The floor descents a deleted slice's pull request carried, in #37's order of the metrics. */
+const DESCENTS = { lines: { from: 56.8, to: 56.5 }, statements: { from: 56.2, to: 55.9 } };
+const DROP_GRAMMAR = '{ "files": <count>, "blocks": <count> }';
+const FLOORS_GRAMMAR =
+  '{ "<lines|functions|branches|statements>": { "from": <percent>, "to": <lower percent> } }';
+/** A source file `FIXTURE` plants and lists: the tree tracks it, and the ledger holds no row for it. */
+const SOURCE = "apps/api/src/post.ts";
+/** A path with a test's shape that the tree never held: nothing tells it from a deleted test. */
+const NEVER = "apps/api/tests/unit/never-existed.test.ts";
+/** A path the tree does not hold that has no shape of a ledger row, so no deleted test had it. */
+const GONE_SOURCE = "apps/api/src/gone.ts";
+
+/** Builds the ledger of `FIXTURE` with `slices` as its slice assignment and `entries` as its overlay. */
+const withSlices = (
+  slices: Readonly<Record<string, unknown>>,
+  entries: Readonly<Record<string, unknown>> = {}
+): Built =>
+  valueOf(built(plant(withOverlay({ [ADJUDICATIONS]: { entries }, [SLICES]: { slices } }))));
+
+describe("ledger.mjs slices.json deletion record", () => {
+  it("records a whole-file slice whose files left the tree with its frozen drop and floor descents, refusing nothing", () => {
+    const { ledger, problems } = withSlices({
+      "2.6a": {
+        files: [E, D],
+        deleted: { files: 2, blocks: 5 },
+        floors: { statements: DESCENTS.statements, lines: DESCENTS.lines },
+      },
+    });
+
+    expect(problems).toEqual([]);
+    expect(ledger.slices).toEqual({
+      "2.6a": { files: [D, E], deleted: { files: 2, blocks: 5 }, floors: DESCENTS },
+    });
+    expect(Object.keys(ledger.slices["2.6a"] ?? {})).toEqual(["files", "deleted", "floors"]);
+    expect(Object.keys(ledger.slices["2.6a"]?.floors ?? {})).toEqual(["lines", "statements"]);
+    expect(ledger.files.map((file) => file.sliceId)).toEqual([null, null, null, null]);
+  });
+
+  it("refuses a path that left the tree for a slice that records no deletion, beside one that does", () => {
+    const { ledger, problems } = withSlices({
+      "2.6a": { files: [D], deleted: { files: 1, blocks: 2 } },
+      "2.6b": { files: [E] },
+    });
+
+    expect(problems).toEqual([`${SLICES}: 2.6b: ${E}: the ledger lists no such row`]);
+    expect(ledger.slices).toEqual({
+      "2.6a": { files: [D], deleted: { files: 1, blocks: 2 }, floors: {} },
+      "2.6b": { files: [], expectedDrop: { files: 0, blocks: 0 } },
+    });
+  });
+
+  it("refuses a slice that records no deletion and carries an unknown key, naming the key", () => {
+    const { ledger, problems } = withSlices({ "2.6a": { files: [C], note: "x" } });
+
+    expect(problems).toEqual([`${SLICES}: 2.6a: has unknown keys note`]);
+    expect(ledger.slices).toEqual({});
+    expect(rowOf(ledger, C)?.sliceId).toBeNull();
+  });
+
+  it("refuses a path a whole-file slice records deleted while the tree still tracks it, naming the path", () => {
+    const { ledger, problems } = withSlices({
+      "2.6a": { files: [D, C], deleted: { files: 2, blocks: 4 } },
+    });
+
+    expect(problems).toEqual([
+      `${SLICES}: 2.6a: ${C}: is still tracked, yet the slice records every file it lists deleted`,
+    ]);
+    expect(ledger.slices).toEqual({
+      "2.6a": { files: [D], deleted: { files: 2, blocks: 4 }, floors: {} },
+    });
+    expect(rowOf(ledger, C)?.sliceId).toBeNull();
+  });
+
+  it("refuses a path the tree tracks and the ledger holds no row for in a whole-file slice, naming it", () => {
+    const { ledger, problems } = withSlices({
+      "2.6a": { files: [D, SOURCE], deleted: { files: 2, blocks: 3 } },
+    });
+
+    expect(problems).toEqual([
+      `${SLICES}: 2.6a: ${SOURCE}: is still tracked, yet the slice records every file it lists deleted`,
+    ]);
+    expect(ledger.slices).toEqual({
+      "2.6a": { files: [D], deleted: { files: 2, blocks: 3 }, floors: {} },
+    });
+  });
+
+  it("counts a tracked path a slice that keeps files lists on the kept side, never as a deleted file", () => {
+    const one = withSlices({
+      "2.8.1a": { files: [B, SOURCE, D], deleted: { files: 1, blocks: 3 } },
+    });
+    const two = withSlices({
+      "2.8.1a": { files: [B, SOURCE, D], deleted: { files: 2, blocks: 3 } },
+    });
+
+    expect(one.problems).toEqual([`${SLICES}: 2.8.1a: ${SOURCE}: the ledger lists no such row`]);
+    expect(one.ledger.slices).toEqual({
+      "2.8.1a": { files: [B, D], deleted: { files: 1, blocks: 3 }, floors: {} },
+    });
+    expect(rowOf(one.ledger, B)?.sliceId).toBe("2.8.1a");
+    expect(two.problems).toEqual([
+      `${SLICES}: 2.8.1a: records 2 deleted files, yet 1 path it lists left the tree`,
+    ]);
+    expect(two.ledger.slices).toEqual({});
+  });
+
+  it("refuses an overlay entry for a tracked path with no row as no row, never as a deleted path", () => {
+    const { problems } = withSlices(
+      { "2.6a": { files: [D, SOURCE], deleted: { files: 2, blocks: 3 } } },
+      { [SOURCE]: { ...CONFIRMATION, blocks: [] } }
+    );
+
+    expect(problems).toEqual([
+      `${ADJUDICATIONS}: ${SOURCE}: the ledger lists no such row`,
+      `${SLICES}: 2.6a: ${SOURCE}: is still tracked, yet the slice records every file it lists deleted`,
+    ]);
+  });
+
+  it("accepts and counts a path with a test's shape that the tree never held, which nothing tells from a deleted test", () => {
+    const { ledger, problems } = withSlices({
+      "2.6a": { files: [NEVER], deleted: { files: 1, blocks: 0 } },
+    });
+
+    expect(problems).toEqual([]);
+    expect(ledger.slices).toEqual({
+      "2.6a": { files: [NEVER], deleted: { files: 1, blocks: 0 }, floors: {} },
+    });
+    expect(ledger.summary.deleted).toEqual({ files: 1, blocks: 0 });
+  });
+
+  it("refuses a path that left the tree with no shape of a ledger row, naming it", () => {
+    const { ledger, problems } = withSlices({
+      "2.6a": { files: [D, GONE_SOURCE], deleted: { files: 2, blocks: 2 } },
+    });
+
+    expect(problems).toEqual([
+      `${SLICES}: 2.6a: ${GONE_SOURCE}: has no shape of a ledger row, so no deleted test had this path`,
+    ]);
+    expect(ledger.slices).toEqual({
+      "2.6a": { files: [D], deleted: { files: 2, blocks: 2 }, floors: {} },
+    });
+  });
+
+  it("keeps a slice's recorded drop when it keeps some of its files, never recomputed from its live DELETE rows", () => {
+    const { ledger, problems } = withSlices({
+      "2.8.1a": { files: [D, C], deleted: { files: 1, blocks: 7 } },
+    });
+
+    expect(problems).toEqual([]);
+    expect(ledger.slices).toEqual({
+      "2.8.1a": { files: [C, D], deleted: { files: 1, blocks: 7 }, floors: {} },
+    });
+    expect(rowOf(ledger, C)).toMatchObject({ verdict: "DELETE", blockCount: 2, sliceId: "2.8.1a" });
+    expect(ledger.summary.deleted).toEqual({ files: 1, blocks: 7 });
+  });
+
+  it.each<[string, Readonly<Record<string, unknown>>, string]>([
+    [
+      "a deleted record that lacks a count",
+      { files: [D], deleted: { files: 1 } },
+      `has deleted {"files":1}, not ${DROP_GRAMMAR}`,
+    ],
+    [
+      "a negative deleted count",
+      { files: [D], deleted: { files: 1, blocks: -1 } },
+      `has deleted {"files":1,"blocks":-1}, not ${DROP_GRAMMAR}`,
+    ],
+    [
+      "more deleted files than it lists",
+      { files: [D], deleted: { files: 2, blocks: 0 } },
+      "records 2 deleted files, more than the 1 it lists",
+    ],
+    [
+      "a deleted file count that is not the paths that left the tree",
+      { files: [B, D, E], deleted: { files: 1, blocks: 3 } },
+      "records 1 deleted file, yet 2 paths it lists left the tree",
+    ],
+    [
+      "floor descents and no deletion",
+      { files: [C], floors: { lines: DESCENTS.lines } },
+      "records floors but no deletion",
+    ],
+    [
+      "a floor of a metric #37 does not hold",
+      { files: [D], deleted: { files: 1, blocks: 2 }, floors: { coverage: DESCENTS.lines } },
+      `has floors {"coverage":{"from":56.8,"to":56.5}}, not ${FLOORS_GRAMMAR}`,
+    ],
+    [
+      "a floor that rises",
+      { files: [D], deleted: { files: 1, blocks: 2 }, floors: { lines: { from: 56.5, to: 56.8 } } },
+      `has floors {"lines":{"from":56.5,"to":56.8}}, not ${FLOORS_GRAMMAR}`,
+    ],
+    [
+      "an unknown key",
+      { files: [D], deleted: { files: 1, blocks: 2 }, note: "x" },
+      "has unknown keys note",
+    ],
+  ])("refuses a slice with %s, naming it, and leaves the slice out", (_case, slice, why) => {
+    const { ledger, problems } = withSlices({ "2.6a": slice });
+
+    expect(problems).toEqual([`${SLICES}: 2.6a: ${why}`]);
+    expect(ledger.slices).toEqual({});
+    expect(ledger.summary.deleted).toEqual({ files: 0, blocks: 0 });
+  });
+
+  it.each<
+    [string, Readonly<Record<string, unknown>>, string, Readonly<Record<string, LedgerSlice>>]
+  >([
+    [
+      "a path decision D17 excludes",
+      { "2.7": { files: [SEED], deleted: { files: 1, blocks: 0 } } },
+      `2.7: ${SEED}: is excluded by D17 from every delete slice`,
+      { "2.7": { files: [], deleted: { files: 1, blocks: 0 }, floors: {} } },
+    ],
+    [
+      "a deleted path in two slices",
+      {
+        "2.6a": { files: [D], deleted: { files: 1, blocks: 2 } },
+        "2.6b": { files: [D], deleted: { files: 1, blocks: 2 } },
+      },
+      `2.6b: ${D}: already in slice 2.6a`,
+      {
+        "2.6a": { files: [D], deleted: { files: 1, blocks: 2 }, floors: {} },
+        "2.6b": { files: [], deleted: { files: 1, blocks: 2 }, floors: {} },
+      },
+    ],
+  ])("refuses %s in a deleted slice, naming it", (_case, slices, why, rendered) => {
+    const { ledger, problems } = withSlices(slices);
+
+    expect(problems).toEqual([`${SLICES}: ${why}`]);
+    expect(ledger.slices).toEqual(rendered);
+  });
+
+  it("sums the recorded drop of every deleted slice into summary.deleted, a live slice adding nothing", () => {
+    const { ledger, problems } = withSlices({
+      "2.6a": { files: [D], deleted: { files: 1, blocks: 2 } },
+      "2.7": { files: [E], deleted: { files: 1, blocks: 0 } },
+      "2.8.1a": { files: [C] },
+    });
+
+    expect(problems).toEqual([]);
+    expect(ledger.summary.deleted).toEqual({ files: 2, blocks: 2 });
+    expect(ledger.slices["2.8.1a"]).toEqual({ files: [C], expectedDrop: { files: 1, blocks: 2 } });
+  });
+
+  it("refuses an overlay entry for a path a slice records deleted, saying to remove it", () => {
+    const { ledger, problems } = withSlices(
+      { "2.6a": { files: [D], deleted: { files: 1, blocks: 2 } } },
+      { [D]: { ...CONFIRMATION, blocks: [] } }
+    );
+
+    expect(problems).toEqual([
+      `${ADJUDICATIONS}: ${D}: slice 2.6a records it deleted; remove its entry`,
+    ]);
+    expect(ledger.summary.rows.confirmed).toBe(0);
+  });
+
+  it("accepts a block-level deleted.blocks for a slice that keeps every file, deriving nothing from it", () => {
+    const { ledger, problems } = withSlices({
+      "2.8.1a": { files: [B], deleted: { files: 0, blocks: 3 } },
+    });
+
+    expect(problems).toEqual([]);
+    expect(ledger.slices).toEqual({
+      "2.8.1a": { files: [B], deleted: { files: 0, blocks: 3 }, floors: {} },
+    });
+    expect(rowOf(ledger, B)).toMatchObject({
+      verdict: "REWRITE",
+      blockCount: 2,
+      sliceId: "2.8.1a",
+    });
+    expect(ledger.summary.deleted).toEqual({ files: 0, blocks: 3 });
+  });
+
+  it("returns 0 on --check over a landed whole-file slice, and --area lists only the rows the tree still holds", async () => {
+    const root = plant(
+      withOverlay({
+        [ADJUDICATIONS]: { entries: {} },
+        [SLICES]: {
+          slices: {
+            "2.6a": {
+              files: [D],
+              deleted: { files: 1, blocks: 2 },
+              floors: { lines: DESCENTS.lines },
+            },
+          },
+        },
+      })
+    );
+
+    const written = await run(root);
+    const checked = await run(root, ["--check"]);
+    const listed = await run(root, ["--area", "apps/api/tests/unit/*"]);
+
+    expect(written.code).toBe(0);
+    expect(readLedger(ledgerFile(root)).summary.deleted).toEqual({ files: 1, blocks: 2 });
+    expect(checked).toEqual({
+      code: 0,
+      output: `ledger: ledger.json is current\nledger: ${MARKDOWN} is current\n`,
+    });
+    expect(listed).toEqual({
+      code: 0,
+      output:
+        `${HELPER}\n` +
+        `${C}:2:loads the module\n` +
+        `${C}:5:is pending\n` +
+        "ledger: area apps/api/tests/unit/*: expected drop 2 files, 2 blocks\n",
+    });
+  });
+
+  it("renders a deleted slice's section with its recorded drop, its floor descents, the files it deleted and the rows it keeps", async () => {
+    const root = plant(
+      withOverlay({
+        [SLICES]: {
+          slices: {
+            "2.6a": { files: [D, E], deleted: { files: 2, blocks: 5 }, floors: DESCENTS },
+            "2.8.1a": { files: [B], deleted: { files: 0, blocks: 3 } },
+          },
+        },
+      })
+    );
+
+    await run(root);
+    const page = readFileSync(path.join(root, MARKDOWN), "utf8");
+
+    const whole = page.slice(page.indexOf("## Slice 2.6a"), page.indexOf("## Slice 2.8.1a"));
+    const kept = page.slice(
+      page.indexOf("## Slice 2.8.1a"),
+      page.indexOf("## Rows without a slice")
+    );
+    expect(whole).toBe(
+      [
+        "## Slice 2.6a",
+        "",
+        "Deleted: 2 files, 5 blocks. Floors lowered: lines from 56.8 to 56.5, statements from 56.2 to 55.9.",
+        "",
+        "| Deleted file                    |",
+        "| ------------------------------- |",
+        `| \`${D}\` |`,
+        `| \`${E}\` |`,
+        "",
+        "",
+      ].join("\n")
+    );
+    expect(kept).toContain("Deleted: 0 files, 3 blocks.\n");
+    expect(kept).not.toContain("Deleted file");
+    expect(kept).toMatch(
+      new RegExp(
+        `\\| \`${B}\` +\\| test +\\| 2 +\\| 1 +\\| REWRITE +\\| machine +\\| some-decorative +\\|`
+      )
+    );
+    expect(page.slice(page.indexOf("## Rows without a slice"))).not.toContain(`\`${B}\``);
   });
 });
 
