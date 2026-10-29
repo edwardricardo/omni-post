@@ -162,11 +162,6 @@
       "count": 1
     }
   },
-  "apps/api/tests/setup/testTemplate.ts": {
-    "testing/no-tautological-assertion": {
-      "count": 1
-    }
-  },
   "apps/api/tests/threading.canonical.integration.test.ts": {
     "testing/no-existence-only-test": {
       "count": 3

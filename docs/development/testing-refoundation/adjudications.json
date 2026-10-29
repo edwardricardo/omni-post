@@ -1,23 +1,5 @@
 {
   "entries": {
-    "apps/api/tests/analytics-ml-integration.test.ts.disabled": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead-suffix file as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/coverage-utils.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
     "apps/api/tests/integration/crisisRoutes.live.test.ts": {
       "verdict": "REWRITE",
       "criteria": ["c"],
@@ -247,114 +229,6 @@
       "reviewer": "Maintainer",
       "date": "2026-10-29"
     },
-    "apps/api/tests/run-with-coverage.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead runner with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/run.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead runner with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/setup/index.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/setup/testDataFactory.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/setup/testLifecycle.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/setup/testTemplate.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/setup/verifyServices.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/threading.flow.test.ts.old": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead-suffix file as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/unit/PlatformContentAdapter.test-helpers.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/unit/auditService.test-helpers.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/unit/cqrsIntegration.test-helpers.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
     "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts": {
       "verdict": "DELETE",
       "criteria": ["a", "d"],
@@ -383,15 +257,6 @@
       "criteria": [],
       "blocks": [],
       "evidence": "No file imports it (the ledger measures 0 importers) and no collector runs it, so nothing exercises it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "packages/providers/instagram/tests/mediaProcessor.test-helpers.ts": {
-      "verdict": "DELETE",
-      "criteria": [],
-      "blocks": [],
-      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
       "status": "confirmed",
       "reviewer": "Maintainer",
       "date": "2026-10-29"
