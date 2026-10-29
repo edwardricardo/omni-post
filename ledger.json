@@ -28,7 +28,7 @@
       "total": 1210
     },
     "blocks": {
-      "total": 15200,
+      "total": 15217,
       "decorative": 1049,
       "byClass": {
         "EMPTY": 17,
@@ -38,7 +38,7 @@
         "SELF-SKIP": 158,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 29,
-        "BEHAVIOURAL": 14122
+        "BEHAVIOURAL": 14139
       }
     },
     "deleted": {
@@ -74175,543 +74175,662 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 77,
+      "blockCount": 94,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns version 1 and the two paths decision D17 keeps out of every delete slice",
-          "line": 412,
+          "line": 423,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf5b9871ba5ce843ab74f3530feacf849484bed60a8e0f788724ed5308848e7e"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::holds the test-shaped expression byte-equal to the two places M1 and the reach engine define it",
-          "line": 420,
+          "line": 431,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a81acd61b140582dc0d3fb1db0a4e4b85c602c636d8bbd2bb3bfc229cbca52b4"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns the shape of %s as %s",
-          "line": 441,
+          "line": 452,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be58fcd3000aa2c72e22c6496f5f4287ce13195259fdf5b3671d19ce45969735"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns one row per block in source order, keyed path::title, with the classifier's class, criteria and hash",
-          "line": 471,
+          "line": 482,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "831715c79b92715d839232fdb3bd9e3cebbf29e97de97336f1cef1a3b0bbe0ea"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::numbers %s from #2 in source order, every id distinct",
-          "line": 499,
+          "line": 510,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "36a25e76c8ca2d9cb6250b84339fb91c7e00ddfb8edfc4b51f9e0827ecd8bff5"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns the machine verdict of %s",
-          "line": 513,
+          "line": 524,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9217bc06a8756dd2924a22a68c094cfb46fdf1dcccaeaf5d676e329c31e6479f"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns the row in the ledger's key order, its verdict computed and the fields no scan fills yet null",
-          "line": 619,
+          "line": 630,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5bee2adc0c0b86f158cc7c7e0f0f59aff9e8a1faacb368d93b9c4b1fb1daa781"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::sorts reach's labels by code unit and keeps an orphan's list empty, with its quarantine owner",
-          "line": 643,
+          "line": 654,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4437d638b8ca19b310050d214d1139daec357a8e72bd339c3e32f24ee0e85b21"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns null collectors for %s, which is not test-shaped",
-          "line": 658,
+          "line": 669,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ffe9008666c8a41318e360760b4b8227c6e7679a098f0f5e57bfb37108077c57"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns an error for %s",
-          "line": 666,
+          "line": 677,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4cb1c29f4f76cfff9a0d580a3808b7d836b6e32b7afb1cad7b6aa2237ca9a6f"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns the machine verdict of %s #2",
-          "line": 706,
+          "line": 717,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8c4521ec4f266d1b486c91d40f53a135986c9cbcc90598dda2dff7a5fd0f6d6e"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::carries the subject, the duplicate and the importer count in the row's key order",
-          "line": 798,
+          "line": 809,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "71f3a3ce7901c7637c5c3dc19a6ba785e446e600052abd5523963a4aed41debb"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns an error for %s #2",
-          "line": 832,
+          "line": 843,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4cb1c29f4f76cfff9a0d580a3808b7d836b6e32b7afb1cad7b6aa2237ca9a6f"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::keeps the copy a source collects and marks the other an exact duplicate of it, titles normalised",
-          "line": 872,
+          "line": 883,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af82f0b818b9237b0ca933f851248c9d66c4fee388384ed3dcdabeb50c0e60f5"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns no duplicate for %s",
-          "line": 885,
+          "line": 896,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "30034d95ac019dc25ffc188d796037c120596c941257b3617f9340d071a1e606"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::marks a file five of whose blocks its siblings hold a union duplicate of them, an exact copy left out",
-          "line": 918,
+          "line": 929,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ced9b0f4f65ae184a2a41c47f2b304cfcba3afddb814a7cc8b18142cddcea5d8"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns every count of the sample rows, keyed in a fixed order",
-          "line": 938,
+          "line": 949,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1147f3b1a6d440d256913e85bce5f24f0e57e69799ca8c22a0e1601ab5580275"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::derives every total from a direct count over the rows it is given",
-          "line": 986,
+          "line": 997,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c2f957de3ce245147f1334554b2a522b8aa70494ff88c86e5fb40422fd425d6a"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns the ledger keyed in a fixed order, its files sorted by code unit rather than by locale",
-          "line": 1009,
+          "line": 1020,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98b586b1576c8c91e8021b4da0c12d180d8f33b332ebe86ad2f70f2771877fce"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns an error naming a path that two rows share",
-          "line": 1027,
+          "line": 1038,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b4825a2af4d126d66942c4ebae3462b41fb881213c64cc53397347610661db28"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::renders byte-equal JSON from the same rows given in two orders",
-          "line": 1035,
+          "line": 1046,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "12b3036f49f2cc592609c3b01d21f2e6312e692fc2c9765dd4a79401d370b3df"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::renders JSON that parses back to the ledger and carries no clock, no commit and no absolute path",
-          "line": 1045,
+          "line": 1056,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "53f54b006dcc71a3fd9b1add2ef2943dac67b13c08562af95524ab4329af77db"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::reachReport returns the report, or why there is none, given %s",
-          "line": 1117,
+          "line": 1128,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "47d3f7985dbfc3ab8e6d36fdd97a0d53635b7c4bb64fa904c9825d47622423af"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::reachReport runs fitness #30's command, plus --json, in the root it is given",
-          "line": 1150,
+          "line": 1161,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a3676c07cc7939f94c1d4dcc24d62c7865854587e7c2d5ce7da7ef0b8f75339f"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::reachLabels returns each file's labels, or why the report holds none, given %s",
-          "line": 1177,
+          "line": 1188,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd07fa98a388fb55eba4f7bb18e49addb740fe8e0184f96d6bd67b5667226539"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::quarantineOwners returns each file's owner, or why the quarantine is unread, given %s",
-          "line": 1198,
+          "line": 1209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e7baf75ea627381ebfd51fafdc64c862953b5f282c8e2fbf14908c783af03d9"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::quarantineOwners returns why the quarantine is unread when there is no quarantine file",
-          "line": 1231,
+          "line": 1242,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "46ff3ab1d96f88a2e7676ca501da4dd2718fe9f4d264ab936a24e8f2272fc5f1"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::moduleReferences resolves %s",
-          "line": 1264,
+          "line": 1275,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d5105e713fc394e2793dd434b0de51bd9a208bba44d4d6265fb823ef1acd7027"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::moduleReferences returns the run-time imports apart from every reference, relative and workspace strings included and a root path left out",
-          "line": 1299,
+          "line": 1310,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4f11e325096d9f605381244cc84d7c5711d3b7d3a2f32d6c3f6a08ae0d8264d7"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::moduleReferences counts no root path a module outside every workspace names, so a lint scope keeps no file alive",
-          "line": 1320,
+          "line": 1331,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6d814b276ba77b1b60eb9f386b5c36fbb6747219fb804dd9f124a871f4e0ec47"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::commandReferences returns the tracked source files a command line runs, from its directory or the root",
-          "line": 1329,
+          "line": 1340,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f80279e5711a88b6b4ed8dacfc61ddc962672c95235528d98fbbd97731693b0d"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::projectReferences returns the candidates a project collects by a narrow name or by its files, not by an extension",
-          "line": 1341,
+          "line": 1352,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a7e8b61fd7111b41b0356d5e5254593a4500bbd005e4e93fb6aa8d3cb06d4c9"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::liveImporters counts each candidate's live referencing files, through chains, helpers that only reference each other dead",
-          "line": 1360,
+          "line": 1371,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7040a820e02d3369ad5971e3d607bcd9700c26d29d3648423f97d160c2965321"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::importClosure follows the test's imports through its helpers and barrels, and no further",
-          "line": 1381,
+          "line": 1392,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c11ea44976f403cd982e2c1a29f270033050c6284bd5799c279bb914a93e3cb8"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::subjectOf returns %s",
-          "line": 1410,
+          "line": 1421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4b44886433a82e566f7adac61c07c4144180aa86d2849a547d919c6435c60a0b"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns reach's labels sorted, an orphan's empty list, a quarantined orphan's owner and null for a helper, leaving out the paths outside every workspace",
-          "line": 1488,
+          "line": 1499,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8a7c59bddc10f4e7b750d66df43fefd20bc6183babd9512aa5ce786c09a21a40"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns no subject, no duplicate and no importer count for test files whose stems name no module and whose blocks copy no sibling",
-          "line": 1504,
+          "line": 1515,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e6c8d416296fa4d6836b3a9bbf30ebee67e910db8a530453f8f0ba6205e8c1d1"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::renders the same bytes whatever order the listing gives the paths in",
-          "line": 1515,
+          "line": 1526,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fe6fa11644a871c14950b96341f9d94b49232f5e0a98f6d1322198a14c03d1ab"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns an error when %s",
-          "line": 1525,
+          "line": 1536,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af28b687a1d65be3c754b91e873804a7f4228cb60a1797e15c23df2b5a3e5041"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns an error naming a listed file it cannot read",
-          "line": 1545,
+          "line": 1556,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "62cb58bb72da9af1c7d94b247f390b61332f1044977faa8bd94ebe009c5a90d4"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns a row with no framework and a note for a file the classifier cannot read",
-          "line": 1555,
+          "line": 1566,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6416b9cdce5189538678dec1a3956ff3dc46a6374f32ecc9017c9967d8bffa09"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns each row's subject, duplicate, importer count and the verdict they decide, and counts them in the summary",
-          "line": 1621,
+          "line": 1632,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd51957082c020931bb626d7cd586e8c628cbb746ea1309233e06f8bb2e6a308"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::writes the rendered ledger to ledger.json at the root and reports its counts",
-          "line": 1700,
+          "line": 1711,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bae951aee6b009911b556e111906f2693f2044924d2aa6fa6dcd7d3e252085ed"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::writes where --out points, from the saved report --reach names rather than a run",
-          "line": 1716,
+          "line": 1727,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0b58fdae4ec2d42ec58577c26b0c4ed78800a5dd4625781cd8ab1931466453c2"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 2 on %s and writes nothing",
-          "line": 1732,
+          "line": 1743,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f40a7ac10f83fbb789f8f979d13430be7e845c717e1e389ee7628756c437d0e"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 3 and writes nothing when %s",
-          "line": 1747,
+          "line": 1758,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d6d6a016596d46a2a4adfe7cca1eb61429dd4641911b785d9112639e19f204c6"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 0 over the ledger it wrote, and 1 naming the one path whose block title drifted",
-          "line": 1790,
+          "line": 1801,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cd6a6192ee404c4951762467d234b9016eb39a47fb0867842b030c2eb0869361"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 3 when there is no committed ledger to check",
-          "line": 1809,
+          "line": 1820,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "549e18d81798a3257208724ae845c342cd0673076744e1a019452b3c363098e2"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 3 over 1 when the committed ledger drifted and reach could not read an input, comparing nothing",
-          "line": 1818,
+          "line": 1829,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "31b06c2c139219347c1228ec75e4a271f15971c472c9fa43fbda172ad28e3def"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::renders the bytes it rendered before the overlay existed, an empty overlay included",
-          "line": 1864,
+          "line": 1875,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "928a8c3c19cdddc30ee6430acd5c3c0ac5c06f2f077417effd68ee2cf7a5b5e4"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::confirms a row with the overlay's verdict, keeps its machine basis and verdict beside it, and counts it confirmed",
-          "line": 1877,
+          "line": 1888,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a60517cdd99637853ecb4b486b3b492c7fbb87ff79524d1e6c77acafe47158f7"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses %s, naming the path, and leaves every row the machine's",
-          "line": 1901,
+          "line": 1912,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a2328ba3e05a5d2da6f6a9292dc2fcfa608c61528670e82aee1e281e664944b"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::writes the ledger with the refused entry left out, prints the refusal and exits 1",
-          "line": 1950,
+          "line": 1961,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "83444e27b8edb3d968894f2d3451a41837d4c33c5ca2a7c4a26d05fdfef6ae2b"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 3 and writes nothing when the overlay holds %s",
-          "line": 1962,
+          "line": 1973,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01ed2e3fd032940918e36aeebcb75e60691306563653fc7cea5b24083535fdb4"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::renders each assigned row's sliceId and the slice's sorted files and expected drop",
-          "line": 1981,
+          "line": 1992,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "daba4da602547e801fd12ad31d3861e2405060dc2d193e458844f4060cf5f613"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::counts a confirmed DELETE in its slice's expected drop",
-          "line": 1998,
+          "line": 2009,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "31cba83d8e7183e35092ee8fd7f5edb605b9e64ef505d3c48c2deb6a9561bef5"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses %s, naming it",
-          "line": 2014,
+          "line": 2025,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff242e47b1e112bf2194d18ae98a138101bf1149efaf11db566d73ee263110ca"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 1 on --check naming a planted malformed slice id, the committed ledger otherwise current",
-          "line": 2052,
+          "line": 2063,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bedbefada3556ee0d52599a255a66f8c3c5c1b54c0f29d3ed5d7d83513d7fc72"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 3 and writes nothing when slices.json holds no slices object",
-          "line": 2067,
+          "line": 2078,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a632ea529f9e8ac7b1a483d02516adfd3669696212a86eb643fbb1805723c99a"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 3 and writes nothing on %s, naming the file and the key",
-          "line": 2087,
+          "line": 2098,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f3e4ca7307642f9bbdb40e10bdb0ed331771c99edbdba1228b138924c131fde"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses to confirm DELETE for a row decision D17 excludes, and to place it in a slice, naming the path and D17",
-          "line": 2124,
+          "line": 2135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f8fa8e31118b9fca338e7494143c57d7cd6799671e630a2336f248987469e4b"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::confirms KEEP for a row decision D17 excludes",
-          "line": 2153,
+          "line": 2164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0cdcbccffd77716933f21d823bade825739661eabf2b8342bc81ebb1dea9747f"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::reports one file, one test-shaped file and one block in the singular",
-          "line": 2168,
+          "line": 2179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e0c5a80bb198b5c59276c6ae851103bda0d96ec1f8ba826a11c8310aa7f4fe7"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::writes the page beside the overlay, deterministic, with no clock and no absolute path",
-          "line": 2217,
+          "line": 2228,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9e85cd1d1ce4c98713e6cb3a0f7539de7739ae1691431928d189e3cb1145cbc3"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::renders one section per slice with its expected drop, and the status column machine against confirmed",
-          "line": 2236,
+          "line": 2247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bfb4d057296e6912e2e02ea7b9aa460a2d2fe3278000406d0384bc7198a46926"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::writes the page beside --out's file when --out lies outside the root, so a scratch run writes nothing into the tree",
-          "line": 2268,
+          "line": 2279,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c8a11d5769f2d03a50e2a6c2c02acf7d16fe053bf3a6b75bf19ff50bed0bb68"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::writes the page under docs/ when --out names a file inside the root, never a Markdown file at the root",
-          "line": 2280,
+          "line": 2291,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "683b1fbc8e2466fc6f27045f5406ffd8ad59815929e05dc88df7eb5026189064"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 3 naming the page when it cannot be written",
-          "line": 2290,
+          "line": 2301,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "254a707955710b42c807e6d2e05e2197486a1528ea4b16967c39a76a1e3a6fe4"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 0 on --check over the page it wrote, and 1 naming the page once it drifts",
-          "line": 2300,
+          "line": 2311,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "271559e9dae2d3c87fe3d3d30ec526b48a6df3af3342939bb9081e5dc45bc113"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 3 on --check with no committed page, naming it and no drift of the ledger",
-          "line": 2321,
+          "line": 2332,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "03e68ea67cfdc795cc0569eb34c62b3885638524e66a1a0ba1d1bfce9ed84437"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 3 and writes nothing when the page cannot be rendered",
-          "line": 2335,
+          "line": 2346,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6fa850b2e16df1c32539e8e5d64ee20ea27550bb85de26e1cbd6cd986e52cc71"
         },
         {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::records a whole-file slice whose files left the tree with its frozen drop and floor descents, refusing nothing",
+          "line": 2387,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a2613fb91909ab391fe705b87250702a60164c9cf0a8eb85871180a4a2363b17"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses a path that left the tree for a slice that records no deletion, beside one that does",
+          "line": 2405,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6f52c50abe200dc82e7735f77078e073941cfac3b721756928ff704d2f4b3e35"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses a slice that records no deletion and carries an unknown key, naming the key",
+          "line": 2418,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cc17b7b0e8197112b116c662e63611ee53676ad30cdbf20ff95dce54c249fea2"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses a path a whole-file slice records deleted while the tree still tracks it, naming the path",
+          "line": 2426,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "94174803c0bbb1b527a3e396357b35ed885aee0baa68b35d299b6fa331b16ee1"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses a path the tree tracks and the ledger holds no row for in a whole-file slice, naming it",
+          "line": 2440,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6088b653623b08f5529cdb20391e2d5bb3166450527e74fc2acebfe5ec56586e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::counts a tracked path a slice that keeps files lists on the kept side, never as a deleted file",
+          "line": 2453,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1d80192f5587bd3bea769bd6d93fb145ebbf74cdf0e9a739e4cdf0675a5cfd69"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses an overlay entry for a tracked path with no row as no row, never as a deleted path",
+          "line": 2472,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "76cd71bc0d110fafa15e5de9e9749264836bce6fc6a3afe9bbd2b123c7617e3a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::accepts and counts a path with a test's shape that the tree never held, which nothing tells from a deleted test",
+          "line": 2484,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3f5d114769da58b5a66fa3637a393b6da8880b5931d8ca895c59fe95681b5f1b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses a path that left the tree with no shape of a ledger row, naming it",
+          "line": 2496,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ce13304f6f29a8a9a996829fd3c3f896e3165821d9ead9f0eca2ab94de7c124e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::keeps a slice's recorded drop when it keeps some of its files, never recomputed from its live DELETE rows",
+          "line": 2509,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a2267674b369794b6d2162e3eb3cfb67b08be54223ee17e2685e843c5064c87d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses a slice with %s, naming it, and leaves the slice out",
+          "line": 2522,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b7e8c07bcedf08e64d3287029371628a97d818a425333148e11619ea25feb897"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses %s in a deleted slice, naming it",
+          "line": 2571,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c38a5b5b2c3f8c0d4e1b7fff8134468e41a809ec152b2729466bf64476125e68"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::sums the recorded drop of every deleted slice into summary.deleted, a live slice adding nothing",
+          "line": 2599,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "94552469543df9d79586f325e8a6965d523c7cc4a20ae6cf925f23d6c06e2868"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::refuses an overlay entry for a path a slice records deleted, saying to remove it",
+          "line": 2611,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "140f661f904633f337e7d4ac81e4c9c7a59d3a9552a062ac6300e4652505318e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::accepts a block-level deleted.blocks for a slice that keeps every file, deriving nothing from it",
+          "line": 2623,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a62ff555f97f9e619c86b9a7335259c20282d1e372306cd6b208a2f68f044e34"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 0 on --check over a landed whole-file slice, and --area lists only the rows the tree still holds",
+          "line": 2640,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "55841b2b33aaba2b16cbd6e37539e90cd6cf0d79fddfdf952bf0dd2a49167fc0"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/ledger.test.ts::renders a deleted slice's section with its recorded drop, its floor descents, the files it deleted and the rows it keeps",
+          "line": 2676,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4de41f783902252d1064a1cc9e1b1c5f185ffda439e022a6e26f16e7824538de"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::prints file:line:title for every block of the matching DELETE rows, a block-less file by its path, and the expected drop, writing nothing",
-          "line": 2354,
+          "line": 2722,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3d19f745fdabc9a9129b64161d672f919c81e39451923882f97c7f048b288402"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::lists a row the overlay confirms DELETE and leaves out a matching row it confirms KEEP",
-          "line": 2373,
+          "line": 2741,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d4d8c201710723495be92aed3b7d821b05a093c99591a55efd47804365fd182"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns 1 with the listing still printed when an overlay entry is refused",
-          "line": 2396,
+          "line": 2764,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4f8f622035ec99ee6c250c119faa05f4b3c5f8631d5ac584769881da3a00fa91"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns %s's code",
-          "line": 2411,
+          "line": 2779,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0906ebc938abbee37685d281fadf86c0d702b3aba22e797acfa3d50b3fd5d378"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::returns the blocks and decorative blocks of a direct classifyFile fold, over M1's test-shaped files",
-          "line": 2459,
+          "line": 2827,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "926674b97d484186da5be1e1619cc30e1a56a766dc69f7d6002d22dd26bdbff8"
         },
         {
           "id": "apps/api/tests/unit/scripts/ledger.test.ts::writes the same bytes again when reach's report comes through the seam instead of --reach",
-          "line": 2498,
+          "line": 2866,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "040f5785e5f824b5a307e9af4181daa098397742c02dffbcd0b301bf72194747"
