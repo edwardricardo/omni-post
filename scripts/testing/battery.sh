@@ -36,7 +36,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=33
+PLANNED_STEPS=34
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -187,6 +187,11 @@ step i18n pnpm check:i18n
 # `no-circular` cycle check over one resolved import graph. Its `warn`-severity
 # rules print `warn` lines, which this battery reads as RED.
 step architecture pnpm check:architecture
+# Fitness #37: no coverage floor of apps/api/vitest.config.ts descends against origin/main unless
+# a canon-exception marker of its own covers the descent, and a decorative-demolition marker names
+# a slice the committed ledger records as deleted with that descent. CI runs it on pull_request
+# only, so without this step a lowered floor was first seen on the pull request.
+step floors node scripts/testing/coverage-floor-gate.mjs
 # Fitness #52: the committed test ledger and its page are what the tree yields, and every
 # overlay entry and slice assignment applies.
 step ledger pnpm check:ledger
