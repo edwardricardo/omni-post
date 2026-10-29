@@ -6,16 +6,29 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1211  |
-| DELETE                  | 42    |
-| REWRITE                 | 223   |
+| Files                   | 1205  |
+| DELETE                  | 39    |
+| REWRITE                 | 225   |
 | KEEP                    | 836   |
-| ADJUDICATE              | 110   |
+| ADJUDICATE              | 105   |
 | unmeasured              | 0     |
-| Machine rows            | 1178  |
-| Confirmed rows          | 33    |
-| Blocks                  | 15255 |
-| Blocks with a criterion | 1049  |
+| Machine rows            | 1175  |
+| Confirmed rows          | 30    |
+| Blocks                  | 15197 |
+| Blocks with a criterion | 995   |
+
+## Slice 2.6a
+
+Deleted: 6 files, 58 blocks.
+
+| Deleted file                                                              |
+| ------------------------------------------------------------------------- |
+| `apps/admin/tests/apiClient.smoke.test.ts`                                |
+| `apps/admin/tests/posts.flow.test.ts`                                     |
+| `apps/api/tests/unit/trendAnalysisService.test.ts`                        |
+| `apps/api/tests/universal-client-dashboard.live.test.ts`                  |
+| `apps/client/tests/components/ListeningCharts.test.tsx`                   |
+| `packages/providers/_template/tests/integration/sandbox.template.test.ts` |
 
 ## Rows without a slice
 
@@ -23,7 +36,6 @@
 | ----------------------------------------------------------------------------------------------------- | ---------------- | ------ | ---------- | ---------- | --------------------------- | -------------------- |
 | `apps/admin/lib/http/__tests__/forwardedFor.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/lib/stores/__tests__/notificationStore.test.ts`                                           | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/admin/tests/apiClient.smoke.test.ts`                                                            | test             | 0      | 0          | ADJUDICATE | machine                     | no-blocks            |
 | `apps/admin/tests/e2e/a11y.spec.ts`                                                                   | spec             | 1      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/admin/tests/e2e/auth.spec.ts`                                                                   | spec             | 21     | 3          | ADJUDICATE | machine                     | opaque               |
 | `apps/admin/tests/e2e/content-flow.spec.ts`                                                           | spec             | 5      | 0          | ADJUDICATE | machine                     | opaque               |
@@ -31,7 +43,6 @@
 | `apps/admin/tests/e2e/helpers.ts`                                                                     | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/admin/tests/e2e/smoke.spec.ts`                                                                  | spec             | 10     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/admin/tests/e2e/utils/a11y.ts`                                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/admin/tests/posts.flow.test.ts`                                                                 | test             | 0      | 0          | ADJUDICATE | machine                     | no-blocks            |
 | `apps/admin/tests/unit/accounts/accountsLocaleFormatting.test.tsx`                                    | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/unit/analytics/analyticsLocaleFormatting.test.tsx`                                  | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/unit/api/authRefresh.test.ts`                                                       | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
@@ -811,11 +822,10 @@
 | `apps/api/tests/unit/thumbnailGenerator.single.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/thumbnailGenerator.templates.test.ts`                                            | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/thumbnailGenerator.test-helpers.ts`                                              | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/trendAnalysisService.init-trending.test.ts`                                      | test             | 18     | 15         | ADJUDICATE | machine                     | duplicate-union      |
+| `apps/api/tests/unit/trendAnalysisService.init-trending.test.ts`                                      | test             | 18     | 15         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts`                               | test             | 13     | 13         | DELETE     | confirmed (machine: DELETE) | all-decorative       |
-| `apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts`                                  | test             | 14     | 13         | ADJUDICATE | machine                     | duplicate-union      |
+| `apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts`                                  | test             | 14     | 13         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/trendAnalysisService.test-helpers.ts`                                            | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/trendAnalysisService.test.ts`                                                    | test             | 45     | 41         | ADJUDICATE | machine                     | duplicate-union      |
 | `apps/api/tests/unit/trendRoutes.test.ts`                                                             | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/trends/trendRadarRoutes.test.ts`                                                 | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/trialManagementService.test.ts`                                                  | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
@@ -869,7 +879,6 @@
 | `apps/api/tests/unit/webhooks/webhookSignatureVerification.test-helpers.ts`                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/webhooks/xWebhookProcessor.test.ts`                                              | test             | 32     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhooks/youtubeWebhookProcessor.test.ts`                                        | test             | 30     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/universal-client-dashboard.live.test.ts`                                              | live-test        | 9      | 9          | DELETE     | confirmed (machine: DELETE) | all-decorative       |
 | `apps/client/app/actions/auth.test.ts`                                                                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/app/api/backend/[...path]/route.test.ts`                                                 | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/components/ai/analytics/hooks/usePredictiveData/__tests__/mappers.test.ts`               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
@@ -887,7 +896,6 @@
 | `apps/client/lib/templates/__tests__/postTemplates.test.ts`                                           | test             | 39     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/client/lib/templates/__tests__/templateEngine.test.ts`                                          | test             | 33     | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/client/lib/utils/__tests__/providerMapper.test.ts`                                              | test             | 49     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/client/tests/components/ListeningCharts.test.tsx`                                               | test             | 2      | 2          | DELETE     | confirmed (machine: DELETE) | all-decorative       |
 | `apps/client/tests/components/MentionsFeed.test.tsx`                                                  | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/e2e/config/global-setup.ts`                                                        | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/client/tests/e2e/config/global-teardown.ts`                                                     | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -1113,7 +1121,6 @@
 | `packages/observability/sentry-next/tests/GlobalErrorDocument.test.tsx`                               | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/sentry-next/tests/client.test.ts`                                             | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/sentry-next/tests/server.test.ts`                                             | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/_template/tests/integration/sandbox.template.test.ts`                             | test             | 2      | 2          | DELETE     | confirmed (machine: DELETE) | all-decorative       |
 | `packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts`                                    | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/bluesky/tests/BlueskyAdapter.test.ts`                                             | test             | 40     | 3          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts`                                          | test             | 15     | 0          | ADJUDICATE | machine                     | opaque               |

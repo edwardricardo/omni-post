@@ -1,19 +1,9 @@
 {
-  "apps/admin/tests/apiClient.smoke.test.ts": {
-    "no-console": {
-      "count": 3
-    }
-  },
   "apps/admin/tests/e2e/auth.spec.ts": {
     "no-console": {
       "count": 2
     },
     "testing/no-empty-test": {
-      "count": 3
-    }
-  },
-  "apps/admin/tests/posts.flow.test.ts": {
-    "no-console": {
       "count": 3
     }
   },
@@ -1392,14 +1382,6 @@
       "count": 51
     }
   },
-  "apps/api/tests/unit/trendAnalysisService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 13
-    },
-    "vitest/no-conditional-expect": {
-      "count": 142
-    }
-  },
   "apps/api/tests/unit/trendRoutes.test.ts": {
     "no-console": {
       "count": 4
@@ -1528,11 +1510,6 @@
     },
     "vitest/no-conditional-expect": {
       "count": 7
-    }
-  },
-  "apps/client/tests/components/ListeningCharts.test.tsx": {
-    "testing/no-existence-only-test": {
-      "count": 2
     }
   },
   "apps/client/tests/e2e/config/global-setup.ts": {
