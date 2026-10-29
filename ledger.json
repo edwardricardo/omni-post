@@ -28,7 +28,7 @@
       "total": 1211
     },
     "blocks": {
-      "total": 15248,
+      "total": 15255,
       "decorative": 1049,
       "byClass": {
         "EMPTY": 17,
@@ -38,7 +38,7 @@
         "SELF-SKIP": 158,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 29,
-        "BEHAVIOURAL": 14170
+        "BEHAVIOURAL": 14177
       }
     },
     "deleted": {
@@ -77019,70 +77019,119 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::refuses to read an empty table, so no case can pass over rows it never saw",
-          "line": 112,
+          "line": 149,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4853670a249c13c685be97e125ebf479e14e0b2720cac3a0296137168c48f200"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::prints every metric the tracker declares, in order, exactly once",
-          "line": 116,
+          "line": 153,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8c997f5a9c3e81b9c1930f4044e339401c54ab7b92086cb23ea66a47bf033c54"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::names a source class and a reason for every metric it cannot derive",
-          "line": 127,
+          "line": 164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98a792fc7dbfb81f16a83828a663796a809af19c58fb1f0099c5b968360a7ba7"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::derives exactly the metrics the tracker says are derived from the tree",
-          "line": 135,
+          "line": 172,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b38e6aa45f049ed09195e0130ac0a728a627e1acb3a7d403f3ba8325ceb2ec4b"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::reproduces every derived value of the Now column byte for byte",
-          "line": 145,
+          "line": 182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "36db07871a306ee181ac9e0f8e4f2055ea52caf2fa88e9d2ee9efbdfc47c0c1a"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::prints the same line alone as it does inside the whole table",
-          "line": 157,
+          "line": 194,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c63f09e23efcced5d89644713ff85608b8588c4f93b29fca3597fad71dbaf1c7"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::exits non-zero on an unknown flag rather than printing nothing",
-          "line": 170,
+          "line": 207,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "693e39e9854d2c1f11bf73523b7e2ea7e4df8c6a2f49d4af6b62e37bc550b0ec"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::derives machine / confirmed / total from summary.rows",
-          "line": 195,
+          "line": 217,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d839ff039b8c99a339eaef42a8e3d6013b2eabd083838e97f23f6ff48e67de21"
         },
         {
           "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::reads as unavailable, never as zeros, given %s",
-          "line": 207,
+          "line": 229,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c542da6f073b17a0f2cf21f2ceae12579a88f9e0a0f47245c8a689dc95c39907"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::derives 0 from summary.deleted when no slice records a deletion",
+          "line": 248,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6580ddea36d49e952d99855efec7215fe36fab1dcf7b87b6692645661e02f04d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::sums the deleted slices' files and blocks and lists each slice by id",
+          "line": 259,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0f29cfb6c15de5e05a769ef12955fa6d6d63d41f1f37a74778e38caad9f5312c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::reads as unavailable, never as zeros, given %s #2",
+          "line": 292,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "83347456321d82946efdc3c23c7a16f160b9488e969c6ae5076618c9a5fb7dd5"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::lists each slice's descents and sums them per metric",
+          "line": 338,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9ce26fd7040ed57c0415eacaf4d5d6bf4ce8ecb491e9e91a17cddb768c321b3c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::derives 0 when no deleted slice records a floor descent",
+          "line": 368,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ed42ef3a60cb2bda21174eb54f47de5fccf8836d033f8e5ab2c68d963dc8f680"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::reads a deleted slice written without floors as no descent, and M4 still counts its drop",
+          "line": 392,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "acd43b7b793e43a831aa225370af48708573629c6ca2e78c440639fabe64ebef"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/testingMetrics.test.ts::reads as unavailable, never as zeros, given %s #3",
+          "line": 415,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bce903f44b493b1687f72c0007878e0ee0cf00d824bd9d87fc14dcfedf26b93f"
         }
       ],
       "verdict": "KEEP",
