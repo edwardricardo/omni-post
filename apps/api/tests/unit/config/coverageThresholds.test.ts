@@ -42,10 +42,10 @@ type ThresholdKey = (typeof THRESHOLD_KEYS)[number];
  * drives these to 0 or removes them, which this cannot pass.
  */
 const MEASURED_FLOOR: Record<ThresholdKey, number> = {
-  lines: 56.8,
-  functions: 57.3,
-  branches: 47.8,
-  statements: 56.2,
+  lines: 60,
+  functions: 60.5,
+  branches: 50.3,
+  statements: 59.5,
 };
 
 /**

@@ -100,7 +100,10 @@ export default defineConfig({
       //
       // The floor is the MEASURED value of this suite, floored to one decimal
       // (baseline 2026-08-27: statements 56.38, branches 47.93, functions 57.40,
-      // lines 56.95 over 539 files / 8426 tests).
+      // lines 56.95 over 539 files / 8426 tests; raised 2026-10-29 from a local run
+      // that measured statements 59.64, branches 50.44, functions 60.63, lines 60.18
+      // over 627 files / 10506 tests, the first commit of autoUpdate's rewrite since
+      // the baseline).
       //
       // It is a BEST-EFFORT ratchet, and the difference is worth stating because the
       // mechanism does not deliver more: the floor is the last measurement someone
@@ -128,16 +131,20 @@ export default defineConfig({
       // failing every regression larger than it. A regression SMALLER than 0.1pp goes
       // undetected — the deliberate trade for a gate people can trust.
       //
-      // The floors move only upward and only in whole decimals: a run that measures
-      // 0.1pp or more above a floor rewrites this file (see the BEST-EFFORT note
-      // above), and the same subtraction keeps the new floor a decimal below the new
-      // measurement. Hand-lowering a literal is what fitness #37 rejects.
+      // The floors are meant to move only upward and only in whole decimals; a rewrite
+      // is reviewed against the base before it lands, and hand-lowering a literal, or
+      // committing a lowered rewrite, is what fitness #37 rejects.
+      // The case the mechanism gets wrong (DEF-175): `autoUpdate` rewrites this file
+      // whenever a run measures ABOVE a floor, by any amount (the BEST-EFFORT note
+      // above), and the subtraction below writes the measurement's decimal minus one,
+      // so a measurement less than 0.1pp above a floor writes that floor MINUS 0.1:
+      // floor 60 measured at 60.05 writes 59.9.
       thresholds: {
         perFile: false,
-        lines: 56.8,
-        functions: 57.3,
-        branches: 47.8,
-        statements: 56.2,
+        lines: 60,
+        functions: 60.5,
+        branches: 50.3,
+        statements: 59.5,
         // Integer arithmetic BEFORE the division on purpose: the equivalent
         // `Math.floor(n * 10) / 10 - 0.1` subtracts in floating point and writes
         // 56.199999999999996 back into this file (observed). One decimal below the
