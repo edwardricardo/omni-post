@@ -19,9 +19,10 @@
  *
  *   M5 runs the reach engine of `packages/test-contracts`, which asks every collector what it runs
  *   and takes seconds, so the suite runs `--all` once and every case reads that one output; only
- *   the single-metric case runs `--m5` again, under the same budget. M6's branches for a ledger it
- *   cannot read run the script inside throwaway git repositories, each in a private directory that
- *   `mkdtempSync` creates, so the committed ledger is never touched.
+ *   the single-metric case runs `--m5` again, under the same budget. The ledger metrics, M4, M6 and
+ *   M14, are also run over ledgers of the suite's own, a recorded deletion and the ledgers they
+ *   cannot read among them: each runs the script inside a throwaway git repository, in a private
+ *   directory that `mkdtempSync` creates, so the committed ledger is never touched.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -42,7 +43,7 @@ const TRACKER = path.join(REPO_ROOT, "docs", "development", "TESTING_REFOUNDATIO
  * tracker's Now column byte for byte. Everything else names a run, an absent artefact, a metric
  * no lint rule counts yet, or the network, and says so in its own source field.
  */
-const DERIVED_IDS = ["M1", "M3", "M5", "M6", "M7", "M8"] as const;
+const DERIVED_IDS = ["M1", "M3", "M4", "M5", "M6", "M7", "M8", "M14"] as const;
 
 /**
  * The budget of one run that includes M5. The reach engine took about 3 s on an idle machine on
@@ -86,6 +87,38 @@ const rowsRead = (rows: readonly MetricLine[]): readonly MetricLine[] => {
   return rows;
 };
 
+/** The throwaway repositories the ledger-metric cases create, removed once the suite ends. */
+const fixtureRepos: string[] = [];
+
+/**
+ * Runs one metric at the root of a fresh git repository whose ledger.json is `ledger`, or that
+ * holds none when `ledger` is `null`, and returns the line it prints.
+ */
+const metricOverLedger = (flag: string, ledger: string | null): MetricLine | undefined => {
+  const repo = mkdtempSync(path.join(os.tmpdir(), "metrics-ledger-"));
+  fixtureRepos.push(repo);
+  execFileSync("git", ["init", "-q"], { cwd: repo });
+  if (ledger !== null) writeFileSync(path.join(repo, "ledger.json"), ledger);
+  const stdout = execFileSync(process.execPath, [METRICS_SCRIPT, flag, "--offline"], {
+    encoding: "utf8",
+    cwd: repo,
+  });
+  return parseMetricLines(stdout)[0];
+};
+
+/**
+ * A ledger holding `slices` as its slices and `deleted` as its `summary.deleted`, the two parts
+ * M4 and M14 read.
+ */
+const ledgerOf = (slices: unknown, deleted: unknown = { files: 0, blocks: 0 }): string =>
+  JSON.stringify({ summary: { deleted }, slices });
+
+/** A live slice: its files are still rows and it records no deletion, so it adds nothing. */
+const LIVE_SLICE = {
+  files: ["apps/api/tests/unit/a.test.ts"],
+  expectedDrop: { files: 1, blocks: 4 },
+};
+
 /** The `Now` cell of every `M<n>` row of the tracker's Metrics table. */
 const readTrackerNow = (): Map<string, string> => {
   const now = new Map<string, string>();
@@ -107,6 +140,10 @@ describe("testing re-foundation metrics script", () => {
   beforeAll(() => {
     allRows = parseMetricLines(runMetrics(["--all", "--offline"]));
   }, REACH_BUDGET_MS);
+
+  afterAll(() => {
+    for (const repo of fixtureRepos) rmSync(repo, { recursive: true, force: true });
+  });
 
   describe("the whole table", () => {
     it("refuses to read an empty table, so no case can pass over rows it never saw", () => {
@@ -173,24 +210,9 @@ describe("testing re-foundation metrics script", () => {
   });
 
   describe("M6 over a ledger of its own", () => {
-    const repos: string[] = [];
-
     /** Runs `--m6` at the root of a fresh git repository holding `ledger` as its ledger.json. */
-    const m6In = (ledger: string | null): MetricLine | undefined => {
-      const repo = mkdtempSync(path.join(os.tmpdir(), "metrics-m6-"));
-      repos.push(repo);
-      execFileSync("git", ["init", "-q"], { cwd: repo });
-      if (ledger !== null) writeFileSync(path.join(repo, "ledger.json"), ledger);
-      const stdout = execFileSync(process.execPath, [METRICS_SCRIPT, "--m6", "--offline"], {
-        encoding: "utf8",
-        cwd: repo,
-      });
-      return parseMetricLines(stdout)[0];
-    };
-
-    afterAll(() => {
-      for (const repo of repos) rmSync(repo, { recursive: true, force: true });
-    });
+    const m6In = (ledger: string | null): MetricLine | undefined =>
+      metricOverLedger("--m6", ledger);
 
     it("derives machine / confirmed / total from summary.rows", () => {
       const line = m6In(
@@ -215,6 +237,222 @@ describe("testing re-foundation metrics script", () => {
       ],
     ])("reads as unavailable, never as zeros, given %s", (_case, ledger, source) => {
       expect(m6In(ledger)).toEqual({ id: "M6", value: "—", source });
+    });
+  });
+
+  describe("M4 over a ledger of its own", () => {
+    /** Runs `--m4` at the root of a fresh git repository holding `ledger` as its ledger.json. */
+    const m4In = (ledger: string | null): MetricLine | undefined =>
+      metricOverLedger("--m4", ledger);
+
+    it("derives 0 from summary.deleted when no slice records a deletion", () => {
+      const line = m4In(ledgerOf({ "2.6a": LIVE_SLICE }));
+
+      expect(line).toEqual({
+        id: "M4",
+        value: "0",
+        source:
+          "derived: ledger.json summary.deleted, 0 files and 0 blocks; no slice records a deletion",
+      });
+    });
+
+    it("sums the deleted slices' files and blocks and lists each slice by id", () => {
+      const line = m4In(
+        ledgerOf(
+          {
+            "2.7": {
+              files: ["apps/api/tests/unit/d.test.ts"],
+              deleted: { files: 1, blocks: 18 },
+              floors: {},
+            },
+            "2.6b": LIVE_SLICE,
+            "2.6a": {
+              files: [
+                "apps/api/tests/unit/a.test.ts",
+                "apps/api/tests/unit/b.test.ts",
+                "apps/api/tests/unit/c.test.ts",
+              ],
+              deleted: { files: 3, blocks: 12 },
+              floors: {},
+            },
+          },
+          { files: 4, blocks: 30 }
+        )
+      );
+
+      expect(line).toEqual({
+        id: "M4",
+        value: "4",
+        source:
+          "derived: ledger.json summary.deleted, 4 files and 30 blocks; " +
+          "2.6a: 3 files, 12 blocks; 2.7: 1 file, 18 blocks",
+      });
+    });
+
+    it.each([
+      ["no ledger.json", null, "unavailable: ledger.json is not present in the tree yet"],
+      ["a ledger.json that is no JSON", '{ "summary": ', "unavailable: ledger.json is not JSON"],
+      ["a ledger.json that is null", "null", "unavailable: ledger.json holds no summary.deleted"],
+      [
+        "a summary.deleted count that is not an integer",
+        ledgerOf({}, { files: "0", blocks: 0 }),
+        "unavailable: ledger.json holds no summary.deleted",
+      ],
+      ["no slices object", ledgerOf(null), "unavailable: ledger.json holds no slices"],
+      [
+        "a slice that is not an object",
+        ledgerOf({ "2.7": [] }),
+        "unavailable: ledger.json slice 2.7 is not an object",
+      ],
+      [
+        "a deleted slice whose drop is not whole files and blocks",
+        ledgerOf({ "2.7": { files: [], deleted: { files: 1.5, blocks: 3 }, floors: {} } }),
+        "unavailable: ledger.json slice 2.7 records a drop that is not whole files and blocks",
+      ],
+      [
+        "a summary.deleted that is not the sum of its deleted slices",
+        ledgerOf(
+          { "2.7": { files: [], deleted: { files: 2, blocks: 18 }, floors: {} } },
+          { files: 2, blocks: 17 }
+        ),
+        "unavailable: ledger.json summary.deleted is not the sum of its deleted slices",
+      ],
+      [
+        "a summary.deleted whose files alone are not the sum of its deleted slices",
+        ledgerOf(
+          { "2.7": { files: [], deleted: { files: 2, blocks: 18 }, floors: {} } },
+          { files: 3, blocks: 18 }
+        ),
+        "unavailable: ledger.json summary.deleted is not the sum of its deleted slices",
+      ],
+    ])("reads as unavailable, never as zeros, given %s", (_case, ledger, source) => {
+      expect(m4In(ledger)).toEqual({ id: "M4", value: "—", source });
+    });
+  });
+
+  describe("M14 over a ledger of its own", () => {
+    /** Runs `--m14` at the root of a fresh git repository holding `ledger` as its ledger.json. */
+    const m14In = (ledger: string | null): MetricLine | undefined =>
+      metricOverLedger("--m14", ledger);
+
+    it("lists each slice's descents and sums them per metric", () => {
+      const line = m14In(
+        ledgerOf(
+          {
+            "2.7": {
+              files: ["apps/api/tests/unit/d.test.ts"],
+              deleted: { files: 1, blocks: 6 },
+              floors: { lines: { from: 55.2, to: 54.9 } },
+            },
+            "2.6a": {
+              files: ["apps/api/tests/unit/a.test.ts"],
+              deleted: { files: 1, blocks: 4 },
+              floors: { branches: { from: 47.8, to: 47.1 }, lines: { from: 56.8, to: 55.2 } },
+            },
+            "2.6b": LIVE_SLICE,
+          },
+          { files: 2, blocks: 10 }
+        )
+      );
+
+      expect(line).toEqual({
+        id: "M14",
+        value: "3",
+        source:
+          "derived: ledger.json deleted slices' floors, " +
+          "2.6a: lines 56.8 → 55.2, branches 47.8 → 47.1; 2.7: lines 55.2 → 54.9; " +
+          "descents per metric: lines 1.9, functions 0, branches 0.7, statements 0",
+      });
+    });
+
+    it("derives 0 when no deleted slice records a floor descent", () => {
+      const line = m14In(
+        ledgerOf(
+          {
+            "2.6a": LIVE_SLICE,
+            "2.7": {
+              files: ["apps/api/tests/unit/d.test.ts"],
+              deleted: { files: 1, blocks: 6 },
+              floors: {},
+            },
+          },
+          { files: 1, blocks: 6 }
+        )
+      );
+
+      expect(line).toEqual({
+        id: "M14",
+        value: "0",
+        source:
+          "derived: ledger.json deleted slices' floors, no slice records a descent; " +
+          "descents per metric: lines 0, functions 0, branches 0, statements 0",
+      });
+    });
+
+    it("reads a deleted slice written without floors as no descent, and M4 still counts its drop", () => {
+      const ledger = ledgerOf(
+        { "2.7": { files: ["apps/api/tests/unit/d.test.ts"], deleted: { files: 1, blocks: 6 } } },
+        { files: 1, blocks: 6 }
+      );
+
+      expect([m14In(ledger), metricOverLedger("--m4", ledger)]).toEqual([
+        {
+          id: "M14",
+          value: "0",
+          source:
+            "derived: ledger.json deleted slices' floors, no slice records a descent; " +
+            "descents per metric: lines 0, functions 0, branches 0, statements 0",
+        },
+        {
+          id: "M4",
+          value: "1",
+          source:
+            "derived: ledger.json summary.deleted, 1 file and 6 blocks; 2.7: 1 file, 6 blocks",
+        },
+      ]);
+    });
+
+    it.each([
+      ["no ledger.json", null, "unavailable: ledger.json is not present in the tree yet"],
+      ["a ledger.json that is null", "null", "unavailable: ledger.json holds no slices"],
+      [
+        "a floor that stays where it was",
+        ledgerOf({
+          "2.7": {
+            files: [],
+            deleted: { files: 1, blocks: 6 },
+            floors: { lines: { from: 55.2, to: 55.2 } },
+          },
+        }),
+        "unavailable: ledger.json slice 2.7 records a floor that is not a descent of " +
+          "lines, functions, branches or statements",
+      ],
+      [
+        "a floor that does not descend",
+        ledgerOf({
+          "2.7": {
+            files: [],
+            deleted: { files: 1, blocks: 6 },
+            floors: { lines: { from: 54.9, to: 55.2 } },
+          },
+        }),
+        "unavailable: ledger.json slice 2.7 records a floor that is not a descent of " +
+          "lines, functions, branches or statements",
+      ],
+      [
+        "a floor of a metric that fitness #37 (scripts/testing/coverage-floor-gate.mjs) does not hold",
+        ledgerOf({
+          "2.7": {
+            files: [],
+            deleted: { files: 1, blocks: 6 },
+            floors: { mutation: { from: 60, to: 55 } },
+          },
+        }),
+        "unavailable: ledger.json slice 2.7 records a floor that is not a descent of " +
+          "lines, functions, branches or statements",
+      ],
+    ])("reads as unavailable, never as zeros, given %s", (_case, ledger, source) => {
+      expect(m14In(ledger)).toEqual({ id: "M14", value: "—", source });
     });
   });
 });
