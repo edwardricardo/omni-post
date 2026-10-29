@@ -36,7 +36,7 @@ export const EXCLUDED_BY_DECISION = Object.freeze({
 
 /**
  * A basename that names a test by convention, `.k6.js` being a tier of its own. It must stay
- * byte-equal to `CANONICAL_TEST_SHAPED` in `scripts/testing/metrics.mjs:45`, which defines metric
+ * byte-equal to `CANONICAL_TEST_SHAPED` in `scripts/testing/metrics.mjs`, which defines metric
  * M1, and in `packages/test-contracts/src/lib/disk.ts:23`, the reach engine's: the ledger's
  * test-shaped population is M1's by construction. `ledger.test.ts` reads all three and fails on a
  * drift. Anchored at the end, so a `.disabled`, `.old` or `.bak` tail is not test-shaped.

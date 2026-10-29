@@ -24,9 +24,17 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { FLOOR_METRICS } from "./lib/ledger-core.mjs";
 import { reachReport } from "./lib/reach-report.mjs";
+import { byCodeUnit, isObject } from "./lib/record-helpers.mjs";
 
 const UNKNOWN = "—";
+
+/** The floor metrics as the messages name them: `lines, functions, branches or statements`. */
+const FLOOR_METRICS_PHRASE = `${FLOOR_METRICS.slice(0, -1).join(", ")} or ${FLOOR_METRICS.at(-1)}`;
+
+/** The most digits `Number.prototype.toFixed` accepts; above it the call throws. */
+const TOFIXED_MAX_DIGITS = 100;
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
@@ -356,6 +364,236 @@ function fromArtefact(id, artefact, pending) {
 const LEDGER = "ledger.json";
 
 /**
+ * @param {string} id
+ * @param {string} reason Why the metric cannot be read, naming the artefact.
+ * @returns {Metric}
+ */
+function unreadable(id, reason) {
+  return { id, value: UNKNOWN, source: `unavailable: ${reason}` };
+}
+
+/**
+ * Reads the committed ledger for one metric. A missing file and a file that is no JSON come back
+ * as that metric's unavailable line, so each reader checks only the part of the ledger it reads.
+ *
+ * @param {string} id
+ * @returns {{ ledger: unknown } | { unavailable: Metric }}
+ */
+function readLedger(id) {
+  const file = path.join(REPO_ROOT, LEDGER);
+  if (!existsSync(file)) return { unavailable: { id, value: UNKNOWN, source: absent(LEDGER) } };
+  try {
+    return { ledger: JSON.parse(readFileSync(file, "utf8")) };
+  } catch {
+    return { unavailable: unreadable(id, `${LEDGER} is not JSON`) };
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {value is number} `true` for a whole number of files or blocks, zero included.
+ */
+function isCount(value) {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0;
+}
+
+/**
+ * @param {number} count
+ * @param {string} noun Singular.
+ * @returns {string} `1 file`, `2 files`.
+ */
+function counted(count, noun) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+/**
+ * @typedef {object} FloorDescent One coverage floor a deleted slice lowered.
+ * @property {string} metric One of the ledger's `FLOOR_METRICS`.
+ * @property {number} from
+ * @property {number} to Below `from`.
+ *
+ * @typedef {object} RecordedDeletion A slice the ledger records deleted.
+ * @property {string} id
+ * @property {number} files Its frozen drop, as the ledger renders it.
+ * @property {number} blocks
+ * @property {FloorDescent[]} descents In the order of `FLOOR_METRICS`, empty when it lowered none.
+ */
+
+/**
+ * Reads a deleted slice's `floors`: each a descent of one of the four floors fitness #37 holds,
+ * in the ledger's metric order. The ledger renders `floors` on every deleted slice; one written
+ * without it lowered nothing, as the slice grammar allows.
+ *
+ * @param {unknown} value The slice's `floors`, as the ledger holds it.
+ * @returns {FloorDescent[] | null} The descents, or `null` when the value is not a set of them.
+ */
+function floorDescents(value) {
+  if (value === undefined) return [];
+  if (!isObject(value)) return null;
+  /** @type {ReadonlySet<string>} */
+  const known = new Set(FLOOR_METRICS);
+  if (Object.keys(value).some((metric) => !known.has(metric))) return null;
+  /** @type {FloorDescent[]} */
+  const descents = [];
+  for (const metric of FLOOR_METRICS) {
+    if (!Object.hasOwn(value, metric)) continue;
+    const floor = value[metric];
+    const from = isObject(floor) ? floor["from"] : undefined;
+    const to = isObject(floor) ? floor["to"] : undefined;
+    if (typeof from !== "number" || typeof to !== "number") return null;
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to >= from) return null;
+    descents.push({ metric, from, to });
+  }
+  return descents;
+}
+
+/**
+ * The slices the ledger records deleted, in code-unit order of their ids, each with its frozen
+ * drop and its floor descents. A live slice, one with no `deleted`, has deleted nothing and is
+ * skipped; anything outside the ledger's slice shape is an error, so a malformed record never
+ * reads as no deletion.
+ *
+ * @param {unknown} ledger The parsed ledger.json.
+ * @returns {{ deletions: RecordedDeletion[] } | { error: string }}
+ */
+function recordedDeletions(ledger) {
+  const slices = isObject(ledger) ? ledger["slices"] : undefined;
+  if (!isObject(slices)) return { error: `${LEDGER} holds no slices` };
+  /** @type {RecordedDeletion[]} */
+  const deletions = [];
+  for (const id of Object.keys(slices).sort(byCodeUnit)) {
+    const slice = slices[id];
+    if (!isObject(slice)) return { error: `${LEDGER} slice ${id} is not an object` };
+    if (!Object.hasOwn(slice, "deleted")) continue;
+    const drop = slice["deleted"];
+    const files = isObject(drop) ? drop["files"] : undefined;
+    const blocks = isObject(drop) ? drop["blocks"] : undefined;
+    if (!isCount(files) || !isCount(blocks)) {
+      return { error: `${LEDGER} slice ${id} records a drop that is not whole files and blocks` };
+    }
+    const descents = floorDescents(slice["floors"]);
+    if (descents === null) {
+      return {
+        error: `${LEDGER} slice ${id} records a floor that is not a descent of ${FLOOR_METRICS_PHRASE}`,
+      };
+    }
+    deletions.push({ id, files, blocks, descents });
+  }
+  return { deletions };
+}
+
+/**
+ * M4: the whole files the demolition slices deleted, `summary.deleted.files`. The source carries
+ * the blocks they held and each deleted slice's frozen drop, so the value stays the one figure the
+ * tracker's cell holds however many slices land. The total is held to the sum of the slices the
+ * line lists, so it never prints a total its own list contradicts; a summary or a slice outside
+ * the ledger's shape reads as unavailable, never as zeros.
+ *
+ * @returns {Metric}
+ */
+function m4() {
+  const read = readLedger("M4");
+  if ("unavailable" in read) return read.unavailable;
+  const summary = isObject(read.ledger) ? read.ledger["summary"] : undefined;
+  const total = isObject(summary) ? summary["deleted"] : undefined;
+  const files = isObject(total) ? total["files"] : undefined;
+  const blocks = isObject(total) ? total["blocks"] : undefined;
+  if (!isCount(files) || !isCount(blocks)) {
+    return unreadable("M4", `${LEDGER} holds no summary.deleted`);
+  }
+  const recorded = recordedDeletions(read.ledger);
+  if ("error" in recorded) return unreadable("M4", recorded.error);
+  const { deletions } = recorded;
+  const summedFiles = deletions.reduce((sum, deletion) => sum + deletion.files, 0);
+  const summedBlocks = deletions.reduce((sum, deletion) => sum + deletion.blocks, 0);
+  if (summedFiles !== files || summedBlocks !== blocks) {
+    return unreadable("M4", `${LEDGER} summary.deleted is not the sum of its deleted slices`);
+  }
+  const perSlice =
+    deletions.length === 0
+      ? "no slice records a deletion"
+      : deletions
+          .map(
+            (deletion) =>
+              `${deletion.id}: ${counted(deletion.files, "file")}, ` +
+              counted(deletion.blocks, "block")
+          )
+          .join("; ");
+  return {
+    id: "M4",
+    value: String(files),
+    source:
+      `derived: ${LEDGER} summary.deleted, ${counted(files, "file")} and ` +
+      `${counted(blocks, "block")}; ${perSlice}`,
+  };
+}
+
+/**
+ * @param {number} value
+ * @returns {number} The digits after its decimal point, an exponent form included.
+ */
+function decimalsOf(value) {
+  const [mantissa = "", exponent = "0"] = String(value).split("e");
+  const fraction = mantissa.split(".")[1] ?? "";
+  return Math.max(0, fraction.length - Number(exponent));
+}
+
+/**
+ * Adds a metric's descents as decimals: a sum of numbers with at most `d` decimals has at most `d`
+ * itself, so rounding the floating-point sum to `d` gives the exact one (`56.8 - 55.2` alone is
+ * `1.5999999999999943`).
+ *
+ * @param {readonly FloorDescent[]} descents
+ * @returns {string} The sum, `0` when there is none.
+ */
+function descentSum(descents) {
+  let total = 0;
+  let digits = 0;
+  for (const { from, to } of descents) {
+    total += from - to;
+    digits = Math.max(digits, decimalsOf(from), decimalsOf(to));
+  }
+  return String(Number(total.toFixed(Math.min(digits, TOFIXED_MAX_DIGITS))));
+}
+
+/**
+ * M14: the coverage that was decorative, as the floor descents the deleted slices record, the
+ * descents a `decorative-demolition` marker carries (ADR-0039). The value counts them; the source
+ * lists each slice's `from → to` per metric and the sum of the descents per metric, all four
+ * named, so a metric no slice lowered reads `0` rather than being left out.
+ *
+ * @returns {Metric}
+ */
+function m14() {
+  const read = readLedger("M14");
+  if ("unavailable" in read) return read.unavailable;
+  const recorded = recordedDeletions(read.ledger);
+  if ("error" in recorded) return unreadable("M14", recorded.error);
+  const lowered = recorded.deletions.filter((deletion) => deletion.descents.length > 0);
+  const descents = lowered.flatMap((deletion) => deletion.descents);
+  const perSlice =
+    lowered.length === 0
+      ? "no slice records a descent"
+      : lowered
+          .map(
+            (deletion) =>
+              `${deletion.id}: ` +
+              deletion.descents
+                .map((descent) => `${descent.metric} ${descent.from} → ${descent.to}`)
+                .join(", ")
+          )
+          .join("; ");
+  const perMetric = FLOOR_METRICS.map(
+    (metric) => `${metric} ${descentSum(descents.filter((descent) => descent.metric === metric))}`
+  ).join(", ");
+  return {
+    id: "M14",
+    value: String(descents.length),
+    source: `derived: ${LEDGER} deleted slices' floors, ${perSlice}; descents per metric: ${perMetric}`,
+  };
+}
+
+/**
  * M6: the ledger's rows as `machine / confirmed / total`, the counts its `summary.rows` holds once
  * the owner's overlay is applied. A file that is no JSON, or a summary without the three integer
  * counts, is reported as unreadable rather than read as zeros, and leaves the other metrics printed.
@@ -363,15 +601,9 @@ const LEDGER = "ledger.json";
  * @returns {Metric}
  */
 function m6() {
-  const file = path.join(REPO_ROOT, LEDGER);
-  if (!existsSync(file)) return { id: "M6", value: UNKNOWN, source: absent(LEDGER) };
-  /** @type {unknown} */
-  let ledger;
-  try {
-    ledger = JSON.parse(readFileSync(file, "utf8"));
-  } catch {
-    return { id: "M6", value: UNKNOWN, source: `unavailable: ${LEDGER} is not JSON` };
-  }
+  const read = readLedger("M6");
+  if ("unavailable" in read) return read.unavailable;
+  const { ledger } = read;
   const summary =
     typeof ledger === "object" && ledger !== null
       ? /** @type {{ summary?: { rows?: Record<string, unknown> } }} */ (ledger).summary
@@ -417,11 +649,7 @@ function metricTable(offline) {
       compute: () => pasted("M2", "the local vitest run summary and the integration tier summary"),
     },
     { id: "M3", compute: () => fromSuppressions("M3", SUPPRESSED_RULES.M3) },
-    {
-      id: "M4",
-      compute: () =>
-        fromArtefact("M4", LEDGER, "records no deletion yet: summary.deleted stays at zero"),
-    },
+    { id: "M4", compute: m4 },
     { id: "M5", compute: m5 },
     { id: "M6", compute: m6 },
     { id: "M7", compute: m7 },
@@ -438,10 +666,7 @@ function metricTable(offline) {
       compute: () => fromArtefact("M12", "mutation-floors.json", "needs its own reader"),
     },
     { id: "M13", compute: () => fromSuppressions("M13", SUPPRESSED_RULES.M13) },
-    {
-      id: "M14",
-      compute: () => fromArtefact("M14", LEDGER, "records no slice's real drop yet"),
-    },
+    { id: "M14", compute: m14 },
     { id: "M15", compute: () => m15(offline) },
     {
       id: "M16",
