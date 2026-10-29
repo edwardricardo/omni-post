@@ -2,11 +2,11 @@
   "version": 1,
   "summary": {
     "files": {
-      "total": 1211,
+      "total": 1205,
       "byShape": {
-        "test": 957,
+        "test": 952,
         "integration-test": 86,
-        "live-test": 18,
+        "live-test": 17,
         "spec": 9,
         "k6": 6,
         "runner": 2,
@@ -15,42 +15,58 @@
         "none": 2
       },
       "byVerdict": {
-        "DELETE": 42,
-        "REWRITE": 223,
+        "DELETE": 39,
+        "REWRITE": 225,
         "KEEP": 836,
-        "ADJUDICATE": 110,
+        "ADJUDICATE": 105,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1178,
-      "confirmed": 33,
-      "total": 1211
+      "machine": 1175,
+      "confirmed": 30,
+      "total": 1205
     },
     "blocks": {
-      "total": 15255,
-      "decorative": 1049,
+      "total": 15197,
+      "decorative": 995,
       "byClass": {
         "EMPTY": 17,
         "TAUTOLOGY-ONLY": 16,
-        "EXISTENCE-ONLY": 609,
-        "CONDITIONAL-ONLY": 242,
-        "SELF-SKIP": 158,
+        "EXISTENCE-ONLY": 594,
+        "CONDITIONAL-ONLY": 205,
+        "SELF-SKIP": 156,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 29,
-        "BEHAVIOURAL": 14177
+        "BEHAVIOURAL": 14173
       }
     },
     "deleted": {
-      "files": 0,
-      "blocks": 0
+      "files": 6,
+      "blocks": 58
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
       "apps/api/scripts/seed-large-dataset.ts: D17"
     ]
   },
-  "slices": {},
+  "slices": {
+    "2.6a": {
+      "files": [
+        "apps/admin/tests/apiClient.smoke.test.ts",
+        "apps/admin/tests/posts.flow.test.ts",
+        "apps/api/tests/unit/trendAnalysisService.test.ts",
+        "apps/api/tests/universal-client-dashboard.live.test.ts",
+        "apps/client/tests/components/ListeningCharts.test.tsx",
+        "packages/providers/_template/tests/integration/sandbox.template.test.ts"
+      ],
+      "deleted": {
+        "files": 6,
+        "blocks": 58
+      },
+      "floors": {}
+    }
+  },
   "files": [
     {
       "path": "apps/admin/lib/http/__tests__/forwardedFor.test.ts",
@@ -211,27 +227,6 @@
         "stem": "notificationStore",
         "module": "apps/admin/lib/stores/notificationStore.ts",
         "imported": true
-      },
-      "duplicate": null,
-      "importers": null
-    },
-    {
-      "path": "apps/admin/tests/apiClient.smoke.test.ts",
-      "shape": "test",
-      "framework": "vitest",
-      "collectors": [],
-      "quarantined": "WU-2.6a",
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "ADJUDICATE",
-      "basis": "no-blocks",
-      "excluded": null,
-      "status": "machine",
-      "sliceId": null,
-      "subject": {
-        "stem": "apiClient",
-        "module": "apps/admin/lib/apiClient.ts",
-        "imported": false
       },
       "duplicate": null,
       "importers": null
@@ -617,23 +612,6 @@
       "subject": null,
       "duplicate": null,
       "importers": 1
-    },
-    {
-      "path": "apps/admin/tests/posts.flow.test.ts",
-      "shape": "test",
-      "framework": "vitest",
-      "collectors": [],
-      "quarantined": "WU-2.6a",
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "ADJUDICATE",
-      "basis": "no-blocks",
-      "excluded": null,
-      "status": "machine",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": null
     },
     {
       "path": "apps/admin/tests/unit/accounts/accountsLocaleFormatting.test.tsx",
@@ -11795,7 +11773,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 19
+      "importers": 18
     },
     {
       "path": "apps/api/tests/threading.canonical.integration.test.ts",
@@ -86887,8 +86865,8 @@
           "bodyHash": "cf77c6b02ed04e3d1c62dc0cf57a47d07df7f4b17641314fab909ad292b6c196"
         }
       ],
-      "verdict": "ADJUDICATE",
-      "basis": "duplicate-union",
+      "verdict": "REWRITE",
+      "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
       "sliceId": null,
@@ -86897,10 +86875,7 @@
         "module": "apps/api/src/trends/trendAnalysisService.ts",
         "imported": true
       },
-      "duplicate": {
-        "kind": "UNION",
-        "of": ["apps/api/tests/unit/trendAnalysisService.test.ts"]
-      },
+      "duplicate": null,
       "importers": null
     },
     {
@@ -87013,10 +86988,7 @@
         "module": "apps/api/src/trends/trendAnalysisService.ts",
         "imported": true
       },
-      "duplicate": {
-        "kind": "UNION",
-        "of": ["apps/api/tests/unit/trendAnalysisService.test.ts"]
-      },
+      "duplicate": null,
       "importers": null
     },
     {
@@ -87126,8 +87098,8 @@
           "bodyHash": "9b8889446a2f47bfcecd2ad44900c7ad58a6a4b88eac56d74748232437c4c82c"
         }
       ],
-      "verdict": "ADJUDICATE",
-      "basis": "duplicate-union",
+      "verdict": "REWRITE",
+      "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
       "sliceId": null,
@@ -87136,10 +87108,7 @@
         "module": "apps/api/src/trends/trendAnalysisService.ts",
         "imported": true
       },
-      "duplicate": {
-        "kind": "UNION",
-        "of": ["apps/api/tests/unit/trendAnalysisService.test.ts"]
-      },
+      "duplicate": null,
       "importers": null
     },
     {
@@ -87157,351 +87126,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 4
-    },
-    {
-      "path": "apps/api/tests/unit/trendAnalysisService.test.ts",
-      "shape": "test",
-      "framework": "vitest",
-      "collectors": ["vitest:apps/api/vitest.config.ts"],
-      "quarantined": null,
-      "blockCount": 45,
-      "blocks": [
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should initialize with prisma and logger",
-          "line": 56,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f926017330c7f6b047cb29484c9f1fe5ee64446e8d5bffa4ef5ef7b6b28de689"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should expose trending content method",
-          "line": 62,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9fda823a337e076b0c4701ac4fd115761dfd1b1b1947d60c5ee563adedc1c5d5"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should expose trend prediction method",
-          "line": 68,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ea0cbeb44282626eecdc29984529c08a08739bca8a6548d894df7577ee813866"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should expose viral content analysis method",
-          "line": 74,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a9ddf936559afe7bd5237e4073f2d718d1fa3c9d1de26751027907dde0b1dc10"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should expose content opportunity discovery method",
-          "line": 80,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7259efa57dfca08c2e61f663529d8d82f6a104d548272948a0bbe30dacb84122"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should retrieve trending content without filters",
-          "line": 98,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b1c5d0440e2df1ee775c370c0fcc5207f5f0eaf4b9a4d3d7aabb30821a65dbcb"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should filter trending content by type",
-          "line": 107,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "fded6f7f29ee5ded572b7abe5094f5237b86be2179990eef1a5bc7da1ca0a883"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should filter trending content by category",
-          "line": 118,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "53d392117032db80519b820fd80a9a56d8b86f426c5020ac806a4baf7ca36cd2"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should limit number of results",
-          "line": 130,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "6d122767454b4a16c869bdb73d38a6f5b71d343ce295f4b03e6c938c6a9325f3"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include all required trend fields",
-          "line": 140,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c58a2cdb6044bb132b7f6733a319f6d792adc35b1b572830dac4e8ef17a46b3c"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include metrics with proper structure",
-          "line": 159,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "43e2c561a1255c8619f2cd1e15bae2500aa3e8dcfc401879a028fff2e600c042"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include trend phase information",
-          "line": 175,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "18db908a8f6e790e45ecfd0538190296b4d8a7e9e87adf0079730a18f5fa27e4"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include opportunity assessment",
-          "line": 189,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "f6e57c53c273bce7dd3f27a01cec3dc80fec09cec3c3a655b05e5e3511d6aa38"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should generate trend predictions",
-          "line": 217,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8b78da31daba485d7f2c1f34bab73acbcde2625bb9dcbd42412363663999037a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include prediction metadata",
-          "line": 226,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "bffab3683c33f43603d5dfd0df32243a7aca89a84afd7bf2040ce57a0c16911a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include prediction probabilities",
-          "line": 239,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "c4de86170f9bb79b324e207c3da785dc910214aa5d133f3ac224e20c466e5da1"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include early signals",
-          "line": 253,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "122cb797d8e63f65d389c390a8992fcc1b34b0cf935bc0a2be17acf55e76c983"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include risk factors",
-          "line": 270,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "caaf04a9f79c7dd72d8eb2d4d0ece1b37e76b8ac4c97dbc9cdb81f44ab4c08b0"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include actionable items",
-          "line": 286,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "372f50385386483174555060867e4223055fd10e4c9b47ef6da63ef701cf21af"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include competitive intelligence",
-          "line": 303,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "50568cb1ee5d0bf642ab3f3be8eb1066de6b4cee526fd6bf94ab9f06830a8976"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should analyze viral content",
-          "line": 327,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "8a603c4e65ee2a51397b5ccafd4f4c5e9aa2921b9ce0ec47906d69f7976ad17c"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include viral metrics",
-          "line": 337,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "760985801e7a15a20fabe8bac6032d876ca7d38e7057ebf30b3e88417c2ea0ce"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include viral DNA analysis",
-          "line": 351,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "86d8fcacf8ae70ae83408136f726af82ce2bfb8a8dd941cb1f12e22917bc8a1d"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include replication blueprint",
-          "line": 369,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "9c1c142a8983224e9bfca9ef4507c0fe43d70d3ebb3956aea6455725c376e7ce"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include competitor response analysis",
-          "line": 384,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "d471c80aef7f3a0f05937fc7855e1ed3bda3ee8df05d257dac57d53adf73fd85"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should discover content opportunities",
-          "line": 410,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "546e1e07660650a73a42c6e3899a74c20c530d61a32ef2c2b8cfaca89cf043a8"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include content gaps",
-          "line": 419,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "4414090a4f6881fb6b527ca1c24c1eb755361a3eb5a39173a16d940f38bc8f8a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include emerging topics",
-          "line": 438,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "b66435b0ef381d08234e9314659ab29d88d3096dc59cc0b3626404abfb7965e5"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include saturated topics",
-          "line": 456,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "95c72769b8f89a0e10fe36b6a104f2e04a9a1f0aeb61f7510bdb6900bc2b7e0a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include seasonal topics",
-          "line": 473,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "10d023dfbc34829f1c240be4bb4b8f25ad254e92788f967b4aea571bc39b6d59"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should generate comprehensive trend report",
-          "line": 503,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b7e168e5c2f174271ddb07522e9e1e772fe3cf25d68200d897756b4fcd301f96"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include summary statistics",
-          "line": 524,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "83e2e8f32bf81d8f9be0ba9c3621dfab5d54db1c6b4772722e91f606c5718f55"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should categorize trending content",
-          "line": 543,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "0c8c3688c4210085caaf9451ade46891680ef93c3d3c9e1c0c5d3d0cb1844515"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include immediate and upcoming opportunities",
-          "line": 560,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "d80d9481730e8a2305fb854cf1aa48b09b33d05fdc2987936c42118777fb622d"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include insights",
-          "line": 583,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "6b375d6af2ce3883c92fed7df1d89454546749e1531cc6365f65211acca0a807"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should include actionable recommendations",
-          "line": 600,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "b32634224abb4468fccc05d563e002303344c7af7f3bd283dd83cfc725e28fe7"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should respect region filter",
-          "line": 618,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "81b164f88b2982fdd0ab69ab8e8dc68427b9e93e3c87edcc55b2c6d8bfa8d7c9"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should respect category filter",
-          "line": 631,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "296f4b7e390586292a95c677b7d848aa685323df16278e04209f38f428c259cc"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should provide circuit breaker status",
-          "line": 656,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "77e9c3382dc345de28c034c3c9c186bd63600e40b53dc1aa6a48f1b33c1a95a5"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should expose cache clearing method",
-          "line": 662,
-          "blockClass": "BEHAVIOURAL",
-          "criteria": [],
-          "bodyHash": "017aae4d07a950340669d0fd9ebdc28f2a34a36c05b653fd51f719b5241d0406"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should expose metrics registry",
-          "line": 668,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "59bd3a331de686102de6b3d0701682054c0d5ad601f8ae0272ab627c9723294a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should generate pattern insights from trending content",
-          "line": 686,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "89eacdfa5bc3656a01f7a3a65a7684e85efe47366f37bdd1ddf899ada6df98b1"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should generate shift insights from trending content",
-          "line": 702,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "cf77c6b02ed04e3d1c62dc0cf57a47d07df7f4b17641314fab909ad292b6c196"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should generate anomaly insights",
-          "line": 712,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "274ea816bad8efa736ac2f363f5bf7132eb1dd32f4296cb0bdaef2eb43244aa1"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.test.ts::should identify cross-trend patterns",
-          "line": 722,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "9b8889446a2f47bfcecd2ad44900c7ad58a6a4b88eac56d74748232437c4c82c"
-        }
-      ],
-      "verdict": "ADJUDICATE",
-      "basis": "duplicate-union",
-      "excluded": null,
-      "status": "machine",
-      "sliceId": null,
-      "subject": {
-        "stem": "trendAnalysisService",
-        "module": "apps/api/src/trends/trendAnalysisService.ts",
-        "imported": true
-      },
-      "duplicate": {
-        "kind": "UNION",
-        "of": [
-          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
-          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
-          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
-        ]
-      },
-      "importers": null
+      "importers": 3
     },
     {
       "path": "apps/api/tests/unit/trendRoutes.test.ts",
@@ -94185,87 +93810,6 @@
       "importers": null
     },
     {
-      "path": "apps/api/tests/universal-client-dashboard.live.test.ts",
-      "shape": "live-test",
-      "framework": "node",
-      "collectors": [],
-      "quarantined": "WU-2.6a",
-      "blockCount": 9,
-      "blocks": [
-        {
-          "id": "apps/api/tests/universal-client-dashboard.live.test.ts::should return all registered providers",
-          "line": 87,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "aa7fcc8ab059c584f2147662f428d585207e8a9c900f93537d65312563ac4b7a"
-        },
-        {
-          "id": "apps/api/tests/universal-client-dashboard.live.test.ts::should return only active providers",
-          "line": 119,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "077b19a052a2d8814fa1ba28af198cf3e500c8f9166ba614921952af98214222"
-        },
-        {
-          "id": "apps/api/tests/universal-client-dashboard.live.test.ts::should filter providers by threading capability",
-          "line": 143,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "f542de096ccefe05514af48e802735693add49bb99ff361214b4aafa5600f91a"
-        },
-        {
-          "id": "apps/api/tests/universal-client-dashboard.live.test.ts::should report health status for all providers",
-          "line": 166,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "95a78d431ea02957734a906988a92975b7faaeaf63b7d1a175d867846c783f66"
-        },
-        {
-          "id": "apps/api/tests/universal-client-dashboard.live.test.ts::should load dashboard with proper UI elements",
-          "line": 192,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "48cd8a07cf0cde054d16f58422dc061e7eed3633e9fb083ea75f9d711372f724"
-        },
-        {
-          "id": "apps/api/tests/universal-client-dashboard.live.test.ts::should return detailed information for X provider",
-          "line": 219,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "191f87a1547964e763e0c2f9da86cd26091aec150f50ac5e12bfd03dcf8f5887"
-        },
-        {
-          "id": "apps/api/tests/universal-client-dashboard.live.test.ts::should return 404 for invalid provider",
-          "line": 251,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "36bcab5009dac7e2de2d66ea63d514aef77780ac3b2d0c0fa7b08db0ea05ebf0"
-        },
-        {
-          "id": "apps/api/tests/universal-client-dashboard.live.test.ts::should return 400 for invalid capability",
-          "line": 267,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "3d7ac33bb26bee07d6fe9ed2187c77f93caaef202807ddee26489cd84a73c897"
-        },
-        {
-          "id": "apps/api/tests/universal-client-dashboard.live.test.ts::should report test metrics",
-          "line": 286,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "eb514bf7c7826c0a087fa00efdbe7501512c22572634166a9a1681438541c537"
-        }
-      ],
-      "verdict": "DELETE",
-      "basis": "all-decorative",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": null
-    },
-    {
       "path": "apps/client/app/actions/auth.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -97213,38 +96757,6 @@
         "module": "apps/client/lib/utils/providerMapper.ts",
         "imported": true
       },
-      "duplicate": null,
-      "importers": null
-    },
-    {
-      "path": "apps/client/tests/components/ListeningCharts.test.tsx",
-      "shape": "test",
-      "framework": "vitest",
-      "collectors": ["vitest:apps/client/vitest.config.ts"],
-      "quarantined": null,
-      "blockCount": 2,
-      "blocks": [
-        {
-          "id": "apps/client/tests/components/ListeningCharts.test.tsx::ShareOfVoiceChart mounts with per-provider data",
-          "line": 16,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a7862a21990e27192619309ab77a573c7bbc02cb961ffc5a62b31740415f8f8e"
-        },
-        {
-          "id": "apps/client/tests/components/ListeningCharts.test.tsx::SentimentBreakdownChart mounts with sentiment data",
-          "line": 27,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3d02dd0336a02bd9ee49b53102c6f3ae2a9e2d6c950648d5cc3a478d91988bda"
-        }
-      ],
-      "verdict": "DELETE",
-      "basis": "all-decorative",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
       "duplicate": null,
       "importers": null
     },
@@ -100367,7 +99879,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 14
+      "importers": 13
     },
     {
       "path": "apps/client/tests/mocks/handlers/index.ts",
@@ -115986,38 +115498,6 @@
         "module": "packages/observability/sentry-next/src/server.ts",
         "imported": true
       },
-      "duplicate": null,
-      "importers": null
-    },
-    {
-      "path": "packages/providers/_template/tests/integration/sandbox.template.test.ts",
-      "shape": "test",
-      "framework": "vitest",
-      "collectors": [],
-      "quarantined": "WU-2.6a",
-      "blockCount": 2,
-      "blocks": [
-        {
-          "id": "packages/providers/_template/tests/integration/sandbox.template.test.ts::publishes against the sandbox API and parses the canonical response shape",
-          "line": 28,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "bfe6616e9474e32baeb6e0960bd8078fe560802ca552b1367d544af695535f0c"
-        },
-        {
-          "id": "packages/providers/_template/tests/integration/sandbox.template.test.ts::validates credentials against the real sandbox auth endpoint",
-          "line": 50,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "bfe6616e9474e32baeb6e0960bd8078fe560802ca552b1367d544af695535f0c"
-        }
-      ],
-      "verdict": "DELETE",
-      "basis": "all-decorative",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
       "duplicate": null,
       "importers": null
     },
