@@ -214,7 +214,7 @@ CLAUDE.md + the 4 canon children are intentionally prescriptive. Real projects h
 | Decorative-test demolition       | The `apps/api/vitest.config.ts` floor descent fitness #37 refuses, only that | `// canon-exception: decorative-demolition:<ledger-slice>` | The slice is listed in the committed ledger (`ledger.json`); M14 of `docs/development/TESTING_REFOUNDATION.md` reconciles the descent ([ADR-0039](docs/technical/ADR-0039-decorative-demolition-coverage-exception.md)) |
 | Generated code                   | All canon (file is regenerated; commenting is futile)                        | Header comment in generated file                           | None (file is in `.gitattributes` `linguist-generated=true`)                                                                                                                                                            |
 
-`<ledger-slice>` is the demolition slice's work-unit id as the committed ledger lists it (`2.6a`, `2.8.1a`), grammar `[0-9]+(\.[0-9]+)+[a-z]?`. Fitness #37 refuses the bare scenario, a malformed id, and a marker the base already carries on that metric, so each descent ships with its own.
+`<ledger-slice>` is the demolition slice's work-unit id as the committed ledger lists it (`2.6a`, `2.8.1a`), grammar `[0-9]+(\.[0-9]+)+[a-z]?`. Fitness #37 refuses the bare scenario, a malformed id, a marker the base already carries on that metric, so each descent ships with its own, and a slice that the committed `ledger.json` does not record as deleted in that pull request with that descent.
 
 ### Forbidden — never use as escape hatch
 
@@ -1051,6 +1051,14 @@ pnpm --filter @packages/test-contracts scopes   # expect exit 0 and:
 # there; locally it compares against origin/main, or set FITNESS_BASE_REF to any
 # ref/sha — CI passes the PR base sha through that same env var).
 #
+# WHAT IT RUNS: `node scripts/testing/coverage-floor-gate.mjs`, the rule in one
+# script, pinned by apps/api/tests/unit/scripts/coverageFloorGate.test.ts. The CI
+# step runs the same command after resolving the base: the checkout is shallow, so
+# it fetches an unresolvable base in up to 3 bounded attempts first. Node built-ins
+# only, because the Fitness Functions job installs nothing. Until 2026-10-29 the
+# rule was a node heredoc written twice, byte for byte, here and in the step, with
+# no suite: every change edited both copies and proved its red by hand.
+#
 # WHAT IT READS: the GLOBAL `thresholds: {` block only, with block-comment bytes
 # dropped and per-scope blocks (nested one level deeper) ignored. Both matter. A
 # `/* */` wrapped around the live block left the four literals byte-identical to
@@ -1066,8 +1074,9 @@ pnpm --filter @packages/test-contracts scopes   # expect exit 0 and:
 # comparable floor), but TWO or more is ambiguity and exits 1 as well — while the
 # base side merely `continue`d, a base of 90/90/90/90 carrying a per-scope block
 # let a descent to 56.9 through on all four metrics at once. An unresolvable base
-# ref exits 1 after 3 bounded fetch retries, and the message names the transient
-# possibility so a network blip is not read as a violation.
+# ref exits 1: in CI after 3 bounded fetch retries, with a message that names the
+# transient possibility so a network blip is not read as a violation, and in the
+# script itself whenever FITNESS_BASE_REF names no commit.
 #
 # THE LEGITIMATE DESCENT, implemented rather than only named: deleting covered
 # code can lower aggregate coverage. That descent ships with a
@@ -1084,172 +1093,32 @@ pnpm --filter @packages/test-contracts scopes   # expect exit 0 and:
 # honoured. A marker already on the base for that metric is refused; each descent
 # carries its own. Remove-when: never — a marker answers for the one descent it
 # shipped with, and one left above a literal would otherwise wave every later
-# drop through. Whether the slice is in the ledger is review's to check,
-# and M14's to reconcile (docs/development/TESTING_REFOUNDATION.md), not this
-# guard's. Hard-zero.
-set -uo pipefail
-BASE_REF="${FITNESS_BASE_REF:-origin/main}"
-if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
-  for attempt in 1 2 3; do
-    git fetch --quiet --depth=1 origin "$BASE_REF" && break
-    [ "$attempt" -eq 3 ] || sleep $((attempt * 3))
-  done
-fi
-if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
-  echo "fitness #37: base ref $BASE_REF did not resolve after 3 fetch attempts — either the base commit is genuinely gone (force-push, deleted branch) or the fetch hit a transient network failure. Failing closed rather than comparing against nothing; re-run the job if the network was the cause."
-  exit 1
-fi
-VIOLATIONS=$(FITNESS_BASE_SRC="$(git show "$BASE_REF:apps/api/vitest.config.ts" 2>/dev/null || true)" node --input-type=module <<'EOF'
-import { readFileSync } from "node:fs";
-
-const HEAD_FILE = "apps/api/vitest.config.ts";
-const METRICS = ["lines", "functions", "branches", "statements"];
-// Scenarios from CLAUDE.md §Pragmatic Exceptions. A descent marked with anything
-// else is not a canon exception, it is an unlabelled one.
-const SCENARIOS = new Set(["migration", "prototype", "hotfix", "spike", "test-fixture", "decorative-demolition"]);
-// A scenario whose marker names its subject after a colon, and the subject's
-// grammar: decorative-demolition names the demolition slice the committed ledger
-// lists (ADR-0039), so each descent it accepts is attributable to one slice.
-const SUBJECTS = new Map([["decorative-demolition", /^[0-9]+(?:\.[0-9]+)+[a-z]?$/]]);
-
-// Split every line into its code half and its line-comment half: block-comment
-// bytes are dropped (a commented-out block must not keep answering for a floor
-// that no longer exists) and string literals are preserved verbatim (a glob key
-// like "src/**/*.ts" holds the exact byte pairs that a naive comment strip eats).
-// The canon-exception markers live in the comment half, which is why comments are
-// separated rather than discarded.
-const scanLines = (source) => {
-  const lines = [];
-  let code = "";
-  let comment = "";
-  let state = "code";
-  let i = 0;
-  while (i < source.length) {
-    const c = source[i];
-    if (c === "\n") {
-      lines.push({ code, comment });
-      code = "";
-      comment = "";
-      if (state === "line") state = "code";
-      i += 1;
-      continue;
-    }
-    if (state === "block") {
-      if (c === "*" && source[i + 1] === "/") { state = "code"; i += 2; continue; }
-      i += 1;
-      continue;
-    }
-    if (state === "line") { comment += c; i += 1; continue; }
-    if (c === '"' || c === "'" || c === "`") {
-      let j = i + 1;
-      while (j < source.length && source[j] !== c && source[j] !== "\n") j += source[j] === "\\" ? 2 : 1;
-      code += source.slice(i, j + 1);
-      i = j + 1;
-      continue;
-    }
-    if (c === "/" && source[i + 1] === "/") { state = "line"; comment = "//"; i += 2; continue; }
-    if (c === "/" && source[i + 1] === "*") { state = "block"; i += 2; continue; }
-    code += c;
-    i += 1;
-  }
-  lines.push({ code, comment });
-  return lines;
-};
-const markerOf = (comment) => {
-  const m = /canon-exception:\s*([a-z-]+)(?::(\S+))?/.exec(comment ?? "");
-  if (m === null) return null;
-  const id = m[2] === undefined ? m[1] : `${m[1]}:${m[2]}`;
-  const grammar = SUBJECTS.get(m[1]);
-  const why = !SCENARIOS.has(m[1]) ? "unlisted" : grammar !== undefined && !grammar.test(m[2] ?? "") ? "subject" : null;
-  return { scenario: m[1], id, valid: why === null, why };
-};
-// Reads the GLOBAL thresholds block only. A metric is accepted only at the top
-// level of `thresholds: {`, so a per-scope block — which CODING_STANDARDS
-// §Coverage Targets requires (Domain 90 / Application 85 / Infrastructure 70) —
-// nests one level deeper and coexists instead of reading as ambiguity.
-const floorsOf = (source) => {
-  const lines = scanLines(source);
-  const found = new Map(METRICS.map((metric) => [metric, []]));
-  let started = false;
-  let depth = 0;
-  for (let n = 0; n < lines.length; n += 1) {
-    const { code, comment } = lines[n];
-    const braces = code.replace(/"[^"]*"|'[^']*'|`[^`]*`/g, '""');
-    if (!started) {
-      if (/(^|[^A-Za-z0-9_$])thresholds\s*:\s*\{/.test(braces)) {
-        started = true;
-        depth = 1;
-      }
-      continue;
-    }
-    if (depth === 1) {
-      const m = /^\s*(lines|functions|branches|statements)\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*,?\s*$/.exec(code);
-      if (m !== null) {
-        found.get(m[1]).push({
-          value: m[2],
-          marker: markerOf(comment) ?? markerOf(n > 0 ? lines[n - 1].comment : ""),
-        });
-      }
-    }
-    for (const ch of braces) {
-      if (ch === "{") depth += 1;
-      else if (ch === "}") depth -= 1;
-    }
-    if (depth <= 0) break;
-  }
-  return started ? found : null;
-};
-const head = floorsOf(readFileSync(HEAD_FILE, "utf8"));
-if (head === null) {
-  console.error(`fitness #37: no global 'thresholds: {' block found in ${HEAD_FILE} — the floor is missing, renamed, or commented out. The guard cannot see it, failing closed.`);
-  process.exit(1);
-}
-const baseSource = process.env.FITNESS_BASE_SRC ?? "";
-const base = baseSource.trim() === "" ? null : floorsOf(baseSource);
-const violations = [];
-for (const metric of METRICS) {
-  const headHits = head.get(metric);
-  if (headHits.length !== 1) {
-    const why = headHits.length === 0
-      ? "the literal is missing, commented out, or built by a helper call"
-      : "the GLOBAL block declares it more than once (a per-scope block nested deeper is ignored on purpose and is not this)";
-    console.error(`fitness #37: expected exactly one literal '${metric}:' at the top level of the global thresholds block in ${HEAD_FILE}, found ${headHits.length} — ${why}; the guard cannot see the floor, failing closed.`);
-    process.exit(1);
-  }
-  const baseHits = base === null ? [] : base.get(metric);
-  // Absent on base passes BY METRIC: a base with no literal for it is the
-  // pre-ratchet format, which has no comparable floor. TWO or more is ambiguity,
-  // and ambiguity fails closed on this side exactly as it does on the head side —
-  // an open base side let a 90 -> 56.9 descent through on all four metrics.
-  if (baseHits.length === 0) continue;
-  if (baseHits.length > 1) {
-    console.error(`fitness #37: the base declares '${metric}:' ${baseHits.length} times at the top level of its global thresholds block — the guard cannot tell which value is the floor, failing closed (the head side fails closed on the same ambiguity).`);
-    process.exit(1);
-  }
-  if (Number(headHits[0].value) >= Number(baseHits[0].value)) continue;
-  const marker = headHits[0].marker;
-  // A marker the base already carries on this metric accepted an earlier descent;
-  // it accepts no new one, so every descent ships with a marker of its own.
-  const inherited = marker !== null && marker.valid && baseHits[0].marker?.id === marker.id;
-  if (marker !== null && marker.valid && !inherited) {
-    console.error(`fitness #37: coverage.thresholds.${metric} lowered ${baseHits[0].value} -> ${headHits[0].value}, ACCEPTED under the 'canon-exception: ${marker.id}' marker on or above that line. The marker ships in the diff for a human to approve and carries its own follow-up per CLAUDE.md §Pragmatic Exceptions.`);
-    continue;
-  }
-  if (inherited) {
-    console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.id}', which the base already carries on that metric: it accepted an earlier descent and accepts no new one — not honoured.`);
-  } else if (marker !== null && marker.why === "subject") {
-    console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.id}', whose subject after the colon is missing or outside its scenario's grammar (${SUBJECTS.get(marker.scenario)}) — not honoured.`);
-  } else if (marker !== null) {
-    console.error(`fitness #37: coverage.thresholds.${metric} carries 'canon-exception: ${marker.id}', which is not a scenario from the CLAUDE.md §Pragmatic Exceptions allowed list (${[...SCENARIOS].join(", ")}) — not honoured.`);
-  }
-  violations.push(`coverage.thresholds.${metric} lowered: ${baseHits[0].value} (base) -> ${headHits[0].value} (head)`);
-}
-console.log(violations.join("\n"));
-EOF
-) || { echo "fitness #37: the threshold extraction could not see a floor it must compare — failing closed (see the scope error above)"; exit 1; }
-COUNT=$(printf "%s" "$VIOLATIONS" | grep -c . || true)
-COUNT=${COUNT:-0}
-echo "$COUNT"   # expect 0
+# drop through.
+#
+# SLICE MEMBERSHIP (ADR-0039). A `decorative-demolition:<id>` marker is honoured
+# only when head's ledger.json lists the slice `<id>`, records it deleted, and
+# records a descent of that metric whose `from` and `to` are the base's literal and
+# the head's, and when the base's ledger.json (read with `git show`) does not
+# already record it deleted: the marker belongs only in the pull request that
+# deletes the slice's tests. Each refusal names the id and the metric. The ledgers
+# are read only when such a marker answers for a descent, and one that is absent
+# from either side, no JSON, or without a `slices` object of slice objects fails
+# closed; a marker of any other scenario never reads them.
+#
+# EXIT CODES: 0 no floor lowered without a marker of its own; 1 a lowered floor,
+# or an input the gate could not read; 2 a usage error (the command takes no
+# argument).
+#
+# RESIDUAL LIMITS, stated rather than implied: (1) only apps/api/vitest.config.ts
+# and its global block are read, until #37 is rebuilt over every config; (2)
+# membership proves the ledger records the slice's deletion and its descent, never
+# that the deletion explains the descent: the tracker's expected-versus-real drop
+# and M14 reconcile that (docs/development/TESTING_REFOUNDATION.md); (3) the ledger
+# read is the committed one, and that it matches the tree is #52's part.
+# Hard-zero.
+node scripts/testing/coverage-floor-gate.mjs   # expect exit 0 and:
+#   coverage-floor-gate: 4 floors of apps/api/vitest.config.ts compared with <base>
+#   (<sha>): 0 lowered with no honoured marker
 
 # 38. Soft-delete read coherence: no read of a swept soft-deletable model without
 # its deletedAt filter. Closes the CLASS behind B-READS: the delete went soft and
@@ -2524,7 +2393,7 @@ A generic "RLS not covered" would send the reader toward the wrong fix.
 **Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
-2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #44 to #48, #50 to #53) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #36, #37, #44 to #48, #50 to #53) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
 3. Prove the red path — mandatory for every NEW or MODIFIED check or CI gate, fitness or otherwise: plant the violation, run the gate, and observe a REAL failure (non-zero exit / `core.setFailed`; an `::error` annotation alone leaves the job green and proves nothing), then restore the tree byte-exact (verify with `cmp` or a checksum) and re-confirm the count is 0. A gate whose red path was never demonstrated does not merge.
 4. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a Master Plan row rather than locking in non-zero noise.
 
