@@ -117,7 +117,7 @@ A Vitest-collected test loads no `child_process`: a spawned child's start-up cos
 
 **Provider apiClients are unit-testable, and two families of suites anchor closed defects.** Seven `*ApiClient.writeFailFast.test.ts` suites pin behaviourally the no-write-fallback invariant that fitness #25 enforces statically, and four `*ApiClient.cacheIsolation.test.ts` suites hold the circuit-breaker cross-tenant isolation fix — the roles as recorded by the 2026-09-26 correction in the replaced [`testing-infrastructure-complete.md`](https://github.com/edwardricardo/omni-post/blob/f89a0f519cf37679bd9d4236e120f4b7283f71ca/docs/archive/testing-infrastructure-complete.md#L110); the counts re-measured (M: `fd -g` over `packages/providers` finds 7 and 4). The circuit breaker does not stand between a unit test and an apiClient.
 
-**Skips and todos that no gate sees.** Client specs commit 6 `test.skip(` calls (`auth.spec.ts` 5, `visual.spec.ts` 1; M), and fitness #32 scans only `*.test.ts`/`*.test.tsx`. The four provider integration stubs (`linkedin`, `pinterest`, `snapchat`, `telegram`) each wrap `it.todo` cases in `describe.todo`; vitest reports them as 4 skipped files and 43 `todo` tests (R).
+**Skips and todos that no gate sees.** Client specs commit 6 `test.skip(` calls (`auth.spec.ts` 5, `visual.spec.ts` 1; M), and fitness #32 scans only `*.test.ts`/`*.test.tsx`. The four provider integration stubs (`linkedin`, `pinterest`, `snapchat`, `telegram`) each wrapped `it.todo` cases in `describe.todo`; vitest reported them as 4 skipped files and 43 `todo` tests (R), until WU-2.6b deleted them on 2026-10-29 (`PR d26b`).
 
 ## 3. Execution
 
