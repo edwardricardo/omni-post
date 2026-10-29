@@ -12,8 +12,8 @@ This document describes the security testing infrastructure for the Social Media
 > used to invoke it exited 0 over that, and were **deleted** for exactly that
 > reason.
 >
-> - Disposition of the suite is tracked as **SMELL-83** in
->   [`docs/reports/roadmap-detected-smells-backlog.md`](../reports/roadmap-detected-smells-backlog.md);
+> - Disposition of the suite is tracked as **SMELL-83** by
+>   [N-TEST-1 in the Master Plan](../product/MASTER_PLAN.md#nc--regression-net-assurance);
 >   the in-tree warning is [`security/tests/README.md`](../../security/tests/README.md).
 > - Sections 1–4 below (§"Security Test Categories") describe **intent**, not
 >   verified behaviour. Nothing in them has ever been observed to run green.

@@ -10,7 +10,7 @@
  * payload contract this bootstrap does not satisfy.
  *
  * Read ./README.md and SMELL-83 in
- * docs/reports/roadmap-detected-smells-backlog.md before repointing these URLs
+ * docs/product/MASTER_PLAN.md (row N-TEST-1) before repointing these URLs
  * — the rewrite needs a rate-limit-aware login and per-endpoint status
  * expectations, not just a new path.
  */

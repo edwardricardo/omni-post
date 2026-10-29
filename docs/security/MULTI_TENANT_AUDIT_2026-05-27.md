@@ -117,8 +117,8 @@ in this audit — would expand scope beyond S2.1):
 
 These are **runtime risks, not committed risks**: the guard fails loud, so
 the first occurrence will surface in production logs / Sentry rather than
-silently leak data. Followed up by a separate item in
-`docs/reports/roadmap-detected-smells-backlog.md` (TBD entry).
+silently leak data. Followed up by the Master Plan row N-SEC-3 (its "audit of callers
+outside a context"); the detected-smells backlog entry announced here was never filed.
 
 ---
 
