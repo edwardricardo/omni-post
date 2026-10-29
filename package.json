@@ -85,7 +85,7 @@
     "dependency-cruiser": "18.7.0",
     "eslint": "catalog:",
     "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-jsdoc": "65.4.0",
+    "eslint-plugin-jsdoc": "65.4.2",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react-hooks": "7.1.1",
     "husky": "9.1.7",
