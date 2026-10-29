@@ -84,7 +84,7 @@ catalog:
   # surfaces. Measured in a `pnpm deploy --prod` of the API: 204MB of 998MB.
   # These two are NOT an atomic family — they version independently and share no
   # advisory, so each is pinned on its own evidence.
-  "@googleapis/youtube": 39.0.1 # taken 2026-09-25 (`feb371ae`), a day after its publication, so the maturity watchlist reviews it; its final review (2026-10-11) is flagged, not clean: 40.0.0, a breaking major published 2026-10-03T03:50Z and mature since 2026-10-10, is owed in its own PR with the provider's typecheck, build and tests
+  "@googleapis/youtube": 40.0.2 # taken 2026-09-25 (`feb371ae`), a day after its publication, so the maturity watchlist reviews it; its final review (2026-10-11) is flagged, not clean: 40.0.0, a breaking major published 2026-10-03T03:50Z and mature since 2026-10-10, is owed in its own PR with the provider's typecheck, build and tests
   "@googleapis/youtubeanalytics": 11.0.1 # the newest release on 2026-10-03
 
   # ── Build/test toolchain ──
