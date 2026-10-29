@@ -19,6 +19,26 @@
         "packages/providers/telegram/tests/integration/apiClient.test.ts"
       ],
       "deleted": { "files": 4, "blocks": 43 }
+    },
+    "2.7": {
+      "files": [
+        "apps/api/tests/analytics-ml-integration.test.ts.disabled",
+        "apps/api/tests/threading.flow.test.ts.old",
+        "apps/api/tests/coverage-utils.ts",
+        "apps/api/tests/run.ts",
+        "apps/api/tests/run-with-coverage.ts",
+        "apps/api/tests/setup/index.ts",
+        "apps/api/tests/setup/testDataFactory.ts",
+        "apps/api/tests/setup/testLifecycle.ts",
+        "apps/api/tests/setup/testTemplate.ts",
+        "apps/api/tests/setup/verifyServices.ts",
+        "apps/api/tests/unit/PlatformContentAdapter.test-helpers.ts",
+        "apps/api/tests/unit/auditService.test-helpers.ts",
+        "apps/api/tests/unit/cqrsIntegration.test-helpers.ts",
+        "apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts",
+        "packages/providers/instagram/tests/mediaProcessor.test-helpers.ts"
+      ],
+      "deleted": { "files": 15, "blocks": 0 }
     }
   }
 }
