@@ -2040,25 +2040,31 @@ pnpm check:patched-deps   # expect exit 0 and, with no patch, this one line:
 # collects (expect-expect's `"error",` on the line after its key), the three `testing/*` rules of
 # the block over every test file, and `"no-console": ["error", { allow: ["warn", "error"] }]` as
 # the first rule of the block that opens with `files: testFiles,`, so `console.log` and the other
-# stdout writers stay errors in test code. Its one `off` block is the single-line
-# `rules: { "no-console": "off" }` directly under `files: unrunTestFiles,`, the runner's three
-# entry points, and no other. No line of the file sets one of the eleven test-block rules to `off`
-# or `warn`, by name or by number, alone or at the head of an array; `no-console` is left out of
-# that scan, because its `off` lines are the blocks of scripts, stories, seeds and the runner's
-# entry points. Part B: no tracked .ts or .tsx file holds an `eslint-disable` directive that names
-# one of the twelve rules (0 on 2026-10-24); eslint.config.ts is out of that scan, since it names
-# the rules by design.
+# stdout writers stay errors in test code. It holds the count of lines that turn `no-console` off,
+# written as `"off"`, `0`, `["off"]` or `[0]` (the spellings the weakened scan reads), with line
+# comments stripped first so a comment that quotes the pattern is not counted, at exactly two, the
+# browser-logger console adapter and the scripts, stories and seeds block, and prints the lines it
+# counted on a mismatch, so an exemption in any of those spellings and any layout, a single-line
+# block, a multi-line one or a one-line object, is a visible edit of this pin: the runner's three
+# entry points, the files of a third block, left with WU-2.7 on 2026-10-29. No line of the file sets one of the eleven
+# test-block rules to `off` or `warn`, by name or by number, alone or at the head of an array;
+# `no-console` is left out of that scan, because its `off` lines are the two pinned blocks. Part
+# B: no tracked .ts or .tsx file holds an `eslint-disable` directive that names one of the twelve
+# rules (0 on 2026-10-24); eslint.config.ts is out of that scan, since it names the rules by
+# design.
 # FAIL-CLOSED: a missing eslint.config.ts and a git grep that cannot read the tree each exit 1; a
 # pin that matches nothing is a violation, never a pass.
 # RESIDUAL LIMITS, stated rather than implied: (1) textual over the config: a rule switched off
 # through a variable, a spread or a severity built at run time passes, and so does a later block
-# that narrows a rule's glob or a multi-line `no-console` `off` block over test files; only the
-# resolved config (`eslint --print-config <file>`) sees those, and it needs the installed tree; (2)
+# that narrows a rule's glob; only the resolved config (`eslint --print-config <file>`) sees those,
+# and it needs the installed tree; (2)
 # the pins are indentation-exact, so a reformat that moves a line fails closed, red rather than
-# green; (3) a blanket `eslint-disable` that names no rule is not counted; (4) the contents of
-# `unrunTestFiles` are not pinned, only that the `off` block reads that list; (5) it proves the
-# rules are on, never that the suppressions file matches the tree, which `pnpm lint` proves by its
-# exit 2.
+# green; (3) a blanket `eslint-disable` that names no rule is not counted; (4) the `off` count is a
+# pin on a number, so removing one of the two blocks moves it as a new one would; (5) the count
+# strips `//` comments before it reads, so a `no-console` severity quoted in a comment is not
+# counted, one quoted in a string literal would be (none exists), and one spelled any other way
+# than the four literals is residual (1); (6) it proves the rules are on, never that the
+# suppressions file matches the tree, which `pnpm lint` proves by its exit 2.
 set -uo pipefail
 CONFIG=eslint.config.ts
 [ -f "$CONFIG" ]   # expect exit 0
@@ -2071,8 +2077,7 @@ done
 grep -A1 -xF '      "vitest/expect-expect": [' "$CONFIG" | grep -cxF '        "error",'   # expect >= 1
 grep -A2 -xF '    files: testFiles,' "$CONFIG" | \
   grep -cxF '      "no-console": ["error", { allow: ["warn", "error"] }],'   # expect >= 1
-grep -cxF '    rules: { "no-console": "off" },' "$CONFIG"   # expect 1
-grep -B1 -xF '    rules: { "no-console": "off" },' "$CONFIG" | grep -cxF '    files: unrunTestFiles,'   # expect 1
+sed -E 's://.*$::' "$CONFIG" | grep -cE '"no-console": *("off"|0\b|\[ *("off"|0\b))'   # expect 2 (the console adapter and the scripts block)
 RULES_RE='vitest/(expect-expect|no-conditional-expect|valid-expect|no-standalone-expect|no-identical-title|no-commented-out-tests|no-disabled-tests|no-focused-tests)|testing/(no-empty-test|no-existence-only-test|no-tautological-assertion)'
 grep -cE "\"($RULES_RE)\": *(\"(off|warn)\"|[01]\b|\[ *(\"(off|warn)\"|[01]\b))" "$CONFIG"   # expect 0
 git grep -nE "eslint-disable[^*]*($RULES_RE|no-console)" -- '*.ts' '*.tsx' ':!eslint.config.ts' | wc -l   # expect 0

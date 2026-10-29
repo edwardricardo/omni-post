@@ -1579,13 +1579,19 @@ jobs:
           # fail at the count they had when their rules landed, and lets it only shrink; that holds
           # only while each rule is an error. Part A pins each rule's error line in
           # eslint.config.ts, exactly as prettier writes it: no-console's line in the test-files
-          # block, with console.warn and console.error as its only allowed members, and its one off
-          # block, scoped to the runner's entry points (unrunTestFiles); and it refuses any line that
-          # sets one of the eleven test-block rules to off or warn (no-console is left out of that
-          # scan: its off lines are the scripts, stories, seeds and runner blocks). Part B refuses an
-          # inline eslint-disable directive naming one of the twelve rules in a tracked .ts or .tsx
-          # file: a directive takes a block out of the ratchet without pruning it. Fail-closed: a
-          # missing config, and a git grep that cannot read the tree, each exit 1.
+          # block, with console.warn and console.error as its only allowed members; it holds the
+          # count of lines that turn no-console off (written as "off", 0, ["off"] or [0], the same
+          # spellings the weakened scan reads, with line comments stripped first so a comment that
+          # quotes the pattern is not counted) at exactly two, the browser-logger console adapter
+          # and the scripts, stories and seeds block, printing the lines it counted on a mismatch,
+          # so an exemption in any of those spellings and any layout is a visible edit of this pin
+          # (the runner's three entry points, the files of a third block, were deleted on
+          # 2026-10-29); and it refuses any line that sets one of the
+          # eleven test-block rules to off or warn (no-console is left out of that scan: its off
+          # lines are the two pinned blocks). Part B refuses an inline eslint-disable directive
+          # naming one of the twelve rules in a tracked .ts or .tsx file: a directive takes a block
+          # out of the ratchet without pruning it. Fail-closed: a missing config, and a git grep
+          # that cannot read the tree, each exit 1.
           set -uo pipefail
           CONFIG=eslint.config.ts
           if [ ! -f "$CONFIG" ]; then
@@ -1594,7 +1600,7 @@ jobs:
           fi
           # Part A: each rule holds its `error` line in the config. Three forms, one pin each: the ten
           # single-line rules below (SINGLE_LINE_RULES), expect-expect's two-line array (EXPECT_PIN), and
-          # no-console's bracketed allow list (CONSOLE_PIN) with its one off block (RUNNER_OFF, RUNNER_PIN).
+          # no-console's bracketed allow list (CONSOLE_PIN) and the count of its off lines (OFF_COUNT, two).
           SINGLE_LINE_RULES="vitest/no-conditional-expect vitest/valid-expect vitest/no-standalone-expect vitest/no-identical-title vitest/no-commented-out-tests vitest/no-disabled-tests vitest/no-focused-tests testing/no-empty-test testing/no-existence-only-test testing/no-tautological-assertion"
           MISSING=""
           for rule in $SINGLE_LINE_RULES; do
@@ -1605,9 +1611,9 @@ jobs:
           [ "${EXPECT_PIN:-0}" -ge 1 ] || MISSING="$MISSING vitest/expect-expect"
           CONSOLE_PIN=$(grep -A2 -xF '    files: testFiles,' "$CONFIG" | grep -cxF '      "no-console": ["error", { allow: ["warn", "error"] }],' || true)
           [ "${CONSOLE_PIN:-0}" -ge 1 ] || MISSING="$MISSING no-console(test files)"
-          RUNNER_OFF=$(grep -cxF '    rules: { "no-console": "off" },' "$CONFIG" || true)
-          RUNNER_PIN=$(grep -B1 -xF '    rules: { "no-console": "off" },' "$CONFIG" | grep -cxF '    files: unrunTestFiles,' || true)
-          [ "${RUNNER_OFF:-0}" -eq 1 ] && [ "${RUNNER_PIN:-0}" -eq 1 ] || MISSING="$MISSING no-console-off(runner entry points only)"
+          OFF_LINES=$(sed -E 's://.*$::' "$CONFIG" | grep -nE '"no-console": *("off"|0\b|\[ *("off"|0\b))' || true)
+          OFF_COUNT=$(printf "%s" "$OFF_LINES" | grep -c . || true); OFF_COUNT=${OFF_COUNT:-0}
+          [ "$OFF_COUNT" -eq 2 ] || MISSING="$MISSING no-console-off(expected exactly 2 lines turning no-console off, the console adapter and the scripts block; found $OFF_COUNT, listed below)"
           RULES_RE='vitest/(expect-expect|no-conditional-expect|valid-expect|no-standalone-expect|no-identical-title|no-commented-out-tests|no-disabled-tests|no-focused-tests)|testing/(no-empty-test|no-existence-only-test|no-tautological-assertion)'
           WEAKENED=$(grep -nE "\"($RULES_RE)\": *(\"(off|warn)\"|[01]\b|\[ *(\"(off|warn)\"|[01]\b))" "$CONFIG" || true)
           WCOUNT=$(printf "%s" "$WEAKENED" | grep -c . || true); WCOUNT=${WCOUNT:-0}
@@ -1621,7 +1627,8 @@ jobs:
           DCOUNT=$(printf "%s" "$DIRECTIVES" | grep -c . || true); DCOUNT=${DCOUNT:-0}
           echo "Fitness #49: missing pins:${MISSING:- none}; weakened=$WCOUNT; inline directives=$DCOUNT (expect none, 0 and 0)"
           if [ -n "$MISSING" ]; then
-            echo "::error title=Fitness #49 violation::eslint.config.ts no longer sets these rules to error on their globs, or a reformat moved their lines (the pins are indentation-exact, so a moved line reads as a missing one):$MISSING. Each one names a test block that cannot fail or a test that hides from its runner, and eslint-suppressions.json holds the tree's violations only while the rule is an error; at warn or off the ratchet stops counting and the classes grow back unseen."
+            [ "$OFF_COUNT" -eq 2 ] || printf "%s\n" "$OFF_LINES"
+            echo "::error title=Fitness #49 violation::eslint.config.ts no longer sets these rules to error on their globs, a reformat moved their lines (the pins are indentation-exact, so a moved line reads as a missing one), or the count of lines turning no-console off moved from its pinned two:$MISSING. Each one names a test block that cannot fail or a test that hides from its runner, and eslint-suppressions.json holds the tree's violations only while the rule is an error; at warn or off the ratchet stops counting and the classes grow back unseen."
           fi
           if [ "$WCOUNT" -gt 0 ]; then
             echo "::error title=Fitness #49 violation::eslint.config.ts sets one of the test-block rules to off or warn on some glob; a later block overrides the error line the pin reads."
