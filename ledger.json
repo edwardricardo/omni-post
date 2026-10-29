@@ -2,20 +2,20 @@
   "version": 1,
   "summary": {
     "files": {
-      "total": 1201,
+      "total": 1186,
       "byShape": {
         "test": 948,
         "integration-test": 86,
         "live-test": 17,
         "spec": 9,
         "k6": 6,
-        "runner": 2,
-        "helper": 129,
-        "disabled": 2,
+        "runner": 0,
+        "helper": 118,
+        "disabled": 0,
         "none": 2
       },
       "byVerdict": {
-        "DELETE": 35,
+        "DELETE": 20,
         "REWRITE": 225,
         "KEEP": 836,
         "ADJUDICATE": 105,
@@ -24,8 +24,8 @@
     },
     "rows": {
       "machine": 1175,
-      "confirmed": 26,
-      "total": 1201
+      "confirmed": 11,
+      "total": 1186
     },
     "blocks": {
       "total": 15154,
@@ -42,7 +42,7 @@
       }
     },
     "deleted": {
-      "files": 10,
+      "files": 25,
       "blocks": 101
     },
     "excluded": [
@@ -76,6 +76,30 @@
       "deleted": {
         "files": 4,
         "blocks": 43
+      },
+      "floors": {}
+    },
+    "2.7": {
+      "files": [
+        "apps/api/tests/analytics-ml-integration.test.ts.disabled",
+        "apps/api/tests/coverage-utils.ts",
+        "apps/api/tests/run-with-coverage.ts",
+        "apps/api/tests/run.ts",
+        "apps/api/tests/setup/index.ts",
+        "apps/api/tests/setup/testDataFactory.ts",
+        "apps/api/tests/setup/testLifecycle.ts",
+        "apps/api/tests/setup/testTemplate.ts",
+        "apps/api/tests/setup/verifyServices.ts",
+        "apps/api/tests/threading.flow.test.ts.old",
+        "apps/api/tests/unit/PlatformContentAdapter.test-helpers.ts",
+        "apps/api/tests/unit/auditService.test-helpers.ts",
+        "apps/api/tests/unit/cqrsIntegration.test-helpers.ts",
+        "apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts",
+        "packages/providers/instagram/tests/mediaProcessor.test-helpers.ts"
+      ],
+      "deleted": {
+        "files": 15,
+        "blocks": 0
       },
       "floors": {}
     }
@@ -2677,23 +2701,6 @@
       "importers": null
     },
     {
-      "path": "apps/api/tests/analytics-ml-integration.test.ts.disabled",
-      "shape": "disabled",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-suffix",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": null
-    },
-    {
       "path": "apps/api/tests/analytics.flow.integration.test.ts",
       "shape": "integration-test",
       "framework": "node",
@@ -3269,23 +3276,6 @@
       "subject": null,
       "duplicate": null,
       "importers": null
-    },
-    {
-      "path": "apps/api/tests/coverage-utils.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
     },
     {
       "path": "apps/api/tests/eval/localizedGeneration.eval.test.ts",
@@ -11211,40 +11201,6 @@
       "importers": null
     },
     {
-      "path": "apps/api/tests/run-with-coverage.ts",
-      "shape": "runner",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
-    },
-    {
-      "path": "apps/api/tests/run.ts",
-      "shape": "runner",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
-    },
-    {
       "path": "apps/api/tests/schedule.flow.integration.test.ts",
       "shape": "integration-test",
       "framework": "node",
@@ -11687,91 +11643,6 @@
       "importers": 4
     },
     {
-      "path": "apps/api/tests/setup/index.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
-    },
-    {
-      "path": "apps/api/tests/setup/testDataFactory.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
-    },
-    {
-      "path": "apps/api/tests/setup/testLifecycle.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
-    },
-    {
-      "path": "apps/api/tests/setup/testTemplate.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
-    },
-    {
-      "path": "apps/api/tests/setup/verifyServices.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
-    },
-    {
       "path": "apps/api/tests/testUtils.ts",
       "shape": "helper",
       "framework": null,
@@ -11871,23 +11742,6 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": null
-    },
-    {
-      "path": "apps/api/tests/threading.flow.test.ts.old",
-      "shape": "disabled",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-suffix",
-      "excluded": null,
-      "status": "confirmed",
       "sliceId": null,
       "subject": null,
       "duplicate": null,
@@ -15927,23 +15781,6 @@
       },
       "duplicate": null,
       "importers": null
-    },
-    {
-      "path": "apps/api/tests/unit/PlatformContentAdapter.test-helpers.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
     },
     {
       "path": "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts",
@@ -34185,23 +34022,6 @@
       "importers": null
     },
     {
-      "path": "apps/api/tests/unit/auditService.test-helpers.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
-    },
-    {
       "path": "apps/api/tests/unit/auth/adminHoldsPermission.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -39273,23 +39093,6 @@
       },
       "duplicate": null,
       "importers": null
-    },
-    {
-      "path": "apps/api/tests/unit/cqrsIntegration.test-helpers.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
     },
     {
       "path": "apps/api/tests/unit/crossPlatformDataFetcher.test.ts",
@@ -50743,23 +50546,6 @@
       "subject": null,
       "duplicate": null,
       "importers": 23
-    },
-    {
-      "path": "apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
     },
     {
       "path": "apps/api/tests/unit/helpers/InMemoryMfaUserRepository.ts",
@@ -117433,23 +117219,6 @@
       },
       "duplicate": null,
       "importers": null
-    },
-    {
-      "path": "packages/providers/instagram/tests/mediaProcessor.test-helpers.ts",
-      "shape": "helper",
-      "framework": null,
-      "collectors": null,
-      "quarantined": null,
-      "blockCount": 0,
-      "blocks": [],
-      "verdict": "DELETE",
-      "basis": "dead-helper",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
-      "subject": null,
-      "duplicate": null,
-      "importers": 0
     },
     {
       "path": "packages/providers/instagram/tests/mediaProcessor.test.ts",

@@ -6,14 +6,14 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1201  |
-| DELETE                  | 35    |
+| Files                   | 1186  |
+| DELETE                  | 20    |
 | REWRITE                 | 225   |
 | KEEP                    | 836   |
 | ADJUDICATE              | 105   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
-| Confirmed rows          | 26    |
+| Confirmed rows          | 11    |
 | Blocks                  | 15154 |
 | Blocks with a criterion | 952   |
 
@@ -40,6 +40,28 @@ Deleted: 4 files, 43 blocks.
 | `packages/providers/pinterest/tests/integration/apiClient.test.ts` |
 | `packages/providers/snapchat/tests/integration/apiClient.test.ts`  |
 | `packages/providers/telegram/tests/integration/apiClient.test.ts`  |
+
+## Slice 2.7
+
+Deleted: 15 files, 0 blocks.
+
+| Deleted file                                                        |
+| ------------------------------------------------------------------- |
+| `apps/api/tests/analytics-ml-integration.test.ts.disabled`          |
+| `apps/api/tests/coverage-utils.ts`                                  |
+| `apps/api/tests/run-with-coverage.ts`                               |
+| `apps/api/tests/run.ts`                                             |
+| `apps/api/tests/setup/index.ts`                                     |
+| `apps/api/tests/setup/testDataFactory.ts`                           |
+| `apps/api/tests/setup/testLifecycle.ts`                             |
+| `apps/api/tests/setup/testTemplate.ts`                              |
+| `apps/api/tests/setup/verifyServices.ts`                            |
+| `apps/api/tests/threading.flow.test.ts.old`                         |
+| `apps/api/tests/unit/PlatformContentAdapter.test-helpers.ts`        |
+| `apps/api/tests/unit/auditService.test-helpers.ts`                  |
+| `apps/api/tests/unit/cqrsIntegration.test-helpers.ts`               |
+| `apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts`          |
+| `packages/providers/instagram/tests/mediaProcessor.test-helpers.ts` |
 
 ## Rows without a slice
 
@@ -81,7 +103,6 @@ Deleted: 4 files, 43 blocks.
 | `apps/api/scripts/seed-large-dataset.ts`                                                              | none             | 0      | 0          | ADJUDICATE | machine                     | excluded-by-decision |
 | `apps/api/tests/accountLifecycle.integration.test.ts`                                                 | integration-test | 15     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/adapters.integration.test.ts`                                                         | integration-test | 14     | 12         | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/analytics-ml-integration.test.ts.disabled`                                            | disabled         | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-suffix          |
 | `apps/api/tests/analytics.flow.integration.test.ts`                                                   | integration-test | 12     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/audit.integration.test.ts`                                                            | integration-test | 7      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/auth.integration.test.ts`                                                             | integration-test | 15     | 1          | REWRITE    | machine                     | some-decorative      |
@@ -89,7 +110,6 @@ Deleted: 4 files, 43 blocks.
 | `apps/api/tests/chaos/chaos-helpers.ts`                                                               | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/chaos/saga-step-retry-recovery.integration.test.ts`                                   | integration-test | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/chaos/sagaWaitAmplification.integration.test.ts`                                      | integration-test | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/coverage-utils.ts`                                                                    | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `apps/api/tests/eval/localizedGeneration.eval.test.ts`                                                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/eval/repurposeTrajectory.eval.test.ts`                                                | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/eval/trendsTrajectory.eval.test.ts`                                                   | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
@@ -193,21 +213,13 @@ Deleted: 4 files, 43 blocks.
 | `apps/api/tests/providerRegistry.live.test.ts`                                                        | live-test        | 36     | 36         | REWRITE    | confirmed (machine: DELETE) | all-decorative       |
 | `apps/api/tests/publish.flow.integration.test.ts`                                                     | integration-test | 4      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/rbac.integration.test.ts`                                                             | integration-test | 23     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/run-with-coverage.ts`                                                                 | runner           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
-| `apps/api/tests/run.ts`                                                                               | runner           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `apps/api/tests/schedule.flow.integration.test.ts`                                                    | integration-test | 10     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/schemaUtils.integration.test.ts`                                                      | integration-test | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/security.live.test.ts`                                                                | live-test        | 18     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/setup-env.ts`                                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/setup.ts`                                                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/setup/index.ts`                                                                       | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
-| `apps/api/tests/setup/testDataFactory.ts`                                                             | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
-| `apps/api/tests/setup/testLifecycle.ts`                                                               | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
-| `apps/api/tests/setup/testTemplate.ts`                                                                | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
-| `apps/api/tests/setup/verifyServices.ts`                                                              | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `apps/api/tests/testUtils.ts`                                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/threading.canonical.integration.test.ts`                                              | integration-test | 10     | 4          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/threading.flow.test.ts.old`                                                           | disabled         | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-suffix          |
 | `apps/api/tests/threading.planner.integration.test.ts`                                                | integration-test | 15     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/threading.xprovider.integration.test.ts`                                              | integration-test | 26     | 12         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/trialPeriod.integration.test.ts`                                                      | integration-test | 9      | 0          | KEEP       | machine                     | behavioural          |
@@ -239,7 +251,6 @@ Deleted: 4 files, 43 blocks.
 | `apps/api/tests/unit/PlatformContentAdapter.content.test.ts`                                          | test             | 8      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts`                                     | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts`                                        | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/PlatformContentAdapter.test-helpers.ts`                                          | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts`                                          | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts`                                 | test             | 13     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/PostCommandHandlers.create.test.ts`                                              | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
@@ -424,7 +435,6 @@ Deleted: 4 files, 43 blocks.
 | `apps/api/tests/unit/auditService.query.test.ts`                                                      | test             | 14     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/auditService.retention.test.ts`                                                  | test             | 10     | 1          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/auditService.stats.test.ts`                                                      | test             | 14     | 2          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/auditService.test-helpers.ts`                                                    | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `apps/api/tests/unit/auth/adminHoldsPermission.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/auth/customerAuthSystemReasons.test.ts`                                          | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/auth/customerOrAdminAuth.test.ts`                                                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
@@ -469,7 +479,6 @@ Deleted: 4 files, 43 blocks.
 | `apps/api/tests/unit/content/syncEngineContentRead.test.ts`                                           | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/contentRoutes.test.ts`                                                           | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/correlationMiddleware.test.ts`                                                   | test             | 11     | 2          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/cqrsIntegration.test-helpers.ts`                                                 | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `apps/api/tests/unit/crossPlatformDataFetcher.test.ts`                                                | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/csvExport.test.ts`                                                               | test             | 39     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/customerAuthUseCases.test.ts`                                                    | test             | 46     | 1          | REWRITE    | machine                     | some-decorative      |
@@ -543,7 +552,6 @@ Deleted: 4 files, 43 blocks.
 | `apps/api/tests/unit/helpers/InMemoryAdminUserRepository.ts`                                          | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/InMemoryAuditEmitter.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/InMemoryAuditLogRepository.ts`                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts`                                            | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `apps/api/tests/unit/helpers/InMemoryMfaUserRepository.ts`                                            | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/factories.ts`                                                            | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/fakeLoggerPort.ts`                                                       | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -1146,7 +1154,6 @@ Deleted: 4 files, 43 blocks.
 | `packages/providers/instagram/tests/InstagramAdapter.stories-reels.test.ts`                           | test             | 30     | 5          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/instagram/tests/InstagramApiClient.writeFailFast.test.ts`                         | test             | 3      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `packages/providers/instagram/tests/index.test.ts`                                                    | test             | 22     | 2          | ADJUDICATE | machine                     | subject-not-imported |
-| `packages/providers/instagram/tests/mediaProcessor.test-helpers.ts`                                   | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
 | `packages/providers/instagram/tests/mediaProcessor.test.ts`                                           | test             | 11     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/instagram/tests/mediaProcessor.validation.test.ts`                                | test             | 10     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/instagram/tests/schedulingService.management.test.ts`                             | test             | 19     | 2          | REWRITE    | machine                     | some-decorative      |
