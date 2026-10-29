@@ -10,6 +10,15 @@
         "apps/admin/tests/posts.flow.test.ts"
       ],
       "deleted": { "files": 6, "blocks": 58 }
+    },
+    "2.6b": {
+      "files": [
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts",
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts"
+      ],
+      "deleted": { "files": 4, "blocks": 43 }
     }
   }
 }
