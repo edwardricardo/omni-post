@@ -378,54 +378,11 @@
       "reviewer": "Maintainer",
       "date": "2026-10-29"
     },
-    "apps/api/tests/universal-client-dashboard.live.test.ts": {
-      "verdict": "DELETE",
-      "criteria": ["d"],
-      "blocks": [
-        "apps/api/tests/universal-client-dashboard.live.test.ts::should return all registered providers",
-        "apps/api/tests/universal-client-dashboard.live.test.ts::should return only active providers",
-        "apps/api/tests/universal-client-dashboard.live.test.ts::should filter providers by threading capability",
-        "apps/api/tests/universal-client-dashboard.live.test.ts::should report health status for all providers",
-        "apps/api/tests/universal-client-dashboard.live.test.ts::should load dashboard with proper UI elements",
-        "apps/api/tests/universal-client-dashboard.live.test.ts::should return detailed information for X provider",
-        "apps/api/tests/universal-client-dashboard.live.test.ts::should return 404 for invalid provider",
-        "apps/api/tests/universal-client-dashboard.live.test.ts::should return 400 for invalid capability",
-        "apps/api/tests/universal-client-dashboard.live.test.ts::should report test metrics"
-      ],
-      "evidence": "Owned by slice 2.6a, which deletes this whole file as the plan's WU-2.6a lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "apps/client/tests/components/ListeningCharts.test.tsx": {
-      "verdict": "DELETE",
-      "criteria": ["a"],
-      "blocks": [
-        "apps/client/tests/components/ListeningCharts.test.tsx::ShareOfVoiceChart mounts with per-provider data",
-        "apps/client/tests/components/ListeningCharts.test.tsx::SentimentBreakdownChart mounts with sentiment data"
-      ],
-      "evidence": "Owned by slice 2.6a, which deletes this whole file as the plan's WU-2.6a lists it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
     "apps/workers/tests/worker.smoke.ts": {
       "verdict": "DELETE",
       "criteria": [],
       "blocks": [],
       "evidence": "No file imports it (the ledger measures 0 importers) and no collector runs it, so nothing exercises it.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
-    "packages/providers/_template/tests/integration/sandbox.template.test.ts": {
-      "verdict": "DELETE",
-      "criteria": ["c"],
-      "blocks": [
-        "packages/providers/_template/tests/integration/sandbox.template.test.ts::publishes against the sandbox API and parses the canonical response shape",
-        "packages/providers/_template/tests/integration/sandbox.template.test.ts::validates credentials against the real sandbox auth endpoint"
-      ],
-      "evidence": "Owned by slice 2.6a, which deletes this whole file as the plan's WU-2.6a lists it.",
       "status": "confirmed",
       "reviewer": "Maintainer",
       "date": "2026-10-29"

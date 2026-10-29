@@ -55,13 +55,6 @@ export default defineConfig({
     // Named rather than left to vitest's default, which also matches `*.spec.*`: that suffix
     // belongs to Playwright, and the reserved suffixes below exclude it a second time.
     include: ["**/*.test.{ts,tsx}"],
-    exclude: [
-      "**/node_modules/**",
-      "**/e2e/**",
-      // Plain fetch scripts with no vitest syntax
-      "tests/apiClient.smoke.test.ts",
-      "tests/posts.flow.test.ts",
-      ...RESERVED_TIER_EXCLUDES,
-    ],
+    exclude: ["**/node_modules/**", "**/e2e/**", ...RESERVED_TIER_EXCLUDES],
   },
 });

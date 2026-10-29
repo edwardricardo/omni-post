@@ -1,8 +1,8 @@
 {
   "_README": "Tracked type-error debt for apps/api/tests, the scope no tsconfig used to open. The gate (apps/api/scripts/typecheck-tests-ratchet.mjs) FAILS on any NEW file+code pair and on any pair whose count RISES, so new type errors in test code are prevented while this ledger is burned down. Never grow an entry to absorb a new error. Regenerate after genuine fixes: node apps/api/scripts/typecheck-tests-ratchet.mjs --write",
   "_RESIDUAL": "Keys are file+code, not file+line+message, so an unrelated edit does not churn the ledger. The cost of that choice: fixing one TS2339 in a file and introducing a different TS2339 in the SAME file leaves the count unchanged and passes. Narrow, and stated rather than discovered.",
-  "totalErrors": 2109,
-  "filesWithErrors": 279,
+  "totalErrors": 2108,
+  "filesWithErrors": 278,
   "testFilesInProgram": 809,
   "byCode": {
     "TS2339": 438,
@@ -18,7 +18,7 @@
     "TS2554": 41,
     "TS18047": 39,
     "TS7006": 37,
-    "TS2379": 31,
+    "TS2379": 30,
     "TS2769": 25,
     "TS2739": 23,
     "TS2740": 18,
@@ -526,7 +526,6 @@
     "tests/unit/webhooks/realtimeWebhookBroadcaster.test.ts::TS2367": 1,
     "tests/unit/webhooks/tiktokWebhookProcessor.test.ts::TS18046": 6,
     "tests/unit/webhooks/xWebhookProcessor.test.ts::TS2769": 1,
-    "tests/unit/webhooks/youtubeWebhookProcessor.test.ts::TS18046": 2,
-    "tests/universal-client-dashboard.live.test.ts::TS2379": 1
+    "tests/unit/webhooks/youtubeWebhookProcessor.test.ts::TS18046": 2
   }
 }

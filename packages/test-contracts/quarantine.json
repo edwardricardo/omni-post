@@ -7,12 +7,6 @@
       "since": "2026-10-10"
     },
     {
-      "path": "apps/api/tests/universal-client-dashboard.live.test.ts",
-      "reason": "its client-dashboard test skips without a running client portal, which no tier starts, and a skip fails the tier; the file adds nothing providerRegistry.live.test.ts does not assert, so it is deleted",
-      "owner": "WU-2.6a",
-      "since": "2026-10-10"
-    },
-    {
       "path": "apps/api/tests/integration/aiLocalizedRoutes.live.test.ts",
       "reason": "2 of its 6 cases fail against the live stack: a glossary term and a style-guide rule created for `es` (201) are missing from `GET /ai/glossary?locale=es` and `GET /ai/style-guide?locale=es`; cause not measured yet",
       "owner": "DEF-81",
@@ -112,24 +106,6 @@
       "path": "security/tests/injection-tests.xss-command.test.ts",
       "reason": "no vitest config, runner or workflow collects security/tests (SMELL-83); decision D12 folds its useful cases into the live tier (WU-6.S1) and deletes the suite",
       "owner": "WU-6.S2",
-      "since": "2026-10-14"
-    },
-    {
-      "path": "apps/admin/tests/apiClient.smoke.test.ts",
-      "reason": "a fetch script against a running API with no test case, excluded from apps/admin/vitest.config.ts, so no runner collects it; deleted together with its exclude",
-      "owner": "WU-2.6a",
-      "since": "2026-10-14"
-    },
-    {
-      "path": "apps/admin/tests/posts.flow.test.ts",
-      "reason": "a fetch script against a running API with no test case, excluded from apps/admin/vitest.config.ts, so no runner collects it; deleted together with its exclude",
-      "owner": "WU-2.6a",
-      "since": "2026-10-14"
-    },
-    {
-      "path": "packages/providers/_template/tests/integration/sandbox.template.test.ts",
-      "reason": "the provider template sandbox example; packages/providers/_template has no vitest config, so no runner collects it; deleted, while the fate of the template package stays in SMELL-132",
-      "owner": "WU-2.6a",
       "since": "2026-10-14"
     },
     {
