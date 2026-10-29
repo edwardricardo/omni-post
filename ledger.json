@@ -2,9 +2,9 @@
   "version": 1,
   "summary": {
     "files": {
-      "total": 1210,
+      "total": 1211,
       "byShape": {
-        "test": 956,
+        "test": 957,
         "integration-test": 86,
         "live-test": 18,
         "spec": 9,
@@ -17,18 +17,18 @@
       "byVerdict": {
         "DELETE": 42,
         "REWRITE": 223,
-        "KEEP": 835,
+        "KEEP": 836,
         "ADJUDICATE": 110,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1177,
+      "machine": 1178,
       "confirmed": 33,
-      "total": 1210
+      "total": 1211
     },
     "blocks": {
-      "total": 15217,
+      "total": 15248,
       "decorative": 1049,
       "byClass": {
         "EMPTY": 17,
@@ -38,7 +38,7 @@
         "SELF-SKIP": 158,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 29,
-        "BEHAVIOURAL": 14139
+        "BEHAVIOURAL": 14170
       }
     },
     "deleted": {
@@ -71724,6 +71724,241 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14f0623717d87a3af3935377316f69ee5eb897b56cc38b870bd2b68bf884a6b5"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "excluded": null,
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 31,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::exits 0 and names the base commit when no floor moved",
+          "line": 221,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6fb55550f942b442896afa2ceea10f42e5b1015f33db170be268283220ade2a9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::exits 0 when a floor rises",
+          "line": 232,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "70b91ea9319d3de3cb1809d2ab8d86e025233c92f43ef3dd314702491cc45f9b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::exits 1 and names the metric when a floor is lowered with no marker",
+          "line": 239,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3d08aa9496d764aa800f31f4b2fcf8b59e6570b8aa838ff03785bf5a0caaa623"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::accepts a descent under a listed scenario's marker on the line above, and logs it",
+          "line": 247,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "20e0e0d6711712c1e39520799644f0add9ab37030c942f5225a03fc2eadeda3e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::accepts a descent under a marker on the literal's own line",
+          "line": 261,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9c6f96ec963a85bf85952dbe582d9d1a7253de1e7f2cd69de41e86bcda72c74a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::refuses a marker whose scenario is not on the allowed list",
+          "line": 273,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5ca5e2d0ae60c01a87cb32497834237b1fdf8c364a46f7be0c6bcfae5ed018f7"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::refuses %s, whose subject is missing or outside the slice grammar",
+          "line": 288,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "26d2d24bb4daa2b2fea4c8844b6ef926e699e471337f5cb56e6913751e03fca4"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::refuses a marker the base already carries on that metric",
+          "line": 305,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d6e28b855eadd490a9f49355beff703f3334ff7832ad7bfd7fd6685b7f91338e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::passes a metric the base does not declare, which has no comparable floor",
+          "line": 325,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8b6f4d8323d03019dd6806e65fe54c32430dfd255a429295650a1fd913dbbd25"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::passes every metric when the base does not hold the config",
+          "line": 332,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "345e75b120e2d6667be483335fe7a79b6d4a59b2505c1bfcce5dd8f8f99b6f6a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::fails closed when the head holds %s",
+          "line": 345,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9abfbfaf19057a0bc903f422dbab7e86b2dac4444a5443c086df98ef8c6b3c8a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::fails closed when the head's global block declares a metric twice",
+          "line": 360,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a6a195ace89968eab644daba0d9a91aedb253a67ccc5faa75f38ffd561cf91cc"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::fails closed when the head's global block lacks a metric",
+          "line": 368,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "680804567258238a44ee639f6efa873dfd7e4c788f8c058fc0ad347d33ec8d2d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::reads a per-scope block nested deeper as no second literal",
+          "line": 376,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "83e0214b03029939f898d69474a23fe19ab9df6e0257bfcbed99a4a634e73eb6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::fails closed when the base declares a metric twice",
+          "line": 386,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "be2e02567f7eb2861a81c034387fe27c69b2945009e85e6d1552f7a51e262b1b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::fails closed when the base ref does not resolve to a commit",
+          "line": 394,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e8dde3553a26c834c51661c475cb03cf9c652b21b0430296537f399afa007e73"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::fails closed when the head holds no config",
+          "line": 401,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1e04b5e0fbc8dd0fb54458aa3a2d96f35199cb1aa6f1e508f4eeb789153f7ac6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::exits 2 on any argument, a usage error",
+          "line": 413,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8acf4fe38be612c72d1c30f26a5829e16eea2d655281709a5fc59a00b53c0d8f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::never reads a ledger for a marker of another scenario",
+          "line": 421,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "85cf4739b8364d794c8a617ede0943c78614dab83fdf8054868275ee8b40192f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::refuses a slice id that head's ledger.json does not list",
+          "line": 439,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "632bef8cfb586ac800739fc367a567db3d49f576ecbfcc1deeb752aca3b44298"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::refuses a slice that head's ledger.json does not record as deleted",
+          "line": 449,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b1783a448d42074c42ffcb1b880aa890f9428c6f4749b65be9638513517bfb07"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::refuses a slice that the base's ledger.json already records as deleted",
+          "line": 459,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "dadb91998630741f233265ddd72fbf7b33514e6f76cdd7130e9ca5d1341596e3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::refuses a slice whose deletion records no descent of that metric",
+          "line": 470,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e5bf9f468492602b9ede666cd8cb03706e8dd53d3776f35683fab2d31939e577"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::refuses a slice whose recorded descent ends somewhere other than the head literal",
+          "line": 483,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2508744d1bb0fe2b66ce36df53ac82f79195ddb7c1ad69b7ddd93a0ed5c84ed2"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::refuses a slice whose recorded descent starts somewhere other than the base literal",
+          "line": 494,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a200cf3c4811ddcce29f2ad7776b1da82fe86cd8b53f6ea92e8279f15db04de9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::accepts a listed slice deleted in this pull request whose recorded descent matches",
+          "line": 505,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b053bc77f5b7bb23d71e82ac400867bfe626382222ab26c61d824ae10cc77a83"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::accepts a slice the base's ledger.json does not list yet",
+          "line": 519,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2a23c145633b3707d04ecb447b9310c084565f85e846022d2d41ec2fdc9b972d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::fails closed when head's ledger.json is %s",
+          "line": 532,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "afa1c828ac0192f82dd91a168116b1ff50c18811e9bec0b1ad3ecd2f3a6c832b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::fails closed when a slice of head's ledger.json is not an object",
+          "line": 545,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9cdbf75f97392b7e03f559e49fc20974aa2057285ddf3a4bdb4d1558102b3be1"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::reads the base's ledger.json once, however many descents a demolition marker answers for",
+          "line": 555,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c9a1175ab47e5fd992e9a0e85c447ba47179d340f2b0a000d7f630d5d3d4477c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/coverageFloorGate.test.ts::fails closed when the base holds no ledger.json",
+          "line": 578,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "30b80b2f151159b98bd2e81404e27b87a51e89d7311de57c11c7dfd951139dcc"
         }
       ],
       "verdict": "KEEP",

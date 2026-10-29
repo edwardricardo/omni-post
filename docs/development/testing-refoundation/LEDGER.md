@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1210  |
+| Files                   | 1211  |
 | DELETE                  | 42    |
 | REWRITE                 | 223   |
-| KEEP                    | 835   |
+| KEEP                    | 836   |
 | ADJUDICATE              | 110   |
 | unmeasured              | 0     |
-| Machine rows            | 1177  |
+| Machine rows            | 1178  |
 | Confirmed rows          | 33    |
-| Blocks                  | 15217 |
+| Blocks                  | 15248 |
 | Blocks with a criterion | 1049  |
 
 ## Rows without a slice
@@ -718,6 +718,7 @@
 | `apps/api/tests/unit/scripts/batteryState.test.ts`                                                    | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/batteryVerdict.test.ts`                                                  | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/cookiesAndStorageInventory.test.ts`                                      | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/coverageFloorGate.test.ts`                                               | test             | 31     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/dependencyLedger.test.ts`                                                | test             | 68     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/dependencySites.test.ts`                                                 | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/enginesNodeGate.test.ts`                                                 | test             | 21     | 0          | KEEP       | machine                     | behavioural          |
