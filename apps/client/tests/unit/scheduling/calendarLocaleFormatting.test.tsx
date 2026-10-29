@@ -4,10 +4,12 @@
  *   show to the active UI locale: rendered under `es`, each shape reads in Spanish; rendered under
  *   `en`, each keeps the English text it had when the components named `en-US`. The hour gutters
  *   keep their English labels byte for byte. Dates are built from local wall-clock parts, so the
- *   assertions hold in any time zone the suite runs in.
+ *   assertions hold in any time zone the suite runs in, and the day calendar's suite pins the clock
+ *   to another day, because the day the fixture names carries a "today" badge in its heading when
+ *   the suite happens to run on it.
  * @layer infrastructure
  */
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { renderInLocale, type TestLocale } from "../../intl-test-utils";
 import { CalendarView } from "@/components/scheduling/views/CalendarView";
@@ -205,6 +207,16 @@ describe("WeekCalendar dates and hours", () => {
 });
 
 describe("DayCalendar dates and hours", () => {
+  /** Tuesday 27 October 2026, 09:00: a day that is never THURSDAY_AFTERNOON, so no today badge. */
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 27, 9, 0));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("shows the day, the post time and the hour gutter in Spanish on the es interface", () => {
     renderDayCalendar("es");
 

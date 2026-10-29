@@ -100611,70 +100611,70 @@
       "blocks": [
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::shows the month, weekdays, slot time and accessible names in Spanish on the es interface",
-          "line": 151,
+          "line": 153,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "34d5861aed0970548c361942a864e19493673e9726a97afa3a427927ce85c11e"
         },
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::keeps the month, weekdays, slot time and accessible names in English on the en interface",
-          "line": 165,
+          "line": 167,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "54247ad982d767952b4c141e6dcfe3d122eb21941d546c8ac39ca1f611f712c1"
         },
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::shows the week range, weekdays and hour gutter in Spanish on the es interface",
-          "line": 179,
+          "line": 181,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "348f83974083c197a587cbdcab61bd8229ec4b3800bbaaeed708426ee470ff0b"
         },
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::keeps the week range, weekdays and hour gutter in English on the en interface",
-          "line": 194,
+          "line": 196,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "346d60ef9593a70f56ecbcb36d1fe266752ec9b97616937baa674b825e9c8bb4"
         },
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::shows the day, the post time and the hour gutter in Spanish on the es interface",
-          "line": 208,
+          "line": 220,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40cb38578ad23ea3c13b9e0266accf6119f1ab3a255ac27a5cf44a17ecaeea86"
         },
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::keeps the day, the post time and the hour gutter in English on the en interface",
-          "line": 219,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c83d789e01a4f8398a13ef9acdb598930a90e828b751f0099066e418b45f3895"
         },
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::names the month in Spanish on the es interface",
-          "line": 231,
+          "line": 243,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e2ac86452e7ad9e199f06f75a4b464edf2ca1b8b0542612a3f790618ccf7456"
         },
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::keeps the English month on the en interface",
-          "line": 237,
+          "line": 249,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "48dfbb0f2bad8db60d65e25e87625e03b3d59935ebe345a89abdedcce1f23c02"
         },
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::shows the next occurrence in Spanish on the es interface",
-          "line": 245,
+          "line": 257,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bbc8f1fb50af026692ab7561cc8a16aa82462a144dd31634ae54b48970c8c80c"
         },
         {
           "id": "apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx::shows the next occurrence in English on the en interface, where it used to read in Spanish",
-          "line": 258,
+          "line": 270,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd507791476139b5735cbdab4e00d9448a90c38b15a2e7b71cedc6216abb33aa"
