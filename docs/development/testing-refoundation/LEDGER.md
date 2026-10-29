@@ -6,16 +6,16 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1205  |
-| DELETE                  | 39    |
+| Files                   | 1201  |
+| DELETE                  | 35    |
 | REWRITE                 | 225   |
 | KEEP                    | 836   |
 | ADJUDICATE              | 105   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
-| Confirmed rows          | 30    |
-| Blocks                  | 15197 |
-| Blocks with a criterion | 995   |
+| Confirmed rows          | 26    |
+| Blocks                  | 15154 |
+| Blocks with a criterion | 952   |
 
 ## Slice 2.6a
 
@@ -29,6 +29,17 @@ Deleted: 6 files, 58 blocks.
 | `apps/api/tests/universal-client-dashboard.live.test.ts`                  |
 | `apps/client/tests/components/ListeningCharts.test.tsx`                   |
 | `packages/providers/_template/tests/integration/sandbox.template.test.ts` |
+
+## Slice 2.6b
+
+Deleted: 4 files, 43 blocks.
+
+| Deleted file                                                       |
+| ------------------------------------------------------------------ |
+| `packages/providers/linkedin/tests/integration/apiClient.test.ts`  |
+| `packages/providers/pinterest/tests/integration/apiClient.test.ts` |
+| `packages/providers/snapchat/tests/integration/apiClient.test.ts`  |
+| `packages/providers/telegram/tests/integration/apiClient.test.ts`  |
 
 ## Rows without a slice
 
@@ -1145,24 +1156,20 @@ Deleted: 6 files, 58 blocks.
 | `packages/providers/linkedin/tests/LinkedInAdapter.polls.test.ts`                                     | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/linkedin/tests/LinkedInAdapter.test.ts`                                           | test             | 51     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/linkedin/tests/LinkedInApiClient.writeFailFast.test.ts`                           | test             | 2      | 0          | ADJUDICATE | machine                     | title-contradiction  |
-| `packages/providers/linkedin/tests/integration/apiClient.test.ts`                                     | test             | 12     | 12         | DELETE     | confirmed (machine: DELETE) | all-decorative       |
 | `packages/providers/linkedin/tests/mediaUpload.test.ts`                                               | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/pinterest/tests/PinterestAdapter.boards.test.ts`                                  | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/pinterest/tests/PinterestAdapter.test.ts`                                         | test             | 40     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/pinterest/tests/PinterestApiClient.writeFailFast.test.ts`                         | test             | 2      | 0          | ADJUDICATE | machine                     | title-contradiction  |
-| `packages/providers/pinterest/tests/integration/apiClient.test.ts`                                    | test             | 11     | 11         | DELETE     | confirmed (machine: DELETE) | all-decorative       |
 | `packages/providers/shared/tests/ProviderError.test.ts`                                               | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/shared/tests/helpers.test.ts`                                                     | test             | 36     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/snapchat/tests/SnapchatAdapter.test.ts`                                           | test             | 57     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/snapchat/tests/SnapchatApiClient.cacheIsolation.test.ts`                          | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/snapchat/tests/SnapchatApiClient.writeFailFast.test.ts`                           | test             | 2      | 0          | ADJUDICATE | machine                     | title-contradiction  |
-| `packages/providers/snapchat/tests/integration/apiClient.test.ts`                                     | test             | 9      | 9          | DELETE     | confirmed (machine: DELETE) | all-decorative       |
 | `packages/providers/snapchat/tests/responseParsers.test.ts`                                           | test             | 50     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts`                               | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/telegram/tests/TelegramAdapter.test.ts`                                           | test             | 63     | 6          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/telegram/tests/TelegramApiClient.cacheIsolation.test.ts`                          | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/telegram/tests/TelegramApiClient.writeFailFast.test.ts`                           | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/telegram/tests/integration/apiClient.test.ts`                                     | test             | 11     | 11         | DELETE     | confirmed (machine: DELETE) | all-decorative       |
 | `packages/providers/threads/tests/ThreadsAdapter.test.ts`                                             | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/tiktok/tests/TikTokAdapter.test.ts`                                               | test             | 64     | 4          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/tiktok/tests/TikTokAuthService.cacheIsolation.test.ts`                            | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
