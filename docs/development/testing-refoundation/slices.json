@@ -1,0 +1,15 @@
+{
+  "slices": {
+    "2.6a": {
+      "files": [
+        "apps/client/tests/components/ListeningCharts.test.tsx",
+        "apps/api/tests/unit/trendAnalysisService.test.ts",
+        "apps/api/tests/universal-client-dashboard.live.test.ts",
+        "packages/providers/_template/tests/integration/sandbox.template.test.ts",
+        "apps/admin/tests/apiClient.smoke.test.ts",
+        "apps/admin/tests/posts.flow.test.ts"
+      ],
+      "deleted": { "files": 6, "blocks": 58 }
+    }
+  }
+}
