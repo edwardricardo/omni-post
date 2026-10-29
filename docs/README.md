@@ -139,11 +139,10 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 
 Live ledgers, updated as work lands:
 
-| Document                                                              | What it holds                                        |
-| --------------------------------------------------------------------- | ---------------------------------------------------- |
-| [Review Suggestions Book](reports/review-suggestions-book.md)         | Review suggestions kept for later, with their status |
-| [Detected Smells Backlog](reports/roadmap-detected-smells-backlog.md) | Detected smells (SMELL-NN) and their verdicts        |
-| [Unused Code Inventory](reports/UNUSED_CODE_INVENTORY.md)             | Unused code, classified, with its disposition        |
+| Document                                                      | What it holds                                        |
+| ------------------------------------------------------------- | ---------------------------------------------------- |
+| [Review Suggestions Book](reports/review-suggestions-book.md) | Review suggestions kept for later, with their status |
+| [Unused Code Inventory](reports/UNUSED_CODE_INVENTORY.md)     | Unused code, classified, with its disposition        |
 
 Dated evidence, cited by ADRs, fitness checks and the Master Plan:
 
