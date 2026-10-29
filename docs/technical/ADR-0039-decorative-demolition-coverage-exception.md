@@ -47,6 +47,8 @@
    gains `decorative-demolition`; a `SUBJECTS` map holds each scenario whose marker names its subject
    after a colon, with the subject's grammar; the bare scenario and a malformed id are refused; and,
    for every scenario, a marker the base already carries on that metric accepts no new descent.
+   Since 2026-10-29 the matcher is one script, `scripts/testing/coverage-floor-gate.mjs`, with its
+   suite, and both the block and the step run it.
 5. **Reconciliation:** the slice's pull request records in the tracker its deleted files and blocks
    and the expected and real drop, and edits `MEASURED_FLOOR` in `coverageThresholds.test.ts` to the
    lowered values. M14, "coverage that was decorative", counts the descents carried by a marker,
@@ -85,11 +87,16 @@
   in `apps/api/vitest.config.ts` on `b053ba58`, so no verdict in the tree changes.
 - A scenario that later needs a subject adds one `SUBJECTS` entry.
 - The ledger lists each demolition slice under its work-unit id, in this grammar.
-- Residual: #37 checks the id's form, not that `ledger.json` lists it. The ledger is committed since
-  2026-10-28 (WU-2.5), and the membership check is its own change, which lands before the first
-  slice that lowers a floor (the 2.B checklist of the plan); until then no marker exists, and review
-  checks membership. M14 reconciles it, and a slice that lowers a floor by more than its deletion
-  explains shows in the tracker's expected-versus-real drop.
+- Membership: since 2026-10-29 (WU-2.5c, `PR mem37`, branch `workstream/tr-37-slice-membership`)
+  #37 honours a `decorative-demolition:<id>` marker only when head's `ledger.json` lists the slice,
+  records it deleted, and records that metric's descent with the base's and the head's literals,
+  and the base's `ledger.json` does not already record it deleted. Each refusal names the id and
+  the metric; a ledger it cannot read fails closed. The rule moved out of the two inline copies
+  into `scripts/testing/coverage-floor-gate.mjs`, pinned by
+  `apps/api/tests/unit/scripts/coverageFloorGate.test.ts`.
+- Residual: #37 proves that the ledger records the slice's deletion and its descent, not that the
+  deletion explains the descent. M14 reconciles it, and a slice that lowers a floor by more than
+  its deletion explains shows in the tracker's expected-versus-real drop.
 
 ## Legal impact
 
@@ -116,14 +123,15 @@ post-deployment check is added, changed or retired`
 - #37 is rebuilt over every config (WU-5.7): `SCENARIOS`, `SUBJECTS` and the inherited-marker
   refusal move with it.
 - `ledger.json` is committed: checking the slice's membership moves into #37. Fired 2026-10-28
-  (WU-2.5 committed the ledger); the move is its own change, before the first slice that lowers a
-  floor.
+  (WU-2.5 committed the ledger); done 2026-10-29 (WU-2.5c, `PR mem37`), before the first slice that
+  lowers a floor: #37 reads head's and the base's `ledger.json` for a `decorative-demolition`
+  marker.
 
 ## Risks and Mitigations
 
 | Risk                                                          | Mitigation                                                                       |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| A pull request that is not a demolition slice uses the marker | The id must name a slice; review checks it against the ledger; M14 reconciles it |
+| A pull request that is not a demolition slice uses the marker | #37 refuses a slice that the ledger does not record deleted in that pull request |
 | A marker left from an earlier slice accepts a later descent   | #37 refuses a marker the base already carries on that metric                     |
 | A slice lowers a floor by more than its deletion explains     | The tracker records the expected (`--area`) and the real drop per slice          |
 | The scenario outlives Phase 2                                 | Revisit-if: removed with the last demolition slice                               |
