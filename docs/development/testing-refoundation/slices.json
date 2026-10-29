@@ -39,6 +39,13 @@
         "packages/providers/instagram/tests/mediaProcessor.test-helpers.ts"
       ],
       "deleted": { "files": 15, "blocks": 0 }
+    },
+    "2.8.1a": {
+      "files": [
+        "apps/api/tests/unit/logger.test.ts",
+        "apps/api/tests/unit/rateLimitingDashboard.test.ts"
+      ],
+      "deleted": { "files": 0, "blocks": 30 }
     }
   }
 }
