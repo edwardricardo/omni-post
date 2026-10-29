@@ -2370,15 +2370,31 @@ pnpm check:i18n   # expect exit 0 and, on stdout:
 # (docs/development/testing-refoundation/adjudications.json, which holds only confirmations, and
 # slices.json beside it), and compares the rendered bytes with `ledger.json` at the root and with
 # docs/development/testing-refoundation/LEDGER.md.
+# THE SLICE GRAMMAR: slices.json is `{ "slices": { "<id>": { "files": [...] } } }`, and the pull
+# request that deletes a slice's tests adds `"deleted": { "files": n, "blocks": n }`, its drop, and
+# may add `"floors": { "<metric>": { "from": x, "to": y } }`, each a descent of a floor #37 holds
+# (lines, functions, branches, statements). The recorded drop is frozen: the ledger renders it as
+# written and never recomputes it from rows, which a deleted file no longer has, and
+# `summary.deleted` is its sum over the deleted slices. A path has left the tree when `git ls-files`
+# no longer lists it, never merely because the ledger holds no row for it. A deleted slice's paths
+# may have left the tree, each with the shape of a ledger row; a whole-file slice, one that records
+# every file it lists deleted, refuses every path the tree still tracks, a row or not, and a slice
+# that keeps some of its files must record as deleted exactly its paths that left the tree. The
+# overlay holds only live rows: the deletion pull request removes its own entries from
+# adjudications.json.
 # WHERE IT RUNS, and why: in the test-contracts job of fitness.yml, beside #30 and #36, because the
 # ledger runs the reach engine, which needs the installed tree that job installs. #44 reads a `#N`
 # step name from any job. The battery runs the same command as its step `ledger`.
 # WHAT FAILS, exit 1: a row of `ledger.json` or the page that differs from the rebuilt one, each
 # differing row named by its path and a differing summary or page named as a whole; and an overlay
 # entry or slice assignment the ledger refuses (a path the ledger does not list, a status other
-# than `confirmed`, a slice id outside ADR-0039's grammar, a path in two slices). The repair is
-# `pnpm ledger`, committed with the change that moved the rows: a test file added, edited, renamed
-# or removed, or a source change that moves a subject or an importer count.
+# than `confirmed`, a slice id outside ADR-0039's grammar, a path in two slices, an unknown key,
+# `floors` on a slice that records no deletion; for a deleted slice, a malformed `deleted` or
+# `floors`, a tracked path in a whole-file slice, a path that left the tree with no shape of a
+# ledger row, a deleted-file count that is not the paths that left the tree; and an overlay entry
+# for a path a slice records deleted, refused with the instruction to remove it). The repair
+# is `pnpm ledger`, committed with the change that moved the rows: a test file added, edited,
+# renamed or removed, or a source change that moves a subject or an importer count.
 # FAIL-CLOSED, exit 3, which wins over 1: `git ls-files` failing or listing no test-shaped file; the
 # workspace manifest, the quarantine or a listed file unreadable; the reach engine printing no report
 # or reporting an input of its own unread; an overlay or slice file that is no JSON, writes a key
@@ -2390,7 +2406,14 @@ pnpm check:i18n   # expect exit 0 and, on stdout:
 # probe names the hashes of its test and its subject, so a stale probe can be told apart, but nothing
 # compares them with the tree; (3) the ledger's own limits hold, stated in the header of
 # scripts/testing/ledger.mjs: a module or project whose references cannot be read leaves every
-# importer count unmeasured rather than read as zero.
+# importer count unmeasured rather than read as zero; (4) a recorded drop is taken as written:
+# nothing proves a listed path that left the tree was ever a test, since the ledger reads no
+# history, so a path with a test's shape that the tree never held, a typo included, is accepted
+# and counted as deleted, and the deletion pull request's review reads the list; nothing derives
+# `deleted.blocks` either, and for a slice that keeps its files (block deletion) the grammar
+# accepts the block count while no prediction of it exists (`--area` lists DELETE rows only), so
+# review alone checks it; (5) `floors` proves the shape of a descent, never that
+# `apps/api/vitest.config.ts` carries it.
 pnpm check:ledger   # expect exit 0 and:
 #   ledger: ledger.json is current
 #   ledger: docs/development/testing-refoundation/LEDGER.md is current
