@@ -14,29 +14,13 @@ import { fixedClock } from "@packages/vitest-shared/determinism";
 import {
   createLogger,
   createChildLogger,
-  createRequestLogger,
   extractErrorInfo,
   createTimingLogger,
-  logger,
-  httpLogger,
-  dbLogger,
-  queueLogger,
-  authLogger,
-  cacheLogger,
   LogLevel,
 } from "../../src/lib/logger.js";
 
 describe("Logger Factory", () => {
   describe("createLogger", () => {
-    it("should create a named logger", () => {
-      const testLogger = createLogger("test-module");
-      expect(testLogger).toBeTruthy();
-      expect(typeof testLogger.info).toBe("function");
-      expect(typeof testLogger.error).toBe("function");
-      expect(typeof testLogger.warn).toBe("function");
-      expect(typeof testLogger.debug).toBe("function");
-    });
-
     it("should include the name in log bindings", () => {
       const testLogger = createLogger("my-service");
       testLogger.level = "warn";
@@ -63,38 +47,6 @@ describe("Logger Factory", () => {
     });
   });
 
-  describe("Pre-configured loggers", () => {
-    it("should export default logger", () => {
-      expect(logger).toBeTruthy();
-      expect(typeof logger.info).toBe("function");
-    });
-
-    it("should export httpLogger", () => {
-      expect(httpLogger).toBeTruthy();
-      expect(typeof httpLogger.info).toBe("function");
-    });
-
-    it("should export dbLogger", () => {
-      expect(dbLogger).toBeTruthy();
-      expect(typeof dbLogger.info).toBe("function");
-    });
-
-    it("should export queueLogger", () => {
-      expect(queueLogger).toBeTruthy();
-      expect(typeof queueLogger.info).toBe("function");
-    });
-
-    it("should export authLogger", () => {
-      expect(authLogger).toBeTruthy();
-      expect(typeof authLogger.info).toBe("function");
-    });
-
-    it("should export cacheLogger", () => {
-      expect(cacheLogger).toBeTruthy();
-      expect(typeof cacheLogger.info).toBe("function");
-    });
-  });
-
   describe("createChildLogger", () => {
     it("should create a child logger with additional context", () => {
       const parent = createLogger("parent");
@@ -104,37 +56,6 @@ describe("Logger Factory", () => {
       expect(typeof child.info).toBe("function");
       // Child logger should be a valid pino logger
       expect(child !== parent).toBeTruthy();
-    });
-  });
-
-  describe("createRequestLogger", () => {
-    it("should create a logger with correlation ID", () => {
-      const requestLogger = createRequestLogger({
-        correlationId: "test-correlation-id",
-        requestId: "test-request-id",
-        path: "/api/test",
-        method: "GET",
-      });
-
-      expect(requestLogger).toBeTruthy();
-      expect(typeof requestLogger.info).toBe("function");
-    });
-
-    it("should handle optional fields", () => {
-      const requestLogger = createRequestLogger({
-        correlationId: "minimal-correlation-id",
-      });
-
-      expect(requestLogger).toBeTruthy();
-    });
-
-    it("should include userId when provided", () => {
-      const requestLogger = createRequestLogger({
-        correlationId: "user-correlation-id",
-        userId: "user-123",
-      });
-
-      expect(requestLogger).toBeTruthy();
     });
   });
 

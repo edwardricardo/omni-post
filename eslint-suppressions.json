@@ -1071,11 +1071,6 @@
       "count": 2
     }
   },
-  "apps/api/tests/unit/logger.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 10
-    }
-  },
   "apps/api/tests/unit/metrics/guardrailMetrics.test.ts": {
     "testing/no-existence-only-test": {
       "count": 1
@@ -1173,11 +1168,6 @@
     },
     "vitest/no-conditional-expect": {
       "count": 27
-    }
-  },
-  "apps/api/tests/unit/rateLimitingDashboard.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 20
     }
   },
   "apps/api/tests/unit/rbacService.test.ts": {
