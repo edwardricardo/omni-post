@@ -31,7 +31,7 @@ measured on `main` at `bad953f2` show how far the code is from that:
   `apps/admin/components/settings/constants.ts`) is accepted by `apps/api/src/settings/settingsSchemas.ts`
   and stored and tested by `SettingsService` (`executeConnectionTest`, case `"STORAGE"`). An uncut
   search finds only those three references. The Admin storage form has no effect. Recorded as
-  SMELL-186 in [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md).
+  SMELL-186, the Master Plan row [STOR-3 in §5.9](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04).
 - **The Instagram provider runs its own S3 adapter (finding F3).** It builds one from the `AWS_*`
   variables (`packages/providers/instagram/src/apiClient.ts:470-479`), ignoring `STORAGE_PROVIDER`,
   calls `generateUploadSignature` on it (`mediaProcessor.ts:277`, `:397`, `:495`; `apiClient.ts:500`)
@@ -185,7 +185,7 @@ measured on `main` at `bad953f2` show how far the code is from that:
   (health per provider, upload-size enforcement, migration tools and prerequisites, and where its
   open questions were answered).
 - Specification: [media-storage.md](../features/media-storage.md).
-- Backlog: SMELL-186 (F15) in [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md).
+- Master Plan: SMELL-186 (F15), row [STOR-3 in §5.9](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04).
 - Code: `apps/api/src/infrastructure/storage/createStorageAdapter.ts`; `apps/api/src/config/env.ts:182`;
   `packages/ports/src/StoragePort.ts`; `packages/providers/instagram/src/apiClient.ts:470-479`, `:500`;
   `packages/providers/instagram/src/mediaProcessor.ts:277`, `:397`, `:495`;

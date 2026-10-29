@@ -40,7 +40,7 @@ describe("UpdatePostCommandHandler", () => {
     expect(result.success).toBeTruthy();
     expect(result.data).toBeTruthy();
     // No version assertion here on purpose. The handler returns a hardcoded
-    // literal (SMELL-119 in docs/reports/roadmap-detected-smells-backlog.md);
+    // literal (SMELL-119, occ-version-hardcoded in docs/product/MASTER_PLAN.md);
     // pinning it in a test would turn the defect into a contract this suite
     // defends.
   });

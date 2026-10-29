@@ -121,7 +121,7 @@ its stricter dedupe surfaced. Concretely:
    Next 16 Turbopack production build compiles 82/82 static pages, no
    "inferred workspace root" error. This **organically closes SMELL-52**'s
    deferred GVS/`turbopack.root` item
-   (`docs/reports/roadmap-detected-smells-backlog.md`) — a memory-scope
+   (the `next dev` Turbopack item of the Master Plan's §5.11) — a memory-scope
    upside as a byproduct, not the primary motivation: a repo-scoped
    `turbopack.root` narrows the PRODUCTION BUILD's Turbopack module-graph scan
    versus the home-directory scope, the same runaway-OOM insurance SMELL-52 had
@@ -297,6 +297,6 @@ pnpm 12.6.0.
 - Audited audit-ignores ledger — `docs/security/SECURITY_CANON.md §Audited audit-ignores`
 - Standing backlog / config-location notes (build-tool version holds) — `docs/security/SECURITY_CANON.md §Audited audit-ignores`; original inventory frozen at [`docs/archive/PENDING_WORK_INVENTORY.md`](https://github.com/edwardricardo/omni-post/blob/cb4921bda93a39e300f1bd5203985edde8055258/docs/archive/PENDING_WORK_INVENTORY.md), removed from the repository on 2026-10-17 (git history keeps it)
 - SMELL-52 (GVS/`turbopack.root` sub-item, closed by this ADR) —
-  `docs/reports/roadmap-detected-smells-backlog.md`
+  the Master Plan, §5.11 (the `next dev` Turbopack item)
 - Production build model + `turbopack.root` history —
   `docs/technical/ADR-0017-production-build-bundler.md §4(a)`

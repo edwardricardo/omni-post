@@ -561,7 +561,7 @@ jobs:
           #     reads it as coverage: the statement is a TAGGED TEMPLATE (tx.$queryRaw`...`) and this
           #     regex is anchored on `\(`, so the line has never matched (SMELL-111's class). Kept
           #     because it turns live the day SMELL-111 closes the regex; deleting it instead needs
-          #     authorisation (backlog).
+          #     authorisation (the Master Plan row FITNESS-INERT-TERMS, §5.1, owns it).
           #   - packages/adapters/db-prisma/src entered this scope with that relocation. Measured at
           #     entry: 0 paren-form calls. Its one tagged-template site, resilience.ts:308
           #     (prisma.$queryRaw`SELECT 1`, a connection probe touching no tenant table), is
@@ -1191,7 +1191,7 @@ jobs:
           [ "$(echo $UNSWEPT | wc -w)" -le 6 ] || { echo "fitness #38 scope error: the UNSWEPT quarantine grew past its floor of 6 — it may only shrink. A new soft-deletable model is enrolled by sweeping its reads, not by quarantining it."; exit 1; }
           for m in $ALL; do
             case " $SWEPT $UNSWEPT " in *" $m "*) ;; *)
-              echo "fitness #38 scope error: model '$m' carries deletedAt but is in neither the SWEPT set nor the UNSWEPT quarantine — sweep its reads and add it to SWEPT (or quarantine it with an owning backlog entry)."; exit 1;;
+              echo "fitness #38 scope error: model '$m' carries deletedAt but is in neither the SWEPT set nor the UNSWEPT quarantine — sweep its reads and add it to SWEPT (or quarantine it with an owning Master Plan row)."; exit 1;;
             esac
           done
           for m in $SWEPT $UNSWEPT; do
@@ -1439,7 +1439,7 @@ jobs:
           # server-side consumption marker — SMELL-113's subject, not a marker site); the SECOND admin refresh flow
           # (`AdminAuthService.refreshToken`, the ADMIN_JWT_*/TokenService family: compares the stored hash and
           # issues only a new ACCESS token — it never rotates, so there is no consuming write for this gate to see;
-          # its lifetime-of-token non-rotation is its own backlog row, the admin twin of SMELL-113); and the admin
+          # its lifetime-of-token non-rotation is its own Master Plan row, DEF-164 (SMELL-118), the admin twin of SMELL-113); and the admin
           # reset ISSUANCE that writes the "CHANGE_REQUIRED" sentinel (an issuance, not a consumption — SMELL-110).
           # FAIL-CLOSED: a missing scope directory, fewer than SITE_FLOOR marker sites, or an exception count other
           # than 1 is a blind scan, not a clean one — exit 1. SCOPE: apps/api/src apps/workers/src packages

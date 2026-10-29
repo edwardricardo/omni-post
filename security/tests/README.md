@@ -4,8 +4,8 @@
 > surface that does not exist. They cannot pass. Read this file before adding a
 > test tier, a workflow job, or a `package.json` script that runs them.
 
-Tracked as **SMELL-83** in
-[`docs/reports/roadmap-detected-smells-backlog.md`](../../docs/reports/roadmap-detected-smells-backlog.md).
+Tracked as **SMELL-83** by
+[N-TEST-1 in the Master Plan](../../docs/product/MASTER_PLAN.md#nc--regression-net-assurance).
 Evidence: [`docs/archive/CI_TEST_REACH_AUDIT.md` §G3](https://github.com/edwardricardo/omni-post/blob/f89a0f519cf37679bd9d4236e120f4b7283f71ca/docs/archive/CI_TEST_REACH_AUDIT.md#L57). The audit was removed from the repository on 2026-10-17; git history keeps it, and the link is its last version.
 
 ---

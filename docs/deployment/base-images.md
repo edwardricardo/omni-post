@@ -173,7 +173,7 @@ vulnerability in any of the four (`debian 13.7` and 865, 542, 26 and 26
 The Trivy row stays at 0 because Trivy reports an image's Debian packages and the
 `package.json` of each module under `node_modules`, never the `node` executable:
 no gate saw that the images ran v26.12.0 after its advisories were published
-(SMELL-207 in `docs/reports/roadmap-detected-smells-backlog.md`).
+(SMELL-207, Master Plan DEF-160).
 
 ### pnpm in the build stage
 
