@@ -7,6 +7,13 @@
 - **Informed**: —
 - **Supersedes**: —
 - **Superseded by**: —
+- **Amended**: 2026-10-29 — `apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts`, the test
+  double named in §Rationale and §Consequences, left the tree with WU-2.7 (`PR d27`): no file
+  imported it. Tests double the port with a permissive object per suite (`makeBruteForce()` in
+  `apps/api/tests/unit/customerAuthUseCases.test.ts` and in the two use-case suites of
+  `packages/core/customer-auth/tests/unit/`, `bfStub` in
+  `apps/api/tests/unit/admin/adminAuthService.test.ts`), and the Redis adapter's own suite runs it
+  on an in-file `FakeRedis` (`apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts`).
 
 ## Context
 

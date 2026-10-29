@@ -19,15 +19,6 @@ const testFiles = [
   "**/tests/**/*.tsx",
 ];
 
-// run.ts, run-with-coverage.ts and setup/verifyServices.ts have no importer and no runner collects
-// them. Testing Refoundation deletes them, and these three entries with them; the list may only
-// shrink. The rules that read test code skip them through this one list.
-const unrunTestFiles = [
-  "apps/api/tests/run.ts",
-  "apps/api/tests/run-with-coverage.ts",
-  "apps/api/tests/setup/verifyServices.ts",
-];
-
 // Paths that benefit from type-aware linting (no-floating-promises).
 // Scoped narrowly to keep memory usage bounded — full-monorepo projectService OOMs.
 // Backend core layers only: fire-and-forget in workers/services/webhooks is intentional,
@@ -269,11 +260,6 @@ export default defineConfig([
       "@typescript-eslint/no-floating-promises": "off",
     },
   },
-  // The test runner's own command-line entry points print by design.
-  {
-    files: unrunTestFiles,
-    rules: { "no-console": "off" },
-  },
   // The files Vitest collects. The reach engine (`pnpm --filter @packages/test-contracts reach
   // --json`) is the authority on which files that is; these globs approximate it statically. They
   // leave out the node:test tiers, which the suffix table of CODING_STANDARDS.md names
@@ -331,7 +317,7 @@ export default defineConfig([
   // helpers they import. unit/ and eval/ are Vitest's.
   {
     files: ["apps/api/tests/**/*.ts"],
-    ignores: ["apps/api/tests/unit/**", "apps/api/tests/eval/**", ...unrunTestFiles],
+    ignores: ["apps/api/tests/unit/**", "apps/api/tests/eval/**"],
     plugins: { testing: testingPlugin },
     rules: { "testing/no-stdout-in-node-test": "error" },
   },
@@ -342,7 +328,7 @@ export default defineConfig([
   // fix there.
   {
     files: [...testFiles, "**/__tests__/**"],
-    ignores: ["**/e2e/**", ...unrunTestFiles],
+    ignores: ["**/e2e/**"],
     plugins: { testing: testingPlugin },
     rules: { "testing/no-fixed-time-wait": "error" },
   },
