@@ -38,7 +38,7 @@ Paddle either: Paddle subscription ids also start with `sub_`. The unit fixture 
 `subscription_id: "sub_abc"` (`apps/api/tests/unit/billing/dunning.test.ts:232`), which is why the
 suite stays green. The master plan already tracks the symptom as N-COR-4 (`BILLING-DUNNING-DEAD`:
 the service re-derives the provider from the payload); F13 is its measured mechanism, recorded as
-SMELL-184 in [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md).
+SMELL-184, the Master Plan row [BILL-3 in §5.9](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04).
 
 **The cut-off cancels locally and leaves the gateway charging.** On the third failed attempt,
 `GatewayBillingService.ts:899` sets the subscription to `CANCELED` in the database and never calls
@@ -199,7 +199,7 @@ customer may still do, or what happens to the posts they scheduled.
   (gateway behaviour), Report 4 §3 (what each gateway covers on refunds and cancellation).
 - Specification: [billing-gateways.md](../features/billing-gateways.md).
 - Pricing model and trial: [ADR-0030](ADR-0030-pricing-model.md).
-- Backlog: SMELL-184 (F13) in [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md);
+- Master Plan: SMELL-184 (F13), row [BILL-3 in §5.9](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04);
   master plan item N-COR-4 in [MASTER_PLAN.md](../product/MASTER_PLAN.md).
 - Code: `packages/core/billing/src/GatewayBillingService.ts:859`, `:868`, `:899`, `:918`, `:942`;
   `apps/api/src/infrastructure/repositories/PrismaAccountBillingRepository.ts:80`;

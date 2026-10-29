@@ -11,8 +11,8 @@
   [ADR-0031](../technical/ADR-0031-domain-vocabulary.md) (vocabulary)
 - **Research**: [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (removed from the repository on 2026-10-17; git history keeps it)
 - **Findings this work closes**: F13 (SMELL-184), F14 (SMELL-185), F16 (SMELL-187) and the pricing
-  defects SMELL-188 to SMELL-193 in
-  [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md); master plan
+  defects SMELL-188 to SMELL-193, rows of
+  [MASTER_PLAN.md §5.9 (BILL-3, BILL-5, BILL-8, BILL-19, BILL-22, BILL-27 to BILL-29)](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04); master plan
   N-COR-4 (`BILLING-DUNNING-DEAD`) and L-6 (`BILLING-EVENTID-FALLBACK`) in
   [MASTER_PLAN.md](../product/MASTER_PLAN.md)
 - **Related**: the billing code as it stands lives in `apps/api/src/billing/`,

@@ -50,8 +50,8 @@ re-read `StripePaymentAdapter.ts:190-197`, the client's `pricing.ts`, `seed.ts:7
   (`apps/api/src/infrastructure/billing/StripePaymentAdapter.ts:191-197`) and the Paddle checkout
   URL carries no items, so whatever the customer picked is dropped. `subscription.activated` is
   handled only when a gateway switch is pending, `subscription.updated` is not handled, and the plan
-  is never written back from the gateway. Recorded as SMELL-187 in
-  [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md).
+  is never written back from the gateway. Recorded as SMELL-187, the Master Plan rows
+  [BILL-8 and BILL-22 in §5.9](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04).
 - **The rest of the system disagrees with the rules.** The client hard-codes other prices ($12, $10,
   $8, $6 per platform; multipliers 1, 0.8, 0.65, 0.5), lists 10 platforms where the enum has 11, and
   prices yearly as monthly × 10 while the server bills monthly × 12. Three plan vocabularies coexist
@@ -449,8 +449,8 @@ Still open:
   competitors, Stripe and Paddle feasibility).
 - Specification: [billing-gateways.md](../features/billing-gateways.md) — requirements R34–R50,
   slices BILL-18 to BILL-28.
-- Backlog: SMELL-187 to SMELL-193 in
-  [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md).
+- Master Plan: SMELL-187 to SMELL-193, in
+  [§5.9: BILL-8, BILL-19, BILL-22, BILL-27 to BILL-29, and the card for SMELL-192 and SMELL-193](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04).
 - Stripe: prices (recurring interval up to three years) — https://docs.stripe.com/api/prices/create ·
   multiple items per subscription — https://docs.stripe.com/billing/subscriptions/multiple-products ·
   prorations — https://docs.stripe.com/billing/subscriptions/prorations · billing mode —

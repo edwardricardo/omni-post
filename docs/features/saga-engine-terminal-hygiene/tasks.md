@@ -240,9 +240,10 @@ Every later "the tests pass" claim in this change depends on this PR.
       the dead `TOKENS.SagaManager` registration (deleted in 1.4); leave every other carried
       residual open and pointing at PR2/PR3/PR4.
       **Done**; residuals 1-4 and the whole terminal-hygiene carry list are untouched. The paired
-      backlog entry **SMELL-72** in `docs/reports/roadmap-detected-smells-backlog.md:125` moved
-      `PENDING → RESOLVED` in the same PR (one cell, one changed line after prettier) — leaving it
-      PENDING would have been the same doc-drift class this slice exists to close. SMELL-71 and
+      backlog entry **SMELL-72** moved `PENDING → RESOLVED` in the same PR (one cell, one changed
+      line after prettier; the backlog was folded into the Master Plan on 2026-10-29, where SMELL-72
+      sits in the §7 closure ledger) — leaving it PENDING would have been the same doc-drift class
+      this slice exists to close. SMELL-71 and
       SMELL-73 stay PENDING.
 - [x] 2.3 **0-defect gate (PR1)**: `tsc -b apps/api` = 0; `eslint --max-warnings 0` on touched
       `.ts` = 0; `prettier --check` clean (including the shell script's neighbours); fitness
@@ -1383,7 +1384,7 @@ matches neither the generic-parameter form nor tagged templates. **No CLAUDE.md 
       its bound context still fails loudly; widen `sagaContextInvariants.static.test.ts:826` to
       admit exactly that write; note that layer 2 still evaluates it (the RLS policy's `USING` +
       `WITH CHECK` both admit the `__system__` sentinel — verified against migration `20260527000000`).
-- [ ] 23.3 **[C3]** `docs/reports/roadmap-detected-smells-backlog.md` — new SMELL: "fitness #23
+- [ ] 23.3 **[C3]** `docs/product/MASTER_PLAN.md`, row N-AUTH-3 — record: "fitness #23
       regex blind to generic / tagged-template raw-query forms", with the 8-file baseline attached
       so the ramp-down starts from measured reality.
 - [ ] 23.4 `docs/security/MULTI_TENANT_GUARDS.md` — claim posture, the third named system surface,

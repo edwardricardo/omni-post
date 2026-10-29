@@ -282,7 +282,8 @@ The lockfile does not move.
 
 **What no gate saw.** Trivy reports an image's Debian packages and its `node_modules` manifests,
 never the `node` executable, so the `Container Security` gate stayed green from 2026-10-21 over
-images that ran v26.12.0 (SMELL-207 in `docs/reports/roadmap-detected-smells-backlog.md`).
+images that ran v26.12.0 (SMELL-207, the Master Plan's DEF-160: no gate sees a Node.js runtime
+advisory in the four images).
 
 **The re-check.** The watchlist's date entry `contract-0.16-node-26`, still due 2026-10-28,
 carries a dated reference to this amendment: that review also confirms that 26.12.1 is mature,

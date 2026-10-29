@@ -333,7 +333,7 @@ task's error without its `taskId` or `err`.
   [CODING_STANDARDS.md](../development/CODING_STANDARDS.md) §@layer Standard Values,
   [CLAUDE.md](../../CLAUDE.md) fitness #40 and #43.
 - Plan: [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11 and §5.12;
-  [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md) SMELL-194 to
+  [DEF-7 to DEF-15 of §5.11](../product/MASTER_PLAN.md#511-defects-found-on-2026-10-04--queued-after-n-test-1), which carry SMELL-194 to
   SMELL-202; [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) D49.
 - Code: `apps/api/src/index.ts:279-280,543,659`; `apps/api/src/types/fastify.d.ts:62`;
   `apps/api/src/infrastructure/container/Container.ts:86`; `apps/api/src/health/healthRoutes.ts:38-75`;

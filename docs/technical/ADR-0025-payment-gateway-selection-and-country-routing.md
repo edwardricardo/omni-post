@@ -46,7 +46,7 @@ Measured on `main` at `bad953f2`:
   `process\.env\.` pattern does not match and which falls back to an empty price id, while the Admin
   form holds four (Starter and Pro × monthly, yearly). An operator who enters gateway
   credentials in Admin believes they are in force; they are never used to charge. Recorded as
-  SMELL-185 in [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md).
+  SMELL-185, the Master Plan row [BILL-5 in §5.9](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04).
 - **A per-account gateway switch already exists.** `apps/api/src/billing/GatewaySwitchJobService.ts`
   and `gatewaySwitchProcessor.ts` enqueue a reminder job at 24 hours and a suspend job at 48 hours
   (deadline extendable to 72 hours), send emails, and write a `GATEWAY_SWITCH_AUTO_SUSPENDED` audit
@@ -190,7 +190,7 @@ Measured on `main` at `bad953f2`:
   Q1 (EU, UK and US registration rules), Q2 (Stripe Tax and Paddle data), Q4 (data model sketch and
   the establishment-country gap); Report 4 §3 (what Paddle and Stripe each cover).
 - Specification: [billing-gateways.md](../features/billing-gateways.md).
-- Backlog: SMELL-185 (F14) in [roadmap-detected-smells-backlog.md](../reports/roadmap-detected-smells-backlog.md).
+- Master Plan: SMELL-185 (F14), row [BILL-5 in §5.9](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04).
 - Code: `apps/api/src/infrastructure/billing/GatewayAdapterRegistry.ts`;
   `apps/api/src/infrastructure/billing/paymentAdapterFactory.ts`;
   `apps/admin/components/settings/GatewaysTab.tsx`; `apps/admin/components/settings/constants.ts`;
