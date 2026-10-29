@@ -1,1 +1,526 @@
-{ "entries": {} }
+{
+  "entries": {
+    "apps/api/tests/analytics-ml-integration.test.ts.disabled": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead-suffix file as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/coverage-utils.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/integration/crisisRoutes.live.test.ts": {
+      "verdict": "REWRITE",
+      "criteria": ["c"],
+      "blocks": [
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should enter crisis mode",
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should fail if already in crisis mode",
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should return 404 for non-existent project",
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should reject empty reason",
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should exit crisis mode",
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should fail if not in crisis mode",
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should return crisis status when in crisis mode",
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should return not in crisis when project is normal",
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should include crisis history",
+        "apps/api/tests/integration/crisisRoutes.live.test.ts::should return 404 for non-existent project #2"
+      ],
+      "evidence": "The decorative class is an availability guard CI never takes (run-tests.sh:466 fails a skipping tier batch); real asserts follow; the guard is rewritten and the body kept.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/integration/linkRoutes.live.test.ts": {
+      "verdict": "REWRITE",
+      "criteria": ["c"],
+      "blocks": [
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should create a tracked link",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should create a tracked link with vanity slug",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should reject invalid URL",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should reject duplicate vanity slug",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should return a tracked link by ID",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should return 404 for non-existent link",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should return link statistics",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should delete a tracked link",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should redirect to original URL",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should redirect using vanity slug",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should return 404 for non-existent short code",
+        "apps/api/tests/integration/linkRoutes.live.test.ts::should increment click count on redirect"
+      ],
+      "evidence": "The decorative class is an availability guard CI never takes (run-tests.sh:466 fails a skipping tier batch); real asserts follow; the guard is rewritten and the body kept.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/integration/security-endpoints.live.test.ts": {
+      "verdict": "REWRITE",
+      "criteria": ["c"],
+      "blocks": [
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should return 200 OK from health endpoint",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should create account with valid data",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should reject duplicate email with 409",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should allow 5 requests within rate limit",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should include the rate limit headers on /health",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should return 404 for non-existent endpoint",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should handle malformed JSON",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should handle SQL injection attempt safely",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should reject XSS in account name with 400",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should handle large payload appropriately",
+        "apps/api/tests/integration/security-endpoints.live.test.ts::should handle 10 concurrent requests successfully"
+      ],
+      "evidence": "The decorative class is an availability guard CI never takes (run-tests.sh:466 fails a skipping tier batch); real asserts follow; the guard is rewritten and the body kept.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts": {
+      "verdict": "REWRITE",
+      "criteria": ["d"],
+      "blocks": [
+        "apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts::should detect conflicts during sync",
+        "apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts::should reject resolution for non-existent transaction",
+        "apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts::should apply source_wins resolution strategy",
+        "apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts::should handle merge conflict resolution",
+        "apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts::should reject rollback for non-existent transaction",
+        "apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts::should reject rollback without rollback plan"
+      ],
+      "evidence": "The decorative class is an availability guard CI never takes (run-tests.sh:466 fails a skipping tier batch); real asserts follow; the guard is rewritten and the body kept.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts": {
+      "verdict": "REWRITE",
+      "criteria": ["d"],
+      "blocks": [
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should return default metrics structure",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should return global metrics when no channel specified",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should return channel-specific metrics",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should track metrics after sync operations",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should initialize all metric fields to zero",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should handle Redis connection errors gracefully",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should return error result for system failures",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should handle content change errors without crashing",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should handle content changes for posts without subscriptions",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should process content changes for subscribed channels",
+        "apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts::should filter changes by provider involvement"
+      ],
+      "evidence": "The decorative class is an availability guard CI never takes (run-tests.sh:466 fails a skipping tier batch); the guard is rewritten; the five blocks that assert only `assert.ok(true)` (:206, :264, :283, :320, :358) get real assertions, and the rest of the body is kept.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts": {
+      "verdict": "REWRITE",
+      "criteria": ["d"],
+      "blocks": [
+        "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts::should start real-time sync for valid channels",
+        "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts::should reject real-time sync with invalid channel IDs",
+        "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts::should filter out invalid channels but proceed with valid ones",
+        "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts::should handle multiple channels for same post",
+        "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts::should create and execute sync transaction",
+        "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts::should reject sync with invalid channel ID",
+        "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts::should reject sync with disabled channel",
+        "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts::should support bidirectional sync direction",
+        "apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts::should track transaction status changes"
+      ],
+      "evidence": "The decorative class is an availability guard CI never takes (run-tests.sh:466 fails a skipping tier batch); real asserts follow; the guard is rewritten and the body kept.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/multiproject.flow.live.test.ts": {
+      "verdict": "REWRITE",
+      "criteria": ["a", "d"],
+      "blocks": [
+        "apps/api/tests/multiproject.flow.live.test.ts::registers an account with the BASIC tier's one-project limit",
+        "apps/api/tests/multiproject.flow.live.test.ts::registers an account and writes a project limit of 3 to the database",
+        "apps/api/tests/multiproject.flow.live.test.ts::registers an account and writes a project limit of 10 to the database",
+        "apps/api/tests/multiproject.flow.live.test.ts::should allow BASIC account to create 1 project",
+        "apps/api/tests/multiproject.flow.live.test.ts::should reject 2nd project for BASIC account (quota exceeded)",
+        "apps/api/tests/multiproject.flow.live.test.ts::should allow PRO account to create 3 projects",
+        "apps/api/tests/multiproject.flow.live.test.ts::should reject 4th project for PRO account (quota exceeded)",
+        "apps/api/tests/multiproject.flow.live.test.ts::should enforce unique project names within an account",
+        "apps/api/tests/multiproject.flow.live.test.ts::should allow same project name in different accounts",
+        "apps/api/tests/multiproject.flow.live.test.ts::writes a project limit of 3 for the BASIC account to the database",
+        "apps/api/tests/multiproject.flow.live.test.ts::lets the BASIC account create another project under the higher limit",
+        "apps/api/tests/multiproject.flow.live.test.ts::should list all projects for BASIC account",
+        "apps/api/tests/multiproject.flow.live.test.ts::should list all projects for PRO account",
+        "apps/api/tests/multiproject.flow.live.test.ts::should create test account with project",
+        "apps/api/tests/multiproject.flow.live.test.ts::should delete account successfully",
+        "apps/api/tests/multiproject.flow.live.test.ts::should not find account after deletion",
+        "apps/api/tests/multiproject.flow.live.test.ts::should reject duplicate email addresses",
+        "apps/api/tests/multiproject.flow.live.test.ts::should create demo account for compatibility testing",
+        "apps/api/tests/multiproject.flow.live.test.ts::should create demo project",
+        "apps/api/tests/multiproject.flow.live.test.ts::should verify health endpoint responds correctly"
+      ],
+      "evidence": "The decorative class is an availability guard CI never takes (run-tests.sh:466 fails a skipping tier batch); the guard is rewritten; the block at :402, which asserts nothing, gets its assertion, and the rest of the body is kept.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/production.live.test.ts": {
+      "verdict": "REWRITE",
+      "criteria": ["d"],
+      "blocks": [
+        "apps/api/tests/production.live.test.ts::should create account successfully",
+        "apps/api/tests/production.live.test.ts::should verify account details",
+        "apps/api/tests/production.live.test.ts::should create project",
+        "apps/api/tests/production.live.test.ts::should verify project details",
+        "apps/api/tests/production.live.test.ts::should list projects by account",
+        "apps/api/tests/production.live.test.ts::should create X channel",
+        "apps/api/tests/production.live.test.ts::should create Instagram channel",
+        "apps/api/tests/production.live.test.ts::should list channels by project",
+        "apps/api/tests/production.live.test.ts::should create post",
+        "apps/api/tests/production.live.test.ts::should simulate media upload",
+        "apps/api/tests/production.live.test.ts::should schedule publication",
+        "apps/api/tests/production.live.test.ts::should get post details with schedule",
+        "apps/api/tests/production.live.test.ts::should get project analytics",
+        "apps/api/tests/production.live.test.ts::should get publishing history",
+        "apps/api/tests/production.live.test.ts::should verify client interface features",
+        "apps/api/tests/production.live.test.ts::should check worker metrics",
+        "apps/api/tests/production.live.test.ts::should test duplicate account email",
+        "apps/api/tests/production.live.test.ts::should test invalid account ID",
+        "apps/api/tests/production.live.test.ts::should verify quota enforcement",
+        "apps/api/tests/production.live.test.ts::should delete post",
+        "apps/api/tests/production.live.test.ts::should delete channels",
+        "apps/api/tests/production.live.test.ts::should delete project",
+        "apps/api/tests/production.live.test.ts::should delete account with cascade",
+        "apps/api/tests/production.live.test.ts::should verify system is operational via health check"
+      ],
+      "evidence": "The decorative class is an availability guard CI never takes (run-tests.sh:466 fails a skipping tier batch); real asserts follow; the guard is rewritten and the body kept.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/providerRegistry.live.test.ts": {
+      "verdict": "REWRITE",
+      "criteria": ["d"],
+      "blocks": [
+        "apps/api/tests/providerRegistry.live.test.ts::should return all providers",
+        "apps/api/tests/providerRegistry.live.test.ts::should include expected number of providers",
+        "apps/api/tests/providerRegistry.live.test.ts::should include X provider as active",
+        "apps/api/tests/providerRegistry.live.test.ts::should include LinkedIn as active",
+        "apps/api/tests/providerRegistry.live.test.ts::should complete within reasonable time",
+        "apps/api/tests/providerRegistry.live.test.ts::should return only active providers",
+        "apps/api/tests/providerRegistry.live.test.ts::should have X as active provider",
+        "apps/api/tests/providerRegistry.live.test.ts::should only return active status providers",
+        "apps/api/tests/providerRegistry.live.test.ts::should have exactly 11 active providers",
+        "apps/api/tests/providerRegistry.live.test.ts::should return X provider details",
+        "apps/api/tests/providerRegistry.live.test.ts::should include correct display name",
+        "apps/api/tests/providerRegistry.live.test.ts::should include character limits",
+        "apps/api/tests/providerRegistry.live.test.ts::should return 404 for non-existent provider",
+        "apps/api/tests/providerRegistry.live.test.ts::should include provider capabilities",
+        "apps/api/tests/providerRegistry.live.test.ts::should filter providers by threading capability",
+        "apps/api/tests/providerRegistry.live.test.ts::should include X in threading capability",
+        "apps/api/tests/providerRegistry.live.test.ts::should return providers count for threading",
+        "apps/api/tests/providerRegistry.live.test.ts::should return 400 for invalid capability",
+        "apps/api/tests/providerRegistry.live.test.ts::should handle capability filtering within timeout",
+        "apps/api/tests/providerRegistry.live.test.ts::should return health status for all providers",
+        "apps/api/tests/providerRegistry.live.test.ts::should have correct provider count in summary",
+        "apps/api/tests/providerRegistry.live.test.ts::should show X as healthy",
+        "apps/api/tests/providerRegistry.live.test.ts::should have at least one healthy provider",
+        "apps/api/tests/providerRegistry.live.test.ts::should include health check timestamp",
+        "apps/api/tests/providerRegistry.live.test.ts::should return connections for test project",
+        "apps/api/tests/providerRegistry.live.test.ts::should handle non-existent project gracefully",
+        "apps/api/tests/providerRegistry.live.test.ts::should return connection count",
+        "apps/api/tests/providerRegistry.live.test.ts::should handle non-existent provider gracefully",
+        "apps/api/tests/providerRegistry.live.test.ts::should validate capability parameters",
+        "apps/api/tests/providerRegistry.live.test.ts::should handle malformed requests",
+        "apps/api/tests/providerRegistry.live.test.ts::should return JSON content type",
+        "apps/api/tests/providerRegistry.live.test.ts::should have consistent response structure",
+        "apps/api/tests/providerRegistry.live.test.ts::should include provider metadata",
+        "apps/api/tests/providerRegistry.live.test.ts::should respond to all providers within 500ms",
+        "apps/api/tests/providerRegistry.live.test.ts::should respond to health check within 1s",
+        "apps/api/tests/providerRegistry.live.test.ts::should handle concurrent requests"
+      ],
+      "evidence": "The decorative class is an availability guard CI never takes (run-tests.sh:466 fails a skipping tier batch); real asserts follow; the guard is rewritten and the body kept.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/run-with-coverage.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead runner with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/run.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead runner with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/setup/index.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/setup/testDataFactory.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/setup/testLifecycle.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/setup/testTemplate.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/setup/verifyServices.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/threading.flow.test.ts.old": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead-suffix file as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/unit/PlatformContentAdapter.test-helpers.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/unit/auditService.test-helpers.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/unit/cqrsIntegration.test-helpers.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts": {
+      "verdict": "DELETE",
+      "criteria": ["a", "d"],
+      "blocks": [
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should discover content opportunities",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include content gaps",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include emerging topics",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include saturated topics",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include seasonal topics",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should generate comprehensive trend report",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include summary statistics",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should categorize trending content",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include immediate and upcoming opportunities",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include insights",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include actionable recommendations",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should respect region filter",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should respect category filter"
+      ],
+      "evidence": "Its 13 blocks assert only existence (2) or only inside `if (result.ok)` and `length > 0` checks (11), so none restricts the service's behaviour.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/api/tests/universal-client-dashboard.live.test.ts": {
+      "verdict": "DELETE",
+      "criteria": ["d"],
+      "blocks": [
+        "apps/api/tests/universal-client-dashboard.live.test.ts::should return all registered providers",
+        "apps/api/tests/universal-client-dashboard.live.test.ts::should return only active providers",
+        "apps/api/tests/universal-client-dashboard.live.test.ts::should filter providers by threading capability",
+        "apps/api/tests/universal-client-dashboard.live.test.ts::should report health status for all providers",
+        "apps/api/tests/universal-client-dashboard.live.test.ts::should load dashboard with proper UI elements",
+        "apps/api/tests/universal-client-dashboard.live.test.ts::should return detailed information for X provider",
+        "apps/api/tests/universal-client-dashboard.live.test.ts::should return 404 for invalid provider",
+        "apps/api/tests/universal-client-dashboard.live.test.ts::should return 400 for invalid capability",
+        "apps/api/tests/universal-client-dashboard.live.test.ts::should report test metrics"
+      ],
+      "evidence": "Owned by slice 2.6a, which deletes this whole file as the plan's WU-2.6a lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/client/tests/components/ListeningCharts.test.tsx": {
+      "verdict": "DELETE",
+      "criteria": ["a"],
+      "blocks": [
+        "apps/client/tests/components/ListeningCharts.test.tsx::ShareOfVoiceChart mounts with per-provider data",
+        "apps/client/tests/components/ListeningCharts.test.tsx::SentimentBreakdownChart mounts with sentiment data"
+      ],
+      "evidence": "Owned by slice 2.6a, which deletes this whole file as the plan's WU-2.6a lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "apps/workers/tests/worker.smoke.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "No file imports it (the ledger measures 0 importers) and no collector runs it, so nothing exercises it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "packages/providers/_template/tests/integration/sandbox.template.test.ts": {
+      "verdict": "DELETE",
+      "criteria": ["c"],
+      "blocks": [
+        "packages/providers/_template/tests/integration/sandbox.template.test.ts::publishes against the sandbox API and parses the canonical response shape",
+        "packages/providers/_template/tests/integration/sandbox.template.test.ts::validates credentials against the real sandbox auth endpoint"
+      ],
+      "evidence": "Owned by slice 2.6a, which deletes this whole file as the plan's WU-2.6a lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "packages/providers/instagram/tests/mediaProcessor.test-helpers.ts": {
+      "verdict": "DELETE",
+      "criteria": [],
+      "blocks": [],
+      "evidence": "Owned by slice 2.7, which deletes this dead helper with 0 importers as the plan's WU-2.7 lists it.",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "packages/providers/linkedin/tests/integration/apiClient.test.ts": {
+      "verdict": "DELETE",
+      "criteria": ["c"],
+      "blocks": [
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::getProfile returns authenticated user profile",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::createPost publishes a text post to personal profile",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::createPost publishes to organization when orgId provided",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::initializeImageUpload returns upload URL and asset URN",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::initializeVideoUpload returns upload URL for video",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::initializeDocumentUpload returns upload URL for PDF",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::uploadMediaBinary uploads raw binary via PUT",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::getComments retrieves comments for a post",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::postComment creates a comment on a post",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::getPostAnalytics returns engagement metrics",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::returns 401 error for expired access token",
+        "packages/providers/linkedin/tests/integration/apiClient.test.ts::circuit breaker opens after repeated failures"
+      ],
+      "evidence": "Owned by slice 2.6b, which deletes the four `describe.todo` stubs the plan's WU-2.6b lists (D3).",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "packages/providers/pinterest/tests/integration/apiClient.test.ts": {
+      "verdict": "DELETE",
+      "criteria": ["c"],
+      "blocks": [
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::createPin creates a pin with image and returns pin ID",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::createPin creates a pin with video and returns pin ID",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::getPin retrieves pin details by ID",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::getPinAnalytics returns impression/save/click metrics",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::getUserAccount returns authenticated user info",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::getBoards returns list of user boards",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::createBoard creates a new board",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::createBoardSection creates a section within a board",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::returns error for invalid access token",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::handles rate limiting (100 calls/s/user)",
+        "packages/providers/pinterest/tests/integration/apiClient.test.ts::circuit breaker opens after repeated failures"
+      ],
+      "evidence": "Owned by slice 2.6b, which deletes the four `describe.todo` stubs the plan's WU-2.6b lists (D3).",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "packages/providers/snapchat/tests/integration/apiClient.test.ts": {
+      "verdict": "DELETE",
+      "criteria": ["c"],
+      "blocks": [
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts::validateCredentials fetches organizations successfully",
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts::uploadMedia uploads an image and returns media ID",
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts::uploadMedia uploads a video and returns media ID",
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts::createStory creates a creative referencing uploaded media",
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts::getStoryAnalytics returns metrics for a creative",
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts::refreshAccessToken returns new tokens",
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts::returns error for invalid access token",
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts::handles rate limiting with circuit breaker fallback",
+        "packages/providers/snapchat/tests/integration/apiClient.test.ts::fallback returns EMPTY_ANALYTICS when analytics endpoint fails"
+      ],
+      "evidence": "Owned by slice 2.6b, which deletes the four `describe.todo` stubs the plan's WU-2.6b lists (D3).",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    },
+    "packages/providers/telegram/tests/integration/apiClient.test.ts": {
+      "verdict": "DELETE",
+      "criteria": ["c"],
+      "blocks": [
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::sendMessage sends a real message and returns message_id",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::sendPhoto uploads a photo and returns message_id",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::sendVideo uploads a video and returns message_id",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::sendMediaGroup sends 2+ media items and returns array of messages",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::sendPoll creates a poll and returns message_id",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::validateCredentials returns bot info via getMe",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::getChatMember returns member status for the bot",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::getChatMemberCount returns a positive number",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::returns 401 error for invalid bot token",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::handles rate limiting (429) with retry-after",
+        "packages/providers/telegram/tests/integration/apiClient.test.ts::circuit breaker opens after repeated failures"
+      ],
+      "evidence": "Owned by slice 2.6b, which deletes the four `describe.todo` stubs the plan's WU-2.6b lists (D3).",
+      "status": "confirmed",
+      "reviewer": "Maintainer",
+      "date": "2026-10-29"
+    }
+  }
+}

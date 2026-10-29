@@ -164,7 +164,7 @@
 ### 2.2 · `refound/2-ledger-listing` — list before deleting · **[HUMAN GATE H3]**
 
 - [ ] 2.2.1 WU-2.5 · decorative-test-demolition › Nothing is deleted without a listed ledger row and human approval · design §2b · CODE 0 · slice `refound/2-ledger-listing` — commit `docs/development/testing-refoundation/{ledger.json,LEDGER.md,probes.json,adjudications.json}`, the overlay seeded with every ADJUDICATE row. EVIDENCE ~4,000.
-- [ ] 2.2.2 **[HUMAN GATE H3]** WU-2.5 · decorative-test-demolition › Nothing is deleted without a listed ledger row and human approval · CODE 0 · slice `refound/2-ledger-listing` — Edward approves the unambiguous DELETE set **in one pass**; ADJUDICATE rows are approved slice by slice. STOP and wait. No task in 2.3–2.14 may start before this is recorded in `adjudications.json` with `status: "confirmed"`, reviewer and date.
+- [x] 2.2.2 **[HUMAN GATE H3]** WU-2.5 · decorative-test-demolition › Nothing is deleted without a listed ledger row and human approval · CODE 0 · slice `refound/2-ledger-listing` — Edward approves the unambiguous DELETE set **in one pass**; ADJUDICATE rows are approved slice by slice. STOP and wait. No task in 2.3–2.14 may start before this is recorded in `adjudications.json` with `status: "confirmed"`, reviewer and date. — **APPROVED by the Maintainer on 2026-10-29**, recorded in `adjudications.json` by `PR h3`: 24 rows confirmed DELETE (the 22 of slices 2.6a, 2.6b and 2.7, and 2 dead files), 9 guarded node:test suites confirmed REWRITE, and 18 rows left to WU-6.S2, WU-6.K1 and WU-6.E1.
 - [ ] 2.2.3 Tracker: M6 (machine / confirmed / total) · CODE ~4 · slice `refound/2-ledger-listing`.
 
 ### 2.3 · `refound/2-coverage-exception` (WU-2.0) — **[HUMAN GATE H8: needs a `sensitive-edit` token]**
