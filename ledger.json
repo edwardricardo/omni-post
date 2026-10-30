@@ -16,9 +16,9 @@
       },
       "byVerdict": {
         "DELETE": 20,
-        "REWRITE": 223,
-        "KEEP": 838,
-        "ADJUDICATE": 105,
+        "REWRITE": 221,
+        "KEEP": 841,
+        "ADJUDICATE": 104,
         "unmeasured": 0
       }
     },
@@ -28,22 +28,22 @@
       "total": 1186
     },
     "blocks": {
-      "total": 15124,
-      "decorative": 922,
+      "total": 15095,
+      "decorative": 894,
       "byClass": {
         "EMPTY": 17,
-        "TAUTOLOGY-ONLY": 16,
-        "EXISTENCE-ONLY": 564,
+        "TAUTOLOGY-ONLY": 5,
+        "EXISTENCE-ONLY": 547,
         "CONDITIONAL-ONLY": 205,
         "SELF-SKIP": 113,
         "PRINTS-SUCCESS": 7,
-        "TITLE-CONTRADICTION": 29,
+        "TITLE-CONTRADICTION": 28,
         "BEHAVIOURAL": 14173
       }
     },
     "deleted": {
       "files": 25,
-      "blocks": 131
+      "blocks": 160
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -113,6 +113,35 @@
         "blocks": 30
       },
       "floors": {}
+    },
+    "2.8.1b": {
+      "files": [
+        "apps/api/tests/unit/auditMiddleware.test.ts",
+        "apps/api/tests/unit/healthMetrics.test.ts",
+        "apps/api/tests/unit/webhookHandler.stats.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 29
+      },
+      "floors": {
+        "lines": {
+          "from": 60,
+          "to": 59.9
+        },
+        "functions": {
+          "from": 60.5,
+          "to": 60.4
+        },
+        "branches": {
+          "from": 50.3,
+          "to": 50.1
+        },
+        "statements": {
+          "from": 59.5,
+          "to": 59.3
+        }
+      }
     }
   },
   "files": [
@@ -33087,7 +33116,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 28,
+      "blockCount": 18,
       "blocks": [
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::should skip audit logging for health check routes",
@@ -33125,172 +33154,102 @@
           "bodyHash": "613e7998bcc05959001becf0a0b56f744adaf62734f6d759a67e7427380bb518"
         },
         {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should detect LOGIN action from /auth/login POST",
-          "line": 167,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "75c084eba5f298d10898e9b502b691e3cef19fe186a7cf5435e64e0e1413db33"
-        },
-        {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should detect LOGOUT action from /auth/logout POST",
-          "line": 183,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a11909f821322d8fbf08b73a910d5b19ec0b6111e60851db381ac9459512d6be"
-        },
-        {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should detect PROJECT_CREATED action from /projects POST",
-          "line": 196,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4a55ed226d2c20f127539d39dfd8f8ac584e37f036e2b07cb4a64b23f593db7f"
-        },
-        {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should detect PROJECT_UPDATED action from /projects PUT",
-          "line": 209,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "fdfc0291b415a64565ab9533bfee4e7f91d1cb2d6e3998b62cf4eea577e3f611"
-        },
-        {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should detect PROJECT_DELETED action from /projects DELETE",
-          "line": 222,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "cc3e3fad3b3dc8c814b48cd29f4840d546ee5c0e74ad1e735db0697d0555bad1"
-        },
-        {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should detect POST_CREATED action from /posts POST",
-          "line": 235,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8cb2b9e6421aa37785a2a93ac2371a603db346e8a2c8b882d43cbf8c5b8a49bc"
-        },
-        {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should detect POST_PUBLISHED action from /publish route",
-          "line": 248,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "30a7615782b863a3e14fcf657925493cd1cfed5eaddf171a0cddf1d7f79ec6f3"
-        },
-        {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should detect CACHE_CLEARED action from admin cache routes",
-          "line": 261,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "650bbcdf425ced7f99057870ed4300d7c0727bd05d63c87607369ae871913136"
-        },
-        {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should return undefined for GET requests on unknown routes",
-          "line": 274,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "18cb967f0dc634bcdbb111724c6a7458f9e3ce6d26ed5252abb555b8c94a992c"
-        },
-        {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::should mark request as successful for 2xx status codes",
-          "line": 293,
+          "line": 167,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d5a265b42b278e83e90758034aa8a20efc5437971da897ffaa05295e889f0b25"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::should mark request as failed for 4xx status codes",
-          "line": 309,
+          "line": 183,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "78b796a1988a3c8d4a4f1ca2b029b1fbf60822daf6af6ac8eb70173ac9b866c4"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::should mark request as failed for 5xx status codes",
-          "line": 324,
+          "line": 198,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e248b9cdd026497ac28c6c1a6252b0f18760a04381b44c2e2a8a52b233baab3"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::should use explicit success flag when provided",
-          "line": 339,
+          "line": 213,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "51f9bbca1615521a0a6409a76cb36502581729aab2c4ba77199ead55fdc50e11"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::setAuditInfo should initialize auditLog if not exists",
-          "line": 364,
+          "line": 238,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e3e154dbd6c98b43c3510ef8a420604ab7acd05ea2b9f53de54a477928196f9"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::setAuditInfo should merge with existing auditLog",
-          "line": 377,
+          "line": 251,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "caf3cea2e4c600e6c8d4ae326acb50b98903790a05654e8f66259df606542b67"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::extractResourceId should extract ID from params",
-          "line": 391,
+          "line": 265,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f222fc87113498541ffd7c09bb556a70532f05311535207685fa890ef837fe5b"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::extractResourceId should extract custom param name",
-          "line": 401,
+          "line": 275,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8c9b44b9f7632a122507ed086785c85eb8fd5166f7bdbf77d63ce26e3e7b2510"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::extractResourceId should return undefined for missing params",
-          "line": 411,
+          "line": 285,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c7d0944b774221f5f06ca9dd304b35b75ab7b126c1a13cd6919b3748be842be9"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::should set audit information when applied to route handler",
-          "line": 429,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1873aff5ea7cef7d844819e651064eda352a73b7f58f3d95637cf06e4d528bd2"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::should work without resource parameter",
-          "line": 449,
+          "line": 323,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8555805bf48ac3adfaa4ffadaf3f7e346b872617cc44bdb89ef1899e7216826e"
         },
         {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::should not fail request if audit logging fails",
-          "line": 469,
+          "line": 343,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "470510f2d96556fc0747a5f0c496108fbb210adac48feaeba796c8fd09584fda"
         },
         {
-          "id": "apps/api/tests/unit/auditMiddleware.test.ts::should handle missing user gracefully",
-          "line": 485,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c9835b1bb7c9f0d73407372966a2bca9070f1b512f6270197ae7ba3ad1ec8cb9"
-        },
-        {
           "id": "apps/api/tests/unit/auditMiddleware.test.ts::should handle malformed URLs gracefully",
-          "line": 499,
+          "line": 359,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a0acba07ba3b3a63d8721dae045773d08d33ae2b3ea8dd3bfbdfbeccd58a5664"
         }
       ],
-      "verdict": "ADJUDICATE",
-      "basis": "title-contradiction",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.1b",
       "subject": {
         "stem": "auditMiddleware",
         "module": "apps/api/src/audit/auditMiddleware.ts",
@@ -50077,7 +50036,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 38,
+      "blockCount": 29,
       "blocks": [
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should convert healthy status to 1",
@@ -50129,228 +50088,165 @@
           "bodyHash": "62e667f1c68d72fbc04c9b597db2624e08096e690f77611e8ac57e713466dee4"
         },
         {
-          "id": "apps/api/tests/unit/healthMetrics.test.ts::should record health check duration in seconds",
-          "line": 194,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "ead25db38346a62c1e0ed12fc1252588aa8449b0948890c1296bf488fb968576"
-        },
-        {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should increment failure counter for unhealthy status",
-          "line": 209,
+          "line": 194,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2433853d2e0edf8dcc3668ffaeac3b2cf37360021dd1d1f5084c265c92b73a37"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should not increment failure counter for healthy status",
-          "line": 225,
+          "line": 210,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0bc75e3c8732f7b3d19893caba7f5c517e638ca6600b847c30628af0a641e42c"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should increment critical failures for unhealthy critical dependency",
-          "line": 241,
+          "line": 226,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fe804cae28d5b79f5c6c2dea917cb0a394ab242e757307a1ed5d2418bdae7f32"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should not increment critical failures for non-critical dependency",
-          "line": 257,
+          "line": 242,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "280e4e89f689cc53f7a6a829839b5e7d00509033f0dd5be3d6377218a3c842bb"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle multiple dependencies independently",
-          "line": 273,
+          "line": 258,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "086a40bcb7759c95bf75be691b311573add7bcd74c547aabe9a14c7e6306ca04"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should record healthy system status",
-          "line": 306,
+          "line": 291,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2cd2613c9ecfd26e8b9329c012ce48d572be871b7300f1144cd0b7bf9872453e"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should record degraded system status",
-          "line": 320,
+          "line": 305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41b5544d70419e6b7267b2db7ad6fee3124bb5f2802499b22d4ac0d30792754f"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should record unhealthy system status",
-          "line": 334,
+          "line": 319,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e6f641432796fdea6452dd49dbe8c2a90826148c6e6e1f3a95610fb07ec2c36f"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should update system health on multiple calls",
-          "line": 348,
+          "line": 333,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c50e6564a0f585a4704fcc2834ae0d528c560b9ade330da4a063d846d6a6cffb"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should record warning alert",
-          "line": 372,
+          "line": 357,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aed8823c1957d987ca29f455b5702a4a28df1dabbb007e0df8baf02254c682a5"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should record error alert",
-          "line": 388,
+          "line": 373,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ecd4dcf27c26e41f0aab88e7ff9a5b0e98ed33b589e5392243f0bf74e9828f4"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should record critical alert",
-          "line": 401,
+          "line": 386,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "32d40096c261dadb3472eab563e7ec47a1817c07b8cd18d13ab5c2805a394764"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should record system-level alerts without dependency",
-          "line": 414,
+          "line": 399,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7c01e363323a95423e13a83327aa7a9ebe44aa8190fb99940109773d13545434"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should track active alerts by severity level",
-          "line": 426,
+          "line": 411,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14532cc2c752f1cf2d63e5103260d8b4bcf175cc599aa1bd9b3abbda7110d961"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should accumulate multiple alerts of same type",
-          "line": 440,
+          "line": 425,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f2b702d318c0aa0835ab1255d92a4d5ccec89bea07b8b7e868ea69ab02d61f07"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should decrement active alerts on acknowledgement",
-          "line": 465,
+          "line": 450,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f14779b4849db06b9cd191caf15d457a44cf14c1cde55a29ffa5baff103c36e"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle acknowledgement of error alerts",
-          "line": 481,
+          "line": 466,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bc53492c4337bd156cd43b34758cdd6d6871ecf629ebed6bebc75e55ad0a4cc6"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle acknowledgement of critical alerts",
-          "line": 493,
+          "line": 478,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "005e6792ff8ccc95e91456de79783194d9622508bb17f16fcbf26210b328a904"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle multiple acknowledgements",
-          "line": 505,
+          "line": 490,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "26b54121326e46720fe0dd8500701487b18dbdccddf62fde1132d79fb5fb9c94"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should record complete health check cycle",
-          "line": 533,
+          "line": 518,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13db5b20d1e20287c29379cf0f05d4890edfcbcc107a9ac29201e126fc3d3830"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle degraded system with failing dependencies",
-          "line": 552,
+          "line": 537,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "73e3a1d7090bc542cae85308d39b5661a26ca7b88d45047ccfa45bf543c6ebf1"
         },
         {
           "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle alert lifecycle from creation to acknowledgement",
-          "line": 571,
+          "line": 556,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6d60b47cac5fd9dfdb7dd3d353181c5ba8d1b8e4d9b71c973c194f6884e72393"
-        },
-        {
-          "id": "apps/api/tests/unit/healthMetrics.test.ts::should track health trends across multiple checks",
-          "line": 592,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "ad5586e831ea1ce0d67118560a9e22c65e456bee9bc4e51dd682cb7a3b86816d"
-        },
-        {
-          "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle zero latency health checks",
-          "line": 618,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "1461b13fe8adb57c04b26dbafd44cefec29c01228711ac45e7a480dcdcb135e2"
-        },
-        {
-          "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle very high latency health checks",
-          "line": 624,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "3341823090f7fee57614886ebf6fab3eeb2983aed05db696098a24f6a3cfdc54"
-        },
-        {
-          "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle rapid consecutive health checks",
-          "line": 630,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "89a5e1dfa64f6ae0a0c10980cd086b17a1614c1c2445cdf4cb98c4fa3e61c9b0"
-        },
-        {
-          "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle system health with zero score",
-          "line": 638,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "990fb87e8545697b83fed3f0fc11513b61bcbb55f0dc0bcf84e78067c9c70a79"
-        },
-        {
-          "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle system health with perfect score",
-          "line": 644,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "89d8256d959ce783f2979784fc0c40d92811b8883bd3ce6ad52001cf84f4a485"
-        },
-        {
-          "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle multiple alerts at different severity levels",
-          "line": 650,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "8a97f3d95b8f5f11f13dbe889c2630f753bb1af18f4402ea4f3ac85ad3ee0bce"
-        },
-        {
-          "id": "apps/api/tests/unit/healthMetrics.test.ts::should handle acknowledgement when no active alerts exist",
-          "line": 660,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "5e1bc0a5a922d9d27490a894cf7debf99c7a6c29ca508fd24c3b3e9692897763"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.1b",
       "subject": {
         "stem": "healthMetrics",
         "module": "apps/api/src/health/healthMetrics.ts",
@@ -89047,98 +88943,28 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 2,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should return empty stats when no events",
-          "line": 195,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "1b72029f9193c1af299d75de7742317455c05831a81b06d3332e9b7c95c2cf60"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should aggregate stats by provider and status",
-          "line": 203,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2f1ead2056fc1b1bf7608252c1d7a27f52d314918e6409986bff2513bfde5ec3"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should filter stats by provider",
-          "line": 239,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7d4145c5f7b7d5e3735e15c9004deaf92ae3134c1b5b52f55418082e354be697"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should filter stats by time range",
-          "line": 258,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "57d46ece3b021dbbe9e2531c939a7c491eb262106e85fe8928fcae15073a6da2"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should include average processing time in stats",
-          "line": 268,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2c558b7064875572ad30173372ec515137fbde0e7492141cf4231770cf7c6680"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should retry events ready for retry",
-          "line": 316,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3df58f4a51783965759b70799f49d24f86ebc53bb9c7feadc0e08098a5d6e971"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should not retry events not yet due",
-          "line": 337,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "f8799ced500513e0f9d7f647bb7fc593798eff03e4057a36cf295cde9666b9ec"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should filter retry events by max age",
-          "line": 358,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "2da90ef4d7112ad66d07d8b54f78f3b3e54eeea6526c226abb3ed5d49a2e8a75"
-        },
-        {
           "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should handle empty payload object",
-          "line": 391,
+          "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "871ed947d162deb4fa5e21dc2bae96a03d182d7297bb61abe47f2afcc272ffec"
         },
         {
           "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should handle payload with unexpected structure",
-          "line": 405,
+          "line": 117,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1dc26a7d602dae5859505430037d5b1b698da2dc4b1e3d7c9f3a64a2b8b4305"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should handle very large payload",
-          "line": 419,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3bd49462792ae30abbef3fb833bc4586e3d643c89dfd3a16e419ef7abb0fb640"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.stats.test.ts::should increment subscription stats on successful processing",
-          "line": 459,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "567272ac313db0385882343b3a57842ac7948aad113c6c7651f5e8d71fd562f1"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.1b",
       "subject": {
         "stem": "webhookHandler",
         "module": "apps/api/src/webhooks/webhookHandler.ts",

@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1186  |
 | DELETE                  | 20    |
-| REWRITE                 | 223   |
-| KEEP                    | 838   |
-| ADJUDICATE              | 105   |
+| REWRITE                 | 221   |
+| KEEP                    | 841   |
+| ADJUDICATE              | 104   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 11    |
-| Blocks                  | 15124 |
-| Blocks with a criterion | 922   |
+| Blocks                  | 15095 |
+| Blocks with a criterion | 894   |
 
 ## Slice 2.6a
 
@@ -71,6 +71,16 @@ Deleted: 0 files, 30 blocks.
 | --------------------------------------------------- | ----- | ------ | ---------- | ------- | ------- | ----------- |
 | `apps/api/tests/unit/logger.test.ts`                | test  | 13     | 0          | KEEP    | machine | behavioural |
 | `apps/api/tests/unit/rateLimitingDashboard.test.ts` | test  | 15     | 0          | KEEP    | machine | behavioural |
+
+## Slice 2.8.1b
+
+Deleted: 0 files, 29 blocks. Floors lowered: lines from 60 to 59.9, functions from 60.5 to 60.4, branches from 50.3 to 50.1, statements from 59.5 to 59.3.
+
+| Path                                               | Shape | Blocks | Decorative | Verdict | Status  | Basis       |
+| -------------------------------------------------- | ----- | ------ | ---------- | ------- | ------- | ----------- |
+| `apps/api/tests/unit/auditMiddleware.test.ts`      | test  | 18     | 0          | KEEP    | machine | behavioural |
+| `apps/api/tests/unit/healthMetrics.test.ts`        | test  | 29     | 0          | KEEP    | machine | behavioural |
+| `apps/api/tests/unit/webhookHandler.stats.test.ts` | test  | 2      | 0          | KEEP    | machine | behavioural |
 
 ## Rows without a slice
 
@@ -438,7 +448,6 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/architecture.test.ts`                                                            | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts`                                 | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/auditLogger.test.ts`                                                             | test             | 44     | 8          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/auditMiddleware.test.ts`                                                         | test             | 28     | 9          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/auditRoutes.test.ts`                                                             | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/auditService.log.test.ts`                                                        | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/auditService.query.test.ts`                                                      | test             | 14     | 2          | REWRITE    | machine                     | some-decorative      |
@@ -556,7 +565,6 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/generateCacheKey.base64.test.ts`                                                 | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/health/consumerPresenceHealthChecker.test.ts`                                    | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/health/queueHealthChecker.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/healthMetrics.test.ts`                                                           | test             | 38     | 9          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/healthRoutes.test.ts`                                                            | test             | 18     | 7          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/helpers/InMemoryAdminUserRepository.ts`                                          | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/InMemoryAuditEmitter.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -874,7 +882,6 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/webhookHandler.errors.test.ts`                                                   | test             | 7      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/webhookHandler.init.test.ts`                                                     | test             | 5      | 4          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/webhookHandler.processing.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/webhookHandler.stats.test.ts`                                                    | test             | 12     | 10         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/webhookHandler.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts`                                     | test             | 19     | 2          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/webhookJobProcessor.priority-delay.test.ts`                                      | test             | 29     | 0          | ADJUDICATE | machine                     | subject-not-imported |
