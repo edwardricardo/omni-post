@@ -444,37 +444,6 @@ describe("EventStore - Event Retrieval", () => {
     });
   });
 
-  it("should get events from specific stream", async () => {
-    const events = await eventStore.getEvents("post-123");
-    expect(Array.isArray(events)).toBeTruthy();
-  });
-
-  it("should get events from specific version", async () => {
-    const events = await eventStore.getEvents("post-123", 5);
-    expect(Array.isArray(events)).toBeTruthy();
-  });
-
-  it("should get all events across streams", async () => {
-    const events = await eventStore.getAllEvents();
-    expect(Array.isArray(events)).toBeTruthy();
-  });
-
-  it("should get all events from specific position", async () => {
-    const events = await eventStore.getAllEvents(100);
-    expect(Array.isArray(events)).toBeTruthy();
-  });
-
-  it("should get events by type", async () => {
-    const events = await eventStore.getEventsByType(EVENT_TYPES.POST_CREATED);
-    expect(Array.isArray(events)).toBeTruthy();
-  });
-
-  it("should get events by type from timestamp", async () => {
-    const fromTimestamp = new Date("2024-01-01T00:00:00Z");
-    const events = await eventStore.getEventsByType(EVENT_TYPES.POST_CREATED, fromTimestamp);
-    expect(Array.isArray(events)).toBeTruthy();
-  });
-
   it("should handle query failures gracefully", async () => {
     mockPrisma.setFailQuery(true);
 
@@ -497,13 +466,6 @@ describe("EventStore - Stream Statistics", () => {
 
     // Pre-populate storage so getStreamStats can find events
     await mockPrisma.$executeRaw`INSERT INTO stored_events VALUES (...)`;
-  });
-
-  it("should get stream statistics", async () => {
-    const stats = await eventStore.getStreamStats("post-123");
-
-    expect(typeof stats.eventCount).toBe("number");
-    expect(typeof stats.currentVersion).toBe("number");
   });
 
   it("should include first and last event timestamps", async () => {
@@ -632,20 +594,6 @@ describe("EventStore - Cleanup", () => {
     });
   });
 
-  it("should cleanup old events", async () => {
-    const olderThan = new Date("2023-01-01T00:00:00Z");
-    const deletedCount = await eventStore.cleanup(olderThan);
-
-    expect(typeof deletedCount).toBe("number");
-  });
-
-  it("should keep minimum events when cleaning up", async () => {
-    const olderThan = new Date("2023-01-01T00:00:00Z");
-    const deletedCount = await eventStore.cleanup(olderThan, 1000);
-
-    expect(typeof deletedCount).toBe("number");
-  });
-
   it("should handle cleanup failures", async () => {
     mockPrisma.setFailQuery(true);
     const olderThan = new Date("2023-01-01T00:00:00Z");
@@ -666,19 +614,6 @@ describe("EventStore - Event Sourcing Patterns", () => {
       prisma: mockPrisma as any,
       redis: mockRedis as any,
     });
-  });
-
-  it("should retrieve events starting from specific version", async () => {
-    const events = await eventStore.getEvents("post-123", 5);
-    expect(Array.isArray(events)).toBeTruthy();
-    // Mock returns empty by default - verifying the method accepts version parameter without error
-    expect(typeof events.length).toBe("number");
-  });
-
-  it("should retrieve all events starting from specific position", async () => {
-    const events = await eventStore.getAllEvents(100);
-    expect(Array.isArray(events)).toBeTruthy();
-    expect(typeof events.length).toBe("number");
   });
 
   it("should maintain event ordering by version", async () => {

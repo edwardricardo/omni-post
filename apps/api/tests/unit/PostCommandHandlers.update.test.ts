@@ -28,23 +28,6 @@ describe("UpdatePostCommandHandler", () => {
     expect(handler.commandType).toBe(POST_COMMANDS.UPDATE_POST);
   });
 
-  it("should update a post successfully when use case returns ok", async () => {
-    const command = buildUpdatePostCommand({
-      title: "Updated Title",
-      body: "Updated body content",
-      userId: "user-1",
-    });
-
-    const result = await handler.handle(command);
-
-    expect(result.success).toBeTruthy();
-    expect(result.data).toBeTruthy();
-    // No version assertion here on purpose. The handler returns a hardcoded
-    // literal (SMELL-119, occ-version-hardcoded in docs/product/MASTER_PLAN.md);
-    // pinning it in a test would turn the defect into a contract this suite
-    // defends.
-  });
-
   it("rejects a content update that carries a status, naming the unrecognized key", async () => {
     // The status transition has its own command now. The content-update
     // contract is strict, so the removed field is REFUSED rather than stripped

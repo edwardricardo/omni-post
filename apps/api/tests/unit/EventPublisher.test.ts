@@ -1,6 +1,6 @@
 /**
  * Unit Tests for EventPublisher (RedisEventPublisher)
- * Tests event publishing, subscription management, and retry logic
+ * Tests event publishing, subscription management, metrics and health checks
  *
  * @file EventPublisher.test.ts
  * @description Tests for EventPublisher - Event Publishing
@@ -421,44 +421,6 @@ describe("EventPublisher - Subscription Management", () => {
   });
 });
 
-describe("EventPublisher - Retry Logic", () => {
-  let publisher: any;
-  let mockRedis: MockRedis;
-
-  beforeEach(() => {
-    mockRedis = new MockRedis();
-    publisher = new RedisEventPublisher({
-      redis: mockRedis as any,
-      scheduler,
-      maxRetries: 3,
-      retryDelay: 100,
-    });
-  });
-
-  afterEach(async () => {
-    if (publisher) {
-      await publisher.shutdown();
-    }
-  });
-
-  it("should track retry attempts in metrics", async () => {
-    const metricsBefore = publisher.getMetrics();
-
-    // Metrics should be initialized
-    expect(typeof metricsBefore.retried).toBe("number");
-  });
-
-  it("should send to dead letter queue after max retries", async () => {
-    const deadLetterItems = await publisher.getDeadLetterItems();
-    expect(Array.isArray(deadLetterItems)).toBeTruthy();
-  });
-
-  it("should clear dead letter queue", async () => {
-    const clearedCount = await publisher.clearDeadLetterQueue();
-    expect(typeof clearedCount).toBe("number");
-  });
-});
-
 describe("EventPublisher - Metrics", () => {
   let publisher: any;
   let mockRedis: MockRedis;
@@ -492,11 +454,6 @@ describe("EventPublisher - Metrics", () => {
     const metricsAfter = publisher.getMetrics();
 
     expect(metricsAfter.published).toBe(metricsBefore.published + 1);
-  });
-
-  it("should track delivered events count", async () => {
-    const metrics = publisher.getMetrics();
-    expect(typeof metrics.delivered).toBe("number");
   });
 
   it("should track failed events count", async () => {
@@ -533,21 +490,6 @@ describe("EventPublisher - Metrics", () => {
 
     const metrics = publisher.getMetrics();
     expect(metrics.averageLatency >= 0).toBe(true);
-  });
-
-  it("should track last activity timestamp", async () => {
-    const event: EventStoreEvent = createEventStoreEvent(
-      EVENT_TYPES.POST_CREATED,
-      "post-123",
-      "Post",
-      { postId: "post-123", projectId: "project-456", status: "DRAFT", channelIds: [] },
-      { source: "TestSuite" }
-    );
-
-    await publisher.publish(event);
-
-    const metrics = publisher.getMetrics();
-    expect(metrics.lastActivity instanceof Date).toBeTruthy();
   });
 
   it("should reset metrics", async () => {
@@ -600,25 +542,6 @@ describe("EventPublisher - Health Check", () => {
     const health = await publisher.healthCheck();
 
     expect(health.status).toBe("unhealthy");
-  });
-
-  it("should include metrics in health check", async () => {
-    const health = await publisher.healthCheck();
-
-    expect(health.details.metrics).toBeTruthy();
-    expect(typeof health.details.metrics.published).toBe("number");
-  });
-
-  it("should include active subscriptions count", async () => {
-    const handler: EventHandler = {
-      eventType: EVENT_TYPES.POST_CREATED,
-      async handle(_event: EventStoreEvent): Promise<void> {},
-    };
-
-    publisher.subscribe(EVENT_TYPES.POST_CREATED, handler);
-
-    const health = await publisher.healthCheck();
-    expect(typeof health.details.activeSubscriptions).toBe("number");
   });
 });
 

@@ -170,34 +170,6 @@ describe("ContentVersionManager - createVersion", () => {
         expect(result2.value.version).toBe(2);
       }
     });
-
-    it("should handle version creation with tags", async () => {
-      const result = await versionManager.createVersion(
-        testPostId,
-        testCanonicalPost,
-        testAdaptations,
-        {
-          createdBy: testUserId,
-          tags: ["release", "v1.0"],
-        }
-      );
-
-      expect(result.ok).toBeTruthy();
-    });
-
-    it("should handle version creation with category", async () => {
-      const result = await versionManager.createVersion(
-        testPostId,
-        testCanonicalPost,
-        testAdaptations,
-        {
-          createdBy: testUserId,
-          category: "marketing",
-        }
-      );
-
-      expect(result.ok).toBeTruthy();
-    });
   });
 
   describe("Version Creation Error Handling", () => {

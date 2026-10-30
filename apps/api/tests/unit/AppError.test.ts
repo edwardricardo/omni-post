@@ -11,7 +11,7 @@
  * - Error utilities (isOperational, getSafeErrorMessage, etc.)
  * - JSON serialization
  *
- * Converted to node:test standard
+ * Runs under vitest
  *
  * @file AppError.test.ts
  * @description Tests for AppError - Construction
@@ -66,12 +66,6 @@ describe("AppError - Construction", () => {
     const error = new AppError(ErrorCode.INTERNAL_SERVER_ERROR, 500, "Error");
     expect(error.stack).toBeTruthy();
     expect(error.stack.includes("AppError")).toBeTruthy();
-  });
-
-  it("should set proper prototype chain", () => {
-    const error = new AppError(ErrorCode.BAD_REQUEST, 400, "Error");
-    expect(error instanceof AppError).toBeTruthy();
-    expect(error instanceof Error).toBeTruthy();
   });
 });
 

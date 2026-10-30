@@ -177,25 +177,9 @@
       "count": 11
     }
   },
-  "apps/api/tests/unit/AppError.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/BaseService.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 2
-    }
-  },
-  "apps/api/tests/unit/CQRSBus.monitoring.test.ts": {
-    "testing/no-empty-test": {
-      "count": 1
-    },
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
-    "vitest/expect-expect": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/ConflictDetector.test.ts": {
@@ -226,9 +210,6 @@
     "no-console": {
       "count": 3
     },
-    "testing/no-existence-only-test": {
-      "count": 2
-    },
     "vitest/no-conditional-expect": {
       "count": 33
     },
@@ -250,19 +231,9 @@
       "count": 5
     }
   },
-  "apps/api/tests/unit/DatabaseOptimizer.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 7
-    }
-  },
   "apps/api/tests/unit/DiffCalculator.test.ts": {
     "testing/no-existence-only-test": {
       "count": 1
-    }
-  },
-  "apps/api/tests/unit/EventPublisher.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 7
     }
   },
   "apps/api/tests/unit/EventService.post-channel.test.ts": {
@@ -270,19 +241,9 @@
       "count": 3
     }
   },
-  "apps/api/tests/unit/EventService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/EventService.user-analytics.test.ts": {
     "testing/no-existence-only-test": {
       "count": 3
-    }
-  },
-  "apps/api/tests/unit/EventStore.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 11
     }
   },
   "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts": {
@@ -291,9 +252,6 @@
     }
   },
   "apps/api/tests/unit/PlatformContentAdapter.content.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
       "count": 7
     }
@@ -315,32 +273,12 @@
   },
   "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "apps/api/tests/unit/PostCommandHandlers.publish.test.ts": {
-    "testing/no-existence-only-test": {
       "count": 1
     }
   },
   "apps/api/tests/unit/PostCommandHandlers.test-helpers.ts": {
     "no-console": {
       "count": 1
-    }
-  },
-  "apps/api/tests/unit/PostCommandHandlers.update.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 8
-    }
-  },
-  "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 6
     }
   },
   "apps/api/tests/unit/ServerTemplateEngine.test.ts": {
@@ -355,7 +293,7 @@
   },
   "apps/api/tests/unit/activityFeedService.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/unit/admin/AdminUserAdminService.test.ts": {
@@ -421,7 +359,7 @@
       "count": 3
     },
     "vitest/no-conditional-expect": {
-      "count": 3
+      "count": 2
     }
   },
   "apps/api/tests/unit/aiService.test.ts": {

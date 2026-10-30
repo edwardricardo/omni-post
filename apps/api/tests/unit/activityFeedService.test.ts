@@ -335,11 +335,6 @@ describe("ActivityFeedService", () => {
       expect(overlap.length).toBe(0);
     });
 
-    it("caps limit at 100", async () => {
-      const result = await feedService.getFeed({ userId: testUserId, limit: 500 });
-      expect(result.ok).toBeTruthy();
-    });
-
     it("builds description from details metadata", async () => {
       await createTestLog({
         action: AuditActions.POST_CREATED,

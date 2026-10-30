@@ -40,11 +40,13 @@ type ThresholdKey = (typeof THRESHOLD_KEYS)[number];
  * vitest.config.ts, commit the rewrite), so it costs one edit here in the same commit
  * and puts the new number in front of a reviewer. Every known way to disable the gate
  * drives these to 0 or removes them, which this cannot pass.
+ * A lowered literal mirrors a descent `apps/api/vitest.config.ts` carries under its
+ * `decorative-demolition:<slice>` marker and `slices.json` records (ADR-0039).
  */
 const MEASURED_FLOOR: Record<ThresholdKey, number> = {
-  lines: 59.9,
+  lines: 59.8,
   functions: 60.4,
-  branches: 50.1,
+  branches: 50,
   statements: 59.3,
 };
 
