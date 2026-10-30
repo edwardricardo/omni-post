@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1186  |
 | DELETE                  | 20    |
-| REWRITE                 | 221   |
-| KEEP                    | 841   |
+| REWRITE                 | 208   |
+| KEEP                    | 854   |
 | ADJUDICATE              | 104   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 11    |
-| Blocks                  | 15095 |
-| Blocks with a criterion | 894   |
+| Blocks                  | 15044 |
+| Blocks with a criterion | 843   |
 
 ## Slice 2.6a
 
@@ -81,6 +81,28 @@ Deleted: 0 files, 29 blocks. Floors lowered: lines from 60 to 59.9, functions fr
 | `apps/api/tests/unit/auditMiddleware.test.ts`      | test  | 18     | 0          | KEEP    | machine | behavioural |
 | `apps/api/tests/unit/healthMetrics.test.ts`        | test  | 29     | 0          | KEEP    | machine | behavioural |
 | `apps/api/tests/unit/webhookHandler.stats.test.ts` | test  | 2      | 0          | KEEP    | machine | behavioural |
+
+## Slice 2.8.2a
+
+Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches from 50.1 to 50.
+
+| Path                                                                  | Shape | Blocks | Decorative | Verdict | Status  | Basis           |
+| --------------------------------------------------------------------- | ----- | ------ | ---------- | ------- | ------- | --------------- |
+| `apps/api/tests/unit/AppError.test.ts`                                | test  | 59     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/CQRSBus.monitoring.test.ts`                      | test  | 13     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/ContentVersionManager.create.test.ts`            | test  | 13     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/DatabaseOptimizer.test.ts`                       | test  | 29     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/EventPublisher.test.ts`                          | test  | 22     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/EventService.test.ts`                            | test  | 4      | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/EventStore.test.ts`                              | test  | 22     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/PlatformContentAdapter.content.test.ts`          | test  | 7      | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts` | test  | 12     | 1          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/PostCommandHandlers.publish.test.ts`             | test  | 13     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/PostCommandHandlers.update.test.ts`              | test  | 12     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/PostQueryHandlers.get-list.test.ts`              | test  | 14     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts`      | test  | 14     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/activityFeedService.test.ts`                     | test  | 7      | 1          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/aiOrchestrator.providers.test.ts`                | test  | 12     | 0          | KEEP    | machine | behavioural     |
 
 ## Rows without a slice
 
@@ -243,10 +265,8 @@ Deleted: 0 files, 29 blocks. Floors lowered: lines from 60 to 59.9, functions fr
 | `apps/api/tests/threading.xprovider.integration.test.ts`                                              | integration-test | 26     | 12         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/trialPeriod.integration.test.ts`                                                      | integration-test | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/AnalyticsAggregator.test.ts`                                                     | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/AppError.test.ts`                                                                | test             | 60     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/AuditableService.test.ts`                                                        | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/BaseService.test.ts`                                                             | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/CQRSBus.monitoring.test.ts`                                                      | test             | 15     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/CQRSBus.registration.test.ts`                                                    | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/CQRSBus.test-helpers.ts`                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/ConflictDetector.test.ts`                                                        | test             | 23     | 1          | REWRITE    | machine                     | some-decorative      |
@@ -256,30 +276,19 @@ Deleted: 0 files, 29 blocks. Floors lowered: lines from 60 to 59.9, functions fr
 | `apps/api/tests/unit/ContentSynchronizer.test-helpers.ts`                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/ContentSynchronizer.versions.test.ts`                                            | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ContentVersionManager.compare.test.ts`                                           | test             | 12     | 1          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/ContentVersionManager.create.test.ts`                                            | test             | 15     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/ContentVersionManager.merge.test.ts`                                             | test             | 13     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/ContentVersionManager.test-helpers.ts`                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/DatabaseOptimizer.test.ts`                                                       | test             | 36     | 7          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/DiffCalculator.test.ts`                                                          | test             | 22     | 1          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/EventPublisher.test.ts`                                                          | test             | 29     | 7          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/EventService.post-channel.test.ts`                                               | test             | 27     | 3          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/EventService.test.ts`                                                            | test             | 5      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/EventService.user-analytics.test.ts`                                             | test             | 33     | 3          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/EventStore.test.ts`                                                              | test             | 33     | 11         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/PlatformContentAdapter-simple.test.ts`                                           | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/PlatformContentAdapter.content.test.ts`                                          | test             | 8      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts`                                     | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts`                                        | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts`                                          | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts`                                 | test             | 13     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/PostCommandHandlers.create.test.ts`                                              | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/PostCommandHandlers.delete.test.ts`                                              | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/PostCommandHandlers.publish.test.ts`                                             | test             | 14     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/PostCommandHandlers.test-helpers.ts`                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/PostCommandHandlers.update.test.ts`                                              | test             | 13     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/PostQueryHandlers.errors.test.ts`                                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/PostQueryHandlers.get-list.test.ts`                                              | test             | 22     | 8          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts`                                      | test             | 20     | 6          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/PostQueryHandlers.test-helpers.ts`                                               | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/ServerTemplateEngine.test.ts`                                                    | test             | 31     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/accountLifecycleRoutes.test.ts`                                                  | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
@@ -288,7 +297,6 @@ Deleted: 0 files, 29 blocks. Floors lowered: lines from 60 to 59.9, functions fr
 | `apps/api/tests/unit/accounts/accountDeleteOwnership.test.ts`                                         | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/accounts/accountDeletePermission.test.ts`                                        | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/accounts/accountReadUpdateAuthorization.test.ts`                                 | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/activityFeedService.test.ts`                                                     | test             | 8      | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/admin/AdminUserAdminService.test.ts`                                             | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/CustomerAccountBillingService.test.ts`                                     | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/PricingAdminService.test.ts`                                               | test             | 8      | 1          | REWRITE    | machine                     | some-decorative      |
@@ -331,7 +339,6 @@ Deleted: 0 files, 29 blocks. Floors lowered: lines from 60 to 59.9, functions fr
 | `apps/api/tests/unit/aiOrchestrator.cache.test.ts`                                                    | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiOrchestrator.content.test.ts`                                                  | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiOrchestrator.helpers.ts`                                                       | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/aiOrchestrator.providers.test.ts`                                                | test             | 13     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/aiRoutes.generate.test.ts`                                                       | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiRoutes.predict.test.ts`                                                        | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiRoutes.smartanalysis.test.ts`                                                  | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
