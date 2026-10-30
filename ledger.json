@@ -23048,70 +23048,70 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the dashboard with its pinned payload shape",
-          "line": 551,
+          "line": 549,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f2f19ab6a12f22610c4f2f7df351cd2c182b7dff2fe50b12bc720245dd7a1c4e"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the JSON export with posts included",
-          "line": 586,
+          "line": 584,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "06c4851479e4e0f765da5e2e0be026d957257df0401b8f3263687bd314e8870d"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::keeps credential columns out of the export's channel entries",
-          "line": 646,
+          "line": 644,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84a8ce747db428e3442f9d7e35508485ca4cd1c1bcd2ac94483712f09551afde"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::still includes posts when the export is asked for includePosts=false",
-          "line": 664,
+          "line": 662,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6cb4bbad1ecaa75d0dfc29748c52e35dedb1fa96f762cb5e9c1ae79015b748ff"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the JSON export with the post section off",
-          "line": 682,
+          "line": 680,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9bb23170ad337f6d3a7bccc856d2afeec2a25abccdc1f974c7580097dd9347e7"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the CSV export with posts included",
-          "line": 707,
+          "line": 705,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ef70a10a8e3e3b55ea220322442f132cd5c8bf79f4918a306dbcd50d161b878c"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the CSV export with the post section off, keeping its blank columns",
-          "line": 720,
+          "line": 718,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5951a944cf4cad7ccbb14d941492688542ea00511611ac2eed37b203ef64296a"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the project analytics summary with its pinned payload shape",
-          "line": 736,
+          "line": 734,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "31676ebbc3464e98fc13e1c1c8dd9c9fb11951c050862b9bed2396e6f724f3d4"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::refuses the export for a project that does not exist",
-          "line": 763,
+          "line": 761,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4a382c3dda784f3ddf1e1b7db5eaee3217af91d36faa4b26d01480a5acb4e6a"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::refuses the export for a soft-deleted project",
-          "line": 773,
+          "line": 771,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eec88b0cba9098f72aa90d450b737fbe71f93d4acf781e1efc8257a56f362cd2"

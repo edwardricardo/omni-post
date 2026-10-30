@@ -79,8 +79,10 @@ function createDestination() {
 }
 
 /**
- * Create a named logger instance
+ * @description Creates a named Pino logger with the shared options (redaction, level,
+ *              bindings) and a synchronous destination under the test environment.
  * @param name - Logger name (e.g., "http", "database", "queue")
+ * @returns The configured logger
  */
 export function createLogger(name: string): Logger {
   const options = createLoggerOptions(name);
@@ -97,9 +99,7 @@ export function createLogger(name: string): Logger {
 export const logger = createLogger("api");
 export const httpLogger = createLogger("http");
 export const dbLogger = createLogger("database");
-export const queueLogger = createLogger("queue");
 export const authLogger = createLogger("auth");
-export const cacheLogger = createLogger("cache");
 export const providerLogger = createLogger("provider");
 export const webhookLogger = createLogger("webhook");
 
@@ -116,7 +116,10 @@ interface RequestContext {
 }
 
 /**
- * Create a request-scoped logger with correlation ID
+ * @description Creates a request-scoped child of the HTTP logger that carries the
+ *              correlation ID and whichever optional request fields are present.
+ * @param context - The correlation ID and the optional request identifiers to bind
+ * @returns The child logger bound to the request context
  */
 export function createRequestLogger(context: RequestContext): Logger {
   return httpLogger.child({
@@ -141,17 +144,20 @@ export const LogLevel = {
 } as const;
 
 /**
- * Create a child logger with additional context bindings
+ * @description Creates a child logger that attaches the given bindings to every entry.
  * @param parent - Parent logger instance
  * @param bindings - Additional context to attach to all log entries
+ * @returns The child logger
  */
 export function createChildLogger(parent: Logger, bindings: Record<string, unknown>): Logger {
   return parent.child(bindings);
 }
 
 /**
- * Extract structured error information from any error type
+ * @description Extracts the message, name, stack, code and status an error carries, or
+ *              the string form of a value that is not an Error.
  * @param error - The error to extract information from
+ * @returns The structured error information
  */
 export function extractErrorInfo(error: unknown): {
   message: string;
@@ -174,9 +180,11 @@ export function extractErrorInfo(error: unknown): {
 }
 
 /**
- * Create a timing logger for measuring operation duration
+ * @description Creates a timer whose end method logs the operation's duration and outcome,
+ *              at info on success and at warn on failure.
  * @param parentLogger - Logger to use for output
  * @param operation - Name of the operation being timed
+ * @returns An object whose end method writes the timing entry
  */
 export function createTimingLogger(
   parentLogger: Logger,
