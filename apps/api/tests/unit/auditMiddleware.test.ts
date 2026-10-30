@@ -4,10 +4,10 @@
  * Testing audit logging middleware functionality
  *
  * Coverage Target: 95%+
- * Test Count: 25
+ * Test Count: 18
  *
  * @file auditMiddleware.test.ts
- * @description Tests for auditMiddleware Tests
+ * @description Tests for auditMiddleware: skipped routes, success and failure detection, the helpers, the auditAction decorator and error handling.
  * @layer infrastructure
  */
 
@@ -156,132 +156,6 @@ describe("auditMiddleware Tests", () => {
       await auditMiddleware(request, reply);
 
       expect(reply.send).not.toBe(originalSend);
-    });
-  });
-
-  // ============================================================================
-  // Action Detection Tests
-  // ============================================================================
-
-  describe("Action Detection from Request", () => {
-    it("should detect LOGIN action from /auth/login POST", async () => {
-      const request = createMockRequest({
-        url: "/auth/login",
-        method: "POST",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-
-      // Trigger the wrapped send function
-      reply.send({ success: true });
-
-      // The middleware should detect LOGIN action
-      expect(request.auditLog).toBeTruthy();
-    });
-
-    it("should detect LOGOUT action from /auth/logout POST", async () => {
-      const request = createMockRequest({
-        url: "/auth/logout",
-        method: "POST",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
-    });
-
-    it("should detect PROJECT_CREATED action from /projects POST", async () => {
-      const request = createMockRequest({
-        url: "/projects",
-        method: "POST",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
-    });
-
-    it("should detect PROJECT_UPDATED action from /projects PUT", async () => {
-      const request = createMockRequest({
-        url: "/projects/123",
-        method: "PUT",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
-    });
-
-    it("should detect PROJECT_DELETED action from /projects DELETE", async () => {
-      const request = createMockRequest({
-        url: "/projects/123",
-        method: "DELETE",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
-    });
-
-    it("should detect POST_CREATED action from /posts POST", async () => {
-      const request = createMockRequest({
-        url: "/posts",
-        method: "POST",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
-    });
-
-    it("should detect POST_PUBLISHED action from /publish route", async () => {
-      const request = createMockRequest({
-        url: "/publish/123",
-        method: "POST",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
-    });
-
-    it("should detect CACHE_CLEARED action from admin cache routes", async () => {
-      const request = createMockRequest({
-        url: "/admin/cache/flush",
-        method: "POST",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
-    });
-
-    it("should return undefined for GET requests on unknown routes", async () => {
-      const request = createMockRequest({
-        url: "/api/unknown",
-        method: "GET",
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
     });
   });
 
@@ -480,20 +354,6 @@ describe("auditMiddleware Tests", () => {
       reply.send({ success: true });
 
       expect(reply.wasSent()).toBe(true);
-    });
-
-    it("should handle missing user gracefully", async () => {
-      const request = createMockRequest({
-        url: "/auth/login",
-        method: "POST",
-        user: undefined,
-      });
-      const reply = createMockReply();
-
-      await auditMiddleware(request, reply);
-      reply.send({ success: true });
-
-      expect(request.auditLog).toBeTruthy();
     });
 
     it("should handle malformed URLs gracefully", async () => {

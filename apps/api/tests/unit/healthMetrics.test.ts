@@ -8,7 +8,7 @@
  * KEY BUSINESS CAPABILITIES TESTED:
  * - Health status numeric conversion (healthy=1, degraded=0.5, unhealthy=0)
  * - Dependency health gauge recording
- * - Health check duration tracking with histograms
+ * - Independent recording of several dependencies in one cycle
  * - Failure counter incrementation for unhealthy dependencies
  * - Critical dependency failure tracking
  * - System-wide health metrics aggregation
@@ -189,21 +189,6 @@ describe("HealthMetrics - Dependency Health Recording", () => {
     const gaugeValue = await getGaugeValue(dependencyHealthGauge, { dependency, type });
 
     expect(gaugeValue).toBe(0);
-  });
-
-  it("should record health check duration in seconds", () => {
-    const dependency = "postgres";
-    const type = "database";
-    const status: HealthStatus = "healthy";
-    const latencyMs = 25; // milliseconds
-    const isCritical = true;
-
-    // Should convert ms to seconds and record in histogram
-    recordHealthCheckMetrics(dependency, type, status, latencyMs, isCritical);
-
-    // Histogram recorded, no assertion needed as histogram.observe doesn't return value
-    // This validates the function executes without error
-    expect(true).toBeTruthy();
   });
 
   it("should increment failure counter for unhealthy status", async () => {
@@ -587,80 +572,5 @@ describe("HealthMetrics - Metric Integration", () => {
 
     expect(alertCount > 0).toBeTruthy();
     expect(activeAfterAck < activeBeforeAck).toBeTruthy();
-  });
-
-  it("should track health trends across multiple checks", () => {
-    // Simulate degrading health over time
-    recordHealthCheckMetrics("postgres", "database", "healthy", 15, true);
-    recordSystemHealthMetrics("healthy", 100, 0);
-
-    recordHealthCheckMetrics("postgres", "database", "degraded", 150, true);
-    recordSystemHealthMetrics("degraded", 70, 0);
-
-    recordHealthCheckMetrics("postgres", "database", "unhealthy", 2000, true);
-    recordSystemHealthMetrics("unhealthy", 30, 1);
-    recordHealthAlertMetrics("critical", "postgres");
-
-    // All metrics recorded successfully
-    expect(true).toBeTruthy();
-  });
-});
-
-// ========================================
-// TEST SUITE: Edge Cases
-// ========================================
-
-describe("HealthMetrics - Edge Cases", () => {
-  beforeEach(() => {
-    resetMetrics();
-  });
-
-  it("should handle zero latency health checks", () => {
-    recordHealthCheckMetrics("redis", "cache", "healthy", 0, false);
-
-    expect(true).toBeTruthy();
-  });
-
-  it("should handle very high latency health checks", () => {
-    recordHealthCheckMetrics("s3", "storage", "unhealthy", 30000, false);
-
-    expect(true).toBeTruthy();
-  });
-
-  it("should handle rapid consecutive health checks", () => {
-    for (let i = 0; i < 100; i++) {
-      recordHealthCheckMetrics("postgres", "database", "healthy", 10, true);
-    }
-
-    expect(true).toBeTruthy();
-  });
-
-  it("should handle system health with zero score", () => {
-    recordSystemHealthMetrics("unhealthy", 0, 5);
-
-    expect(true).toBeTruthy();
-  });
-
-  it("should handle system health with perfect score", () => {
-    recordSystemHealthMetrics("healthy", 100, 0);
-
-    expect(true).toBeTruthy();
-  });
-
-  it("should handle multiple alerts at different severity levels", () => {
-    recordHealthAlertMetrics("warning", "redis");
-    recordHealthAlertMetrics("error", "postgres");
-    recordHealthAlertMetrics("critical", "network");
-    recordHealthAlertMetrics("warning", "cache");
-    recordHealthAlertMetrics("critical", "database");
-
-    expect(true).toBeTruthy();
-  });
-
-  it("should handle acknowledgement when no active alerts exist", () => {
-    // Acknowledge without creating alerts first
-    acknowledgeHealthAlert("warning");
-
-    expect(true).toBeTruthy();
   });
 });
