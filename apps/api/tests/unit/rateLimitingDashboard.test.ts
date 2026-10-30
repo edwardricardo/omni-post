@@ -109,23 +109,6 @@ describe("rateLimitingDashboard - Unit Tests", () => {
       expect(body.timestamp).toBeTruthy();
     });
 
-    it("should return metrics structure", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/dashboard",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.total_requests === "number").toBeTruthy();
-      expect(typeof body.data.rate_limited_requests === "number").toBeTruthy();
-      expect(typeof body.data.burst_protected_requests === "number").toBeTruthy();
-      expect(typeof body.data.emergency_mode_activations === "number").toBeTruthy();
-      expect(typeof body.data.tenant_specific_blocks === "object").toBeTruthy();
-      expect(typeof body.data.average_response_time === "number").toBeTruthy();
-      expect(Array.isArray(body.data.peak_usage_periods)).toBeTruthy();
-      expect(typeof body.data.distributed_instance_stats === "object").toBeTruthy();
-    });
-
     it("should accept 1h time range", async () => {
       const response = await app.inject({
         method: "GET",
@@ -170,26 +153,6 @@ describe("rateLimitingDashboard - Unit Tests", () => {
 
       expect(response.statusCode).toBe(400);
     });
-
-    it("should include tenant specific blocks", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/dashboard",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.tenant_specific_blocks === "object").toBeTruthy();
-    });
-
-    it("should include distributed instance stats", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/dashboard",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.distributed_instance_stats === "object").toBeTruthy();
-    });
   });
 
   describe("GET /admin/rate-limiting/realtime", () => {
@@ -205,46 +168,6 @@ describe("rateLimitingDashboard - Unit Tests", () => {
       expect(body.ok).toBe(true);
       expect(body.data).toBeTruthy();
       expect(body.timestamp).toBeTruthy();
-    });
-
-    it("should include current requests per minute", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/realtime",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.current_requests_per_minute === "number").toBeTruthy();
-    });
-
-    it("should include active rate limits count", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/realtime",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.active_rate_limits === "number").toBeTruthy();
-    });
-
-    it("should include emergency mode status", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/realtime",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.emergency_mode_active === "boolean").toBeTruthy();
-    });
-
-    it("should include distributed instances count", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/realtime",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.distributed_instances === "number").toBeTruthy();
     });
   });
 
@@ -262,56 +185,6 @@ describe("rateLimitingDashboard - Unit Tests", () => {
       expect(body.tenant).toBe("tenant-123");
       expect(body.data).toBeTruthy();
       expect(body.timestamp).toBeTruthy();
-    });
-
-    it("should include tenant requests count", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/tenant/tenant-456",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.requests === "number").toBeTruthy();
-    });
-
-    it("should include tenant blocks count", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/tenant/tenant-456",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.blocks === "number").toBeTruthy();
-    });
-
-    it("should include tenant burst usage", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/tenant/tenant-456",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.burst_usage === "number").toBeTruthy();
-    });
-
-    it("should include tenant tier", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/tenant/tenant-456",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.data.tier).toBeTruthy();
-    });
-
-    it("should include current usage metrics", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/tenant/tenant-456",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.data.current_usage === "object").toBeTruthy();
     });
 
     it("should accept custom time range", async () => {
@@ -348,41 +221,6 @@ describe("rateLimitingDashboard - Unit Tests", () => {
       expect(body.config).toBeTruthy();
       expect(body.timestamp).toBeTruthy();
     });
-
-    it("should include alert configuration", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/alerts",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.config.enabled === "boolean").toBeTruthy();
-      expect(typeof body.config.thresholds === "object").toBeTruthy();
-      expect(typeof body.config.notification_channels === "object").toBeTruthy();
-    });
-
-    it("should include active alerts", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/alerts",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(Array.isArray(body.active_alerts)).toBeTruthy();
-    });
-
-    it("should include threshold configuration", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/alerts",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.config.thresholds.rate_limit_ratio === "number").toBeTruthy();
-      expect(typeof body.config.thresholds.emergency_activations === "number").toBeTruthy();
-      expect(typeof body.config.thresholds.tenant_abuse_threshold === "number").toBeTruthy();
-      expect(typeof body.config.thresholds.response_time_threshold === "number").toBeTruthy();
-    });
   });
 
   describe("GET /admin/rate-limiting/emergency-status", () => {
@@ -398,57 +236,6 @@ describe("rateLimitingDashboard - Unit Tests", () => {
       expect(body.ok).toBe(true);
       expect(body.emergency_mode).toBeTruthy();
       expect(body.timestamp).toBeTruthy();
-    });
-
-    it("should include emergency active status", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/emergency-status",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.emergency_mode.active === "boolean").toBeTruthy();
-    });
-
-    it("should include activations count", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/emergency-status",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.emergency_mode.activations_today === "number").toBeTruthy();
-    });
-
-    it("should include current error rate", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/admin/rate-limiting/emergency-status",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.emergency_mode.current_error_rate === "number").toBeTruthy();
-    });
-  });
-
-  describe("RateLimitingDashboard - getMetrics", () => {
-    it("should aggregate metrics from multiple sources", async () => {
-      const metrics = await dashboard.getMetrics("1h");
-
-      expect(typeof metrics.total_requests === "number").toBeTruthy();
-      expect(typeof metrics.rate_limited_requests === "number").toBeTruthy();
-      expect(typeof metrics.burst_protected_requests === "number").toBeTruthy();
-      expect(typeof metrics.emergency_mode_activations === "number").toBeTruthy();
-    });
-
-    it("should support different time ranges", async () => {
-      const metrics1h = await dashboard.getMetrics("1h");
-      const metrics24h = await dashboard.getMetrics("24h");
-      const metrics7d = await dashboard.getMetrics("7d");
-
-      expect(metrics1h).toBeTruthy();
-      expect(metrics24h).toBeTruthy();
-      expect(metrics7d).toBeTruthy();
     });
   });
 

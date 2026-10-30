@@ -16,8 +16,8 @@
       },
       "byVerdict": {
         "DELETE": 20,
-        "REWRITE": 225,
-        "KEEP": 836,
+        "REWRITE": 223,
+        "KEEP": 838,
         "ADJUDICATE": 105,
         "unmeasured": 0
       }
@@ -28,12 +28,12 @@
       "total": 1186
     },
     "blocks": {
-      "total": 15154,
-      "decorative": 952,
+      "total": 15124,
+      "decorative": 922,
       "byClass": {
         "EMPTY": 17,
         "TAUTOLOGY-ONLY": 16,
-        "EXISTENCE-ONLY": 594,
+        "EXISTENCE-ONLY": 564,
         "CONDITIONAL-ONLY": 205,
         "SELF-SKIP": 113,
         "PRINTS-SUCCESS": 7,
@@ -43,7 +43,7 @@
     },
     "deleted": {
       "files": 25,
-      "blocks": 101
+      "blocks": 131
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -100,6 +100,17 @@
       "deleted": {
         "files": 15,
         "blocks": 0
+      },
+      "floors": {}
+    },
+    "2.8.1a": {
+      "files": [
+        "apps/api/tests/unit/logger.test.ts",
+        "apps/api/tests/unit/rateLimitingDashboard.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 30
       },
       "floors": {}
     }
@@ -23037,70 +23048,70 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the dashboard with its pinned payload shape",
-          "line": 551,
+          "line": 549,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f2f19ab6a12f22610c4f2f7df351cd2c182b7dff2fe50b12bc720245dd7a1c4e"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the JSON export with posts included",
-          "line": 586,
+          "line": 584,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "06c4851479e4e0f765da5e2e0be026d957257df0401b8f3263687bd314e8870d"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::keeps credential columns out of the export's channel entries",
-          "line": 646,
+          "line": 644,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84a8ce747db428e3442f9d7e35508485ca4cd1c1bcd2ac94483712f09551afde"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::still includes posts when the export is asked for includePosts=false",
-          "line": 664,
+          "line": 662,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6cb4bbad1ecaa75d0dfc29748c52e35dedb1fa96f762cb5e9c1ae79015b748ff"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the JSON export with the post section off",
-          "line": 682,
+          "line": 680,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9bb23170ad337f6d3a7bccc856d2afeec2a25abccdc1f974c7580097dd9347e7"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the CSV export with posts included",
-          "line": 707,
+          "line": 705,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ef70a10a8e3e3b55ea220322442f132cd5c8bf79f4918a306dbcd50d161b878c"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the CSV export with the post section off, keeping its blank columns",
-          "line": 720,
+          "line": 718,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5951a944cf4cad7ccbb14d941492688542ea00511611ac2eed37b203ef64296a"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::serves the project analytics summary with its pinned payload shape",
-          "line": 736,
+          "line": 734,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "31676ebbc3464e98fc13e1c1c8dd9c9fb11951c050862b9bed2396e6f724f3d4"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::refuses the export for a project that does not exist",
-          "line": 763,
+          "line": 761,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4a382c3dda784f3ddf1e1b7db5eaee3217af91d36faa4b26d01480a5acb4e6a"
         },
         {
           "id": "apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts::refuses the export for a soft-deleted project",
-          "line": 773,
+          "line": 771,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eec88b0cba9098f72aa90d450b737fbe71f93d4acf781e1efc8257a56f362cd2"
@@ -60577,175 +60588,105 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 23,
+      "blockCount": 13,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/logger.test.ts::should create a named logger",
-          "line": 31,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "81be54017204de0365870ad2e5f63b02ff42a803209bd87996453c6458ab3898"
-        },
-        {
           "id": "apps/api/tests/unit/logger.test.ts::should include the name in log bindings",
-          "line": 40,
+          "line": 24,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf25babc9a377aad7809cebe59464c67ece0f53c70bb27c50f76f6b85206eeda"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should default to info level when LOG_LEVEL not set",
-          "line": 57,
+          "line": 41,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be44a8aab19358be35953316154698d0144bb2e472bd4c5c9403ecd5f3f2e991"
         },
         {
-          "id": "apps/api/tests/unit/logger.test.ts::should export default logger",
-          "line": 67,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7dad3448729d7472df26bc461b40f1157b71f1dec6961fcd22b03434df395477"
-        },
-        {
-          "id": "apps/api/tests/unit/logger.test.ts::should export httpLogger",
-          "line": 72,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "bb243f593b9735535ad4b282db67186f7bf89afcb1cc4e3c5ff560920b346b4d"
-        },
-        {
-          "id": "apps/api/tests/unit/logger.test.ts::should export dbLogger",
-          "line": 77,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "cfd198057a429556102553f2741d504eaa703b402df21fae544bbda8397e8d97"
-        },
-        {
-          "id": "apps/api/tests/unit/logger.test.ts::should export queueLogger",
-          "line": 82,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "cb978b2300e0301404ed3a45e1a553e43b82429572d607eff876d41a7bf1744c"
-        },
-        {
-          "id": "apps/api/tests/unit/logger.test.ts::should export authLogger",
-          "line": 87,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "25c4c04e49ba2d3358c08d0b880be494a8b8bfe3f4255fe7c9ac54dda07d8a51"
-        },
-        {
-          "id": "apps/api/tests/unit/logger.test.ts::should export cacheLogger",
-          "line": 92,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "638e368d67892572a2cc5036a5e329e86958279b319f36d95a11fee52dd9cc56"
-        },
-        {
           "id": "apps/api/tests/unit/logger.test.ts::should create a child logger with additional context",
-          "line": 99,
+          "line": 51,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f8cb5b8d22c89f28d7324f42d46d7c7001cc79ebbc92c5e5036c23a55d7c7453"
         },
         {
-          "id": "apps/api/tests/unit/logger.test.ts::should create a logger with correlation ID",
-          "line": 111,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f167851e577b91f2c9e578dedbeb35603187607d5dcad0183ccbe0b15ead7692"
-        },
-        {
-          "id": "apps/api/tests/unit/logger.test.ts::should handle optional fields",
-          "line": 123,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3408c415c26822ba54818c2d0678e9593c36e734e1f3a3fcbb0019c8c4528502"
-        },
-        {
-          "id": "apps/api/tests/unit/logger.test.ts::should include userId when provided",
-          "line": 131,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "714744d985f1d16654b34c39379762a29a9581f985c7c97ed940ab90ee033a84"
-        },
-        {
           "id": "apps/api/tests/unit/logger.test.ts::should extract info from Error object",
-          "line": 142,
+          "line": 63,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "75557cd181eab82da5a41bcdc55b4e21c5eeea7000fd67702abab0841de9ceb6"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should handle error with code property",
-          "line": 151,
+          "line": 72,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4502eb1d05f7ac5f4d0f4c0ff159908f1749d1ec97ddb62a53fec0f967621b96"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should handle error with status property",
-          "line": 160,
+          "line": 81,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "75fb031e62694eb03e406e679e5fbcb35d886e0648c8840c3aa60236194ebc6f"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should handle string error",
-          "line": 169,
+          "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b258ca3290db4aa50a2af8e03a99aea1e02aff8097375f2b6a6d4c33a1b23d6a"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should handle unknown error types",
-          "line": 174,
+          "line": 95,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95fa79289df2be003d9b2e8a6c2be8130efcad19fe12ea0f42533abde658484d"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should handle null",
-          "line": 179,
+          "line": 100,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "669b5f43e469102faf5a59ec352c4e3f2ffddf86d015aa0a66cf9e269ba6fdf1"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should handle undefined",
-          "line": 184,
+          "line": 105,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e76d18e8b616c99b5727b204007a220253ceedd0f7d5224d2eb0b3ed4668921e"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should measure and log operation duration",
-          "line": 196,
+          "line": 117,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9761b6f551580345ab3b9363c934c9e9f16a2d4e652f20935fef672616cc8cc"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should handle failed operations",
-          "line": 216,
+          "line": 137,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8a8b38fd87eb41c146d1716ac2774ae8310e5c9212bb36d2a980d9f8615464e3"
         },
         {
           "id": "apps/api/tests/unit/logger.test.ts::should have all standard log levels",
-          "line": 228,
+          "line": 149,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2c554a2557bfda7fb42ba5aa344d9eb1a4312112b3a1fee319df1a5ebad239e"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.1a",
       "subject": {
         "stem": "logger",
         "module": "apps/api/src/lib/logger.ts",
@@ -65349,7 +65290,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 35,
+      "blockCount": 15,
       "blocks": [
         {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should return dashboard metrics with default time range",
@@ -65359,249 +65300,109 @@
           "bodyHash": "c1f5722da6c3c5eac30cfcb4e86d9984ae68cfa3dc6eabb487c72b64d2e9b0c3"
         },
         {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should return metrics structure",
-          "line": 112,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "be7b3aaff16225f2f45196a1d21e7fdbd8b8a35717b5508aa4be110a1d3f6dc6"
-        },
-        {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should accept 1h time range",
-          "line": 129,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "733e3b57e6addeedaf75df913f5bc5f2132c7d641763d4ae94ad49c3930bae55"
         },
         {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should accept 24h time range",
-          "line": 141,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d308633feb118c4e1f0e9885f2a8f52894cd68892988c81351ed0ccbc5af625c"
         },
         {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should accept 7d time range",
-          "line": 153,
+          "line": 136,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c03562bbbacdcf34da90a92d8053e2fafe928cedae7e4eb24e87b4a0959d202d"
         },
         {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should reject invalid time range",
-          "line": 165,
+          "line": 148,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "965910f9046a59928ba299ee47d805d7f19e2665377397a92c6b0286c6a7a095"
         },
         {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include tenant specific blocks",
-          "line": 174,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "0f5cbe785d1a0fb5494794ee67c0d3a14281c05879b4880dfae0af5f1b111b5f"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include distributed instance stats",
-          "line": 184,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "618cc21db86db9806748ac98b078c86fc162a535413a70e515e9352700853a3d"
-        },
-        {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should return real-time metrics",
-          "line": 196,
+          "line": 159,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee30a5a16f3f2e92e92a4afc047e07ca4ebc730c67f14f39ccfe0f8b63ccec6d"
         },
         {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include current requests per minute",
-          "line": 210,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7b6f117b6624f8bb649241bf49607e8de7b426081138b936787e17a38ca032b6"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include active rate limits count",
-          "line": 220,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ebf378133ebd53d4060253faadcea33c47934a3f997de11d2a0f95ca9c6f8a62"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include emergency mode status",
-          "line": 230,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "be45e13f46962b5a30cfa28a605cbdc77a56d1d0033d9f3f394226c68ba9a405"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include distributed instances count",
-          "line": 240,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3b2d1f4c5f0cc63c3684e0b0c91b3a52881e5cbd23e987485ed1c070dc9d62ea"
-        },
-        {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should return tenant-specific metrics",
-          "line": 252,
+          "line": 175,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "32f3a02ef845d68f04569e45ae9ddf1df9e6749e7297c1601c706f1763ab4447"
         },
         {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include tenant requests count",
-          "line": 267,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3c435a42d9f0a957a5e17ddc8d033800eee440cd080fd2cbe14205cb53730d36"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include tenant blocks count",
-          "line": 277,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "67b494072425b591cde4ceaad4a9172e9899d838c4d1829ea72c9ec2f9279383"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include tenant burst usage",
-          "line": 287,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "6db9715144dd3e3934523a0f4aceff205d3286d43d1fe128537973ac3c8b8232"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include tenant tier",
-          "line": 297,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2bf862cb48cada0501995aa90f6bad5b59fa951d12f95dfabe531cc94e2a31b6"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include current usage metrics",
-          "line": 307,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d14758f2f91ab00032c42fec56b3708479027cc367253730966c9697bffe1ee6"
-        },
-        {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should accept custom time range",
-          "line": 317,
+          "line": 190,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c9475ed61b54e0394f48278fca02758ab3eed4e0e04b2e82c134b50e0d6d673"
         },
         {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should reject invalid tenant ID format",
-          "line": 326,
+          "line": 199,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae3aab07c9b993afa69f94457ab9f2ff50ab1755757d587633a83769ee37fe08"
         },
         {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should return alert configuration",
-          "line": 338,
+          "line": 211,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "580804e55fb8ad5344860c3ce68f638fff2d42c9beaf86d988fa267330710954"
         },
         {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include alert configuration",
-          "line": 352,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ee04baca555c6d777033db9c6e09ee4114128b940d07c5e2b23c8d98e82c8af5"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include active alerts",
-          "line": 364,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "1108dea519339be36e9e8868ca884a54cac383aaea7fb9a6f614e48eee83e5fe"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include threshold configuration",
-          "line": 374,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a6a8335acc787496bfeefbe37139c49f5158267edb3c89686dead7d0f0421a07"
-        },
-        {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should return emergency mode status",
-          "line": 389,
+          "line": 227,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "91224d1479ce4922e0c4d4ee12c75df4f1ddcea06413396c4366c32c357f1097"
         },
         {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include emergency active status",
-          "line": 403,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "cc29d914ea9953294ddc183fa89d35183f4ca3f184ba94aefb3762773ab2b06f"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include activations count",
-          "line": 413,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7567376b014e698437716e05645c35e14e17ea3219a948d7616ffd1bca7ba70d"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should include current error rate",
-          "line": 423,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "624227de92cb01106c396824d6fffac0842c1a3c734c27fe82ede34cc26f1075"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should aggregate metrics from multiple sources",
-          "line": 435,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e52e2e21a6c58099904d0ff33ef3bab4408db50c91f492e49521b0ea1218e520"
-        },
-        {
-          "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should support different time ranges",
-          "line": 444,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9c19c15b364791be6c41dcfa9bb6a77fa71b1ffdcf28c16afdbe08eba71c1af2"
-        },
-        {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should not trigger alerts when disabled",
-          "line": 456,
+          "line": 243,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ab52b402134fd0557da11524c43575a1988aec2810cf0e69479eaa86706b2c6"
         },
         {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should check rate limiting thresholds",
-          "line": 478,
+          "line": 265,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c16f348b84b47ae063dda4f38265cf55ac8d48c8e841ecd77ee1cb569a7e11a0"
         },
         {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should have proper default configuration",
-          "line": 489,
+          "line": 276,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3bdf68b3802ff5899ea8efe3b97c6db5714559f0caafa9b9249bf47ff813b18b"
         },
         {
           "id": "apps/api/tests/unit/rateLimitingDashboard.test.ts::should have reasonable threshold values",
-          "line": 495,
+          "line": 282,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff6ede1cdfacf8a0b4513cf3df2373f732de2a7c0595ac1ecaa526c2290bd6c6"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.1a",
       "subject": {
         "stem": "rateLimitingDashboard",
         "module": "apps/api/src/monitoring/rateLimitingDashboard.ts",

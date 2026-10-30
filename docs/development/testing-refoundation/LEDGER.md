@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1186  |
 | DELETE                  | 20    |
-| REWRITE                 | 225   |
-| KEEP                    | 836   |
+| REWRITE                 | 223   |
+| KEEP                    | 838   |
 | ADJUDICATE              | 105   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 11    |
-| Blocks                  | 15154 |
-| Blocks with a criterion | 952   |
+| Blocks                  | 15124 |
+| Blocks with a criterion | 922   |
 
 ## Slice 2.6a
 
@@ -62,6 +62,15 @@ Deleted: 15 files, 0 blocks.
 | `apps/api/tests/unit/cqrsIntegration.test-helpers.ts`               |
 | `apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts`          |
 | `packages/providers/instagram/tests/mediaProcessor.test-helpers.ts` |
+
+## Slice 2.8.1a
+
+Deleted: 0 files, 30 blocks.
+
+| Path                                                | Shape | Blocks | Decorative | Verdict | Status  | Basis       |
+| --------------------------------------------------- | ----- | ------ | ---------- | ------- | ------- | ----------- |
+| `apps/api/tests/unit/logger.test.ts`                | test  | 13     | 0          | KEEP    | machine | behavioural |
+| `apps/api/tests/unit/rateLimitingDashboard.test.ts` | test  | 15     | 0          | KEEP    | machine | behavioural |
 
 ## Rows without a slice
 
@@ -667,7 +676,6 @@ Deleted: 15 files, 0 blocks.
 | `apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts`                                      | test             | 116    | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/lint/architecturePolicies.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/listening/listeningRoutes.test.ts`                                               | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/logger.test.ts`                                                                  | test             | 23     | 10         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/metrics/deletionMetrics.test.ts`                                                 | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/metrics/guardrailMetrics.test.ts`                                                | test             | 3      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/metrics/publishQueueAttendance.test.ts`                                          | test             | 6      | 0          | ADJUDICATE | machine                     | title-contradiction  |
@@ -702,7 +710,6 @@ Deleted: 15 files, 0 blocks.
 | `apps/api/tests/unit/providerRegistry.test.ts`                                                        | test             | 38     | 10         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/providerService.test.ts`                                                         | test             | 31     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/queueRoutes.test.ts`                                                             | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/rateLimitingDashboard.test.ts`                                                   | test             | 35     | 20         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/rbacMiddleware.test.ts`                                                          | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/rbacRoutes.test.ts`                                                              | test             | 38     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/rbacService.test.ts`                                                             | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
