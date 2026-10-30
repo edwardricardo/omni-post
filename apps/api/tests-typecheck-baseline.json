@@ -1,14 +1,14 @@
 {
   "_README": "Tracked type-error debt for apps/api/tests, the scope no tsconfig used to open. The gate (apps/api/scripts/typecheck-tests-ratchet.mjs) FAILS on any NEW file+code pair and on any pair whose count RISES, so new type errors in test code are prevented while this ledger is burned down. Never grow an entry to absorb a new error. Regenerate after genuine fixes: node apps/api/scripts/typecheck-tests-ratchet.mjs --write",
   "_RESIDUAL": "Keys are file+code, not file+line+message, so an unrelated edit does not churn the ledger. The cost of that choice: fixing one TS2339 in a file and introducing a different TS2339 in the SAME file leaves the count unchanged and passes. Narrow, and stated rather than discovered.",
-  "totalErrors": 2103,
+  "totalErrors": 2100,
   "filesWithErrors": 276,
   "testFilesInProgram": 797,
   "byCode": {
     "TS2339": 438,
     "TS18048": 382,
     "TS2345": 267,
-    "TS2322": 198,
+    "TS2322": 197,
     "TS18046": 118,
     "TS2352": 102,
     "TS2493": 87,
@@ -18,7 +18,7 @@
     "TS2554": 41,
     "TS18047": 39,
     "TS7006": 37,
-    "TS2379": 30,
+    "TS2379": 29,
     "TS2769": 25,
     "TS2739": 23,
     "TS2740": 17,
@@ -49,8 +49,7 @@
     "TS2456": 1,
     "TS7023": 1,
     "TS7022": 1,
-    "TS2531": 1,
-    "TS2638": 1
+    "TS2531": 1
   },
   "byKey": {
     "tests/accountLifecycle.integration.test.ts::TS2554": 1,
@@ -194,7 +193,6 @@
     "tests/unit/auditLogger.test.ts::TS2345": 4,
     "tests/unit/auditMiddleware.test.ts::TS18048": 7,
     "tests/unit/auditMiddleware.test.ts::TS2322": 3,
-    "tests/unit/auditMiddleware.test.ts::TS2379": 1,
     "tests/unit/auditRoutes.test.ts::TS2344": 1,
     "tests/unit/auditService.log.test.ts::TS2339": 30,
     "tests/unit/auditService.query.test.ts::TS2339": 19,
@@ -502,9 +500,7 @@
     "tests/unit/webhookDashboardService.test.ts::TS18048": 28,
     "tests/unit/webhookDashboardService.test.ts::TS2532": 10,
     "tests/unit/webhookHandler.errors.test.ts::TS2352": 1,
-    "tests/unit/webhookHandler.stats.test.ts::TS2322": 1,
     "tests/unit/webhookHandler.stats.test.ts::TS2345": 1,
-    "tests/unit/webhookHandler.stats.test.ts::TS2638": 1,
     "tests/unit/webhookJobProcessor.priority-delay.test.ts::TS2532": 1,
     "tests/unit/webhookJobProcessor.test.ts::TS18046": 1,
     "tests/unit/webhookManager.processing.test.ts::TS18047": 1,

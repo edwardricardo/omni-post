@@ -672,11 +672,6 @@
       "count": 1
     }
   },
-  "apps/api/tests/unit/auditMiddleware.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 9
-    }
-  },
   "apps/api/tests/unit/auditService.query.test.ts": {
     "testing/no-existence-only-test": {
       "count": 2
@@ -917,11 +912,6 @@
   "apps/api/tests/unit/fileUploadValidator.test.ts": {
     "testing/no-existence-only-test": {
       "count": 4
-    }
-  },
-  "apps/api/tests/unit/healthMetrics.test.ts": {
-    "testing/no-tautological-assertion": {
-      "count": 9
     }
   },
   "apps/api/tests/unit/healthRoutes.test.ts": {
@@ -1400,17 +1390,6 @@
   "apps/api/tests/unit/webhookHandler.init.test.ts": {
     "testing/no-existence-only-test": {
       "count": 4
-    }
-  },
-  "apps/api/tests/unit/webhookHandler.stats.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 8
-    },
-    "testing/no-tautological-assertion": {
-      "count": 2
-    },
-    "vitest/no-conditional-expect": {
-      "count": 2
     }
   },
   "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts": {
