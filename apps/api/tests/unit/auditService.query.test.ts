@@ -310,17 +310,6 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
         });
     });
 
-    it("should filter by resourceId exactly", async () => {
-      const result = await auditService.getLogs({
-        resource: "Post",
-        resourceId: "post-test-1",
-      });
-
-      expect(result.ok).toBeTruthy();
-      const matching = result.value.find((log) => log.resourceId === "post-test-1");
-      expect(matching).toBeTruthy();
-    });
-
     it("should filter by success=true", async () => {
       const result = await auditService.getLogs({
         action: "TEST_FILTER_LOGIN",

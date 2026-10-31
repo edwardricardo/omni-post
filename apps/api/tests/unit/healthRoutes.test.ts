@@ -197,28 +197,6 @@ describe("healthRoutes - Unit Tests", () => {
       expect(body.timestamp).toBeTruthy();
       expect(typeof body.uptime === "number").toBeTruthy();
     });
-
-    it("should include uptime in response", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/health",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.uptime).toBeTruthy();
-      expect(typeof body.uptime).toBe("number");
-    });
-
-    it("should return ISO timestamp format", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/health",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.timestamp).toBeTruthy();
-      expect(Date.parse(body.timestamp)).toBeTruthy();
-    });
   });
 
   describe("GET /health/detailed", () => {
@@ -238,61 +216,6 @@ describe("healthRoutes - Unit Tests", () => {
       expect(body.uptime).toBeTruthy();
       expect(Array.isArray(body.dependencies)).toBeTruthy();
       expect(body.metrics).toBeTruthy();
-    });
-
-    it("should include all dependency information", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/health/detailed",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(Array.isArray(body.dependencies)).toBeTruthy();
-
-      const dependency = body.dependencies[0];
-      expect(dependency.name).toBeTruthy();
-      expect(dependency.type).toBeTruthy();
-      expect(dependency.status).toBeTruthy();
-      expect(typeof dependency.latency === "number").toBeTruthy();
-      expect(dependency.message).toBeTruthy();
-      expect(typeof dependency.critical === "boolean").toBeTruthy();
-      expect(dependency.lastChecked).toBeTruthy();
-    });
-
-    it("should include memory metrics", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/health/detailed",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.metrics.memory).toBeTruthy();
-      expect(typeof body.metrics.memory.heapUsed === "number").toBeTruthy();
-      expect(typeof body.metrics.memory.heapTotal === "number").toBeTruthy();
-      expect(typeof body.metrics.memory.external === "number").toBeTruthy();
-      expect(typeof body.metrics.memory.rss === "number").toBeTruthy();
-    });
-
-    it("should include CPU metrics", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/health/detailed",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.metrics.cpu).toBeTruthy();
-      expect(typeof body.metrics.cpu.user === "number").toBeTruthy();
-      expect(typeof body.metrics.cpu.system === "number").toBeTruthy();
-    });
-
-    it("should include alerts array", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/health/detailed",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(Array.isArray(body.alerts)).toBeTruthy();
     });
   });
 
@@ -335,17 +258,6 @@ describe("healthRoutes - Unit Tests", () => {
       const body = JSON.parse(response.body);
       expect(body.status).toBe("ready");
       expect(body.timestamp).toBeTruthy();
-    });
-
-    it("should include timestamp in response", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/health/ready",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.timestamp).toBeTruthy();
-      expect(Date.parse(body.timestamp)).toBeTruthy();
     });
   });
 

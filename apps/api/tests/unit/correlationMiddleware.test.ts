@@ -123,26 +123,6 @@ describe("Correlation ID Middleware", () => {
     });
   });
 
-  describe("response headers", () => {
-    it("should set correlation ID in response headers", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/test",
-      });
-
-      expect(response.headers[CORRELATION_ID_HEADER]).toBeTruthy();
-    });
-
-    it("should set request ID in response headers", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/test",
-      });
-
-      expect(response.headers[REQUEST_ID_HEADER]).toBeTruthy();
-    });
-  });
-
   describe("header constants", () => {
     it("should export correct correlation ID header name", () => {
       expect(CORRELATION_ID_HEADER).toBe("x-correlation-id");

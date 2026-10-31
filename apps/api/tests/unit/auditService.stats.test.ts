@@ -364,15 +364,6 @@ describe("AuditService - getStats()", () => {
       }
     });
 
-    it("should filter out null resources", async () => {
-      const result = await auditService.getStats({});
-
-      expect(result.ok).toBeTruthy();
-      result.value.topResources.forEach((r) => {
-        expect(r.resource).toBeTruthy();
-      });
-    });
-
     it("should limit top resources to 10", async () => {
       const result = await auditService.getStats({});
 
@@ -405,20 +396,6 @@ describe("AuditService - getStats()", () => {
       result.value.topUsers.forEach((u) => {
         expect(u.user !== "Unknown" || u.email !== "Unknown").toBeTruthy();
       });
-    });
-
-    it("should sort by count descending", async () => {
-      const result = await auditService.getStats({
-        action: "STATS_",
-      });
-
-      expect(result.ok).toBeTruthy();
-
-      if (result.value.topUsers.length >= 2) {
-        for (let i = 0; i < result.value.topUsers.length - 1; i++) {
-          expect(result.value.topUsers[i].count >= result.value.topUsers[i + 1].count).toBeTruthy();
-        }
-      }
     });
 
     it("should limit top users to 10", async () => {

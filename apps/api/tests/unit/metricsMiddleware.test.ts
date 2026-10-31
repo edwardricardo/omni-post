@@ -109,55 +109,6 @@ describe("metricsMiddleware Tests", () => {
       expect(done.wasCalled()).toBeTruthy();
     });
 
-    it("should attach finishRequest function", async () => {
-      const request = createMockRequest();
-      const reply = createMockReply();
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-
-      expect((request as any).finishRequest).toBeTruthy();
-      expect(typeof (request as any).finishRequest).toBe("function");
-    });
-
-    it("should attach finishEndpoint function", async () => {
-      const request = createMockRequest();
-      const reply = createMockReply();
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-
-      expect((request as any).finishEndpoint).toBeTruthy();
-      expect(typeof (request as any).finishEndpoint).toBe("function");
-    });
-
-    it("should use routeOptions.url for endpoint tracking", async () => {
-      const request = createMockRequest({
-        routeOptions: { url: "/api/posts/:id" },
-        url: "/api/posts/123",
-      });
-      const reply = createMockReply();
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-
-      // Verify finishEndpoint was created with correct endpoint
-      expect((request as any).finishEndpoint).toBeTruthy();
-    });
-
-    it("should fallback to url when routeOptions.url not available", async () => {
-      const request = createMockRequest({
-        routeOptions: undefined as any,
-        url: "/api/fallback",
-      });
-      const reply = createMockReply();
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-
-      expect((request as any).finishEndpoint).toBeTruthy();
-    });
-
     it("should handle POST requests", async () => {
       const request = createMockRequest({
         method: "POST",
@@ -206,33 +157,6 @@ describe("metricsMiddleware Tests", () => {
   // ============================================================================
 
   describe("onResponse - Success Cases", () => {
-    it("should complete request tracking with 200 status", async () => {
-      const request = createMockRequest();
-      const reply = createMockReply(200);
-      const done = createMockDone();
-
-      // Setup request with preHandler
-      middleware.preHandler(request, reply, done as any);
-
-      // Complete with onResponse
-      middleware.onResponse(request, reply, done as any);
-
-      expect(done.wasCalled()).toBeTruthy();
-    });
-
-    it("should track successful endpoint request", async () => {
-      const request = createMockRequest();
-      const reply = createMockReply(200);
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-
-      const finishEndpoint = (request as any).finishEndpoint;
-      expect(finishEndpoint).toBeTruthy();
-
-      middleware.onResponse(request, reply, done as any);
-    });
-
     it("should record response size when content-length header present", async () => {
       const request = createMockRequest();
       const reply = createMockReply(200);
@@ -298,39 +222,6 @@ describe("metricsMiddleware Tests", () => {
       expect(done.wasCalled()).toBeTruthy();
     });
 
-    it("should track 401 unauthorized error", async () => {
-      const request = createMockRequest();
-      const reply = createMockReply(401);
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-      middleware.onResponse(request, reply, done as any);
-
-      expect(done.wasCalled()).toBeTruthy();
-    });
-
-    it("should track 403 forbidden error", async () => {
-      const request = createMockRequest();
-      const reply = createMockReply(403);
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-      middleware.onResponse(request, reply, done as any);
-
-      expect(done.wasCalled()).toBeTruthy();
-    });
-
-    it("should track 404 not found error", async () => {
-      const request = createMockRequest();
-      const reply = createMockReply(404);
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-      middleware.onResponse(request, reply, done as any);
-
-      expect(done.wasCalled()).toBeTruthy();
-    });
-
     it("should track 429 rate limit error", async () => {
       const request = createMockRequest();
       const reply = createMockReply(429);
@@ -345,28 +236,6 @@ describe("metricsMiddleware Tests", () => {
     it("should track 500 server error", async () => {
       const request = createMockRequest();
       const reply = createMockReply(500);
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-      middleware.onResponse(request, reply, done as any);
-
-      expect(done.wasCalled()).toBeTruthy();
-    });
-
-    it("should track 502 bad gateway error", async () => {
-      const request = createMockRequest();
-      const reply = createMockReply(502);
-      const done = createMockDone();
-
-      middleware.preHandler(request, reply, done as any);
-      middleware.onResponse(request, reply, done as any);
-
-      expect(done.wasCalled()).toBeTruthy();
-    });
-
-    it("should track 503 service unavailable error", async () => {
-      const request = createMockRequest();
-      const reply = createMockReply(503);
       const done = createMockDone();
 
       middleware.preHandler(request, reply, done as any);

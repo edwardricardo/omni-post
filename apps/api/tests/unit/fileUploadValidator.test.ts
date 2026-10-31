@@ -113,33 +113,6 @@ function createMaliciousHashFile(): Buffer {
 
 describe("FileUploadValidator", () => {
   describe("Constructor & Factory", () => {
-    it("should create instance with default config", () => {
-      const mockMetrics = new MockApiMetrics() as any;
-      const validator = new FileUploadValidator({}, mockMetrics);
-
-      expect(validator).toBeTruthy();
-    });
-
-    it("should accept custom configuration", () => {
-      const mockMetrics = new MockApiMetrics() as any;
-      const validator = new FileUploadValidator(
-        {
-          maxFileSize: 5 * 1024 * 1024,
-          enableVirusScanning: false,
-        },
-        mockMetrics
-      );
-
-      expect(validator).toBeTruthy();
-    });
-
-    it("should create instance via factory function", () => {
-      const mockMetrics = new MockApiMetrics() as any;
-      const validator = createFileUploadValidator({}, mockMetrics);
-
-      expect(validator instanceof FileUploadValidator).toBeTruthy();
-    });
-
     it("should throw error when metrics not provided to factory", () => {
       expect(() => createFileUploadValidator({}, undefined as any)).toThrow(
         /ApiMetrics instance is required/
@@ -531,14 +504,6 @@ describe("FileUploadValidator", () => {
   });
 
   describe("Fastify Plugin", () => {
-    it("should return plugin function from getPlugin", () => {
-      const mockMetrics = new MockApiMetrics() as any;
-      const validator = new FileUploadValidator({}, mockMetrics);
-      const plugin = validator.getPlugin();
-
-      expect(typeof plugin).toBe("function");
-    });
-
     it("should register content parser and hook", async () => {
       const mockMetrics = new MockApiMetrics() as any;
       const validator = new FileUploadValidator({}, mockMetrics);

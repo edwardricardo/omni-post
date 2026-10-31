@@ -364,7 +364,7 @@
   },
   "apps/api/tests/unit/aiService.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 11
+      "count": 2
     }
   },
   "apps/api/tests/unit/aiTypes.schemas.test.ts": {
@@ -380,11 +380,6 @@
   "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts": {
     "testing/no-existence-only-test": {
       "count": 2
-    }
-  },
-  "apps/api/tests/unit/apiMetrics.http.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/application/AnalyticsUseCases.test.ts": {
@@ -586,11 +581,6 @@
       "count": 2
     }
   },
-  "apps/api/tests/unit/approvalWorkflowUseCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/approvals/approvalRoutes.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 6
@@ -603,16 +593,13 @@
     "testing/no-empty-test": {
       "count": 1
     },
-    "testing/no-existence-only-test": {
-      "count": 7
-    },
     "vitest/expect-expect": {
       "count": 1
     }
   },
   "apps/api/tests/unit/auditService.query.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     },
     "vitest/no-conditional-expect": {
       "count": 2
@@ -623,14 +610,6 @@
       "count": 1
     }
   },
-  "apps/api/tests/unit/auditService.stats.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    },
-    "vitest/no-conditional-expect": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/authService.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 32
@@ -638,7 +617,7 @@
   },
   "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 3
+      "count": 1
     }
   },
   "apps/api/tests/unit/billing/dunning.test.ts": {
@@ -654,14 +633,6 @@
   "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts": {
     "vitest/expect-expect": {
       "count": 3
-    }
-  },
-  "apps/api/tests/unit/cacheStatsRoutes.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    },
-    "testing/no-tautological-assertion": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/comments/commentRoutes.test.ts": {
@@ -682,11 +653,6 @@
   "apps/api/tests/unit/contentRoutes.test.ts": {
     "no-console": {
       "count": 4
-    }
-  },
-  "apps/api/tests/unit/correlationMiddleware.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
     }
   },
   "apps/api/tests/unit/customerAuthUseCases.test.ts": {
@@ -847,15 +813,7 @@
       "count": 1
     }
   },
-  "apps/api/tests/unit/fileUploadValidator.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
   "apps/api/tests/unit/healthRoutes.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 7
-    },
     "vitest/valid-expect": {
       "count": 1
     }
@@ -1004,22 +962,9 @@
       "count": 1
     }
   },
-  "apps/api/tests/unit/metricsMiddleware.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 5
-    }
-  },
-  "apps/api/tests/unit/optimizedPostsRoutes.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
-    "vitest/no-conditional-expect": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/performanceMonitor.init.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 6
+      "count": 5
     }
   },
   "apps/api/tests/unit/performanceMonitor.stats.test.ts": {

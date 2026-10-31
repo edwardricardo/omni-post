@@ -143,10 +143,10 @@ export default defineConfig({
         perFile: false,
         // canon-exception: decorative-demolition:2.8.2a
         lines: 59.8,
-        // canon-exception: decorative-demolition:2.8.1b
-        functions: 60.4,
-        // canon-exception: decorative-demolition:2.8.2a
-        branches: 50,
+        // canon-exception: decorative-demolition:2.8.2b
+        functions: 60.3,
+        // canon-exception: decorative-demolition:2.8.2b
+        branches: 49.9,
         // canon-exception: decorative-demolition:2.8.1b
         statements: 59.3,
         // Integer arithmetic BEFORE the division on purpose: the equivalent

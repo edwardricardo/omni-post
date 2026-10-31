@@ -290,19 +290,6 @@ describe("optimizedPostsRoutes Unit Tests", () => {
       expect(typeof stats.cached === "boolean").toBeTruthy();
       expect(stats.cacheLevel).toBeTruthy();
     });
-
-    it("should include lastActivity timestamp", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: `/dashboard/stats?accountId=${testAccountId}`,
-      });
-
-      const body = JSON.parse(response.body);
-
-      if (body.data.lastActivity !== null) {
-        expect(new Date(body.data.lastActivity).toISOString()).toBeTruthy();
-      }
-    });
   });
 
   describe("POST /api/cache/warm/:accountId", () => {
@@ -334,19 +321,6 @@ describe("optimizedPostsRoutes Unit Tests", () => {
   });
 
   describe("Response Format", () => {
-    it("should return consistent success response format", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: `/posts/optimized?accountId=${testAccountId}`,
-      });
-
-      const body = JSON.parse(response.body);
-
-      expect(body.ok).toBeTruthy();
-      expect(body.data).toBeTruthy();
-      expect(typeof body.ok).toBe("boolean");
-    });
-
     it("should return consistent error response format", async () => {
       const response = await app.inject({
         method: "GET",

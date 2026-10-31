@@ -3,7 +3,7 @@
  * @description Unit tests for multi-level approval workflow use cases:
  *   CreateApprovalWorkflowUseCase, UpdateApprovalWorkflowUseCase,
  *   DeleteApprovalWorkflowUseCase, and ListApprovalWorkflowsQuery.
- * @layer application
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -83,22 +83,6 @@ describe("CreateApprovalWorkflowUseCase", () => {
     expect(result.ok).toBeTruthy();
     expect(result.value.workflowId).toBeDefined();
     expect(repo.save).toHaveBeenCalledOnce();
-  });
-
-  it("creates a workflow with description and isDefault", async () => {
-    vi.mocked(repo.findByAccountId).mockResolvedValue([]);
-    vi.mocked(repo.findDefaultByAccountId).mockResolvedValue(null);
-    vi.mocked(repo.save).mockResolvedValue(ok(undefined));
-
-    const result = await useCase.execute({
-      accountId: "account-001",
-      name: "Default Workflow",
-      description: "The default approval process",
-      levels: [{ order: 1, role: "editor" }],
-      isDefault: true,
-    });
-
-    expect(result.ok).toBeTruthy();
   });
 
   it("rejects duplicate workflow name within account", async () => {

@@ -1,7 +1,7 @@
 /**
  * @file auditLogger.test.ts
  * @description Unit tests for AuditLogger. Uses in-memory mocked Prisma stores
- *              with real Redis for testing caching and alerting features.
+ *              and an in-memory Redis fake, with real-time alerts disabled.
  * @layer infrastructure
  */
 
@@ -47,8 +47,7 @@ vi.mock("../../src/lib/logger.js", () => {
 // Import SUT after mocks are in place
 // ---------------------------------------------------------------------------
 
-const { AuditLogger, createAuditLogger, AuditConfigs } =
-  await import("../../src/security/auditLogger.js");
+const { AuditLogger, AuditConfigs } = await import("../../src/security/auditLogger.js");
 const { createInMemoryRedis } = await import("./inMemoryRedis.test-helpers.js");
 
 // ---------------------------------------------------------------------------
@@ -468,19 +467,6 @@ describe("AuditLogger Tests", () => {
       expect(logs.length > 0).toBeTruthy();
     });
 
-    it("should query logs by date range", async () => {
-      const now = new Date();
-      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-      const logs = await auditLogger.queryLogs({
-        startDate: yesterday,
-        endDate: now,
-        limit: 10,
-      });
-
-      expect(Array.isArray(logs)).toBeTruthy();
-    });
-
     it("should query logs by success status", async () => {
       await auditLogger.log({ action: "SUCCESS_TEST", success: true });
       await auditLogger.log({ action: "FAILURE_TEST", success: false });
@@ -498,56 +484,13 @@ describe("AuditLogger Tests", () => {
       expect(successLogs.length > 0).toBeTruthy();
       expect(failureLogs.length > 0).toBeTruthy();
     });
-
-    it("should get audit statistics", async () => {
-      const stats = await auditLogger.getStatistics("day");
-
-      expect(typeof stats.totalEvents === "number").toBeTruthy();
-      expect(typeof stats.failedEvents === "number").toBeTruthy();
-      expect(typeof stats.securityEvents === "number").toBeTruthy();
-      expect(Array.isArray(stats.topActions)).toBeTruthy();
-      expect(Array.isArray(stats.topUsers)).toBeTruthy();
-    });
-
-    it("should get statistics for different timeframes", async () => {
-      const hourStats = await auditLogger.getStatistics("hour");
-      const dayStats = await auditLogger.getStatistics("day");
-      const weekStats = await auditLogger.getStatistics("week");
-      const monthStats = await auditLogger.getStatistics("month");
-
-      expect(typeof hourStats.totalEvents === "number").toBeTruthy();
-      expect(typeof dayStats.totalEvents === "number").toBeTruthy();
-      expect(typeof weekStats.totalEvents === "number").toBeTruthy();
-      expect(typeof monthStats.totalEvents === "number").toBeTruthy();
-    });
-
-    it("should handle pagination with offset", async () => {
-      const page1 = await auditLogger.queryLogs({ limit: 5, offset: 0 });
-      const page2 = await auditLogger.queryLogs({ limit: 5, offset: 5 });
-
-      expect(Array.isArray(page1)).toBeTruthy();
-      expect(Array.isArray(page2)).toBeTruthy();
-    });
   });
 
   // =========================================================================
-  // Test Group 5: Factory Function and Configs
+  // Test Group 5: Configs
   // =========================================================================
 
-  describe("Factory Function and Configs", () => {
-    it("should create audit logger with factory function", () => {
-      const logger = createAuditLogger(mockPrisma.prisma, redis, scheduler);
-      expect(logger).toBeTruthy();
-    });
-
-    it("should create audit logger with custom config", () => {
-      const logger = createAuditLogger(mockPrisma.prisma, redis, scheduler, {
-        enableRealTimeAlerts: false,
-        retentionDays: 30,
-      });
-      expect(logger).toBeTruthy();
-    });
-
+  describe("Configs", () => {
     it("should have HIGH_SECURITY config", () => {
       expect(AuditConfigs.HIGH_SECURITY.enableRealTimeAlerts).toBe(true);
       expect(AuditConfigs.HIGH_SECURITY.retentionDays).toBe(365);
@@ -602,14 +545,6 @@ describe("AuditLogger Tests", () => {
         // Expected
       }
     }, 10_000);
-
-    it("should return empty array on query errors", async () => {
-      const logs = await auditLogger.queryLogs({
-        startDate: new Date("invalid-date"),
-      });
-
-      expect(Array.isArray(logs)).toBeTruthy();
-    });
 
     it("should return zero statistics on error", async () => {
       const stats = await auditLogger.getStatistics("invalid" as never);
