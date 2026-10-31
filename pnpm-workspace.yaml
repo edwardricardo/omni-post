@@ -286,4 +286,15 @@ overrides:
 # GHSA-vfj7-8cjw-p6xm (braces), left with @storybook/nextjs, the only package whose
 # chains carried either, so neither suppressed anything any more.
 auditConfig:
-  ignoreGhsas: []
+  # GHSA-g3hv-75wg-m249 (minimatch, moderate: denial of service via globparts amplification),
+  # ignored since 2026-10-31 by the Maintainer's decision. Its only fixed line is 11.x, and the
+  # 3.1.5 copy the lint toolchain holds (eslint, @eslint/eslintrc, @eslint/config-array `^3.1.5`,
+  # eslint-plugin-jsx-a11y `^3.1.2`) cannot take it: jsx-a11y reads the callable default export
+  # minimatch 11 no longer has, so the forced band fails `pnpm lint`; no 3.x backport exists
+  # (isaacs/minimatch#333). Dev-only: no production chain reaches 3.1.5, and the patterns it
+  # matches come from eslint.config.ts and the plugins' own configuration, never a request.
+  # The 9.x and 10.x copies are forced to 11.0.1 by the band above. Row: SECURITY_CANON.md
+  # §"Ignored GHSAs"; the Blocked floor it closes: §"Blocked floors". Remove-when: a 3.x release
+  # that carries the fix, or every one of the four consumers admitting 11.x unaided.
+  ignoreGhsas:
+    - GHSA-g3hv-75wg-m249
