@@ -50,7 +50,7 @@
     "@tiptap/core": "catalog:",
     "@tiptap/extension-character-count": "catalog:",
     "@tiptap/extension-color": "3.30.5",
-    "@tiptap/extension-highlight": "3.30.5",
+    "@tiptap/extension-highlight": "3.32.0",
     "@tiptap/extension-link": "3.30.5",
     "@tiptap/extension-placeholder": "catalog:",
     "@tiptap/extension-text-style": "3.30.5",
