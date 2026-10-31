@@ -84,6 +84,29 @@
         "lines": { "from": 59.9, "to": 59.8 },
         "branches": { "from": 50.1, "to": 50 }
       }
+    },
+    "2.8.2b": {
+      "files": [
+        "apps/api/tests/unit/aiService.test.ts",
+        "apps/api/tests/unit/apiMetrics.http.test.ts",
+        "apps/api/tests/unit/approvalWorkflowUseCases.test.ts",
+        "apps/api/tests/unit/auditLogger.test.ts",
+        "apps/api/tests/unit/auditService.query.test.ts",
+        "apps/api/tests/unit/auditService.stats.test.ts",
+        "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts",
+        "apps/api/tests/unit/cacheStatsRoutes.test.ts",
+        "apps/api/tests/unit/correlationMiddleware.test.ts",
+        "apps/api/tests/unit/fileUploadValidator.test.ts",
+        "apps/api/tests/unit/healthRoutes.test.ts",
+        "apps/api/tests/unit/metricsMiddleware.test.ts",
+        "apps/api/tests/unit/optimizedPostsRoutes.test.ts",
+        "apps/api/tests/unit/performanceMonitor.init.test.ts"
+      ],
+      "deleted": { "files": 0, "blocks": 55 },
+      "floors": {
+        "functions": { "from": 60.4, "to": 60.3 },
+        "branches": { "from": 50, "to": 49.9 }
+      }
     }
   }
 }
