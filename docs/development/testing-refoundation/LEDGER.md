@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1186  |
 | DELETE                  | 20    |
-| REWRITE                 | 208   |
-| KEEP                    | 854   |
-| ADJUDICATE              | 104   |
+| REWRITE                 | 200   |
+| KEEP                    | 863   |
+| ADJUDICATE              | 103   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 11    |
-| Blocks                  | 15044 |
-| Blocks with a criterion | 843   |
+| Blocks                  | 14989 |
+| Blocks with a criterion | 794   |
 
 ## Slice 2.6a
 
@@ -103,6 +103,27 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts`      | test  | 14     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/activityFeedService.test.ts`                     | test  | 7      | 1          | REWRITE | machine | some-decorative |
 | `apps/api/tests/unit/aiOrchestrator.providers.test.ts`                | test  | 12     | 0          | KEEP    | machine | behavioural     |
+
+## Slice 2.8.2b
+
+Deleted: 0 files, 55 blocks. Floors lowered: functions from 60.4 to 60.3, branches from 50 to 49.9.
+
+| Path                                                               | Shape | Blocks | Decorative | Verdict | Status  | Basis           |
+| ------------------------------------------------------------------ | ----- | ------ | ---------- | ------- | ------- | --------------- |
+| `apps/api/tests/unit/aiService.test.ts`                            | test  | 18     | 2          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/apiMetrics.http.test.ts`                      | test  | 13     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/approvalWorkflowUseCases.test.ts`             | test  | 15     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/auditLogger.test.ts`                          | test  | 37     | 1          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/auditService.query.test.ts`                   | test  | 13     | 1          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/auditService.stats.test.ts`                   | test  | 12     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts` | test  | 7      | 1          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/cacheStatsRoutes.test.ts`                     | test  | 22     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/correlationMiddleware.test.ts`                | test  | 9      | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/fileUploadValidator.test.ts`                  | test  | 32     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/healthRoutes.test.ts`                         | test  | 11     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/metricsMiddleware.test.ts`                    | test  | 35     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/optimizedPostsRoutes.test.ts`                 | test  | 17     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/performanceMonitor.init.test.ts`              | test  | 23     | 5          | REWRITE | machine | some-decorative |
 
 ## Rows without a slice
 
@@ -343,7 +364,6 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/aiRoutes.predict.test.ts`                                                        | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiRoutes.smartanalysis.test.ts`                                                  | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiRoutes.test-helpers.ts`                                                        | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/aiService.test.ts`                                                               | test             | 27     | 11         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/aiTypes.optimize.test.ts`                                                        | test             | 24     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiTypes.schemas.test.ts`                                                         | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiTypes.smartanalysis.test.ts`                                                   | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
@@ -356,7 +376,6 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/analytics/metricRegistry.test.ts`                                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analyticsRoutes.test.ts`                                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analyticsUtils.test.ts`                                                          | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/apiMetrics.http.test.ts`                                                         | test             | 14     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/apiMetrics.monitoring.test.ts`                                                   | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/apiMetrics.operations.test.ts`                                                   | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/apiMetrics.test-helpers.ts`                                                      | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -450,16 +469,12 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/application/utmLinksUseCase.test.ts`                                             | test             | 7      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/webhooks/RotateWebhookSecretKeyUseCase.test.ts`                      | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/webhooks/WebhookSubscriptionRotationRepository.test.ts`              | test             | 1      | 0          | ADJUDICATE | machine                     | subject-not-imported |
-| `apps/api/tests/unit/approvalWorkflowUseCases.test.ts`                                                | test             | 16     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/approvals/approvalRoutes.test.ts`                                                | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/architecture.test.ts`                                                            | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts`                                 | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/auditLogger.test.ts`                                                             | test             | 44     | 8          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/auditRoutes.test.ts`                                                             | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/auditService.log.test.ts`                                                        | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/auditService.query.test.ts`                                                      | test             | 14     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/auditService.retention.test.ts`                                                  | test             | 10     | 1          | ADJUDICATE | machine                     | title-contradiction  |
-| `apps/api/tests/unit/auditService.stats.test.ts`                                                      | test             | 14     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/auth/adminHoldsPermission.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/auth/customerAuthSystemReasons.test.ts`                                          | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/auth/customerOrAdminAuth.test.ts`                                                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
@@ -478,7 +493,6 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/authRoutes.test.ts`                                                              | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/authService.test.ts`                                                             | test             | 34     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts`                                 | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts`                                    | test             | 9      | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/backfillAdminMfaBackupCodesGuard.test.ts`                                        | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/backfillAdminMfaBackupCodesIsolation.test.ts`                                    | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/billing/GatewayBillingService.test.ts`                                           | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
@@ -493,7 +507,6 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/bulk-scheduling/bulkScheduleWorker.test.ts`                                      | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts`                                       | test             | 3      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/cacheConfig.test.ts`                                                             | test             | 50     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/cacheStatsRoutes.test.ts`                                                        | test             | 27     | 5          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/channelRoutes.test.ts`                                                           | test             | 28     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/comments/commentRoutes.test.ts`                                                  | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/compliance/ComplianceService.test.ts`                                            | test             | 38     | 4          | REWRITE    | machine                     | some-decorative      |
@@ -503,7 +516,6 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/config/nameDigestRing.test.ts`                                                   | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/content/syncEngineContentRead.test.ts`                                           | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/contentRoutes.test.ts`                                                           | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/correlationMiddleware.test.ts`                                                   | test             | 11     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/crossPlatformDataFetcher.test.ts`                                                | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/csvExport.test.ts`                                                               | test             | 39     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/customerAuthUseCases.test.ts`                                                    | test             | 46     | 1          | REWRITE    | machine                     | some-decorative      |
@@ -568,11 +580,9 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/engagementPredictor.test.ts`                                                     | test             | 17     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/errorHandler.inject.test.ts`                                                     | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/errorHandler.test.ts`                                                            | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/fileUploadValidator.test.ts`                                                     | test             | 36     | 4          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/generateCacheKey.base64.test.ts`                                                 | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/health/consumerPresenceHealthChecker.test.ts`                                    | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/health/queueHealthChecker.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/healthRoutes.test.ts`                                                            | test             | 18     | 7          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/helpers/InMemoryAdminUserRepository.ts`                                          | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/InMemoryAuditEmitter.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/InMemoryAuditLogRepository.ts`                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -694,20 +704,17 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/metrics/deletionMetrics.test.ts`                                                 | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/metrics/guardrailMetrics.test.ts`                                                | test             | 3      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/metrics/publishQueueAttendance.test.ts`                                          | test             | 6      | 0          | ADJUDICATE | machine                     | title-contradiction  |
-| `apps/api/tests/unit/metricsMiddleware.test.ts`                                                       | test             | 46     | 5          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/mfaRoutes.test.ts`                                                               | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/mfaTotpSingleUse.test.ts`                                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/notifications/NotificationEventHandlers.test.ts`                                 | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/notifications/notificationRoutes.test.ts`                                        | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/observability/sentryInit.test.ts`                                                | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/onboarding/onboarding.test.ts`                                                   | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/optimizedPostsRoutes.test.ts`                                                    | test             | 19     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/outbox/OutboxBackoff.test.ts`                                                    | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/outbox/OutboxClaimService.test.ts`                                               | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/outbox/OutboxCleaner.test.ts`                                                    | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/outbox/OutboxRelay.test.ts`                                                      | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/outbox/PrismaOutboxWriter.test.ts`                                               | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/performanceMonitor.init.test.ts`                                                 | test             | 24     | 6          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/performanceMonitor.stats.test.ts`                                                | test             | 16     | 9          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/performanceMonitor.test-helpers.ts`                                              | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/postRoutes.test.ts`                                                              | test             | 5      | 0          | KEEP       | machine                     | behavioural          |

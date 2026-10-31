@@ -16,9 +16,9 @@
       },
       "byVerdict": {
         "DELETE": 20,
-        "REWRITE": 208,
-        "KEEP": 854,
-        "ADJUDICATE": 104,
+        "REWRITE": 200,
+        "KEEP": 863,
+        "ADJUDICATE": 103,
         "unmeasured": 0
       }
     },
@@ -28,22 +28,22 @@
       "total": 1186
     },
     "blocks": {
-      "total": 15044,
-      "decorative": 843,
+      "total": 14989,
+      "decorative": 794,
       "byClass": {
         "EMPTY": 16,
-        "TAUTOLOGY-ONLY": 5,
-        "EXISTENCE-ONLY": 498,
-        "CONDITIONAL-ONLY": 204,
+        "TAUTOLOGY-ONLY": 4,
+        "EXISTENCE-ONLY": 451,
+        "CONDITIONAL-ONLY": 203,
         "SELF-SKIP": 113,
         "PRINTS-SUCCESS": 7,
-        "TITLE-CONTRADICTION": 28,
+        "TITLE-CONTRADICTION": 22,
         "BEHAVIOURAL": 14173
       }
     },
     "deleted": {
       "files": 25,
-      "blocks": 211
+      "blocks": 266
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -173,6 +173,38 @@
         "branches": {
           "from": 50.1,
           "to": 50
+        }
+      }
+    },
+    "2.8.2b": {
+      "files": [
+        "apps/api/tests/unit/aiService.test.ts",
+        "apps/api/tests/unit/apiMetrics.http.test.ts",
+        "apps/api/tests/unit/approvalWorkflowUseCases.test.ts",
+        "apps/api/tests/unit/auditLogger.test.ts",
+        "apps/api/tests/unit/auditService.query.test.ts",
+        "apps/api/tests/unit/auditService.stats.test.ts",
+        "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts",
+        "apps/api/tests/unit/cacheStatsRoutes.test.ts",
+        "apps/api/tests/unit/correlationMiddleware.test.ts",
+        "apps/api/tests/unit/fileUploadValidator.test.ts",
+        "apps/api/tests/unit/healthRoutes.test.ts",
+        "apps/api/tests/unit/metricsMiddleware.test.ts",
+        "apps/api/tests/unit/optimizedPostsRoutes.test.ts",
+        "apps/api/tests/unit/performanceMonitor.init.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 55
+      },
+      "floors": {
+        "functions": {
+          "from": 60.4,
+          "to": 60.3
+        },
+        "branches": {
+          "from": 50,
+          "to": 49.9
         }
       }
     }
@@ -21564,7 +21596,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 27,
+      "blockCount": 18,
       "blocks": [
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should generate content with default options",
@@ -21574,183 +21606,120 @@
           "bodyHash": "0c1e566d8d1ad657a64b38c706a9e0cc970721d8ad50abfec3fa59392da8e245"
         },
         {
-          "id": "apps/api/tests/unit/aiService.test.ts::should generate content with custom model options",
-          "line": 212,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7bacdffd205f106490fb855d1b662dca8b37b2aeabeb63c78d3e14b20c503c4e"
-        },
-        {
           "id": "apps/api/tests/unit/aiService.test.ts::should throw when orchestrator returns rate-limit error",
-          "line": 231,
+          "line": 212,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c6998128f7d3816f954f2d4dc560bd689a8399b2675717321e8e1332d4a817c1"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should handle string error from orchestrator",
-          "line": 244,
+          "line": 225,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2eb84de71e4967514ae132f680e602d70b64ff7a13d516ca968d518a4f7d21f"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should analyze sentiment successfully",
-          "line": 263,
+          "line": 244,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14ee30231e15eb33b003fa21551d939a4ed28e1f670a6d0314367d10e8d90862"
         },
         {
-          "id": "apps/api/tests/unit/aiService.test.ts::should analyze tone successfully",
-          "line": 279,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "815607c97ecd07e225e523bc7de6fad3eae4e31977b2aa42fc34ad9124338b1d"
-        },
-        {
           "id": "apps/api/tests/unit/aiService.test.ts::should analyze readability successfully",
-          "line": 295,
+          "line": 260,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "568d45ba0b203b708a78d1dfadfbfdff3991466d5fc931b5473f4d4a5e8bc9a8"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should analyze engagement potential",
-          "line": 310,
+          "line": 275,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6167edb94dc031252eab5d12ec0ab29eba26f24b3cdb44485e824ec5d6eb13e5"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should throw when analysis fails",
-          "line": 325,
+          "line": 290,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "37745c25b8b6550805cd438b475a05405365e587a3819abf255857a7683cb007"
         },
         {
-          "id": "apps/api/tests/unit/aiService.test.ts::should optimize content for Twitter",
-          "line": 342,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "05d7841eb242364919b255bf4ae83745b34fac11b41b6dcbe557719b770347f3"
-        },
-        {
-          "id": "apps/api/tests/unit/aiService.test.ts::should optimize with brand voice",
-          "line": 358,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d388fa1d332ea9100a47659a7f0d04080394bd75f9d4c81d444edf66baff4b43"
-        },
-        {
-          "id": "apps/api/tests/unit/aiService.test.ts::should include media suggestions for Instagram",
-          "line": 376,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e0e4f8b05ba256eb1639a10e481d44ce6624a470d40d0eea22600b646b7131ea"
-        },
-        {
           "id": "apps/api/tests/unit/aiService.test.ts::should throw when optimization fails",
-          "line": 390,
+          "line": 307,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b3e015bffea6026a6b54770e08ad1db2ff64349b68aedc002dd93a69f50e2d36"
         },
         {
-          "id": "apps/api/tests/unit/aiService.test.ts::should predict performance without historical data",
-          "line": 407,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d340de2602011820530817390499f4d0dd93ef855b68c33962dcaf7de8af256a"
-        },
-        {
           "id": "apps/api/tests/unit/aiService.test.ts::should predict performance with historical data",
-          "line": 423,
+          "line": 324,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1c5d3872a4a931106a5f00127f19261858d947cac33abb0abcfd21836723d657"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should throw when prediction fails",
-          "line": 442,
+          "line": 343,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1fa0e141e8eeef2a1c2e1fe5ddc4d23e7e888b1eb4a34f43f970d92504cb4d40"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should generate tone variations",
-          "line": 459,
+          "line": 360,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4371c3a793b6f610138bbaa8ab60fdacece71dd15ab10182bda6b35046973c5a"
         },
         {
-          "id": "apps/api/tests/unit/aiService.test.ts::should generate length variations",
-          "line": 474,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9a9cd1c0a1494c0c23c4ef3a20902e16a94d9785c3870fb415e1efa604b2e4c7"
-        },
-        {
-          "id": "apps/api/tests/unit/aiService.test.ts::should generate audience variations",
-          "line": 488,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4dbc26a959c37834683c4dbe322a6671937d3a878934ccd3cfec7b35f37979a6"
-        },
-        {
           "id": "apps/api/tests/unit/aiService.test.ts::should throw when variation generation fails",
-          "line": 502,
+          "line": 375,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4b32af6379f79f247f83538b360d05a3f0f0efbde16dee2e8ca7d8423e9b0a2"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should perform smart analysis with all features enabled",
-          "line": 519,
+          "line": 392,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e234b96a9f423340364c73139efd40e14b6adb8f7fec9dd3ce4f8f1a1b38b586"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should omit optional features when disabled",
-          "line": 562,
+          "line": 435,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0dcf06d6e52ae14050391f2a29d3d101edd1f5bc4a2fb2d049f9e8efb75e01d4"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should default platform to twitter and enable optimization/prediction",
-          "line": 586,
+          "line": 459,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "35078bd9297766e2f9f519e04b199eab229a7729beda0c5e9782776e5c99865b"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should handle partial analysis failures gracefully",
-          "line": 609,
+          "line": 482,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "ab1086ce9e831b121feec6c0e19854cd86e32a52ce37087c8f5bae6372b1d596"
         },
         {
-          "id": "apps/api/tests/unit/aiService.test.ts::should retrieve usage metrics from orchestrator",
-          "line": 634,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8811d9bf22c37ad4402daf5cf6f19dafe6772effd17c708f7f19efec192f139d"
-        },
-        {
           "id": "apps/api/tests/unit/aiService.test.ts::should expose per-provider metrics",
-          "line": 663,
+          "line": 507,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9844d622f413e164379abe60cebb2884c569d591d9f3e32dc3d48c9075d3a4e3"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should clear cache via orchestrator",
-          "line": 711,
+          "line": 555,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "e35fc65f4cb654798d40a200725ede2495cc9946db4e64f8b2bde0f200072779"
@@ -21760,7 +21729,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "aiService",
         "module": "apps/api/src/ai/aiService.ts",
@@ -23496,112 +23465,105 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 14,
+      "blockCount": 13,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should initialize with all metric collectors",
-          "line": 12,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "18e3bac30ebb384c8f3e0c5e1535c9abe498a3cb1286a105512ea245d7d2637c"
-        },
-        {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should set initial healthy state",
-          "line": 25,
+          "line": 12,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae8cd3d097c9cb9b431dcd9cf3ddbb01ac5b566391c3274bb048daafa71f3390"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should clear existing metrics on initialization",
-          "line": 34,
+          "line": 21,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "377a0fc0e16aec8f0c85226d53fad0138252c434b4b5406bb642b5f46798e368"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should return registry for metrics endpoint",
-          "line": 44,
+          "line": 31,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2e619938d4018ba807392494a21f7b5ec4a58472bfd4c3653bafbfc9ffcb7d4"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should record successful HTTP request",
-          "line": 63,
+          "line": 50,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b03fb03e9da70956f61dbef20f5c27905c9d43fa07242a8930bd21481a56b884"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should track in-flight requests",
-          "line": 86,
+          "line": 73,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b62f38cd4a1c83f3385b966a71008278f8910b0d26891705e372c5ca360aa9a"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should group status codes by class",
-          "line": 104,
+          "line": 91,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "874cadbb92a49eacf37e04489524687c3d4d7773bf72c87b2b628c64b81f9620"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should handle different HTTP methods",
-          "line": 138,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e0402b53090b36c0c0b9bec9cbc19e5655db4c625a07994b7246c43206f714bc"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should record endpoint request with status",
-          "line": 166,
+          "line": 153,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "565842545f0a16e30cd823c4756952091c8dcf9e925515410dab06a34a5fb91a"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should track different endpoint statuses",
-          "line": 189,
+          "line": 176,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bea9064278644404798a740b86d79497eb10f8f2f8e7747353baee3b48ed1b23"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should record successful database operation",
-          "line": 224,
+          "line": 211,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f75777f7576e1ab5e5771dd875f83d16b961f3d618ec122a83a19589877281a"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should record failed database operation",
-          "line": 246,
+          "line": 233,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd816341a36b54e6aa2b39355826e2aad2623e1baffa6163918c7c4d089ba657"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should track database operations by type",
-          "line": 268,
+          "line": 255,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9d77b9885ac04e7dab9f711d13c4f53b55a9ccc5e7af0dfd55c0a1068de9d18c"
         },
         {
           "id": "apps/api/tests/unit/apiMetrics.http.test.ts::should update database connection count",
-          "line": 286,
+          "line": 273,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "21e04f634fadf830f674ee1954373e72795071c1f162ebdeb0237f856886f07b"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "apiMetrics",
         "module": "apps/api/src/metrics/apiMetrics.ts",
@@ -32011,7 +31973,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 16,
+      "blockCount": 15,
       "blocks": [
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::creates a workflow successfully",
@@ -32021,116 +31983,109 @@
           "bodyHash": "e6d52bcaacdd7e81d978a9de14233e3b5742969ac7df33b44ae90414ceb66be2"
         },
         {
-          "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::creates a workflow with description and isDefault",
-          "line": 88,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ca7d34e83935189227bed67cdf5a3ea8b65bb0086ef9e16a61b0b64853c7aa80"
-        },
-        {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::rejects duplicate workflow name within account",
-          "line": 104,
+          "line": 88,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3eed4835204477ccd8d8f5d74c3cd88feb029fee04ce91d5642588be079c20bd"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::unsets previous default when creating new default",
-          "line": 119,
+          "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "16271d372178d76563c2f2484c341ef616fba7ba66d438a3706a432cd0b4b1f8"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::rejects invalid levels (empty name via domain validation)",
-          "line": 141,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4359fc16f60e78957fddd3d8eb126a53adcf4ff0cd3c4f88ddd283aa92d62f5d"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::updates workflow name successfully",
-          "line": 171,
+          "line": 155,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c9ded16fe0109e55275a24a2297f02a840c8d4fe65fa61ae40ae44e5e0d10e8e"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::rejects update for non-existent workflow",
-          "line": 186,
+          "line": 170,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "019c9c391b2c75d6e9a1e7e58d03d5f0e829aa17d6932f3d747070e3933da38f"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::rejects update when accountId does not match",
-          "line": 201,
+          "line": 185,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5310e5761b4d7dccaa3cc040297e40da2d9002e5073e425f318a9c14faf0f2db"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::replaces levels when provided",
-          "line": 215,
+          "line": 199,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01cfbae4f0418808c3c23beba3d17c5a530ed52cd0227012266c347dfd04b106"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::deletes workflow successfully when no active requests",
-          "line": 251,
+          "line": 235,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5f12e37452ab1dfce7080e79ab3fc296cac8639a7002c9d8b956f90cfbef23c"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::rejects deletion when workflow has active requests",
-          "line": 266,
+          "line": 250,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "00f9fbd5b093b237527f478bae372396c006f68a1ccd9e012b370e9df1f7aba2"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::rejects deletion for non-existent workflow",
-          "line": 281,
+          "line": 265,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "764abbf94e8bf7c13fb4bb179031e14e3f31243ef34fd87e2598d9770235aeb5"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::rejects deletion when accountId does not match",
-          "line": 295,
+          "line": 279,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e94682b26f97d8f71256cf1c11d30e925bc73c6995f751bf1a2c2502a33f0ab5"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::returns empty array when no workflows exist",
-          "line": 323,
+          "line": 307,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e54fe8b977ba2eb0f90fbd85b40a05d9671cadcd509830052ff192d1e6920f7"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::returns workflows with levels as DTOs",
-          "line": 332,
+          "line": 316,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "96948e5e299028428b150ca93c09952b20c19060bd4d68da9232d56c0110ae01"
         },
         {
           "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::handles repository errors gracefully",
-          "line": 353,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6de1078c8b7bde2b497a3071e034a433ea3a7339fc541ffef01be56799b39662"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -32462,312 +32417,263 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 44,
+      "blockCount": 37,
       "blocks": [
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should log basic audit event",
-          "line": 137,
+          "line": 136,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "873375b251296513f9eb1b5f7194554cdfe2026e7ab41df009526d1bf1dc5403"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should enrich event with request data",
-          "line": 157,
+          "line": 156,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd89be5624560613d765e2084570e74ce9dfe8e1b77992eeadcc70702449abf8"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::records the socket peer, not a spoofed X-Forwarded-For entry",
-          "line": 180,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3dbaad01410c523935913a0fe824c9cf2aeeb71e4501262782b92542651a29a9"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::ignores a standalone X-Real-IP header (untrusted)",
-          "line": 199,
+          "line": 198,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "018633c313f2bbac94e0eaf733dae0ac3393883120d3ba4e32085b530f6b04a7"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::ignores a standalone CF-Connecting-IP header (untrusted)",
-          "line": 215,
+          "line": 214,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1316b337039aa9fc6668e986d55c3bbe2c2c9f250afdffd9c89309d2835ca74c"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should log authentication event with logAuth",
-          "line": 237,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "452745debb482a06a57ab73e3b38fb828c5b10d2ec1c38487680e0a2b69ad6ab"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should log failed login with medium severity",
-          "line": 249,
+          "line": 248,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ccb9f9c59afdbfcd6eb2463a53318a5d006e931738576771f54e3521e9c9fdf2"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should log data change with logDataChange",
-          "line": 261,
+          "line": 260,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea43c159a801e83afd3685ee02cb8f2393c60baa7e420b903163864ee6d145de"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should log DELETE with medium severity",
-          "line": 280,
+          "line": 279,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "28a329db37ddc7c9c8299621ed44041c6ec7c55c75b48a33162e0b1dd9494de1"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should log security event with logSecurity",
-          "line": 288,
+          "line": 287,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cee8c3f526b2107e30e8b864950bbf0ff8839ec64b47cb1a3d9e6d4defad6215"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should log admin action with logAdmin",
-          "line": 304,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "498e2491e3917db81de3fbfa96a4955b578752506b6cd76abcf239a8defddde5"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should log system event with logSystem",
-          "line": 321,
+          "line": 320,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a0f69fb9f1db09ab2863df40473cc2ca11a929d15f48133693f1040e7c2f5a0e"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should log billing event with logBilling",
-          "line": 330,
+          "line": 329,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eef55b8fb286413fef512ba2b9c71742535eaadfb841cd59a960669d890e5d23"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should mask password fields",
-          "line": 354,
+          "line": 353,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d09f520640edf565427de6520ed0d99ac8d42ef26b2a88d036375f375019e435"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should mask token fields",
-          "line": 375,
+          "line": 374,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3bb33847b09fbbc79e82d85de2e12a1f82e49e54958e4d6a674478444c3747a9"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should mask secret fields",
-          "line": 396,
+          "line": 395,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9189f3842eacc73c2d3da3f0303a9c0a7c62aa7e8ba35673af1fc5c8e81ccb4c"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should mask nested sensitive fields",
-          "line": 417,
+          "line": 416,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5ea15cbd5e074b0c70e294c3ff6ed00003d5519db9afa364fb7378e9bb4dfe03"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should handle short sensitive values",
-          "line": 438,
+          "line": 437,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b8ac209223642e0f2212e34eb6beabe757509aa6a484195aa6f36091719fdf0a"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should query logs by action",
-          "line": 460,
+          "line": 459,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8135f50078192ab4714de5191e566f9cd00ef0927e3b780b8b02d5c8e6e35816"
         },
         {
-          "id": "apps/api/tests/unit/auditLogger.test.ts::should query logs by date range",
-          "line": 471,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a666e61fcbcdb19010f299d81e0eb0562b084007a5fbf0fb5ba4abad045f378d"
-        },
-        {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should query logs by success status",
-          "line": 484,
+          "line": 470,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1584573fe64f43c33337e20ce2254800b45debe4384e2613ac6ece0578d9320d"
         },
         {
-          "id": "apps/api/tests/unit/auditLogger.test.ts::should get audit statistics",
-          "line": 502,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8baf39fdfc79c8a1897f6d1629ff3a9e0e48d92902ccc198c5a434a68245bf81"
-        },
-        {
-          "id": "apps/api/tests/unit/auditLogger.test.ts::should get statistics for different timeframes",
-          "line": 512,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9560ac34a2226133f7e6ae7d6e73eb1172c0781f929804c59e90ce5b7575c999"
-        },
-        {
-          "id": "apps/api/tests/unit/auditLogger.test.ts::should handle pagination with offset",
-          "line": 524,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "50d5fba8cd51d03c92de63686ab36a7a3fc4bcf80fb66c03c4fdf683656ab7ac"
-        },
-        {
-          "id": "apps/api/tests/unit/auditLogger.test.ts::should create audit logger with factory function",
-          "line": 538,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "824fd0f58b2a76a5f3b898a82c17926f6eae1ce18e3c3e6c6fa21f44bed9054d"
-        },
-        {
-          "id": "apps/api/tests/unit/auditLogger.test.ts::should create audit logger with custom config",
-          "line": 543,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7044aca0c7190d2e004fc1b2b1b8cd052c283751d1005286a6fde01d88dab2d0"
-        },
-        {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should have HIGH_SECURITY config",
-          "line": 551,
+          "line": 494,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "057eeac244543fba02a0c6267b2354552cda0066ca8549c06f63ac47ac2f566b"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should have PRODUCTION config",
-          "line": 557,
+          "line": 500,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "282cd19f814dfc9cd1f7bc02e4e756804f9783e0651b824cf7e956be46a41cbc"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should have DEVELOPMENT config",
-          "line": 563,
+          "line": 506,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "024bbc38e0b30ac40063255c97026ce05ba00ee389e544a71b289edd9c414f31"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should handle database errors gracefully",
-          "line": 575,
+          "line": 518,
           "blockClass": "EMPTY",
           "criteria": ["a"],
           "bodyHash": "2ccc06d6450ab3a33132f59fb0e2574308ef2ce540aa74bbb224e6da4eb2fa92"
         },
         {
-          "id": "apps/api/tests/unit/auditLogger.test.ts::should return empty array on query errors",
-          "line": 606,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a51c8378dc7a40717632efc53870113321d0df9205085e24e6bf73dab9d8c8f0"
-        },
-        {
           "id": "apps/api/tests/unit/auditLogger.test.ts::should return zero statistics on error",
-          "line": 614,
+          "line": 549,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd1aee6d73c4b8808a9281f14db327e1967a0357e74a5c7857e0ac02f02fb366"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::populates userId from req.auth.user.id (admin tier)",
-          "line": 628,
+          "line": 563,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3274293592a552660c4f1102d209bf5b4b3540dd205d5c3059333995c11df7b4"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::populates userId from req.user.id (regular tier) when no admin auth",
-          "line": 657,
+          "line": 592,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4bcf9ac1dadb80bd355f6e94925bc879254f6bf2fb7f27c65202c78c3465b3a6"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::prefers req.auth.user.id over req.user.id when both present",
-          "line": 678,
+          "line": 613,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c2c276d6355e316494b64506190eb682a6803699b08de2ec64d51afcbcd28749"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::leaves userId undefined when neither auth context is populated",
-          "line": 717,
+          "line": 652,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "68f0dd5e295b3f3a0adca42c9acefac0218c10894f5dd51ca9c8bf7409f6b370"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::explicit event.userId overrides extracted userId",
-          "line": 727,
+          "line": 662,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6d0df7f4dd9fa099bd4d6e8186cb5ed3bd7016156cf7d2b0086a9212476cf36c"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::derives actorType ADMIN when userId is present",
-          "line": 762,
+          "line": 697,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e17eaa69f3dcc325eca5b2096c1e138c36d362f5fdb79f9ce13fe48dd55fcbb"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::derives actorType CUSTOMER when customerUserId is present",
-          "line": 769,
+          "line": 704,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2a206ab49da15973a3ef10b44489114d3f9245f4549077b2d9ac3f161e93c270"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::derives actorType SYSTEM when no actor is present",
-          "line": 777,
+          "line": 712,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d4395fb6f98d4433fee9d17929b345e77fe7a39634b001e7ba97dad4d25e1fb1"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::derivation-wins: an actor FK overrides a conflicting explicit actorType (ADMIN)",
-          "line": 783,
+          "line": 718,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d1fcfcf6051a1e6de95bca21bf9d30a6d8459bffcb9ff10af36bff98a3d903ef"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::derivation-wins: an actor FK overrides a conflicting explicit actorType (CUSTOMER)",
-          "line": 799,
+          "line": 734,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "156adc181c814f05ab578c582922f6b68d7e92ada6ecdc106f2f4d95f473dc1a"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::honors an explicit actorType only when neither FK is present",
-          "line": 811,
+          "line": 746,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a13cca9575f56d591ad02fc743f53b76123e3e9656753d2e6fc204c898e736b"
         },
         {
           "id": "apps/api/tests/unit/auditLogger.test.ts::drops customerUserId, keeps the ADMIN userId, and warns when both actor FKs are supplied",
-          "line": 823,
+          "line": 758,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f7360fab522d3dc015dd8586d344c4bfcf8df2a67a39601ddcec25f8c880cc6"
@@ -32777,7 +32683,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "auditLogger",
         "module": "apps/api/src/security/auditLogger.ts",
@@ -33341,7 +33247,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 14,
+      "blockCount": 13,
       "blocks": [
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by userId exactly",
@@ -33365,78 +33271,71 @@
           "bodyHash": "f47ed068b34bd7b14d39f72a4e7192e8f2a051b62e2702af809ba43878019e4d"
         },
         {
-          "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by resourceId exactly",
-          "line": 313,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2e5d22639340b1dac308682b0b461477f27cecd4efd29cf4d85427efd63f7233"
-        },
-        {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by success=true",
-          "line": 324,
+          "line": 313,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b5a225281a1cb091620ac94bc959e42708a2e663ec04523848fd6e5e968e267d"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by success=false",
-          "line": 338,
+          "line": 327,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a733a403087f3ca651b94196ad48aee421ea43fe088a20246c89b59b3cd5ab1f"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by startDate (gte)",
-          "line": 355,
+          "line": 344,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bee6d44df928358f552cdfb8687393401a143813abeb487d9606b73b2d0c5c2f"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by endDate (lte)",
-          "line": 370,
+          "line": 359,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f3e09d022108d3642b04c732cd50198ea2bc59fed3ad4cc4b6de0dcc7948a8b"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by date range (both startDate and endDate)",
-          "line": 384,
+          "line": 373,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bbc066691c6b6efd5458fac15afb19c0969dcc7b5f8fda41e2824d04ccb98638"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should respect limit parameter",
-          "line": 405,
+          "line": 394,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a4a2d6647245eb537d176a876976e85a3cebc7f7da12cad796edaa267413ace"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should respect offset parameter",
-          "line": 415,
+          "line": 404,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95cf3b986bf4abb4724fbc3f573f51b4508450e432ba5644046f4ba86b0c331a"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should cap limit at 1000 for performance",
-          "line": 436,
+          "line": 425,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1df33526aa7049cdb038452f523570d4fbdb56a32929f2803a6608584e840f42"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should use default limit of 50 when not specified",
-          "line": 445,
+          "line": 434,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "503be8b393062fbe4676f63e89946bd140d83ff7cd65c2b4a4369913497074ab"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should order results by createdAt descending (newest first)",
-          "line": 454,
+          "line": 443,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "239799d422f637c375efb2091509adc17f82a85bfc7df3211b447a76eec81ea0"
@@ -33446,7 +33345,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "auditService",
         "module": "apps/api/src/audit/auditService.ts",
@@ -33553,7 +33452,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 14,
+      "blockCount": 12,
       "blocks": [
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should count total logs matching filter",
@@ -33598,67 +33497,53 @@
           "bodyHash": "8ca981cf63adc686cf30474a69de166960a12e24575b52ca98572a5b7a55cee0"
         },
         {
-          "id": "apps/api/tests/unit/auditService.stats.test.ts::should filter out null resources",
-          "line": 367,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "cc24a71d76d63a828db713ca8627171be676b02ecc3d17c28a39c54c793ba3c1"
-        },
-        {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should limit top resources to 10",
-          "line": 376,
+          "line": 367,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "69b616cb3a94a94881b88d28f281a2286906431e5d2923ec0cc6fb144f18143f"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should return top users with name and email",
-          "line": 385,
+          "line": 376,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9efa0309cac8d641233c6f695f287ce7abc34d40981b8060cea0b3333041b4e5"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should filter out null userIds",
-          "line": 399,
+          "line": 390,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5c997c350f8769c9a3bb3e157cb2d1a983a8ff076082abe01f009795dc77db1"
         },
         {
-          "id": "apps/api/tests/unit/auditService.stats.test.ts::should sort by count descending",
-          "line": 410,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ed3a8881e1505a6a14f0724b003a9ffb6e2495e9f898ad783e5c98f5af1afaf8"
-        },
-        {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should limit top users to 10",
-          "line": 424,
+          "line": 401,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "77d0c828fba039d6366eec8c38efbfbc3140a037579d95156d0a3bb7de482f07"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should apply filters to all aggregations",
-          "line": 433,
+          "line": 410,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5cdf7944994058a6f28104d9937afa79aecaf3930c2658121a4adeaedc02ace7"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should apply date range to stats",
-          "line": 442,
+          "line": 419,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "25f322466d1cee7cff109a4c018b86ed2df610736f48769e75257cbbf80a63ff"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "auditService",
         "module": "apps/api/src/audit/auditService.ts",
@@ -35281,67 +35166,53 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 7,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts::should register plugin with default options",
-          "line": 30,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f8bbbba5a666dda6b9afbae8f21a5ee464e3cbef8ec21b0e664eac8866598791"
-        },
-        {
-          "id": "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts::should register plugin with custom options",
-          "line": 40,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "1819cecba657eae174211092b5b5668174be0a38215334ede3c9f9282ec0fa76"
-        },
-        {
           "id": "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts::should handle missing cache manager gracefully",
-          "line": 55,
+          "line": 30,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "6fd3ea217bb7d75449f811b3dbfdd7fcc2775a3d013a05c4aec0b1b6d22a6572"
         },
         {
           "id": "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts::never reads the cache for a request without a route pattern",
-          "line": 66,
+          "line": 41,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "038c117dd1e9faa2f7c31c6c322e9d15c45d48cabe1f7f68465e98239454b941"
         },
         {
           "id": "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts::should cache GET request responses",
-          "line": 88,
+          "line": 63,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6dce37fb045357b81feb7b970ecaf59276e176b3c5c24f0f44adb4014143b58d"
         },
         {
           "id": "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts::should not cache non-GET requests",
-          "line": 121,
+          "line": 96,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95f0057f0111e3db27b8cfae257bd43b01be0709f9c085d20a43e6c29ce5d8d5"
         },
         {
           "id": "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts::should exclude routes from caching",
-          "line": 147,
+          "line": 122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70513867811f0e711dfbae489ec2f6d3b5fa9394ec5e22bee8e325156c950139"
         },
         {
           "id": "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts::should not cache error responses",
-          "line": 173,
+          "line": 148,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4a8f7a71882523f740e784011d2d0cd49a7484bcda07e6399da1fc726f10589f"
         },
         {
           "id": "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts::should add cache metadata headers",
-          "line": 204,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "db391a411d4ec55681f7cc1b56d01f751c08a507a9cfbca001821e4115df6308"
@@ -35351,7 +35222,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "autoCacheMiddleware",
         "module": "apps/api/src/middleware/autoCacheMiddleware.ts",
@@ -36913,7 +36784,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 27,
+      "blockCount": 22,
       "blocks": [
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should return comprehensive cache statistics",
@@ -36923,193 +36794,158 @@
           "bodyHash": "bdb06203a82c01a2a88d1d4885411624162a6ab8da59c06a42ad7f612bab07df"
         },
         {
-          "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should include hit/miss metrics",
-          "line": 202,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d9a77897398ae37db9899d9373d7aec3369bef07ccde14f477d19b875def5cc9"
-        },
-        {
-          "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should include cache size metrics",
-          "line": 216,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "88455f04c85f186c0f4ce63a02bebb0e5eec12fcaa4f182f3b371fb6950d48c9"
-        },
-        {
-          "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should include L1/L2 cache breakdown",
-          "line": 229,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4b6d0011cdd67e93022c8be99dbbffdcbce56e71fd67dfe77682bf64861d3d25"
-        },
-        {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should include hot keys (top 10)",
-          "line": 242,
+          "line": 202,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "49ecf811038ff321ee5168a30a46743a61258047094de309ea08dfdc5b537a63"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should handle cache manager errors gracefully",
-          "line": 254,
+          "line": 214,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c387d8ede572854e51e6286d630cd1557d2576c9c1ccfe3e40d05b0fd3255c2b"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should return cache health status",
-          "line": 273,
+          "line": 233,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ba96c79e9a9b57f74098ecbc965a83503af77c208008e109f16bf4e49e5daf7"
         },
         {
-          "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should include health status and latency",
-          "line": 288,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "0d40f38c83cff0c2443e0a9be35b3d8fc39f3820d6fff8a5355a87dd91a1abcd"
-        },
-        {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should handle health check failures",
-          "line": 301,
+          "line": 248,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dffd8d119c2d9058e62b8df1f1a0acdee89c93647158c0400dac7a081c8facf5"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should flush cache successfully",
-          "line": 316,
+          "line": 263,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "db0dd9136ba9fd865d299c6237c0e60e687376237647040ef4d070b91a07b01a"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should handle flush failures",
-          "line": 331,
+          "line": 278,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "69f210409990d5078593b99db3224a8681f06c4d90bc9811794fce75a62c2964"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should invalidate cache by tags",
-          "line": 346,
+          "line": 293,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14b87b941b2867dd35293b0060a4520f63ab06f16d1eff9e76031816e2038116"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should invalidate cache by patterns",
-          "line": 365,
+          "line": 312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "46957f30e7a7013bd37b684cc28dcf444a38c067604abd6ba8d8480b9d4c7290"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should invalidate cache by both tags and patterns",
-          "line": 383,
+          "line": 330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b6d708bf5faf83e7731ddd2676a70dea4181a22b0cc4c17f8ff4edbc14ebabc"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should return 400 when no tags or patterns provided",
-          "line": 401,
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "302227e4efd81523dce3226cf0c8feefa476d4fa04fda40a32c245c3480d887b"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should handle empty tags array",
-          "line": 416,
+          "line": 363,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee789e67cfc2761b792a4453cbde209eafcfd50c0998d2e4193950349a34374c"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should return top hot keys",
-          "line": 432,
+          "line": 379,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd30757d558aa410753f5d37fe8ac5895419eb8773b89f374fe8a86b2828aa1e"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should limit hot keys to 50 entries",
-          "line": 448,
+          "line": 395,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "503ab2d7ef1419e7571cab4c0588fc953278768ca07d462c5d0f4d40035be7ed"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should warm cache successfully",
-          "line": 461,
+          "line": 408,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "03680d19e9c25bd3c9da740376eaf222845be0acf9763a711af835a6b79f62ef"
         },
         {
-          "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should return warmed keys count",
-          "line": 476,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "d13fb11dc6c6b40cc1445aee24387adb79375bbdabb909dedde5a2b3d2fbfec2"
-        },
-        {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::should handle warming failures",
-          "line": 487,
+          "line": 423,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4cda066bf61bc77eafd875cebbb218aa9647f73c5e823337d40beee5bfe524e0"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::rejects unauthenticated requests with 401 on every route",
-          "line": 518,
+          "line": 454,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f9cf9e211f31d7ed2bc22a656ff4755a9aed78268b538a1b0589b7294cc5e112"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::rejects a customer/client token with 403 on every route",
-          "line": 529,
+          "line": 465,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f4d2e225b5c5aa87df35d5a4f114c4da4e7c9ca77a7e352be564b006aa6ce035"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::allows an ADMIN token (SYSTEM_MONITOR) on read routes",
-          "line": 543,
+          "line": 479,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d1511023546a0334929f3b79c879e72d67d473a362c3ceb5fe488436f2f5a8d9"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::blocks an ADMIN token (no SYSTEM_CONFIGURE) on destructive routes with 403",
-          "line": 556,
+          "line": 492,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0641f6001127ae30ee90eea5c08107c8c3f0aeea03bb80c75d9fe2ce1dcae871"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::allows a SUPER_ADMIN token on destructive routes",
-          "line": 571,
+          "line": 507,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6446b767eb7fd0a65a3472eaa73d0d5446cbec1bc71ad151a8c468ea64d388fe"
         },
         {
           "id": "apps/api/tests/unit/cacheStatsRoutes.test.ts::serves each operation from the port the composition root passes",
-          "line": 590,
+          "line": 526,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "718de32880150c743f1d446dea767a55142f487586d326d3c43d472cf15ac1a2"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "cacheStatsRoutes",
         "module": "apps/api/src/monitoring/cacheStatsRoutes.ts",
@@ -38647,7 +38483,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 11,
+      "blockCount": 9,
       "blocks": [
         {
           "id": "apps/api/tests/unit/correlationMiddleware.test.ts::should generate correlation ID when not provided",
@@ -38685,53 +38521,39 @@
           "bodyHash": "20fd199408a238f58e5c9cace34a0f1ee2dbd4d2b13e6c84687ef8c2c662d1b2"
         },
         {
-          "id": "apps/api/tests/unit/correlationMiddleware.test.ts::should set correlation ID in response headers",
-          "line": 127,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "927cb816b857f9ba193f5619238d37d7547bd92a803d2164304ac5de6fb2e863"
-        },
-        {
-          "id": "apps/api/tests/unit/correlationMiddleware.test.ts::should set request ID in response headers",
-          "line": 136,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9401a1d824c018f43b890eb2d2270edbf1b26bb19a07a37493084a1cb7b9a842"
-        },
-        {
           "id": "apps/api/tests/unit/correlationMiddleware.test.ts::should export correct correlation ID header name",
-          "line": 147,
+          "line": 127,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e327eeab5f5d81dffb7a6ea7990c1cc71d5d7453acdf7588edda20d242d5d23"
         },
         {
           "id": "apps/api/tests/unit/correlationMiddleware.test.ts::should export correct request ID header name",
-          "line": 151,
+          "line": 131,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "208d5ca77ef0ac6cac03a93232410133eebe549c537cb16ccca7a0a3e1f289c2"
         },
         {
           "id": "apps/api/tests/unit/correlationMiddleware.test.ts::should return correlation ID from request",
-          "line": 179,
+          "line": 159,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b374af02e7631e8c701f9e26c6ee111e2bb7cf3782287c0f981465bc740902d"
         },
         {
           "id": "apps/api/tests/unit/correlationMiddleware.test.ts::should return request ID from request",
-          "line": 192,
+          "line": 172,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "123a9d6638054dfe518b47a1814d3687f46b92bb738b743c292d2684acaea181"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "correlationMiddleware",
         "module": "apps/api/src/middleware/correlationMiddleware.ts",
@@ -49307,266 +49129,238 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 36,
+      "blockCount": 32,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should create instance with default config",
-          "line": 116,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "fa8ae3cb28b0609b5f40ef22041279da610f98e87484f95d49289449c08153d8"
-        },
-        {
-          "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should accept custom configuration",
-          "line": 123,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f56ca2b3fa4d1404922c0034f8481c119daf8c0b1fbf11dcb34175c8bdd505a9"
-        },
-        {
-          "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should create instance via factory function",
-          "line": 136,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e85bf70f367fb4f906f5aad26d31bc04ee3d9563466b11ec492d721640e1fc64"
-        },
-        {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should throw error when metrics not provided to factory",
-          "line": 143,
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc7f57f67f6689b46408181aaf8bfc0e57e32dc33bc154d2673bfd8b38cadbd1"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should pass validation for valid JPEG file",
-          "line": 151,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eb0ca1679f34da9355b798e72354db3f679cc8e5c05419415006be0b65d2a6fa"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect file exceeding size limit",
-          "line": 163,
+          "line": 136,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "18762689b59094788807632dc8306dc99bf19dc9151ae750eb57937c71d0db50"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should reject empty files",
-          "line": 177,
+          "line": 150,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b53338c62f3f1348419fb71eea4c6e2c62505c737a08218d3bab76e90d6a8609"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect invalid file extension",
-          "line": 188,
+          "line": 161,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "734cbc609e7da9bc2495f236f8fa6f5c2ae5bd255b523d68ef57edb8684750c9"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect invalid MIME type",
-          "line": 199,
+          "line": 172,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70dbdb6f3b8816b74c946599d3769d81d3fd64814954093f31c17bc625c949a7"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should validate PNG magic number",
-          "line": 211,
+          "line": 184,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0d1b17358917acd9039aeaf161d9afc8ec15545f2a6de44da2274bf289688872"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect magic number mismatch",
-          "line": 222,
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a08a6926eaf197e686197fd1a25ba83c9b3c4bd7ac556916546c99c9a3186879"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect executable files by magic number",
-          "line": 232,
+          "line": 205,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4839f58877e4c368caf55f361dd3a885ec9c46026bc50fa1926c1720de2d8a80"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should validate GIF magic number",
-          "line": 246,
+          "line": 219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af66f6034289083ba91a85731f7e6caa6e0fe60cb6bac762e749ab8f9a6567f6"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect embedded script tags",
-          "line": 258,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7265816f1e3046e1fedeae0f22fa00b09de9970dc09d7a86d5619bac4716bf8e"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect PHP code in content",
-          "line": 269,
+          "line": 242,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ea4f6f46c48a8f0569c96f299f4f6f2e19dc9d4ae9d5626911d0ec5e9551e04"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect null bytes in text files",
-          "line": 279,
+          "line": 252,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f852c2bf29a6b4b9f09990113743be3445f7d4807c3b7f006be7fec981912643"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect high entropy content",
-          "line": 289,
+          "line": 262,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "17bce8a8a3b3612d2c3a24a0e2e623daf73970f1d59673c8c16e733b4de9987e"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should skip content analysis when disabled",
-          "line": 303,
+          "line": 276,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ae083d94fbf3375802f71dbaba978c3cb70f47a261086d61d20df04dfbcac20"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect oversized EXIF metadata",
-          "line": 315,
+          "line": 288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5b101d949ef32cc9483f3fba7322ed0b44ef8516adea9bd7cd489ca7dee3ce59"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should pass validation for normal metadata size",
-          "line": 329,
+          "line": 302,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bdf9a9c59b6bd35a8de6ffe977557face917923f09268ba8b3aabccaf8442cf0"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should skip metadata validation when disabled",
-          "line": 342,
+          "line": 315,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "53ea79399dc12f1cc5cd92cd16905b9e568bed948302e92de15752570a25d4de"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should extract PNG dimensions",
-          "line": 357,
+          "line": 330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "80d8e730b612edad8e53ea9fbf44c9a7da17e9e152fab9be3229c21612fbf238"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect image dimensions exceeding limit",
-          "line": 369,
+          "line": 342,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5698b4b3c66dfb665139818d6bd438001bd28dc433865ace64b47110bbf2fb31"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should detect invalid image dimensions",
-          "line": 379,
+          "line": 352,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d438c84e628407b341eb3e3e76a0392c3e273d64336edb00e325edcbb290ee06"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should extract JPEG dimensions",
-          "line": 395,
+          "line": 368,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a27466d53a811bbe4d8341591dd0752e877a8da90d321fe92b3cf0a8c51ba065"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should pass clean file through malware scan",
-          "line": 414,
+          "line": 387,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd2412e45a70972bff609c99708ce4c84e7f4ded2bf9ce3922337ca62a23d48b"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should not trigger malware detection for clean hash",
-          "line": 425,
+          "line": 398,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b37b246c0583b0c5251ab7ab19e4013d458dec9c3ebc0d8e46f7ed71954816af"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should skip scanning when disabled",
-          "line": 436,
+          "line": 409,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "85f7f3e0eb2099df16550494abb13e66a9fdbdd4b0940eab3a9b847dae06740b"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should generate SHA-256 hash",
-          "line": 448,
+          "line": 421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae5194b144f41719d0acf60a55de32240685372d820dd03c52b5e0dad6f465d1"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should provide complete file info",
-          "line": 458,
+          "line": 431,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6471be546be55f23f48e6e1431f94fb8d6e03d5ef7603e2330ff7e40813e423b"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should assign low risk to valid files",
-          "line": 473,
+          "line": 446,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f44c6de652d264e4a021dfd056edf97523a7c2f9a1bb56bba12195974190d0e"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should escalate risk with multiple threats",
-          "line": 483,
+          "line": 456,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "858b449538d935f41e62ad91035f419b688e0352fce82a378ed35d7526116129"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should handle corrupt files gracefully",
-          "line": 502,
+          "line": 475,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "52484d6386dd2bec42935e81833bed98338512a49a9c5c973e3b84255ec826ca"
         },
         {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should work with validateUploadedFile wrapper",
-          "line": 517,
+          "line": 490,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "79a70c20dc1758cc0cd95fb853d48a2f8cd8aea8f66a5aa6fe83aa00d237b38c"
         },
         {
-          "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should return plugin function from getPlugin",
-          "line": 534,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "85193b3fff1d6975f96ac244d41f2a54d6f3cc200ce75de7d816a2604881649a"
-        },
-        {
           "id": "apps/api/tests/unit/fileUploadValidator.test.ts::should register content parser and hook",
-          "line": 542,
+          "line": 507,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1121a55baeb477f17705776262df2b0d0f5d3c36fcf5a383fd3c63de67edb69f"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "fileUploadValidator",
         "module": "apps/api/src/security/fileUploadValidator.ts",
@@ -49937,7 +49731,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 18,
+      "blockCount": 11,
       "blocks": [
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 200 with healthy status",
@@ -49947,130 +49741,81 @@
           "bodyHash": "54b9dd3969ac1a4de2d5b8f7b2271671785c6c1c5d134a1e5143c6f382f77e83"
         },
         {
-          "id": "apps/api/tests/unit/healthRoutes.test.ts::should include uptime in response",
-          "line": 201,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4695f41309d9ba29fc262a6066f1985d7c5576222dc5fe4f32d295d8ececadae"
-        },
-        {
-          "id": "apps/api/tests/unit/healthRoutes.test.ts::should return ISO timestamp format",
-          "line": 212,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7c22b0ff49300a06ef478d6b00aa02eacec1e1f49071ad85a4bbb26fdf9c55fa"
-        },
-        {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return comprehensive health information",
-          "line": 225,
+          "line": 203,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1aecaa4b28eea729b91ad097448433f90306989528658a200b6854b3a98ce2e7"
         },
         {
-          "id": "apps/api/tests/unit/healthRoutes.test.ts::should include all dependency information",
-          "line": 243,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4a7eed1ad8278993d279342eb2d086e02696738c1ab472daf6f44fe3f3a1d9cf"
-        },
-        {
-          "id": "apps/api/tests/unit/healthRoutes.test.ts::should include memory metrics",
-          "line": 262,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d666ee663c027983c0967ecd43b0198ca388c595d8ce9def01e2c7bc149d6345"
-        },
-        {
-          "id": "apps/api/tests/unit/healthRoutes.test.ts::should include CPU metrics",
-          "line": 276,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3c96a00c1d7ff43e93a18f5a4bea34541ac064e1944ca9e79466083dea919434"
-        },
-        {
-          "id": "apps/api/tests/unit/healthRoutes.test.ts::should include alerts array",
-          "line": 288,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "85714fa6e25eace49b76f0aab659a12fb0b2b0ba59a9cbcc1feb76dc7fa54f96"
-        },
-        {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should always return 200 for liveness probe",
-          "line": 300,
+          "line": 223,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "28bde23c8c76c679ff9d428d4bbb42a2f3fe8efdd2ee7a3a977c963d662b4ac3"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should include process uptime",
-          "line": 314,
+          "line": 237,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f35469712aa9ff9cbe807d6e973c613244c377c03e7b06eb1ecdf594d72ec872"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 200 when critical dependencies are healthy",
-          "line": 327,
+          "line": 250,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9838a4796cbf69dc86e82a353858ee3768b383afead2d3b47e57b009cee95a87"
         },
         {
-          "id": "apps/api/tests/unit/healthRoutes.test.ts::should include timestamp in response",
-          "line": 340,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "1ddd6a245200b99728faa77642dad63b82724dfd471fab9eb0b58ea2f49cf32c"
-        },
-        {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return specific dependency health",
-          "line": 353,
+          "line": 265,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d78284ae528401e47e98fefac482fd1faea2abe4a8c333b77e275878cd7f80fb"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 404 for unknown dependency",
-          "line": 371,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6aa678e8cc0cf543797c24c09df47f95285613d6c8c294982b05ab38d614196c"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should not enumerate registered dependencies to an unauthenticated caller",
-          "line": 385,
+          "line": 297,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd9e991982007961e376a8732fb3641016f2453078889956a9aaa7f6c53f441c"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::should return 503 rather than 404 when a registered dependency's check fails",
-          "line": 400,
+          "line": 312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6707a6e0d46cf91ebb8e10f9a6c28233e837321dde1df9e7e2d384d94faf870b"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::registers each checker the composition root built under its dependency name",
-          "line": 418,
+          "line": 330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d85bc2a65994a94900e3919eaea038d3091d788a5b49176533ed6500540459f2"
         },
         {
           "id": "apps/api/tests/unit/healthRoutes.test.ts::serves its routes from the options alone, with no DI container on the instance",
-          "line": 425,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "61dcafe1d4efff69f9ae66fcd40581b83dbf345f9687d46a3358265c197ec5ae"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "healthRoutes",
         "module": "apps/api/src/health/healthRoutes.ts",
@@ -60454,7 +60199,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 46,
+      "blockCount": 35,
       "blocks": [
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should generate and attach correlation ID",
@@ -60464,326 +60209,249 @@
           "bodyHash": "6b6416fd92a5aefa77ac259f3205c0cb34dac2aa66b08f2d16cd29d76b1aacc5"
         },
         {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should attach finishRequest function",
-          "line": 112,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4d441352d9ffa39d01a434df51d607f09af4f2b4fe266253858e97751c5725aa"
-        },
-        {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should attach finishEndpoint function",
-          "line": 123,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "de03e7180a01275a640c0f085df671a5f9e827e14d2887f9d5b94046219a459b"
-        },
-        {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should use routeOptions.url for endpoint tracking",
-          "line": 134,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "95b51725199799909953d87732c599ea739bc6a1bc89ff7575253f7081c6d58e"
-        },
-        {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should fallback to url when routeOptions.url not available",
-          "line": 148,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "0929e67bb8894da5af8ab70a49504c06743e6deae06c6e2cdb3f1ac8b072d07e"
-        },
-        {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle POST requests",
-          "line": 161,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ec6e0fd9d0a90e65d84e7be97a5f9e80c5e0eb767732b3509acd17fa7c7562a4"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle PUT requests",
-          "line": 175,
+          "line": 126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "49f97b083ef87b37fbc6d141338c2fd941e1de4e5de3a945a898e79aaf0a7645"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle DELETE requests",
-          "line": 189,
+          "line": 140,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "18a05c69be827c2216bec8de8557766e938573b724e00ad4cb7f9c3857c5cf7b"
         },
         {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should complete request tracking with 200 status",
-          "line": 209,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "ed19df8155cd0e2c36666fd2649647414a09837efe65a66ffb8c75dec777cdaa"
-        },
-        {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should track successful endpoint request",
-          "line": 223,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "fca37195e05349578e6975797dd770b67b587c68e8dad4cffbbee64eb2f54152"
-        },
-        {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record response size when content-length header present",
-          "line": 236,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "250ea6be2c57c7cc3d8d0ff55ac8ef3669672d4ad4506b61e12a2494875005a1"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle 201 status code as success",
-          "line": 248,
+          "line": 172,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e80fa9d9036a4cf2d6c2379c5602b89202787d303881dcc4fbde8cb0793131c"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle 204 status code as success",
-          "line": 259,
+          "line": 183,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "786da78df78db6848d0c840440dfb90faa2fcfcc88bdfa28cffeaf6a4758c80c"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should clean up correlation ID after response",
-          "line": 270,
+          "line": 194,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e819018a4b7fa2a287841c179fa5c3c99a3c83bff31ad810881ad86d13ecbdad"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should track 400 client error",
-          "line": 290,
+          "line": 214,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bf61c107e4ca596f4878c5c5091fa7e31badccbdf5a0d89e8a8330d81e0029f5"
         },
         {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should track 401 unauthorized error",
-          "line": 301,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "b7f3783334ded8ba9a7f018cd9011b4c0f5632f3dd1c3ca9970386afbc02620f"
-        },
-        {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should track 403 forbidden error",
-          "line": 312,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "bbaaaef22a1ce172c3ea3bb6e9557fb8f845c5ccc680e1d186e0eb656dfd8800"
-        },
-        {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should track 404 not found error",
-          "line": 323,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "84095a5576db3b9dc91b6c05b73163707d6467e6ae81567e93c9e287395d1afb"
-        },
-        {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should track 429 rate limit error",
-          "line": 334,
+          "line": 225,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a5fbf72260d78e3f09c48a52a634c678e33d01d09e1c6e6eddb693c22c855a7"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should track 500 server error",
-          "line": 345,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb555cd6ad9c495aab2beba8734453724c6f28ff6ab9c8b38a1170b0b49b42fa"
         },
         {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should track 502 bad gateway error",
-          "line": 356,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "dd68acdec57800dd741dee7b4713207315e1bbbafecda4d758340a2165165645"
-        },
-        {
-          "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should track 503 service unavailable error",
-          "line": 367,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "c973b28234e5bd11d547af9fb3b2a5d7eb416b844b205446343667d7811927aa"
-        },
-        {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should categorize 4xx as client_error",
-          "line": 378,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b28c3432098f766ae34c43def641875c67532a88e9e89684153e00ef680c8a6"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should categorize 5xx as server_error",
-          "line": 390,
+          "line": 259,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4fd478ae0ef97e15e5cd7d50af150252b4904e8f9b5797b3f69b988b27989980"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record generic error",
-          "line": 408,
+          "line": 277,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1b90f5e163e5295c01f27ed322f7cc41c5fbae7f4e0deba0c07d043095483c57"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record error with custom name",
-          "line": 420,
+          "line": 289,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "55d6a752d2fc8775472f75ca76561e32fed84d810d2deb53f4ec344df813db31"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should attach correlation ID to error",
-          "line": 433,
+          "line": 302,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ea0d945973eae8712ee91b8cd3da5b46d8cbf464e775a5458b1ae472c06914c"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle error without name",
-          "line": 447,
+          "line": 316,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aae4252c09a8ee6498f59a57bba4ec80ea62df2f8f31e46eb5931fa31c73b721"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record client error for 4xx status",
-          "line": 460,
+          "line": 329,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "caca280d34e86f46c0f7056591e0ce9e85e4e12f8c81e3b0ed294d067822379e"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record server error for 5xx status",
-          "line": 472,
+          "line": 341,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1c1a93e2a6441eb6bdee42c923b0f1f932c5c4caa15e6570b4977173fa2a5152"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should default to 500 status if not set",
-          "line": 484,
+          "line": 353,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d98070a080fea066da86b127c7a6e0acdd2eb828ce73b3393a1b570256cea1e5"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should extract route from routeOptions.url",
-          "line": 502,
+          "line": 371,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "82eb59d3da39da9d9340cdf862976fc1d42855b1785aaaffb06c9a304c73e83f"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should fallback to url when routeOptions not available",
-          "line": 512,
+          "line": 381,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "93a5d3349166bdfad0f997f721933530f4fa89414b780fda1da61b35a50c7794"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should strip query parameters from url",
-          "line": 522,
+          "line": 391,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98571e0733a515339143d84537d5fc823b05f0fead528ef50c8669559477d3a6"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should return 'unknown' when url is undefined",
-          "line": 532,
+          "line": 401,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d4eb97b999aa1db96d085e9d3029c36e8c84a45c9eae979814a3d58cd77ead1e"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle root path",
-          "line": 542,
+          "line": 411,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66a34d455ed3d4390bac9fbe563a7da37dff28a219292d087a438e535511ad51"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle complex query parameters",
-          "line": 552,
+          "line": 421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c25e8c5b959daa743228fd472d30f0c1d45f9dd4ef2f269acfb674b828031fdb"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record post_created metric",
-          "line": 568,
+          "line": 437,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9649059da760c32961a72dee5eadfb3a570f0ef2fd17e2faa3bb1d292cc00620"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record post_published metric",
-          "line": 582,
+          "line": 451,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9d493aa2f9b0e7ee4503eb214a45882f6fb5008f88cd06d4a60bddc24fe8800c"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record media_uploaded metric",
-          "line": 596,
+          "line": 465,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a2859e53555d89f0f33e170d23e7bd4aef3ae048a368e3d88df5a77b4fa132ed"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record thread_created metric",
-          "line": 610,
+          "line": 479,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "25e83a3cd781088aa923ecdbdf4397d31ac2062e785963b9c50d24aff05fcc91"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record tweet_created metric",
-          "line": 624,
+          "line": 493,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e4517949d322524db646ca1631d6535a2609521812f12158dd4548f8229de72"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should record preview_requested metric",
-          "line": 637,
+          "line": 506,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c867e2889758df44282886cceb4a8dc35ab4544642c9241534dac2a97661249a"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle operation without labels",
-          "line": 651,
+          "line": 520,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1728ef3dc21496781e3988ef100aef7dab63a51c50e4763b18159c9c2c635c0d"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should ignore unknown operations",
-          "line": 662,
+          "line": 531,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b7828226a6600bdc7aa51b084d4188673cdf5a1e863f5489b63af65a54dfd6f7"
         },
         {
           "id": "apps/api/tests/unit/metricsMiddleware.test.ts::should handle empty labels object",
-          "line": 675,
+          "line": 544,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd249e8f7f8c2c7ec9237b598cb8f83d995ccd501aacca09b15f219a5b28d8ec"
         }
       ],
-      "verdict": "ADJUDICATE",
-      "basis": "title-contradiction",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "metricsMiddleware",
         "module": "apps/api/src/middleware/metricsMiddleware.ts",
@@ -61475,7 +61143,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 19,
+      "blockCount": 17,
       "blocks": [
         {
           "id": "apps/api/tests/unit/optimizedPostsRoutes.test.ts::should return paginated posts with default parameters",
@@ -61569,53 +61237,39 @@
           "bodyHash": "392d11032b91d4e9336e10640ad14f5b2b4dca41578ff367548e6fc9b21ea391"
         },
         {
-          "id": "apps/api/tests/unit/optimizedPostsRoutes.test.ts::should include lastActivity timestamp",
-          "line": 294,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "0f8c5c7b5a20347c1d64ca48c0a3e43c12b3ab78871cd547f51d6e74a4e3be77"
-        },
-        {
           "id": "apps/api/tests/unit/optimizedPostsRoutes.test.ts::should warm cache for valid accountId",
-          "line": 309,
+          "line": 296,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a436ce9322adabcc0d53bb01bb033511e53a9cfdd7ec6a85efd370229986b85e"
         },
         {
           "id": "apps/api/tests/unit/optimizedPostsRoutes.test.ts::should validate accountId parameter",
-          "line": 324,
+          "line": 311,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8b685fe273a5fab2e101329f40e66dad13bb37b9cebd8ca226e85748334df962"
         },
         {
-          "id": "apps/api/tests/unit/optimizedPostsRoutes.test.ts::should return consistent success response format",
-          "line": 337,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "be53a5eeffb3455ceabd735b0c6d3212614e79aa81d4fc889c3510c3a82e3959"
-        },
-        {
           "id": "apps/api/tests/unit/optimizedPostsRoutes.test.ts::should return consistent error response format",
-          "line": 350,
+          "line": 324,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6eccfba728d557f158157567e93792f9ad0466a320d9516c8c990bea6bdf1bf7"
         },
         {
           "id": "apps/api/tests/unit/optimizedPostsRoutes.test.ts::should include correct HTTP status codes",
-          "line": 363,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "592f431222dcd90e86b9de7c61df6c408727f8653070a80c7ef926e35893aa63"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "optimizedPostsRoutes",
         "module": "apps/api/src/posts/optimizedPostsRoutes.ts",
@@ -62041,172 +61695,165 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 24,
+      "blockCount": 23,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should initialize with default alert rules",
-          "line": 17,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ee9518b9fcbfd05b362e49f7cc3e23b29eb934d6f3a2350fb7eaccc0f8c1e443"
-        },
-        {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should initialize with default thresholds",
-          "line": 26,
+          "line": 17,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "54198d8837b135096a1a08a5892ff01859b81f78508971906c713d3e2b985fb7"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should record request metrics",
-          "line": 47,
+          "line": 38,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6fa49eaa96af1db0c5fdf13b25743c0c6ffaf39862d811326209137744af4674"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should detect slow requests",
-          "line": 61,
+          "line": 52,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "beb14fef3f22de914ee31a47efeb1ee3d80b4e1fe7d9f85d405568aee34ba63b"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should not flag fast requests as slow",
-          "line": 75,
+          "line": 66,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "530fb06563d4723a04e7de08ed8bdb9ef5368f730cd28dfbe2e2232b64d37f6b"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should track user agent in metrics",
-          "line": 87,
+          "line": 78,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "bb49f15655de27c3651f32a101662f5015c3c0aa84881721524e490f20a61116"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should track client IP in metrics",
-          "line": 102,
+          "line": 93,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "64f2827e05f65b5c5d0adccdb12bc68e4a1b33394f3e45140cf9b804e66637f5"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle different status codes",
-          "line": 115,
+          "line": 106,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4fc8e3880f3d5417ba755fee98b6a3e5bf0329473e7d6be0c691938232363734"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should extract clean route from URL",
-          "line": 139,
+          "line": 130,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c18f80439ca6d1d5e3651d2168994b30c6538ffa38da20211967c983984df301"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should normalize numeric IDs in routes",
-          "line": 152,
+          "line": 143,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ca269a67016b2b8c0f364e58fd7a925db12d41c95353a6ac6b6674c7f56200a1"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should normalize UUIDs in routes",
-          "line": 165,
+          "line": 156,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "404d582451fba70795f6d8f7da8d50fb03b5ea3283016472cc3822af6d9f9f14"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should normalize long tokens in routes",
-          "line": 180,
+          "line": 171,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6303e672ce452ee99035defe1be4b9aae25d923009681bd3596bc81c862fc6ba"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should calculate healthy system status",
-          "line": 203,
+          "line": 194,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b2ed19dafa20bce09a98bc0004982ef4525efeff6bfaa54766a0174526cd9f02"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should calculate degraded system status for slow responses",
-          "line": 217,
+          "line": 208,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd9ee9cfa1f257b0803108766830dcb4aed26fb5e5756d70e57f54dacb5e563a"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should calculate degraded status for high error rate",
-          "line": 229,
+          "line": 220,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e3efebc5379ef54dbd397bec9857ca117d8e417bb95fa83f0e6556caae2f782"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should calculate unhealthy status for critical response times",
-          "line": 248,
+          "line": 239,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4549c2808d2977c04d915fbc2d5fd696e683210f0e8f36559021a98c48bfea06"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should include system uptime in health status",
-          "line": 261,
+          "line": 252,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e9434c4389d397b2e0bd05f315795713b3027783963e39faf953b1cf1570cb6"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should include memory usage percentage",
-          "line": 267,
+          "line": 258,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "37a0b7260fcc825b6ce1da1aaa28cb2a456cd65c3709aca9cb1f3ef744b59a3d"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle zero response time",
-          "line": 285,
+          "line": 276,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "109db030f043fb70aa4614c37c04ed019a9f1bfe99a1fbb9b855d89847bd2166"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle very high response time",
-          "line": 297,
+          "line": 288,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "bf5745282020a8e1df73939277287fcdf585e74934936a32b3707afff224ffd4"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle requests without user agent",
-          "line": 309,
+          "line": 300,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66f873810e4510109ea9dffa6a2ae4961148c7261e3d4e4df0b418fcc58e2e47"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle missing IP address",
-          "line": 320,
+          "line": 311,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "06d3ee672869a67f3f0b255cd0f7f095ed3da6427f580c4e852f1fcb6358ed77"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle malformed URLs",
-          "line": 331,
+          "line": 322,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70781b1e8f186bec34053b8c650700cf5d6a47c7d5097a3cd2a89e3be438ea84"
         },
         {
           "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle Redis errors gracefully",
-          "line": 342,
+          "line": 333,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a18211fa9e2957e4579f1f543a7873b3db7efd9db03960f68abe372b5b04511"
@@ -62216,7 +61863,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2b",
       "subject": {
         "stem": "performanceMonitor",
         "module": "apps/api/src/monitoring/performanceMonitor.ts",
