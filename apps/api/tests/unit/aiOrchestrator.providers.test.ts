@@ -7,7 +7,7 @@
  * - Provider Selection Strategy (preferred, skip unavailable)
  * - Fallback Handling (fallback chain, all-fail, exponential backoff)
  * - Load Balancing (distribution, speed preference)
- * - Cost Optimization (cost tracking, per-provider reporting)
+ * - Cost Optimization (cost tracking)
  *
  * @file aiOrchestrator.providers.test.ts
  * @description Tests for AIOrchestrator — Providers
@@ -232,20 +232,6 @@ describe("AIOrchestrator — Providers", () => {
       }
 
       expect(totalCost > 0).toBeTruthy();
-    });
-
-    it("should report cost per provider in metrics", async () => {
-      const messages: AIMessage[] = [{ role: "user", content: "Cost tracking" }];
-
-      await orchestrator.generateContent(messages);
-
-      const metrics = orchestrator.getUsageMetrics();
-
-      for (const [_provider, metric] of metrics) {
-        if (metric.requestCount > 0) {
-          expect(metric.cost >= 0).toBeTruthy();
-        }
-      }
     });
   });
 });

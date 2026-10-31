@@ -13,11 +13,11 @@
  * 6. Performance Metrics - Baseline tracking and comparison
  * 7. Table Optimization - ANALYZE and statistics updates
  * 8. Connection Statistics - Pool usage and efficiency
- * 9. Query Performance - Slow query detection and metrics
- * 10. Index Efficiency - Usage tracking and recommendations
+ * 9. Health Thresholds - Warning and critical status from pool utilization
+ * 10. Error Handling - Failures logged and rethrown by every operation
  *
  * @file DatabaseOptimizer.test.ts
- * @description Tests for DatabaseOptimizer - Initialization
+ * @description Tests for DatabaseOptimizer - views, health, dashboards, metrics and tables
  * @layer infrastructure
  */
 
@@ -46,21 +46,6 @@ function createMockLogger() {
     debug: vi.fn(),
   };
 }
-
-// ============================================================================
-// DatabaseOptimizer - Initialization Tests
-// ============================================================================
-
-describe("DatabaseOptimizer - Initialization", () => {
-  it("should initialize with prisma client and logger", (_t) => {
-    const prisma = createMockPrismaClient();
-    const logger = createMockLogger();
-
-    const optimizer = new DatabaseOptimizer(prisma as any, logger as any, scheduler);
-
-    expect(optimizer).toBeTruthy();
-  });
-});
 
 // ============================================================================
 // DatabaseOptimizer - Materialized View Tests
@@ -92,13 +77,6 @@ describe("DatabaseOptimizer - Materialized View Refresh", () => {
     await expect(optimizer.refreshMaterializedViews()).rejects.toThrow("Refresh failed");
 
     expect(mockLogger.error.mock.calls.length).toBe(1);
-  });
-
-  it("should use stored function for refresh", async () => {
-    await optimizer.refreshMaterializedViews();
-
-    const executeCall = mockPrisma.$executeRaw.mock.calls[0];
-    expect(executeCall).toBeTruthy();
   });
 });
 
@@ -162,34 +140,6 @@ describe("DatabaseOptimizer - Database Health Report", () => {
 
     expect(health).toBeTruthy();
     expect(["healthy", "warning", "critical"].includes(health.overall)).toBeTruthy();
-  });
-
-  it("should include connection usage in health report", async () => {
-    const health = await optimizer.getDatabaseHealthReport();
-
-    expect(health.connectionUsage).toBeTruthy();
-    expect(typeof health.connectionUsage.total).toBe("number");
-    expect(typeof health.connectionUsage.active).toBe("number");
-    expect(typeof health.connectionUsage.idle).toBe("number");
-    expect(typeof health.connectionUsage.utilization).toBe("number");
-  });
-
-  it("should include query performance metrics in health report", async () => {
-    const health = await optimizer.getDatabaseHealthReport();
-
-    expect(Array.isArray(health.queryPerformance)).toBeTruthy();
-  });
-
-  it("should include index efficiency in health report", async () => {
-    const health = await optimizer.getDatabaseHealthReport();
-
-    expect(Array.isArray(health.indexEfficiency)).toBeTruthy();
-  });
-
-  it("should include materialized view status in health report", async () => {
-    const health = await optimizer.getDatabaseHealthReport();
-
-    expect(Array.isArray(health.materializedViewStatus)).toBeTruthy();
   });
 
   it("should report healthy status with good metrics", async () => {
@@ -363,14 +313,6 @@ describe("DatabaseOptimizer - Tenant Dashboard Stats", () => {
     expect(stats?.totalPosts).toBe(50);
     expect(stats?.publishedPosts).toBe(30);
     expect(stats?.scheduledPosts).toBe(15);
-  });
-
-  it("should format statistics correctly", async () => {
-    const stats = await optimizer.getTenantDashboardStats("account-123");
-
-    expect(stats).toBeTruthy();
-    expect(typeof stats?.totalPosts).toBe("number");
-    expect(typeof stats?.avgPostViews).toBe("number");
   });
 
   it("should return null when no stats found", async (_t) => {

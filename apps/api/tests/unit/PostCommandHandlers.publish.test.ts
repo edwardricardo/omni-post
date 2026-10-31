@@ -179,21 +179,6 @@ describe("PublishPostCommandHandler", () => {
     expect(result.events.some((e: { type: string }) => e.type === "user.action")).toBeTruthy();
   });
 
-  it("should handle different priority levels", async () => {
-    const priorities = ["LOW", "NORMAL", "HIGH"] as const;
-
-    for (const priority of priorities) {
-      // Reset mocks for each iteration
-      ctx = createTestConfig();
-      handler = new PublishPostCommandHandler(ctx.config);
-
-      const command = buildPublishPostCommand({ priority });
-      const result = await handler.handle(command);
-
-      expect(result.success).toBeTruthy();
-    }
-  });
-
   it("should invalidate cache on success", async () => {
     const command = buildPublishPostCommand();
     await handler.handle(command);

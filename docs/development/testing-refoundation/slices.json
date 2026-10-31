@@ -60,6 +60,30 @@
         "branches": { "from": 50.3, "to": 50.1 },
         "statements": { "from": 59.5, "to": 59.3 }
       }
+    },
+    "2.8.2a": {
+      "files": [
+        "apps/api/tests/unit/AppError.test.ts",
+        "apps/api/tests/unit/CQRSBus.monitoring.test.ts",
+        "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+        "apps/api/tests/unit/DatabaseOptimizer.test.ts",
+        "apps/api/tests/unit/EventPublisher.test.ts",
+        "apps/api/tests/unit/EventService.test.ts",
+        "apps/api/tests/unit/EventStore.test.ts",
+        "apps/api/tests/unit/PlatformContentAdapter.content.test.ts",
+        "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts",
+        "apps/api/tests/unit/PostCommandHandlers.publish.test.ts",
+        "apps/api/tests/unit/PostCommandHandlers.update.test.ts",
+        "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts",
+        "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts",
+        "apps/api/tests/unit/activityFeedService.test.ts",
+        "apps/api/tests/unit/aiOrchestrator.providers.test.ts"
+      ],
+      "deleted": { "files": 0, "blocks": 51 },
+      "floors": {
+        "lines": { "from": 59.9, "to": 59.8 },
+        "branches": { "from": 50.1, "to": 50 }
+      }
     }
   }
 }

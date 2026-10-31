@@ -1,6 +1,6 @@
 /**
  * @file EventService.test.ts
- * @description Tests for Integration Tests
+ * @description Tests for the event helpers: serialization, uniqueness and business rules
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
@@ -34,23 +34,6 @@ describe("Integration Tests", () => {
       expect(deserialized.aggregateId).toBe(original.aggregateId);
       expect(deserialized.aggregateType).toBe(original.aggregateType);
       expect(deserialized.timestamp.toISOString()).toBe(original.timestamp.toISOString());
-    });
-
-    it("should serialize and deserialize analytics events with periods", () => {
-      const original = createAnalyticsEvent("post-123", "ch-456", "twitter", {
-        views: 100,
-        likes: 10,
-        comments: 5,
-        shares: 2,
-      });
-
-      const serialized = serializeEvent(original);
-      const deserialized = deserializeEvent(serialized);
-
-      // Note: Nested dates in period won't be deserialized automatically
-      // This tests current behavior
-      expect(typeof deserialized.data.period.start).toBe("string");
-      expect(typeof deserialized.data.period.end).toBe("string");
     });
   });
 

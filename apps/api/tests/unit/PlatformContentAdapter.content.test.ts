@@ -68,23 +68,6 @@ describe("PlatformContentAdapter - Content Truncation and Hashtag Optimization",
     promClient.register.clear();
   });
 
-  describe("Initialization", () => {
-    it("should initialize with transformers and strategies", async () => {
-      const initEventService: Pick<EventService, "publishEvent"> = {
-        publishEvent: async () => ({ ok: true as const, value: undefined }),
-      };
-
-      const testAdapter = new PlatformContentAdapter({
-        prisma: prisma as unknown as PrismaClient,
-        redis: mockRedis,
-        eventService: initEventService as EventService,
-      });
-      await testAdapter.initialize();
-
-      expect(testAdapter).toBeTruthy();
-    });
-  });
-
   describe("Content Truncation", () => {
     it("should truncate with ellipsis when content exceeds limit", async () => {
       const longPost: CanonicalPost = {

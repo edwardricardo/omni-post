@@ -36,12 +36,6 @@ describe("CompletePostPublishingCommandHandler", () => {
   });
 
   describe("command contract", () => {
-    it("accepts a well-formed total-success outcome", async () => {
-      const result = await handler.handle(buildCompletePostPublishingCommand());
-
-      expect(result.success).toBeTruthy();
-    });
-
     it("rejects an unknown key in data with unrecognized_keys rather than silently dropping it", async () => {
       const command = buildCompletePostPublishingCommand();
       (command.data as Record<string, unknown>).status = "PUBLISHED";

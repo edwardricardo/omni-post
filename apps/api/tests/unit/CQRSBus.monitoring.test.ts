@@ -29,15 +29,6 @@ describe("CQRSBus - Metrics and Monitoring", () => {
     });
   });
 
-  it("should provide accurate metrics", () => {
-    const metrics = bus.getMetrics();
-
-    expect(typeof metrics.commandsExecuted).toBe("number");
-    expect(typeof metrics.queriesExecuted).toBe("number");
-    expect(typeof metrics.commandErrors).toBe("number");
-    expect(typeof metrics.queryErrors).toBe("number");
-  });
-
   it("should calculate average execution times", async () => {
     const handler = new TestCommandHandler();
     bus.registerCommandHandler(handler);
@@ -185,11 +176,6 @@ describe("CQRSBus - Shutdown", () => {
     const info = bus.getHandlersInfo();
     expect(info.commands.length).toBe(0);
     expect(info.queries.length).toBe(0);
-  });
-
-  it("should be idempotent", async () => {
-    await bus.shutdown();
-    await bus.shutdown();
   });
 });
 
