@@ -6,7 +6,7 @@
  * - USE_REAL_PROVIDERS=true - Use real provider metadata (default: uses mock providers)
  *
  * @file providerConstraintValidator.test.ts
- * @description Tests for Provider Constraint Validator - Initialization & Basic Validation
+ * @description Tests for Provider Constraint Validator - Basic Validation
  * @layer infrastructure
  */
 
@@ -139,42 +139,16 @@ beforeAll(() => {
 });
 
 // ============================================================================
-// Test Group 1: Initialization & Basic Validation
+// Test Group 1: Basic Validation
 // ============================================================================
 
-describe("Provider Constraint Validator - Initialization & Basic Validation", () => {
-  it("should initialize validator successfully", () => {
-    const validator = new ProviderConstraintValidator();
-    expect(validator).toBeTruthy();
-  });
-
-  it("should return validation result with correct structure", async () => {
-    const validator = new ProviderConstraintValidator();
-    const result = await validator.validateContent(shortContent, mockXProvider);
-
-    expect(result).toBeTruthy();
-    expect(typeof result.valid).toBe("boolean");
-    expect(Array.isArray(result.errors)).toBeTruthy();
-    expect(Array.isArray(result.suggestions)).toBeTruthy();
-    expect(Array.isArray(result.adaptations)).toBeTruthy();
-  });
-
+describe("Provider Constraint Validator - Basic Validation", () => {
   it("should pass validation for short valid content", async () => {
     const validator = new ProviderConstraintValidator();
     const result = await validator.validateContent(shortContent, mockXProvider);
 
     expect(result.valid).toBe(true);
     expect(result.errors.length).toBe(0);
-  });
-
-  it("should have expected validation result structure", async () => {
-    const validator = new ProviderConstraintValidator();
-    const result = await validator.validateContent(shortContent, mockXProvider);
-
-    expect(typeof result.valid).toBe("boolean");
-    expect(Array.isArray(result.errors)).toBeTruthy();
-    expect(Array.isArray(result.suggestions)).toBeTruthy();
-    expect(Array.isArray(result.adaptations)).toBeTruthy();
   });
 });
 
@@ -324,20 +298,6 @@ describe("Provider Constraint Validator - Capability Validation", () => {
 // ============================================================================
 
 describe("Provider Constraint Validator - Custom Rules", () => {
-  it("should allow registering custom validation rule", () => {
-    const validator = new ProviderConstraintValidator();
-
-    validator.registerRule({
-      name: "custom_test_rule",
-      description: "Test custom rule",
-      severity: "warning",
-      validate: () => ({ valid: true }),
-    });
-
-    // Should not throw
-    expect(true).toBeTruthy();
-  });
-
   it("should execute custom rule during validation", async () => {
     const validator = new ProviderConstraintValidator();
     let customRuleExecuted = false;
@@ -408,15 +368,6 @@ describe("Provider Constraint Validator - Multi-Provider Validation", () => {
     expect(summaries[0].score <= 100).toBeTruthy();
   });
 
-  it("should include error counts in summary", async () => {
-    const validator = new ProviderConstraintValidator();
-    const summaries = await validator.validateMultipleProviders(shortContent, [mockXProvider]);
-
-    expect(typeof summaries[0].errors).toBe("number");
-    expect(typeof summaries[0].warnings).toBe("number");
-    expect(typeof summaries[0].infos).toBe("number");
-  });
-
   it("should include estimated effort in summary", async () => {
     const validator = new ProviderConstraintValidator();
     const summaries = await validator.validateMultipleProviders(shortContent, [mockXProvider]);
@@ -431,14 +382,6 @@ describe("Provider Constraint Validator - Multi-Provider Validation", () => {
 // ============================================================================
 
 describe("Provider Constraint Validator - Best Provider Selection", () => {
-  it("should return best provider for valid content", async () => {
-    const validator = new ProviderConstraintValidator();
-    const providers = [mockXProvider, mockInstagramProvider];
-    const bestProvider = await validator.getBestProvider(shortContent, providers);
-
-    expect(bestProvider !== null).toBeTruthy();
-  });
-
   it("should select best provider based on content constraints", async () => {
     const validator = new ProviderConstraintValidator();
     const providers = [mockXProvider, mockInstagramProvider];

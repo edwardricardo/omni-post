@@ -1642,17 +1642,6 @@ describe("projectRoutes - Unit Tests", () => {
 
       expect(response.statusCode < 500 || response.statusCode === 500).toBeTruthy();
     });
-
-    it("should return proper error structure", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/accounts/a0000000-0000-4000-8000-000000000001/projects",
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.error).toBeTruthy();
-      expect(typeof body.error).toBe("string");
-    });
   });
 
   describe("Input Validation", () => {

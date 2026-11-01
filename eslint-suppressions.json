@@ -968,45 +968,29 @@
     }
   },
   "apps/api/tests/unit/performanceMonitor.stats.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    },
     "vitest/no-conditional-expect": {
       "count": 12
     }
   },
   "apps/api/tests/unit/postsService.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 3
+      "count": 2
     },
     "vitest/no-conditional-expect": {
       "count": 2
     }
   },
-  "apps/api/tests/unit/projectRoutes.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/providerAdapterInterface.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 10
-    },
     "vitest/no-conditional-expect": {
       "count": 3
     }
   },
   "apps/api/tests/unit/providerCapabilityManager.combinations.test.ts": {
     "vitest/no-conditional-expect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/unit/providerCapabilityManager.init.test.ts": {
-    "vitest/no-conditional-expect": {
-      "count": 2
-    }
-  },
-  "apps/api/tests/unit/providerCapabilityManager.matrix.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 1
     }
@@ -1015,42 +999,23 @@
     "no-console": {
       "count": 6
     },
-    "testing/no-existence-only-test": {
-      "count": 5
-    },
-    "testing/no-tautological-assertion": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
       "count": 2
-    }
-  },
-  "apps/api/tests/unit/providerOAuth.initiation.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/providerRegistry.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 9
+      "count": 1
     }
   },
   "apps/api/tests/unit/providerService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    },
     "vitest/no-conditional-expect": {
-      "count": 27
+      "count": 22
     }
   },
   "apps/api/tests/unit/rbacService.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 5
-    }
-  },
-  "apps/api/tests/unit/roiCalculator.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/saga/sagaPersistence.column.test.ts": {
@@ -1061,9 +1026,6 @@
   "apps/api/tests/unit/sagaIntegration.init.test.ts": {
     "no-console": {
       "count": 1
-    },
-    "testing/no-existence-only-test": {
-      "count": 3
     }
   },
   "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts": {
@@ -1074,9 +1036,6 @@
   "apps/api/tests/unit/sagaIntegration.monitoring.test.ts": {
     "no-console": {
       "count": 1
-    },
-    "testing/no-existence-only-test": {
-      "count": 3
     }
   },
   "apps/api/tests/unit/sagaIntegration.queue.test.ts": {
@@ -1089,7 +1048,7 @@
       "count": 1
     },
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/unit/sagaManager.execution.test.ts": {
@@ -1113,12 +1072,6 @@
     }
   },
   "apps/api/tests/unit/secureSchemas.query.test.ts": {
-    "testing/no-empty-test": {
-      "count": 1
-    },
-    "vitest/expect-expect": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
       "count": 4
     }
@@ -1160,11 +1113,6 @@
   },
   "apps/api/tests/unit/securityHeaders.mutations.test.ts": {
     "vitest/no-conditional-expect": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/unit/securityHeaders.test.ts": {
-    "testing/no-existence-only-test": {
       "count": 1
     }
   },

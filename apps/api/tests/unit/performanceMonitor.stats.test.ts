@@ -163,12 +163,6 @@ describe("PerformanceMonitor - Percentile Calculation", () => {
     }
   });
 
-  it("should handle empty array for percentiles", async () => {
-    const stats = await monitor.getEndpointStats(60);
-
-    expect(Array.isArray(stats)).toBeTruthy();
-  });
-
   it("should handle single value for percentiles", async () => {
     const req = createMockRequest();
     const reply = createMockReply(200);
@@ -191,21 +185,6 @@ describe("PerformanceMonitor - Dashboard Data", () => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
     monitor = createPerformanceMonitor(metrics, redis);
-  });
-
-  it("should aggregate dashboard data", async () => {
-    const req = createMockRequest();
-    for (let i = 0; i < 5; i++) {
-      const reply = createMockReply(200);
-      await monitor.recordRequest(req, reply, 100);
-    }
-
-    const dashboard = await monitor.getDashboardData(60);
-
-    expect(dashboard.systemHealth).toBeTruthy();
-    expect(Array.isArray(dashboard.endpointStats)).toBeTruthy();
-    expect(Array.isArray(dashboard.recentAlerts)).toBeTruthy();
-    expect(Array.isArray(dashboard.slowRequests)).toBeTruthy();
   });
 
   it("should include slow requests in dashboard", async () => {
@@ -243,12 +222,6 @@ describe("PerformanceMonitor - Alert Management", () => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
     monitor = createPerformanceMonitor(metrics, redis);
-  });
-
-  it("should retrieve recent alerts", async () => {
-    const alerts = await monitor.getRecentAlerts(10);
-
-    expect(Array.isArray(alerts)).toBeTruthy();
   });
 
   it("should limit number of alerts retrieved", async () => {

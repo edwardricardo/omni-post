@@ -84,16 +84,6 @@ describe("Provider Registry - Initialization & Built-in Providers", () => {
     expect(xProvider.id).toBe("x");
   });
 
-  it("should return provider with expected metadata structure", () => {
-    const registry = new ProviderRegistryService();
-    const xProvider = registry.getProvider("x");
-
-    expect(xProvider !== undefined).toBeTruthy();
-    expect(xProvider.name !== undefined).toBeTruthy();
-    expect(xProvider.capabilities !== undefined).toBeTruthy();
-    expect(xProvider.limits !== undefined).toBeTruthy();
-  });
-
   it("should return undefined for unknown provider ID", () => {
     const registry = new ProviderRegistryService();
     const unknown = registry.getProvider("unknown-provider-xyz");
@@ -107,22 +97,6 @@ describe("Provider Registry - Initialization & Built-in Providers", () => {
 // ============================================================================
 
 describe("Provider Registry - Adapter Management", () => {
-  it("should get adapter for registered provider", () => {
-    const registry = new ProviderRegistryService();
-    const xAdapter = registry.getAdapter("x");
-
-    expect(xAdapter !== undefined).toBeTruthy();
-  });
-
-  it("should return adapter with required methods", () => {
-    const registry = new ProviderRegistryService();
-    const xAdapter = registry.getAdapter("x");
-
-    expect(xAdapter !== undefined).toBeTruthy();
-    expect(typeof xAdapter.validateCredentials).toBe("function");
-    expect(typeof xAdapter.publish).toBe("function");
-  });
-
   it("should return undefined for unknown provider adapter", () => {
     const registry = new ProviderRegistryService();
     const unknown = registry.getAdapter("unknown-provider-xyz");
@@ -184,30 +158,6 @@ describe("Provider Registry - Filtering & Queries", () => {
     expect(activeProviders.length > 0).toBeTruthy();
   });
 
-  it("should filter providers by threading capability", () => {
-    const registry = new ProviderRegistryService();
-    const threadingProviders = registry.getProvidersByCapability("threading");
-    const allSupport = threadingProviders.every((p) => p.capabilities.threading === true);
-
-    expect(allSupport).toBeTruthy();
-  });
-
-  it("should filter providers by video capability", () => {
-    const registry = new ProviderRegistryService();
-    const videoProviders = registry.getProvidersByCapability("video");
-    const allSupport = videoProviders.every((p) => p.capabilities.video === true);
-
-    expect(allSupport).toBeTruthy();
-  });
-
-  it("should filter providers by scheduling capability", () => {
-    const registry = new ProviderRegistryService();
-    const schedulingProviders = registry.getProvidersByCapability("scheduling");
-    const allSupport = schedulingProviders.every((p) => p.capabilities.scheduling === true);
-
-    expect(allSupport).toBeTruthy();
-  });
-
   it("should check if individual provider supports capability", () => {
     const registry = new ProviderRegistryService();
     const xThreading = registry.supportsCapability("x", "threading");
@@ -240,14 +190,6 @@ describe("Provider Registry - Limits & Validation", () => {
     const charLimit = registry.getCharLimit("unknown-provider-xyz");
 
     expect(charLimit).toBe(280);
-  });
-
-  it("should return media limits for provider", () => {
-    const registry = new ProviderRegistryService();
-    const mediaLimits = registry.getMediaLimits("x");
-
-    expect(mediaLimits !== undefined).toBeTruthy();
-    expect(typeof mediaLimits.maxMediaPerPost).toBe("number");
   });
 
   it("should return undefined media limits for unknown provider", () => {
@@ -375,19 +317,5 @@ describe("Provider Registry - Health Checking", () => {
     const healthMap = await testRegistry.checkAllProvidersHealth();
 
     expect(healthMap.size >= 5).toBeTruthy();
-  });
-
-  it("should return Map instance for all providers health", async () => {
-    const healthMap = await testRegistry.checkAllProvidersHealth();
-
-    expect(healthMap instanceof Map).toBeTruthy();
-  });
-
-  it("should respond quickly with mock adapter", { skip: USE_REAL_ADAPTERS }, async () => {
-    const startTime = Date.now();
-    const _health = await testRegistry.checkProviderHealth("x");
-    const duration = Date.now() - startTime;
-
-    expect(duration < 100).toBeTruthy();
   });
 });

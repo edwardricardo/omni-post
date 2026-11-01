@@ -116,13 +116,6 @@ function makeCalculator(parts?: {
   return { calc, redis };
 }
 
-describe("ROICalculator - Initialization", () => {
-  it("initializes with default cost model", () => {
-    const { calc } = makeCalculator();
-    expect(calc instanceof ROICalculator).toBeTruthy();
-  });
-});
-
 describe("ROICalculator - Date Range Calculation", () => {
   it("calculates 7 days correctly", () => {
     const { calc } = makeCalculator();

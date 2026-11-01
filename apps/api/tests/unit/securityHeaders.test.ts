@@ -552,14 +552,6 @@ describe("SecurityManager Tests", () => {
   // ============================================================================
 
   describe("Security Middleware Integration", () => {
-    it("should create security middleware", async () => {
-      securityManager = new SecurityManager();
-      const middleware = securityManager.createSecurityMiddleware();
-
-      expect(middleware).toBeTruthy();
-      expect(typeof middleware).toBe("function");
-    });
-
     it("should allow valid requests through middleware", async () => {
       securityManager = new SecurityManager();
       const middleware = securityManager.createSecurityMiddleware();

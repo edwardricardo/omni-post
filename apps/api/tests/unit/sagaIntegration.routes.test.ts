@@ -166,28 +166,6 @@ describe("SagaIntegration - Post Publishing Routes", () => {
     expect(result.data.mode).toBe("schedule");
   });
 
-  it("should accept all three modes (draft, schedule, publish-now)", async () => {
-    const handler = routes.get("POST:/sagas/post-publishing/start");
-
-    const draftResult = await handler(
-      makeStartRequest({ mode: "draft", body: "Draft content" }),
-      passthroughReply
-    );
-    expect(draftResult.success).toBeTruthy();
-
-    const scheduleResult = await handler(
-      makeStartRequest({ mode: "schedule", body: "Schedule content" }),
-      passthroughReply
-    );
-    expect(scheduleResult.success).toBeTruthy();
-
-    const publishNowResult = await handler(
-      makeStartRequest({ mode: "publish-now", body: "Publish now content" }),
-      passthroughReply
-    );
-    expect(publishNowResult.success).toBeTruthy();
-  });
-
   it("refuses a new post in fr or pt in every mode, starting no saga", async () => {
     const handler = routes.get("POST:/sagas/post-publishing/start");
     assert.ok(handler);

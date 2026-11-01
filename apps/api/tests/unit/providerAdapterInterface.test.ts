@@ -10,8 +10,8 @@
  * - Legacy adapter upgrade to universal adapter
  * - Default implementation generation for enhanced methods
  * - Interface completeness validation
- * - Capability structure validation
- * - Limits structure validation
+ * - Preview character and media counts, including empty input
+ * - Original id, limits and capabilities preserved by the upgrade
  * - Metadata structure validation
  *
  * PROVIDER ADAPTER BUSINESS RULES:
@@ -256,17 +256,6 @@ describe("ProviderAdapterInterface - Type Guard", () => {
 // ========================================
 
 describe("ProviderAdapterInterface - Adapter Upgrade", () => {
-  it("should upgrade legacy adapter to full adapter", () => {
-    const legacyAdapter = createMockLegacyAdapter();
-    const upgradedAdapter = upgradeAdapter(legacyAdapter);
-
-    expect(upgradedAdapter.metadata).toBeTruthy();
-    expect(upgradedAdapter.constraints).toBeTruthy();
-    expect(typeof upgradedAdapter.validateContent).toBe("function");
-    expect(typeof upgradedAdapter.adaptContent).toBe("function");
-    expect(typeof upgradedAdapter.generatePreview).toBe("function");
-  });
-
   it("should preserve original adapter properties", () => {
     const legacyAdapter = createMockLegacyAdapter();
     const upgradedAdapter = upgradeAdapter(legacyAdapter);
@@ -313,22 +302,6 @@ describe("ProviderAdapterInterface - Adapter Upgrade", () => {
 // ========================================
 
 describe("ProviderAdapterInterface - Default Method Implementations", () => {
-  it("should provide working validateContent implementation", async () => {
-    const legacyAdapter = createMockLegacyAdapter();
-    const upgradedAdapter = upgradeAdapter(legacyAdapter);
-
-    const result = await upgradedAdapter.validateContent({
-      content: "Test content",
-      media: [],
-    });
-
-    expect(result).toBeTruthy();
-    expect(typeof result.valid).toBe("boolean");
-    expect(Array.isArray(result.errors)).toBeTruthy();
-    expect(Array.isArray(result.suggestions)).toBeTruthy();
-    expect(Array.isArray(result.adaptations)).toBeTruthy();
-  });
-
   it("should validate content using render method", async () => {
     const legacyAdapter = createMockLegacyAdapter();
     const upgradedAdapter = upgradeAdapter(legacyAdapter);
@@ -468,34 +441,6 @@ describe("ProviderAdapterInterface - Interface Structure", () => {
       ["active", "beta", "coming_soon", "maintenance", "deprecated"].includes(metadata.status)
     ).toBeTruthy();
   });
-
-  it("should validate capabilities structure", () => {
-    const fullAdapter = createMockFullAdapter();
-    const capabilities = fullAdapter.capabilities;
-
-    expect(typeof capabilities.publish).toBe("boolean");
-    expect(typeof capabilities.schedule).toBe("boolean");
-    expect(typeof capabilities.analytics).toBe("boolean");
-    expect(typeof capabilities.comments).toBe("boolean");
-    expect(typeof capabilities.replies).toBe("boolean");
-    expect(typeof capabilities.threading).toBe("boolean");
-  });
-
-  it("should validate limits structure", () => {
-    const fullAdapter = createMockFullAdapter();
-    const limits = fullAdapter.limits;
-
-    expect(typeof limits.maxChars).toBe("number");
-    expect(typeof limits.maxMediaPerPost).toBe("number");
-    expect(Array.isArray(limits.allowedMedia)).toBeTruthy();
-  });
-
-  it("should validate constraints structure", () => {
-    const fullAdapter = createMockFullAdapter();
-    const constraints = fullAdapter.constraints;
-
-    expect(typeof constraints === "object").toBeTruthy();
-  });
 });
 
 // ========================================
@@ -503,60 +448,12 @@ describe("ProviderAdapterInterface - Interface Structure", () => {
 // ========================================
 
 describe("ProviderAdapterInterface - Method Signatures", () => {
-  it("should have async validateContent method", () => {
-    const fullAdapter = createMockFullAdapter();
-
-    expect(typeof fullAdapter.validateContent).toBe("function");
-    const result = fullAdapter.validateContent({ content: "test", media: [] });
-    expect(result instanceof Promise).toBeTruthy();
-  });
-
-  it("should have async adaptContent method", () => {
-    const fullAdapter = createMockFullAdapter();
-
-    expect(typeof fullAdapter.adaptContent).toBe("function");
-    const result = fullAdapter.adaptContent(
-      { content: "test", media: [] },
-      "twitter" as ProviderId
-    );
-    expect(result instanceof Promise).toBeTruthy();
-  });
-
-  it("should have async generatePreview method", () => {
-    const fullAdapter = createMockFullAdapter();
-
-    expect(typeof fullAdapter.generatePreview).toBe("function");
-    const result = fullAdapter.generatePreview({ content: "test", media: [] });
-    expect(result instanceof Promise).toBeTruthy();
-  });
-
   it("should have sync render method", () => {
     const fullAdapter = createMockFullAdapter();
 
     expect(typeof fullAdapter.render).toBe("function");
     const result = fullAdapter.render({ content: "test", media: [] });
     expect(result instanceof Promise).toBeFalsy();
-  });
-
-  it("should have async publish method", () => {
-    const fullAdapter = createMockFullAdapter();
-
-    expect(typeof fullAdapter.publish).toBe("function");
-    const result = fullAdapter.publish({
-      channelId: "ch-123",
-      post: { type: "single" as const, content: {} },
-      dedupeKey: "key",
-      config: {} as any,
-    });
-    expect(result instanceof Promise).toBeTruthy();
-  });
-
-  it("should have async healthCheck method", () => {
-    const fullAdapter = createMockFullAdapter();
-
-    expect(typeof fullAdapter.healthCheck).toBe("function");
-    const result = fullAdapter.healthCheck();
-    expect(result instanceof Promise).toBeTruthy();
   });
 });
 

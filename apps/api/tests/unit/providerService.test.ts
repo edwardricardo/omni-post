@@ -57,20 +57,6 @@ describe("ProviderService - Get All Providers", () => {
     expect(typeof result.total).toBe("number");
     expect(result.total).toBe(result.providers.length);
   });
-
-  it("should include complete provider metadata", async () => {
-    const service = new ProviderService(mockPrisma);
-    const result = await service.getAllProviders();
-
-    if (result.providers.length > 0) {
-      const provider = result.providers[0];
-      expect(provider !== undefined).toBeTruthy();
-      expect(typeof provider.id).toBe("string");
-      expect(typeof provider.name).toBe("string");
-      expect(typeof provider.capabilities).toBe("object");
-      expect(typeof provider.limits).toBe("object");
-    }
-  });
 });
 
 // ========================================
@@ -288,26 +274,6 @@ describe("ProviderService - Get Provider Config", () => {
     expect(result.id).toBe("instagram");
     expect(typeof result.capabilities).toBe("object");
     expect(typeof result.limits).toBe("object");
-  });
-
-  it("should include capability details for all standard capabilities", async () => {
-    const service = new ProviderService(mockPrisma);
-    const result = await service.getProviderConfig("x");
-
-    const caps = result.capabilities;
-    expect(typeof caps.publish).toBe("boolean");
-    expect(typeof caps.schedule).toBe("boolean");
-    expect(typeof caps.analytics).toBe("boolean");
-    expect(typeof caps.threading).toBe("boolean");
-  });
-
-  it("should include limit details for content constraints", async () => {
-    const service = new ProviderService(mockPrisma);
-    const result = await service.getProviderConfig("x");
-
-    const limits = result.limits;
-    expect(typeof limits.maxChars).toBe("number");
-    expect(typeof limits.maxMediaPerPost).toBe("number");
   });
 
   it("should throw error for unknown provider", async () => {

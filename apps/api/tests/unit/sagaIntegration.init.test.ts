@@ -5,7 +5,7 @@
  * - SagaIntegration initialises its internal SagaManager correctly.
  * - All expected API and monitoring routes are registered.
  * - The post-publishing saga definition is registered with the manager.
- * - The CQRS bus and job-queue function are wired up and callable.
+ * - The injected saga subscriber is connected and subscribed to saga:events.
  *
  * @file sagaIntegration.init.test.ts
  * @description Tests for SagaIntegration - Initialization
@@ -15,7 +15,6 @@
 import { describe, it, beforeEach, afterEach, expect } from "vitest";
 import { NoopBackgroundTaskScheduler } from "@observability/background-scheduler";
 import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
-import { Command } from "@shared/types/cqrs.js";
 
 const scheduler = new NoopBackgroundTaskScheduler();
 import {
@@ -70,24 +69,6 @@ describe("SagaIntegration - Initialization", () => {
       await integration.shutdown();
       integration = undefined;
     }
-  });
-
-  it("should initialize saga integration successfully", async () => {
-    integration = new SagaIntegration({
-      fastify: mockFastify as any,
-      prisma: mockPrisma as any,
-      eventService: mockEventService as any,
-      cqrsBus: mockCQRSBus as any,
-      redis: mockRedis as any,
-      sagaSubscriber: mockSubscriber as any,
-      queue: mockQueue,
-      scheduler,
-    });
-
-    await integration.initialize();
-
-    const manager = integration.getSagaManager();
-    expect(manager).toBeTruthy();
   });
 
   it("should register saga definitions during initialization", async () => {
@@ -218,31 +199,5 @@ describe("SagaIntegration - Saga Definition Registration", () => {
     const metrics = manager.getMetrics();
 
     expect(metrics.definitions.includes("post-publishing-saga")).toBeTruthy();
-  });
-
-  it("should configure command executor for saga steps", async () => {
-    await integration.initialize();
-
-    // Verify CQRS bus is ready to execute commands
-    const testCommand: Command = {
-      id: "cmd-test-123",
-      type: "post.create",
-      aggregateId: "post-123",
-      aggregateType: "Post",
-      data: { body: "test" },
-      metadata: { source: "test" },
-      timestamp: new Date(),
-    };
-
-    const result = await mockCQRSBus.executeCommand(testCommand);
-    expect(result.success).toBeTruthy();
-  });
-
-  it("should configure job queue function for publishing", async () => {
-    await integration.initialize();
-
-    // Job queue is wired internally; verify through manager presence
-    const manager = integration.getSagaManager();
-    expect(manager).toBeTruthy();
   });
 });

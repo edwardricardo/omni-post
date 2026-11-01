@@ -4,7 +4,6 @@
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
-import type { ProviderCapabilities } from "../../src/providers/providerAdapter.interface.js";
 import {
   ProviderCapabilityManager,
   type CapabilityQuery,
@@ -64,40 +63,6 @@ describe("ProviderCapabilityManager - Capability Queries", () => {
     const threadingProviders = manager.getProvidersByCapability("threading");
     expect(threadingProviders.length > 0).toBeTruthy();
     expect(threadingProviders.every((p) => p.capabilities.threading === true)).toBeTruthy();
-  });
-
-  it("should return empty for unsupported capability", () => {
-    const testProviders = getTestProviders();
-    const manager = new ProviderCapabilityManager(testProviders);
-
-    const allProviders = manager.getAllProviders();
-    let unsupportedCapability: keyof ProviderCapabilities | null = null;
-
-    const capabilities: (keyof ProviderCapabilities)[] = [
-      "publish",
-      "schedule",
-      "analytics",
-      "comments",
-      "replies",
-      "threading",
-      "stories",
-      "reels",
-      "carousel",
-      "liveStreaming",
-      "directMessages",
-    ];
-
-    for (const cap of capabilities) {
-      if (allProviders.every((p) => !p.capabilities[cap])) {
-        unsupportedCapability = cap;
-        break;
-      }
-    }
-
-    if (unsupportedCapability) {
-      const providers = manager.getProvidersByCapability(unsupportedCapability);
-      expect(providers.length).toBe(0);
-    }
   });
 
   it("should return scored providers for query", () => {

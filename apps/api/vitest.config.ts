@@ -147,8 +147,8 @@ export default defineConfig({
         functions: 60.3,
         // canon-exception: decorative-demolition:2.8.2b
         branches: 49.9,
-        // canon-exception: decorative-demolition:2.8.1b
-        statements: 59.3,
+        // canon-exception: decorative-demolition:2.8.2c
+        statements: 59.2,
         // Integer arithmetic BEFORE the division on purpose: the equivalent
         // `Math.floor(n * 10) / 10 - 0.1` subtracts in floating point and writes
         // 56.199999999999996 back into this file (observed). One decimal below the

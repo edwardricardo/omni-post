@@ -47,7 +47,7 @@ const MEASURED_FLOOR: Record<ThresholdKey, number> = {
   lines: 59.8,
   functions: 60.3,
   branches: 49.9,
-  statements: 59.3,
+  statements: 59.2,
 };
 
 /**
