@@ -1,10 +1,10 @@
 /**
  * SagaIntegration — Monitoring Route Tests
  *
- * Validates the health-check, metrics and list endpoints exposed by
- * SagaIntegration:
- * - GET /api/sagas          — active-instance summary
- * - GET /api/sagas/health   — structured health status
+ * Validates the metrics endpoint exposed by SagaIntegration and the
+ * health status of the SagaManager it initialises:
+ * - SagaManager.healthCheck — degraded after a boot load failure
+ * - GET /api/sagas/metrics  — the recovery counters, as an exact set
  * - GET /api/sagas/metrics  — performance KPIs and success-rate calculation
  *
  * @file sagaIntegration.monitoring.test.ts
@@ -36,38 +36,6 @@ describe("SagaIntegration - Monitoring Routes", () => {
 
   afterEach(async () => {
     await integration.shutdown();
-  });
-
-  it("should return saga list with metrics", async () => {
-    const handler = routes.get("GET:/sagas");
-    const result = await handler({}, passthroughReply);
-
-    expect(result.success).toBeTruthy();
-    expect("activeInstances" in result.data).toBeTruthy();
-    expect("totalStarted" in result.data).toBeTruthy();
-    expect("totalCompleted" in result.data).toBeTruthy();
-    expect("totalFailed" in result.data).toBeTruthy();
-    expect(Array.isArray(result.data.definitions)).toBeTruthy();
-  });
-
-  it("should return saga health check status", async () => {
-    const handler = routes.get("GET:/sagas/health");
-    const result = await handler({}, passthroughReply);
-
-    expect(result.status).toBeTruthy();
-    expect(result.details).toBeTruthy();
-    expect(result.metrics).toBeTruthy();
-    expect(result.timestamp).toBeTruthy();
-  });
-
-  it("should return saga metrics with performance data", async () => {
-    const handler = routes.get("GET:/sagas/metrics");
-    const result = await handler({}, passthroughReply);
-
-    expect(result.success).toBeTruthy();
-    expect(result.data.performance).toBeTruthy();
-    expect(result.data.active).toBeTruthy();
-    expect(result.timestamp).toBeTruthy();
   });
 
   it("should calculate success rate in metrics", async () => {

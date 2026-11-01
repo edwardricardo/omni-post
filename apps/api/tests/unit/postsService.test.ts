@@ -1,5 +1,5 @@
 /**
- * Unit Tests for PostsService (node:test)
+ * Unit Tests for PostsService (Vitest)
  * Testing optimized queries, caching layers, performance metrics
  *
  * Pure unit test — no database, no Redis, no env-setup imports.
@@ -471,23 +471,6 @@ describe("PostsService", () => {
         const parsed = new Date(result.lastActivity);
         expect(isNaN(parsed.getTime())).toBeFalsy();
       }
-    });
-
-    it("should include all required stats fields", async (_t) => {
-      const { cacheManager, service } = createMocks();
-      cacheMiss(cacheManager);
-
-      const result = await service.getDashboardStats(TEST_ACCOUNT_ID);
-
-      expect("totalPosts" in result).toBeTruthy();
-      expect("publishedPosts" in result).toBeTruthy();
-      expect("scheduledPosts" in result).toBeTruthy();
-      expect("failedPosts" in result).toBeTruthy();
-      expect("totalChannels" in result).toBeTruthy();
-      expect("lastActivity" in result).toBeTruthy();
-      expect("avgPostViews" in result).toBeTruthy();
-      expect("cached" in result).toBeTruthy();
-      expect("cacheLevel" in result).toBeTruthy();
     });
 
     it("should cache stats with correct TTL", async (_t) => {

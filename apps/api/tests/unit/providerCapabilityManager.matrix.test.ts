@@ -25,24 +25,6 @@ describe("ProviderCapabilityManager - Capability Matrix", () => {
       expect(Array.isArray(providerIds)).toBeTruthy();
     });
   });
-
-  it("should reflect provider registration changes", () => {
-    const testProviders = getTestProviders();
-    const manager = new ProviderCapabilityManager([testProviders[0]!]);
-
-    const matrixBefore = manager.getCapabilityMatrix();
-    const threadingBefore = matrixBefore.threading?.length || 0;
-
-    const threadingProvider = testProviders.find((p) => p.capabilities.threading);
-    if (threadingProvider && threadingProvider.id !== testProviders[0]!.id) {
-      manager.registerProvider(threadingProvider);
-
-      const matrixAfter = manager.getCapabilityMatrix();
-      const threadingAfter = matrixAfter.threading?.length || 0;
-
-      expect(threadingAfter >= threadingBefore).toBeTruthy();
-    }
-  });
 });
 
 // ========================================

@@ -168,15 +168,6 @@ describe("SecurityValidatedSchemas - ISO Date Validation", () => {
     });
   });
 
-  // NOTE: Zod's datetime() validator may not accept all offset formats
-  it("should accept Z timezone format only", () => {
-    // Offset format like +00:00 may not be accepted by Zod's datetime()
-    const offsetDate = "2024-06-15T12:00:00+00:00";
-    const _result = SecurityValidatedSchemas.isoDate.safeParse(offsetDate);
-    // Test actual behavior - may fail depending on Zod version
-    // expect(result.success).toBe(true);
-  });
-
   it("should reject invalid ISO date strings", () => {
     const invalidDates = [
       "2024-01-15",

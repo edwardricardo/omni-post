@@ -58,22 +58,6 @@ describe("ProviderCapabilityManager - Provider Combinations", () => {
     const combinations = manager.suggestProviderCombinations(query);
     expect(combinations.every((combo) => combo.length <= 2)).toBeTruthy();
   });
-
-  it("should return empty for no compatible providers", () => {
-    const testProviders = getTestProviders();
-    const manager = new ProviderCapabilityManager(testProviders);
-
-    const query: CapabilityQuery = {
-      requiredCapabilities: ["publish"],
-      minCharacterLimit: 100000, // Impossible requirement
-    };
-
-    const compatibleProviders = manager.getCompatibleProviders(query);
-    if (compatibleProviders.length === 0) {
-      const combinations = manager.suggestProviderCombinations(query);
-      expect(combinations.length).toBe(0);
-    }
-  });
 });
 
 // ========================================

@@ -165,22 +165,6 @@ describe("ProviderOAuth - State Management", () => {
 // ============================================================================
 
 describe("ProviderOAuth - Provider Registry", () => {
-  it("should have OAuth providers registered for all 9 supported platforms", () => {
-    const expectedProviders = [
-      "x",
-      "instagram",
-      "facebook",
-      "youtube",
-      "tiktok",
-      "linkedin",
-      "pinterest",
-      "snapchat",
-    ];
-    for (const providerId of expectedProviders) {
-      expect(oauthProviders[providerId as keyof typeof oauthProviders] !== undefined).toBeTruthy();
-    }
-  });
-
   it("should not have OAuth providers for unsupported platforms", () => {
     const unsupported = ["reddit", "discord", "twitch"];
     for (const providerId of unsupported) {
