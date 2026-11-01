@@ -141,12 +141,12 @@ export default defineConfig({
       // a floor of 70 measured at 70.05 writes 69.9.
       thresholds: {
         perFile: false,
-        // canon-exception: decorative-demolition:2.8.2a
-        lines: 59.8,
+        // canon-exception: decorative-demolition:2.8.2d
+        lines: 59.7,
         // canon-exception: decorative-demolition:2.8.2b
         functions: 60.3,
-        // canon-exception: decorative-demolition:2.8.2b
-        branches: 49.9,
+        // canon-exception: decorative-demolition:2.8.2d
+        branches: 49.8,
         // canon-exception: decorative-demolition:2.8.2c
         statements: 59.2,
         // Integer arithmetic BEFORE the division on purpose: the equivalent

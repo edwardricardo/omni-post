@@ -1147,45 +1147,18 @@
     }
   },
   "apps/api/tests/unit/templateAnalytics.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    },
     "vitest/no-conditional-expect": {
       "count": 9
     }
   },
-  "apps/api/tests/unit/templateService.crud.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/unit/thumbnailGenerator.analysis.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 10
-    },
     "vitest/no-conditional-expect": {
-      "count": 30
-    }
-  },
-  "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts": {
-    "testing/no-existence-only-test": {
       "count": 2
-    },
-    "vitest/no-conditional-expect": {
-      "count": 61
     }
   },
   "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
-      "count": 51
+      "count": 1
     }
   },
   "apps/api/tests/unit/trendRoutes.test.ts": {
@@ -1198,45 +1171,14 @@
       "count": 4
     }
   },
-  "apps/api/tests/unit/unitOfWork.useCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/unit/videoProcessor.features.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/webhookDashboardService.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 4
     }
   },
-  "apps/api/tests/unit/webhookHandler.errors.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/unit/webhookHandler.init.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
-  "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
   "apps/api/tests/unit/webhookManager.processing.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 7
-    },
-    "testing/no-tautological-assertion": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
-      "count": 8
+      "count": 2
     }
   },
   "apps/api/tests/unit/webhookManager.subscriptions.test.ts": {

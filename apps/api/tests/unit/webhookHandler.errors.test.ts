@@ -1,6 +1,6 @@
 /**
  * @file webhookHandler.errors.test.ts
- * @description Tests for WebhookHandler error handling, retry logic, and dead letter queue.
+ * @description Tests for WebhookHandler error handling and retry logic.
  * @layer infrastructure
  */
 
@@ -174,32 +174,5 @@ describe("WebhookHandler - Retry Logic", () => {
     expect(delay1).toBe(5000);
     expect(delay2).toBe(10000);
     expect(delay3).toBe(20000);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Dead Letter Queue
-// ---------------------------------------------------------------------------
-describe("WebhookHandler - Dead Letter Queue", () => {
-  beforeEach(() => {
-    clearAllStores();
-  });
-
-  it("should move non-retryable events to dead letter queue", async () => {
-    seedSubscription("INSTAGRAM");
-
-    const handler = new UniversalWebhookHandler(mockDb);
-    const payload = JSON.stringify({
-      entry: [{ id: "dead-letter-test" }],
-    });
-
-    const invalidSignature = "sha256=invalid-signature";
-    const headers = { "x-hub-signature-256": invalidSignature };
-
-    await handler.handleWebhook("INSTAGRAM", invalidSignature, payload, headers);
-
-    const deadLetterEvents = stores.webhookDeadLetter.all();
-
-    expect(Array.isArray(deadLetterEvents)).toBeTruthy();
   });
 });

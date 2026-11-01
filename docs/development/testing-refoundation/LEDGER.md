@@ -6,16 +6,16 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1186  |
-| DELETE                  | 20    |
-| REWRITE                 | 191   |
-| KEEP                    | 872   |
-| ADJUDICATE              | 103   |
+| Files                   | 1185  |
+| DELETE                  | 19    |
+| REWRITE                 | 183   |
+| KEEP                    | 881   |
+| ADJUDICATE              | 102   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
-| Confirmed rows          | 11    |
-| Blocks                  | 14942 |
-| Blocks with a criterion | 747   |
+| Confirmed rows          | 10    |
+| Blocks                  | 14877 |
+| Blocks with a criterion | 685   |
 
 ## Slice 2.6a
 
@@ -148,6 +148,28 @@ Deleted: 0 files, 47 blocks. Floors lowered: statements from 59.3 to 59.2.
 | `apps/api/tests/unit/sagaIntegration.routes.test.ts`                 | test  | 15     | 1          | REWRITE | machine | some-decorative |
 | `apps/api/tests/unit/secureSchemas.query.test.ts`                    | test  | 37     | 1          | REWRITE | machine | some-decorative |
 | `apps/api/tests/unit/securityHeaders.test.ts`                        | test  | 48     | 0          | KEEP    | machine | behavioural     |
+
+## Slice 2.8.2d
+
+Deleted: 1 file, 65 blocks. Floors lowered: lines from 59.8 to 59.7, branches from 49.9 to 49.8.
+
+| Deleted file                                                            |
+| ----------------------------------------------------------------------- |
+| `apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts` |
+
+| Path                                                                 | Shape | Blocks | Decorative | Verdict    | Status  | Basis                |
+| -------------------------------------------------------------------- | ----- | ------ | ---------- | ---------- | ------- | -------------------- |
+| `apps/api/tests/unit/templateAnalytics.test.ts`                      | test  | 3      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/templateService.crud.test.ts`                   | test  | 18     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/thumbnailGenerator.analysis.test.ts`            | test  | 4      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/trendAnalysisService.init-trending.test.ts`     | test  | 3      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts` | test  | 1      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/unitOfWork.useCases.test.ts`                    | test  | 3      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/videoProcessor.features.test.ts`                | test  | 16     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/webhookHandler.errors.test.ts`                  | test  | 6      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/webhookHandler.init.test.ts`                    | test  | 1      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts`    | test  | 17     | 0          | ADJUDICATE | machine | subject-not-imported |
+| `apps/api/tests/unit/webhookManager.processing.test.ts`              | test  | 14     | 0          | ADJUDICATE | machine | title-contradiction  |
 
 ## Rows without a slice
 
@@ -858,7 +880,6 @@ Deleted: 0 files, 47 blocks. Floors lowered: statements from 59.3 to 59.2.
 | `apps/api/tests/unit/subscriptionRoutes.trials.test.ts`                                               | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/subscriptionSchemas.test.ts`                                                     | test             | 40     | 15         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/team/teamRoutes.test.ts`                                                         | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/templateAnalytics.test.ts`                                                       | test             | 8      | 2          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/templateEngine.property.test.ts`                                                 | test             | 4      | 1          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/templateEngine.test.ts`                                                          | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/templateRoutes.actions.test.ts`                                                  | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
@@ -866,27 +887,21 @@ Deleted: 0 files, 47 blocks. Floors lowered: statements from 59.3 to 59.2.
 | `apps/api/tests/unit/templateRoutes.env-setup.ts`                                                     | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/templateRoutes.features.test.ts`                                                 | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/templateRoutes.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/templateService.crud.test.ts`                                                    | test             | 19     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/templateService.test-helpers.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/templateService.versions.test.ts`                                                | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/testUtils.publishConsumers.test.ts`                                              | test             | 13     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/threadAnalytics.test.ts`                                                         | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/threadAnalyticsPorts.test.ts`                                                    | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/thumbnailGenerator.analysis.test.ts`                                             | test             | 5      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/thumbnailGenerator.multiple.test.ts`                                             | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/thumbnailGenerator.single.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/thumbnailGenerator.templates.test.ts`                                            | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/thumbnailGenerator.test-helpers.ts`                                              | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/trendAnalysisService.init-trending.test.ts`                                      | test             | 18     | 15         | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts`                               | test             | 13     | 13         | DELETE     | confirmed (machine: DELETE) | all-decorative       |
-| `apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts`                                  | test             | 14     | 13         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/trendAnalysisService.test-helpers.ts`                                            | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/trendRoutes.test.ts`                                                             | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/trends/trendRadarRoutes.test.ts`                                                 | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/trialManagementService.test.ts`                                                  | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/typeUtils.test.ts`                                                               | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/unifiedMfaService.test.ts`                                                       | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/unitOfWork.useCases.test.ts`                                                     | test             | 4      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/uploadPipeline.destinations.test.ts`                                             | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/uploadPipeline.features.test.ts`                                                 | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/uploadPipeline.lifecycle.test.ts`                                                | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
@@ -895,20 +910,15 @@ Deleted: 0 files, 47 blocks. Floors lowered: statements from 59.3 to 59.2.
 | `apps/api/tests/unit/uploadPipeline.upload.test.ts`                                                   | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/usage/usageRoutesOwnership.test.ts`                                              | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/videoProcessor.codecs-watermark.test.ts`                                         | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/videoProcessor.features.test.ts`                                                 | test             | 17     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/videoProcessor.metadata-processing.test.ts`                                      | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/videoProcessor.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/webhookDashboardRoutes.test.ts`                                                  | test             | 39     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookDashboardService.test.ts`                                                 | test             | 37     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/webhookHandler.errors.test.ts`                                                   | test             | 7      | 1          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/webhookHandler.init.test.ts`                                                     | test             | 5      | 4          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/webhookHandler.processing.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhookHandler.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts`                                     | test             | 19     | 2          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/webhookJobProcessor.priority-delay.test.ts`                                      | test             | 29     | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/webhookJobProcessor.test-helpers.ts`                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/webhookJobProcessor.test.ts`                                                     | test             | 15     | 0          | ADJUDICATE | machine                     | subject-not-imported |
-| `apps/api/tests/unit/webhookManager.processing.test.ts`                                               | test             | 22     | 8          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/webhookManager.subscriptions.test.ts`                                            | test             | 29     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/webhookManager.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts`                                       | test             | 12     | 2          | REWRITE    | machine                     | some-decorative      |

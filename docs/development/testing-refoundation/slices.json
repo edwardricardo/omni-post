@@ -132,6 +132,27 @@
       "floors": {
         "statements": { "from": 59.3, "to": 59.2 }
       }
+    },
+    "2.8.2d": {
+      "files": [
+        "apps/api/tests/unit/templateAnalytics.test.ts",
+        "apps/api/tests/unit/templateService.crud.test.ts",
+        "apps/api/tests/unit/thumbnailGenerator.analysis.test.ts",
+        "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+        "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts",
+        "apps/api/tests/unit/unitOfWork.useCases.test.ts",
+        "apps/api/tests/unit/videoProcessor.features.test.ts",
+        "apps/api/tests/unit/webhookHandler.errors.test.ts",
+        "apps/api/tests/unit/webhookHandler.init.test.ts",
+        "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts",
+        "apps/api/tests/unit/webhookManager.processing.test.ts"
+      ],
+      "deleted": { "files": 1, "blocks": 65 },
+      "floors": {
+        "lines": { "from": 59.8, "to": 59.7 },
+        "branches": { "from": 49.9, "to": 49.8 }
+      }
     }
   }
 }

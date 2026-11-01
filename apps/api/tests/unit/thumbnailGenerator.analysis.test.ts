@@ -1,6 +1,6 @@
 /**
  * Unit Tests for ThumbnailGenerator — Video Analysis
- * Tests analyzeVideoForThumbnails(): optimal timestamps, scene-change detection,
+ * Tests analyzeVideoForThumbnails(): scene-change detection,
  * quality scoring, color analysis, and motion analysis.
  *
  * The source uses crypto.randomUUID() to create the analysis directory name,
@@ -73,35 +73,6 @@ describe("ThumbnailGenerator - Video Analysis", () => {
       }
       throw new Error(`ENOENT: no such file or directory, access '${path}'`);
     });
-  });
-
-  it("should analyze video for optimal thumbnails", async () => {
-    const videoPath = "/test/video.mp4";
-
-    mockSpawnState.stdout = "30.0";
-    mockSpawnState.stderr = "";
-    mockSpawnState.exitCode = 0;
-
-    // Populate 15 frames (indices 0-14) -- sampleInterval=2, duration=30 -> 15 samples
-    frameData.clear();
-    for (let i = 0; i < 15; i++) {
-      frameData.set(i, 100000 + i * 10000);
-    }
-
-    const analysis = await generator.analyzeVideoForThumbnails(videoPath, {
-      sampleInterval: 2,
-      minQualityScore: 70,
-      detectSceneChanges: true,
-      analyzeMotion: true,
-      analyzeColors: true,
-    });
-
-    expect(analysis).toBeTruthy();
-    expect(Array.isArray(analysis.optimalTimestamps)).toBeTruthy();
-    expect(Array.isArray(analysis.sceneChanges)).toBeTruthy();
-    expect(Array.isArray(analysis.qualityScores)).toBeTruthy();
-    expect(Array.isArray(analysis.colorAnalysis)).toBeTruthy();
-    expect(Array.isArray(analysis.motionAnalysis)).toBeTruthy();
   });
 
   it("should detect scene changes", async () => {

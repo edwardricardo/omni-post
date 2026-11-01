@@ -44,9 +44,9 @@ type ThresholdKey = (typeof THRESHOLD_KEYS)[number];
  * `decorative-demolition:<slice>` marker and `slices.json` records (ADR-0039).
  */
 const MEASURED_FLOOR: Record<ThresholdKey, number> = {
-  lines: 59.8,
+  lines: 59.7,
   functions: 60.3,
-  branches: 49.9,
+  branches: 49.8,
   statements: 59.2,
 };
 

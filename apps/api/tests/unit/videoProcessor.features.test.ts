@@ -402,31 +402,6 @@ describe("VideoProcessor - Edge Cases", () => {
     expect(metadata.duration).toBe(1.5);
   });
 
-  it("should handle videos with unusual aspect ratios", async () => {
-    const probeOutput = {
-      streams: [
-        {
-          codec_type: "video",
-          codec_name: "h264",
-          width: 2560,
-          height: 1080, // 21:9 ultrawide
-          r_frame_rate: "30/1",
-        },
-      ],
-      format: {
-        duration: "60.0",
-      },
-    };
-
-    mockSpawnState.stdout = JSON.stringify(probeOutput);
-    mockSpawnState.stderr = "";
-    mockSpawnState.exitCode = 0;
-
-    const metadata = await processor.getVideoMetadata("/test/ultrawide-video.mp4");
-
-    expect(metadata.aspectRatio).toBeTruthy();
-  });
-
   it("should handle videos with zero or missing FPS", async () => {
     const probeOutput = {
       streams: [

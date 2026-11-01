@@ -229,29 +229,6 @@
       "reviewer": "Maintainer",
       "date": "2026-10-29"
     },
-    "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts": {
-      "verdict": "DELETE",
-      "criteria": ["a", "d"],
-      "blocks": [
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should discover content opportunities",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include content gaps",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include emerging topics",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include saturated topics",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include seasonal topics",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should generate comprehensive trend report",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include summary statistics",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should categorize trending content",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include immediate and upcoming opportunities",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include insights",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include actionable recommendations",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should respect region filter",
-        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should respect category filter"
-      ],
-      "evidence": "Its 13 blocks assert only existence (2) or only inside `if (result.ok)` and `length > 0` checks (11), so none restricts the service's behaviour.",
-      "status": "confirmed",
-      "reviewer": "Maintainer",
-      "date": "2026-10-29"
-    },
     "apps/workers/tests/worker.smoke.ts": {
       "verdict": "DELETE",
       "criteria": [],
