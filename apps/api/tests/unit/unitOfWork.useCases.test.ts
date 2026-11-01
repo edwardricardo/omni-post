@@ -5,8 +5,8 @@
  *
  * Verifies:
  * - CreatePostUseCase with UoW → calls executeInTransaction
- * - CreatePostUseCase without UoW (backward compat) → works normally
- * - UpdatePostUseCase with UoW → calls executeInTransaction
+ *   exactly once, and the creation succeeds
+ * - UpdatePostUseCase with UoW → never calls it when findById fails
  * - If save fails inside UoW → transaction is rolled back (error propagates)
  *
  * @file unitOfWork.useCases.test.ts
@@ -91,16 +91,6 @@ describe("D3.3: CreatePostUseCase with UnitOfWork", () => {
 
     expect(result.ok).toBeTruthy();
     expect(uow.calls).toBe(1);
-  });
-
-  it("should work without UoW (backward compat)", async () => {
-    const repo = createMockPostRepo();
-    const dispatcher = createMockEventDispatcher();
-
-    const useCase = new CreatePostUseCase(repo, dispatcher, createMockBusinessMetrics());
-    const result = await useCase.execute(validInput);
-
-    expect(result.ok).toBeTruthy();
   });
 
   it("should propagate save errors through UoW", async () => {

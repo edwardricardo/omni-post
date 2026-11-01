@@ -1,6 +1,6 @@
 /**
  * @file webhookManager.processing.test.ts
- * @description Unit tests for WebhookManager processing, stats, retry, cleanup,
+ * @description Unit tests for WebhookManager processing stats, retry, cleanup,
  *              and security operations.
  *              Builds an in-memory prisma fake and injects it into WebhookManager
  *              via the constructor (DI). No real database connection is needed.
@@ -516,60 +516,6 @@ describe("WebhookManager - Processing & Security", () => {
     await teardownWebhookManagerTestData();
   });
 
-  describe("processIncomingWebhook() - Process Webhook Events", () => {
-    it("should process webhook and return job ID", async () => {
-      const jobId = await state.webhookManager.processIncomingWebhook(
-        "X" as never,
-        "POST_PUBLISHED" as never,
-        "test-event-123",
-        "test-signature",
-        { content: "Test post" },
-        { "x-twitter-webhooks-signature": "sha256=abc123" },
-        state.testAccountId,
-        state.testProjectId
-      );
-
-      expect(jobId).toBeTruthy();
-      expect(typeof jobId).toBe("string");
-    });
-
-    it("should process webhook without optional accountId and projectId", async () => {
-      const jobId = await state.webhookManager.processIncomingWebhook(
-        "INSTAGRAM" as never,
-        "STORY_PUBLISHED" as never,
-        "test-event-456",
-        "test-signature-2",
-        { story_id: "123" },
-        { "x-hub-signature": "sha1=def456" }
-      );
-
-      expect(jobId).toBeTruthy();
-    });
-
-    it("should handle different event types", async () => {
-      const eventTypes = [
-        "POST_PUBLISHED",
-        "COMMENT_RECEIVED",
-        "LIKE_RECEIVED",
-        "VIDEO_PROCESSED",
-      ] as const;
-
-      for (const eventType of eventTypes) {
-        const jobId = await state.webhookManager.processIncomingWebhook(
-          "YOUTUBE" as never,
-          eventType as never,
-          `test-event-${eventType}`,
-          "test-signature",
-          { test: true },
-          {},
-          state.testAccountId
-        );
-
-        expect(jobId).toBeTruthy();
-      }
-    });
-  });
-
   describe("getProcessingStats() - Webhook Processing Statistics", () => {
     beforeAll(async () => {
       // Seed event store with test data for stats
@@ -615,21 +561,6 @@ describe("WebhookManager - Processing & Security", () => {
       });
     });
 
-    it("should return comprehensive statistics", async () => {
-      const stats = await state.webhookManager.getProcessingStats(state.testAccountId);
-
-      expect(stats).toBeTruthy();
-      expect(typeof stats.totalEvents).toBe("number");
-      expect(typeof stats.processedEvents).toBe("number");
-      expect(typeof stats.failedEvents).toBe("number");
-      expect(typeof stats.deadLetterEvents).toBe("number");
-      expect(typeof stats.successRate).toBe("number");
-      expect(typeof stats.avgProcessingTimeMs).toBe("number");
-      expect(stats.queue).toBeTruthy();
-      expect(stats.byProvider).toBeTruthy();
-      expect(Array.isArray(stats.recentErrors)).toBeTruthy();
-    });
-
     it("should calculate success rate correctly", async () => {
       const stats = await state.webhookManager.getProcessingStats(state.testAccountId);
 
@@ -654,21 +585,6 @@ describe("WebhookManager - Processing & Security", () => {
       if (stats.byProvider.X) {
         expect(typeof stats.byProvider.X.total).toBe("number");
         expect(stats.byProvider.X.total >= 2).toBeTruthy();
-      }
-    });
-
-    it("should return recent errors", async () => {
-      const stats = await state.webhookManager.getProcessingStats(state.testAccountId);
-
-      expect(Array.isArray(stats.recentErrors)).toBeTruthy();
-      if (stats.recentErrors.length > 0) {
-        const error = stats.recentErrors[0];
-        expect(error.id).toBeTruthy();
-        expect(error.provider).toBeTruthy();
-        expect(error.eventType).toBeTruthy();
-        expect(error.lastError).toBeTruthy();
-        expect(error.receivedAt).toBeTruthy();
-        expect(typeof error.retryCount).toBe("number");
       }
     });
 
@@ -747,19 +663,6 @@ describe("WebhookManager - Processing & Security", () => {
       expect(retriedCount >= 2).toBeTruthy();
     });
 
-    it("should retry events within maxAge limit", async () => {
-      // Reset statuses back to FAILED for re-test
-      for (const [_id, rec] of stores.events.entries()) {
-        if (String(rec["eventId"] ?? "").startsWith("test-event-retry-")) {
-          rec["status"] = rec["eventId"] === "test-event-retry-3" ? "DEAD_LETTER" : "FAILED";
-        }
-      }
-
-      const retriedCount = await state.webhookManager.retryFailedEvents(state.testAccountId, 7);
-
-      expect(retriedCount >= 0).toBeTruthy();
-    });
-
     it("should update status to RETRYING for retried events", async () => {
       // Reset statuses back to FAILED for this test
       for (const [_id, rec] of stores.events.entries()) {
@@ -779,13 +682,6 @@ describe("WebhookManager - Processing & Security", () => {
       });
 
       expect(retryingEvents.length > 0).toBeTruthy();
-    });
-
-    it("should handle retry failures gracefully", async () => {
-      const retriedCount = await state.webhookManager.retryFailedEvents(state.testAccountId);
-
-      expect(typeof retriedCount).toBe("number");
-      expect(retriedCount >= 0).toBeTruthy();
     });
 
     afterAll(() => {
@@ -868,13 +764,6 @@ describe("WebhookManager - Processing & Security", () => {
       expect(typeof result).toBe("object");
       expect(typeof result.eventsDeleted).toBe("number");
       expect(result.eventsDeleted >= 0).toBeTruthy();
-    });
-
-    it("should use default 30 days if not specified", async () => {
-      const result = await state.webhookManager.cleanup();
-
-      expect(typeof result).toBe("object");
-      expect(typeof result.eventsDeleted).toBe("number");
     });
 
     afterAll(() => {

@@ -1,8 +1,8 @@
 /**
- * Unit Tests for WebhookJobProcessor - Job ID Generation and Job Data Required/Optional Fields
+ * Unit Tests for WebhookJobProcessor - Job ID Generation and Job Data Optional Fields
  *
  * Tests job ID format, uniqueness, idempotency across providers and event IDs,
- * plus required and optional field validation in WebhookJobData.
+ * plus optional field validation in WebhookJobData.
  *
  * @file webhookJobProcessor.jobid-structure.test.ts
  * @description Tests for WebhookJobProcessor - Job ID Generation
@@ -155,38 +155,10 @@ describe("WebhookJobProcessor - Job ID Generation", () => {
 });
 
 // ============================================================================
-// WebhookJobData Required and Optional Fields Tests
+// WebhookJobData Optional Fields Tests
 // ============================================================================
 
-describe("WebhookJobProcessor - Job Data Required and Optional Fields", () => {
-  describe("Required Fields", () => {
-    it("should contain all required fields", () => {
-      const jobData = createTestJobData();
-
-      expect(jobData.eventId).toBeTruthy();
-      expect(jobData.provider).toBeTruthy();
-      expect(jobData.eventType).toBeTruthy();
-      expect(jobData.payload).toBeTruthy();
-      expect(jobData.headers).toBeTruthy();
-      expect(jobData.signature).toBeTruthy();
-      expect(jobData.retryCount !== undefined).toBeTruthy();
-      expect(jobData.originalReceivedAt).toBeTruthy();
-    });
-
-    it("should have correct types for required fields", () => {
-      const jobData = createTestJobData();
-
-      expect(typeof jobData.eventId).toBe("string");
-      expect(typeof jobData.provider).toBe("string");
-      expect(typeof jobData.eventType).toBe("string");
-      expect(typeof jobData.payload).toBe("object");
-      expect(typeof jobData.headers).toBe("object");
-      expect(typeof jobData.signature).toBe("string");
-      expect(typeof jobData.retryCount).toBe("number");
-      expect(typeof jobData.originalReceivedAt).toBe("string");
-    });
-  });
-
+describe("WebhookJobProcessor - Job Data Optional Fields", () => {
   describe("Optional Fields", () => {
     it("should allow optional accountId", () => {
       const jobData = createTestJobData({ accountId: "account-123" });

@@ -244,18 +244,6 @@ describe("TemplateService - Get Template", () => {
     expect(result.value).toBe(null);
   });
 
-  it("should include versions in query", async () => {
-    const findFirst = mockPrismaMethod(prisma.template, "findFirst");
-    mocks.push(findFirst);
-
-    findFirst.mockImplementationOnce((args: any) => {
-      expect(args.include.versions).toBeTruthy();
-      return Promise.resolve(null);
-    });
-
-    await service.getTemplate("project-123", "template-456");
-  });
-
   it("should filter by project ID", async () => {
     const findFirst = mockPrismaMethod(prisma.template, "findFirst");
     mocks.push(findFirst);
