@@ -107,6 +107,31 @@
         "functions": { "from": 60.4, "to": 60.3 },
         "branches": { "from": 50, "to": 49.9 }
       }
+    },
+    "2.8.2c": {
+      "files": [
+        "apps/api/tests/unit/performanceMonitor.stats.test.ts",
+        "apps/api/tests/unit/postsService.test.ts",
+        "apps/api/tests/unit/projectRoutes.test.ts",
+        "apps/api/tests/unit/providerAdapterInterface.test.ts",
+        "apps/api/tests/unit/providerCapabilityManager.combinations.test.ts",
+        "apps/api/tests/unit/providerCapabilityManager.init.test.ts",
+        "apps/api/tests/unit/providerCapabilityManager.matrix.test.ts",
+        "apps/api/tests/unit/providerConstraintValidator.test.ts",
+        "apps/api/tests/unit/providerOAuth.initiation.test.ts",
+        "apps/api/tests/unit/providerRegistry.test.ts",
+        "apps/api/tests/unit/providerService.test.ts",
+        "apps/api/tests/unit/roiCalculator.test.ts",
+        "apps/api/tests/unit/sagaIntegration.init.test.ts",
+        "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+        "apps/api/tests/unit/sagaIntegration.routes.test.ts",
+        "apps/api/tests/unit/secureSchemas.query.test.ts",
+        "apps/api/tests/unit/securityHeaders.test.ts"
+      ],
+      "deleted": { "files": 0, "blocks": 47 },
+      "floors": {
+        "statements": { "from": 59.3, "to": 59.2 }
+      }
     }
   }
 }
