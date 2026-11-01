@@ -2,9 +2,9 @@
   "version": 1,
   "summary": {
     "files": {
-      "total": 1186,
+      "total": 1185,
       "byShape": {
-        "test": 948,
+        "test": 947,
         "integration-test": 86,
         "live-test": 17,
         "spec": 9,
@@ -15,35 +15,35 @@
         "none": 2
       },
       "byVerdict": {
-        "DELETE": 20,
-        "REWRITE": 191,
-        "KEEP": 872,
-        "ADJUDICATE": 103,
+        "DELETE": 19,
+        "REWRITE": 183,
+        "KEEP": 881,
+        "ADJUDICATE": 102,
         "unmeasured": 0
       }
     },
     "rows": {
       "machine": 1175,
-      "confirmed": 11,
-      "total": 1186
+      "confirmed": 10,
+      "total": 1185
     },
     "blocks": {
-      "total": 14942,
-      "decorative": 747,
+      "total": 14877,
+      "decorative": 685,
       "byClass": {
         "EMPTY": 15,
-        "TAUTOLOGY-ONLY": 3,
-        "EXISTENCE-ONLY": 411,
-        "CONDITIONAL-ONLY": 199,
+        "TAUTOLOGY-ONLY": 2,
+        "EXISTENCE-ONLY": 378,
+        "CONDITIONAL-ONLY": 171,
         "SELF-SKIP": 112,
         "PRINTS-SUCCESS": 7,
-        "TITLE-CONTRADICTION": 22,
+        "TITLE-CONTRADICTION": 19,
         "BEHAVIOURAL": 14173
       }
     },
     "deleted": {
-      "files": 25,
-      "blocks": 313
+      "files": 26,
+      "blocks": 378
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -236,6 +236,36 @@
         "statements": {
           "from": 59.3,
           "to": 59.2
+        }
+      }
+    },
+    "2.8.2d": {
+      "files": [
+        "apps/api/tests/unit/templateAnalytics.test.ts",
+        "apps/api/tests/unit/templateService.crud.test.ts",
+        "apps/api/tests/unit/thumbnailGenerator.analysis.test.ts",
+        "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+        "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+        "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts",
+        "apps/api/tests/unit/unitOfWork.useCases.test.ts",
+        "apps/api/tests/unit/videoProcessor.features.test.ts",
+        "apps/api/tests/unit/webhookHandler.errors.test.ts",
+        "apps/api/tests/unit/webhookHandler.init.test.ts",
+        "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts",
+        "apps/api/tests/unit/webhookManager.processing.test.ts"
+      ],
+      "deleted": {
+        "files": 1,
+        "blocks": 65
+      },
+      "floors": {
+        "lines": {
+          "from": 59.8,
+          "to": 59.7
+        },
+        "branches": {
+          "from": 49.9,
+          "to": 49.8
         }
       }
     }
@@ -83600,70 +83630,35 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 8,
+      "blockCount": 3,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/templateAnalytics.test.ts::throws AppError with statusCode 501",
-          "line": 15,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "b346b390ad478421c3296501645398844545e8ccf4baf888975724582f10ba19"
-        },
-        {
           "id": "apps/api/tests/unit/templateAnalytics.test.ts::throws with code NOT_IMPLEMENTED",
-          "line": 21,
+          "line": 15,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5d95540c1584035dc60463c734befac822cba16f2f854ecdff5e854bd8c825c0"
         },
         {
-          "id": "apps/api/tests/unit/templateAnalytics.test.ts::throws regardless of filters argument",
-          "line": 32,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "88fc20da2f7bff36ff5d4273dcbb26021069710e8deb124d57240d272c2c5744"
-        },
-        {
-          "id": "apps/api/tests/unit/templateAnalytics.test.ts::throws AppError with statusCode 501 #2",
-          "line": 40,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "d6fb0da4102cd02aeb43452eec19f2dc1db6af014d05f54d4a04925bc80e20a8"
-        },
-        {
           "id": "apps/api/tests/unit/templateAnalytics.test.ts::throws with code NOT_IMPLEMENTED #2",
-          "line": 49,
+          "line": 28,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b6699e48f6f4e1c267659473cb00cfbad0ca30e32395b3a626cd73966cd154e4"
         },
         {
-          "id": "apps/api/tests/unit/templateAnalytics.test.ts::throws across all event action types",
-          "line": 63,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d1d097296fbb6667161c8b17155f3bb0bc664cafbee4180e7034caf3d331c19c"
-        },
-        {
-          "id": "apps/api/tests/unit/templateAnalytics.test.ts::throws AppError with statusCode 501 #3",
-          "line": 80,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "df7cf78d981133498658cab17abc89b51d9aaa5660ac49cbc4daaecbd9b5f498"
-        },
-        {
           "id": "apps/api/tests/unit/templateAnalytics.test.ts::throws with code NOT_IMPLEMENTED #3",
-          "line": 86,
+          "line": 44,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "05e709e30105e666819c6dacdbe491b274a4bfaa63fe446a2f2cb5b2197a0ce0"
         }
       ],
-      "verdict": "ADJUDICATE",
-      "basis": "title-contradiction",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "templateAnalytics",
         "module": "apps/api/src/templates/templateAnalytics.ts",
@@ -84326,7 +84321,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 19,
+      "blockCount": 18,
       "blocks": [
         {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should retrieve templates for a project",
@@ -84392,81 +84387,74 @@
           "bodyHash": "735b00cc5ee978e36a6d97fb7bff9b2db29b910a06373bcde8e0bee82274438e"
         },
         {
-          "id": "apps/api/tests/unit/templateService.crud.test.ts::should include versions in query",
-          "line": 247,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "fdd1ed918b546fa43a06cf17a88a23e3dc401345c90274a23fc0f2c5d9bbc906"
-        },
-        {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should filter by project ID",
-          "line": 259,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c203b459a703aa19ef46c98f1b72984d1db4c7dba187c85b17c51640c4a2f4aa"
         },
         {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should create new template",
-          "line": 291,
+          "line": 279,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "288699bde054e836b39d11358db74b8ec07a6acaf1ff45d621bbd2a31aee78c6"
         },
         {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should fail for non-existent project",
-          "line": 360,
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "46f0c7edc326c39b74b0d87f3cf8576cd153f460c2fe722e609e98b8676362df"
         },
         {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should create initial version",
-          "line": 379,
+          "line": 367,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "632c3ab958c032fedd3eafd44d7707f303e149e68767a24b5d7b565d5e5859b2"
         },
         {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should update existing template",
-          "line": 459,
+          "line": 447,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1f9b3aba65861cf5b6d546f7ef703c3c207ad59cb0d797f35cf1ccaa874199c"
         },
         {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should increment version number",
-          "line": 498,
+          "line": 486,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2de469d7ae2610e75e85edb7154141aa184efe5d27e6466377f91436584a7f71"
         },
         {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should return null for non-existent template #2",
-          "line": 526,
+          "line": 514,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "87fb4c6d5419d1b8f028cf8bff29164095f2be597bbb415bbbb9934d9a300003"
         },
         {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should soft delete template",
-          "line": 560,
+          "line": 548,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dce2703f068a60347d650cc563c473cd81daa854e5d2069d2c7c2eab0cfb9f11"
         },
         {
           "id": "apps/api/tests/unit/templateService.crud.test.ts::should return false for non-existent template",
-          "line": 578,
+          "line": 566,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d3252e62193b6097ef3e048cea5e4efc409acf1d14c43e6f85efdc4dadcb6248"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "templateService",
         "module": "apps/api/src/templates/templateService.ts",
@@ -84956,49 +84944,42 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 5,
+      "blockCount": 4,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/thumbnailGenerator.analysis.test.ts::should analyze video for optimal thumbnails",
-          "line": 78,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "28d27be41064d8db1789b4d90aeda6ec2dbdbec86aa0c85604ca666f4087e35b"
-        },
-        {
           "id": "apps/api/tests/unit/thumbnailGenerator.analysis.test.ts::should detect scene changes",
-          "line": 107,
+          "line": 78,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd5568226d3f63474ad07456572788cb41cdcaa2c9fc3d693aa50d98bccb44de"
         },
         {
           "id": "apps/api/tests/unit/thumbnailGenerator.analysis.test.ts::should calculate quality scores for frames",
-          "line": 127,
+          "line": 98,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9f3548f211ff976738dfe6e81d50007e25efe175cdec3a1f5642f8466b76772e"
         },
         {
           "id": "apps/api/tests/unit/thumbnailGenerator.analysis.test.ts::should return stub color analysis (Future: real image analysis)",
-          "line": 153,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c36056663111b2748dece84f5a364ca7f19e9ab01b419be2705315e51f3262c4"
         },
         {
           "id": "apps/api/tests/unit/thumbnailGenerator.analysis.test.ts::should return stub motion analysis (Future: real frame comparison)",
-          "line": 180,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "953f5a4c1f6d811b3180edfe6792ccab8a31e8a4c01c416ffc156909aa79e28e"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "thumbnailGenerator",
         "module": "apps/api/src/video/thumbnailGenerator.ts",
@@ -85257,253 +85238,35 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 18,
+      "blockCount": 3,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should initialize with prisma and logger",
-          "line": 17,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f926017330c7f6b047cb29484c9f1fe5ee64446e8d5bffa4ef5ef7b6b28de689"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should expose trending content method",
-          "line": 23,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9fda823a337e076b0c4701ac4fd115761dfd1b1b1947d60c5ee563adedc1c5d5"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should expose trend prediction method",
-          "line": 29,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ea0cbeb44282626eecdc29984529c08a08739bca8a6548d894df7577ee813866"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should expose viral content analysis method",
-          "line": 35,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a9ddf936559afe7bd5237e4073f2d718d1fa3c9d1de26751027907dde0b1dc10"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should expose content opportunity discovery method",
-          "line": 41,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7259efa57dfca08c2e61f663529d8d82f6a104d548272948a0bbe30dacb84122"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should retrieve trending content without filters",
-          "line": 55,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b1c5d0440e2df1ee775c370c0fcc5207f5f0eaf4b9a4d3d7aabb30821a65dbcb"
-        },
-        {
           "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should filter trending content by type",
-          "line": 64,
+          "line": 23,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fded6f7f29ee5ded572b7abe5094f5237b86be2179990eef1a5bc7da1ca0a883"
         },
         {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should filter trending content by category",
-          "line": 75,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "53d392117032db80519b820fd80a9a56d8b86f426c5020ac806a4baf7ca36cd2"
-        },
-        {
           "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should limit number of results",
-          "line": 87,
+          "line": 34,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6d122767454b4a16c869bdb73d38a6f5b71d343ce295f4b03e6c938c6a9325f3"
         },
         {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should include all required trend fields",
-          "line": 97,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c58a2cdb6044bb132b7f6733a319f6d792adc35b1b572830dac4e8ef17a46b3c"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should include metrics with proper structure",
-          "line": 116,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "43e2c561a1255c8619f2cd1e15bae2500aa3e8dcfc401879a028fff2e600c042"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should include trend phase information",
-          "line": 132,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "18db908a8f6e790e45ecfd0538190296b4d8a7e9e87adf0079730a18f5fa27e4"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should include opportunity assessment",
-          "line": 146,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "f6e57c53c273bce7dd3f27a01cec3dc80fec09cec3c3a655b05e5e3511d6aa38"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should provide circuit breaker status",
-          "line": 170,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "77e9c3382dc345de28c034c3c9c186bd63600e40b53dc1aa6a48f1b33c1a95a5"
-        },
-        {
           "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should expose cache clearing method",
-          "line": 176,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "017aae4d07a950340669d0fd9ebdc28f2a34a36c05b653fd51f719b5241d0406"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should expose metrics registry",
-          "line": 182,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "59bd3a331de686102de6b3d0701682054c0d5ad601f8ae0272ab627c9723294a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should generate pattern insights from trending content",
-          "line": 196,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "89eacdfa5bc3656a01f7a3a65a7684e85efe47366f37bdd1ddf899ada6df98b1"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should generate shift insights from trending content",
-          "line": 210,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "cf77c6b02ed04e3d1c62dc0cf57a47d07df7f4b17641314fab909ad292b6c196"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
-      "subject": {
-        "stem": "trendAnalysisService",
-        "module": "apps/api/src/trends/trendAnalysisService.ts",
-        "imported": true
-      },
-      "duplicate": null,
-      "importers": null
-    },
-    {
-      "path": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
-      "shape": "test",
-      "framework": "vitest",
-      "collectors": ["vitest:apps/api/vitest.config.ts"],
-      "quarantined": null,
-      "blockCount": 13,
-      "blocks": [
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should discover content opportunities",
-          "line": 24,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "546e1e07660650a73a42c6e3899a74c20c530d61a32ef2c2b8cfaca89cf043a8"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include content gaps",
-          "line": 33,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "4414090a4f6881fb6b527ca1c24c1eb755361a3eb5a39173a16d940f38bc8f8a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include emerging topics",
-          "line": 52,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "b66435b0ef381d08234e9314659ab29d88d3096dc59cc0b3626404abfb7965e5"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include saturated topics",
-          "line": 70,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "95c72769b8f89a0e10fe36b6a104f2e04a9a1f0aeb61f7510bdb6900bc2b7e0a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include seasonal topics",
-          "line": 87,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "10d023dfbc34829f1c240be4bb4b8f25ad254e92788f967b4aea571bc39b6d59"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should generate comprehensive trend report",
-          "line": 113,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b7e168e5c2f174271ddb07522e9e1e772fe3cf25d68200d897756b4fcd301f96"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include summary statistics",
-          "line": 134,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "83e2e8f32bf81d8f9be0ba9c3621dfab5d54db1c6b4772722e91f606c5718f55"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should categorize trending content",
-          "line": 153,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "0c8c3688c4210085caaf9451ade46891680ef93c3d3c9e1c0c5d3d0cb1844515"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include immediate and upcoming opportunities",
-          "line": 170,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "d80d9481730e8a2305fb854cf1aa48b09b33d05fdc2987936c42118777fb622d"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include insights",
-          "line": 193,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "6b375d6af2ce3883c92fed7df1d89454546749e1531cc6365f65211acca0a807"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should include actionable recommendations",
-          "line": 210,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "b32634224abb4468fccc05d563e002303344c7af7f3bd283dd83cfc725e28fe7"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should respect region filter",
-          "line": 228,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "81b164f88b2982fdd0ab69ab8e8dc68427b9e93e3c87edcc55b2c6d8bfa8d7c9"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should respect category filter",
-          "line": 241,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "296f4b7e390586292a95c677b7d848aa685323df16278e04209f38f428c259cc"
-        }
-      ],
-      "verdict": "DELETE",
-      "basis": "all-decorative",
-      "excluded": null,
-      "status": "confirmed",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "trendAnalysisService",
         "module": "apps/api/src/trends/trendAnalysisService.ts",
@@ -85518,112 +85281,21 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 14,
+      "blockCount": 1,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should generate trend predictions",
-          "line": 24,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8b78da31daba485d7f2c1f34bab73acbcde2625bb9dcbd42412363663999037a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include prediction metadata",
-          "line": 33,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "bffab3683c33f43603d5dfd0df32243a7aca89a84afd7bf2040ce57a0c16911a"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include prediction probabilities",
-          "line": 46,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "c4de86170f9bb79b324e207c3da785dc910214aa5d133f3ac224e20c466e5da1"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include early signals",
-          "line": 60,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "122cb797d8e63f65d389c390a8992fcc1b34b0cf935bc0a2be17acf55e76c983"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include risk factors",
-          "line": 77,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "caaf04a9f79c7dd72d8eb2d4d0ece1b37e76b8ac4c97dbc9cdb81f44ab4c08b0"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include actionable items",
-          "line": 93,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "372f50385386483174555060867e4223055fd10e4c9b47ef6da63ef701cf21af"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include competitive intelligence",
-          "line": 110,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "50568cb1ee5d0bf642ab3f3be8eb1066de6b4cee526fd6bf94ab9f06830a8976"
-        },
-        {
           "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should analyze viral content",
-          "line": 130,
+          "line": 24,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8a603c4e65ee2a51397b5ccafd4f4c5e9aa2921b9ce0ec47906d69f7976ad17c"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include viral metrics",
-          "line": 140,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "760985801e7a15a20fabe8bac6032d876ca7d38e7057ebf30b3e88417c2ea0ce"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include viral DNA analysis",
-          "line": 154,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "86d8fcacf8ae70ae83408136f726af82ce2bfb8a8dd941cb1f12e22917bc8a1d"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include replication blueprint",
-          "line": 171,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "9c1c142a8983224e9bfca9ef4507c0fe43d70d3ebb3956aea6455725c376e7ce"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should include competitor response analysis",
-          "line": 186,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "d471c80aef7f3a0f05937fc7855e1ed3bda3ee8df05d257dac57d53adf73fd85"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should generate anomaly insights",
-          "line": 208,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "274ea816bad8efa736ac2f363f5bf7132eb1dd32f4296cb0bdaef2eb43244aa1"
-        },
-        {
-          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should identify cross-trend patterns",
-          "line": 218,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "9b8889446a2f47bfcecd2ad44900c7ad58a6a4b88eac56d74748232437c4c82c"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "trendAnalysisService",
         "module": "apps/api/src/trends/trendAnalysisService.ts",
@@ -85647,7 +85319,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 3
+      "importers": 2
     },
     {
       "path": "apps/api/tests/unit/trendRoutes.test.ts",
@@ -86310,7 +85982,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 3,
       "blocks": [
         {
           "id": "apps/api/tests/unit/unitOfWork.useCases.test.ts::should use UoW.executeInTransaction when UoW is provided",
@@ -86320,32 +85992,25 @@
           "bodyHash": "e16fdfccb159a8dd751a4f131ecf16879e6e7a88681dbf0a427bf6c06edb3458"
         },
         {
-          "id": "apps/api/tests/unit/unitOfWork.useCases.test.ts::should work without UoW (backward compat)",
-          "line": 96,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b65ce07d6c462617ddbe942689a4701ba0dc9ed9e04eefc2484a6ff36c345bc8"
-        },
-        {
           "id": "apps/api/tests/unit/unitOfWork.useCases.test.ts::should propagate save errors through UoW",
-          "line": 106,
+          "line": 96,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "75d19b5293d66e0d09b475892f53ebc07a73984ea15f08bb1d8cc0dbb7ee9462"
         },
         {
           "id": "apps/api/tests/unit/unitOfWork.useCases.test.ts::should use UoW.executeInTransaction when UoW is provided #2",
-          "line": 122,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b6e1e0efa0db9dfe0c703af8e7d1e270b56289890966272bc3517c9c9bf5690"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -86887,7 +86552,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 17,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "apps/api/tests/unit/videoProcessor.features.test.ts::should optimize for YouTube",
@@ -86981,39 +86646,32 @@
           "bodyHash": "fde49aecc9c327c57966d60dd18f72848a4d112f2e59cf6c0c33fe5109e81571"
         },
         {
-          "id": "apps/api/tests/unit/videoProcessor.features.test.ts::should handle videos with unusual aspect ratios",
-          "line": 405,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "dca650ba770794789cfd7227bb6135278795bbeda26c1825e0cdce15f7eaa856"
-        },
-        {
           "id": "apps/api/tests/unit/videoProcessor.features.test.ts::should handle videos with zero or missing FPS",
-          "line": 430,
+          "line": 405,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "03520eeced03f2c0678b0366e3da717cb50ead6e79f75a171e12238cdb232926"
         },
         {
           "id": "apps/api/tests/unit/videoProcessor.features.test.ts::should handle malformed JSON from ffprobe",
-          "line": 455,
+          "line": 430,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b7beb9542828ff7c98653cb354e16970c683f12be99fb54066116f38519c5431"
         },
         {
           "id": "apps/api/tests/unit/videoProcessor.features.test.ts::should handle missing output file after processing",
-          "line": 465,
+          "line": 440,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a59e8cf42856fb4712b063eb271b53996a23dc2c4d32e7270e0cb9845f1937b7"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "videoProcessor",
         "module": "apps/api/src/video/videoProcessor.ts",
@@ -87762,7 +87420,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 7,
+      "blockCount": 6,
       "blocks": [
         {
           "id": "apps/api/tests/unit/webhookHandler.errors.test.ts::should handle missing webhook subscription",
@@ -87805,20 +87463,13 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eeae9afd06f864a08ee5f174092b8b9c25f91ddcfeed6fd668233d06dbbaebd5"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.errors.test.ts::should move non-retryable events to dead letter queue",
-          "line": 188,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f0a52077b5091c97410b686f21bfb812853551ee3b45fdeb75d08277c0604b2c"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "webhookHandler",
         "module": "apps/api/src/webhooks/webhookHandler.ts",
@@ -87833,49 +87484,21 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 5,
+      "blockCount": 1,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/webhookHandler.init.test.ts::should create handler without broadcaster",
-          "line": 12,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "42adf4afbe69809dcc03133e4e331c9fb351ab8bc955e6627595d0ddfc1320f0"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.init.test.ts::should create handler with broadcaster",
-          "line": 17,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3d6ee2d4bf3226ec761574e8d5707edb06919fc137226fdbcd1c10b34f106bd3"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.init.test.ts::should extract event ID from Instagram payload",
-          "line": 30,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "0d2206f7f39f15a119c2d469f33ff22e16767ec509b38749c2da725aaa73fa54"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookHandler.init.test.ts::should extract event ID from X payload",
-          "line": 43,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "083ed15101f2948c6206906ad17e216f5b61d7411356ad0f647981b4cfa995d0"
-        },
-        {
           "id": "apps/api/tests/unit/webhookHandler.init.test.ts::should generate MD5 hash for payload without identifiable ID",
-          "line": 56,
+          "line": 18,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f417fe084dba1754687664fbd7834eb16e4e99e9d2c46c9d920c6f5efe815cb2"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "webhookHandler",
         "module": "apps/api/src/webhooks/webhookHandler.ts",
@@ -88021,7 +87644,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 19,
+      "blockCount": 17,
       "blocks": [
         {
           "id": "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts::should generate job ID in correct format",
@@ -88101,57 +87724,43 @@
           "bodyHash": "2f978a44d5b698457fea21edf6b23351356db6a9ea4579ea9f6cb9c20425277f"
         },
         {
-          "id": "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts::should contain all required fields",
-          "line": 163,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2776b9369db7afeb299dd6713b45843484eb3f6cd2900894fd12dd2c95c84c3f"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts::should have correct types for required fields",
-          "line": 176,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a80e9a0ff8a399e18f16713ea22571ab3f3de94cf87149ea3611bc8dd83775e4"
-        },
-        {
           "id": "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts::should allow optional accountId",
-          "line": 191,
+          "line": 163,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "beae8dc2e9e10791633a21fc071521257c73516605e15c0985f55348bfe9aa5b"
         },
         {
           "id": "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts::should allow optional projectId",
-          "line": 197,
+          "line": 169,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ecc4de5626122c2d5bea74ba7b4c817d45223d76ed37cd49ed4dda0dbebe156c"
         },
         {
           "id": "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts::should allow both optional fields together",
-          "line": 203,
+          "line": 175,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "725c0ad12d326d3f37c1a6e236521aa0446726a13494a439c3d5f16c38c5197d"
         },
         {
           "id": "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts::should work without optional fields",
-          "line": 213,
+          "line": 185,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fcc948f397a6fbd5eb333596e73407efc64dbe6ec005a4c4bc5af15094e5ff5c"
         },
         {
           "id": "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts::should store originalReceivedAt as ISO string",
-          "line": 222,
+          "line": 194,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff77bed5324e59194d1dbe64a038644ff04918def7315f91c1bb7c72ee7d4640"
         },
         {
           "id": "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts::should preserve original received timestamp across retries",
-          "line": 232,
+          "line": 204,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "749c920347c0298e2180b787f78363b6a2b67d1d21efcd22b51bd99198318a51"
@@ -88161,7 +87770,7 @@
       "basis": "subject-not-imported",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "webhookJobProcessor",
         "module": "apps/api/src/webhooks/webhookJobProcessor.ts",
@@ -88545,158 +88154,102 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 22,
+      "blockCount": 14,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should process webhook and return job ID",
-          "line": 520,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a57a08c732161dd12d4a16d7409e113ba0e743a93b856d12094e7a9eee5c4c7e"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should process webhook without optional accountId and projectId",
-          "line": 536,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "0297d6c16b5ee57aa12a7b8547bbe4b4d54199be893c1d3ed11cd3001ae99185"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should handle different event types",
-          "line": 549,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3d6c0280d6e4b694fabdcc593eafb84717441011cf7af06cb2db30279dc86014"
-        },
-        {
-          "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should return comprehensive statistics",
-          "line": 618,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "1dcf25e33bfcc68c13035a20ee29735f0f3c3787b0706e36a0d16a271a3fcffc"
-        },
-        {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should calculate success rate correctly",
-          "line": 633,
+          "line": 564,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c0906cbf88c46487db948cfd15c60c037010ff28ea9ed778c1366a5886e3434"
         },
         {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should calculate average processing time",
-          "line": 642,
+          "line": 573,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "101acd03921c59df46c3aef2292952caef064c244f778ae57fbbbd9ee2dcb027"
         },
         {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should group statistics by provider",
-          "line": 648,
+          "line": 579,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4636c814da5e8b9f2ef98ff0dc869de74c93433261acfe8bc0efdcba3d0f81ce"
         },
         {
-          "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should return recent errors",
-          "line": 660,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "6e4494f4b1dedab078a7e69a0f238868877a31b85114e6f6abcc3c5615a78edc"
-        },
-        {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should filter statistics by time range",
-          "line": 675,
+          "line": 591,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6627d4ff351c2941f1507fe14cba16887413602fdf2233fb3f77c88173eb4399"
         },
         {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should retry all failed events without maxAge filter",
-          "line": 744,
+          "line": 660,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d4f897bb5878c826a5d8bf435d71babc72bba5e99bb50eb379d4f7b20511811b"
         },
         {
-          "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should retry events within maxAge limit",
-          "line": 750,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "bdcc26dba9321bbfc0201af67b78fa57f971d42a133fd7b9e951f8444a58810e"
-        },
-        {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should update status to RETRYING for retried events",
-          "line": 763,
+          "line": 666,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ba697436fcc8589ea446cdbb1220bafa24047b7f532ee99c3f8b1c8f7339155"
         },
         {
-          "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should handle retry failures gracefully",
-          "line": 784,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4c86fec62b1d9775e01ae8ec55005b7c7fb1abe6b2ae454b98e5445e68f5213c"
-        },
-        {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should clean up old completed and failed events",
-          "line": 846,
+          "line": 742,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aea387833a359b9a71cc24ff34f4b65d5e029f0ce4f12553b3e7dd980c99689f"
         },
         {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should not delete pending or processing events",
-          "line": 855,
+          "line": 751,
           "blockClass": "TITLE-CONTRADICTION",
           "criteria": [],
           "bodyHash": "a0fe303886243bc1b5a7f373de3eb875759967a31bc22d91a355078fcc3476d7"
         },
         {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should respect custom maxAgeDays parameter",
-          "line": 865,
+          "line": 761,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3fd3783bdbcadfc80e7a6656b9c3bd6807414e0321e85c30a6c2d6f345d4260e"
         },
         {
-          "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should use default 30 days if not specified",
-          "line": 873,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "568e6d7aa14b8c8a280b6c6b825df5de3b65d8ed254dfd4a573be830b5cb111c"
-        },
-        {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should never expose secret key in createSubscription response",
-          "line": 890,
+          "line": 779,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab59f3546631f2024d02234f5bfb6d24e890139fd2353f0ebcdd6b07b18049ef"
         },
         {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should never expose secret key in getSubscriptions response",
-          "line": 899,
+          "line": 788,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da170904d300537264c7ececc6898b9ff6935d3e963d1d3f5d1adfb79eb97754"
         },
         {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should store secret key in database",
-          "line": 914,
+          "line": 803,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0e18d4832672bdc8beeb699aef34a05cc7af9abe99a77a1f7c5c611f5a3b157"
         },
         {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should generate unique secret keys for each subscription",
-          "line": 930,
+          "line": 819,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "87484668102eb18da87ba8b1f26201536fadefcb9d220fca7ea78bc6333cd2a2"
         },
         {
           "id": "apps/api/tests/unit/webhookManager.processing.test.ts::should generate unique verify tokens for each subscription",
-          "line": 955,
+          "line": 844,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "930b0d4b7c45c6da7b1f9cbe2d8851e216e1effe800feb55d3e2a7f1222c8d2f"
@@ -88706,7 +88259,7 @@
       "basis": "title-contradiction",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.2d",
       "subject": {
         "stem": "webhookManager",
         "module": "apps/api/src/webhooks/webhookManager.ts",
