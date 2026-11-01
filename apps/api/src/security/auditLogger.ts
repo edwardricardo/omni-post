@@ -95,7 +95,14 @@ export class AuditLogger {
     this.scheduler.unregister("audit-logger-cleanup");
   }
 
-  // Log audit event with automatic enrichment
+  /**
+   * @method log
+   * @description Records an audit event: enriches it with the request's IP, user agent and user,
+   *   masks sensitive fields, persists it, caches it for real-time monitoring and checks the
+   *   alert rules. A failure is logged and swallowed, never thrown to the caller.
+   * @param event - The audit event to record
+   * @param req - The request the event came from, when there is one
+   */
   async log(event: AuditEvent, req?: FastifyRequest): Promise<void> {
     try {
       // Enrich event with request data if available
@@ -172,7 +179,14 @@ export class AuditLogger {
     }
   }
 
-  // Authentication-specific logging
+  /**
+   * @method logAuth
+   * @description Records an authentication event in the `auth` category; a failed login is
+   *   medium severity and marked unsuccessful.
+   * @param action - The authentication action
+   * @param details - Event details
+   * @param req - The request the event came from, when there is one
+   */
   async logAuth(
     action: "LOGIN" | "LOGOUT" | "LOGIN_FAILED" | "PASSWORD_RESET" | "MFA_ENABLED" | "MFA_DISABLED",
     details: Record<string, unknown>,
@@ -190,7 +204,16 @@ export class AuditLogger {
     );
   }
 
-  // Data modification logging
+  /**
+   * @method logDataChange
+   * @description Records a data change in the `data` category as `<RESOURCE>_<ACTION>`; a
+   *   delete is medium severity.
+   * @param action - The kind of change
+   * @param resource - The changed resource type
+   * @param resourceId - The changed resource's id
+   * @param changes - The changed fields
+   * @param req - The request the event came from, when there is one
+   */
   async logDataChange(
     action: "CREATE" | "UPDATE" | "DELETE",
     resource: string,
@@ -211,7 +234,14 @@ export class AuditLogger {
     );
   }
 
-  // Security event logging
+  /**
+   * @method logSecurity
+   * @description Records a security event in the `security` category.
+   * @param action - The security action
+   * @param details - Event details
+   * @param severity - The event's severity, medium by default
+   * @param req - The request the event came from, when there is one
+   */
   async logSecurity(
     action: string,
     details: Record<string, unknown>,
@@ -229,7 +259,15 @@ export class AuditLogger {
     );
   }
 
-  // Administrative action logging
+  /**
+   * @method logAdmin
+   * @description Records an administrative action in the `admin` category, medium severity.
+   * @param action - The administrative action
+   * @param resource - The affected resource type
+   * @param resourceId - The affected resource's id
+   * @param details - Event details
+   * @param req - The request the event came from, when there is one
+   */
   async logAdmin(
     action: string,
     resource: string,
@@ -250,7 +288,13 @@ export class AuditLogger {
     );
   }
 
-  // System event logging
+  /**
+   * @method logSystem
+   * @description Records a system event in the `system` category.
+   * @param action - The system action
+   * @param details - Event details
+   * @param severity - The event's severity, low by default
+   */
   async logSystem(
     action: string,
     details: Record<string, unknown>,
@@ -264,7 +308,15 @@ export class AuditLogger {
     });
   }
 
-  // Billing event logging
+  /**
+   * @method logBilling
+   * @description Records a billing event in the `billing` category against an account,
+   *   medium severity.
+   * @param action - The billing action
+   * @param accountId - The account the event concerns
+   * @param details - Event details
+   * @param req - The request the event came from, when there is one
+   */
   async logBilling(
     action: string,
     accountId: string,
@@ -284,7 +336,13 @@ export class AuditLogger {
     );
   }
 
-  // Query audit logs with filtering
+  /**
+   * @method queryLogs
+   * @description Reads audit log rows matching the filters, newest first.
+   * @param filters - User, action, resource, category, severity, date range, success,
+   *   limit (100 by default) and offset
+   * @returns The matching rows, or an empty array when the query fails
+   */
   async queryLogs(filters: {
     userId?: string;
     action?: string;
@@ -334,7 +392,13 @@ export class AuditLogger {
     }
   }
 
-  // Get audit statistics
+  /**
+   * @method getStatistics
+   * @description Counts the audit events of the timeframe: total, failed and security
+   *   events, with the most frequent actions and users.
+   * @param timeframe - The window to count over, a day by default
+   * @returns The counts, or zeros and empty lists when the query fails
+   */
   async getStatistics(timeframe: "hour" | "day" | "week" | "month" = "day"): Promise<{
     totalEvents: number;
     failedEvents: number;
@@ -646,28 +710,15 @@ export class AuditLogger {
     }
   }
 
-  // Cleanup method
+  /**
+   * @method cleanup
+   * @description Does nothing. The daily `audit-logger-cleanup` task the constructor
+   *   registers is released by `destroy()`, not here, and the Redis `error` listener
+   *   the constructor attaches is removed by neither.
+   */
   async cleanup(): Promise<void> {
-    // No persistent timers to clean up in this implementation
+    // Empty: destroy() releases the scheduled task.
   }
-}
-
-/**
- * @function createAuditLogger
- * @description Factory for AuditLogger with explicit dependencies for DI composition.
- * @param prisma - Prisma client
- * @param redis - Redis client
- * @param scheduler - Background task scheduler for retention sweeps
- * @param config - Optional partial config overriding defaults
- * @returns Configured AuditLogger instance
- */
-export function createAuditLogger(
-  prisma: PrismaClient,
-  redis: Redis,
-  scheduler: BackgroundTaskScheduler,
-  config?: Partial<AuditConfig>
-): AuditLogger {
-  return new AuditLogger(prisma, redis, scheduler, config);
 }
 
 // Predefined audit configurations

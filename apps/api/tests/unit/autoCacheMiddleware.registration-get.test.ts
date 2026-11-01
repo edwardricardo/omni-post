@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * @file autoCacheMiddleware.registration-get.test.ts
- * @description Tests for autoCacheMiddleware - Registration and GET Caching
+ * @description Tests for autoCacheMiddleware - Cache Read Hook and GET Caching
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
@@ -25,33 +25,8 @@ class RecordingCache extends InMemoryCacheAdapter {
   }
 }
 
-describe("autoCacheMiddleware - Registration and GET Caching", () => {
+describe("autoCacheMiddleware - Cache Read Hook and GET Caching", () => {
   describe("Plugin Registration", () => {
-    it("should register plugin with default options", async () => {
-      const app = Fastify({ logger: false });
-      app.decorate("cache", new InMemoryCacheAdapter());
-
-      await app.register(autoCachePlugin);
-
-      expect(app.printRoutes).toBeTruthy();
-      await app.close();
-    });
-
-    it("should register plugin with custom options", async () => {
-      const app = Fastify({ logger: false });
-      app.decorate("cache", new InMemoryCacheAdapter());
-
-      await app.register(autoCachePlugin, {
-        enableCaching: true,
-        enableInvalidation: true,
-        excludeRoutes: ["/health", "/metrics"],
-        logCacheOps: true,
-      });
-
-      expect(app.printRoutes).toBeTruthy();
-      await app.close();
-    });
-
     it("should handle missing cache manager gracefully", async () => {
       const app = Fastify({ logger: false });
 

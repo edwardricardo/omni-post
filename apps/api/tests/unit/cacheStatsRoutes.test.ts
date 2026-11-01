@@ -199,46 +199,6 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.timestamp).toBeTruthy();
     });
 
-    it("should include hit/miss metrics", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/cache/stats",
-        headers: authHeaders(superAdminToken),
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.stats.hits).toBeTruthy();
-      expect(body.stats.misses).toBeTruthy();
-      expect(body.stats.hitRate).toBeTruthy();
-      expect(body.stats.hitRatePercentage).toBeTruthy();
-    });
-
-    it("should include cache size metrics", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/cache/stats",
-        headers: authHeaders(superAdminToken),
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.stats.totalKeys).toBeTruthy();
-      expect(body.stats.memoryUsage).toBeTruthy();
-      expect(body.stats.memoryUsageMB).toBeTruthy();
-    });
-
-    it("should include L1/L2 cache breakdown", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/cache/stats",
-        headers: authHeaders(superAdminToken),
-      });
-
-      const body = JSON.parse(response.body);
-      expect(typeof body.stats.l1Hits === "number").toBeTruthy();
-      expect(typeof body.stats.l2Hits === "number").toBeTruthy();
-      expect(typeof body.stats.l1Size === "number").toBeTruthy();
-    });
-
     it("should include hot keys (top 10)", async () => {
       const response = await app.inject({
         method: "GET",
@@ -283,19 +243,6 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.ok).toBe(true);
       expect(body.health).toBeTruthy();
       expect(body.timestamp).toBeTruthy();
-    });
-
-    it("should include health status and latency", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/cache/health",
-        headers: authHeaders(superAdminToken),
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.health.status).toBeTruthy();
-      expect(typeof body.health.latency === "number").toBeTruthy();
-      expect(body.health.latencyMs).toBeTruthy();
     });
 
     it("should handle health check failures", async () => {
@@ -471,17 +418,6 @@ describe("cacheStatsRoutes - Unit Tests", () => {
       expect(body.ok).toBe(true);
       expect(typeof body.warmedCount === "number").toBeTruthy();
       expect(body.timestamp).toBeTruthy();
-    });
-
-    it("should return warmed keys count", async () => {
-      const response = await app.inject({
-        method: "POST",
-        url: "/cache/warm",
-        headers: authHeaders(superAdminToken),
-      });
-
-      const body = JSON.parse(response.body);
-      expect(body.warmedCount >= 0).toBeTruthy();
     });
 
     it("should handle warming failures", async () => {

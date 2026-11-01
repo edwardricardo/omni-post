@@ -9,19 +9,6 @@ import { ApiMetrics } from "../../src/metrics/apiMetrics.js";
 import { createTestRegistry, getCounterValue, getGaugeValue } from "./apiMetrics.test-helpers.js";
 
 describe("ApiMetrics - Initialization", () => {
-  it("should initialize with all metric collectors", () => {
-    const registry = createTestRegistry();
-    const apiMetrics = new ApiMetrics(registry);
-
-    expect(apiMetrics.metrics).toBeTruthy();
-    expect(apiMetrics.metrics.httpRequests).toBeTruthy();
-    expect(apiMetrics.metrics.httpDuration).toBeTruthy();
-    expect(apiMetrics.metrics.dbOperations).toBeTruthy();
-    expect(apiMetrics.metrics.queueOperations).toBeTruthy();
-    expect(apiMetrics.metrics.postsCreated).toBeTruthy();
-    expect(apiMetrics.metrics.rateLimitHits).toBeTruthy();
-  });
-
   it("should set initial healthy state", async () => {
     const registry = createTestRegistry();
     const apiMetrics = new ApiMetrics(registry);

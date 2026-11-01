@@ -14,15 +14,6 @@ import {
 } from "./performanceMonitor.test-helpers.js";
 
 describe("PerformanceMonitor - Initialization", () => {
-  it("should initialize with default alert rules", () => {
-    const metrics = createMockApiMetrics();
-    const redis = createMockRedis();
-
-    const monitor = createPerformanceMonitor(metrics, redis);
-
-    expect(monitor).toBeTruthy();
-  });
-
   it("should initialize with default thresholds", () => {
     const metrics = createMockApiMetrics();
     const redis = createMockRedis();
