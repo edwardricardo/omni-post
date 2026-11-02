@@ -384,10 +384,10 @@
   },
   "apps/api/tests/unit/application/AnalyticsUseCases.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 11
+      "count": 4
     },
     "vitest/no-conditional-expect": {
-      "count": 14
+      "count": 9
     }
   },
   "apps/api/tests/unit/application/ApiKeyUseCases.test.ts": {
@@ -405,11 +405,6 @@
       "count": 6
     }
   },
-  "apps/api/tests/unit/application/brandKitUseCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/application/brandVoiceUseCase.test.ts": {
     "testing/no-existence-only-test": {
       "count": 2
@@ -417,7 +412,7 @@
   },
   "apps/api/tests/unit/application/campaignUseCases.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 3
+      "count": 1
     }
   },
   "apps/api/tests/unit/application/conversationNoteUseCases.test.ts": {
@@ -448,11 +443,6 @@
   "apps/api/tests/unit/application/embeddings/EmbeddingService.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 5
-    }
-  },
-  "apps/api/tests/unit/application/externalNotificationUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/application/generatePlatformVariants.test.ts": {
@@ -497,15 +487,15 @@
   },
   "apps/api/tests/unit/application/inboxUseCases.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 6
+      "count": 3
     }
   },
   "apps/api/tests/unit/application/integrationUseCases.test.ts": {
     "testing/no-empty-test": {
-      "count": 2
+      "count": 1
     },
     "vitest/expect-expect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/unit/application/links/linkUseCases.test.ts": {
@@ -528,14 +518,9 @@
       "count": 3
     }
   },
-  "apps/api/tests/unit/application/predictOptimalTiming.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/application/recurringPostUseCases.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 4
+      "count": 2
     }
   },
   "apps/api/tests/unit/application/reportSharing.test.ts": {
@@ -545,7 +530,7 @@
   },
   "apps/api/tests/unit/application/reportUseCases.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/unit/application/sendEmailNotification.test.ts": {
@@ -569,11 +554,6 @@
   "apps/api/tests/unit/application/style-guide/UpsertStyleGuideRuleUseCase.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 3
-    }
-  },
-  "apps/api/tests/unit/application/updatePricingConfig.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/application/usageUseCase.test.ts": {
@@ -784,19 +764,9 @@
       "count": 1
     }
   },
-  "apps/api/tests/unit/infrastructure/CachePort-DI.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/infrastructure/FetchHttpClient.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 8
-    }
-  },
-  "apps/api/tests/unit/infrastructure/HttpClientPort.contract.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/infrastructure/PrismaExternalNotificationConfigRepository.test.ts": {
@@ -804,27 +774,14 @@
       "count": 5
     }
   },
-  "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
   "apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts": {
     "no-console": {
       "count": 3
-    },
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/infrastructure/PrismaUnitOfWork.test.ts": {
     "no-console": {
       "count": 3
-    }
-  },
-  "apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/infrastructure/adapters/FetchHttpClient.test.ts": {

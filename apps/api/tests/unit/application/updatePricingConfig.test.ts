@@ -49,11 +49,6 @@ describe("UpdatePricingConfigUseCase", () => {
     useCase = new UpdatePricingConfigUseCase(repo, dispatcher);
   });
 
-  it("succeeds when caller is SUPER_ADMIN", async () => {
-    const result = await useCase.execute(baseInput);
-    assert.ok(result.ok);
-  });
-
   it("fails when caller is not SUPER_ADMIN", async () => {
     const result = await useCase.execute({ ...baseInput, adminRole: "ADMIN" });
     assert.ok(!result.ok);

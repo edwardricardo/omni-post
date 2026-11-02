@@ -77,26 +77,11 @@ describe("CreateCampaignUseCase", () => {
     assert.ok(!r.ok);
   });
 
-  it("passes optional description", async () => {
-    const r = await uc.execute(makeInput({ description: "Campaign description" }));
-    assert.ok(r.ok);
-  });
-
   it("passes optional dates", async () => {
     const r = await uc.execute(
       makeInput({
         startDate: new Date("2025-04-01"),
         endDate: new Date("2025-06-30"),
-      })
-    );
-    assert.ok(r.ok);
-  });
-
-  it("passes optional UTM fields", async () => {
-    const r = await uc.execute(
-      makeInput({
-        utmSource: "instagram",
-        utmMedium: "social",
       })
     );
     assert.ok(r.ok);

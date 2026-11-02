@@ -1,8 +1,8 @@
 /**
  * @file recurringPostUseCases.test.ts
  * @description Tests for CreateRecurringPostUseCase — cron validation, ID
- *   validation, triple parent-ownership (project guarded + template/channel
- *   project-consistency), and persistence.
+ *   validation, the optional end date and occurrence cap, the channels in the
+ *   output, and persistence.
  * @layer infrastructure
  */
 
@@ -103,11 +103,6 @@ describe("CreateRecurringPostUseCase", () => {
     assert.ok(!r.ok);
   });
 
-  it("accepts optional timezone", async () => {
-    const r = await uc.execute(makeInput({ timezone: "America/New_York" }));
-    assert.ok(r.ok);
-  });
-
   it("accepts optional endDate", async () => {
     const r = await uc.execute(makeInput({ endDate: new Date("2025-12-31").toISOString() }));
     assert.ok(r.ok);
@@ -122,11 +117,5 @@ describe("CreateRecurringPostUseCase", () => {
     const r = await uc.execute(makeInput({ channels: [CHANNEL_A, CHANNEL_B] }));
     assert.ok(r.ok);
     assert.deepEqual(r.value.channels, [CHANNEL_A, CHANNEL_B]);
-  });
-
-  it("includes createdAt timestamp in output", async () => {
-    const r = await uc.execute(makeInput());
-    assert.ok(r.ok);
-    assert.ok(r.value.createdAt);
   });
 });

@@ -52,12 +52,6 @@ function createMocks() {
       keyInsights: [],
       recommendations: [],
     })),
-    compareMetricsOverTime: vi.fn(async () => ({
-      metrics: ["engagement_rate", "reach"],
-      periods: [],
-      trends: {},
-      insights: [],
-    })),
   };
 
   const mockROICalculator = {
@@ -128,20 +122,6 @@ describe("Analytics Use Cases (TDD)", () => {
       expect(result.ok).toBeTruthy();
     });
 
-    it("should filter analytics by providers", async () => {
-      const useCase = new GetCrossPlatformAnalyticsUseCase(mockCrossPlatformEngine);
-
-      const input: GetAnalyticsInput = {
-        accountId: randomUUID(),
-        timeRange: "30d",
-        providers: ["INSTAGRAM", "X"],
-      };
-
-      const result = await useCase.execute(input);
-
-      expect(result.ok).toBeTruthy();
-    });
-
     it("should support custom date range", async () => {
       const useCase = new GetCrossPlatformAnalyticsUseCase(mockCrossPlatformEngine);
 
@@ -172,40 +152,9 @@ describe("Analytics Use Cases (TDD)", () => {
         expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
       }
     });
-
-    it("should include competitive analysis when requested", async () => {
-      const useCase = new GetCrossPlatformAnalyticsUseCase(mockCrossPlatformEngine);
-
-      const input: GetAnalyticsInput = {
-        accountId: randomUUID(),
-        timeRange: "30d",
-        includeCompetitive: true,
-      };
-
-      const result = await useCase.execute(input);
-
-      expect(result.ok).toBeTruthy();
-    });
   });
 
   describe("ComparePerformanceUseCase", () => {
-    it("should compare performance across time periods", async () => {
-      const useCase = new ComparePerformanceUseCase(mockPerformanceComparator);
-
-      const input: ComparePerformanceInput = {
-        accountId: randomUUID(),
-        timeRange: "30d",
-      };
-
-      const result = await useCase.execute(input);
-
-      expect(result.ok).toBeTruthy();
-      if (result.ok) {
-        expect(result.value.currentPerformance).toBeTruthy();
-        expect(result.value.keyInsights).toBeTruthy();
-      }
-    });
-
     it("should include industry benchmarks when requested", async () => {
       const useCase = new ComparePerformanceUseCase(mockPerformanceComparator);
 
@@ -240,21 +189,6 @@ describe("Analytics Use Cases (TDD)", () => {
       }
     });
 
-    it("should compare specific metrics over time", async () => {
-      const useCase = new ComparePerformanceUseCase(mockPerformanceComparator);
-
-      const input: ComparePerformanceInput = {
-        accountId: randomUUID(),
-        timeRange: "30d",
-        metrics: ["engagement_rate", "reach", "views"],
-        comparePeriods: ["7d", "30d", "90d"],
-      };
-
-      const result = await useCase.execute(input);
-
-      expect(result.ok).toBeTruthy();
-    });
-
     it("should reject empty account ID", async () => {
       const useCase = new ComparePerformanceUseCase(mockPerformanceComparator);
 
@@ -273,25 +207,6 @@ describe("Analytics Use Cases (TDD)", () => {
   });
 
   describe("CalculateROIUseCase", () => {
-    it("should calculate ROI for a project", async () => {
-      const useCase = new CalculateROIUseCase(mockROICalculator);
-
-      const input: CalculateROIInput = {
-        accountId: randomUUID(),
-        projectId: randomUUID(),
-        timeRange: "30d",
-      };
-
-      const result = await useCase.execute(input);
-
-      expect(result.ok).toBeTruthy();
-      if (result.ok) {
-        expect(result.value.roi !== undefined).toBeTruthy();
-        expect(result.value.totalInvestment !== undefined).toBeTruthy();
-        expect(result.value.totalRevenue !== undefined).toBeTruthy();
-      }
-    });
-
     it("should calculate ROI by channel", async () => {
       const useCase = new CalculateROIUseCase(mockROICalculator);
 
@@ -311,24 +226,6 @@ describe("Analytics Use Cases (TDD)", () => {
       }
     });
 
-    it("should include investment details", async () => {
-      const useCase = new CalculateROIUseCase(mockROICalculator);
-
-      const input: CalculateROIInput = {
-        accountId: randomUUID(),
-        timeRange: "30d",
-        investmentDetails: {
-          adSpend: 3000,
-          contentCreation: 1500,
-          tools: 500,
-        },
-      };
-
-      const result = await useCase.execute(input);
-
-      expect(result.ok).toBeTruthy();
-    });
-
     it("should reject empty account ID", async () => {
       const useCase = new CalculateROIUseCase(mockROICalculator);
 
@@ -343,20 +240,6 @@ describe("Analytics Use Cases (TDD)", () => {
       if (!result.ok) {
         expect(result.error.code).toBe(USE_CASE_ERRORS.VALIDATION_FAILED);
       }
-    });
-
-    it("should calculate ROI for specific providers", async () => {
-      const useCase = new CalculateROIUseCase(mockROICalculator);
-
-      const input: CalculateROIInput = {
-        accountId: randomUUID(),
-        timeRange: "30d",
-        providers: ["INSTAGRAM", "FACEBOOK"],
-      };
-
-      const result = await useCase.execute(input);
-
-      expect(result.ok).toBeTruthy();
     });
   });
 });

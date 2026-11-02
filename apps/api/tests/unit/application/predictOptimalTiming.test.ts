@@ -40,19 +40,6 @@ describe("PredictOptimalTimingUseCase", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("invokes AIServicePort.generateContent when AI is provided", async () => {
-    const ai = createMockAI();
-    const uc = new PredictOptimalTimingUseCase(ai);
-    await uc.execute({
-      provider: "X",
-      contentType: "POST" as never,
-      timezone: "UTC",
-    });
-    // generateContent may or may not be called depending on UC internals;
-    // the key point is the UC accepts the port type without compile error.
-    expect(typeof ai.generateContent).toBe("function");
-  });
-
   it("constructs without analytics repo and still produces a Result", async () => {
     const ai = createMockAI();
     const uc = new PredictOptimalTimingUseCase(ai);

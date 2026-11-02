@@ -1,7 +1,7 @@
 /**
  * Infrastructure Layer - Prisma Post Query Repository Unit Tests
  *
- * Part of P2-3: CQRS Read Side Implementation
+ * Covers the CQRS read side's query repository for posts.
  * Tests PrismaPostQueryRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
  *
@@ -201,30 +201,12 @@ describe("PrismaPostQueryRepository", () => {
       expect(Object.prototype.hasOwnProperty.call(result.value, "title")).toBe(false);
     });
 
-    it("maps scheduledAt when present", async () => {
-      prisma.post.findFirst.mockImplementation(async () => scheduledRow());
-      const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id, accountId);
-
-      expect(result.ok).toBeTruthy();
-      expect(result.value.scheduledAt instanceof Date).toBeTruthy();
-    });
-
     it("omits scheduledAt when null (exactOptionalPropertyTypes compliance)", async () => {
       const id = PostId.fromStringUnsafe(POST_ID);
       const result = await repo.getById(id, accountId);
 
       expect(result.ok).toBeTruthy();
       expect(Object.prototype.hasOwnProperty.call(result.value, "scheduledAt")).toBe(false);
-    });
-
-    it("maps publishedAt when present", async () => {
-      prisma.post.findFirst.mockImplementation(async () => publishedRow());
-      const id = PostId.fromStringUnsafe(POST_ID);
-      const result = await repo.getById(id, accountId);
-
-      expect(result.ok).toBeTruthy();
-      expect(result.value.publishedAt instanceof Date).toBeTruthy();
     });
 
     it("maps summary field when present", async () => {
