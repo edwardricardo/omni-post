@@ -153,6 +153,23 @@
         "lines": { "from": 59.8, "to": 59.7 },
         "branches": { "from": 49.9, "to": 49.8 }
       }
+    },
+    "2.8.3a": {
+      "files": [
+        "apps/api/tests/unit/domain/aggregates.test.ts",
+        "apps/api/tests/unit/domain/domain-errors.test.ts",
+        "apps/api/tests/unit/domain/entities.account.test.ts",
+        "apps/api/tests/unit/domain/entities.brandKit.test.ts",
+        "apps/api/tests/unit/domain/entities.campaign.test.ts",
+        "apps/api/tests/unit/domain/linkTracking.test.ts",
+        "apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts",
+        "apps/api/tests/unit/domain/security/secretCatalog.test.ts",
+        "apps/api/tests/unit/domain/value-objects.content.test.ts",
+        "apps/api/tests/unit/domain/value-objects.ids-content.test.ts",
+        "apps/api/tests/unit/domain/value-objects.media-provider.test.ts",
+        "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts"
+      ],
+      "deleted": { "files": 0, "blocks": 30 }
     }
   }
 }

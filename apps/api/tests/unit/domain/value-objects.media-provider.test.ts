@@ -1,6 +1,6 @@
 /**
  * @file value-objects.media-provider.test.ts
- * @description Tests for Domain Value Objects - MediaAttachment
+ * @description Tests for Domain Value Objects - MediaAttachment, ScheduledTime and Provider
  * @layer infrastructure
  */
 import { describe, it, expect } from "vitest";
@@ -294,12 +294,6 @@ describe("Domain Value Objects - ScheduledTime", () => {
     expect(result.ok).toBeFalsy();
   });
 
-  it("should create from ISO string", () => {
-    const futureDate = new Date(Date.now() + 60 * 60 * 1000);
-    const result = ScheduledTime.fromISOString(futureDate.toISOString());
-    expect(result.ok).toBeTruthy();
-  });
-
   it("should create from now plus minutes", () => {
     const result = ScheduledTime.fromNowPlusMinutes(30);
     expect(result.ok).toBeTruthy();
@@ -326,16 +320,6 @@ describe("Domain Value Objects - ScheduledTime", () => {
     if (result.ok) {
       expect(result.value.isWithinMinutes(15)).toBeTruthy();
       expect(result.value.isWithinMinutes(5)).toBeFalsy();
-    }
-  });
-
-  it("should reschedule to a new future time", () => {
-    const result = ScheduledTime.fromNowPlusMinutes(30);
-    expect(result.ok).toBeTruthy();
-    if (result.ok) {
-      const newTime = new Date(Date.now() + 60 * 60 * 1000);
-      const rescheduled = result.value.reschedule(newTime);
-      expect(rescheduled.ok).toBeTruthy();
     }
   });
 

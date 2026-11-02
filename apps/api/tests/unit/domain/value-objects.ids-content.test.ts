@@ -6,9 +6,6 @@
 import { describe, it, expect } from "vitest";
 import {
   PostId,
-  ChannelId,
-  AccountId,
-  ProjectId,
   ContentId,
   MediaId,
   TrackedLinkId,
@@ -139,12 +136,6 @@ describe("Domain Value Objects", () => {
         expect(id.value.length).toBe(36);
       });
 
-      it("should create TrackedLinkId from valid UUID", () => {
-        const uuid = "123e4567-e89b-42d3-a456-426614174004";
-        const result = TrackedLinkId.fromString(uuid);
-        expect(result.ok).toBeTruthy();
-      });
-
       it("should reject invalid UUID in TrackedLinkId", () => {
         const result = TrackedLinkId.fromString("bad-id");
         expect(result.ok).toBeFalsy();
@@ -158,42 +149,9 @@ describe("Domain Value Objects", () => {
         expect(id.value.length).toBe(36);
       });
 
-      it("should create LinkClickId from valid UUID", () => {
-        const uuid = "123e4567-e89b-42d3-a456-426614174005";
-        const result = LinkClickId.fromString(uuid);
-        expect(result.ok).toBeTruthy();
-      });
-
       it("should reject empty string in LinkClickId", () => {
         const result = LinkClickId.fromString("");
         expect(result.ok).toBeFalsy();
-      });
-    });
-
-    describe("ChannelId", () => {
-      it("should generate a new ChannelId", () => {
-        const channelId = ChannelId.generate();
-        expect(channelId).toBeTruthy();
-      });
-
-      it("should create ChannelId from valid UUID", () => {
-        const uuid = "123e4567-e89b-42d3-a456-426614174001";
-        const result = ChannelId.fromString(uuid);
-        expect(result.ok).toBeTruthy();
-      });
-    });
-
-    describe("AccountId", () => {
-      it("should generate a new AccountId", () => {
-        const accountId = AccountId.generate();
-        expect(accountId).toBeTruthy();
-      });
-    });
-
-    describe("ProjectId", () => {
-      it("should generate a new ProjectId", () => {
-        const projectId = ProjectId.generate();
-        expect(projectId).toBeTruthy();
       });
     });
   }); // Entity Identifiers
@@ -363,16 +321,6 @@ describe("Domain Value Objects", () => {
         const mediaId = MediaId.generate();
         const withMedia = result.value.withMedia([mediaId]);
         expect(withMedia.hasMedia).toBe(true);
-      }
-    });
-
-    it("should accept body of exactly 280 chars for X platform", () => {
-      const body = "x".repeat(280);
-      const result = Content.create({ body });
-      expect(result.ok).toBeTruthy();
-      if (result.ok) {
-        const fitResult = result.value.fitsInPlatform("X");
-        expect(fitResult.ok).toBeTruthy();
       }
     });
 

@@ -32,12 +32,6 @@ describe("Campaign entity", () => {
       assert.equal(r.value.name, "Q1 Launch Campaign");
     });
 
-    it("generates a unique ID", () => {
-      const r = Campaign.create(makeProps());
-      assert.ok(r.ok);
-      assert.ok(r.value.id);
-    });
-
     it("starts with DRAFT status", () => {
       const r = Campaign.create(makeProps());
       assert.ok(r.ok);

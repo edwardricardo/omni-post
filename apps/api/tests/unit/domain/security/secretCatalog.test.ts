@@ -55,12 +55,6 @@ describe("SECRETS_CATALOG", () => {
 });
 
 describe("SECRET_CATEGORIES", () => {
-  it("defines a rule for every category value", () => {
-    for (const cat of SECRET_CATEGORY_VALUES) {
-      assert.ok(SECRET_CATEGORIES[cat], `missing rule for category ${cat}`);
-    }
-  });
-
   it("every category has cadenceDays > 0", () => {
     for (const cat of SECRET_CATEGORY_VALUES) {
       assert.ok(SECRET_CATEGORIES[cat].cadenceDays > 0, `non-positive cadence for ${cat}`);

@@ -16,8 +16,8 @@
       },
       "byVerdict": {
         "DELETE": 19,
-        "REWRITE": 183,
-        "KEEP": 881,
+        "REWRITE": 177,
+        "KEEP": 887,
         "ADJUDICATE": 102,
         "unmeasured": 0
       }
@@ -28,12 +28,12 @@
       "total": 1185
     },
     "blocks": {
-      "total": 14877,
-      "decorative": 685,
+      "total": 14847,
+      "decorative": 655,
       "byClass": {
         "EMPTY": 15,
         "TAUTOLOGY-ONLY": 2,
-        "EXISTENCE-ONLY": 378,
+        "EXISTENCE-ONLY": 348,
         "CONDITIONAL-ONLY": 171,
         "SELF-SKIP": 112,
         "PRINTS-SUCCESS": 7,
@@ -43,7 +43,7 @@
     },
     "deleted": {
       "files": 26,
-      "blocks": 378
+      "blocks": 408
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -268,6 +268,27 @@
           "to": 49.8
         }
       }
+    },
+    "2.8.3a": {
+      "files": [
+        "apps/api/tests/unit/domain/aggregates.test.ts",
+        "apps/api/tests/unit/domain/domain-errors.test.ts",
+        "apps/api/tests/unit/domain/entities.account.test.ts",
+        "apps/api/tests/unit/domain/entities.brandKit.test.ts",
+        "apps/api/tests/unit/domain/entities.campaign.test.ts",
+        "apps/api/tests/unit/domain/linkTracking.test.ts",
+        "apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts",
+        "apps/api/tests/unit/domain/security/secretCatalog.test.ts",
+        "apps/api/tests/unit/domain/value-objects.content.test.ts",
+        "apps/api/tests/unit/domain/value-objects.ids-content.test.ts",
+        "apps/api/tests/unit/domain/value-objects.media-provider.test.ts",
+        "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 30
+      },
+      "floors": {}
     }
   },
   "files": [
@@ -40806,7 +40827,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 34,
+      "blockCount": 33,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should create a new post aggregate",
@@ -40935,113 +40956,106 @@
           "bodyHash": "47c706d02aa237e345e12d15fcb13776b067fea683177ecd339b0b491aa49c62"
         },
         {
-          "id": "apps/api/tests/unit/domain/aggregates.test.ts::should set publishedAt after markAsPublished",
-          "line": 375,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9d4f3d9c854084f1b0823373e983ab1058f91280b70f7021d48f6406c1911631"
-        },
-        {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should raise PostCancelled from draft status",
-          "line": 388,
+          "line": 375,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9d5d56abdf3b34a7752c60b7258476d08b782e632e21229573515e1a2d4a9835"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should add media and raise event",
-          "line": 408,
+          "line": 395,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a5746081515c1e3d44a00d105c758192ed819099e28bb1b76ef406996b125a9"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should remove media and raise event",
-          "line": 440,
+          "line": 427,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d985920951c5edeba819d7acb89e15daf921ff845952aa10e3b261547de80d64"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::media getter returns a copy — push does not affect internal state",
-          "line": 470,
+          "line": 457,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c75d982a65b4f192326c0d1bd86403c2d9ef15f51d792aecd393bcc2bed0b365"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should emit PostMediaAdded event with correct type",
-          "line": 487,
+          "line": 474,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c759f2d9288ac581e954e21407b2a081afb8b45d74f598c25f198b098906ff42"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should serialize aggregate to JSON correctly",
-          "line": 511,
+          "line": 498,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a8ebd6012972bc7b6880b742a66189a002366274540d4a6c4559597c4435333e"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::isReadyForPublishing should return false for draft post",
-          "line": 527,
+          "line": 514,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f7c0ec73a073188987e80df7f4059695b4ae42c5a9e9b1779036381883b21518"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::isReadyForPublishing should return true for scheduled post with past time (via reconstitute)",
-          "line": 535,
+          "line": 522,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fa68b5b131143f4b0cdf2e24d68ba5aefaa9efc01ab9aeca7a399bce1f78ce46"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should increment version",
-          "line": 550,
+          "line": 537,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "74674d6c959367aeeb67d69acc36d1a3b33bf57f9bd3e108c6226ff94ffd90d1"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should track content versions",
-          "line": 569,
+          "line": 556,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b471a922d0d32b70ac18f453b5613f62cc62cddcbdb7b156780bbb1bcb59292a"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should clear events after dispatch",
-          "line": 590,
+          "line": 577,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b2e3dd04cb2d288691e654f25ea1fa471168e3fea1f3aee02a7a8cd090c2bf2a"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should dispatch events to handlers",
-          "line": 612,
+          "line": 599,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bdf4c24a0c1f8f2b4c42e114a4ae8175691cd61b2809fbe4045704238160d72d"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should support multiple handlers for same event type",
-          "line": 638,
+          "line": 625,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "1edf4d71d3530d98a4c7c9dd6fb8c14148cb69ca11e34a6d7f5c54016f791eea"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should serialize PostCreated event to JSON",
-          "line": 671,
+          "line": 658,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f1a100ad51a515d9e93fe0da71b6ac3ca46eb42d29123e6e4fddee332a4a220"
         },
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should serialize PostPublished event to JSON",
-          "line": 690,
+          "line": 677,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fe2ef9c25a680b2616b113bf5b5d463af33ed6c6f88a9822bc152d4f99ba2672"
@@ -41051,7 +41065,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -41483,214 +41497,186 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 30,
+      "blockCount": 26,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should provide error code on all domain errors",
-          "line": 26,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8fc265aa81d973dbc5f26d39a4a6522f26b208ea7b7236774a9126c726228922"
-        },
-        {
-          "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should provide timestamp on all domain errors",
-          "line": 32,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "296c25202b32c7b7755839504741f9ed2224c7f04e73e1c39ee3fc8a094c8341"
-        },
-        {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should set correct error name",
-          "line": 37,
+          "line": 25,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d9109c5154b5903bdad3b7499cd4a3817258106db6e220b0966b929266277141"
         },
         {
-          "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should be instanceof Error",
-          "line": 42,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "509ffb26dd86038172af0197cae77263037afd4a3b2986f8b1062e4ad8e2b7d1"
-        },
-        {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should serialize to JSON correctly",
-          "line": 47,
+          "line": 30,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee7420d69d12596cb5268e78d60846334d7a7f1ccb29f46d800b185bd946d3fb"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should create error with field, value, and message",
-          "line": 60,
+          "line": 43,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "efd570dec24625c4e692f0006453e72c088253679a4ad462139b70b5ad9d83e7"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should handle null value",
-          "line": 69,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b005925bb5407b570f460ad43d828c6cd1b39667bebdb12043bedfdf0465d3a4"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should handle undefined value",
-          "line": 76,
+          "line": 59,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f3050c84aa102ffb19aba97c2f9ee6a2f0b6d8f8ad9f41d9d4b30d0fba228ba"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should handle complex value objects",
-          "line": 83,
+          "line": 66,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "20a633811a59714d96e9da7eb43153117dd37ecc1993d7b3d095dd9ed75e6d07"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should create error with idType and message",
-          "line": 92,
+          "line": 75,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d88f5d6aac95d4171784059323b648da5d14a9cdbdae485235e7f14bbfab24e6"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should handle empty string id",
-          "line": 100,
+          "line": 83,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea6e813d6521ee47e9a142452e29eeabbb58517b8896a838a30f509e70f558e1"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should work with different id types",
-          "line": 107,
+          "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1921a35944b9ab0642181e211eabdb5e40c6f1c42cd1870486b0cfbf8d7a5a3f"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should create error with field name",
-          "line": 119,
+          "line": 102,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d990534207510fa7481a631d0aa8bd8d92b198ecdc4243c4e1ac419263b6336"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should work with different field names",
-          "line": 127,
+          "line": 110,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "306844358030e7956a62411ebeb18a676d98a26af309819b7c0d4ed5724a9979"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should create error with field, maxLength, and actualLength",
-          "line": 139,
+          "line": 122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce84c8f486edf2360d7e75e128b533050b32d027a253613fab5b411e43924e57"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should format message correctly",
-          "line": 148,
+          "line": 131,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f37a8d54b11248845e4bc925f67edb7668c5266e48ba41568fb1e0c97151e401"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should handle large numbers",
-          "line": 154,
+          "line": 137,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e8733e537ce98d1bf9376467354a3e7b9bf930f1c62de1019a77326a4de57ecc"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should create error with state transition info",
-          "line": 163,
+          "line": 146,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd5d144c2319161f153373d451b927cd412db56cea1c5b352f0ef39f074d47f0"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should format message with entity type",
-          "line": 171,
+          "line": 154,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b4e7eaf913945824c07a8f075b47de1f2f016455018e8335e64b1d0831e43e5"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should work with different entity types",
-          "line": 177,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15a7557cbfc49cf8e66e97285cf674076625a3e4fa64069c49226e4337016853"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should create error with entityType and entityId",
-          "line": 187,
+          "line": 170,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2c84beefd9abe6c609b5158fc28d7a04da65d8c9a0a62a5117289b9c9c353632"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should format message correctly #2",
-          "line": 195,
+          "line": 178,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2d2e47b18ed9d117c57da142f0d56b8c7d9e108aabe026ca3fd99972e7fb4a7"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should handle UUID-style ids",
-          "line": 201,
+          "line": 184,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7ccbc4cd794ca2b54395dcae8d68df3822b731c8c2188a47962493fb707a3ce2"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should create error with invariant description",
-          "line": 210,
+          "line": 193,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1143499cee76b65ef51acd68da24746bd45d5b83d8180ae3f62dae8646146dc0"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should format message correctly #3",
-          "line": 217,
+          "line": 200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ed0ec96c8917aa6477c56251ccfb0f7d4407bffa7bbcf67088e53926d3e8b93"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should handle complex invariant descriptions",
-          "line": 223,
+          "line": 206,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b0b941b8bdc81cee58cb21a69ad6e572e1c87bafe339135fa51138051207e5ce"
         },
         {
-          "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should allow type narrowing with instanceof",
-          "line": 234,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "db72ac0d8d2c235cdbe2548dd815cd3328ef14f571d3a39d6c71180ef4de9ddc"
-        },
-        {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should all have unique error codes",
-          "line": 274,
+          "line": 217,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3758624c2db9d3ae35eaf5a96ef3bb8a99fb027216f2f4a111052915db9ba1c5"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should preserve stack trace",
-          "line": 293,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "438fcef9982f22612f44c4fa663f57b93195009860e5864eb38b0d83856b9376"
         },
         {
           "id": "apps/api/tests/unit/domain/domain-errors.test.ts::should show correct origin in stack trace",
-          "line": 300,
+          "line": 243,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "2e71c16aa2db477080dcaa9701a5ee029b96bd5a756946edba2d8da8e9c9fdec"
@@ -41700,7 +41686,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -41711,7 +41697,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 47,
+      "blockCount": 46,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/entities.account.test.ts::returns UTC timezone and en locale when not provided",
@@ -42001,53 +41987,46 @@
           "bodyHash": "32cfbb5c61ac1a4192e1ab25f7645ac57065603f46c8126d28139598501d8884"
         },
         {
-          "id": "apps/api/tests/unit/domain/entities.account.test.ts::serializes maxStorageBytes as string to avoid bigint JSON issues",
-          "line": 323,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "69f6d73be2a5a1b01a27e7a8829c256488d450f2aa63f4123fc28c2a4497d9ed"
-        },
-        {
           "id": "apps/api/tests/unit/domain/entities.account.test.ts::starts a trial and records the next billing date when auto-renewal is on",
-          "line": 335,
+          "line": 329,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c681a5659b06d8cf0af53c0527a61e0087d8e3a38d6dffda1dcb55c9371de82"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.account.test.ts::does not record a next billing date when auto-renewal is off",
-          "line": 351,
+          "line": 345,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "00cd98cf291729e276e2b39348017b3449dcd76ae419c060b124d1a093274948"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.account.test.ts::ends the trial, disables auto-renewal, and clears the next billing date",
-          "line": 366,
+          "line": 360,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f20af750492c57fff8e6fb3094d807bea050854089b1b379a889796fde7832f"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.account.test.ts::converts to paid with auto-renewal and records both billing dates",
-          "line": 381,
+          "line": 375,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6002028216ba3d0a04f0e741afe23ad882a190c34f23e3bc4fad6e5d49dc2f26"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.account.test.ts::clears the trial flag and advances the billing dates",
-          "line": 397,
+          "line": 391,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5082617a8c4584f3bf0ffd3238a8dc3f1633c4e582b869cab53fef4d6b47f585"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -42209,7 +42188,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 19,
+      "blockCount": 18,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::creates brand kit with valid hex colors",
@@ -42282,74 +42261,67 @@
           "bodyHash": "e5cbc1061891777bb27347e0e4190f30691158cbc0936fb7a2e20b8a71599ffe"
         },
         {
-          "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::accepts null colors",
-          "line": 100,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "aac69fee711cac9379637b21cb5ff905b6ef9cce1402973786cbd43c3441a25f"
-        },
-        {
           "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::sets createdAt and updatedAt timestamps",
-          "line": 110,
+          "line": 100,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c3b7d9edfc3e251c7b3606b46aa03431ee899fc63d1da004be77200543aba75"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::reconstitutes from persisted props without validation",
-          "line": 120,
+          "line": 110,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ec0581e029a92349955f25759d6438fe2cef6be5c4657ba23ca26eaf5fee56f"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::updates colors with valid hex",
-          "line": 144,
+          "line": 134,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2ae4f89f18e528c4f637babf561b8181054a02d3bc3f05c026d584cbfd5cf9e"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::rejects invalid hex in update",
-          "line": 158,
+          "line": 148,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b268f5fbff524f352dd6965810040b4da51f3fbad94e807843d89b51f66d6d49"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::updates updatedAt timestamp",
-          "line": 170,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5104fbb0c90da5817fa29ebe99cadc93cc004aa122b6f262ad59368a0163a1d"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::preserves existing props when updating partial fields",
-          "line": 183,
+          "line": 173,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "78502deb1185c9a330a93cd9dd82a0ca915408244f415e505ebf605945dfef9b"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::returns plain object with all properties",
-          "line": 203,
+          "line": 193,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "863e1b974a4f8c24f4e57823489f194e9f7f2c21c0aa6a4d83770a6764f21ddd"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.brandKit.test.ts::returns a new object (not the same reference)",
-          "line": 222,
+          "line": 212,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4870da02a21cd41070039607e33b77b7fe7d3d47995278a6ba620cf2a5e5be0e"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -42360,7 +42332,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 20,
+      "blockCount": 19,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::creates campaign with valid name",
@@ -42370,134 +42342,127 @@
           "bodyHash": "2fbc99769c71a86193972346a6b192e5bb64854d0993d9e94463b338f042ba1f"
         },
         {
-          "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::generates a unique ID",
-          "line": 35,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "67f534e5e09f5c3d586c22bd2ea797a2a5f0aef633def1971ee90f1c2fd43934"
-        },
-        {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::starts with DRAFT status",
-          "line": 41,
+          "line": 35,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6851ca2122fb81ad5b133ca6c6e7b37762536e2ee593154d3af1ee5c83bdedd5"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::trims name whitespace",
-          "line": 47,
+          "line": 41,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "61cf3b5ee3575eb5924d5e6b7209caf1354b4f41f3318845167fec1a7ced2e25"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::rejects empty name",
-          "line": 53,
+          "line": 47,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3120b4ddc5fef0cb53f7ec2f897df620f2126de95965f8f1e2f6585010e92aa9"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::rejects whitespace-only name",
-          "line": 58,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7ec35114aff6c1f1c9d62dacdea051cb92c13fec1ad9a86943b862555a01ff1f"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::rejects endDate <= startDate",
-          "line": 63,
+          "line": 57,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "10e11cd1fad1e247d6bf26026f02521e0dfdfd1d964cbe59619835983a584aa2"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::rejects endDate equal to startDate",
-          "line": 73,
+          "line": 67,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f04e6cdd3f83c72d5e22ca7221c9cc12a1fd3b21b38d028ab286775c1aa4878a"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::accepts endDate after startDate",
-          "line": 79,
+          "line": 73,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "de415128cc565c38599ac08645bf7218b8638cb97e16899b1932b4f7be4f71a5"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::sets optional description",
-          "line": 89,
+          "line": 83,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e271379f504707382dd6fc368a06250eb1becbba22da78556d3e3c67b934fcb1"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::sets optional UTM fields",
-          "line": 95,
+          "line": 89,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7be75053cc397441f65fb07042de3bb3ea94ce7f6d66bbb04c76f840d0ec55e"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::stores projectId",
-          "line": 102,
+          "line": 96,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c32a432f9fd1479516d3831663b8871cbaff328739360c1d00c6eb673345b151"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::stores accountId threaded from the parent project",
-          "line": 109,
+          "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2d8b6a263a583c9bf5c67e0708d8d7e204e64a11043f8f2765cb7266fea7a6f3"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::never exposes accountId via toJSON (DTO doctrine)",
-          "line": 115,
+          "line": 109,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3ef14d03bd76c1f5fa08ca30cfa1641833a6823d28b9b425803d8143292020f7"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::creates without dates when not provided",
-          "line": 121,
+          "line": 115,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eb2a69e508971f7413145001eea5aafa3e11ab88878a469787881723aa11a0de"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::can activate a DRAFT campaign",
-          "line": 130,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41acc0061d7f859f4fc2462cfefcea821bcd15399573de8f922b835fd1e925b2"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::can pause an ACTIVE campaign",
-          "line": 138,
+          "line": 132,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "131b96f232fd9e1a7afd8c252a09b59a17bca9ee36d312cd49cbb05b13c541ea"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::can complete an ACTIVE campaign",
-          "line": 147,
+          "line": 141,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd5cb6b824ff24d6ef459af97f9fc261fd97f51174e4537465e21e4f9d0b685a"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::rejects activating a COMPLETED campaign",
-          "line": 156,
+          "line": 150,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "16e2eba445be8841f6873814baa86d18d95e822f4e14bd1bab35e90a17a7f7b7"
         },
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::entityType returns Campaign",
-          "line": 165,
+          "line": 159,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5cdc26183bfb40e6e029acefabe3aeeced3a5f04a9e785961632cbe3f351ac54"
@@ -42507,7 +42472,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -44733,182 +44698,161 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 24,
+      "blockCount": 21,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should generate a new TrackedLinkId",
-          "line": 23,
+          "line": 16,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4cfe6695dd421b593fa323166ce0b943728b0c70d63ebf6f237c8e86938d4fae"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should create TrackedLinkId from valid string",
-          "line": 29,
+          "line": 22,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba593f9217fc8c1aba7bef1909e1e4fbe6b7aa9c13197cf3203a74f99f1495ce"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should reject invalid UUID string",
-          "line": 38,
+          "line": 31,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e7a7a58fd34c3af766c04584d15f27bd1e5acafb98fd234f3399ce5aaace3d6"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should compare TrackedLinkIds for equality",
-          "line": 43,
+          "line": 36,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "547bcbe123b6f4ca03d461eeac24ac4c91fb1a78f98dd995c4e4cf063a61b546"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should generate a unique short code",
-          "line": 52,
+          "line": 45,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "55c0f044467d5e0ef1f3c88be27865ca246c2c988d43f232b3020dd6991a5800"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should create ShortCode from valid string",
-          "line": 59,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fb3e341d38f2fedd914273923425260611605604cda27ee10349351708f6c867"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should reject short code that is too short",
-          "line": 67,
+          "line": 60,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "019fcc4d1aca0bd0d2b7c052572199b87fa5b5013297f2a91cbb760eeadcd809"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should reject short code with invalid characters",
-          "line": 72,
+          "line": 65,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "886b7a84b7bc592ff3029e4ea92333b6700c9e3fb1f5c8d23f212cb6c3cbd26c"
         },
         {
-          "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should allow custom vanity slug",
-          "line": 77,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2f8edda5c7d61c99f1def7341363d709cdfda3cc143bb3812c7e754469962e6f"
-        },
-        {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should create a tracked link with valid URL",
-          "line": 87,
+          "line": 75,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f988e9e16e9c3019a13a37a7f2f542e28a5b5184e967d00bae22cc5711da4c63"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should reject invalid URL",
-          "line": 103,
+          "line": 91,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2c5f96dbbe8ba8da934a320bc659cb570bca7a08a6a18014681ffc199ce47472"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should create tracked link with custom vanity slug",
-          "line": 113,
+          "line": 101,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a7cf02fbde6178fc409b56216dada57b912d24f0d13173b7660863d7a8acd5fe"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should increment click count",
-          "line": 127,
+          "line": 115,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a2e78b4cee7f062fada54b540183045c4906bf272018b6661bac544feb3c32ed"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should deactivate a link",
-          "line": 147,
+          "line": 135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c99d9b90961d8fd08503060094c0e78fc1dfe408abe133fa8c12bf8a5b48c9db"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should reactivate a deactivated link",
-          "line": 164,
+          "line": 152,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "139a972f14d1c2d0cdcc2f543e1db8d8c65b148545531d1918f9345c7d5dee24"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should serialize to JSON",
-          "line": 180,
+          "line": 168,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "576f095decf1be111c6390ce2f638f8f4c31518fa2707b27ffe291fb4d302a37"
         },
         {
-          "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should generate a new LinkClickId",
-          "line": 201,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2f8953af5ca3f3885b5d6d78b209439c7574d107ffe55e44542faf33aa9de2be"
-        },
-        {
-          "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should create from valid UUID string",
-          "line": 206,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "09545c1a686eca6f63778046c670ef54adbb6aa35ed5346ed3abc23c32f5146f"
-        },
-        {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should create a link click with minimal data",
-          "line": 216,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ac605f74b4bc49a4eb179d42bc8b825eb353314ea95f6f771605d9a153731e99"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should create link click with full tracking data",
-          "line": 229,
+          "line": 204,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e9a1c8c776eac40bf887107b7fa0bb4a1e4812d9a76987877efa7a152299bb49"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should serialize to JSON #2",
-          "line": 248,
+          "line": 223,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "231f928a79ef734f3a4b7767af70e205f9e94a1e9bd60485b5f096a7bab00259"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should have undefined optional fields when not provided",
-          "line": 264,
+          "line": 239,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "00d27ed3dbee518b6c1aecc38d1448eb0296a2280e3478d3d98f130fd23ce248"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should generate unique codes across multiple calls",
-          "line": 278,
+          "line": 253,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38db9976790540e407d54a762ba3821b50c1eaaaff4feef0717b4408ad6960c4"
         },
         {
           "id": "apps/api/tests/unit/domain/linkTracking.test.ts::should only use alphanumeric characters (no ambiguous chars)",
-          "line": 287,
+          "line": 262,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e36a7bb2d5c7ae12f793f209447d22c37e1638e97d7dacd58f466b3823de2a8"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -46711,42 +46655,28 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 2,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts::exposes the full set of wire fields the client depends on",
-          "line": 33,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d1f3679d05b0b2ebbf181b4516571334a2f97a2516ec7e9e35d3c112ae367682"
-        },
-        {
           "id": "apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts::accepts the three canonical urgency literals",
-          "line": 52,
+          "line": 20,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9627a69ea9fe6fb4ef3e6707317c6af39530878649cfdf5911231c9448b21aed"
         },
         {
           "id": "apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts::returns a `{ scored, total }` page from findByAccountId",
-          "line": 59,
+          "line": 27,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd0702b39b128bba299fcb173bc9caf3e334c49e834b8070eaa5ca67938dbdd5"
-        },
-        {
-          "id": "apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts::takes a TrendRadarQueryOptions object with a mandatory `limit`",
-          "line": 75,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d7656413c1e83760c6784712d5ddb4a36657af0346a51ac5b49048d38418aba1"
         }
       ],
       "verdict": "ADJUDICATE",
       "basis": "subject-not-imported",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": {
         "stem": "TrendRadarQueryRepository",
         "module": "packages/core/domain/src/repositories/TrendRadarQueryRepository.ts",
@@ -46874,7 +46804,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 11,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/security/secretCatalog.test.ts::contains 30 entries (every secret listed in SECRETS.md §3-§5)",
@@ -46926,46 +46856,39 @@
           "bodyHash": "4f982b8d5545ca5e0eab65af91ce89162f3017198ab7a547dd8122cb8c288fff"
         },
         {
-          "id": "apps/api/tests/unit/domain/security/secretCatalog.test.ts::defines a rule for every category value",
-          "line": 58,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "461ba43d2950221d7f5aefeb1e1ee0f7a91c4fe1c01be689823ec0d6df2596e8"
-        },
-        {
           "id": "apps/api/tests/unit/domain/security/secretCatalog.test.ts::every category has cadenceDays > 0",
-          "line": 64,
+          "line": 58,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0bfb67132b3fbe3fb4be7c8288fa237abf7015474aacc67bf1ab0480ade376c8"
         },
         {
           "id": "apps/api/tests/unit/domain/security/secretCatalog.test.ts::JWT cadence is 90 days (NIST)",
-          "line": 70,
+          "line": 64,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "34c165929c096c99c82c37b1714b4907516cf6831c335ec9117077985de856f5"
         },
         {
           "id": "apps/api/tests/unit/domain/security/secretCatalog.test.ts::KEK cadence is 365 days (NIST)",
-          "line": 74,
+          "line": 68,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "976b58c9184fc7c795a2d9f6dcec7e4e49bc578c8b8e6c48b0cd024cc3d25848"
         },
         {
           "id": "apps/api/tests/unit/domain/security/secretCatalog.test.ts::every category has a non-empty description",
-          "line": 78,
+          "line": 72,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "53a230e13f29873b6eb45fc19765dc3f4c34e33bbb727722b9d7b968b8f8c947"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": {
         "stem": "secretCatalog",
         "module": "packages/core/domain/src/security/secretCatalog.ts",
@@ -47236,7 +47159,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 51,
+      "blockCount": 50,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::creates content with valid body",
@@ -47365,232 +47288,225 @@
           "bodyHash": "6d2c2ffd6571a1cecc05a4337ba5110a89839b0e7253b500446100344015edb4"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns ok for short content on X",
-          "line": 166,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c0ea050791ee1610aaa142e8ea1e456bb932ce215a38b5ed2627c3885c4cf3e1"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns error for body > 280 chars on X",
-          "line": 173,
+          "line": 166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f039236142457cbea9933da6eae20037d1c388471882043d7e0808845cd6b3d7"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts exactly 280 chars on X",
-          "line": 181,
+          "line": 174,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "c5dfa982e6469890cb640f763e3405a3610d70151dee5567d63c08b1afaa1f03"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns error for title > 100 chars on YouTube",
-          "line": 189,
+          "line": 182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "24ce131a84e2cad034e8650c78801a4c1a571d7794dde702bed2f812c108b727"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts body up to 5000 chars on YouTube",
-          "line": 196,
+          "line": 189,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "d0750de7153401e6d9e4a97b2707379584ab570e2134d399fb4450bb3c30bc66"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts long body on Facebook (63206 limit)",
-          "line": 203,
+          "line": 196,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "1b653acc947f877f1805248f4ac0427873717ddc13e33c415886043573319b79"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts 2200 chars on Instagram",
-          "line": 210,
+          "line": 203,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "641dabde2002f4078e83c3037bc9049134623c98c73d0a71fc9ca4a9617c15bf"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::rejects 2201 chars on Instagram",
-          "line": 217,
+          "line": 210,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e22db2b148d22416bd99c7df26e4f3784489d60a9a696ae4d34d5ea4dd55eb68"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::characterCount includes body length",
-          "line": 230,
+          "line": 223,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f746a42bf1892c3dca56df8717b56cca83cbf4a72c19fd4757c1ee06894ec57"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::characterCount includes title + body",
-          "line": 236,
+          "line": 229,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ccbcde5be79817afec506b7a920e4d3d2b122424cc30f99126d27aa838fdc808"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::wordCount counts words correctly",
-          "line": 242,
+          "line": 235,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "872b41b884063f6cfeb653b071a9aa80504cb45cf9f339535b2299298fc35714"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::wordCount includes title words",
-          "line": 248,
+          "line": 241,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41db481eb30aaff9136952da9e0a42b8c5ba503eb0ef329909bcdc0db34b2dcd"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::hasMedia returns false when no media",
-          "line": 254,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c357f9ac840269c1bdbe7856976fe289278fd6805fbbab1cba38a7161c0b15f"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::hasMedia returns true when media present",
-          "line": 260,
+          "line": 253,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6880c108f8a0dee7e0a35775036e927215c97c0fc9a870fb7fcc0623b98a82af"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::withBody returns new Content with updated body",
-          "line": 272,
+          "line": 265,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9959418a2884f028416505d9a8b7c4f04e01302f05a7d5cdd1379330e94e594d"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::withBody rejects empty body",
-          "line": 281,
+          "line": 274,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b3f2fed5ad6683732794281f69e06ace498f09a398eed908bec4935ac5ee9d71"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::withTitle returns new Content with updated title",
-          "line": 288,
+          "line": 281,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be38ad5b43a6bf76d8c7d5bda3eac2ba0db22834eec0b2981641512c315b4bc6"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::withTitle clears title with undefined",
-          "line": 296,
+          "line": 289,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e3067641a69f04a3c8b03f247b9dc8dcf54cf0be6020dfc1790f4374996d472"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::withTags returns new Content with updated tags",
-          "line": 303,
+          "line": 296,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6b1d22c0726beb7e10026d00865646ed351723a17d3af82cdb903a6b61408330"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::withTags deduplicates new tags",
-          "line": 310,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fabadd0193d4d648b94e46583f5bbdaab0dd2db3a526e8b96a0c19b370ebab6d"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::withMedia appends media to existing",
-          "line": 317,
+          "line": 310,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c480eb7a9653bb2e3106561deaa5ebfdfbf0c1ea35509027336d4fce73ae93b3"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns true for identical content",
-          "line": 332,
+          "line": 325,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "180b1ac6253fcde1ff1549d7c5cb0a9521c0cfb5018f7034d0ac8b8dcd41197a"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns false for different body",
-          "line": 339,
+          "line": 332,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8431b092fe86e9d9e64a8e969aa517e63398c5191d3e276234555f993c44b1c2"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns false for different locale",
-          "line": 346,
+          "line": 339,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dbe75725f0ca6c5278c96373388837a38186949dbe5b8ac1eb887d05a47b6ead"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns false for different tags",
-          "line": 353,
+          "line": 346,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c5a88af61e9ac899c41efbc2f29a73c23366d1d36ab175670545bca2f5d861c0"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns false for different tag count",
-          "line": 360,
+          "line": 353,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b447d149ba6d043fa337eb4d6e8ad2a8e79c08f123f98ce98c84be4ee13c1437"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::serializes content correctly",
-          "line": 373,
+          "line": 366,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0a9ee7287d6b98a9e5db3564c14f707ed6b419e794305c3741112f46eff9e4c9"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::includes mediaIds as strings",
-          "line": 383,
+          "line": 376,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae33e204e10f7556954e0f628fe245732024f04c1f974a672948d61c774369b6"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::lists exactly the languages the product supports end to end: es and en",
-          "line": 398,
+          "line": 391,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e774e235050cc3761ca639b21064251d4ca8dff812ad44ccebc18e5418ba9535"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::is the shared kernel's list itself, so every layer reads one source",
-          "line": 402,
+          "line": 395,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d98e83f526821f976c84a405b6984efffb7286b2589c887b5c1f1e10ef4ba4a8"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::isContentLocale accepts each listed locale and refuses fr, pt, an empty string and a non-string",
-          "line": 406,
+          "line": 399,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3aa5b50422c66610c38b5d24803c43b3b515acffad6836bd724b419aea924260"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns the stored locale when it is a content locale",
-          "line": 419,
+          "line": 412,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "81927fadb518eb7b1491407cb2df86594379cf76002df118f6ae7fedd4d58b95"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::returns InvalidValueError naming the row and the value when the stored locale is fr",
-          "line": 425,
+          "line": 418,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ea4f48713c8a5e7cbb3e5923e6a87aaf55413e54d4e5904dec1c84f26d0ec34"
@@ -47600,7 +47516,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -47628,413 +47544,364 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 57,
+      "blockCount": 50,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should generate a new PostId",
-          "line": 24,
+          "line": 21,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1876766511aa25754eb7a88b5b2bef6dd4ec0e4e6c02fa05f9d996575d3fc131"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create PostId from valid UUID string",
-          "line": 30,
+          "line": 27,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ee906b5752d0518f79c3cfd8a10a1d6380f88aceef22e1c011a5ffbafb5cfea"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject invalid UUID string",
-          "line": 39,
+          "line": 36,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9e1e223b8df97e9b6dac1611e73ed7a904280738b4e0c00cd51f7b249495b376"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject empty string",
-          "line": 44,
+          "line": 41,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "67dd0035e7260c71a0f88a615c759c5bea656f72e128f4b93ebd1eecd3ca4650"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should check equality correctly",
-          "line": 49,
+          "line": 46,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50305330fb0dc74cfb0bf31f3af0085cebf0b9b4ebc8ab7cb29826f5f017592a"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject UUID with version nibble != 4 (version 3)",
-          "line": 59,
+          "line": 56,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f5803d1e3c0a5c3b7f2bc463d7cb502f72a669074dc9396cf3f2526726ba335"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject UUID with invalid variant nibble",
-          "line": 65,
+          "line": 62,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41f323be6875ea32c87fe38aed0567a468d2ec1a8c133028760cfa320868acf0"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject whitespace-only string",
-          "line": 71,
+          "line": 68,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c99242076b536b59e04de642eb205fe78274c67af793e30e65f6131fe16ab984"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should return uuid via toString()",
-          "line": 76,
+          "line": 73,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66055060fd726ea7714b64913fb1d1dc84cb5f28735e3fed0f2288693f769971"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should have non-empty error message for empty id",
-          "line": 82,
+          "line": 79,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "519cb9d9e40bee7a290c475e61a49641cf2bdbc585c966aae3e39b58b9bac3c0"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should generate a new ContentId",
-          "line": 92,
+          "line": 89,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d41ca0b83b8b5925bd7935d040a53001b12a2df2dce37f7871b79f045098a426"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create ContentId from valid UUID",
-          "line": 98,
+          "line": 95,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f07f2aed5d7f709a0583d7a5fa5c5cb0253aef20008c948a776da312b30acd4"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject invalid UUID in ContentId",
-          "line": 107,
+          "line": 104,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7db767bcec6fe3c8170e5bd0fbee2af64cce4d1ab9f445f6f378e89202d11112"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should generate a new MediaId",
-          "line": 114,
+          "line": 111,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8b9231191a5bf2b18576d86145609adf7e3763b09464e292162a90152176aa4d"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create MediaId from valid UUID",
-          "line": 120,
+          "line": 117,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb506aa907118d692bc13ac8fb2bd9444149249f640f4a3018e56a8bd9858e91"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject empty string in MediaId",
-          "line": 129,
+          "line": 126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2cae4132db5f8fd050ea4f04a70983afc9fda2000c33e422aec3bb0fc8ad3de8"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should generate a new TrackedLinkId",
-          "line": 136,
+          "line": 133,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de678d04239f15adb1f9ec5626d54a72cc440fc3c3ec29019d775ab57c0f2e42"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create TrackedLinkId from valid UUID",
-          "line": 142,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d4788a52659ff1d2a6ffe7def54322b35e1dc85ff7ea2f093e1afa01db8df614"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject invalid UUID in TrackedLinkId",
-          "line": 148,
+          "line": 139,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de3bc118364eca7daabd9248a52f4c081f34d3c34e7a64c316fa427dc2428149"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should generate a new LinkClickId",
-          "line": 155,
+          "line": 146,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8de9025ff848881b7fdec3c7314d199fc8cea62a91b81d980091b4eabec9ece0"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create LinkClickId from valid UUID",
-          "line": 161,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "fcf06d6612980fad47240a4accbecd0b9ebebd5b78e8569346e9041aa642ce47"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject empty string in LinkClickId",
-          "line": 167,
+          "line": 152,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "734fb62ca51053de85e39fcfbd4c32b1bd43ca25ffbd6899176de221a7cfa4e7"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should generate a new ChannelId",
-          "line": 174,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "10350f6b280d41dfcf0836bc31eccb985ed7eb81ef6ec364343c60e6bd9d152a"
-        },
-        {
-          "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create ChannelId from valid UUID",
-          "line": 179,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f3dc67546bf3e3de5cc719f9007980bf4234b5df506350159e332f23b5efbba2"
-        },
-        {
-          "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should generate a new AccountId",
-          "line": 187,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b1a859f7ed38642682d45176494c1d670c9c4b2492651dfcd97a64b825f11919"
-        },
-        {
-          "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should generate a new ProjectId",
-          "line": 194,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "0f0128972e44263e9c1220941530a9b4cbb3834ec64d9d501f5d40e127b3ddd2"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create a draft status",
-          "line": 202,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a5377c9b7cda039408d5a5b6ae2453033e6fe96731336eb7f96d12eca4829f4"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create from string",
-          "line": 208,
+          "line": 166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c0488cf93818f21485b12c3a32174f3afd65389ebc1afcf46e222065c244f945"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject invalid status string",
-          "line": 216,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38438fd479379cf0e66fe167c8d5fd66fdaa11026fbd9bebf63f1a0af28cdd87"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should allow valid state transitions",
-          "line": 221,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eb3ab38758f27e17d3b1cafda20857ffac05c6e380515887c86f42d23f1fa659"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject invalid state transitions",
-          "line": 227,
+          "line": 185,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5850cf6f19af6212c16d858b2a19747791dcfdf55d6b35c513dc86c03271264b"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should transition to valid status",
-          "line": 233,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7ee8acc308c7a7c5b715fdc865e413fe14337023c1c7a3741e1bde7e853ee0e5"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should identify editable statuses",
-          "line": 242,
+          "line": 200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf00903206e3c084df4b45c042de01a22ed4cfd827c8130df4b747e714e1bebd"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create content with valid body",
-          "line": 251,
+          "line": 209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc2fd374e2fcea796ef0dd26c123e2eff114fcf3bf7c7d45dedd642fb73582b8"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject empty body",
-          "line": 260,
+          "line": 218,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "789ea6e7b8add1da570b99c7fb939490a8ff1e90c42dfc88f40062da1238eb0b"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should create content with all properties",
-          "line": 265,
+          "line": 223,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bad3ec56d25ffa9cb46b56bf6c246109e1628d235ef089aae26a257b5e41c553"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should deduplicate tags",
-          "line": 282,
+          "line": 240,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d8fc65801be151a31b816efbddfccf395df2047c50753a0efb3627f560259135"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should be immutable - withBody returns new instance",
-          "line": 293,
+          "line": 251,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de90e4b7636a91774ca29b1bf88cda092278c32f57a8c7f967a3251802e635cd"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should calculate character count",
-          "line": 306,
+          "line": 264,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be1173130283ec966dc85c5511b16d1d3a2ea737c9a22def7e69d709515c61b4"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should calculate word count",
-          "line": 314,
+          "line": 272,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "248f2d98317513f3ae82ee442f6e50e2c71306b256c469928e3832cf5d622b72"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject whitespace-only body",
-          "line": 322,
+          "line": 280,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98f1c0fab4b51e40963493671417d4af356248905f6752f6cbb7818dd8e9f1e6"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should filter empty and whitespace-only tags",
-          "line": 327,
+          "line": 285,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f7d32d3471749568414f7756352c2e79945d6cadd3bf7a137361f0d6091114a3"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should compute word count for single word",
-          "line": 335,
+          "line": 293,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9cc0e28e1450e3dc4148886acd2095bb15c1b0622397baa2b4b045ab2c83841e"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should compute word count with multiple spaces",
-          "line": 343,
+          "line": 301,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6c99594cbe603c2a5f135bfb4f6c3d46555be90d84553de6588e41921ab94942"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should have hasMedia false when no mediaIds",
-          "line": 351,
+          "line": 309,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "712fad679c580542eb25d1382aa50c0d8a16674b6bc85a24528421fb25b9f69b"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should have hasMedia true after withMedia",
-          "line": 359,
+          "line": 317,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b8c4f738ad2bb9fa6e8fc34dcfcad27f09f4dddc42f76bf35dcf8a16d1bedd9"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should accept body of exactly 280 chars for X platform",
-          "line": 369,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "52a543de8ea33f616170695ba33a44381edb091c244ad53c3f318fc404b765ef"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should reject body of 281 chars for X platform",
-          "line": 379,
+          "line": 327,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a8f2edb271ebdcdf3f844c1969c2fb39b161e2c63910cc300fbdbab641850422"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should preserve original title after withTitle",
-          "line": 389,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6f1c6aa1d459251fc76a683420e5560ff043eb779e881067722c43148b2a972d"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should preserve original tags after withTags",
-          "line": 399,
+          "line": 347,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a41b88c40c6ec403aae4cb5376c7fed0779203c7357550d3d62270ebfb0f0bb"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should be equal when body, title, tags, locale are identical",
-          "line": 409,
+          "line": 357,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9f991c224a9fbfb2d7489ed97257fcc6c43521fcf952375a5306d0d27749094c"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should not be equal when bodies differ",
-          "line": 418,
+          "line": 366,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2219b3eba9b0f34004f4d01d4bea2dd47195911af25a7cab18bff07b618c55b9"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::should include 'body' in empty body error message",
-          "line": 427,
+          "line": 375,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be4aaa3df6ea5975df46316c6e46567a0dded65bb4321b6cd912d4c31719e90a"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::reconstitute should bypass empty body validation (for DB data)",
-          "line": 435,
+          "line": 383,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "26e082312f70a1ca2cd0b3279d856c2180b6751d0e586beb66969d75cf1a07aa"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::reconstitute should deduplicate and filter tags",
-          "line": 449,
+          "line": 397,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3412f653ecdc5653c5604f0c09308733d2da4a6b82a9165ead5b8d8c3071dd37"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::Content.create should trim leading/trailing whitespace from body",
-          "line": 458,
+          "line": 406,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "176e96e0dd177d068f524b8f99eff07ef251343e820ae4b351296c23c8bbf3f3"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.ids-content.test.ts::Content.withMedia should return new instance without mutating original",
-          "line": 466,
+          "line": 414,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e07a6d33f981c05bdd4151635697a325d355bc6b9d251e5be1686bd89abf6f8f"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -48045,7 +47912,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 52,
+      "blockCount": 50,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should create image attachment",
@@ -48237,176 +48104,162 @@
           "bodyHash": "20cceb3957a9c2e92fb6e3c2877f1a5dddd568e3309b959db313de14bb5d8e46"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should create from ISO string",
-          "line": 297,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "0f3df2d9ef45e7c87a0e36819d260d4b5da0a70d986c72a3d20f684a301d7630"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should create from now plus minutes",
-          "line": 303,
+          "line": 297,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae39028592277dfaad61b82d40c7d7cc82abbed60a51990373a8594c97229135"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should delay scheduled time",
-          "line": 311,
+          "line": 305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "67037c9919086c2fb99ad743a075906cc26e54be1c30e33ae30c6f746a0594f5"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should check isWithinMinutes",
-          "line": 323,
+          "line": 317,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dcd117ec2514793f3462c5c5824b8d2ab4c8c711109dcfb1aba0667576003fd2"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should reschedule to a new future time",
-          "line": 332,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "336896030cbffd61b74072be377884598336d3c9aec3f203069c8fba91bda173"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should compare two ScheduledTimes correctly",
-          "line": 342,
+          "line": 326,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "08c8ade5a445443ef54fe3f42db6b3e808575f1ca779b2bded53f0f78544dd85"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should expose correct hoursUntil",
-          "line": 353,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aece016ddddd3800294208f4cc2e3adc1c092cd2f753928c238c1e5dfcc0cfe5"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::hasPassed should return false for future time",
-          "line": 361,
+          "line": 345,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e931118c04ab30714c7758fa77e4f5fa02de17f2ab9b9f8b95f1781decfcb27"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::reconstitute should bypass future validation (for past DB times)",
-          "line": 369,
+          "line": 353,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c540e1043f5ecee9781747f82f2f0c7af6211eacd40c847e86624f1375bbb6e4"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should create provider from string",
-          "line": 378,
+          "line": 362,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "988b15f9c82f4743e3a1d4c0a3fa31425fe271ccac65d06ef03dd01c93c0064c"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should accept lowercase provider string",
-          "line": 387,
+          "line": 371,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a93e1f12a5ad6c8fb4a4b0321fe8bb46e58ce7521ceb8e0f6774506a97f6cbd9"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should reject invalid provider",
-          "line": 395,
+          "line": 379,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e677eae4bc10b568d15c8b87538ad3d6b678baf9a012df7fa9293a1f4d01be72"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::creates a Threads provider from string with correct capabilities",
-          "line": 400,
+          "line": 384,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "39c95f7586ab819794fa2c686845ace67a64a6977cc794a158211796e9633c0c"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::includes Threads in Provider.all()",
-          "line": 412,
+          "line": 396,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f9c0cfddc48db4ede8e6d9cae975f61b8bd9f31831a9c475058386dafd53bd02"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should have complete capability matrix for X",
-          "line": 418,
+          "line": 402,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "29cecb9ba192a670819e2a267406b7dbf49ef6741d3da40492841e4f5a5d60e3"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should have complete capability matrix for Instagram",
-          "line": 443,
+          "line": 427,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b0d8a297a9c4fdb6a9e03cc8f43c7f59a07f3f6155c799b34416b9bb8f107d8b"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should have complete capability matrix for Facebook",
-          "line": 467,
+          "line": 451,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "057d238b8e3a5dc6f921d46ee3cb4b367a54e007a6be1889064c9fa09612d454"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should have complete capability matrix for YouTube",
-          "line": 491,
+          "line": 475,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "88e2af61e91f4a3e760ddcab09d7a46a6120562e0c3b6d4ec814763c5a75d484"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should have complete capability matrix for TikTok",
-          "line": 515,
+          "line": 499,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c3edaf29f5f760b7b23467b2a21abfe85959396d51d9a0aaf9c6256d9c425f01"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should validate content length",
-          "line": 539,
+          "line": 523,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9eb95980f7c67112d68c3a8fa7999c964f33bb8300235a650cd609fcb0b5a2f"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should return all providers",
-          "line": 545,
+          "line": 529,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "196c73044d9ede254f54600a6ac716455a646c21fb1b90ac450b5e61201b86f6"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::should check equality correctly",
-          "line": 556,
+          "line": 540,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b944dab546e05a021ea4f645e65329e5a0dd7eb05d02ffe4a047f2cae3b6a2b2"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::toString should return the provider type string",
-          "line": 565,
+          "line": 549,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a020f0cedfc71b6ab8a7dcd2257f996bd97c85575a0af8bc74e1a1aad43eaae5"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::toJSON should include displayName, icon, color, capabilities",
-          "line": 573,
+          "line": 557,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c274d78c04a1330b264c570bf1264c108564099a2efaea252a773db37af4fc0"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::capabilities getter should return a copy (not the original reference)",
-          "line": 582,
+          "line": 566,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "282f494417837f50aed86d95aae4f0fff2d95e0314ab68451a5f0ea50521e2fa"
@@ -48416,7 +48269,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -48427,259 +48280,217 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 35,
+      "blockCount": 29,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::creates for valid future date",
-          "line": 25,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e0b9852634d42cbda339a54ee8e07266fb6dd83318a33f3d8b7eb19cae9584fd"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::rejects past date",
-          "line": 30,
+          "line": 25,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c10ffdd2557004ba2ca9e758ed931401c18c73c34510999ae4a154cab3576f5b"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::rejects date less than 5 min in future",
-          "line": 35,
+          "line": 30,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5d04a630c9d238a079aa1ec3ce0cc4c6937d943daebb2276616120b4d51fef5d"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::accepts date exactly 5 min in future",
-          "line": 40,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7e83bc68d9923d02cd1f6e192e6808697735334ae0c8d57e79a60ad70cc63b50"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::rejects date > 1 year in future",
-          "line": 45,
+          "line": 35,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "044923ae9c3abb5cf667b7147aede51efa8c370a15eb1c86c9fe3c50c8ec4f73"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::accepts date just under 1 year",
-          "line": 50,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "85f63d6344f4d5b305235d90e5fc08688bb97dcaf069fc1bd9d6055a27d02e66"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::defaults timezone to UTC",
-          "line": 55,
+          "line": 40,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2b33cd0d9ceb57f5846924fda3ade68b5642960891a7822f81a52db97fd8e9f7"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::accepts valid timezone",
-          "line": 61,
+          "line": 46,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aab09231e127335e3220aab4c37c57de8bdc3181b378fa13633dd48d6d14dee8"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::rejects invalid timezone",
-          "line": 70,
+          "line": 55,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bbc68d88f61e311a387ffb6f22321539521b4bcfc37e6a1247897d1e22dce284"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::rejects invalid date object",
-          "line": 75,
+          "line": 60,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c01259d4d66d82c657e72d67111556091007c5638e986398dabb8adb91b629bc"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::parses valid ISO string",
-          "line": 82,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7088379f71fa0f466180a1ae225f547b26eba5ed475f3785afa072a1d69e28a6"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::rejects invalid ISO string",
-          "line": 88,
+          "line": 67,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f09ea26ca6e3fae2052b5e4824846fb49fbe86a5a6491733f6fc4d195bef458d"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::creates for 10 minutes",
-          "line": 95,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "30d5f84d2da5cc24cd308e57869b56e0df651a6a38bc8e9b49e6c62acfb830e6"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::rejects less than 5 minutes",
-          "line": 100,
+          "line": 74,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "787f057de274b5362197168c50a5b775cdc1b19f1d2c368795899b58f9bdb9f3"
         },
         {
-          "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::accepts exactly 5 minutes",
-          "line": 105,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "0ba4b3603a7dc47c0c9c49ef500b69a0f9c4a8ed618078cf9d94a1f1b8a515fc"
-        },
-        {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::allows past dates (from DB)",
-          "line": 112,
+          "line": 81,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "76b2cbea5705591612e866ed9f18e6614522e0937b851a57fa098795c7a31759"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::dateTime returns a copy",
-          "line": 120,
+          "line": 89,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d8d15db3b8e86797d7eee86c750a486270982d308f407e8ed50101e52b9aa83"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::timestamp returns milliseconds",
-          "line": 129,
+          "line": 98,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8aa20fd3580dd94df79f46f36563f6abcfce999642d7b2321ff019882d48dea6"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::toISOString returns valid ISO string",
-          "line": 135,
+          "line": 104,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e816618bdf5d65aea22cfa05d0beb00361fa209a4bfd9ecfa19899dfa8a55ed2"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::hasPassed returns false for future time",
-          "line": 144,
+          "line": 113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b017d618719cde29ac000175dd7d6e1f0c37e00daf22300deb1c90d558333a4"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::hasPassed returns true for reconstituted past time",
-          "line": 150,
+          "line": 119,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a03d48548b5ad049589d424d3e3bda033ca556c97306aa212ca4612769250acf"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::isWithinMinutes returns true when within range",
-          "line": 155,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "db605956cdfbb2f485b20856432d3bc17293b147d15cdccac0d6d86a53200e3f"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::isWithinMinutes returns false when beyond range",
-          "line": 161,
+          "line": 130,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "21665cbc62050c1494e9502ab9eb3734a41566f30da594e1eb293f47c94ca336"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::millisecondsUntil is positive for future time",
-          "line": 167,
+          "line": 136,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aa46c16f1a4c165e3b872b2505e2163e6631299b003cf0ae1b131e3d4194222e"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::minutesUntil returns correct value",
-          "line": 173,
+          "line": 142,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7fcc29343cd1695f2f463a24cf9b6cf34535e32c8a91413a36224a746e1669df"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::hoursUntil returns correct value",
-          "line": 179,
+          "line": 148,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c008e173a06267f3048e79924cb4506b4e5a23dcc3eb06f38371770ad4123923"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::reschedule returns new ScheduledTime",
-          "line": 187,
+          "line": 156,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "53123529bc1afdf9021e61c60ac45e04f75ccd8492f73c7871d5184a14e707ad"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::delay adds minutes",
-          "line": 196,
+          "line": 165,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd2aa36a7ad3ada23df97e5861bc127082772f88a0598b22f564e4dd769421be"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::delay rejects 0 or negative minutes",
-          "line": 204,
+          "line": 173,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "088c7fa4411a95abda6311a8d643f70333404d9dad7461d92cb4cb98525e2098"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::equals returns true for same time and timezone",
-          "line": 213,
+          "line": 182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9d607c12af088c46a8d9ed622f4b5e17f0b94b2b26be1d9c02fa352852991109"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::equals returns false for different timezone",
-          "line": 220,
+          "line": 189,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7485e30fa6d1fb04a0f93eeb6cc72d716e3e4ed703ac8159530fb1a9234fe25"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::compareTo returns -1 when before",
-          "line": 227,
+          "line": 196,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6189cac76a4ce50e0fb640fb861c0b113433d3beb507112321e9ee586a4957ae"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::compareTo returns 1 when after",
-          "line": 233,
+          "line": 202,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f5131349a8b8c046b026abb097a705e0d3f1d29e335fc996621cb843d6e7caa4"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::compareTo returns 0 when equal",
-          "line": 239,
+          "line": 208,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "75570879b26d96385e848ce28a42e5c24e3bfe1620cb417c88852de2d89b9bb4"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts::includes dateTime, timezone, and timestamp",
-          "line": 248,
+          "line": 217,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "28a1083f3fd87ad7d34b42907e9ada8688d67b1dde7896597f446282f70482d6"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3a",
       "subject": null,
       "duplicate": null,
       "importers": null

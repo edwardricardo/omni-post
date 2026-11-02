@@ -5,9 +5,6 @@
  */
 export {
   PostId,
-  ChannelId,
-  AccountId,
-  ProjectId,
   ContentId,
   MediaId,
   TrackedLinkId,

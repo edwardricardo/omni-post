@@ -319,12 +319,6 @@ describe("Account Entity — toJSON includes tenant fields", () => {
     const json = account.toJSON();
     assert.strictEqual("phone" in json, false);
   });
-
-  it("serializes maxStorageBytes as string to avoid bigint JSON issues", () => {
-    const account = makeReconstitutedAccount("ENTERPRISE");
-    const json = account.toJSON();
-    assert.strictEqual(typeof json.maxStorageBytes, "string");
-  });
 });
 
 describe("Account Entity — trial lifecycle mutations", () => {
