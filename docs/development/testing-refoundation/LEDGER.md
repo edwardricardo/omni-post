@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1185  |
 | DELETE                  | 19    |
-| REWRITE                 | 177   |
-| KEEP                    | 887   |
+| REWRITE                 | 168   |
+| KEEP                    | 896   |
 | ADJUDICATE              | 102   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14847 |
-| Blocks with a criterion | 655   |
+| Blocks                  | 14820 |
+| Blocks with a criterion | 628   |
 
 ## Slice 2.6a
 
@@ -189,6 +189,29 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/domain/value-objects.ids-content.test.ts`              | test  | 50     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/domain/value-objects.media-provider.test.ts`           | test  | 50     | 3          | REWRITE    | machine | some-decorative      |
 | `apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts`           | test  | 29     | 0          | KEEP       | machine | behavioural          |
+
+## Slice 2.8.3b
+
+Deleted: 0 files, 27 blocks.
+
+| Path                                                                       | Shape | Blocks | Decorative | Verdict    | Status  | Basis                |
+| -------------------------------------------------------------------------- | ----- | ------ | ---------- | ---------- | ------- | -------------------- |
+| `apps/api/tests/unit/application/AnalyticsUseCases.test.ts`                | test  | 9      | 4          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/application/brandKitUseCases.test.ts`                 | test  | 18     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/application/campaignUseCases.test.ts`                 | test  | 6      | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/application/externalNotificationUseCase.test.ts`      | test  | 11     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/application/inboxUseCases.test.ts`                    | test  | 38     | 3          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/application/integrationUseCases.test.ts`              | test  | 25     | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/application/predictOptimalTiming.test.ts`             | test  | 3      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/application/recurringPostUseCases.test.ts`            | test  | 7      | 2          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/application/reportUseCases.test.ts`                   | test  | 16     | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/application/updatePricingConfig.test.ts`              | test  | 8      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/application/utmLinksUseCase.test.ts`                  | test  | 6      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/infrastructure/CachePort-DI.test.ts`                  | test  | 2      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/infrastructure/HttpClientPort.contract.test.ts`       | test  | 1      | 0          | ADJUDICATE | machine | subject-not-imported |
+| `apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts`     | test  | 38     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`          | test  | 51     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts` | test  | 3      | 0          | KEEP       | machine | behavioural          |
 
 ## Rows without a slice
 
@@ -444,7 +467,6 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/apiMetrics.monitoring.test.ts`                                                   | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/apiMetrics.operations.test.ts`                                                   | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/apiMetrics.test-helpers.ts`                                                      | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/application/AnalyticsUseCases.test.ts`                                           | test             | 16     | 11         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/ApiKeyUseCases.test.ts`                                              | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/GetPostUseCase.ownership.test.ts`                                    | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/GetPostWithThreadQuery.ownership.test.ts`                            | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
@@ -455,13 +477,11 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/application/ai/GenerateLocalizedContentUseCase.test.ts`                          | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/assetUseCases.test.ts`                                               | test             | 37     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/auth/ReplaceOidcClientSecretUseCase.test.ts`                         | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/application/brandKitUseCases.test.ts`                                            | test             | 19     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/brandVoiceUseCase.test.ts`                                           | test             | 14     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/buildEnhancedSystemPrompt.test.ts`                                   | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/bulk-scheduling/FailBulkScheduleRowUseCase.test.ts`                  | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/bulk-scheduling/GetBulkScheduleBatchQuery.test.ts`                   | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/bulk-scheduling/ProcessBulkScheduleRowUseCase.test.ts`               | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/application/campaignUseCases.test.ts`                                            | test             | 8      | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/channels/UpdateChannelAuthStateUseCase.test.ts`                      | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/conversationNoteUseCases.test.ts`                                    | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/crisis/crisisUseCases.test.ts`                                       | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
@@ -473,7 +493,6 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/application/dispatchInboxSync.test.ts`                                           | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/emailTemplates.test.ts`                                              | test             | 31     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/embeddings/EmbeddingService.test.ts`                                 | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/application/externalNotificationUseCase.test.ts`                                 | test             | 12     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/firstCommentUseCase.test.ts`                                         | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/generateContentCalendar.test.ts`                                     | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/generateImageUseCase.test.ts`                                        | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
@@ -486,11 +505,9 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/application/guardrails/GuardrailRegistry.test.ts`                                | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/importFromGoogleDrive.test.ts`                                       | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/inbox/SendReplyGuardrail.test.ts`                                    | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/application/inboxUseCases.test.ts`                                               | test             | 41     | 6          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/ingestChannelAnalytics.test.ts`                                      | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/ingestMention.test.ts`                                               | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/integrationRegistry.test.ts`                                         | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/application/integrationUseCases.test.ts`                                         | test             | 26     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/links/linkUseCases.test.ts`                                          | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/listRepurposeProposalsQuery.test.ts`                                 | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/listening/DispatchMentionSearchUseCase.test.ts`                      | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
@@ -504,14 +521,11 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/application/posts/ArchivePostsBatchUseCase.test.ts`                              | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/posts/DuplicatePostsBatchUseCase.test.ts`                            | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/posts/HardDeletePostsBatchUseCase.test.ts`                           | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/application/predictOptimalTiming.test.ts`                                        | test             | 4      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/providers/MassForceReauthByProviderUseCase.test.ts`                  | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/recurring/CreatePostFromRecurrenceUseCase.test.ts`                   | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/application/recurringPostUseCases.test.ts`                                       | test             | 9      | 4          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/referralConversion.test.ts`                                          | test             | 16     | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/application/referralUseCases.test.ts`                                            | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/reportSharing.test.ts`                                               | test             | 7      | 1          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/application/reportUseCases.test.ts`                                              | test             | 17     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/runCustomReport.test.ts`                                             | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/samlUseCases.test.ts`                                                | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/security/GetSecretRotationStatusQuery.test.ts`                       | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
@@ -529,9 +543,7 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/application/trends/TrendRadarResultPort.test.ts`                                 | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/triageInboxMessage.test.ts`                                          | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/triggerIntegrationEvent.test.ts`                                     | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/application/updatePricingConfig.test.ts`                                         | test             | 9      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/usageUseCase.test.ts`                                                | test             | 10     | 2          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/application/utmLinksUseCase.test.ts`                                             | test             | 7      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/application/webhooks/RotateWebhookSecretKeyUseCase.test.ts`                      | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/application/webhooks/WebhookSubscriptionRotationRepository.test.ts`              | test             | 1      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/approvals/approvalRoutes.test.ts`                                                | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
@@ -656,9 +668,7 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/inMemoryRedis.test-helpers.ts`                                                   | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/inbox/handlers/triageDispatchEventHandler.test.ts`                               | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/inbox/inboxSyncConsumer.test.ts`                                                 | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/infrastructure/CachePort-DI.test.ts`                                             | test             | 3      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/infrastructure/FetchHttpClient.test.ts`                                          | test             | 7      | 0          | ADJUDICATE | machine                     | duplicate-union      |
-| `apps/api/tests/unit/infrastructure/HttpClientPort.contract.test.ts`                                  | test             | 2      | 1          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/infrastructure/PrismaAccountRepository.test.ts`                                  | test             | 37     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/PrismaAnalyticsQueryRepository.test.ts`                           | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/PrismaApiKeyRepository.test.ts`                                   | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
@@ -666,13 +676,10 @@ Deleted: 0 files, 30 blocks.
 | `apps/api/tests/unit/infrastructure/PrismaCustomerUserRepository.test.ts`                             | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/PrismaExternalNotificationConfigRepository.test.ts`               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/PrismaOidcConfigurationRepository.test.ts`                        | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts`                                | test             | 40     | 2          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`                                     | test             | 52     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/infrastructure/PrismaProjectRepository.test.ts`                                  | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/PrismaUnitOfWork.test.ts`                                         | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/TrackedLinkRepository.test.ts`                                    | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts`                 | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts`                            | test             | 4      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/infrastructure/adapters/CustomerTokenServiceAdapter.test.ts`                     | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/infrastructure/adapters/FetchHttpClient.test.ts`                                 | test             | 12     | 0          | ADJUDICATE | machine                     | duplicate-union      |
 | `apps/api/tests/unit/infrastructure/adapters/PrismaAdminMfaUserRepository.test.ts`                    | test             | 22     | 0          | ADJUDICATE | machine                     | duplicate-union      |
