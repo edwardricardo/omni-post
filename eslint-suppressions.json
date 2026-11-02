@@ -1044,7 +1044,7 @@
       "count": 63
     }
   },
-  "apps/api/tests/unit/settings/settingsRoutes.test.ts": {
+  "apps/api/tests/unit/settings/settingsSchemas.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 1
     }

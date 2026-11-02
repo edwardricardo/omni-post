@@ -3584,7 +3584,7 @@
             "apps/api/tests/unit/aiTypes.schemas.test.ts",
             "apps/api/tests/unit/application/MLUseCases.test.ts",
             "apps/api/tests/unit/settings/SettingsService.test.ts",
-            "apps/api/tests/unit/settings/settingsRoutes.test.ts",
+            "apps/api/tests/unit/settings/settingsSchemas.test.ts",
             "packages/core/ai/tests/unit/AiRequestService.test.ts"
           ]
         }
@@ -4237,7 +4237,7 @@
             "apps/api/tests/unit/billing/billingWebhookIdempotency.test.ts",
             "apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts",
             "apps/api/tests/unit/scripts/subprocessorsInventory.test.ts",
-            "apps/api/tests/unit/settings/settingsRoutes.test.ts"
+            "apps/api/tests/unit/settings/settingsSchemas.test.ts"
           ]
         }
       }

@@ -1,7 +1,7 @@
 /**
- * @file settingsRoutes.test.ts
- * @description Unit tests for settings API route handlers.
- *   Tests Zod validation, auth requirements, and response shapes.
+ * @file settingsSchemas.test.ts
+ * @description Unit tests for the eight Zod schemas of settingsSchemas.ts; the settings route handlers are not exercised here:
+ *   credentialGroupSchema, groupParamsSchema, groupKeyParamsSchema, updateCredentialsSchema, rotateEncryptionSchema, setByokSchema, byokProviderParamsSchema and testByokSchema.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
