@@ -170,6 +170,27 @@
         "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts"
       ],
       "deleted": { "files": 0, "blocks": 30 }
+    },
+    "2.8.3b": {
+      "files": [
+        "apps/api/tests/unit/application/AnalyticsUseCases.test.ts",
+        "apps/api/tests/unit/application/brandKitUseCases.test.ts",
+        "apps/api/tests/unit/application/campaignUseCases.test.ts",
+        "apps/api/tests/unit/application/externalNotificationUseCase.test.ts",
+        "apps/api/tests/unit/application/inboxUseCases.test.ts",
+        "apps/api/tests/unit/application/integrationUseCases.test.ts",
+        "apps/api/tests/unit/application/predictOptimalTiming.test.ts",
+        "apps/api/tests/unit/application/recurringPostUseCases.test.ts",
+        "apps/api/tests/unit/application/reportUseCases.test.ts",
+        "apps/api/tests/unit/application/updatePricingConfig.test.ts",
+        "apps/api/tests/unit/application/utmLinksUseCase.test.ts",
+        "apps/api/tests/unit/infrastructure/CachePort-DI.test.ts",
+        "apps/api/tests/unit/infrastructure/HttpClientPort.contract.test.ts",
+        "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts",
+        "apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts",
+        "apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts"
+      ],
+      "deleted": { "files": 0, "blocks": 27 }
     }
   }
 }
