@@ -1,9 +1,9 @@
 /**
  * @file CachePort-DI.test.ts
- * @description Verifies that `TOKENS.CachePort` is wired in the DI graph,
+ * @description Verifies that `TOKENS.CachePort`, wired by this suite's own factory,
  *              wraps the singleton `RedisCacheManager` registered via
  *              `TOKENS.RedisCacheManager` (no duplicated cache pools), and
- *              exposes the canonical `CachePort` method surface.
+ *              resolves to the same instance on repeated resolves.
  * @layer infrastructure
  */
 
@@ -48,18 +48,6 @@ describe("DI: TOKENS.CachePort", () => {
     );
     return container;
   }
-
-  it("resolves to a RedisCacheAdapter implementing the CachePort surface", () => {
-    const container = makeContainer();
-    const cache = container.resolve<CachePort>(TOKENS.CachePort);
-    expect(cache).toBeInstanceOf(RedisCacheAdapter);
-    expect(typeof cache.get).toBe("function");
-    expect(typeof cache.set).toBe("function");
-    expect(typeof cache.getOrSet).toBe("function");
-    expect(typeof cache.delete).toBe("function");
-    expect(typeof cache.invalidateByTag).toBe("function");
-    expect(typeof cache.has).toBe("function");
-  });
 
   it("returns the same singleton instance on repeated resolves", () => {
     const container = makeContainer();

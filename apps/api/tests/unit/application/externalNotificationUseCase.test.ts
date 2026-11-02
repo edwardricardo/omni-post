@@ -150,11 +150,4 @@ describe("ConfigureExternalNotificationUseCase", () => {
     const r = await uc.execute(makeInput());
     assert.ok(!r.ok);
   });
-
-  it("includes createdAt and updatedAt timestamps", async () => {
-    const r = await uc.execute(makeInput());
-    assert.ok(r.ok);
-    assert.ok(r.value.createdAt instanceof Date);
-    assert.ok(r.value.updatedAt instanceof Date);
-  });
 });

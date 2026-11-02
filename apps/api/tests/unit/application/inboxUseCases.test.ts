@@ -1,7 +1,7 @@
 /**
  * @file inboxUseCases.test.ts
- * @description Tests for Social Inbox use cases — IngestSocialMessage, MarkMessageRead,
- * AssignMessage, MarkArchived, ResolveConversation, ReopenConversation.
+ * @description Tests for Social Inbox use cases — IngestSocialMessage, SendReply,
+ * MarkMessageRead, AssignMessage.
  * @layer infrastructure
  */
 
@@ -190,19 +190,6 @@ describe("IngestSocialMessageUseCase", () => {
     expect(r.error.message).toContain("Failed to save");
   });
 
-  it("passes optional fields when provided", async () => {
-    const r = await uc.execute(
-      makeIngestInput({
-        authorHandle: "@user",
-        authorAvatarUrl: "https://img.com/avatar.jpg",
-        mediaUrls: ["https://img.com/1.jpg"],
-        webhookEventId: "wh-1",
-        relatedPostId: "post-1",
-      })
-    );
-    assert.ok(r.ok);
-  });
-
   // --- Conversation threading ---
 
   it("increments conversation message count when linking", async () => {
@@ -285,18 +272,6 @@ describe("IngestSocialMessageUseCase", () => {
 
   it("creates message with REPLY type", async () => {
     const r = await uc.execute(makeIngestInput({ messageType: "REPLY" }));
-    assert.ok(r.ok);
-  });
-
-  // --- Provider variations ---
-
-  it("creates message for INSTAGRAM provider", async () => {
-    const r = await uc.execute(makeIngestInput({ provider: "INSTAGRAM" }));
-    assert.ok(r.ok);
-  });
-
-  it("creates message for FACEBOOK provider", async () => {
-    const r = await uc.execute(makeIngestInput({ provider: "FACEBOOK" }));
     assert.ok(r.ok);
   });
 

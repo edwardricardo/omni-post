@@ -87,14 +87,4 @@ describe("GenerateUTMLinksUseCase", () => {
     assert.ok(!r.ok);
     expect(r.error.message).toContain("Failed to save");
   });
-
-  it("passes optional content and term to UTMParameters", async () => {
-    const r = await uc.execute(makeInput({ content: "image-post", term: "social media" }));
-    // If UTMParameters.create fails, the use case returns an error
-    // If it succeeds, UTM is set on the link
-    // We just verify it doesn't crash with optional fields
-    if (r.ok) {
-      assert.ok(r.value.utmUrl);
-    }
-  });
 });

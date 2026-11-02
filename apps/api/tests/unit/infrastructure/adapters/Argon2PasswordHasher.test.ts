@@ -2,7 +2,7 @@
  * @file Argon2PasswordHasher.test.ts
  * @description Tests the Argon2 password-hasher adapter: hash produces an
  *              argon2id-encoded string, verify accepts the matching secret and
- *              rejects others, and needsRehash returns a boolean.
+ *              rejects others.
  * @layer infrastructure
  */
 
@@ -26,10 +26,5 @@ describe("Argon2PasswordHasher", () => {
   it("rejects a non-matching secret", async () => {
     const hash = await hasher.hash("s3cr3t-value");
     assert.strictEqual(await hasher.verify(hash, "wrong-value"), false);
-  });
-
-  it("returns a boolean from needsRehash", async () => {
-    const hash = await hasher.hash("s3cr3t-value");
-    assert.strictEqual(typeof hasher.needsRehash(hash), "boolean");
   });
 });

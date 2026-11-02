@@ -1,7 +1,7 @@
 /**
  * Infrastructure Layer - Prisma Post Repository Unit Tests
  *
- * Part of FASE H12: Hexagonal Architecture - Soft Delete + Post Adapter
+ * Covers the post persistence adapter and its soft delete.
  * Tests PrismaPostRepository in isolation using a mocked PrismaClient.
  * Tier 0: No database required.
  *
@@ -867,11 +867,6 @@ describe("PrismaPostRepository", () => {
       expect(args?.where.id.in).toEqual([POST_ID, POST_ID_2]);
       expect(args?.where.deletedAt).toEqual(null);
       expect(args?.data.status).toBe("PUBLISHED");
-    });
-
-    it("returns ok with empty array (no-op)", async () => {
-      const result = await repo.bulkUpdateStatus([], PUBLISH_STATUS.DRAFT);
-      expect(result.ok).toBeTruthy();
     });
 
     it("returns err when updateMany throws", async () => {

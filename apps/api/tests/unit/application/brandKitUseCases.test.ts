@@ -126,11 +126,6 @@ describe("UpsertBrandKitUseCase", () => {
     assert.equal(r.value.primaryColor, null);
   });
 
-  it("accepts undefined color values (defaults to null)", async () => {
-    const r = await uc.execute({ accountId: "acc-1" });
-    assert.ok(r.ok);
-  });
-
   it("wraps repository errors as internal errors", async () => {
     repo.upsert.mockRejectedValueOnce(new Error("DB connection failed"));
     const r = await uc.execute(makeInput());

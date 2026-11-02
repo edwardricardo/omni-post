@@ -16,8 +16,8 @@
       },
       "byVerdict": {
         "DELETE": 19,
-        "REWRITE": 177,
-        "KEEP": 887,
+        "REWRITE": 168,
+        "KEEP": 896,
         "ADJUDICATE": 102,
         "unmeasured": 0
       }
@@ -28,13 +28,13 @@
       "total": 1185
     },
     "blocks": {
-      "total": 14847,
-      "decorative": 655,
+      "total": 14820,
+      "decorative": 628,
       "byClass": {
-        "EMPTY": 15,
+        "EMPTY": 14,
         "TAUTOLOGY-ONLY": 2,
-        "EXISTENCE-ONLY": 348,
-        "CONDITIONAL-ONLY": 171,
+        "EXISTENCE-ONLY": 323,
+        "CONDITIONAL-ONLY": 170,
         "SELF-SKIP": 112,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 19,
@@ -43,7 +43,7 @@
     },
     "deleted": {
       "files": 26,
-      "blocks": 408
+      "blocks": 435
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -287,6 +287,31 @@
       "deleted": {
         "files": 0,
         "blocks": 30
+      },
+      "floors": {}
+    },
+    "2.8.3b": {
+      "files": [
+        "apps/api/tests/unit/application/AnalyticsUseCases.test.ts",
+        "apps/api/tests/unit/application/brandKitUseCases.test.ts",
+        "apps/api/tests/unit/application/campaignUseCases.test.ts",
+        "apps/api/tests/unit/application/externalNotificationUseCase.test.ts",
+        "apps/api/tests/unit/application/inboxUseCases.test.ts",
+        "apps/api/tests/unit/application/integrationUseCases.test.ts",
+        "apps/api/tests/unit/application/predictOptimalTiming.test.ts",
+        "apps/api/tests/unit/application/recurringPostUseCases.test.ts",
+        "apps/api/tests/unit/application/reportUseCases.test.ts",
+        "apps/api/tests/unit/application/updatePricingConfig.test.ts",
+        "apps/api/tests/unit/application/utmLinksUseCase.test.ts",
+        "apps/api/tests/unit/infrastructure/CachePort-DI.test.ts",
+        "apps/api/tests/unit/infrastructure/HttpClientPort.contract.test.ts",
+        "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts",
+        "apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts",
+        "apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 27
       },
       "floors": {}
     }
@@ -23924,126 +23949,77 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 16,
+      "blockCount": 9,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should get cross-platform analytics for an account",
-          "line": 99,
+          "line": 93,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "76dde46232ee4e245142ec4be87c3d0e2ad6ae92897bba072d735b0e896747e8"
         },
         {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should filter analytics by project",
-          "line": 117,
+          "line": 111,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "e2a9d704f6d9a14a4519f2e7bf583a4d8cd2dddee7d16ad2cab963e21535bc6d"
         },
         {
-          "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should filter analytics by providers",
-          "line": 131,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "189687359cc723fc6830fac23bb54d69e416c674e34910a80c0faa54d51a94d8"
-        },
-        {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should support custom date range",
-          "line": 145,
+          "line": 125,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "c26f39e4acca1b09403e3af962fa2145efd2cbe7e6379c445960c502fdf0f802"
         },
         {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should reject empty account ID",
-          "line": 160,
+          "line": 140,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15a5d86dde54fa0192dbd44b9f720425dafefe1b081103cc84ad577d184b0db9"
         },
         {
-          "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should include competitive analysis when requested",
-          "line": 176,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a3c06c9990abbd7cba397989307baa96ee6c2da5f5a36c5e028cf5bdb60b99fa"
-        },
-        {
-          "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should compare performance across time periods",
-          "line": 192,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b12d77560470da30dc3a40dd85b60dad8e6e492270700399ea86f4e4dd890104"
-        },
-        {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should include industry benchmarks when requested",
-          "line": 209,
+          "line": 158,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "72472a861066dec0c39a324ee0fdd6bc3df49ba01fcb3ed5c6f7fa4e0c9d7225"
         },
         {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should include historical comparison when requested",
-          "line": 226,
+          "line": 175,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "9b0b1988d4a0d2b550d4157141e02fc28e9a1afb8026f99559cdb8ddd542be34"
         },
         {
-          "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should compare specific metrics over time",
-          "line": 243,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2ba9aa061d98ef134d1f243969a5dece0fc453e32ab4ab12209ec51cc10159d4"
-        },
-        {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should reject empty account ID #2",
-          "line": 258,
+          "line": 192,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "289f1a76d18dccfe426e8591a19689968db3f307246c8e0a4d9e62f8a0c3160d"
         },
         {
-          "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should calculate ROI for a project",
-          "line": 276,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7472555e38a6443b8f3d90e72a32909a615a86f476b8572740791ac776780ac9"
-        },
-        {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should calculate ROI by channel",
-          "line": 295,
+          "line": 210,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9cf6e3ce379006c9e27e3347f5609b7f1f30940b3dad67910e8cd8d4fe3cb7aa"
         },
         {
-          "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should include investment details",
-          "line": 314,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "6fee9547bbda1db5c2b52c3a284844c833980c99825f88d0840bf18501898e24"
-        },
-        {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should reject empty account ID #3",
-          "line": 332,
+          "line": 229,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "096babeb7f02a81bafb554a5ba16f72e31e1f20b8ae5de3ff0a3203acac79cdc"
-        },
-        {
-          "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should calculate ROI for specific providers",
-          "line": 348,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b77f0def10a43415b00ebd268d8c585b9bfee1412bdd1c8ce46ea75f80db198e"
         }
       ],
       "verdict": "REWRITE",
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -25102,7 +25078,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 19,
+      "blockCount": 18,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::upserts brand kit with valid input",
@@ -25168,81 +25144,74 @@
           "bodyHash": "5c842db2152bbe23f8b00d54d96c446eeb9003dfaa09f89ec2a1cb9bf7456c61"
         },
         {
-          "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::accepts undefined color values (defaults to null)",
-          "line": 129,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "64d6159d2548d41db45f08bdc9727d078d6510c50faaa6ce0e23b3178dedaf2d"
-        },
-        {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::wraps repository errors as internal errors",
-          "line": 134,
+          "line": 129,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "117696a64facc2561e229f477050286c1ffc1b4e549514c036408aa04a051161"
         },
         {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::uses UnitOfWork when provided",
-          "line": 142,
+          "line": 137,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b658f2c072811060eaac2084b66659f1176197f99130e84ecae6ce96d8565df3"
         },
         {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::returns brand kit when found",
-          "line": 172,
+          "line": 167,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3522701c2f5e8a3f11c83cb686618927a13da859226b0892354080c1d91716bf"
         },
         {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::returns null when not found",
-          "line": 195,
+          "line": 190,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dbaaa2e4fc8034e748919b0a1f411cc17b4efeffb0c5adc2fa996eb4e14149c9"
         },
         {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::rejects empty accountId #2",
-          "line": 203,
+          "line": 198,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0be6bf7cd344ccee9980d42be7bf92a95cafc4210b8022b7d23c44aee4e7b645"
         },
         {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::deletes brand kit by accountId",
-          "line": 224,
+          "line": 219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "31eddbe7e8e2e35091802e81d29fa91cd3caaf0a9e613afcbc726a618b1331db"
         },
         {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::rejects empty accountId #3",
-          "line": 230,
+          "line": 225,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "11b159aaf87062150e345f1fa3ce9ee9f6a66869d2ce895b42b8ab526bb49c5a"
         },
         {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::wraps repository errors as internal errors #2",
-          "line": 236,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e68e7d736b607182963f0764365887a3b6662aa988e9bf81a259e96a7034a04"
         },
         {
           "id": "apps/api/tests/unit/application/brandKitUseCases.test.ts::uses UnitOfWork when provided #2",
-          "line": 243,
+          "line": 238,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6475a7070b83f737090950c6b16701b7b2f18c42b9e28c4a12943b34c31dbe6c"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -25604,7 +25573,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 8,
+      "blockCount": 6,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/campaignUseCases.test.ts::creates campaign and returns ID",
@@ -25635,29 +25604,15 @@
           "bodyHash": "822ed770940e68c49ec30e56b74a3f160b3082bbf6de5aaf86dafa6dc8b597dd"
         },
         {
-          "id": "apps/api/tests/unit/application/campaignUseCases.test.ts::passes optional description",
-          "line": 80,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a706a7073d3ea3a892ca0345d9ee4bd270c8212896dec29be4d929998eb5506b"
-        },
-        {
           "id": "apps/api/tests/unit/application/campaignUseCases.test.ts::passes optional dates",
-          "line": 85,
+          "line": 80,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "de3c9a2bcbc366bb7225562dad70438450ef92626412dbcdb93e9f6c32fdac99"
         },
         {
-          "id": "apps/api/tests/unit/application/campaignUseCases.test.ts::passes optional UTM fields",
-          "line": 95,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "1fd2dab10df89b3d4cdfa4fdc9b361a5d66bbdbf012150031f4e6b2f769fc1a2"
-        },
-        {
           "id": "apps/api/tests/unit/application/campaignUseCases.test.ts::returns error when repo save fails",
-          "line": 105,
+          "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cecc320e075a1498d246ece1b3f54a027ba5da7fc943f153e797e0efa1b4b000"
@@ -25667,7 +25622,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -26833,7 +26788,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 11,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/externalNotificationUseCase.test.ts::saves valid Slack webhook config",
@@ -26911,20 +26866,13 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "052e9f5afcfe0911e0491bf280686ba07428a4733e7248d43fc36d03d21341dd"
-        },
-        {
-          "id": "apps/api/tests/unit/application/externalNotificationUseCase.test.ts::includes createdAt and updatedAt timestamps",
-          "line": 154,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "367fb528619b5f0ca9179a5f1f6c8c270c4aa1ce92895addb0f536e09afc73df"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -27797,7 +27745,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 41,
+      "blockCount": 38,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates new message and returns isNew=true",
@@ -27898,190 +27846,169 @@
           "bodyHash": "7bbda7baf8cba6e42f0755bb003f5afb9998fd25f34156ebf13fa24274b0351e"
         },
         {
-          "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::passes optional fields when provided",
-          "line": 193,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "46b4555655d9dc8a110aa2a4355589a0ec21511364470d3f51ccae27a1b2e876"
-        },
-        {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::increments conversation message count when linking",
-          "line": 208,
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c66afa96c324c739b3011d55d3c2ee79653bdb2e82ce0791c70f2d709edd963"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::sets conversationId on aggregate when conversation found",
-          "line": 221,
+          "line": 208,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "18fac48d85b08b7202a06200546cda9b8220387351e83187c4c4a35952f12f5d"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::still creates message when conversation findOrCreate fails",
-          "line": 236,
+          "line": 223,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5cd1b4833c85019113f47f9401deb7747986ff443c9e40096831c37b19de5496"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::passes correct provider and parentId to findOrCreateByRoot",
-          "line": 249,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3ad736a9f1df970a56d08bca27ad730ff4f448b8789d3de775b3d8354cedec3b"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates message with COMMENT type",
-          "line": 270,
+          "line": 257,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1ab25ca9366c3e9a05dfa16e0987c77450702b9ba684d46fd4108200f60b1475"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates message with MENTION type",
-          "line": 276,
+          "line": 263,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "8c90e159d0804436861f3d5fa91d97028fe0a3d72f2a5f7c00b854d00fa71594"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates message with DIRECT_MESSAGE type",
-          "line": 281,
+          "line": 268,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "76ba2bfc4ca5ca647f3bdd72b95f735946aa5cece28665df749c009c0c9c7cf6"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates message with REPLY type",
-          "line": 286,
+          "line": 273,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "d4e1529a2aefab91c362e46f6ef7c7290826cdb02247c25d208d43b28c7b3763"
         },
         {
-          "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates message for INSTAGRAM provider",
-          "line": 293,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "379e453c4ba6ea760012210a7f7bf883c445aa29ae433b368adec639e9691330"
-        },
-        {
-          "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates message for FACEBOOK provider",
-          "line": 298,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a9e2916ebd0e95432516300079d20aa68b705ff2e2495fd55cbd56fecb9740a1"
-        },
-        {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::does not dispatch events when no events produced",
-          "line": 305,
+          "line": 280,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cdbfc012605d66cdb120d8849b5dd4ab1117aad2d6c23190ceaa679402f286a5"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::clears domain events after dispatch",
-          "line": 312,
+          "line": 287,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c0e8ff47e2149eed7164b4e5a8df95536c7c91e9676c152d0eff0cd35d9ce7d7"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::calls postReply on the provider adapter with correct params",
-          "line": 388,
+          "line": 363,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14092fff20aacae30c6e1e0331caa0f80d999cbb86a4195a89fad8285be4528e"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::returns providerReplyId on success",
-          "line": 417,
+          "line": 392,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f946050cb3f40998453f096145a400f825cc8f7b37fecd0121129f4c09edd01f"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::returns error for unsupported provider",
-          "line": 440,
+          "line": 415,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "859c627222d6b6e97b18d84c2d558c40013e13d7a6158e26d68c245f4f053083"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::returns error when provider API rejects the reply",
-          "line": 475,
+          "line": 450,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "681438bbb391113adeb0e23d965ec0977cb57be7343374b5f349018033c10d51"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::marks outbound reply as SENT with providerReplyId on success",
-          "line": 511,
+          "line": 486,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "82aa7d878675038a64cdecdfcab680831f476bb777215f8fd5d4566e4df0c0e3"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::returns error when channel not found",
-          "line": 533,
+          "line": 508,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eb0f3291c92c5e4a4afb37b1130568584a5572588bc2fe58d4545bfe8904b6ff"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::works without adapter resolver (backward compatible)",
-          "line": 560,
+          "line": 535,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "978423165fb23cc6389d8680da1445dda7da9b18a8169b21c9f0ee9e67035a7f"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::marks unread message as read",
-          "line": 594,
+          "line": 569,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c79cbd00c909165a5729462ad2f2687b1cbfb36446325d4b8edd1b33d10e276c"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::dispatches SocialMessageRead event",
-          "line": 604,
+          "line": 579,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c72b14573e4c24478a040f6b2294fd155baf3fa43b9ae464f30ee18ce5b08aa2"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::returns error for invalid messageId format",
-          "line": 612,
+          "line": 587,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9634639d71815c903a2705c1b9253cc5f878b1b276b260c056650bd4c44e4ca8"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::returns NOT_FOUND when message does not exist",
-          "line": 618,
+          "line": 593,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "96cf61ef9b14333efd75e2c23ce460f6f9b623395423966ba97f28a4d678153c"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::returns CONFLICT when message is already archived",
-          "line": 626,
+          "line": 601,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eaa73085679716f4ae9b06d4b5f91b4578a966aa34b3897af433b4e9dab955a8"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::returns error when save fails #2",
-          "line": 635,
+          "line": 610,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5e537468743f3f860867192c0e80333e20cda23ca8bb527713a579103ea56bdf"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::assigns message to team member",
-          "line": 659,
+          "line": 634,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2a09bd8afc9871c757c70ca21e51348bc22ee1d2054a276a85343bd5449a387c"
@@ -28091,7 +28018,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -28303,7 +28230,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 26,
+      "blockCount": 25,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/integrationUseCases.test.ts::generates a key with zap_ prefix for ZAPIER platform and returns plainKey once",
@@ -28467,22 +28394,15 @@
           "bodyHash": "9c4a61448607ba4cea5157a41abafeacc80cf9f4c14ec12bc43aa3c26f8a7a5f"
         },
         {
-          "id": "apps/api/tests/unit/application/integrationUseCases.test.ts::does not throw when http delivery fails",
-          "line": 459,
-          "blockClass": "EMPTY",
-          "criteria": ["a"],
-          "bodyHash": "1a89695215ae6c9f2b0c49b0c32b9c1f3f2a53df2f5c59745f1e55523c4f8b82"
-        },
-        {
           "id": "apps/api/tests/unit/application/integrationUseCases.test.ts::does not fire when no active subscriptions exist",
-          "line": 473,
+          "line": 459,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "55dce203cb85727e0df2b662150bb020db58c102ed74737590aa0a6b907a59e9"
         },
         {
           "id": "apps/api/tests/unit/application/integrationUseCases.test.ts::does not throw when repository lookup fails",
-          "line": 479,
+          "line": 465,
           "blockClass": "EMPTY",
           "criteria": ["a"],
           "bodyHash": "c4a3d71c278ad272c9e0a2f66749b2a76c1c2c155a9b987caf31884af91bfd29"
@@ -28492,7 +28412,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -29780,7 +29700,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 3,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/predictOptimalTiming.test.ts::returns validation error for unknown provider",
@@ -29797,25 +29717,18 @@
           "bodyHash": "73b10136e45ee244806194d206596e1d0b5125158aafbd16e8ce3e652325ebc8"
         },
         {
-          "id": "apps/api/tests/unit/application/predictOptimalTiming.test.ts::invokes AIServicePort.generateContent when AI is provided",
-          "line": 43,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "eb66e2ba88b271804553702ca841801216fc8bf5c2e49ac468fd47aa467abc64"
-        },
-        {
           "id": "apps/api/tests/unit/application/predictOptimalTiming.test.ts::constructs without analytics repo and still produces a Result",
-          "line": 56,
+          "line": 43,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "836386a8436ebdd61c2ecb600146b4d8f892a1783e9e011e41edcd5000f255b7"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -29989,7 +29902,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 7,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/recurringPostUseCases.test.ts::creates recurring post with valid cron and returns output",
@@ -30020,46 +29933,32 @@
           "bodyHash": "c307958fc1401d26bad63ed2f698638a4c5511936de3017ab0bb6be7a0c130d8"
         },
         {
-          "id": "apps/api/tests/unit/application/recurringPostUseCases.test.ts::accepts optional timezone",
-          "line": 106,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "541a8e75fcc89cfd79c5e6c780098a043b14ac8b646baa851572e4e28723d4f4"
-        },
-        {
           "id": "apps/api/tests/unit/application/recurringPostUseCases.test.ts::accepts optional endDate",
-          "line": 111,
+          "line": 106,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "079640e4a3f83e3771425e50eb35812a1f385680c7121931154ba27c7ff6d7cb"
         },
         {
           "id": "apps/api/tests/unit/application/recurringPostUseCases.test.ts::accepts optional maxOccurrences",
-          "line": 116,
+          "line": 111,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "519fe84f4151e221bf087754f2fb2ea5c4ea54e9a16044faeb2b70894ae714f9"
         },
         {
           "id": "apps/api/tests/unit/application/recurringPostUseCases.test.ts::includes channels in output",
-          "line": 121,
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2a6770c6e7483324fd6be82fa44630abdebfa3eca58d93971d51bc6d705bf57d"
-        },
-        {
-          "id": "apps/api/tests/unit/application/recurringPostUseCases.test.ts::includes createdAt timestamp in output",
-          "line": 127,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "335235035c4728395e11d870fd2d2ccd841af13e4825a35c2efe9171c515def7"
         }
       ],
       "verdict": "REWRITE",
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -30327,7 +30226,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 17,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::creates report and returns ID",
@@ -30351,99 +30250,92 @@
           "bodyHash": "103a2b3a0c1b3aec1f8d2b28a94fd38ac97d18f1b5266c7b273f6f3fdf998a7d"
         },
         {
-          "id": "apps/api/tests/unit/application/reportUseCases.test.ts::passes optional filters",
-          "line": 79,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a1f90bed2b4aadec4e767dfcc508ea9b2d89c9631f949cc68e4f023cde72542e"
-        },
-        {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::returns error when save fails",
-          "line": 84,
+          "line": 79,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40f55397c78c3b69e33ea4d9a2866ade113482fdc834b5018832ff0e40ea8a31"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::rejects when domain entity creation fails (e.g., empty name)",
-          "line": 91,
+          "line": 86,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "822ed770940e68c49ec30e56b74a3f160b3082bbf6de5aaf86dafa6dc8b597dd"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::generates report and sends email",
-          "line": 175,
+          "line": 170,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3bc5d61b3c944a71b453cb105a8f18bb9051cf524f5fd9f6305b6bcd5eb45dda"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::calls recordExecution on the report entity",
-          "line": 184,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "794b4224052fcb426c6d9578e42082d6c35fed308b02f5c8c06f128e17afbcfd"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::saves report after execution",
-          "line": 189,
+          "line": 184,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f2dcf4ff99f202ad9802add7d7b4816e1e9fdaed1f13aaba0b683f5ee60c9608"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::sends CSV attachment for CSV format",
-          "line": 194,
+          "line": 189,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8db6aa7c647c73867889447af2432dc5839a3ce2644aec0ca835aa97772fb9ac"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::sends JSON attachment for JSON format",
-          "line": 201,
+          "line": 196,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9afa834fc65e035c89b74abdb1f4da27ac1c4272e0b4dfc9c66917342cb6c4c6"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::rejects invalid report ID",
-          "line": 212,
+          "line": 207,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c41050432334a25ec92653b26704060fb4b0a3689901af1c8e9c24e105ed4754"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::returns NOT_FOUND when report doesn't exist",
-          "line": 217,
+          "line": 212,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a49e14533e484017adc9430865c44a6f42d471558b1d505c57bee58e90cce6af"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::returns error when post-execution save fails",
-          "line": 224,
+          "line": 219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c022998c5bef57034f006abc5beaffc7f820857cf0b36d39a4141cee648a59d5"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::handles empty analytics data",
-          "line": 230,
+          "line": 225,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d62a2ef9804071055ee41200b6baf4e72c502fae5ce3dafdc5f29d467ec5764a"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::maps null postId to N/A in export rows",
-          "line": 238,
+          "line": 233,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e40924a50909d33a5a0e8ace2a75f6c5eafdc31b0181a3c177f32400ca1a14e"
         },
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::includes report name in email subject",
-          "line": 258,
+          "line": 253,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a0dbb039400661805fc1376fa2679dbc59531d0c981963fcdeccdaa57d0bffe"
@@ -30453,7 +30345,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -31698,77 +31590,70 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 8,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/application/updatePricingConfig.test.ts::succeeds when caller is SUPER_ADMIN",
-          "line": 52,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7a57b69e5c662fbcfdfc77c9c1e14c9b65747a06697019cbdfe09a98fb0d1b98"
-        },
-        {
           "id": "apps/api/tests/unit/application/updatePricingConfig.test.ts::fails when caller is not SUPER_ADMIN",
-          "line": 57,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b6e58a42ab367902569555c925f1196bc01fcf149997ff9381f5958b04cd1d8c"
         },
         {
           "id": "apps/api/tests/unit/application/updatePricingConfig.test.ts::creates SubscriptionPriceHistory for each affected subscription",
-          "line": 63,
+          "line": 58,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4c3c25e3ed282e512cb3779f3012cd408c869c7affebc7af8e2d21aa98dc7ee"
         },
         {
           "id": "apps/api/tests/unit/application/updatePricingConfig.test.ts::sets affected subscriptions to GRANDFATHERED",
-          "line": 74,
+          "line": 69,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "daa8ff9ee096db63ad5642b5e654354ffed0b825445f9bcfaa0a036aa44ae3f9"
         },
         {
           "id": "apps/api/tests/unit/application/updatePricingConfig.test.ts::does NOT affect subscriptions on other tiers (0 affected)",
-          "line": 81,
+          "line": 76,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "502da8cf47f936ce5e4839eb138b611c7691bbc8a815ec9e9e27e04d76259f92"
         },
         {
           "id": "apps/api/tests/unit/application/updatePricingConfig.test.ts::effectiveAt is now + notificationWindowDays",
-          "line": 93,
+          "line": 88,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65caa6ef5fac29b17e2d692a7e08788e07e80ae053ba36257f639c708341518e"
         },
         {
           "id": "apps/api/tests/unit/application/updatePricingConfig.test.ts::dispatches notification job for each affected subscription",
-          "line": 106,
+          "line": 101,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f6a4d051aad296c98214ebec44905c473274a51ee0efa5c894d954ddd81417c2"
         },
         {
           "id": "apps/api/tests/unit/application/updatePricingConfig.test.ts::updates the pricing entity with new value",
-          "line": 111,
+          "line": 106,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "63c35e99b9fd6164b8b8f064ff2c7cccd374b506d85bbce22b08e28392c06eb8"
         },
         {
           "id": "apps/api/tests/unit/application/updatePricingConfig.test.ts::returns affectedSubscriptions count",
-          "line": 121,
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2c013c5d7570c211dfe7e51d6ebcaca67f2880a8d4b863129c27b1693c4f303a"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -31867,7 +31752,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 7,
+      "blockCount": 6,
       "blocks": [
         {
           "id": "apps/api/tests/unit/application/utmLinksUseCase.test.ts::generates UTM URL on success",
@@ -31910,20 +31795,13 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cecc320e075a1498d246ece1b3f54a027ba5da7fc943f153e797e0efa1b4b000"
-        },
-        {
-          "id": "apps/api/tests/unit/application/utmLinksUseCase.test.ts::passes optional content and term to UTMParameters",
-          "line": 91,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "cb2389ec8b61c219e9879aa0044548ee1692b4b9abab46e6cea5972a26f4cd18"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -50169,35 +50047,28 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 3,
+      "blockCount": 2,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/infrastructure/CachePort-DI.test.ts::resolves to a RedisCacheAdapter implementing the CachePort surface",
-          "line": 52,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "10b051f9061aac9f89be2cbe5bcd67bdb88d67ad56478f63cf327239b4708d3a"
-        },
-        {
           "id": "apps/api/tests/unit/infrastructure/CachePort-DI.test.ts::returns the same singleton instance on repeated resolves",
-          "line": 64,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "93490f51f83d7ed65dc3b215eff9b65497ae8382ae7954ff2178ef0dfa75bdda"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/CachePort-DI.test.ts::wraps the same RedisCacheManager registered as TOKENS.RedisCacheManager",
-          "line": 71,
+          "line": 59,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f7846dfbbc09b96f79ea5f32fa973f02836b9372597d176722a31093e671bb83"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -50282,18 +50153,11 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 2,
+      "blockCount": 1,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/infrastructure/HttpClientPort.contract.test.ts::declares 5 HTTP verbs (get/head/post/put/delete)",
-          "line": 25,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ed06520737a16bbc45e5109cedf0d5d1f577c4ead3ac3dc1d46d4d9051fb8087"
-        },
-        {
           "id": "apps/api/tests/unit/infrastructure/HttpClientPort.contract.test.ts::HttpPostOptions is back-compat alias of HttpRequestOptions",
-          "line": 35,
+          "line": 23,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2d47d24e42480405fbd6bf8450c01b41fede9ebc322135a280bb8cb1da47478a"
@@ -50303,7 +50167,7 @@
       "basis": "subject-not-imported",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": {
         "stem": "HttpClientPort",
         "module": "packages/core/domain/src/repositories/HttpClientPort.ts",
@@ -51123,7 +50987,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 40,
+      "blockCount": 38,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::returns ok(PostReadModel) for existing post",
@@ -51182,235 +51046,221 @@
           "bodyHash": "319c8bce79607c1efb45d0c450fc9e2fe93e44dbc16d352e01f03cf00090ae43"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::maps scheduledAt when present",
-          "line": 204,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "47d8b2245dfc18a72f101e57a86e99855909c70902e87f344dfaafb6594b8d6e"
-        },
-        {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::omits scheduledAt when null (exactOptionalPropertyTypes compliance)",
-          "line": 213,
+          "line": 204,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2348d5895fe3e2730507dea812a932f91558730307abe98e3afaaeb9d63c829c"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::maps publishedAt when present",
-          "line": 221,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "772ac0dadb7c809e9629d5257a726402a58c1925ef15e748cc17c875a79b345d"
-        },
-        {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::maps summary field when present",
-          "line": 230,
+          "line": 212,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38efbfa785a0dc7bafd70da600dc3e8614b4dc68337343d4b9349183db522605"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::omits summary when null (exactOptionalPropertyTypes compliance)",
-          "line": 239,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f24fa47dde598bad89bf4cedf3a7b7a57301748b188b2a84d95ee03660e74824"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::returns paginated results",
-          "line": 252,
+          "line": 234,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0644162567ef81c88642b0a121717fff485c6bdc4585236e039d25e48e7559e"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::uses default pagination when not provided",
-          "line": 268,
+          "line": 250,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "919a5529ddbc4d5e161c3f9f1d8cba47d12ca3acd8e7025f819de1826cb8c6d0"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::respects MAX_LIMIT cap (100)",
-          "line": 282,
+          "line": 264,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a3e6930e4b555d7cdb5337acc5fce8fddc9b5769420bd10c3f14d1b4defe3d14"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::applies sort parameters",
-          "line": 292,
+          "line": 274,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "040dec5348097a01f51bfbe991638c259d646b85930eaf49d697d8ffff0194bf"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::calculates hasNext and hasPrevious correctly for middle page",
-          "line": 309,
+          "line": 291,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d245803ea2b2545a17ff89e86b75a9d42f396351de0fa4bdad15c3147c669548"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::calculates hasNext false on last page",
-          "line": 321,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f68618e01e1e32b0922797b2b500a4907e659641deb7d27386cb4bcf1f4c3040"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::returns items as PostReadModel array",
-          "line": 333,
+          "line": 315,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4eebc63c2aca3de5fb048cd0e5dee3ce863f468c0d957d5098eac04a5408b85"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::scopes the query to the caller account via project.accountId (CWE-639) #2",
-          "line": 344,
+          "line": 326,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9dbb6f1eb96bf97b661741392ed3cb4122e4da7c20b1b94ee14410e39b3d6665"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::searches in title and body (case-insensitive)",
-          "line": 365,
+          "line": 347,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "191aa68978382f037493e362ab18f07c6985509c64a2e9cd28d8c421fd013f32"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::returns paginated results #2",
-          "line": 396,
+          "line": 378,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "46398326bd96228006283b26531a6fdc9dc1d557da42732bdc3b54a1dc33d5f4"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::returns empty result for no matches",
-          "line": 407,
+          "line": 389,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "174921d1ad980097c90400b138ea57396db6c010e4d7645118cb94304d8bba2c"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::returns SCHEDULED posts with future scheduledAt",
-          "line": 425,
+          "line": 407,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ea91ca06c71fabf597e2135dbd8dbd3323e5b8df19542209adb440466a78b37"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::queries with status=SCHEDULED and scheduledAt >= now",
-          "line": 436,
+          "line": 418,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "def6a26e472dbefa956550fabd413a94217f6a1453c60a37aced9c9f6388ea1e"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::orders by scheduledAt ascending",
-          "line": 452,
+          "line": 434,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5e395196fae70b1f80b76f16838524fd39417d58827d9941e31de7e34bfd8184"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::respects the limit parameter",
-          "line": 463,
+          "line": 445,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9b535f98b9420f454c0babcb32fd191587734f6e1001cb76e4a4f44916c430d"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::caps limit at MAX_LIMIT (100)",
-          "line": 471,
+          "line": 453,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0f4b156814851168daa3e37b280fa29c71e8555af658a89fa596443134f457d2"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::returns PUBLISHED posts",
-          "line": 483,
+          "line": 465,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc805d21af46a895109b5f1fc97b12f8e0105382a67ee46e4fe70dcc588f9373"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::queries with status=PUBLISHED and publishedAt not null",
-          "line": 494,
+          "line": 476,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b36ef40402d6bd2acd81911af5594f70a3f6102c1556e39ab76870819b0eb4c0"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::orders by publishedAt descending",
-          "line": 509,
+          "line": 491,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6dab932092b552dd6c38d4aec1d1fadaef2fb685a38629da09d8a1c5aad5c3e0"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::respects the limit parameter #2",
-          "line": 520,
+          "line": 502,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "29cc64b08e0febf9b92b6865cce8596f2a75942f00a482d46aaf76d2d05ae5c7"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::caps limit at MAX_LIMIT (100) #2",
-          "line": 528,
+          "line": 510,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "335c5df2ed8ad71643ffaac3b7055b402822d664dd6ac6ee5a64e93ebf1cde14"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::evaluator fidelity: without a project.deletedAt predicate the deleted project's post IS returned",
-          "line": 627,
+          "line": 609,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7fb2a35df86aa763f0341fab331ef5f8f9357670bf3ae84a17ea7b24f516abe4"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::evaluator fidelity: without an accountId predicate the foreign account's post IS returned",
-          "line": 639,
+          "line": 621,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b04283219c84d9f8f1cc2b257317b4071617301ead391dc7a6651a54e8c32d92"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::filters the caller account on Post's own column, not through the project relation",
-          "line": 651,
+          "line": 633,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf00b0bc334f06d8b0255ff83c180307a6e4aa14013a076713368238cdab0f31"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::excludes a soft-deleted project's posts from the account-wide feed",
-          "line": 672,
+          "line": 654,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1b696b2775170489a77c8c03bd61032bf7d3ebfbdda598cc2c028a170fa73f49"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::keeps total/count consistent with the filtered page (same where on both queries)",
-          "line": 682,
+          "line": 664,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f7d5f19064b250a5fc800c813692826988493178f846414a2b9adf342a347c67"
         },
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostQueryRepository.test.ts::still excludes foreign-account posts (tenant scope unchanged by the liveness predicate)",
-          "line": 697,
+          "line": 679,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3fbd7e29994dd573e4745c8d797fd90419fe14fb1b4a6b397bb234d96d45ea23"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": {
         "stem": "PrismaPostQueryRepository",
         "module": "apps/api/src/infrastructure/repositories/PrismaPostQueryRepository.ts",
@@ -51425,7 +51275,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 52,
+      "blockCount": 51,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts::returns ok(PostAggregate) when row exists",
@@ -51778,25 +51628,18 @@
           "bodyHash": "5aa17fcf94bd1c86d4f09a5ac62dfd519cd9a303684fe8eb745f9aacf5fa8356"
         },
         {
-          "id": "apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts::returns ok with empty array (no-op)",
-          "line": 872,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "606a1a7c50bfc634a74edd0c9df7d1842a92a26db1d0811e6ff9e1caaf920110"
-        },
-        {
           "id": "apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts::returns err when updateMany throws",
-          "line": 877,
+          "line": 872,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee97835a2fca65f8430d30a417402c1b6a87c33676c5aa58c51a08aef80872db"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": {
         "stem": "PrismaPostRepository",
         "module": "packages/adapters/db-prisma/src/post/PrismaPostRepository.ts",
@@ -52445,7 +52288,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 3,
       "blocks": [
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts::hashes a secret to an argon2id-encoded string",
@@ -52467,20 +52310,13 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fcd4f68a16a66a28b806067f28aed40f35dcccd6f64734d11712d31fb42053d2"
-        },
-        {
-          "id": "apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts::returns a boolean from needsRehash",
-          "line": 31,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8463d9872f55d48c60d1437c8576aadef681364643a0fd620d44aef045b295fb"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.3b",
       "subject": {
         "stem": "Argon2PasswordHasher",
         "module": "apps/api/src/infrastructure/adapters/Argon2PasswordHasher.ts",

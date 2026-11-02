@@ -76,11 +76,6 @@ describe("CreateScheduledReportUseCase", () => {
     assert.ok(r.ok);
   });
 
-  it("passes optional filters", async () => {
-    const r = await uc.execute(makeInput({ filters: { provider: "X" } }));
-    assert.ok(r.ok);
-  });
-
   it("returns error when save fails", async () => {
     repo.save.mockResolvedValueOnce({ ok: false, error: new Error("DB") });
     const r = await uc.execute(makeInput());

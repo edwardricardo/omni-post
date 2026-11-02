@@ -2,7 +2,7 @@
  * @file SlackNotifierAdapter.test.ts
  * @description Tests for SlackNotifierAdapter. Mocks HttpClientPort to verify
  *   payload shape (Block Kit), URL passthrough, header forwarding, error
- *   mapping (TIMEOUT/NETWORK/BAD_RESPONSE → InvariantViolationError) y http>=400
+ *   mapping (TIMEOUT/NETWORK/BAD_RESPONSE → InvariantViolationError) and http>=400
  *   handling.
  * @layer infrastructure
  */

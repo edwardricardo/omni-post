@@ -2,7 +2,7 @@
  * @file integrationUseCases.test.ts
  * @description Unit tests for all integration platform application use cases and services.
  *   Covers both Zapier and Make platforms.
- * @layer application
+ * @layer infrastructure
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -454,20 +454,6 @@ describe("TriggerIntegrationEventService", () => {
 
     expect(repo.findActiveByEventAndPlatform).toHaveBeenCalledWith("post.published", "MAKE");
     expect(httpClient.post).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not throw when http delivery fails", async () => {
-    const sub = makeSub();
-    repo = makeSubRepo({
-      findActiveByEvent: vi.fn().mockResolvedValue([sub]),
-    });
-    httpClient = {
-      post: vi.fn(async () => ({ ok: false, error: "NETWORK" })),
-    };
-    service = new TriggerIntegrationEventService(repo, httpClient as never);
-
-    // Should not throw
-    await service.fire("post.published", { postId: "p-001" });
   });
 
   it("does not fire when no active subscriptions exist", async () => {
