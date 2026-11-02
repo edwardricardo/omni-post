@@ -1,14 +1,14 @@
 /**
  * @file perplexity.init.test.ts
- * @description Tests for PerplexityProvider - Initialization and Configuration
+ * @description Tests for PerplexityProvider - its provider name, availability checks and text generation
  * @layer infrastructure
  */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { PerplexityProvider } from "../../../src/ai/providers/perplexity.js";
-import type { AIMessage, GenerationOptions, AIProviderConfig } from "../../../src/ai/types.js";
+import type { AIMessage, GenerationOptions } from "../../../src/ai/types.js";
 import { mockConfig } from "./perplexity.test-helpers.js";
 
-describe("PerplexityProvider - Initialization and Configuration", () => {
+describe("PerplexityProvider - Initialization", () => {
   let provider: PerplexityProvider;
 
   beforeEach(() => {
@@ -17,39 +17,6 @@ describe("PerplexityProvider - Initialization and Configuration", () => {
 
   it("should initialize with correct provider name", () => {
     expect(provider.name).toBe("perplexity");
-  });
-
-  it("should initialize with API key from config", () => {
-    expect(provider).toBeTruthy();
-    expect(typeof provider.isAvailable).toBe("function");
-  });
-
-  it("should use custom base URL from config", () => {
-    const customConfig = { ...mockConfig, baseUrl: "https://custom.perplexity.ai" };
-    const customProvider = new PerplexityProvider(customConfig);
-    expect(customProvider).toBeTruthy();
-  });
-
-  it("should use default base URL when not provided", () => {
-    const defaultProvider = new PerplexityProvider(mockConfig);
-    expect(defaultProvider).toBeTruthy();
-  });
-
-  it("should handle minimal configuration", () => {
-    const minimalConfig: AIProviderConfig = {
-      apiKey: "test-key",
-      model: "llama-3.1-sonar-small-128k-online",
-      timeout: 30000,
-      retries: 3,
-      rateLimit: {
-        requestsPerMinute: 60,
-        tokensPerMinute: 100000,
-        requestsPerDay: 1000,
-        tokensPerDay: 1000000,
-      },
-    };
-    const minimalProvider = new PerplexityProvider(minimalConfig);
-    expect(minimalProvider).toBeTruthy();
   });
 });
 

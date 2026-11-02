@@ -1,13 +1,13 @@
 /**
  * AbstractWebhookProcessor Tests
- * TDD - RED Phase: Tests for the webhook processor base class
+ * Tests for the webhook processor base class: verify, parse, process and getProviderId.
  *
  * @file AbstractWebhookProcessor.test.ts
  * @description Tests for AbstractWebhookProcessor
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, vi, expect } from "vitest";
+import { describe, it, beforeEach, expect } from "vitest";
 import { createHmac } from "crypto";
 import {
   AbstractWebhookProcessor,
@@ -143,21 +143,6 @@ describe("AbstractWebhookProcessor", () => {
   });
 
   describe("process()", () => {
-    it("should call processEvent with normalized data and entities", async () => {
-      const normalizedData: NormalizedWebhookData = {
-        eventType: "post_published",
-        postId: "123",
-      };
-      const entities: RelatedEntities = {
-        accountId: "acc-1",
-        projectId: "proj-1",
-        channelId: "ch-1",
-      };
-
-      // Should not throw
-      await processor.process(normalizedData, entities);
-    });
-
     it("should return early when no related entities found", async () => {
       // Create a processor that tracks processEvent calls
       let processEventCalled = false;
@@ -216,21 +201,5 @@ describe("AbstractWebhookProcessor with base64 encoding", () => {
     const result = processor.verify(payload, `sha256=${expectedSignature}`, secret);
 
     expect(result).toBe(true);
-  });
-});
-
-describe("AbstractWebhookProcessor with broadcaster", () => {
-  it("should accept broadcaster in constructor", (_t) => {
-    const mockBroadcaster = {
-      broadcastPostStatusChange: vi.fn(),
-      broadcastEngagementUpdate: vi.fn(),
-    };
-
-    const processor = new TestWebhookProcessor(
-      makeWebhookPrismaFake().prisma,
-      mockBroadcaster as any
-    );
-
-    expect(processor).toBeTruthy();
   });
 });

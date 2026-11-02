@@ -1,14 +1,13 @@
 /**
  * @file openai.init.test.ts
- * @description Tests for OpenAIProvider - Initialization and Configuration
+ * @description Tests for OpenAIProvider - its provider name and availability checks
  * @layer infrastructure
  */
 import { describe, it, beforeEach, vi, expect } from "vitest";
 import { OpenAIProvider } from "../../../src/ai/providers/openai.js";
-import type { AIProviderConfig } from "../../../src/ai/types.js";
 import { mockConfig } from "./openai.test-helpers.js";
 
-describe("OpenAIProvider - Initialization and Configuration", () => {
+describe("OpenAIProvider - Initialization", () => {
   let provider: OpenAIProvider;
 
   beforeEach(() => {
@@ -17,40 +16,6 @@ describe("OpenAIProvider - Initialization and Configuration", () => {
 
   it("should initialize with correct provider name", () => {
     expect(provider.name).toBe("openai");
-  });
-
-  it("should initialize with API key from config", () => {
-    expect(provider).toBeTruthy();
-    expect(typeof provider.isAvailable).toBe("function");
-  });
-
-  it("should initialize with custom base URL", () => {
-    const customConfig = { ...mockConfig, baseUrl: "https://api.custom.openai.com" };
-    const customProvider = new OpenAIProvider(customConfig);
-    expect(customProvider).toBeTruthy();
-  });
-
-  it("should initialize with custom timeout", () => {
-    const customConfig = { ...mockConfig, timeout: 60000 };
-    const customProvider = new OpenAIProvider(customConfig);
-    expect(customProvider).toBeTruthy();
-  });
-
-  it("should handle minimal configuration", () => {
-    const minimalConfig: AIProviderConfig = {
-      apiKey: "test-key",
-      model: "gpt-4",
-      timeout: 30000,
-      retries: 3,
-      rateLimit: {
-        requestsPerMinute: 60,
-        tokensPerMinute: 100000,
-        requestsPerDay: 1000,
-        tokensPerDay: 1000000,
-      },
-    };
-    const minimalProvider = new OpenAIProvider(minimalConfig);
-    expect(minimalProvider).toBeTruthy();
   });
 });
 

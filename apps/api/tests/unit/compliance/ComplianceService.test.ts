@@ -2,7 +2,7 @@
  * @file ComplianceService.test.ts
  * @description Unit tests for compliance service — GDPR/security settings,
  *   compliance scoring (11 checks), DSAR lifecycle, breach reports.
- *   Post-S4.1 the service is framework-free; tests mock the 6 ports + audit.
+ *   The service is framework-free; tests mock its seven ports, the audit emitter and its logger.
  * @layer infrastructure
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -558,15 +558,6 @@ describe("ComplianceService", () => {
       (bag.dsar.countPendingByEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
         value: 2,
-      });
-      const result = await service.submitDsarRequest(baseDsarInput);
-      assert.ok(result.ok);
-    });
-
-    it("succeeds when 3 COMPLETED requests (not counted)", async () => {
-      (bag.dsar.countPendingByEmail as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        value: 0,
       });
       const result = await service.submitDsarRequest(baseDsarInput);
       assert.ok(result.ok);

@@ -1186,15 +1186,6 @@ describe("createFileUploadValidator — factory", () => {
     const validator = createFileUploadValidator({}, metrics);
     expect(validator).toBeInstanceOf(FileUploadValidator);
   });
-
-  it("creates validator with custom config", () => {
-    const metrics = makeMockMetrics();
-    const validator = createFileUploadValidator(
-      { maxFileSize: 5 * 1024 * 1024, enableVirusScanning: false },
-      metrics
-    );
-    expect(validator).toBeInstanceOf(FileUploadValidator);
-  });
 });
 
 // ============================================================================
@@ -1202,14 +1193,6 @@ describe("createFileUploadValidator — factory", () => {
 // ============================================================================
 
 describe("FileUploadValidator — getPlugin", () => {
-  it("returns an async function", () => {
-    const metrics = makeMockMetrics();
-    const validator = new FileUploadValidator({}, metrics);
-    const plugin = validator.getPlugin();
-
-    expect(typeof plugin).toBe("function");
-  });
-
   it("registers multipart/form-data content parser", async () => {
     const metrics = makeMockMetrics();
     const validator = new FileUploadValidator({}, metrics);

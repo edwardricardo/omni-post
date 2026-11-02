@@ -71,7 +71,7 @@ describe("SnapchatWebhookProcessor - Signature Verification", () => {
 });
 
 // ===========================
-// CREATIVE_APPROVED Event Parsing Tests (3 tests)
+// CREATIVE_APPROVED Event Parsing Tests (2 tests)
 // ===========================
 
 describe("SnapchatWebhookProcessor - CREATIVE_APPROVED Event Parsing", () => {
@@ -115,22 +115,6 @@ describe("SnapchatWebhookProcessor - CREATIVE_APPROVED Event Parsing", () => {
     const result = await processor.parse(payload as unknown as Record<string, unknown>);
 
     expect(result.normalizedData).not.toHaveProperty("reviewStatusReasons");
-  });
-
-  it("should resolve related entities structure", async () => {
-    const payload = {
-      eventType: "CREATIVE_APPROVED",
-      creativeId: "creative-003",
-      adAccountId: "adaccount-789",
-      reviewStatus: "APPROVED",
-      timestamp: "2024-06-15T12:00:00Z",
-      internalEventId: "evt-ccc",
-    };
-
-    const result = await processor.parse(payload as unknown as Record<string, unknown>);
-
-    expect(result).toHaveProperty("relatedEntities");
-    expect(typeof result.relatedEntities).toBe("object");
   });
 });
 
@@ -338,4 +322,4 @@ describe("SnapchatWebhookProcessor - Process", () => {
   });
 });
 
-// Total: 20 tests covering Snapchat webhook processor functionality
+// Total: 19 tests covering Snapchat webhook processor functionality

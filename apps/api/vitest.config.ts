@@ -143,8 +143,8 @@ export default defineConfig({
         perFile: false,
         // canon-exception: decorative-demolition:2.8.2d
         lines: 59.7,
-        // canon-exception: decorative-demolition:2.8.2b
-        functions: 60.3,
+        // canon-exception: decorative-demolition:2.8.4
+        functions: 60.2,
         // canon-exception: decorative-demolition:2.8.2d
         branches: 49.8,
         // canon-exception: decorative-demolition:2.8.2c

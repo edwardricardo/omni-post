@@ -560,33 +560,4 @@ describe("AITypes - Type Guards and Utilities", () => {
 
     expect(generateTask.type).not.toBe(analyzeTask.type);
   });
-
-  it("should validate response with generic type", () => {
-    const textResponse: AIResponse<string> = {
-      ok: true,
-      value: "Text",
-      metadata: {
-        provider: "openai",
-        model: "gpt-4",
-        tokensUsed: 50,
-        latency: 200,
-        cached: false,
-      },
-    };
-
-    const analysisResponse: AIResponse<Partial<ContentAnalysis>> = {
-      ok: true,
-      value: { sentiment: { score: 0.5, label: "neutral", confidence: 0.8 } },
-      metadata: {
-        provider: "gemini",
-        model: "gemini-1.5-flash",
-        tokensUsed: 100,
-        latency: 300,
-        cached: false,
-      },
-    };
-
-    expect(typeof textResponse.value).toBe("string");
-    expect(typeof analysisResponse.value).toBe("object");
-  });
 });

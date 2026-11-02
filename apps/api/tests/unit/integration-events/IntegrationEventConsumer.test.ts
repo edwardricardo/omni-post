@@ -1,7 +1,7 @@
 /**
  * Unit Tests - IntegrationEventConsumer
  *
- * Part of P2-2: Integration Events via BullMQ
+ * Integration events consumed from BullMQ: routing, schema validation and upcasting.
  * Tier-0 tests for the consumer routing logic, handler stubs, and lifecycle.
  *
  * Strategy:
@@ -347,7 +347,7 @@ describe("IntegrationEventConsumer — wired with real stub handlers", () => {
 });
 
 // ---------------------------------------------------------------------------
-// P2-5: Schema validation + upcasting integration
+// Schema validation and upcasting integration
 // ---------------------------------------------------------------------------
 
 import { EventSchemaRegistry } from "../../../src/infrastructure/integration-events/EventSchemaRegistry.js";
