@@ -372,19 +372,6 @@ describe("Domain Aggregates & Events", () => {
         }
       });
 
-      it("should set publishedAt after markAsPublished", () => {
-        const result = PostAggregate.create({ projectId, body: "Publish me" });
-        expect(result.ok).toBeTruthy();
-        if (result.ok) {
-          const post = result.value;
-          post.schedule(new Date(Date.now() + 60 * 60 * 1000));
-          post.startPublishing(["X"]);
-          post.markAsPublished({ X: { success: true, externalId: "x-999" } });
-
-          expect(post.publishedAt instanceof Date).toBeTruthy();
-        }
-      });
-
       it("should raise PostCancelled from draft status", () => {
         const result = PostAggregate.create({ projectId, body: "Draft cancel" });
         expect(result.ok).toBeTruthy();

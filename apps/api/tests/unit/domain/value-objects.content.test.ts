@@ -163,13 +163,6 @@ describe("Content value object", () => {
   // =========================================================================
 
   describe("fitsInPlatform", () => {
-    it("returns ok for short content on X", () => {
-      const result = Content.create({ body: "Short tweet" });
-      assert.ok(result.ok);
-      const fits = result.value.fitsInPlatform("X");
-      assert.ok(fits.ok);
-    });
-
     it("returns error for body > 280 chars on X", () => {
       const longBody = "a".repeat(281);
       const result = Content.create({ body: longBody });

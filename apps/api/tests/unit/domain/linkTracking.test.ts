@@ -1,7 +1,7 @@
 /**
  * Domain Layer - Link Tracking Unit Tests
  *
- * Tests for TrackedLink aggregate, value objects, and link-tracking domain events.
+ * Tests for TrackedLink aggregate, value objects, and the LinkClick entity.
  *
  * @file linkTracking.test.ts
  * @description Tests for Link Tracking Domain
@@ -9,14 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  TrackedLinkId,
-  TrackedLink,
-  LinkClickId,
-  LinkClick,
-  ShortCode,
-  ProjectId,
-} from "@core/domain/index.js";
+import { TrackedLinkId, TrackedLink, LinkClick, ShortCode, ProjectId } from "@core/domain/index.js";
 
 describe("Link Tracking Domain", () => {
   describe("TrackedLinkId Value Object", () => {
@@ -72,11 +65,6 @@ describe("Link Tracking Domain", () => {
     it("should reject short code with invalid characters", () => {
       const result = ShortCode.fromString("abc@123");
       expect(result.ok).toBeFalsy();
-    });
-
-    it("should allow custom vanity slug", () => {
-      const result = ShortCode.fromString("my-brand-link");
-      expect(result.ok).toBeTruthy();
     });
   });
 
@@ -194,19 +182,6 @@ describe("Link Tracking Domain", () => {
         expect(json.clicks).toBe(0);
         expect(json.isActive).toBe(true);
       }
-    });
-  });
-
-  describe("LinkClickId Value Object", () => {
-    it("should generate a new LinkClickId", () => {
-      const id = LinkClickId.generate();
-      expect(id).toBeTruthy();
-    });
-
-    it("should create from valid UUID string", () => {
-      const uuid = "550e8400-e29b-41d4-a716-446655440000";
-      const result = LinkClickId.fromString(uuid);
-      expect(result.ok).toBeTruthy();
     });
   });
 

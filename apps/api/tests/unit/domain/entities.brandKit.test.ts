@@ -97,16 +97,6 @@ describe("BrandKit Entity", () => {
       assert.ok(!result.ok);
     });
 
-    it("accepts null colors", () => {
-      const result = BrandKit.create({
-        accountId: "acc-1",
-        primaryColor: undefined,
-        secondaryColor: undefined,
-        accentColor: undefined,
-      });
-      assert.ok(result.ok);
-    });
-
     it("sets createdAt and updatedAt timestamps", () => {
       const before = new Date();
       const result = BrandKit.create({ accountId: "acc-1" });

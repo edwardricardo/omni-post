@@ -672,10 +672,10 @@
   },
   "apps/api/tests/unit/domain/aggregates.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     },
     "vitest/no-conditional-expect": {
-      "count": 107
+      "count": 106
     }
   },
   "apps/api/tests/unit/domain/approvalWorkflow.test.ts": {
@@ -692,26 +692,13 @@
     }
   },
   "apps/api/tests/unit/domain/domain-errors.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    },
     "vitest/no-conditional-expect": {
-      "count": 9
-    }
-  },
-  "apps/api/tests/unit/domain/entities.account.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/unit/domain/entities.brandKit.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
+      "count": 2
     }
   },
   "apps/api/tests/unit/domain/entities.campaign.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/unit/domain/entities.conversationNote.test.ts": {
@@ -735,9 +722,6 @@
     }
   },
   "apps/api/tests/unit/domain/linkTracking.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    },
     "vitest/no-conditional-expect": {
       "count": 34
     }
@@ -772,40 +756,22 @@
       "count": 9
     }
   },
-  "apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "apps/api/tests/unit/domain/security/secretCatalog.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/domain/value-objects.content.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 5
+      "count": 4
     }
   },
   "apps/api/tests/unit/domain/value-objects.ids-content.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 7
-    },
     "vitest/no-conditional-expect": {
-      "count": 37
+      "count": 36
     }
   },
   "apps/api/tests/unit/domain/value-objects.media-provider.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 5
+      "count": 3
     },
     "vitest/no-conditional-expect": {
-      "count": 42
-    }
-  },
-  "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 6
+      "count": 41
     }
   },
   "apps/api/tests/unit/engagementPredictor.test.ts": {

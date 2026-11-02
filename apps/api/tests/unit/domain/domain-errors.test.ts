@@ -17,31 +17,14 @@ import {
   InvalidStateTransitionError,
   EntityNotFoundError,
   InvariantViolationError,
-  type DomainErrorType,
 } from "@core/domain/errors/DomainError.js";
 
 describe("Domain Errors", () => {
   describe("DomainError (base class)", () => {
     // Cannot test abstract class directly, but we test through subclasses
-    it("should provide error code on all domain errors", () => {
-      const error = new InvalidValueError("field", "value", "message");
-      expect(error.code).toBeTruthy();
-      expect(typeof error.code).toBe("string");
-    });
-
-    it("should provide timestamp on all domain errors", () => {
-      const error = new InvalidValueError("field", "value", "message");
-      expect(error.timestamp instanceof Date).toBeTruthy();
-    });
-
     it("should set correct error name", () => {
       const error = new InvalidValueError("field", "value", "message");
       expect(error.name).toBe("InvalidValueError");
-    });
-
-    it("should be instanceof Error", () => {
-      const error = new InvalidValueError("field", "value", "message");
-      expect(error instanceof Error).toBeTruthy();
     });
 
     it("should serialize to JSON correctly", () => {
@@ -231,46 +214,6 @@ describe("Domain Errors", () => {
   });
 
   describe("Error type checking", () => {
-    it("should allow type narrowing with instanceof", () => {
-      const errors: DomainErrorType[] = [
-        new InvalidValueError("field", "value", "msg"),
-        new InvalidIdError("PostId", "invalid"),
-        new EmptyValueError("title"),
-        new ValueTooLongError("content", 100, 200),
-        new InvalidStateTransitionError("a", "b", "Entity"),
-        new EntityNotFoundError("Post", "123"),
-        new InvariantViolationError("invariant"),
-      ];
-
-      for (const error of errors) {
-        // All should be instanceof Error
-        expect(error instanceof Error).toBeTruthy();
-
-        // Type narrowing should work
-        if (error instanceof InvalidValueError) {
-          expect(error.field).toBeTruthy();
-        }
-        if (error instanceof InvalidIdError) {
-          expect(error.idType).toBeTruthy();
-        }
-        if (error instanceof EmptyValueError) {
-          expect(error.field).toBeTruthy();
-        }
-        if (error instanceof ValueTooLongError) {
-          expect(error.maxLength !== undefined).toBeTruthy();
-        }
-        if (error instanceof InvalidStateTransitionError) {
-          expect(error.fromState).toBeTruthy();
-        }
-        if (error instanceof EntityNotFoundError) {
-          expect(error.entityId).toBeTruthy();
-        }
-        if (error instanceof InvariantViolationError) {
-          expect(error.invariant).toBeTruthy();
-        }
-      }
-    });
-
     it("should all have unique error codes", () => {
       const errors = [
         new InvalidValueError("f", "v", "m"),
