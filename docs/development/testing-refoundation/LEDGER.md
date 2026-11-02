@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1185  |
 | DELETE                  | 19    |
-| REWRITE                 | 183   |
-| KEEP                    | 881   |
+| REWRITE                 | 177   |
+| KEEP                    | 887   |
 | ADJUDICATE              | 102   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14877 |
-| Blocks with a criterion | 685   |
+| Blocks                  | 14847 |
+| Blocks with a criterion | 655   |
 
 ## Slice 2.6a
 
@@ -170,6 +170,25 @@ Deleted: 1 file, 65 blocks. Floors lowered: lines from 59.8 to 59.7, branches fr
 | `apps/api/tests/unit/webhookHandler.init.test.ts`                    | test  | 1      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts`    | test  | 17     | 0          | ADJUDICATE | machine | subject-not-imported |
 | `apps/api/tests/unit/webhookManager.processing.test.ts`              | test  | 14     | 0          | ADJUDICATE | machine | title-contradiction  |
+
+## Slice 2.8.3a
+
+Deleted: 0 files, 30 blocks.
+
+| Path                                                                        | Shape | Blocks | Decorative | Verdict    | Status  | Basis                |
+| --------------------------------------------------------------------------- | ----- | ------ | ---------- | ---------- | ------- | -------------------- |
+| `apps/api/tests/unit/domain/aggregates.test.ts`                             | test  | 33     | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/domain/domain-errors.test.ts`                          | test  | 26     | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/domain/entities.account.test.ts`                       | test  | 46     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/domain/entities.brandKit.test.ts`                      | test  | 18     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/domain/entities.campaign.test.ts`                      | test  | 19     | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/domain/linkTracking.test.ts`                           | test  | 21     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts` | test  | 2      | 0          | ADJUDICATE | machine | subject-not-imported |
+| `apps/api/tests/unit/domain/security/secretCatalog.test.ts`                 | test  | 11     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/domain/value-objects.content.test.ts`                  | test  | 50     | 4          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/domain/value-objects.ids-content.test.ts`              | test  | 50     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/domain/value-objects.media-provider.test.ts`           | test  | 50     | 3          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts`           | test  | 29     | 0          | KEEP       | machine | behavioural          |
 
 ## Rows without a slice
 
@@ -573,14 +592,9 @@ Deleted: 1 file, 65 blocks. Floors lowered: lines from 59.8 to 59.7, branches fr
 | `apps/api/tests/unit/domain/Container.test.ts`                                                        | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/aggregates.post.test.ts`                                                  | test             | 74     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/aggregates.social-message.test.ts`                                        | test             | 33     | 1          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/domain/aggregates.test.ts`                                                       | test             | 34     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/domain/approvalWorkflow.test.ts`                                                 | test             | 43     | 1          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/domain/crisisMode.test.ts`                                                       | test             | 12     | 2          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/domain/domain-errors.test.ts`                                                    | test             | 30     | 5          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/domain/entities.account.test.ts`                                                 | test             | 47     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/domain/entities.approvalWorkflow.test.ts`                                        | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/domain/entities.brandKit.test.ts`                                                | test             | 19     | 1          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/domain/entities.campaign.test.ts`                                                | test             | 20     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/domain/entities.conversationNote.test.ts`                                        | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/entities.crmConnection.test.ts`                                           | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/entities.customReport.test.ts`                                            | test             | 28     | 0          | KEEP       | machine                     | behavioural          |
@@ -593,7 +607,6 @@ Deleted: 1 file, 65 blocks. Floors lowered: lines from 59.8 to 59.7, branches fr
 | `apps/api/tests/unit/domain/entities.task.test.ts`                                                    | test             | 38     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/entities.test.ts`                                                         | test             | 53     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/entities/OidcConfiguration.test.ts`                                       | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/domain/linkTracking.test.ts`                                                     | test             | 24     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/domain/mention.aggregate.test.ts`                                                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/mentionParser.test.ts`                                                    | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/notification.test.ts`                                                     | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
@@ -614,15 +627,9 @@ Deleted: 1 file, 65 blocks. Floors lowered: lines from 59.8 to 59.7, branches fr
 | `apps/api/tests/unit/domain/repositories/SubscriptionStatsQueryRepository.test.ts`                    | test             | 4      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/domain/repositories/ThreadReadRepository.test.ts`                                | test             | 9      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/domain/repositories/TrackedTermQuery.test.ts`                                    | test             | 3      | 0          | ADJUDICATE | machine                     | subject-not-imported |
-| `apps/api/tests/unit/domain/repositories/TrendRadarQueryRepository.test.ts`                           | test             | 4      | 2          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/domain/security/rotationStatusRules.test.ts`                                     | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/domain/security/secretCatalog.test.ts`                                           | test             | 12     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/domain/value-objects.approval-status.test.ts`                                    | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/domain/value-objects.content.test.ts`                                            | test             | 51     | 5          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/domain/value-objects.fixtures.ts`                                                | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/domain/value-objects.ids-content.test.ts`                                        | test             | 57     | 7          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/domain/value-objects.media-provider.test.ts`                                     | test             | 52     | 5          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts`                                     | test             | 35     | 6          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/engagementPredictor.test.ts`                                                     | test             | 17     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/errorHandler.inject.test.ts`                                                     | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/errorHandler.test.ts`                                                            | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
