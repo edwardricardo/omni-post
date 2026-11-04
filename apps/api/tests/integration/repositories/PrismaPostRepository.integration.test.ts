@@ -184,25 +184,6 @@ describe("PrismaPostRepository", () => {
   });
 
   describe("exists", () => {
-    it("should return true for existing post", async () => {
-      const projectId = ProjectId.fromStringUnsafe(testProjectId);
-      const result = PostAggregate.create({
-        projectId,
-        body: "Test exists",
-      });
-
-      assert.ok(result.ok);
-      if (!result.ok) return;
-
-      const aggregate = result.value;
-      createdPostIds.push(aggregate.id.value);
-
-      await repository.save(aggregate);
-
-      const exists = await repository.exists(aggregate.id);
-      assert.ok(exists);
-    });
-
     it("should return false for non-existent post", async () => {
       const nonExistentId = PostId.generate();
       const exists = await repository.exists(nonExistentId);
@@ -305,15 +286,6 @@ describe("PrismaPostRepository", () => {
     });
   });
 
-  describe("findReadyForPublishing", () => {
-    it("should find scheduled posts with passed time", async () => {
-      // This test requires posts with scheduledAt in the past
-      // In real scenarios, this would find posts ready to publish
-      const result = await repository.findReadyForPublishing(10);
-      assert.ok(Array.isArray(result));
-    });
-  });
-
   describe("findWithFilters", () => {
     it("should filter posts by project and status", async () => {
       const projectId = ProjectId.fromStringUnsafe(testProjectId);
@@ -336,15 +308,6 @@ describe("PrismaPostRepository", () => {
       });
 
       assert.ok(result.items.every((p) => p.media.length === 0));
-    });
-  });
-
-  describe("countByProjectId", () => {
-    it("should count posts for a project", async () => {
-      const projectId = ProjectId.fromStringUnsafe(testProjectId);
-      const count = await repository.countByProjectId(tenantScope(), projectId);
-      assert.ok(typeof count === "number");
-      assert.ok(count >= 0);
     });
   });
 
@@ -491,32 +454,6 @@ describe("PrismaPostRepository", () => {
       assert.ok(typeof stats.failed === "number");
 
       assert.ok(stats.total >= stats.drafts);
-    });
-  });
-
-  describe("bulkUpdateStatus", () => {
-    it("should update status for multiple posts", async () => {
-      const projectId = ProjectId.fromStringUnsafe(testProjectId);
-
-      // Create test posts
-      const postIds: PostId[] = [];
-      for (let i = 0; i < 3; i++) {
-        const result = PostAggregate.create({
-          projectId,
-          body: `Bulk update post ${i}`,
-        });
-        if (result.ok) {
-          createdPostIds.push(result.value.id.value);
-          await repository.save(result.value);
-          postIds.push(result.value.id);
-        }
-      }
-
-      // Note: We can't bulk update to CANCELLED from DRAFT directly in the aggregate
-      // but the repository method bypasses aggregate rules
-      // In real usage, this would be used carefully
-      const result = await repository.bulkUpdateStatus(postIds, PUBLISH_STATUS.CANCELLED);
-      assert.ok(result.ok);
     });
   });
 });

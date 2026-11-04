@@ -68,24 +68,6 @@ beforeEach(async () => {
 // ============================================================================
 
 describe("SyncEngine - Initialization", () => {
-  it("should initialize with empty channel map", async (t) => {
-    if (skipIfUnavailable(t)) return;
-    const engine = new SyncEngine({
-      prisma: mockPrisma,
-      redis: mockRedis,
-      eventService: mockEventService,
-      synchronizer,
-      versionManager,
-      scheduler: new NoopBackgroundTaskScheduler(),
-    });
-
-    await engine.initialize();
-
-    const metrics = await engine.getSyncMetrics();
-    assert.strictEqual(metrics.totalTransactions, 0);
-    await engine.shutdown();
-  });
-
   it("should setup Redis streams on initialization", async (t) => {
     if (skipIfUnavailable(t)) return;
     await syncEngine.initialize();

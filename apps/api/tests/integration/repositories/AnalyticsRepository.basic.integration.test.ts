@@ -1,6 +1,6 @@
 /**
  * @file AnalyticsRepository.basic.integration.test.ts
- * @description Tests for AnalyticsRepository - Basic Operations
+ * @description Tests for AnalyticsRepository - getByPostIds, getByProjectId and getByChannelId
  * @layer infrastructure
  */
 import { describe, it, before, after } from "node:test";
@@ -19,13 +19,6 @@ import {
   testPostIds,
   testChannelIds,
 } from "./AnalyticsRepository.test-helpers.js";
-
-describe("AnalyticsRepository - Basic Operations", () => {
-  it("AnalyticsRepository instantiates successfully", () => {
-    const repo = new PrismaAnalyticsReadRepository(prisma);
-    assert.ok(repo instanceof PrismaAnalyticsReadRepository);
-  });
-});
 
 describe("AnalyticsRepository - getByPostIds", () => {
   before(async () => {

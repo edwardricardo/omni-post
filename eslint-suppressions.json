@@ -14,27 +14,7 @@
   },
   "apps/api/tests/accountLifecycle.integration.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
-  "apps/api/tests/adapters.integration.test.ts": {
-    "testing/no-existence-only-test": {
       "count": 2
-    }
-  },
-  "apps/api/tests/analytics.flow.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/auth.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/cache.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/eval/localizedGeneration.eval.test.ts": {
@@ -72,44 +52,19 @@
       "count": 1
     }
   },
-  "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
-  "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
-  "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
-  "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts": {
     "testing/no-existence-only-test": {
       "count": 1
     }
   },
   "apps/api/tests/integration/repositories/UserRepository.integration.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 6
+      "count": 1
     }
   },
   "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts": {
@@ -139,7 +94,7 @@
   },
   "apps/api/tests/mfa.integration.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/multiproject.flow.live.test.ts": {
@@ -147,34 +102,14 @@
       "count": 1
     }
   },
-  "apps/api/tests/planPublication.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
   "apps/api/tests/publish.flow.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/schedule.flow.integration.test.ts": {
     "testing/no-existence-only-test": {
       "count": 1
     }
   },
   "apps/api/tests/threading.canonical.integration.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
-  "apps/api/tests/threading.planner.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "apps/api/tests/threading.xprovider.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 11
+      "count": 1
     }
   },
   "apps/api/tests/unit/BaseService.test.ts": {

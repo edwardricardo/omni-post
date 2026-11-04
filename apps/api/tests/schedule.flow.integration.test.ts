@@ -97,16 +97,6 @@ describe("Schedule Flow", { concurrency: 1 }, () => {
     assert.strictEqual(createResult.value.body, "Test post for scheduling");
   });
 
-  it("should verify queue health for scheduling operations", TIMING, async () => {
-    ctx = await setupTest();
-
-    const queueHealth = await ctx.queue.health();
-    assert.ok(queueHealth.ok, `Queue not healthy: ${queueHealth.ok ? "" : queueHealth.error}`);
-
-    // Verify queue is ready for scheduling
-    assert.ok(queueHealth.value);
-  });
-
   it("should prepare post for scheduling", TIMING, async () => {
     ctx = await setupTest();
 

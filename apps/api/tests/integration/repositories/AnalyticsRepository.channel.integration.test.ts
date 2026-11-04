@@ -100,20 +100,6 @@ describe("AnalyticsRepository - aggregateEngagement", () => {
     await teardownTestData();
   });
 
-  it("calculates engagement metrics correctly", async () => {
-    const repo = new PrismaAnalyticsReadRepository(prisma);
-    const analytics = await repo.getByPostIds([testPostIds[0]!]);
-
-    const metrics = repo.aggregateEngagement(analytics);
-
-    assert.ok(typeof metrics.totalViews === "number");
-    assert.ok(typeof metrics.totalLikes === "number");
-    assert.ok(typeof metrics.totalComments === "number");
-    assert.ok(typeof metrics.totalShares === "number");
-    assert.ok(typeof metrics.totalEngagement === "number");
-    assert.ok(typeof metrics.avgEngagementRate === "number");
-  });
-
   it("calculates total engagement as sum of likes, comments, and shares", async () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const analytics = await repo.getByPostIds([testPostIds[0]!]);

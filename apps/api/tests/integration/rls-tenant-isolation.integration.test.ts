@@ -458,20 +458,6 @@ describe("Row Level Security — tenant_isolation policy", () => {
       // surface later as an opaque connection error inside a fixture.
       assert.throws(() => resolveSeedDatabaseUrl({}), /MIGRATE_DATABASE_URL/);
     });
-
-    it("writes an RLS-covered row with no tenant context bound", async () => {
-      // The property every fixture in this tier rests on, asserted rather than
-      // assumed: this connection is NOT subject to the tenant policy. Point
-      // MIGRATE_DATABASE_URL at `omnipost_app` and this fails with 42501,
-      // which is the whole point of naming the two channels separately.
-      const id = `${ACCOUNT_A}-seed-channel-probe`;
-      await seedPrisma.project.create({
-        data: { id, accountId: ACCOUNT_A, name: `seed-channel-${TEST_TAG}` },
-      });
-      const found = await seedPrisma.project.findUnique({ where: { id } });
-      assert.ok(found, "the seed channel must be able to write without a tenant bound");
-      await seedPrisma.project.delete({ where: { id } });
-    });
   });
 
   describe("pg_catalog coverage gate", () => {

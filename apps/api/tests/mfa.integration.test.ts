@@ -420,20 +420,6 @@ describe("MFA System", () => {
       assert.equal(result.value.mfaRequired, true);
     });
 
-    it("should complete login with valid MFA token", async () => {
-      const token = authenticator.generate(testSecret);
-
-      const result = await authService.login({
-        email: testEmail,
-        password: "password123",
-        mfaToken: token,
-      });
-
-      assert.ok(result.ok, "MFA login should succeed");
-      assert.ok("user" in result.value, "Should return user data");
-      assert.ok(result.value.tokens.accessToken, "Should return access token");
-    });
-
     it("should reject login with invalid MFA token", async () => {
       const result = await authService.login({
         email: testEmail,

@@ -16,7 +16,7 @@
  *   tests/integration/repositories/ProjectRepository.integration.test.ts
  *
  * @file ProjectRepository.integration.test.ts
- * @description Tests for ProjectRepository - Basic Operations
+ * @description Tests for ProjectRepository - post, project and published-post reads
  * @layer infrastructure
  */
 
@@ -144,13 +144,6 @@ async function teardownTestData() {
 // ========================================
 // TESTS: Basic Repository Operations
 // ========================================
-
-describe("ProjectRepository - Basic Operations", () => {
-  it("ProjectRepository instantiates successfully", () => {
-    const repo = new PrismaProjectQueryRepository(prisma);
-    assert.ok(repo !== null);
-  });
-});
 
 // ========================================
 // TESTS: getPostIds

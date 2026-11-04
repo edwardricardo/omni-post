@@ -122,13 +122,6 @@ async function teardownTestData() {
 // TESTS: Basic Repository Operations
 // ========================================
 
-describe("AccountQueryRepository - Basic Operations", () => {
-  it("AccountQueryRepository instantiates successfully", () => {
-    const repo = new PrismaAccountQueryRepository(prisma);
-    assert.ok(repo !== null);
-  });
-});
-
 // ========================================
 // TESTS: findWithProjects
 // ========================================
@@ -398,14 +391,6 @@ describe("AccountQueryRepository - getExpiringTrials", () => {
     }
   });
 
-  it("returns empty array when threshold is 0", async () => {
-    const repo = new PrismaAccountQueryRepository(prisma);
-    const accounts = await repo.getExpiringTrials(0);
-
-    assert.ok(Array.isArray(accounts));
-    // May return accounts expiring today, but likely empty
-  });
-
   it("returns correct accounts for different thresholds", async () => {
     const repo = new PrismaAccountQueryRepository(prisma);
 
@@ -452,12 +437,5 @@ describe("AccountQueryRepository - Edge Cases", () => {
     const result = await repo.findById("");
 
     assert.ok(!result.ok);
-  });
-
-  it("handles very long threshold values for expiring trials", async () => {
-    const repo = new PrismaAccountQueryRepository(prisma);
-    const accounts = await repo.getExpiringTrials(365); // 1 year
-
-    assert.ok(Array.isArray(accounts));
   });
 });

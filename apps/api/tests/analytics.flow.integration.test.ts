@@ -97,19 +97,6 @@ describe("Analytics Flow", { concurrency: 1 }, () => {
     assert.strictEqual(createResult.value.body, "Test post for analytics");
   });
 
-  it("should list analytics data", TIMING, async () => {
-    ctx = await setupTest();
-
-    const analyticsQuery = { limit: 10 };
-    const analyticsResult = await ctx.repo.listAnalytics(analyticsQuery);
-
-    assert.ok(
-      analyticsResult.ok,
-      `Failed to list analytics: ${analyticsResult.ok ? "" : analyticsResult.error}`
-    );
-    assert.ok(Array.isArray(analyticsResult.value), "Analytics result should be an array");
-  });
-
   it("should verify post exists for analytics tracking", TIMING, async () => {
     ctx = await setupTest();
 
