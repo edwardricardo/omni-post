@@ -212,6 +212,31 @@
       "floors": {
         "functions": { "from": 60.3, "to": 60.2 }
       }
+    },
+    "2.8.5": {
+      "files": [
+        "apps/api/tests/accountLifecycle.integration.test.ts",
+        "apps/api/tests/adapters.integration.test.ts",
+        "apps/api/tests/analytics.flow.integration.test.ts",
+        "apps/api/tests/auth.integration.test.ts",
+        "apps/api/tests/cache.integration.test.ts",
+        "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts",
+        "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts",
+        "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts",
+        "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts",
+        "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts",
+        "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts",
+        "apps/api/tests/integration/repositories/UserRepository.integration.test.ts",
+        "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts",
+        "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts",
+        "apps/api/tests/mfa.integration.test.ts",
+        "apps/api/tests/planPublication.integration.test.ts",
+        "apps/api/tests/schedule.flow.integration.test.ts",
+        "apps/api/tests/threading.canonical.integration.test.ts",
+        "apps/api/tests/threading.planner.integration.test.ts",
+        "apps/api/tests/threading.xprovider.integration.test.ts"
+      ],
+      "deleted": { "files": 0, "blocks": 59 }
     }
   }
 }
