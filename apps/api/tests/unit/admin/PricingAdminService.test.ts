@@ -1,7 +1,7 @@
 /**
- * @file pricingAdminService.test.ts
+ * @file PricingAdminService.test.ts
  * @description Unit tests for PricingAdminService with a mocked Prisma client:
- *              tier/bundle reads, slug-uniqueness on create, the active-
+ *              slug-uniqueness on bundle create, the active-
  *              subscription delete guard, unique-constraint mapping, and the
  *              NOT_FOUND mapping for updates/toggles.
  * @layer infrastructure
@@ -40,16 +40,6 @@ const svc = (p: ReturnType<typeof makePrisma>) =>
   new PricingAdminService(p as unknown as PrismaClient);
 
 describe("PricingAdminService", () => {
-  describe("getTiers", () => {
-    it("returns provider tiers, account tiers and bundles", async () => {
-      const p = makePrisma();
-      const result = await svc(p).getTiers();
-      expect(result).toHaveProperty("providerTiers");
-      expect(result).toHaveProperty("accountTiers");
-      expect(result).toHaveProperty("bundles");
-    });
-  });
-
   describe("createBundle", () => {
     it("returns SLUG_EXISTS when the slug is taken", async () => {
       const p = makePrisma();

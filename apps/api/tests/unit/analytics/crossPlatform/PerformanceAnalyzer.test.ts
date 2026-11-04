@@ -271,26 +271,6 @@ describe("PerformanceAnalyzer.analyzeContentLength — recommendation generation
 });
 
 // ---------------------------------------------------------------------------
-// analyzeContentLength — error handling
-// ---------------------------------------------------------------------------
-
-describe("PerformanceAnalyzer.analyzeContentLength — error resilience", () => {
-  it("returns fallback result when analytics data causes internal error", async () => {
-    const analyzer = new PerformanceAnalyzer();
-
-    // Pass malformed post data that triggers a parsing error
-    const malformedPost = { id: "p1" } as unknown as PostDataItem;
-    const analytics = [makeAnalytics("a1", "p1", "X")];
-
-    // Should not throw — returns empty result with error recommendation
-    const result = await analyzer.analyzeContentLength([malformedPost], analytics);
-
-    assert.ok(typeof result === "object");
-    assert.ok(typeof result.generalRecommendation === "string");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // analyzeMediaPerformance — categorization
 // ---------------------------------------------------------------------------
 

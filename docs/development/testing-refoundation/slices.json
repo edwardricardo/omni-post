@@ -191,6 +191,27 @@
         "apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts"
       ],
       "deleted": { "files": 0, "blocks": 27 }
+    },
+    "2.8.4": {
+      "files": [
+        "apps/api/tests/unit/admin/PricingAdminService.test.ts",
+        "apps/api/tests/unit/ai/gemini.init.test.ts",
+        "apps/api/tests/unit/ai/openai.init.test.ts",
+        "apps/api/tests/unit/ai/perplexity.init.test.ts",
+        "apps/api/tests/unit/ai/types.test.ts",
+        "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts",
+        "apps/api/tests/unit/compliance/ComplianceService.test.ts",
+        "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts",
+        "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts",
+        "apps/api/tests/unit/security/EncryptionService.test.ts",
+        "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts",
+        "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts",
+        "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts"
+      ],
+      "deleted": { "files": 0, "blocks": 26 },
+      "floors": {
+        "functions": { "from": 60.3, "to": 60.2 }
+      }
     }
   }
 }

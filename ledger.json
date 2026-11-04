@@ -16,9 +16,9 @@
       },
       "byVerdict": {
         "DELETE": 19,
-        "REWRITE": 168,
-        "KEEP": 896,
-        "ADJUDICATE": 102,
+        "REWRITE": 158,
+        "KEEP": 907,
+        "ADJUDICATE": 101,
         "unmeasured": 0
       }
     },
@@ -28,12 +28,12 @@
       "total": 1185
     },
     "blocks": {
-      "total": 14820,
-      "decorative": 628,
+      "total": 14794,
+      "decorative": 602,
       "byClass": {
-        "EMPTY": 14,
+        "EMPTY": 13,
         "TAUTOLOGY-ONLY": 2,
-        "EXISTENCE-ONLY": 323,
+        "EXISTENCE-ONLY": 298,
         "CONDITIONAL-ONLY": 170,
         "SELF-SKIP": 112,
         "PRINTS-SUCCESS": 7,
@@ -43,7 +43,7 @@
     },
     "deleted": {
       "files": 26,
-      "blocks": 435
+      "blocks": 461
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -314,6 +314,33 @@
         "blocks": 27
       },
       "floors": {}
+    },
+    "2.8.4": {
+      "files": [
+        "apps/api/tests/unit/admin/PricingAdminService.test.ts",
+        "apps/api/tests/unit/ai/gemini.init.test.ts",
+        "apps/api/tests/unit/ai/openai.init.test.ts",
+        "apps/api/tests/unit/ai/perplexity.init.test.ts",
+        "apps/api/tests/unit/ai/types.test.ts",
+        "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts",
+        "apps/api/tests/unit/compliance/ComplianceService.test.ts",
+        "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts",
+        "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts",
+        "apps/api/tests/unit/security/EncryptionService.test.ts",
+        "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts",
+        "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts",
+        "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 26
+      },
+      "floors": {
+        "functions": {
+          "from": 60.3,
+          "to": 60.2
+        }
+      }
     }
   },
   "files": [
@@ -18043,70 +18070,63 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 8,
+      "blockCount": 7,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/admin/PricingAdminService.test.ts::returns provider tiers, account tiers and bundles",
-          "line": 44,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f5967bde9c7e622c1e3249bb69baae1ca579b285f65af95db5de9c00b7336757"
-        },
-        {
           "id": "apps/api/tests/unit/admin/PricingAdminService.test.ts::returns SLUG_EXISTS when the slug is taken",
-          "line": 54,
+          "line": 44,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "459f7024a0da58873a2dbf7d8f8e14d16ceadcc8ff404410e1aa3f2a4562da54"
         },
         {
           "id": "apps/api/tests/unit/admin/PricingAdminService.test.ts::creates the bundle when the slug is free",
-          "line": 69,
+          "line": 59,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e0c5092c0f8a594cb2dde6ec37ac81c1ff9ab1c31355337818a5cec613357167"
         },
         {
           "id": "apps/api/tests/unit/admin/PricingAdminService.test.ts::refuses deletion when active subscriptions reference the bundle",
-          "line": 86,
+          "line": 76,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fa2aba6aec080c4387a74bdb543d4d20e2f5c8875f88da05f8b102adb542b0f3"
         },
         {
           "id": "apps/api/tests/unit/admin/PricingAdminService.test.ts::deletes when no subscriptions reference the bundle",
-          "line": 94,
+          "line": 84,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1dad1635de379152b709e9c6e7924a49785cd94e90b5e282b4ed010acf4ec89d"
         },
         {
           "id": "apps/api/tests/unit/admin/PricingAdminService.test.ts::maps a unique-constraint violation to DUPLICATE",
-          "line": 103,
+          "line": 93,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "53494bcba3ee1cd02edb29304a0c2375a3c2bec6bac70c9cb2d9bb7e046687ff"
         },
         {
           "id": "apps/api/tests/unit/admin/PricingAdminService.test.ts::maps a missing record to NOT_FOUND on updateProviderTier",
-          "line": 114,
+          "line": 104,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "49820d8845f579b454e0ccb217ab1d9ce313a821056dd47a35df5fa383e947c3"
         },
         {
           "id": "apps/api/tests/unit/admin/PricingAdminService.test.ts::toggles account tier status",
-          "line": 123,
+          "line": 113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40152d277a691d29b2a724f7bece7743a81dcf5ef2691e63854ba37333c28e12"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "PricingAdminService",
         "module": "apps/api/src/admin/PricingAdminService.ts",
@@ -19617,63 +19637,42 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 7,
+      "blockCount": 4,
       "blocks": [
         {
           "id": "apps/api/tests/unit/ai/gemini.init.test.ts::should initialize with correct provider name",
-          "line": 18,
+          "line": 17,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d5d8e9cf3564bcaa94a666b7e2b9a4bc6847df47182553f2163d37fd3ccdb8a"
         },
         {
-          "id": "apps/api/tests/unit/ai/gemini.init.test.ts::should initialize with API key from config",
-          "line": 22,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "371079a93c23e343e01bd0f3450bc3b90a76bb5c67e9e36a7c3e3f33d7a3fd95"
-        },
-        {
-          "id": "apps/api/tests/unit/ai/gemini.init.test.ts::should initialize with custom model from config",
-          "line": 28,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "46c4b837969218bb009e380ec4e3b080e6aa789155e988dbc20fe759f0737611"
-        },
-        {
-          "id": "apps/api/tests/unit/ai/gemini.init.test.ts::should handle config without optional parameters",
-          "line": 34,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "6ec037e019ea0557188aac0df549c6c1bb18283bce2eb64ee2afe19dc2556d33"
-        },
-        {
           "id": "apps/api/tests/unit/ai/gemini.init.test.ts::should return true when Gemini API is available",
-          "line": 59,
+          "line": 29,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "86eda29cbbb6391249ea2f327380e214ede43e57e7374cc69998b8e4660e01d7"
         },
         {
           "id": "apps/api/tests/unit/ai/gemini.init.test.ts::should return false when Gemini API fails",
-          "line": 70,
+          "line": 40,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e8a347f43db23bf2098deaf187ff746b12ee0e1f81ce316113fcdde7b425b438"
         },
         {
           "id": "apps/api/tests/unit/ai/gemini.init.test.ts::should handle network timeouts gracefully",
-          "line": 82,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab5a142e62e3d183d9f28cc07bc2a4fac1bcdf9453783c6b9b920a3ef1ff2c44"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "gemini",
         "module": "apps/api/src/ai/providers/gemini.ts",
@@ -19863,77 +19862,49 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 5,
       "blocks": [
         {
           "id": "apps/api/tests/unit/ai/openai.init.test.ts::should initialize with correct provider name",
-          "line": 18,
+          "line": 17,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4e2ed1dd694fd17878dc05b3111852ae5e6c8b05158a7506cc89976951387f54"
         },
         {
-          "id": "apps/api/tests/unit/ai/openai.init.test.ts::should initialize with API key from config",
-          "line": 22,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "371079a93c23e343e01bd0f3450bc3b90a76bb5c67e9e36a7c3e3f33d7a3fd95"
-        },
-        {
-          "id": "apps/api/tests/unit/ai/openai.init.test.ts::should initialize with custom base URL",
-          "line": 27,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e6c311c753e3237561064bd5bcf6a3adc54b5e53429e1b8a7c2f36f32f98bc2b"
-        },
-        {
-          "id": "apps/api/tests/unit/ai/openai.init.test.ts::should initialize with custom timeout",
-          "line": 33,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "1c919d67e057f4989b03185a278e6c185e4cc171ebeeba84c1b4f6a464751029"
-        },
-        {
-          "id": "apps/api/tests/unit/ai/openai.init.test.ts::should handle minimal configuration",
-          "line": 39,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ce7a1af84462fe1112b55de59e82adef4a83b99856ceb8cd87680929a29877eb"
-        },
-        {
           "id": "apps/api/tests/unit/ai/openai.init.test.ts::should return true when OpenAI API is available",
-          "line": 64,
+          "line": 29,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "298cf48a398db1cd9a15085908857d4adb558950700f7e627db8d4cb61bf5b78"
         },
         {
           "id": "apps/api/tests/unit/ai/openai.init.test.ts::should return false when OpenAI API fails",
-          "line": 75,
+          "line": 40,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84a4dde32fb1523f5995b77174c505da56b783458ce26d6a668d69d4ef549419"
         },
         {
           "id": "apps/api/tests/unit/ai/openai.init.test.ts::should handle network timeouts gracefully",
-          "line": 87,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "77fa14727996d759a368b4270f7fcfc29f710122bdd5f06c7a20efde605dc947"
         },
         {
           "id": "apps/api/tests/unit/ai/openai.init.test.ts::should handle authentication errors",
-          "line": 99,
+          "line": 64,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e36815ec5d83e1a9dd740f7df352e128eef27f2562ceaf0ea3747454192d2c9a"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "openai",
         "module": "apps/api/src/ai/providers/openai.ts",
@@ -20226,7 +20197,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 22,
+      "blockCount": 18,
       "blocks": [
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should initialize with correct provider name",
@@ -20236,158 +20207,130 @@
           "bodyHash": "99e1713af8d3b149bf68cd1eb44f8631c16583ad35cbba35ba45856ea41e1063"
         },
         {
-          "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should initialize with API key from config",
-          "line": 22,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "371079a93c23e343e01bd0f3450bc3b90a76bb5c67e9e36a7c3e3f33d7a3fd95"
-        },
-        {
-          "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should use custom base URL from config",
-          "line": 27,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "64a5155b75461907fa76b488157d638241177cb1ddccee1268b3ece14b081b59"
-        },
-        {
-          "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should use default base URL when not provided",
-          "line": 33,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "5199cb3f5f4676eee66f5c7c7e78fca2379ee79ba7860d20435a8865995c4991"
-        },
-        {
-          "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should handle minimal configuration",
-          "line": 38,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3b3424cd79c581175ffa1b2943c57315be6df70ffa320d9d2b95697f8ced8202"
-        },
-        {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should return true when Perplexity API is available",
-          "line": 63,
+          "line": 30,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "92bb3080b380e14f8b7191cba2cf0a0ecb86a06e016d6f2c1fb252b591aac61a"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should return false when Perplexity API fails",
-          "line": 74,
+          "line": 41,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5b85c68dd399603127ebe4476b2f314767263fe0805f178b27f8668cc6fbdf24"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should handle network errors gracefully",
-          "line": 84,
+          "line": 51,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e9f4ef169b87aa976976763c789b4fe620804f5ce3e50640fc4f3b1f9de0917b"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should send correct request format for availability check",
-          "line": 93,
+          "line": 60,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a21c28c049a1464b3067487b12a6862e8133b09208283e3e8f8cd077063de9d"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should generate text with default options",
-          "line": 113,
+          "line": 80,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0478a44ca35420adcba7b8c1dc12b068d10fd5f4ecc6ccc93d9bd1e3bef3401f"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should use custom model from options",
-          "line": 128,
+          "line": 95,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5e428cf2e3eb27fca04541115fb5f32cc45d67650d0fb6476fb7e41549fa8268"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should use custom maxTokens from options",
-          "line": 141,
+          "line": 108,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "90f614b3bea1e49a149694987689dd624c5b58d0bca116f498a9b7c8225d4330"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should use custom temperature from options",
-          "line": 154,
+          "line": 121,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "962b4e3f3b5d4f67bc7b473f540575c2d1280913cf3037697c0e867c13735d47"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should use custom topP from options",
-          "line": 167,
+          "line": 134,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "52c859f1db1158efd50829da65b03d0dc84db55afb8137d61cf750d070cb6485"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should use frequency penalty from options",
-          "line": 180,
+          "line": 147,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50180913a1741eacea707631f8c4669486a29f72edc13835de6da76fd8adf80c"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should use presence penalty from options",
-          "line": 193,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4ab97e282a0ef709aa6244dd65874ecef6b37f44c5b8da98d88f7a31963eb2a4"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should properly map message roles",
-          "line": 206,
+          "line": 173,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f44cf3a9a5394f1d3248f104fbf6424d03db9be1d08debdf4740969146b58406"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should include authorization header",
-          "line": 225,
+          "line": 192,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9d8b1c0258a8135452ee1b49ce8a92b90c63102cd5df16586569d4b6218b615"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should disable streaming by default",
-          "line": 235,
+          "line": 202,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d3085efb1045022aa5e6482aee765dce8dd0e6a7667d9c98f07562264a1c5a9"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should return empty string when response has no content",
-          "line": 246,
+          "line": 213,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5303931b73e45ce026aabd1abce3f10d6103ed6783ad071f9a667513f90d3e14"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should throw error on API failure with status code",
-          "line": 258,
+          "line": 225,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bdd598dc0ce80b4adf040d19723dd3619d8cbde9a1443185a627fe71bdaf7f96"
         },
         {
           "id": "apps/api/tests/unit/ai/perplexity.init.test.ts::should throw error on network failure",
-          "line": 270,
+          "line": 237,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "240f7c50ba72f72a04f6e160d5105d05b9f97085a80e706bacc8d55e2f9744f7"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "perplexity",
         "module": "apps/api/src/ai/providers/perplexity.ts",
@@ -20745,7 +20688,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 33,
+      "blockCount": 32,
       "blocks": [
         {
           "id": "apps/api/tests/unit/ai/types.test.ts::should validate AIMessage with system role",
@@ -20970,20 +20913,13 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cfa13f075d80be1ab049516a7ea4732474b548b8f97bf5c478d851517cb33ad8"
-        },
-        {
-          "id": "apps/api/tests/unit/ai/types.test.ts::should validate response with generic type",
-          "line": 564,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a4fe85008357960432711ce88a14d7b7649818cce720235b304bacf96ca96651"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -22917,7 +22853,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 28,
+      "blockCount": 27,
       "blocks": [
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns empty byProvider and general recommendation when no posts are provided",
@@ -22990,127 +22926,120 @@
           "bodyHash": "9ce35f0d08ffef51d401dc2af7b634f0b218585d992595f58ad6457817aedb25"
         },
         {
-          "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns fallback result when analytics data causes internal error",
-          "line": 278,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3808d9733c25cb6e3dfa4d4f858ec4eb32aec04b1744e8f1b38a3c77f65ccd34"
-        },
-        {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::categorizes post with no media as textOnly",
-          "line": 304,
+          "line": 284,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "02e4090773eee2100f37031bd02bcb85f48cbd293c76b44f38255e7440de8f24"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::categorizes post with single image as withImages",
-          "line": 319,
+          "line": 299,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95341b27f241ac2009f2ccab7a2a2a8c69b42b78511e6f402f468569dfde835a"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::categorizes post with single video as withVideos",
-          "line": 332,
+          "line": 312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "04b80564eb55d2ad1ac42c972a76847f8848aba2d9ff7d4117f6fb72ec22f556"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::categorizes post with multiple images (no video) as withCarousel",
-          "line": 345,
+          "line": 325,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "29e84271a5b19edc217e447388bb1771d5ca695cfe57caa40b317ed0b86ed425"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::categorizes post with mixed video and image as mixed",
-          "line": 360,
+          "line": 340,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "48fe356d41ddf1d7d0ea85578f60e79c55d2fb2ec70a73d5c47a63039c216716"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::categorizes post with multiple videos (no image) as withCarousel",
-          "line": 373,
+          "line": 353,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "20b46debd7e443be16a472d3e09eac81fa5ce4eebe242569b0ba3546a8b42baf"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::calculates avgEngagement as total engagement / count",
-          "line": 398,
+          "line": 378,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "df04cdaed7df31c4bfc1aa282b25df083b9bb7d919b158fe32b342cb7c98b91d"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::calculates avgReach as 70% of views averaged across posts",
-          "line": 416,
+          "line": 396,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c39b81199ffa35e634812dca26859cb12b68d3d1f374d585d4c36849248506b6"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns zero metrics for empty categories",
-          "line": 428,
+          "line": 408,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a76b524c23f0f59fde5d99561475a7e4eb4ce90c8798179e2adc7cb831f19ac3"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns zero counts and averages when no posts are provided",
-          "line": 441,
+          "line": 421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "79d0ef2209336ff5fa134ee03db5beccae9133d21d488b076574d3899a03513f"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::calculates performance multipliers relative to text-only baseline",
-          "line": 464,
+          "line": 444,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f5dd3f7d2260239e84e4aef5da9647e8eb212b95c30148af2ae11b7f4d6055d"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::uses baseline=1 when textOnly has zero engagement to avoid division by zero",
-          "line": 480,
+          "line": 460,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce0338d1b117a80b632384fab182ce33b93a143d7b85e47163cc9b613f401e56"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::generates high-improvement recommendation when images outperform text by >20%",
-          "line": 504,
+          "line": 484,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fe0c5c40415930b94740e9d8024c703e689ae31702784feb0b2201878db62548"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::generates gradual-improvement recommendation when improvement is 0-20%",
-          "line": 518,
+          "line": 498,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc98b6f5ff2a9f5fe601576366a27c1de747ad97e9e81a20c1f8f85f632406c2"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns text-only performs well message when text outperforms all media types",
-          "line": 532,
+          "line": 512,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c7b06594fe07fa03a80bc8f50424d732e0e08de8727252f35b3774675729ca12"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns insufficient-data recommendation when no posts have analytics",
-          "line": 546,
+          "line": 526,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65c0cc3a41377d6b3ec89e6a9ea60193e4a3bfc7aad466eeaa0af6dcea679a74"
         },
         {
           "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns fallback result on internal error",
-          "line": 558,
+          "line": 538,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "2be203a0ba495c14952f441546fb6c66da83be0c30af56ed126a4e2b94241878"
@@ -23120,7 +23049,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "PerformanceAnalyzer",
         "module": "apps/api/src/analytics/crossPlatform/PerformanceAnalyzer.ts",
@@ -37251,7 +37180,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 38,
+      "blockCount": 37,
       "blocks": [
         {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::returns VALIDATION_ERROR when dpoType=INTERNAL and dpoEmail is null",
@@ -37471,50 +37400,43 @@
           "bodyHash": "f6478564c51d40c2b45a07b7aee9490c2e7116b32943b20aecfab3ebe308c3ec"
         },
         {
-          "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when 3 COMPLETED requests (not counted)",
-          "line": 566,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "43604d337ac3562a147860b9084c01d07da0af6441f69eb3d8d51557111baf18"
-        },
-        {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::generates verificationToken",
-          "line": 575,
+          "line": 566,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f620bc68a1846d08183662c40fca5bb1a051e17bc24aa7625997ae5d3345fbe"
         },
         {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::emits audit event",
-          "line": 586,
+          "line": 577,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e66c35aac21d9ccf5c510ba4e7ec49851f254bcecf6ae1692216e9997c30e4bd"
         },
         {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::returns VALIDATION_ERROR when sessionTimeoutMinutes < 15",
-          "line": 603,
+          "line": 594,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4dd852ef0eb08d1e0d670beb71660e4c50d43f043b2901a91aaf34d8d44871b0"
         },
         {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::returns VALIDATION_ERROR when sessionTimeoutMinutes > 10080",
-          "line": 612,
+          "line": 603,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be9c9f70373071792e72a86e38e63dd7fc57798e87546e9123adbcd5136938d0"
         },
         {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::returns VALIDATION_ERROR when maxLoginAttempts < 3",
-          "line": 621,
+          "line": 612,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "960cfb8dcde2146a5ff0c316265e07a32e97c2c46c6fd38a3e55bd2dea77ce25"
         },
         {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::returns VALIDATION_ERROR when passwordMinLength < 6",
-          "line": 627,
+          "line": 618,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e91fe23f228d7de5309269d42982af0f598fdfad76c7b7f8d3482097a7811d02"
@@ -37524,7 +37446,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "ComplianceService",
         "module": "packages/core/compliance/src/ComplianceService.ts",
@@ -57245,7 +57167,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 30,
+      "blockCount": 29,
       "blocks": [
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::registers all 12 production events",
@@ -57262,207 +57184,200 @@
           "bodyHash": "989f951638f2d3b0f9bcd0e98cdf53daedf50e42efd4fcc5ca104601966e555a"
         },
         {
-          "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::getSchema returns a schema for PostCreated v1",
-          "line": 59,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "749dbccb918e22e6d3710d0ebffcac2a1623be1f225767a897b5cc49b70dac82"
-        },
-        {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::getSchema returns undefined for unknown event type",
-          "line": 64,
+          "line": 59,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3bb89b3ed5d94c3d78227785ac1218e453bcd509a461216e6135b273b0a43991"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::getSchema returns undefined for unknown version of known event type",
-          "line": 69,
+          "line": 64,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "71f39593446ac54df54131db7c2a9cab1bde3f248a1f58498de46eefc98cd0e4"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::getCurrentVersion returns undefined for unknown event type",
-          "line": 74,
+          "line": 69,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de139ac4d60485470f48cc0c8d4ebe7c26ee09b7a9276cc4b22ef6e8be843356"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::hasEventType returns true for PostPublished",
-          "line": 79,
+          "line": 74,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4ee322edfa8457940a0579cfc554cd79e590ce4983811787f70b9017f9f7d132"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::hasEventType returns false for unknown event type",
-          "line": 83,
+          "line": 78,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "46f456351a5f874f8d817f4786fa1d1d2217735970f74db0da094aaa7f84453a"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::validates PostCreated v1 with all required fields",
-          "line": 99,
+          "line": 94,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d487fe1e834034a20d9a60b196482cbfb5d8d13f04a69938704184817365322d"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::refuses PostCreated v1 whose locale is fr or pt, naming the locale field",
-          "line": 109,
+          "line": 104,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb3f4ebf2a86b8014df334eb39c89310b7cd52239600e38e59f1be3cacd2a055"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::validates PostCreated v1 with optional title present",
-          "line": 122,
+          "line": 117,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7913258715a65d031c9fce705c297dfb682dd1be739e6d651f86a30c3fba5362"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::validates PostPublished v1 with providerResults",
-          "line": 133,
+          "line": 128,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c38e2899ae39752d95930c9b947cf1d9011ed67a580897620c8f4a1691942e54"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::validates PostScheduled v1",
-          "line": 145,
+          "line": 140,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3c248e0e595c280dd0d304dc09a8abb5cf24b31b62dd6c334ff6194031a3ce6b"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::validates PostPublishingFailed v1",
-          "line": 154,
+          "line": 149,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d42241d9a2c07f04f46a35a3f4b68abbf9d754c0a997de762fbd503ce847f74a"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::validates PostCancelled v1 with optional reason present",
-          "line": 164,
+          "line": 159,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "25e2677678bec7b995ade31724726d7d7b41a9a9e08607128588fb0851a3d8fe"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::validates PostCancelled v1 without optional reason",
-          "line": 173,
+          "line": 168,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "43a7c297eed1f6892856e41f9cf9b0a7808cd749263a73452b02a6d5c9a295ae"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::validates CrisisModeEntered v1",
-          "line": 181,
+          "line": 176,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ec37bb3fc485d935dcdad7a736ac22dc51e4ab0a8c53aa16b9a9535a79ab1848"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::validates CrisisModeExited v1",
-          "line": 190,
+          "line": 185,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e51c6a17129d5e6c0d19ce79a4097acbe51eee11a7926579d14c7f62e0e104c"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::returns error for missing required field in PostCreated",
-          "line": 213,
+          "line": 208,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "58129541537af5818c058acaa36bd8c9d146fc72c811fe5aee08ce9df7727662"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::returns error for wrong type in PostPublishingFailed.retryable",
-          "line": 224,
+          "line": 219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a390e96f4735fca40679262efa77d53ca3492d347c78b1e48553e057312bd197"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::returns error for unknown event type",
-          "line": 235,
+          "line": 230,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4e0744656d4c54e504b4060141d700008cd5d5625370e1079905f029995ea1d"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::returns error for unknown version of known event type",
-          "line": 241,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e69cdc387142017b5b77ae639744eca74e9bd0953f2de0d3249732ab8d756fc8"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::returns error for CrisisModeExited with non-number durationMs",
-          "line": 252,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d02ff7f26c839904a5ecb4501421841af26a52bb334a0bf6019e963f752f5871"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::getCurrentVersion returns 2 after registering v2",
-          "line": 288,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5b37876290db89708d798b1619f6739ccbf798229e6eae8160e148ed10448265"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::getSchema v1 and v2 return different schemas",
-          "line": 293,
+          "line": 288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b9aacb32d61a6d8e2c798c139f5bd0315e89d20e123829596c4bcd8dc74e077c"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::v1 payload is valid against v1 schema",
-          "line": 301,
+          "line": 296,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "57608c5efe666a8c2dd991a32db6265563cd1bd784c5c43f0b45ce6bc9f5f2de"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::v2 payload with tags is valid against v2 schema",
-          "line": 311,
+          "line": 306,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ca46ff74c23bf703852f9afe7da6769b38efe6fe714e4f700a9bfa7f550742fd"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::v1 payload (missing tags) fails v2 schema",
-          "line": 322,
+          "line": 317,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d40831c42a1a3ef9d9d1fa3753a5a4b782090a51ef189e1e4e5476b7579bc89b"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::registering a third version updates getCurrentVersion to 3",
-          "line": 333,
+          "line": 328,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea03ad9362cf2724ccbc838425539bbadfff3b65d4e74e14588c6de9ba36e87d"
         },
         {
           "id": "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts::custom event type registered in isolation has correct version",
-          "line": 350,
+          "line": 345,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8741d10cacc2cfc3617dedfef37c538d3a78000802a4d3dee951b41ce5494be5"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "EventSchemaRegistry",
         "module": "apps/api/src/infrastructure/integration-events/EventSchemaRegistry.ts",
@@ -58676,7 +58591,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 116,
+      "blockCount": 113,
       "blocks": [
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map invalid_grant to 401",
@@ -58749,753 +58664,732 @@
           "bodyHash": "1c7d4a01c7c3527bc690c12e5f9d22df76552ce95614a887de92058879e948fe"
         },
         {
-          "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should verify valid HMAC-SHA256 signature (hex)",
-          "line": 249,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2c2b9150c0f88b966a4dcb071baefd9953f64e52e77a7faa9f9fff0a81b7cf63"
-        },
-        {
-          "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should verify valid HMAC-SHA256 signature (base64)",
-          "line": 264,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2ed3d722669b113a6a0439e36342f28251c8633da3258d1279bd682cec4f25b7"
-        },
-        {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should reject mismatched signatures",
-          "line": 276,
+          "line": 249,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc79c19791fd5154351a6097f283376b8669ed977de718f87689de819e189cde"
         },
         {
-          "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should remove sha256= prefix when requested",
-          "line": 286,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a9729f01ac257dd2ea80ba7a8ef4ab31ed1282ddea54e8f652510fa79daa009b"
-        },
-        {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should use SHA-256 and hex by default",
-          "line": 298,
+          "line": 259,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "caecc593a6ee2df30401186b49c0e957235a3196390a044b4c51668f1ed888c7"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should return true for identical strings",
-          "line": 316,
+          "line": 277,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4f09375b8080a4f625a3001eba8283be669f46a9cfac14a6c0d69b41ea10c99a"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should return false for different strings",
-          "line": 321,
+          "line": 282,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c323d59c571b29eaf85b4ae02771228b15e2e8d8b90f5199f3e15ce12df6306f"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should return false for different lengths",
-          "line": 326,
+          "line": 287,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84ed16fbdc73241e2644a1a087b8b09e33be837c0766e5d59101b0dc9e38b0af"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should handle empty strings",
-          "line": 331,
+          "line": 292,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "19096bb315bff40590feddcf220d0e8153e6716fdd3d6961f5e29a06a0647171"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should handle unicode characters",
-          "line": 336,
+          "line": 297,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "52533253def72942faaa9baabc275faa393d67a0a58548119a7ad04d7d2e3bb6"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should be timing-safe (constant time)",
-          "line": 341,
+          "line": 302,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4e7528709e6f11adcec6cbc50371db13c81cdc69566dc09e9b90c9bdaa4e7dc"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should validate valid body data",
-          "line": 368,
+          "line": 329,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95a972acde0d49d84453538bb0c783dd5a00988b8d2a4146ead1d4801fb874cd"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should return VALIDATION_ERROR for invalid body",
-          "line": 388,
+          "line": 349,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "44e80ff060abfee27e0b7a37a2fb9786389e6c1749445d4fb5af341dc59dd060"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should validate valid query params",
-          "line": 409,
+          "line": 370,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af0f336811e9efd8bba5216f9f43b1a9619d60436fa423a62a9b3e92e3125b14"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should validate valid URL params",
-          "line": 431,
+          "line": 392,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9ebf5e02948110da8dd1b7f59a7b322762d419758ab3bca14fa0957c875108ab"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should return error for invalid UUID",
-          "line": 447,
+          "line": 408,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d89771f07e5bb7b037613d387a4201d08093f285b69fb19b885a32f7ce4dc47a"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map successful result to 200",
-          "line": 472,
+          "line": 433,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6880b4e4a3daaaa121ae945982cae5e17c73482a62b1e94ecf1400c4325768ab"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map successful result to custom status",
-          "line": 484,
+          "line": 445,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f504786242576be2b5d2f10fe679b6dc1e629e2c0f1050ab680ce1a10cf8be1"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map VALIDATION_ERROR to 400",
-          "line": 492,
+          "line": 453,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2b18295510bccdba68282074cc83ed535bfd58d21d750e2f7d4d29accad10fb6"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map NOT_FOUND to 404",
-          "line": 504,
+          "line": 465,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e9aef9ee3d6d0d93445398e6dc243f92cbf00db6d47b0df0a070059ed4faf954"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map UNAUTHORIZED to 401",
-          "line": 512,
+          "line": 473,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cd0882c21521b96dd67f5f24304c7859b14b221b55020bda237a6cf61c8fcfe8"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map FORBIDDEN to 403",
-          "line": 520,
+          "line": 481,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a2a6f9ae174521be382866dce9c4ba8beb99c0493c5ef51ad46c1f60bdb3628"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map CONFLICT to 409",
-          "line": 528,
+          "line": 489,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "91cc626a9f22f786ad974f8e69839b55273881cc36457b0cad9a98d92eec873c"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map RATE_LIMITED to 429",
-          "line": 536,
+          "line": 497,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "252012e15ecb1bd4e28aac35253a64f4c1dcd445bff4e76858cf31c18f51db0f"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map SERVICE_UNAVAILABLE to 503",
-          "line": 544,
+          "line": 505,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6401c1ce1b539494c22d632e53b7e0c8136b596bed350ed68b9abf9f41d14d3f"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::should map unknown errors to 500",
-          "line": 552,
+          "line": 513,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5410dead26dcb6fd283b36cdb5420081a6c18e65d81650eddf7af007f14a7c5c"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::returns default page=1, limit=20 when no params",
-          "line": 572,
+          "line": 533,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41f8bc53be37672b4c1bf3b084e27f977314e61de64076a0d31300097b390371"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::parses page and limit from string query params",
-          "line": 579,
+          "line": 540,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0b23668108e59a18c6f46f1ea8a62f517deff822dc8f377ee0098302b4b05f51"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::clamps page to minimum 1",
-          "line": 586,
+          "line": 547,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1c113eebcb6818b527d0dc49ad4a60edc2e813c4b24067030f588b4b9e0da000"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::clamps page to minimum 1 for negative values",
-          "line": 592,
+          "line": 553,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d9518ce3bce2800d2ad805e665e5180c6879372fe74355e9b38ac08e8e279b6e"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::clamps limit to maximum 100",
-          "line": 597,
+          "line": 558,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "78abc141790ace66424ce2e1a853de698d4aaec6f0693de1afa8ccdc4ec7800d"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::clamps limit to minimum 1",
-          "line": 602,
+          "line": 563,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "05bf738c104950c4e59cb4bfd9ac375a3f505a06cb23e59ae48461fb6ee4151b"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::clamps limit to minimum 1 for negative values",
-          "line": 607,
+          "line": 568,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9ae3018831388bde8146ba9d9bc2ce22ab48f946cd9b0153ccdb7f4b209538d4"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::calculates correct offset for page 2 with limit 20",
-          "line": 612,
+          "line": 573,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c6ae23df4bbfd4829572e57c0420485fd3fb47aa750bf98a8866e5f4485c5aa"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::calculates correct offset for page 5 with limit 10",
-          "line": 617,
+          "line": 578,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fe7c448b4ff3b608cac64ac626fcfb809a6509c10d6267374820aa00254cd87c"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::handles NaN page — parseInt returns NaN, Math.max(1, NaN) = NaN",
-          "line": 622,
+          "line": 583,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "379ee641686c7fc560db73d61e49e5e2ee36f4c8a4a52c1400a696ac254d30b2"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::handles NaN limit — parseInt returns NaN",
-          "line": 628,
+          "line": 589,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1a7f30860300856e1f5d0c05231cb51f4c79bfa2ee3141c220ec67a2f54d5a5"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts exactly 100 as limit",
-          "line": 634,
+          "line": 595,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "143d0e19235aac59c7559c1c560463b0682c34433c40fd491a2d7ccc95ee2dc6"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts exactly 1 as limit",
-          "line": 639,
+          "line": 600,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fee06009bfd25993575c1faa5ad50871d56e343f29742a761e9a8217be08d06f"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::returns ok=true with data and pagination metadata",
-          "line": 656,
+          "line": 617,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f2083d34bccde9dd6e0270afcd62b572018df5d0fa719c73051fb6aa7ddd354"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::calculates totalPages correctly",
-          "line": 665,
+          "line": 626,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ef60aafb54259154c0154c99800e0f4d30eaab225e68f3eb5b0ee4d37dbf2817"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::returns totalPages=1 when total <= limit",
-          "line": 670,
+          "line": 631,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8b8b10a365d3f14221ff141057be9653b589222cd346d55f92514329ec2749f5"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::returns hasMore=true when current page < totalPages",
-          "line": 675,
+          "line": 636,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "23110b5e5c97cca692a6405351e9d6e8a1fbd1c316ea12b563de333e4c64cb22"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::returns hasMore=false when current page >= totalPages",
-          "line": 680,
+          "line": 641,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "47322043de04802ab7a93f56427759ea7fbeab164b9566ee43b313e0a1d02e1a"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::returns hasMore=false on last page",
-          "line": 685,
+          "line": 646,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ec736b1943c49c6c7926e00374becc86d969ad2a117666b1cc9ac4b9f772b5e9"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::handles empty data with total=0",
-          "line": 690,
+          "line": 651,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ee716f893fb23762567be748df49301fbb03ce4070bfae621841cf0f899fff8"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::handles single item total",
-          "line": 697,
+          "line": 658,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c56985e655b31a56f1b9de5e55544db3538053df6a96d816c1f540efd75e989"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::extracts userId and tenantId from request.user",
-          "line": 715,
+          "line": 676,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "677db3165865b01e43bfa556e60d57a807b7b0039dc0df57e882268abe2e9ec0"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::returns undefined fields when request has no user",
-          "line": 725,
+          "line": 686,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ccc81c545cfe8a16abb51af0582e6669f6e70681e4c4b2f2799210d1aa01a2e0"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::returns undefined tenantId when user has no tenantId",
-          "line": 733,
+          "line": 694,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb7f4d3ecf0330496fa52188fe1fea166efce77b179836989d7d32f939b832f2"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::logInfo does not throw",
-          "line": 757,
+          "line": 718,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c98087a8c2457c1826ed2880401338a47981a9ea61cb014b000f3d7f0a64b8cd"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::logInfo accepts optional meta object",
-          "line": 761,
+          "line": 722,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1ce839938193a9587932d435b5d7d1cbeaf3fe9ed38f0694f549867ae57224d4"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::logError does not throw",
-          "line": 765,
+          "line": 726,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fbf45547f9690ab21b7807d975a4f9627f04981abc31f7b5f9ea388fc7ba2c55"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::logError accepts optional meta object",
-          "line": 769,
+          "line": 730,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c9ec50c22a96eab6aa37eb2cffdda6a9c89c3d091b06d2ba8a69004c0d76e373"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts valid UUID",
-          "line": 780,
+          "line": 741,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d2f4c105c43c3524e5cc81013c04678a729a81adb16acab1f4d864369bd51fa"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects non-UUID string",
-          "line": 784,
+          "line": 745,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "00e0e9be23886ad5bedeba8a41ddf26e5e02f8217fae92204f501ff80b5aed64"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects empty string",
-          "line": 789,
+          "line": 750,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d1168ee3879608aaf7440631942cf968ea33ae2ef1fa4ddd72546d2d1ba17d2"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts valid page and limit",
-          "line": 795,
+          "line": 756,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "78e135ca7f3f8e9868432f900970abb26191276b769d8fda193ae29c5685596d"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::defaults page to 1 when not provided",
-          "line": 804,
+          "line": 765,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95726a129bf5006669fb53014027fb11a7fbb692316dcf8553a028993cae65c4"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::defaults limit to 20 when not provided",
-          "line": 812,
+          "line": 773,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ffdaec0e6ca2be4d2817193921d373bac5132216d86046b1c7592c4541a8c954"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects limit > 100",
-          "line": 820,
+          "line": 781,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5832ab4d27537fe4c7d32678eda8b0d2571c191d827a9133ec8d5f533a57d95e"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts limit of exactly 100",
-          "line": 825,
+          "line": 786,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b09526b0ef56ae984a32ded2d2c7b621fdc845cd8ba0e9c090257b8a6bb9508"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects non-positive page",
-          "line": 830,
+          "line": 791,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "361c6247abcb7cfa10add6c29e27285fc7bfe1ed073b4657089223b2c801fa73"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects non-positive limit",
-          "line": 835,
+          "line": 796,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "90363ecf65d9d5324e62a0ad5a99f8e8fbccb602026593f1f8e23fc08835d3a5"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::coerces string values to numbers",
-          "line": 840,
+          "line": 801,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba1336914ba0fdff7b6873f96964ba8d48885c9abbc0644c7f54ed2ec7044fb3"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts valid ISO datetime",
-          "line": 851,
+          "line": 812,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "63e7257015a88c00bfd02360cb63d3e19638156b8d5f62f2563d91c6800386b0"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects non-ISO date string",
-          "line": 855,
+          "line": 816,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "29b347f4b71808e8621340253942a991bd1a08af70db12add70d5c975292466b"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects empty string #2",
-          "line": 859,
+          "line": 820,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae0abbaa0b0a02d91f2de6de3280a6eab149f5db26ea669583ae65723cffba7a"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts undefined",
-          "line": 865,
+          "line": 826,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2affb4b9067c26b426d25f26ffbe0b8c2c01d21a45feb2a18a113ab6db911015"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts valid ISO datetime #2",
-          "line": 869,
+          "line": 830,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "800ae5aef46df1bcb120c5fc93e20427ce258b85c1d48aa0932c3f3ba291f2ed"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts valid email",
-          "line": 875,
+          "line": 836,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d352917699e28d0c29bb47f7daf653a1d9024ecd11ed390baaf27eeb05cc187e"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects invalid email",
-          "line": 879,
+          "line": 840,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0a927ec61da69252ed07450423592ce4196d6d6eb84ca13742898826d2eeb3df"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts non-empty string",
-          "line": 885,
+          "line": 846,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2879ed7f019997a202f5ee89be78c8de7b7e9e44babc0fed66df075c9ebff0cc"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects empty string #3",
-          "line": 889,
+          "line": 850,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "653ab372d0917c3cef3e2134b4e8a472310d57fe333fe0d9f5054e9b250797aa"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts valid URL",
-          "line": 895,
+          "line": 856,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a4d079d7c09cb05bfa0e35bcbb0800d9e12b78f2391e8915ab027f5860d5627e"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects non-URL string",
-          "line": 899,
+          "line": 860,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f7f45ad12637e788ac573c3a0d301bad6e0f8249b99c302c2fa58964efa5d9d"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts positive integer",
-          "line": 905,
+          "line": 866,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "76498088b492d92535c0a4546e2a31dbda9c8931de18cc68dac96c3e791f52fb"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects zero",
-          "line": 909,
+          "line": 870,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f33774538ca1c0b26f4a059fa78ef19e91f945b468fdcacf658dc3d17bfd1d1c"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects negative integer",
-          "line": 913,
+          "line": 874,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e973232e52e18eda96c036f26e53808ded2d62d6486382c5aaa1284a151a0de"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects float",
-          "line": 917,
+          "line": 878,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "295ada692a0cc3533a22d5c0f1a48552af975a0a6413c0b8ee4c30dc05f7a8d7"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts all valid provider values",
-          "line": 923,
+          "line": 884,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc374db602fead8320ecbe03cf4c409f6a0f13dcf0c0b050274e3a0cc8110dc6"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects invalid provider value",
-          "line": 929,
+          "line": 890,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6df0ce1ef380b0bb1b48f91400dcfb5570b6e9213effac07c6d7089a3efa04ec"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts all valid status values",
-          "line": 935,
+          "line": 896,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1966cc43e48a049e17016b12c1956c8766ad1facb685c6fe1a5612ecfc88b7e2"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects invalid status value",
-          "line": 941,
+          "line": 902,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "357c895b6eb16ee40f6e9428ff1f0a6802bcbb882fdfe296fd276b6fcf45784e"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts valid password",
-          "line": 947,
+          "line": 908,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f5fabbefc4608daaff1fd944d5d35b48fe5013e15a29e2fa1473d343149695f"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects password shorter than 8 chars",
-          "line": 951,
+          "line": 912,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "289f41b661b40c935d0c14f78f3533c5007d96d0783b2852483159d36c0e9f4c"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects password without uppercase",
-          "line": 955,
+          "line": 916,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a4d2361889c0e689fbc53b02848d4c42803ee375f687948bbcd655cded8bf2ea"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects password without number",
-          "line": 959,
+          "line": 920,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "51e1bc3d300c06a99103d405094bd42996f872be189d21237a37b0c9108c4132"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::accepts all valid role values",
-          "line": 965,
+          "line": 926,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "11c8f34abbf6f62ba17131deac8d1a4edeb72f09ade4132c94dc461be65b2ff4"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rejects invalid role value",
-          "line": 971,
+          "line": 932,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "10f1dad9c01f563d098c2f43eca0f020d01546df6f9dffc3d43583da3d0fad4b"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::invalid_grant → 401, non-retryable",
-          "line": 992,
+          "line": 953,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f0b35db0ccf1ce8d0bd95848a5192434d6d87d57ffe16405954fe01c1e0b0c89"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::invalid_token → 401, non-retryable",
-          "line": 999,
+          "line": 960,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d64ce0b7a51f1b0d38702f67dcd45b537476bdec0ac6f7136e8f73a34175cc4c"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::invalid_code_verifier → 400, non-retryable",
-          "line": 1005,
+          "line": 966,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f99fd89dfda7caf60bf2c8d04c6db5b1511c97f83b76c30228905c3d636efed"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::insufficient_scope → 403, non-retryable",
-          "line": 1015,
+          "line": 976,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5aeff055610c3df61df5ee3670622a7345f6ced3d596cbfb11a9c63b87c417f8"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::invalid_request → 400, non-retryable",
-          "line": 1021,
+          "line": 982,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f609f99e85cd38e6ae92ae6a92c13155757155ec29b625d56206908230989a55"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::server_error → 503, retryable",
-          "line": 1026,
+          "line": 987,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40db917571614332dbf64af9f3a2e2e59cfd428787b7ed6173e55995051bb0e3"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::temporarily_unavailable → 503, retryable",
-          "line": 1032,
+          "line": 993,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "429e36fba1077b27941237aa3068de63d1bf7531657a58192b3f289ea585a878"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::rate_limit_exceeded → 429, retryable",
-          "line": 1042,
+          "line": 1003,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "47faa87baa35f3cfc970a0cfe525e1d2c9395dfa8e5d86dba4bb45cf702b65f5"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::network_timeout → 504, retryable",
-          "line": 1053,
+          "line": 1014,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7ecefb10100936d9d33907b2b5302ea41adbfd122291e009c5e98f29feb3a774"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::invalid_state → 400, non-retryable",
-          "line": 1059,
+          "line": 1020,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b50317ee25ad5b5218c1d2cbd124c104853a0c940dc27ea82c7b4bb1e16ff059"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::includes provider in metadata",
-          "line": 1065,
+          "line": 1026,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "032d4de2a700544a85c01317fe3db3d83b48516e76f5241a6ba6193a82dacdf5"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::includes accountId in metadata when provided",
-          "line": 1074,
+          "line": 1035,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4ed3f2dfee6f6d73926db1e89a9435c118b4c819e485b7a4e557045836887c6e"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::omits accountId from metadata when not provided",
-          "line": 1083,
+          "line": 1044,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e8b2bf0639d76a4dd54e0345ed3b6d850bac2aac7241f6dbe3fc382914ef182"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::includes error details from original error message",
-          "line": 1091,
+          "line": 1052,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ddd9b0a209d9d8ad94a72d870af3ef740c1e13f1b4ea6ce62ef876863ebe6dd"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::handles non-Error objects",
-          "line": 1100,
+          "line": 1061,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e3c997aec163b61f97255676e181940794b07eff16a6bbb33501db6bc8f6d18f"
         },
         {
           "id": "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts::retryable override from context takes precedence",
-          "line": 1105,
+          "line": 1066,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "595d887d3fe273e2bf3dd0f982e336c3fd7faeaa7c0973be191be5de4ae39ce8"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "BaseRouteHandler",
         "module": "apps/api/src/lib/route-handler/BaseRouteHandler.ts",
@@ -76176,7 +76070,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 31,
+      "blockCount": 29,
       "blocks": [
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::throws when active key is empty",
@@ -76207,200 +76101,186 @@
           "bodyHash": "ffc46fa4c3627ee241a263ed30fa16db2d38c2b6ada9251b256091402878467b"
         },
         {
-          "id": "apps/api/tests/unit/security/EncryptionService.test.ts::returns encryptedValue, iv, authTag, and keyVersion",
-          "line": 65,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a11f8f02f87fd23979cbe330a2070b9d9940c60235a037900a75983f2dd27a1f"
-        },
-        {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::stamps the active keyVersion on every new ciphertext",
-          "line": 74,
+          "line": 65,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be119d0c0a51a5c75808722846811d3280d227274df7e2884a149c021c464fac"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::produces different ciphertext for the same plaintext + same context (unique IV)",
-          "line": 80,
+          "line": 71,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50f27c45314f8100713ddfcdbc950564d68666c9e14d55562462d9a7fa320f9a"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::produces different IV on every call",
-          "line": 87,
+          "line": 78,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cca6b5330ba6bfd8aea48f918c1d8c6bf929b3385ca6a1a1cc9a070f656248d9"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::encrypted value is base64 encoded",
-          "line": 94,
+          "line": 85,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf5261291400e6b32251d4f8b05fcd08a7f82bae52158b220ba76aa1ff1d0480"
         },
         {
-          "id": "apps/api/tests/unit/security/EncryptionService.test.ts::encrypts empty string without throwing",
-          "line": 102,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "dc03c51fcb0a3aee829a5fb19b887a64ced8db3067a29f48a50fc736d2fd7080"
-        },
-        {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::produces a 16-byte (128-bit) auth tag",
-          "line": 108,
+          "line": 93,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf5211547758fc4e1b6014cc0168de71245dc62b60859855c3eaa084412b0379"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::decrypts to original plaintext when context matches",
-          "line": 117,
+          "line": 102,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "957790b82c2df4d4810059359b1c9f97d61bbf8d75e58b58645c045409a1cfc5"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::throws when authTag is tampered",
-          "line": 124,
+          "line": 109,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "36873f140703f2c89fb6490d32d7c0971c1e99c68924d3229f86e6ba8b7318a3"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::throws when iv is tampered",
-          "line": 134,
+          "line": 119,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea2985e638b1d30e00dc45b16cbccfb563bab6a67b3ab0116f9a9d759f5ffabc"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::throws with wrong encryption key",
-          "line": 144,
+          "line": 129,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2c2be83c85fbd478fc50466e4bcc206ea76f51bd8ac5c431db2521d8dbf90832"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::throws when keyVersion is unknown (no prior key configured)",
-          "line": 154,
+          "line": 139,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "93ab37a449e1a33d458faf135617d5cc033aa9c79195ba2677947f33860a10bb"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::round-trips correctly for special characters and unicode",
-          "line": 165,
+          "line": 150,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f386f7d517844964fad8843325e7b96882553a303801cccf62a8515115019b68"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::decrypt with DIFFERENT fieldName fails (AAD mismatch)",
-          "line": 173,
+          "line": 158,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5e3f60811483202cc67853e463cdf49e24c2632f0bd8f6f8e291932d2e290724"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::decrypt with DIFFERENT recordId fails (AAD mismatch)",
-          "line": 180,
+          "line": 165,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e3bcb648665eee8c5cd7a0130167801f77384dfef1f78c4ea30656f5b5c02b25"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::ciphertext from Channel.credentials cannot be replayed as OidcConfiguration.clientSecret",
-          "line": 187,
+          "line": 172,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3df0b2965eae7a22bfe56dbaf86753c97ccbb2dc6483dcc4f6aa17c655307bec"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::`caller` is NOT bound as AAD — re-grouping caller names doesn't break decryption",
-          "line": 202,
+          "line": 187,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "12f08c92e44753552b9ecda8d3cca34726e7a3e3a1211849c34bcab58e08059a"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::calls auditPort.logCredentialDecrypt with success: true on successful decrypt",
-          "line": 211,
+          "line": 196,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b75082d243b15303a7c5f5e8ed104c3082b4fafccaea473ee22f6444b156b40d"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::calls auditPort.logCredentialDecrypt with success: false on AAD mismatch",
-          "line": 230,
+          "line": 215,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5b9e6badc5c8eb0c7fba6f5d7cb17e0560e56977354625d9f7e1bc803260f6a1"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::does NOT include the plaintext anywhere in the audit event (ASVS V16.2.5)",
-          "line": 249,
+          "line": 234,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01dce5bb717b4a83d371147b19bc080e93d3ab0605f8e8f7250d2e9e304986c4"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::audit failure does not break decrypt (fire-and-forget)",
-          "line": 263,
+          "line": 248,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3700664d2a1587af89f6f07492ecf063e918aca60b4a8b46b7d58c4a54275f1d"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::works with no audit port wired (back-compat)",
-          "line": 279,
+          "line": 264,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d08fa52c027309c8eeb02795efc8af0d9b9b1666970b4338d94255e61dbd88d8"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::decrypts a v1 ciphertext after rotating to v2 active when v1 is in priorKeys",
-          "line": 287,
+          "line": 272,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "09d2b47648ef7b81dede4e5f1368da532e8c8584424cd559314ae08495f569a8"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::once a prior key is dropped, ciphertexts at that version no longer decrypt",
-          "line": 303,
+          "line": 288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1374037e16fdddc547f00244580d461fe963a0e1d73cc06b0b020d1d77307226"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::returns true when active key is valid",
-          "line": 320,
+          "line": 305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "19de837bb7e1dbbed8f5c8be1830925346096fdd9a87677afe9987a2771192e4"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::returns a 44-character base64 string (32 bytes)",
-          "line": 327,
+          "line": 312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5b2a9bc15ada2b27863e86fe04ce2f41ee453b4be5e87d67c68f3941c7fc6ed6"
         },
         {
           "id": "apps/api/tests/unit/security/EncryptionService.test.ts::returns different keys on each call",
-          "line": 333,
+          "line": 318,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4fb2a37f78c348e776df23c48ce385e38a7d6486e48f05afc5dbd9917675a15c"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "EncryptionService",
         "module": "apps/api/src/security/EncryptionService.ts",
@@ -76885,7 +76765,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 82,
+      "blockCount": 80,
       "blocks": [
         {
           "id": "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts::accepts file at exactly maxFileSize",
@@ -77427,36 +77307,22 @@
           "bodyHash": "02660b6de340ad65b0e157b30297b5af71c7ec77c530a6466a7b216fee8535a7"
         },
         {
-          "id": "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts::creates validator with custom config",
-          "line": 1190,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d6667113b4cb124a682b10684e62fe342c3e575b616a11ead8fe3d89c627560e"
-        },
-        {
-          "id": "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts::returns an async function",
-          "line": 1205,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a88aa76156587284607580ac7114b1601d8b9098f1a278aa15bfc2749839d19a"
-        },
-        {
           "id": "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts::registers multipart/form-data content parser",
-          "line": 1213,
+          "line": 1196,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c7c2c3c04595a11491c6099cec7970ae41f84fc64a39ba797b77d752ef4e6eb3"
         },
         {
           "id": "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts::registers preHandler hook",
-          "line": 1231,
+          "line": 1214,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "75360597e5b5b7d2fa0ece9a1f660d5c416548d2ac02af9c126949749610b8a5"
         },
         {
           "id": "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts::preHandler hook skips non-multipart requests",
-          "line": 1249,
+          "line": 1232,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dec64481bd5e6cc797f615a7051465f69fac6f93d8b5548a715dc0a2490327bf"
@@ -77466,7 +77332,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "fileUploadValidator",
         "module": "apps/api/src/security/fileUploadValidator.ts",
@@ -82029,7 +81895,7 @@
       "importers": null
     },
     {
-      "path": "apps/api/tests/unit/settings/settingsRoutes.test.ts",
+      "path": "apps/api/tests/unit/settings/settingsSchemas.test.ts",
       "shape": "test",
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
@@ -82037,169 +81903,169 @@
       "blockCount": 22,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts valid credential groups",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts valid credential groups",
           "line": 27,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "51957705ef63407417bc9a5c405c1e2f8daa70c7085f81c7816e6f671a97f080"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects invalid group names",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects invalid group names",
           "line": 35,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a7440b3003512429302b5f0215c05aecbf067499905434610d8fb65497147bd9"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts valid group param",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts valid group param",
           "line": 45,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "352224a58b6acc0b9631744a366c68d1a8f4cf18019bf8209c49c3655439f961"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects invalid group param",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects invalid group param",
           "line": 50,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aba808f1b791adebad8f0674d3ce5a390a55a7d9778d22e5b98087288e1f3ee1"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects missing group param",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects missing group param",
           "line": 55,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "82b47791c8b7bd8f4fd5da1329d3b4b6c719ed95234912e1241dafe782c3d6e7"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts valid group and key",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts valid group and key",
           "line": 64,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1d5a35e15e42943879ce968fd4f6223cb28cb6431d5cbe564b64ffac3e76d1f2"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects empty key",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects empty key",
           "line": 69,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a957fc8118e431c5c2e68c228fae53cf8525bcb69f39c67c19f7cf0d0bff8c3b"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects missing key",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects missing key",
           "line": 74,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0cbed89716ee9e5974f4c9703b6f2865af944830b980f28c13764dff478d2fa6"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts valid credentials object",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts valid credentials object",
           "line": 83,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "562bd288cf05ff9a0316e217dec73d81aa392a8e76611c6c700ccb2ecc606ded"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects empty values in credentials",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects empty values in credentials",
           "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e87294d575a382c90ed24f482a3afd6de6560118760981a0ee841eaf0c9f4844"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects missing credentials key",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects missing credentials key",
           "line": 97,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a45f93f7f8d07a749b3a69866e1c3098c502df8b52d35764396f8a4ec5c1011b"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects non-object credentials",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects non-object credentials",
           "line": 102,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0503aabadf4da26b88cb59cb6e45bead0e94259c3c2fd58e4b00257154da060c"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts empty object (note is optional)",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts empty object (note is optional)",
           "line": 111,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5d450c708aa73cad6e4cfe5e898f4c94327d1a34443a7ceee110c8e41d3a8e84"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts with note",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts with note",
           "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ecc5aa64d9013ce395a2dc3907e9d0d933977dcc89d01e33a058646f639a6a4"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts valid BYOK input",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts valid BYOK input",
           "line": 128,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5123169f4bdbdb990252599315197a148a60ab044c49bd359b2f7f3a43029af9"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects invalid provider",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects invalid provider",
           "line": 136,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14dab02b32a3e6b9d4cd137be9cf17f1907d91cd888d76c25f021cb5535f4f75"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects API key shorter than 10 chars",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects API key shorter than 10 chars",
           "line": 144,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a2a2c8ceb408d7f872687bebf6b8f0a030af599259060d7a49ff091958cb1bb"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts all valid AI providers",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts all valid AI providers",
           "line": 149,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "59ecd14c0b965571cc9b39e86436c83bfdd2090af706557d277c816bc9e9a09b"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts valid AI provider",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts valid AI provider",
           "line": 163,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e18d3d8c609c734673c31aabcd9799b34b1410f4b24268e55e13dc76d808f15e"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects invalid provider #2",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects invalid provider #2",
           "line": 168,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1ca9f769f967c3455b074914ab28d81ea0058bb7334c7600b60e99979e6ae558"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::accepts valid test BYOK input",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::accepts valid test BYOK input",
           "line": 176,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50626c14befa4a1eb766be15dacf936ea680b9d73ece64d00e677b49d2bb4c39"
         },
         {
-          "id": "apps/api/tests/unit/settings/settingsRoutes.test.ts::rejects API key longer than 500 chars",
+          "id": "apps/api/tests/unit/settings/settingsSchemas.test.ts::rejects API key longer than 500 chars",
           "line": 184,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be81e08c737ecf5c7da3481f8ab2edd089897eff4a205b80cc390efeebafd33a"
         }
       ],
-      "verdict": "ADJUDICATE",
-      "basis": "subject-not-imported",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
       "sliceId": null,
       "subject": {
-        "stem": "settingsRoutes",
-        "module": "apps/api/src/settings/settingsRoutes.ts",
-        "imported": false
+        "stem": "settingsSchemas",
+        "module": "apps/api/src/settings/settingsSchemas.ts",
+        "imported": true
       },
       "duplicate": null,
       "importers": null
@@ -88163,7 +88029,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 10,
       "blocks": [
         {
           "id": "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts::should verify valid HMAC-SHA256 signature",
@@ -88215,46 +88081,32 @@
           "bodyHash": "ef4c8f0f1e4ec32b3dc7ff33a1c45d095d1416e9ed006bdb20b72abdfc2ab889"
         },
         {
-          "id": "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts::should call processEvent with normalized data and entities",
-          "line": 146,
-          "blockClass": "EMPTY",
-          "criteria": ["a"],
-          "bodyHash": "eb1016048be6759f0d9dbc9779eabf69d277612ae3394c930c60f063c301f655"
-        },
-        {
           "id": "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts::should return early when no related entities found",
-          "line": 161,
+          "line": 146,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7c18cdd2857cf7ea3ede12f407cf66e5bb53ee28cc251624ddd3eb0f1b309f69"
         },
         {
           "id": "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts::should return the provider ID",
-          "line": 181,
+          "line": 166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "12b73a411f9de33654c634e30796f1163116e42f9a56755be1b223104027d0e5"
         },
         {
           "id": "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts::should verify base64-encoded signatures",
-          "line": 210,
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5b495be285efa7f8919aa3b0973dcecd44f59609b57d2001c401b4a2e0138c7f"
-        },
-        {
-          "id": "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts::should accept broadcaster in constructor",
-          "line": 223,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "86223b334a67523ff3bc0961edc13c7c261d32eada7b5314bdcbebc15ba7129d"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "AbstractWebhookProcessor",
         "module": "apps/api/src/webhooks/processors/AbstractWebhookProcessor.ts",
@@ -89947,7 +89799,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 20,
+      "blockCount": 19,
       "blocks": [
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should verify valid signature with sha256= prefix",
@@ -89999,102 +89851,95 @@
           "bodyHash": "aeea6b82bb0953f0674af2e0f493cbec66faeabfcab16860d555e7d2d1bec228"
         },
         {
-          "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should resolve related entities structure",
-          "line": 120,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "db1ec8323604fa4db869a9389f4bdc58fbb6c04c830a51817f43bb06f2edaa7d"
-        },
-        {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should parse CREATIVE_REJECTED event and map to API_ERROR",
-          "line": 148,
+          "line": 132,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6497fe343fa7b2b5960d0ef04fb2f5effd66f1daad729d306a42a1c9d0cc006b"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should include reviewStatusReasons when present",
-          "line": 167,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee874f39904c1ff9f9530703d8981f764bd9787b92b83666d6069a4b9814adc5"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should handle rejection without reasons",
-          "line": 184,
+          "line": 168,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4ba1846d95a157ae49417ee51242aac410cb13e7540fced7950fb1161e04a29"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should parse CREATIVE_PROCESSING event and map to VIDEO_PROCESSED",
-          "line": 212,
+          "line": 196,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d354791d7885d6a5baefc5ca5befc4423dd78e85600e44eed5fafc0aa0769bfb"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should include all normalized fields for processing event",
-          "line": 229,
+          "line": 213,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d51714bd4148536086e2e38701391e79764be2b0ef669cf7c64841d7d90bb90b"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should throw error for missing eventType",
-          "line": 258,
+          "line": 242,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f2ffcf5c91aba38f2cecb44ad6d0386fb2e6e87dca8e5fc6a6178a025bf2d4c8"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should throw error for missing creativeId",
-          "line": 269,
+          "line": 253,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4fcaafbb60f3f80a715f155dc236a89bfed890ebeaa8e127104508708cad5aa"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should throw error for completely empty payload",
-          "line": 280,
+          "line": 264,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eee2e8bd1719b7c3a0875fc2eda06771ceb8b27bed290e621032653b32b72b2b"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should default to POST_UPDATED for unknown event type",
-          "line": 288,
+          "line": 272,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5079cf773f58b5311035b63948fc890547308d35cc594b81ac0fc82a185dcb63"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should process CREATIVE_APPROVED without throwing",
-          "line": 315,
+          "line": 299,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "12c230d1ef36a8db9015b0d9463c068422b8f031a47438328d56ce5adff2d15c"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should process CREATIVE_REJECTED without throwing",
-          "line": 322,
+          "line": 306,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4bd0655a76522118942da1b492cc7cc1d2faf303352c6aa9096062f92f835b17"
         },
         {
           "id": "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts::should process CREATIVE_PROCESSING without throwing",
-          "line": 333,
+          "line": 317,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a160bc4f9507870dc503745aade9c3ee46c6bd5e27f5c242eb03cde3491061d9"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.4",
       "subject": {
         "stem": "snapchatWebhookProcessor",
         "module": "apps/api/src/webhooks/processors/snapchatWebhookProcessor.ts",

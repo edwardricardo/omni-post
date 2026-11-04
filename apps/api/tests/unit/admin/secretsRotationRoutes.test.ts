@@ -2,8 +2,8 @@
  * @file secretsRotationRoutes.test.ts
  * @description Handler-level unit test for the secrets-rotation routes plugin.
  *              Mocks the query and Fastify reply to verify success and error
- *              paths without standing up a Fastify server (real-server
- *              coverage lives in the integration test).
+ *              paths without standing up a Fastify server (no integration
+ *              test exercises this route against a real server).
  * @layer infrastructure
  */
 

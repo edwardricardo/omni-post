@@ -306,11 +306,6 @@
       "count": 4
     }
   },
-  "apps/api/tests/unit/admin/PricingAdminService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/admin/adminAuthService.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 19
@@ -319,26 +314,6 @@
   "apps/api/tests/unit/ai/agent/LangGraphAgentOrchestrationAdapter.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 3
-    }
-  },
-  "apps/api/tests/unit/ai/gemini.init.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
-  "apps/api/tests/unit/ai/openai.init.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
-  "apps/api/tests/unit/ai/perplexity.init.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
-  "apps/api/tests/unit/ai/types.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/aiOrchestrator.cache.test.ts": {
@@ -379,7 +354,7 @@
   },
   "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/unit/application/AnalyticsUseCases.test.ts": {
@@ -622,7 +597,7 @@
   },
   "apps/api/tests/unit/compliance/ComplianceService.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 4
+      "count": 3
     }
   },
   "apps/api/tests/unit/config/nameDigestRing.test.ts": {
@@ -857,20 +832,12 @@
       "count": 12
     }
   },
-  "apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts": {
     "testing/no-existence-only-test": {
       "count": 2
     }
   },
   "apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    },
     "vitest/no-conditional-expect": {
       "count": 9
     }
@@ -999,11 +966,6 @@
       "count": 4
     }
   },
-  "apps/api/tests/unit/security/EncryptionService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
   "apps/api/tests/unit/security/PlatformCredentialService.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 16
@@ -1011,7 +973,7 @@
   },
   "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 3
+      "count": 1
     }
   },
   "apps/api/tests/unit/security/inputValidation.mutations.test.ts": {
@@ -1044,7 +1006,7 @@
       "count": 63
     }
   },
-  "apps/api/tests/unit/settings/settingsRoutes.test.ts": {
+  "apps/api/tests/unit/settings/settingsSchemas.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 1
     }
@@ -1109,25 +1071,9 @@
       "count": 1
     }
   },
-  "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts": {
-    "testing/no-empty-test": {
-      "count": 1
-    },
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
-    "vitest/expect-expect": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/webhooks/linkedinWebhookProcessor.test.ts": {
     "no-console": {
       "count": 6
-    }
-  },
-  "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/webhooks/webhookSignatureVerification.providers1.test.ts": {

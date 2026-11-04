@@ -45,7 +45,7 @@ type ThresholdKey = (typeof THRESHOLD_KEYS)[number];
  */
 const MEASURED_FLOOR: Record<ThresholdKey, number> = {
   lines: 59.7,
-  functions: 60.3,
+  functions: 60.2,
   branches: 49.8,
   statements: 59.2,
 };

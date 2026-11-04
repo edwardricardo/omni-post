@@ -2,7 +2,7 @@
  * Unit tests for BaseRouteHandler enhancements
  *
  * Tests:
- * - OAuth error handling (12 error scenarios)
+ * - OAuth error handling (status and retryable mapping per error code)
  * - Webhook signature verification (constant-time comparison)
  * - Enhanced Zod validation helpers
  * - Result type mapping
@@ -246,33 +246,6 @@ describe("BaseRouteHandler - Webhook Signature Verification", { concurrency: 1 }
     handler = new TestRouteHandler();
   });
 
-  it("should verify valid HMAC-SHA256 signature (hex)", () => {
-    const payload = '{"event":"post.published","id":"123"}';
-    const secret = "webhook-secret-key";
-    // Pre-computed valid signature
-    const signature = "9c9c7f9e6c6f3f8e5d5e4f3e2d2c1b1a0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5";
-
-    const result = handler.testVerifyWebhookSignature(payload, signature, secret, {
-      algorithm: "sha256",
-      encoding: "hex",
-    });
-
-    // Note: This test uses a placeholder signature. In real tests, compute actual HMAC
-    expect(typeof result).toBe("boolean");
-  });
-
-  it("should verify valid HMAC-SHA256 signature (base64)", () => {
-    const payload = '{"event":"post.published"}';
-    const secret = "secret";
-
-    const result = handler.testVerifyWebhookSignature(payload, "invalid-sig", secret, {
-      algorithm: "sha256",
-      encoding: "base64",
-    });
-
-    expect(typeof result).toBe("boolean");
-  });
-
   it("should reject mismatched signatures", () => {
     const payload = '{"event":"test"}';
     const secret = "secret";
@@ -281,18 +254,6 @@ describe("BaseRouteHandler - Webhook Signature Verification", { concurrency: 1 }
     const result = handler.testVerifyWebhookSignature(payload, wrongSignature, secret);
 
     expect(result).toBe(false);
-  });
-
-  it("should remove sha256= prefix when requested", () => {
-    const payload = '{"test":"data"}';
-    const secret = "secret";
-    const signatureWithPrefix = "sha256=abcdef123456";
-
-    const result = handler.testVerifyWebhookSignature(payload, signatureWithPrefix, secret, {
-      removePrefix: true,
-    });
-
-    expect(typeof result).toBe("boolean");
   });
 
   it("should use SHA-256 and hex by default", () => {

@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1185  |
 | DELETE                  | 19    |
-| REWRITE                 | 168   |
-| KEEP                    | 896   |
-| ADJUDICATE              | 102   |
+| REWRITE                 | 158   |
+| KEEP                    | 907   |
+| ADJUDICATE              | 101   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14820 |
-| Blocks with a criterion | 628   |
+| Blocks                  | 14794 |
+| Blocks with a criterion | 602   |
 
 ## Slice 2.6a
 
@@ -213,6 +213,26 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts`          | test  | 51     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts` | test  | 3      | 0          | KEEP       | machine | behavioural          |
 
+## Slice 2.8.4
+
+Deleted: 0 files, 26 blocks. Floors lowered: functions from 60.3 to 60.2.
+
+| Path                                                                      | Shape | Blocks | Decorative | Verdict | Status  | Basis           |
+| ------------------------------------------------------------------------- | ----- | ------ | ---------- | ------- | ------- | --------------- |
+| `apps/api/tests/unit/admin/PricingAdminService.test.ts`                   | test  | 7      | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/ai/gemini.init.test.ts`                              | test  | 4      | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/ai/openai.init.test.ts`                              | test  | 5      | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/ai/perplexity.init.test.ts`                          | test  | 18     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/ai/types.test.ts`                                    | test  | 32     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts` | test  | 27     | 1          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/compliance/ComplianceService.test.ts`                | test  | 37     | 3          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts`      | test  | 29     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts`          | test  | 113    | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/security/EncryptionService.test.ts`                  | test  | 29     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts`      | test  | 80     | 1          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts`           | test  | 10     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts`           | test  | 19     | 0          | KEEP    | machine | behavioural     |
+
 ## Rows without a slice
 
 | Path                                                                                                  | Shape            | Blocks | Decorative | Verdict    | Status                      | Basis                |
@@ -408,7 +428,6 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/accounts/accountReadUpdateAuthorization.test.ts`                                 | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/AdminUserAdminService.test.ts`                                             | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/CustomerAccountBillingService.test.ts`                                     | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/admin/PricingAdminService.test.ts`                                               | test             | 8      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/admin/adminAuthService.test.ts`                                                  | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/admin/adminTestHelper.ts`                                                        | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/admin/apiKeyAdminRoutes.test.ts`                                                 | test             | 5      | 0          | ADJUDICATE | machine                     | title-contradiction  |
@@ -430,21 +449,17 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/ai/gemini.advanced.test.ts`                                                      | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/gemini.analysis.test.ts`                                                      | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/gemini.generation.test.ts`                                                    | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/ai/gemini.init.test.ts`                                                          | test             | 7      | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/ai/gemini.test-helpers.ts`                                                       | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/ai/msw/aiWireServer.ts`                                                          | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/ai/openai.generation.test.ts`                                                    | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/ai/openai.init.test.ts`                                                          | test             | 9      | 4          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/ai/openai.optimization.test.ts`                                                  | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/openai.test-helpers.ts`                                                       | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/ai/perplexity.advanced.test.ts`                                                  | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/ai/perplexity.init.test.ts`                                                      | test             | 22     | 4          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/ai/perplexity.test-helpers.ts`                                                   | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/ai/providers/AICircuitBreaker.test.ts`                                           | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/providers/AIProviderError.test.ts`                                            | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/providers/InMemoryTokenBucketRateLimiter.test.ts`                             | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/providers/RedisTokenBucketRateLimiter.test.ts`                                | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/ai/types.test.ts`                                                                | test             | 33     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/aiOrchestrator.cache.test.ts`                                                    | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiOrchestrator.content.test.ts`                                                  | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/aiOrchestrator.helpers.ts`                                                       | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -459,7 +474,6 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/analytics/RevenueCalculator.test.ts`                                             | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analytics/analyticsIngestConsumer.test.ts`                                       | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts`                              | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts`                             | test             | 28     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/analytics/dimensionRegistry.test.ts`                                             | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analytics/metricRegistry.test.ts`                                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analyticsRoutes.test.ts`                                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
@@ -586,7 +600,6 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/cacheConfig.test.ts`                                                             | test             | 50     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/channelRoutes.test.ts`                                                           | test             | 28     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/comments/commentRoutes.test.ts`                                                  | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/compliance/ComplianceService.test.ts`                                            | test             | 38     | 4          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/compliance/DataRetentionService.test.ts`                                         | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/config/coverageThresholds.test.ts`                                               | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/config/env.test.ts`                                                              | test             | 37     | 0          | KEEP       | machine                     | behavioural          |
@@ -745,7 +758,6 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/instagramWebhookMention.test.ts`                                                 | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/integration-events/BullMQIntegrationPublisher.test.ts`                           | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/integration-events/ComposedEventDispatcher.test.ts`                              | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts`                                  | test             | 30     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/integration-events/EventUpcaster.test.ts`                                        | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/integration-events/IntegrationEvent.test.ts`                                     | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/integration-events/IntegrationEventConsumer.test.ts`                             | test             | 28     | 0          | ADJUDICATE | machine                     | title-contradiction  |
@@ -758,7 +770,6 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/lib/redisSubscriber.test.ts`                                                     | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/retry/backoff.test.ts`                                                       | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/retry/retryAfter.test.ts`                                                    | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts`                                      | test             | 116    | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/lint/architecturePolicies.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/listening/listeningRoutes.test.ts`                                               | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/metrics/deletionMetrics.test.ts`                                                 | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
@@ -853,13 +864,11 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/secureSchemas.basic.test.ts`                                                     | test             | 31     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/secureSchemas.social.test.ts`                                                    | test             | 31     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/ChannelCredentialsCrypto.test.ts`                                       | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/security/EncryptionService.test.ts`                                              | test             | 31     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/security/PlatformCredentialService.test.ts`                                      | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/adminRateLimit.test.ts`                                                 | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/channelCredentialsCrypto.shared.test.ts`                                | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/csrfMiddleware.test.ts`                                                 | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/decryptAuditContext.test.ts`                                            | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts`                                  | test             | 82     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/security/httpRateLimitPreHandler.test.ts`                                        | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts`                                      | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/inputValidation.mutations.test.ts`                                      | test             | 161    | 0          | KEEP       | machine                     | behavioural          |
@@ -883,7 +892,7 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/services/StreamConnectionTracker.test.ts`                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/audit.test.ts`                                                          | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/settings/SettingsService.test.ts`                                                | test             | 37     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/settings/settingsRoutes.test.ts`                                                 | test             | 22     | 0          | ADJUDICATE | machine                     | subject-not-imported |
+| `apps/api/tests/unit/settings/settingsSchemas.test.ts`                                                | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/smoke/env-redis-required.test.ts`                                                | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/softDeletedIdentifierReuse.test.ts`                                              | test             | 5      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/subscriptionManagementService.test.ts`                                           | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
@@ -935,7 +944,6 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/webhookJobProcessor.test.ts`                                                     | test             | 15     | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/webhookManager.subscriptions.test.ts`                                            | test             | 29     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/webhookManager.test-helpers.ts`                                                  | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts`                                       | test             | 12     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/webhooks/DlqArchivalService.test.ts`                                             | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhooks/WebhookEventMapper.test.ts`                                             | test             | 32     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhooks/facebookWebhookProcessor.events.test.ts`                                | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
@@ -946,7 +954,6 @@ Deleted: 0 files, 27 blocks.
 | `apps/api/tests/unit/webhooks/linkedinWebhookProcessor.test.ts`                                       | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhooks/mentionFetchEnqueue.test.ts`                                            | test             | 2      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/unit/webhooks/realtimeWebhookBroadcaster.test.ts`                                     | test             | 21     | 0          | ADJUDICATE | machine                     | subject-not-imported |
-| `apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts`                                       | test             | 20     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/webhooks/telegramWebhookProcessor.test.ts`                                       | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/webhooks/tiktokWebhookProcessor.test.ts`                                         | test             | 33     | 0          | ADJUDICATE | machine                     | duplicate-union      |
 | `apps/api/tests/unit/webhooks/verifyWithGraceWindow.test.ts`                                          | test             | 6      | 0          | KEEP       | machine                     | behavioural          |

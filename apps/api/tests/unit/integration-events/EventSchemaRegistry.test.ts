@@ -1,7 +1,7 @@
 /**
  * Unit Tests - EventSchemaRegistry
  *
- * Part of P2-5: Event Versioning Strategy
+ * Event versioning: one Zod schema per event type and version.
  * Tier-0 tests for schema registration, version lookup, and payload validation.
  *
  * Strategy:
@@ -54,11 +54,6 @@ describe("EventSchemaRegistry — default constructor", () => {
       const version = registry.getCurrentVersion(eventType);
       expect(version).toBe(1);
     }
-  });
-
-  it("getSchema returns a schema for PostCreated v1", () => {
-    const schema = registry.getSchema("PostCreated", 1);
-    expect(schema !== undefined).toBeTruthy();
   });
 
   it("getSchema returns undefined for unknown event type", () => {

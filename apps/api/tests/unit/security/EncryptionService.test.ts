@@ -62,15 +62,6 @@ describe("EncryptionService", () => {
   });
 
   describe("encrypt", () => {
-    it("returns encryptedValue, iv, authTag, and keyVersion", () => {
-      const svc = createService();
-      const result = svc.encrypt("test-secret", CTX);
-      expect(result).toHaveProperty("encryptedValue");
-      expect(result).toHaveProperty("iv");
-      expect(result).toHaveProperty("authTag");
-      expect(result).toHaveProperty("keyVersion");
-    });
-
     it("stamps the active keyVersion on every new ciphertext", () => {
       const svc = new EncryptionService({ activeKeyBase64: VALID_KEY, activeKeyVersion: 7 });
       const result = svc.encrypt("x", CTX);
@@ -97,12 +88,6 @@ describe("EncryptionService", () => {
       expect(() => Buffer.from(result.encryptedValue, "base64")).not.toThrow();
       expect(() => Buffer.from(result.iv, "base64")).not.toThrow();
       expect(() => Buffer.from(result.authTag, "base64")).not.toThrow();
-    });
-
-    it("encrypts empty string without throwing", () => {
-      const svc = createService();
-      const result = svc.encrypt("", CTX);
-      expect(result.encryptedValue).toBeDefined();
     });
 
     it("produces a 16-byte (128-bit) auth tag", () => {
