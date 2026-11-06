@@ -83,15 +83,6 @@ describe("providerRegistry.getProvider", () => {
     expect(config?.mediaLimits.supportedTypes).toBeDefined();
     expect(config?.mediaLimits.supportedTypes.length).toBeGreaterThan(0);
   });
-
-  it("uses 5MB default when maxImageSize is undefined", () => {
-    // Provider without maxImageSize in centralized config (video platform —
-    // no image-size limit defined, so the registry applies the 5MB default).
-    const config = providerRegistry.getProvider("youtube");
-    if (config) {
-      expect(config.mediaLimits.maxFileSize).toBe(5 * 1024 * 1024);
-    }
-  });
 });
 
 // ============================================================================
@@ -120,14 +111,6 @@ describe("providerRegistry.getAllProviders", () => {
     const providers = providerRegistry.getAllProviders();
     expect(Array.isArray(providers)).toBe(true);
     expect(providers.length).toBeGreaterThan(0);
-  });
-
-  it("only includes active providers", () => {
-    const providers = providerRegistry.getAllProviders();
-    // All returned providers should be from active configs
-    for (const p of providers) {
-      expect(p.id).toBeTruthy();
-    }
   });
 });
 
@@ -258,12 +241,6 @@ describe("providerRegistry.validateContent", () => {
     const uniqueErrors = new Set(result.errors);
     expect(result.errors.length).toBe(uniqueErrors.size);
   });
-
-  it("returns valid=true for unknown provider with valid content", () => {
-    const result = providerRegistry.validateContent("unknown-provider", "Hello", []);
-    // No client requirements for unknown, centralized may pass or fail
-    expect(result.errors.length).toBeGreaterThanOrEqual(0);
-  });
 });
 
 // ============================================================================
@@ -276,12 +253,6 @@ describe("providerRegistry.getOptimalTimes", () => {
     const monday = new Date("2025-03-17T12:00:00");
     const times = providerRegistry.getOptimalTimes("x", monday);
     expect(times.length).toBeGreaterThan(0);
-  });
-
-  it("returns times array for X on a weekend day", () => {
-    const saturday = new Date("2025-03-22T12:00:00");
-    const times = providerRegistry.getOptimalTimes("x", saturday);
-    expect(Array.isArray(times)).toBe(true);
   });
 
   it("returns times for Instagram on a weekday", () => {
@@ -513,16 +484,6 @@ describe("providerRegistry.getThreadSegments", () => {
     // Content is ~370 chars, should be split into 2+ segments
     expect(segments.length).toBeGreaterThan(1);
   });
-
-  it("breaks at word boundaries when no sentence boundary exists", () => {
-    // Content with no sentence breaks, just words
-    const words = "word ".repeat(60); // ~300 chars
-    const segments = providerRegistry.getThreadSegments("x", words);
-    if (segments.length > 1) {
-      // Should not break in the middle of a word
-      expect(segments[0]?.endsWith(" ") || !segments[0]?.includes("word")).toBeFalsy();
-    }
-  });
 });
 
 // ============================================================================
@@ -644,16 +605,6 @@ describe("providerRegistry.validateContent — requirement messages", () => {
 // ============================================================================
 
 describe("providerRegistry.getOptimalTimes — specific values", () => {
-  it("X has optimal times defined for all 7 days", () => {
-    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-    for (const day of days) {
-      // Create a date for each day
-      const config = providerRegistry.getProvider("x");
-      const times = config?.optimalTimes[day];
-      expect(Array.isArray(times)).toBe(true);
-    }
-  });
-
   it("Instagram has optimal times defined", () => {
     const config = providerRegistry.getProvider("instagram");
     expect(config?.optimalTimes).toBeDefined();
@@ -731,14 +682,6 @@ describe("providerRegistry — legacy config conversion details", () => {
       const config = providerRegistry.getProvider(id);
       expect(config?.color).toBeTruthy();
       expect(config?.color.startsWith("#")).toBe(true);
-    }
-  });
-
-  it("returns empty optimalTimes for unknown provider in legacy config", () => {
-    const config = providerRegistry.getProvider("bluesky");
-    if (config) {
-      // Bluesky has no optimal times configured
-      expect(Object.keys(config.optimalTimes).length).toBe(0);
     }
   });
 });

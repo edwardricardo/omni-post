@@ -284,22 +284,6 @@ test.describe("Authentication Flow", () => {
         console.log("Login was too fast to catch loading state");
       }
     });
-
-    test("should disable form during submission", async ({ page: _page }) => {
-      await loginPage.goto();
-
-      await loginPage.fillEmail(TEST_CREDENTIALS.VALID.email);
-      await loginPage.fillPassword(TEST_CREDENTIALS.VALID.password);
-
-      // Submit and immediately check if button is disabled
-      await loginPage.submit();
-
-      // Button should be disabled during submission
-      const isDisabled = await loginPage.submitButton.isDisabled();
-      // This might be false if the request completed too quickly
-      // So we just log the result
-      console.log("Button disabled during submission:", isDisabled);
-    });
   });
 
   test.describe("Form Interaction", () => {

@@ -284,56 +284,6 @@ test.describe("Publishing Workflows", () => {
     });
   });
 
-  test.describe("Advanced Features", () => {
-    test("should configure advanced post options", async () => {
-      await publishingPage.goToCreatePost();
-
-      await publishingPage.enterPostContent("Post with advanced options");
-      await publishingPage.selectChannelByPlatform("twitter");
-
-      await publishingPage.expandAdvancedOptions();
-      await publishingPage.setPostCategory("Marketing");
-      await publishingPage.addPostTags(["automation", "testing"]);
-      await publishingPage.enableAutoHashtags();
-
-      await publishingPage.saveDraft();
-    });
-
-    test("should enable cross-platform posting", async () => {
-      await publishingPage.goToCreatePost();
-
-      await publishingPage.enterPostContent("Cross-platform test post");
-      await publishingPage.selectAllChannels();
-      await publishingPage.enableCrossPosting();
-
-      await publishingPage.saveDraft();
-    });
-
-    test("should configure Twitter thread", async () => {
-      await publishingPage.goToCreatePost();
-
-      const longContent =
-        "This is a very long post that should be split into multiple tweets when the Twitter thread option is enabled. ".repeat(
-          3
-        );
-      await publishingPage.enterPostContent(longContent);
-      await publishingPage.selectChannelByPlatform("twitter");
-      await publishingPage.enableTwitterThread();
-
-      await publishingPage.saveDraft();
-    });
-
-    test("should configure Instagram story", async () => {
-      await publishingPage.goToCreatePost();
-
-      await publishingPage.enterPostContent("Instagram story test");
-      await publishingPage.selectChannelByPlatform("instagram");
-      await publishingPage.enableInstagramStory();
-
-      await publishingPage.saveDraft();
-    });
-  });
-
   test.describe("Publishing Actions", () => {
     test("should publish post immediately", async () => {
       await publishingPage.goToCreatePost();
@@ -503,18 +453,6 @@ test.describe("Publishing Workflows", () => {
 
       await publishingPage.createBasicTextPost("Mobile test post");
       await publishingPage.saveDraft();
-    });
-
-    test("should handle touch interactions", async ({ page: _page }) => {
-      await page.setViewportSize({ width: 375, height: 667 });
-      await publishingPage.goToCreatePost();
-
-      // Test touch interactions
-      await publishingPage.postContentTextarea.tap();
-      await publishingPage.typeText("Touch interaction test");
-
-      await publishingPage.selectAllChannelsButton.tap();
-      await publishingPage.saveDraftButton.tap();
     });
   });
 });

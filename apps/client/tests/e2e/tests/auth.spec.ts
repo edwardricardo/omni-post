@@ -224,57 +224,6 @@ test.describe("Authentication Flows", () => {
     });
   });
 
-  test.describe("MFA Flow", () => {
-    test.skip("should handle MFA verification", async () => {
-      // This test would require MFA to be enabled for the test user
-      await authPage.goToLogin();
-      await authPage.login("mfa-user@example.com", "Password123!");
-
-      await authPage.expectMfaFormToBeVisible();
-
-      // In a real test, you'd need to get the MFA code
-      const mfaCode = "123456";
-      await authPage.enterMfaCode(mfaCode);
-
-      await authPage.waitForSuccessfulLogin();
-      await dashboardPage.expectDashboardToBeLoaded();
-    });
-
-    test.skip("should show error for invalid MFA code", async () => {
-      await authPage.goToLogin();
-      await authPage.login("mfa-user@example.com", "Password123!");
-      await authPage.expectMfaFormToBeVisible();
-
-      await authPage.enterMfaCode("000000");
-      await authPage.expectInvalidMfaCodeError();
-    });
-
-    test.skip("should allow MFA code resend", async () => {
-      await authPage.goToLogin();
-      await authPage.login("mfa-user@example.com", "Password123!");
-      await authPage.expectMfaFormToBeVisible();
-
-      await authPage.resendMfaCode();
-      await authPage.expectToast("Verification code resent");
-    });
-  });
-
-  test.describe("Social Login", () => {
-    test.skip("should login with Google", async () => {
-      await authPage.goToLogin();
-
-      await authPage.loginWithGoogle();
-      await dashboardPage.expectDashboardToBeLoaded();
-    });
-
-    test.skip("should login with GitHub", async () => {
-      await authPage.goToLogin();
-
-      await authPage.loginWithGithub();
-      await dashboardPage.expectDashboardToBeLoaded();
-    });
-  });
-
   test.describe("Session Management", () => {
     test("should handle expired session", async ({ page: _page }) => {
       // Login first

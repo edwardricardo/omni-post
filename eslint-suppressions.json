@@ -1,15 +1,10 @@
 {
   "apps/admin/tests/e2e/auth.spec.ts": {
     "no-console": {
-      "count": 2
+      "count": 1
     },
     "testing/no-empty-test": {
-      "count": 3
-    }
-  },
-  "apps/admin/tests/unit/shared/SkipLink.test.tsx": {
-    "testing/no-existence-only-test": {
-      "count": 1
+      "count": 2
     }
   },
   "apps/api/tests/accountLifecycle.integration.test.ts": {
@@ -1028,29 +1023,17 @@
   },
   "apps/client/lib/providers/__tests__/registry.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 4
-    },
-    "testing/no-tautological-assertion": {
       "count": 1
-    },
-    "vitest/no-conditional-expect": {
-      "count": 3
     }
   },
   "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 5
-    },
     "vitest/no-conditional-expect": {
       "count": 5
     }
   },
   "apps/client/lib/templates/__tests__/postTemplates.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
-      "count": 7
+      "count": 6
     }
   },
   "apps/client/tests/e2e/config/global-setup.ts": {
@@ -1063,11 +1046,6 @@
       "count": 6
     }
   },
-  "apps/client/tests/e2e/tests/publishing.spec.ts": {
-    "testing/no-empty-test": {
-      "count": 5
-    }
-  },
   "apps/client/tests/integration/ListeningPage.test.tsx": {
     "testing/no-existence-only-test": {
       "count": 1
@@ -1075,7 +1053,7 @@
   },
   "apps/client/tests/integration/useProviders.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 4
+      "count": 1
     }
   },
   "apps/workers/tests/CredentialResolver.tenantScope.test.ts": {
@@ -1091,11 +1069,6 @@
   "apps/workers/tests/worker.smoke.ts": {
     "no-console": {
       "count": 4
-    }
-  },
-  "apps/workers/tests/workerMetrics.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "packages/adapters/dead-letter-queue/tests/mutation-killing-part2.test.ts": {
