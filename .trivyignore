@@ -52,10 +52,12 @@
 # the canon is explicit that a reachable, un-mitigated advisory is not something
 # this kind of list may close.
 #
-# CURRENTLY EMPTY: no id is suppressed, matching the canon's empty "Ignored GHSAs"
-# section and `ignoreGhsas: []`. The last entries, CVE-2025-71330 and
-# CVE-2025-71329 (image-size 2.0.2, GHSA-w3rx-r6r6-pgpr and GHSA-5p2g-fcmc-qvqq),
-# left on 2026-10-06: their remove-when fired on 2026-10-03, when the catalog
-# moved image-size to 2.0.4, outside both advisories' `<=2.0.2` range (canon row
-# `image-size`, decision D37), and the lockfile holds no 2.0.2 copy. The file
-# stays because production-ci.yml passes it to the scanner by name.
+# The earlier entries, CVE-2025-71330 and CVE-2025-71329 (image-size 2.0.2,
+# GHSA-w3rx-r6r6-pgpr and GHSA-5p2g-fcmc-qvqq), left on 2026-10-06: their
+# remove-when fired on 2026-10-03, when the catalog moved image-size to 2.0.4,
+# outside both advisories' `<=2.0.2` range (canon row `image-size`, decision
+# D37), and the lockfile holds no 2.0.2 copy.
+
+# zlib1g in the distroless base: not reachable and with no Debian fix for trixie.
+# Canon: SECURITY_CANON.md, "Ignored image CVEs".
+CVE-2026-76844 exp:2026-12-06
