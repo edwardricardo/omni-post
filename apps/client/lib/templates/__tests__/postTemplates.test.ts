@@ -142,14 +142,6 @@ describe("postTemplates", () => {
       }
     }
   });
-
-  it("each template has a preview string", () => {
-    for (const t of postTemplates) {
-      if (t.preview !== undefined) {
-        expect(t.preview.length).toBeGreaterThan(0);
-      }
-    }
-  });
 });
 
 // ============================================================================
@@ -322,13 +314,5 @@ describe("templateCategories", () => {
   it("includes event category", () => {
     const cat = templateCategories.find((c) => c.id === "event");
     expect(cat?.name).toBe("Events");
-  });
-
-  it("each category has id, name, and description", () => {
-    for (const cat of templateCategories) {
-      expect(cat.id).toBeTruthy();
-      expect(cat.name).toBeTruthy();
-      expect(cat.description).toBeTruthy();
-    }
   });
 });

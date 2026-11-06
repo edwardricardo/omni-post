@@ -18,32 +18,6 @@ describe("WorkerMetrics", { sequential: true }, () => {
   });
 
   describe("constructor", { sequential: true }, () => {
-    it("should create all expected metric collectors", () => {
-      const m = metrics.metrics;
-
-      assert.ok(m.publishOk, "publishOk counter should exist");
-      assert.ok(m.publishErr, "publishErr counter should exist");
-      assert.ok(m.publishDuration, "publishDuration histogram should exist");
-      assert.ok(m.threadCreated, "threadCreated counter should exist");
-      assert.ok(m.threadPublished, "threadPublished counter should exist");
-      assert.ok(m.threadErrors, "threadErrors counter should exist");
-      assert.ok(m.threadsInProgress, "threadsInProgress gauge should exist");
-      assert.ok(m.threadTweetCount, "threadTweetCount histogram should exist");
-      assert.ok(m.threadDuration, "threadDuration histogram should exist");
-      assert.ok(m.jobsActive, "jobsActive gauge should exist");
-      assert.ok(m.jobsCompleted, "jobsCompleted counter should exist");
-      assert.ok(m.jobsFailed, "jobsFailed counter should exist");
-      assert.ok(m.jobsSkipped, "jobsSkipped counter should exist");
-      assert.ok(m.jobProcessingDuration, "jobProcessingDuration histogram should exist");
-      assert.ok(m.correlationTracker, "correlationTracker gauge should exist");
-      assert.ok(m.renderDuration, "renderDuration histogram should exist");
-      assert.ok(m.dbOperationDuration, "dbOperationDuration histogram should exist");
-      assert.ok(m.providerRequestDuration, "providerRequestDuration histogram should exist");
-      assert.ok(m.errorsByType, "errorsByType counter should exist");
-      assert.ok(m.retryAttempts, "retryAttempts counter should exist");
-      assert.ok(m.circuitBreakerTrips, "circuitBreakerTrips counter should exist");
-    });
-
     it("should register metrics on the provided registry", async () => {
       const registeredMetrics = await registry.getMetricsAsJSON();
       const metricNames = registeredMetrics.map((m) => m.name);

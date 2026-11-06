@@ -1,7 +1,7 @@
 /**
  * @file ClientTemplateEngine.test.ts
  * @description Mutation-killing tests for ClientTemplateEngine — covers enrichContext,
- * preview, extractVariables, generateDocumentation, validateTemplate, and API methods.
+ * preview, extractVariables, generateDocumentation, and API methods.
  * @layer infrastructure
  */
 
@@ -69,11 +69,6 @@ describe("ClientTemplateEngine.enrichContext", () => {
     expect((ctx.currentMonth as string).length).toBeGreaterThan(0);
   });
 
-  it("adds currentDay as a string", () => {
-    const ctx = engine.enrichContext({});
-    expect(typeof ctx.currentDay).toBe("string");
-  });
-
   it("defaults premium to false when not provided", () => {
     const ctx = engine.enrichContext({});
     expect(ctx.premium).toBe(false);
@@ -92,11 +87,6 @@ describe("ClientTemplateEngine.enrichContext", () => {
   it("preserves user-provided platforms", () => {
     const ctx = engine.enrichContext({ platforms: ["x", "instagram"] });
     expect(ctx.platforms).toEqual(["x", "instagram"]);
-  });
-
-  it("sets date to current date when not provided", () => {
-    const ctx = engine.enrichContext({});
-    expect(ctx.date).toBeInstanceOf(Date);
   });
 
   it("preserves user-provided date", () => {
@@ -216,14 +206,6 @@ describe("ClientTemplateEngine.generateDocumentation", () => {
     engine = makeEngine();
   });
 
-  it("returns variables, helpers, and examples", () => {
-    const template = makeTemplate("Hello {{name}}!");
-    const doc = engine.generateDocumentation(template);
-    expect(doc.variables).toBeDefined();
-    expect(doc.helpers).toBeDefined();
-    expect(doc.examples).toBeDefined();
-  });
-
   it("generates example for each variable", () => {
     const template = makeTemplate("{{a}} and {{b}}");
     const doc = engine.generateDocumentation(template);
@@ -240,30 +222,6 @@ describe("ClientTemplateEngine.generateDocumentation", () => {
     const template = makeTemplate("{{testVar}}");
     const doc = engine.generateDocumentation(template);
     expect(doc.examples[0]?.example).toContain("Example");
-  });
-});
-
-// ============================================================================
-// validateTemplate
-// ============================================================================
-
-describe("ClientTemplateEngine.validateTemplate", () => {
-  let engine: ClientTemplateEngine;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    engine = makeEngine();
-  });
-
-  it("validates a template object", () => {
-    const template = makeTemplate("Valid {{content}}");
-    const result = engine.validateTemplate(template);
-    expect(result).toBeDefined();
-  });
-
-  it("validates a string directly", () => {
-    const result = engine.validateTemplate("Direct {{string}} content");
-    expect(result).toBeDefined();
   });
 });
 

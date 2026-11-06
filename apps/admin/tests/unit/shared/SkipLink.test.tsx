@@ -72,11 +72,6 @@ describe("SkipLink", () => {
     expect(link).toHaveStyle({ position: "absolute", left: "-9999px" });
   });
 
-  it("is a valid link element (role=link)", () => {
-    render(<SkipLink />);
-    expect(screen.getByRole("link")).toBeInTheDocument();
-  });
-
   it("has skip-link class for CSS targeting", () => {
     render(<SkipLink />);
     const link = screen.getByRole("link");

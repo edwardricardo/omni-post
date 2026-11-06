@@ -126,30 +126,6 @@ describe("useProviders", () => {
     expect(typeof result.current.getProviderConfig).toBe("function");
   });
 
-  it("exposes validateContent function", () => {
-    mockFetch.mockImplementation(() => new Promise(() => {}));
-
-    const { result } = renderHook(() => useProviders(), { wrapper: createWrapper() });
-
-    expect(typeof result.current.validateContent).toBe("function");
-  });
-
-  it("exposes supportsFeature function", () => {
-    mockFetch.mockImplementation(() => new Promise(() => {}));
-
-    const { result } = renderHook(() => useProviders(), { wrapper: createWrapper() });
-
-    expect(typeof result.current.supportsFeature).toBe("function");
-  });
-
-  it("exposes getOptimalTimes function", () => {
-    mockFetch.mockImplementation(() => new Promise(() => {}));
-
-    const { result } = renderHook(() => useProviders(), { wrapper: createWrapper() });
-
-    expect(typeof result.current.getOptimalTimes).toBe("function");
-  });
-
   it("validates content correctly for a provider", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

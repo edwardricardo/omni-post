@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1185  |
 | DELETE                  | 19    |
-| REWRITE                 | 109   |
-| KEEP                    | 963   |
+| REWRITE                 | 106   |
+| KEEP                    | 966   |
 | ADJUDICATE              | 94    |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14624 |
-| Blocks with a criterion | 439   |
+| Blocks                  | 14593 |
+| Blocks with a criterion | 408   |
 
 ## Slice 2.6a
 
@@ -336,6 +336,23 @@ Deleted: 0 files, 43 blocks.
 | `packages/providers/x/tests/XApiClient.writeFailFast.test.ts`                 | test  | 1      | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/youtube/tests/YouTubeAdapter.test.ts`                     | test  | 75     | 1          | REWRITE    | machine | some-decorative      |
 
+## Slice 2.8.7
+
+Deleted: 0 files, 31 blocks.
+
+| Path                                                               | Shape | Blocks | Decorative | Verdict    | Status  | Basis           |
+| ------------------------------------------------------------------ | ----- | ------ | ---------- | ---------- | ------- | --------------- |
+| `apps/admin/tests/e2e/auth.spec.ts`                                | spec  | 20     | 2          | ADJUDICATE | machine | opaque          |
+| `apps/admin/tests/unit/shared/SkipLink.test.tsx`                   | test  | 8      | 0          | KEEP       | machine | behavioural     |
+| `apps/client/lib/providers/__tests__/registry.test.ts`             | test  | 95     | 1          | REWRITE    | machine | some-decorative |
+| `apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts` | test  | 37     | 0          | KEEP       | machine | behavioural     |
+| `apps/client/lib/templates/__tests__/postTemplates.test.ts`        | test  | 37     | 1          | REWRITE    | machine | some-decorative |
+| `apps/client/tests/e2e/tests/auth.spec.ts`                         | spec  | 27     | 0          | ADJUDICATE | machine | opaque          |
+| `apps/client/tests/e2e/tests/publishing.spec.ts`                   | spec  | 33     | 0          | ADJUDICATE | machine | opaque          |
+| `apps/client/tests/e2e/tests/visual.spec.ts`                       | spec  | 25     | 0          | ADJUDICATE | machine | opaque          |
+| `apps/client/tests/integration/useProviders.test.ts`               | test  | 7      | 1          | REWRITE    | machine | some-decorative |
+| `apps/workers/tests/workerMetrics.test.ts`                         | test  | 23     | 0          | KEEP       | machine | behavioural     |
+
 ## Rows without a slice
 
 | Path                                                                                                  | Shape            | Blocks | Decorative | Verdict    | Status                      | Basis                |
@@ -343,7 +360,6 @@ Deleted: 0 files, 43 blocks.
 | `apps/admin/lib/http/__tests__/forwardedFor.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/lib/stores/__tests__/notificationStore.test.ts`                                           | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/e2e/a11y.spec.ts`                                                                   | spec             | 1      | 0          | ADJUDICATE | machine                     | opaque               |
-| `apps/admin/tests/e2e/auth.spec.ts`                                                                   | spec             | 21     | 3          | ADJUDICATE | machine                     | opaque               |
 | `apps/admin/tests/e2e/content-flow.spec.ts`                                                           | spec             | 5      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/admin/tests/e2e/fixtures/LoginPage.ts`                                                          | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/admin/tests/e2e/helpers.ts`                                                                     | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -369,7 +385,6 @@ Deleted: 0 files, 43 blocks.
 | `apps/admin/tests/unit/setup.ts`                                                                      | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/admin/tests/unit/shared/LoadingSpinner.test.tsx`                                                | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/unit/shared/SidebarNav.test.tsx`                                                    | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/admin/tests/unit/shared/SkipLink.test.tsx`                                                      | test             | 9      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/admin/tests/unit/styles/tailwindSources.test.ts`                                                | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/unit/subscriptions/subscriptionsLocaleFormatting.test.tsx`                          | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/scripts/seed-demo-data.ts`                                                                  | none             | 0      | 0          | ADJUDICATE | machine                     | excluded-by-decision |
@@ -1059,9 +1074,6 @@ Deleted: 0 files, 43 blocks.
 | `apps/client/lib/api/__tests__/types.test.ts`                                                         | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/lib/auth/__tests__/authApi.test.ts`                                                      | test             | 30     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/client/lib/http/__tests__/forwardedFor.test.ts`                                                 | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/client/lib/providers/__tests__/registry.test.ts`                                                | test             | 102    | 8          | REWRITE    | machine                     | some-decorative      |
-| `apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts`                                    | test             | 42     | 5          | REWRITE    | machine                     | some-decorative      |
-| `apps/client/lib/templates/__tests__/postTemplates.test.ts`                                           | test             | 39     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/client/lib/templates/__tests__/templateEngine.test.ts`                                          | test             | 33     | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/client/lib/utils/__tests__/providerMapper.test.ts`                                              | test             | 49     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/components/MentionsFeed.test.tsx`                                                  | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
@@ -1077,9 +1089,6 @@ Deleted: 0 files, 43 blocks.
 | `apps/client/tests/e2e/pages/PublishingPage.ts`                                                       | helper           | 0      | 0          | DELETE     | machine                     | dead-helper          |
 | `apps/client/tests/e2e/tests/a11y.spec.ts`                                                            | spec             | 1      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/client/tests/e2e/tests/analytics.spec.ts`                                                       | spec             | 42     | 0          | ADJUDICATE | machine                     | opaque               |
-| `apps/client/tests/e2e/tests/auth.spec.ts`                                                            | spec             | 32     | 5          | ADJUDICATE | machine                     | opaque               |
-| `apps/client/tests/e2e/tests/publishing.spec.ts`                                                      | spec             | 38     | 5          | ADJUDICATE | machine                     | opaque               |
-| `apps/client/tests/e2e/tests/visual.spec.ts`                                                          | spec             | 26     | 1          | ADJUDICATE | machine                     | opaque               |
 | `apps/client/tests/e2e/utils/a11y.ts`                                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/client/tests/e2e/utils/assertions.ts`                                                           | helper           | 0      | 0          | DELETE     | machine                     | dead-helper          |
 | `apps/client/tests/e2e/utils/helpers.ts`                                                              | helper           | 0      | 0          | DELETE     | machine                     | dead-helper          |
@@ -1101,7 +1110,6 @@ Deleted: 0 files, 43 blocks.
 | `apps/client/tests/integration/useMarkMessageRead.test.tsx`                                           | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/useNotifications.test.tsx`                                             | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/useProjectChannels.test.tsx`                                           | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/client/tests/integration/useProviders.test.ts`                                                  | test             | 10     | 4          | REWRITE    | machine                     | some-decorative      |
 | `apps/client/tests/integration/useSchedulePostViaSaga.test.tsx`                                       | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/useSchedulingDashboardSidebar.test.tsx`                                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/integration/useTemplateVersions.test.ts`                                           | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
@@ -1143,7 +1151,6 @@ Deleted: 0 files, 43 blocks.
 | `apps/workers/tests/unit/publishWorker.unit.test.ts`                                                  | test             | 8      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/workers/tests/unit/readiness.unit.test.ts`                                                      | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/workers/tests/worker.smoke.ts`                                                                  | helper           | 0      | 0          | DELETE     | confirmed (machine: DELETE) | dead-helper          |
-| `apps/workers/tests/workerMetrics.test.ts`                                                            | test             | 24     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/cache-redis/tests/access-patterns.test.ts`                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/cache-redis/tests/cache-manager.test.ts`                                           | test             | 48     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/cache-redis/tests/constants.test.ts`                                               | test             | 17     | 0          | KEEP       | machine                     | behavioural          |

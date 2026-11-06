@@ -366,20 +366,6 @@ test.describe("Visual Regression Tests", () => {
     });
   });
 
-  test.describe("Internationalization", () => {
-    test.skip("should match baseline in different languages", async ({ page }) => {
-      // This would test different language versions if i18n is implemented
-      await page.addInitScript(() => {
-        localStorage.setItem("language", "es");
-      });
-
-      await authPage.goToLogin();
-      await authPage.expectLoginFormToBeVisible();
-
-      await expect(page).toHaveScreenshot("login-spanish.png");
-    });
-  });
-
   test.describe("Animation States", () => {
     test("hover states should match baseline", async ({ page }) => {
       await authPage.goToLogin();
