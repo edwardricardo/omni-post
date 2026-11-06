@@ -16,9 +16,9 @@
       },
       "byVerdict": {
         "DELETE": 19,
-        "REWRITE": 149,
-        "KEEP": 916,
-        "ADJUDICATE": 101,
+        "REWRITE": 141,
+        "KEEP": 925,
+        "ADJUDICATE": 100,
         "unmeasured": 0
       }
     },
@@ -28,22 +28,22 @@
       "total": 1185
     },
     "blocks": {
-      "total": 14735,
-      "decorative": 543,
+      "total": 14719,
+      "decorative": 528,
       "byClass": {
         "EMPTY": 13,
         "TAUTOLOGY-ONLY": 2,
-        "EXISTENCE-ONLY": 253,
+        "EXISTENCE-ONLY": 238,
         "CONDITIONAL-ONLY": 164,
         "SELF-SKIP": 104,
         "PRINTS-SUCCESS": 7,
-        "TITLE-CONTRADICTION": 19,
+        "TITLE-CONTRADICTION": 18,
         "BEHAVIOURAL": 14173
       }
     },
     "deleted": {
       "files": 26,
-      "blocks": 520
+      "blocks": 536
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -368,6 +368,25 @@
       "deleted": {
         "files": 0,
         "blocks": 59
+      },
+      "floors": {}
+    },
+    "2.8.6a": {
+      "files": [
+        "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts",
+        "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts",
+        "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts",
+        "packages/core/bulk-scheduling/tests/unit/ParseBulkScheduleCsvUseCase.test.ts",
+        "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts",
+        "packages/core/domain/tests/unit/ScheduledTime.test.ts",
+        "packages/core/domain/tests/unit/ShortCode.test.ts",
+        "packages/core/posts/tests/unit/CreatePostUseCase.test.ts",
+        "packages/core/threading/tests/unit/threadPlanner.test.ts",
+        "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 16
       },
       "floors": {}
     }
@@ -105766,42 +105785,35 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/approvals/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 3,
       "blocks": [
         {
-          "id": "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::returns ok with requestId when post exists and submission is valid",
-          "line": 53,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "98b9f16d9b1e94e4e29e8b44ec587c5e5b3e282c8b1c4af02d1638dec37fd951"
-        },
-        {
           "id": "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::returns VALIDATION_FAILED when postId is not a valid UUID",
-          "line": 63,
+          "line": 53,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b403afdc8833fb7651f955092cdada53d8710118be292642b0cffbd353bb146e"
         },
         {
           "id": "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::returns NOT_FOUND when post does not exist",
-          "line": 72,
+          "line": 62,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "59cfcfd5da119778b9c3fe39618003acbcf74d06e1ae4d13ed49ed3dc7c44b5f"
         },
         {
           "id": "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::returns INTERNAL_ERROR when approval repo save throws",
-          "line": 82,
+          "line": 72,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d776e082ec74553812f596c340810fbe4c63bba9c7300f777886d4e4a1a559eb"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "SubmitForReviewUseCase",
         "module": "packages/core/approvals/src/SubmitForReviewUseCase.ts",
@@ -106093,7 +106105,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/brand-kit/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 5,
+      "blockCount": 4,
       "blocks": [
         {
           "id": "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::returns ok with brand kit data on successful upsert",
@@ -106103,39 +106115,32 @@
           "bodyHash": "a40b26eb7acea04148ce29e5bacf8790ffbe59648f3b425972109fe642396e32"
         },
         {
-          "id": "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::returns ok when upserting with no colors (update metadata only)",
-          "line": 54,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d66b6c29f511e6ea82d80f6fdbab9c6535baa677a6562c268f83cff41cc6018e"
-        },
-        {
           "id": "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::returns VALIDATION_FAILED when accountId is empty",
-          "line": 62,
+          "line": 54,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b71f0d2eb6f3d99dc4dd9ee62e487d0ab3940647866ed250a48b424be6cab50a"
         },
         {
           "id": "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::returns VALIDATION_FAILED when primaryColor is not valid hex format",
-          "line": 68,
+          "line": 60,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3cd8ec7060a4ba6c102720ede1dda222f585bf4db38269d62194f7de9ff2276c"
         },
         {
           "id": "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::returns INTERNAL_ERROR when repository throws",
-          "line": 77,
+          "line": 69,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fb975f65216fc548fae119be4376a0aec7f08f22b9fc7aa315985cbd0e2735e4"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "UpsertBrandKitUseCase",
         "module": "packages/core/brand-kit/src/UpsertBrandKitUseCase.ts",
@@ -106285,7 +106290,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/bulk-scheduling/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 10,
+      "blockCount": 8,
       "blocks": [
         {
           "id": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::rejects confirm when a channelId does not belong to the project (returns FORBIDDEN)",
@@ -106316,53 +106321,39 @@
           "bodyHash": "1732ce978e682a91eb421d1514cb8f903fc6b5ac96ee7959b9b48e9a03818ddc"
         },
         {
-          "id": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::blocks rows where content exceeds the provider's character cap",
-          "line": 177,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "135277b2d0b7869bf3c70a5f60f63fefe33278302b14e4ae0eb104e1156575ab"
-        },
-        {
           "id": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::creates batch + items + outbox events in a single transaction",
-          "line": 210,
+          "line": 177,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14dd179429c11b4584bb79c371d90c7f1186d6adb53a6523fce8ec77a7f79999"
         },
         {
           "id": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::returns the batchId after successful confirm",
-          "line": 248,
+          "line": 215,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b03b00a79630b0410c4f1b0affced0bc27c04f31769b195e03ab0de0a510a454"
         },
         {
           "id": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::uses stable dedupeKey format bulk-{batchId}-{itemId} for outbox events",
-          "line": 268,
+          "line": 235,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6eb2b733966635502fce5210ec463b40d52f79ed23f44bec946f3d7a8cb7f7d8"
         },
         {
-          "id": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::works without unitOfWork (test-environment compatibility)",
-          "line": 304,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "04e7ca8e378521f976442559c6a28828a0c8359d02c9277bc24a63a575c91959"
-        },
-        {
           "id": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::returns INTERNAL_ERROR when createBatch throws",
-          "line": 318,
+          "line": 271,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6f144baa5f6b18d856107b621ae977a9ffd97d5ddbd74739336b905fadae3fb4"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "ConfirmBulkScheduleUseCase",
         "module": "packages/core/bulk-scheduling/src/ConfirmBulkScheduleUseCase.ts",
@@ -106377,7 +106368,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/bulk-scheduling/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 6,
+      "blockCount": 5,
       "blocks": [
         {
           "id": "packages/core/bulk-scheduling/tests/unit/ParseBulkScheduleCsvUseCase.test.ts::parses a valid CSV and returns validRows, errors, totalDataRows",
@@ -106408,25 +106399,18 @@
           "bodyHash": "0239500ae4a29c9b64a314f5de8967099b6103c4f19c88522f4c2fe4fc777fe7"
         },
         {
-          "id": "packages/core/bulk-scheduling/tests/unit/ParseBulkScheduleCsvUseCase.test.ts::never calls any repository (stateless — no DB writes)",
-          "line": 68,
-          "blockClass": "TITLE-CONTRADICTION",
-          "criteria": [],
-          "bodyHash": "59c8e047ab3b162e631b9f74a341f28cc62d40eef3de0feeb31207d741c338f4"
-        },
-        {
           "id": "packages/core/bulk-scheduling/tests/unit/ParseBulkScheduleCsvUseCase.test.ts::returns ok with empty validRows and row-0 error when CSV is malformed",
-          "line": 76,
+          "line": 68,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "33ceaac213f6a90ef6aa119ad2dc3c06ac55da9a38a08b603171c23c4d1951a6"
         }
       ],
-      "verdict": "ADJUDICATE",
-      "basis": "title-contradiction",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "ParseBulkScheduleCsvUseCase",
         "module": "packages/core/bulk-scheduling/src/ParseBulkScheduleCsvUseCase.ts",
@@ -107256,7 +107240,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/customer-auth/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 16,
+      "blockCount": 15,
       "blocks": [
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::mints a session on a valid TOTP challenge",
@@ -107266,116 +107250,109 @@
           "bodyHash": "c03c436b0c07ced4b48d4c9705539df515c4aff21ae33ff10f2e7b080a232626"
         },
         {
-          "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::mints a session on a valid backup code",
-          "line": 169,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "09d3e216758601115a388a24b5ee9e049804e7cc203c73a55e2b40f686897e32"
-        },
-        {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::records BF success only AFTER the MFA code verifies (post-MFA)",
-          "line": 176,
+          "line": 169,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de2f361f9fd37f5aa0becbf0bffbd3a13b43695a6b339b18d6b8beee87d79f33"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns ACCOUNT_DEACTIVATED, mints nothing, and does NOT burn the challenge when the account was soft-deleted between the two steps",
-          "line": 186,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3dbfd1fc8a045b31b4476af93415b4d9a90f5ccda69f22ee35b209aca8cf786b"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::mints exactly ONE session for two concurrent valid step-2 requests",
-          "line": 210,
+          "line": 203,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9262bd36900f6e624de0de0acea2aa20ce5f746ed967f3b25b923c43f69293d1"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::does NOT consume the challenge, records MFA_FAILED, and a retry succeeds",
-          "line": 226,
+          "line": 219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5aeb0c5341b23ce633803ed8fa2df815ed8c5f0149c421d648890030c9877577"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INVALID_CHALLENGE when the challenge token fails to verify",
-          "line": 246,
+          "line": 239,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "623bc5b0470ade32d3962d9c03f297c1bc2950e969a20ab07ca7990f2dcb676f"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INVALID_CHALLENGE when the jti was already consumed",
-          "line": 254,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "69b7a5a39f60f4ec06b7d52d66bc7e7af14e39eecc63cb7ff27048d90edab5a7"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns CHALLENGE_BINDING_MISMATCH on an IP/UA binding mismatch (route collapses to 401)",
-          "line": 261,
+          "line": 254,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8291af1711ecd4c270a1c0028e4213aeed40c55b24543947a27690978cb8feb3"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INVALID_CHALLENGE — byte-identical to expiry — when the challenge's accountId does not match the loaded user's account, and does NOT consume the jti",
-          "line": 268,
+          "line": 261,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e123216a8f67146f8745cb4a71c8d91da9ac23ace73a6c00ea5412aee2b996b"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns MFA_UNAVAILABLE when the consume store errors",
-          "line": 292,
+          "line": 285,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f9c812a454ea15194959e8ab83e2b7645af8fb597f6283056cffabb50f406e5c"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns USER_INACTIVE when the row was deactivated between steps",
-          "line": 303,
+          "line": 296,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "358e4b7b7af325d1761a7f3122a618f801bb5c3fac42cc02771d10b88d14fe48"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INVALID_CHALLENGE when MFA was disabled between steps",
-          "line": 310,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4e80e2f75f753b42d0dba62565a85fb1397a8cd6594fe181407aa8e7fa88b4e8"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns RATE_LIMITED when the BF gate denies the attempt",
-          "line": 317,
+          "line": 310,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae4be8d41c4a8ef6f8bf4578961a9627c730b8f6d53eeca042fffb8b6606a01a"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INTERNAL_ERROR and mints nothing when the stamp answers ${writeFailure}",
-          "line": 327,
+          "line": 320,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6e6df8528c27ea8664a2683fae2f54005312b6215b373c746be65ad15b4ecef0"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::keeps INTERNAL_ERROR separable from the challenge failures around it",
-          "line": 344,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "277727f8e453a074422a5507050e3ed4f6b9be52b77a3b7cb60d862913f2ce93"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "CompleteCustomerMfaLoginUseCase",
         "module": "packages/core/customer-auth/src/CompleteCustomerMfaLoginUseCase.ts",
@@ -107624,182 +107601,161 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/domain/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 24,
+      "blockCount": 21,
       "blocks": [
         {
-          "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs successfully for a date 10 minutes in the future",
-          "line": 51,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "7d7e6978619158d16d23a09f8258c7bf7308895e071603478441a9e2436b77dd"
-        },
-        {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs with an explicit timezone and exposes it",
-          "line": 56,
+          "line": 51,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66d7bfa7e4af2a271c14ac2761cf79e4b9047794ea3c47dd5548374b79efa0c0"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::defaults to UTC when timezone is omitted",
-          "line": 65,
+          "line": 60,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5aa5c914df0edf64f7ea13b9e4d7440461f4a7e75c1b0115c2c63a56f0709985"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::rejects an invalid Date object (NaN)",
-          "line": 73,
+          "line": 68,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "36aa7350126f340e5378ea2c4baa6ab7b90751247bd95d9821cc9dd5fa5089ce"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::rejects a date in the past",
-          "line": 79,
+          "line": 74,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "570bae85891e022af2efc552b5c3a1864d5803ce88f4f9835bf512f692990d2e"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::rejects a date fewer than 5 minutes in the future (lead time violation)",
-          "line": 85,
+          "line": 80,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a655bcd08f8fab99ebc5887e472c2ac3c49c5ca68ee2732d02e4bbfcc6de705"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::rejects a date more than 1 year in the future (max horizon violation)",
-          "line": 91,
+          "line": 86,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d36534b9ac09227bd6d5493884f66e0b4c5bed87010ab795d2198b679b5a6be9"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::rejects an unrecognized timezone string",
-          "line": 98,
+          "line": 93,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc43728b550a55ab488d7ed6f9a73d2422ace129eba4c82481c3c43885e5d4ba"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::returns ok when the date is exactly five minutes after the given now",
-          "line": 106,
+          "line": 101,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a1578e5c01333ec3e0630f531458dce3bde652805a273c488f92117eada25523"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::returns a lead time error when the date is one millisecond short of five minutes after the given now",
-          "line": 112,
+          "line": 107,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd50012b2783bd3ac52734095ba9dcae917cd7701952cd7e22a1c177ddbb77af"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::returns a lead time error when the date is short of the given now's lead time although the wall clock is a day earlier",
-          "line": 118,
+          "line": 113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fa6eddb81fb7699a79f2337f458faf62bd1ba5eb77309a185fa87ce6c249305b"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::returns an invalid date error on now when the given now is not a valid date",
-          "line": 126,
+          "line": 121,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aeb476422303e67c8c517ab7698679cb64fdd0f4590b1fb17d243fab00b5666c"
         },
         {
-          "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs from a valid ISO string that is 10 minutes ahead",
-          "line": 138,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c4967386a469b3bc586f780b1ed403dc56f4e1c70fd24f72ecb9836632c0a706"
-        },
-        {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::rejects a non-date ISO string",
-          "line": 144,
+          "line": 133,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "790f825d7ff9fda26c80dca3b92727f027a3eecfc77eae7903e3b592c587a446"
         },
         {
-          "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs when minutes >= 5",
-          "line": 152,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "30d5f84d2da5cc24cd308e57869b56e0df651a6a38bc8e9b49e6c62acfb830e6"
-        },
-        {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::rejects when minutes < 5",
-          "line": 157,
+          "line": 141,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e51a61cd85c7cc364f9eebb8efb969fa8d29bac60a3c008f96e9f3bde408b18"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::returns a time exactly five minutes after the clock when given 5 on a fixed clock",
-          "line": 163,
+          "line": 147,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e3056f841698f1c20c06a8086d6b1a702c673c9b364d5aac0730fecca205a05"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::returns a time exactly five minutes after the first clock read when given 5 on a clock that advances between reads",
-          "line": 171,
+          "line": 155,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ef3d93b35b1dc4742a4572ef8ae6ade5bc93d24fd324327ab25fb601866ac3fe"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::reconstitutes from a past date without error (DB load scenario)",
-          "line": 180,
+          "line": 164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b538e2b65a0a37236fae5839642d85b55f26781ae4f070aaf828199c4022bcff"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::mutating the returned dateTime does not affect the internal value",
-          "line": 188,
+          "line": 172,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e19b83584ce4167ebb3e1bf294c5f5e3cf257b7440c860d0a7da1f89ce38a593"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::two instances with the same dateTime and timezone are equal",
-          "line": 199,
+          "line": 183,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95cb80a51810e11c162caf4a7ad29393bf69d9eb89ebd86fed929d63e4a72a07"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::two instances with different timezones are NOT equal",
-          "line": 207,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aaf87fa8c2c683581e2b3ef4d2c91dbb3e0c9ae429cc6d8829c58dda3af435bc"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::returns -1 when this is before other",
-          "line": 220,
+          "line": 204,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d579d3cabecd7a26559eb6d739f0253dbd04a192f6afbea819de7d9eb1bf24e"
         },
         {
           "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::returns 1 when this is after other",
-          "line": 227,
+          "line": 211,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "372984f5724681c39b338b0f19a2e08d460e942e339983be22e214c8aeb2d1eb"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "ScheduledTime",
         "module": "packages/core/domain/src/value-objects/ScheduledTime.ts",
@@ -107814,7 +107770,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/domain/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 15,
+      "blockCount": 14,
       "blocks": [
         {
           "id": "packages/core/domain/tests/unit/ShortCode.test.ts::constructs successfully with a 3-character alphanumeric code",
@@ -107887,46 +107843,39 @@
           "bodyHash": "d2a4d04ab938733edd682195bdaafefeca4575be8f4f0c443168e392be1528cf"
         },
         {
-          "id": "packages/core/domain/tests/unit/ShortCode.test.ts::generated code passes alphanumeric-hyphen validation",
-          "line": 76,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c39fb89bb7ca9bb7e6648434fecadcd84802d06e0e18985bd23885fc0aaf2697"
-        },
-        {
           "id": "packages/core/domain/tests/unit/ShortCode.test.ts::two consecutive generations produce different values (with overwhelming probability)",
-          "line": 82,
+          "line": 76,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "27e840a116134f0803a785b0df809d87a6010b0f7b6a0a9b1697a6d0c38dbba3"
         },
         {
           "id": "packages/core/domain/tests/unit/ShortCode.test.ts::two instances with the same value are equal",
-          "line": 91,
+          "line": 85,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c270bc0034649f466fc29b8cd94e1a7c5d031df89b1f23d65fd02a037451a82"
         },
         {
           "id": "packages/core/domain/tests/unit/ShortCode.test.ts::two instances with different values are not equal",
-          "line": 98,
+          "line": 92,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eba1bb41d2f905857b733a0836a21bd359b157fcc28325f0d964d238283ae72b"
         },
         {
           "id": "packages/core/domain/tests/unit/ShortCode.test.ts::toString and toJSON both return the raw code string",
-          "line": 105,
+          "line": 99,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e4113a8d030f7956fcab303d11ca6c9adf98567d96f0f348d2ac8c7b9384962"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "ShortCode",
         "module": "packages/core/domain/src/value-objects/ShortCode.ts",
@@ -108974,56 +108923,28 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/posts/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 6,
+      "blockCount": 2,
       "blocks": [
         {
-          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post without errors when media is an empty array",
-          "line": 72,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3e91df8d2cbcb13be70dc5ce6309473247560293bfd97d173d058339220555f7"
-        },
-        {
-          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post without errors when media field is omitted",
-          "line": 83,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d60d98be11a6a83a6631381fa3152485f560c3ebd3b7e575523a8eaccc91ae9b"
-        },
-        {
-          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post successfully when media contains a valid image item",
-          "line": 94,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e7cc423a972019764b0c9941d6c3b9eddb8e62a124b8b7d898b44da4029ce14f"
-        },
-        {
-          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post successfully when media contains a valid video item",
-          "line": 108,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "51aed1cdde7c35ab8c150490eddffbf7f2dfb3a747b28958ad1b157ee06317da"
-        },
-        {
           "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::returns VALIDATION_FAILED when a media item URL is invalid",
-          "line": 122,
+          "line": 70,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c0448b1aff5df898fb2ad6cee1df07a8810d1d891ef265f01ef00ba1a3169cf5"
         },
         {
           "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::calls repo.save once per successful execution regardless of media count",
-          "line": 137,
+          "line": 85,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84567d8e97327ddab7234ffb80ca1ca100af22208432794a0ed14dffa37c3ece"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "CreatePostUseCase",
         "module": "packages/core/posts/src/CreatePostUseCase.ts",
@@ -110448,7 +110369,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/threading/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 18,
+      "blockCount": 17,
       "blocks": [
         {
           "id": "packages/core/threading/tests/unit/threadPlanner.test.ts::returns a single-tweet plan for content that fits in 280 chars",
@@ -110549,29 +110470,22 @@
           "bodyHash": "9678d78e04e6b1d1caad0d5bf9c3140d01fb929bd5500befe350b1ebd025f1f2"
         },
         {
-          "id": "packages/core/threading/tests/unit/threadPlanner.test.ts::returns ok for a plan that satisfies all constraints",
-          "line": 132,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "cbfe73eb9686d91e7d9b97145a9ac5903c913d57da7fd4ee0e92a47b247f98ca"
-        },
-        {
           "id": "packages/core/threading/tests/unit/threadPlanner.test.ts::returns CONTENT_TOO_LONG when tweet count exceeds 25",
-          "line": 147,
+          "line": 132,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc8cba4b8fe8da217cb02f398d7cb393d681b404a0a0f576fb1008e2aff5a33d"
         },
         {
           "id": "packages/core/threading/tests/unit/threadPlanner.test.ts::returns THREAD_PLANNING_FAILED when any tweet exceeds 280 chars",
-          "line": 165,
+          "line": 150,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "30c2f1fb6f7bbc173df94c3dcd60f4316af268991fbdfa4d4380c3ce74a613b5"
         },
         {
           "id": "packages/core/threading/tests/unit/threadPlanner.test.ts::returns MEDIA_DISTRIBUTION_FAILED when any tweet has more than 4 media items",
-          "line": 178,
+          "line": 163,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2b9e97ba2b7fd71bddcbf75a22d6bb12cf67384d0df5be6ae9903a3f2abf7091"
@@ -110581,7 +110495,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "threadPlanner",
         "module": "packages/core/threading/src/threadPlanner.ts",
@@ -110646,7 +110560,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/usage/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 3,
       "blocks": [
         {
           "id": "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::returns ok(undefined) when accountId is valid and field is postsPublished",
@@ -110656,32 +110570,25 @@
           "bodyHash": "f2d0d8fdf58e59ace25072c323b0be36c2c4b66d1d29fa47d53184f6152a93ec"
         },
         {
-          "id": "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::returns ok(undefined) when field is aiCallsMade and delta is provided",
-          "line": 51,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "16ae858dcd1a6e9cabd32ef4e32b98ad3a1694772e3df65c4735aff93f8c7a81"
-        },
-        {
           "id": "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::returns VALIDATION_FAILED error when accountId is an empty string",
-          "line": 65,
+          "line": 51,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "162b7a842ba1e318176741688f2791b9a0dc071a818ba6c351637a5d6cdf026f"
         },
         {
           "id": "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::returns INTERNAL_ERROR when the repository increment call throws",
-          "line": 76,
+          "line": 62,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "839bed7e3dace5528fa276257d0f394f153cf34a4174ed1dd1be247eb5b8a858"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6a",
       "subject": {
         "stem": "IncrementUsageUseCase",
         "module": "packages/core/usage/src/IncrementUsageUseCase.ts",

@@ -1203,44 +1203,14 @@
       "count": 1
     }
   },
-  "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "packages/core/auth/tests/unit/RoleManagementService.test.ts": {
     "testing/no-existence-only-test": {
       "count": 1
     }
   },
-  "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
   "packages/core/compliance/tests/unit/ComplianceService.test.ts": {
     "testing/no-existence-only-test": {
       "count": 2
-    }
-  },
-  "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/core/domain/tests/unit/ScheduledTime.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
-  "packages/core/domain/tests/unit/ShortCode.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts": {
@@ -1253,17 +1223,7 @@
       "count": 1
     }
   },
-  "packages/core/posts/tests/unit/CreatePostUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
   "packages/core/threading/tests/unit/threadPlanner.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts": {
     "testing/no-existence-only-test": {
       "count": 1
     }

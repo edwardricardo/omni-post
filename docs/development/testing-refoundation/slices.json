@@ -237,6 +237,21 @@
         "apps/api/tests/threading.xprovider.integration.test.ts"
       ],
       "deleted": { "files": 0, "blocks": 59 }
+    },
+    "2.8.6a": {
+      "files": [
+        "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts",
+        "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts",
+        "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts",
+        "packages/core/bulk-scheduling/tests/unit/ParseBulkScheduleCsvUseCase.test.ts",
+        "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts",
+        "packages/core/domain/tests/unit/ScheduledTime.test.ts",
+        "packages/core/domain/tests/unit/ShortCode.test.ts",
+        "packages/core/posts/tests/unit/CreatePostUseCase.test.ts",
+        "packages/core/threading/tests/unit/threadPlanner.test.ts",
+        "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts"
+      ],
+      "deleted": { "files": 0, "blocks": 16 }
     }
   }
 }

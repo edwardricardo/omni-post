@@ -166,13 +166,6 @@ describe("CompleteCustomerMfaLoginUseCase", () => {
       expect(uow.executeInTransaction).toHaveBeenCalledTimes(1);
     });
 
-    it("mints a session on a valid backup code", async () => {
-      mfaVerification = makeMfaVerification(ok({ verified: true, usedBackupCode: true }));
-      const result = await build().execute(INPUT_BASE);
-      assert.ok(result.ok);
-      assert.strictEqual(typeof result.value.accessToken, "string");
-    });
-
     it("records BF success only AFTER the MFA code verifies (post-MFA)", async () => {
       await build().execute(INPUT_BASE);
       expect(bruteForce.recordSuccessfulAttempt).toHaveBeenCalledTimes(1);

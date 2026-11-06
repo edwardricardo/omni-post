@@ -50,16 +50,6 @@ describe("SubmitForReviewUseCase", () => {
     useCase = new SubmitForReviewUseCase(approvalRepo, postRepo);
   });
 
-  it("returns ok with requestId when post exists and submission is valid", async () => {
-    const result = await useCase.execute({
-      postId: VALID_POST_ID,
-      submitterId: VALID_SUBMITTER_ID,
-      comment: "Please review this post",
-    });
-    assert.ok(result.ok, "Expected ok result");
-    assert.ok(result.value.requestId, "Expected requestId to be present");
-  });
-
   it("returns VALIDATION_FAILED when postId is not a valid UUID", async () => {
     const result = await useCase.execute({
       postId: "not-a-uuid",

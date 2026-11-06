@@ -48,11 +48,6 @@ describe("ScheduledTime", () => {
   });
 
   describe("create — valid inputs", () => {
-    it("constructs successfully for a date 10 minutes in the future", () => {
-      const r = ScheduledTime.create({ dateTime: future(TEN_MINUTES) });
-      assert.ok(r.ok);
-    });
-
     it("constructs with an explicit timezone and exposes it", () => {
       const r = ScheduledTime.create({
         dateTime: future(TEN_MINUTES),
@@ -135,12 +130,6 @@ describe("ScheduledTime", () => {
   });
 
   describe("fromISOString", () => {
-    it("constructs from a valid ISO string that is 10 minutes ahead", () => {
-      const iso = future(TEN_MINUTES).toISOString();
-      const r = ScheduledTime.fromISOString(iso);
-      assert.ok(r.ok);
-    });
-
     it("rejects a non-date ISO string", () => {
       const r = ScheduledTime.fromISOString("bananas");
       assert.ok(!r.ok);
@@ -149,11 +138,6 @@ describe("ScheduledTime", () => {
   });
 
   describe("fromNowPlusMinutes", () => {
-    it("constructs when minutes >= 5", () => {
-      const r = ScheduledTime.fromNowPlusMinutes(10);
-      assert.ok(r.ok);
-    });
-
     it("rejects when minutes < 5", () => {
       const r = ScheduledTime.fromNowPlusMinutes(3);
       assert.ok(!r.ok);

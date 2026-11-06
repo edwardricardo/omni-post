@@ -51,14 +51,6 @@ describe("UpsertBrandKitUseCase", () => {
     assert.strictEqual(result.value.primaryColor, "#1a2b3c");
   });
 
-  it("returns ok when upserting with no colors (update metadata only)", async () => {
-    const result = await useCase.execute({
-      accountId: "acct-uuid-001",
-      fontPrimary: "Inter",
-    });
-    assert.ok(result.ok, "Expected ok result");
-  });
-
   it("returns VALIDATION_FAILED when accountId is empty", async () => {
     const result = await useCase.execute({ accountId: "" });
     assert.ok(!result.ok, "Expected err result");

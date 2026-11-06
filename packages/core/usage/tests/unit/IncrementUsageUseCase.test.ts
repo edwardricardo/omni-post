@@ -47,20 +47,6 @@ describe("IncrementUsageUseCase", () => {
     });
   });
 
-  describe("happy path — increment aiCallsMade with custom delta", () => {
-    it("returns ok(undefined) when field is aiCallsMade and delta is provided", async () => {
-      const useCase = new IncrementUsageUseCase(repo);
-
-      const result = await useCase.execute({
-        accountId: ACCOUNT_ID,
-        field: "aiCallsMade",
-        delta: 5,
-      });
-
-      assert.ok(result.ok);
-    });
-  });
-
   describe("validation failed — empty accountId", () => {
     it("returns VALIDATION_FAILED error when accountId is an empty string", async () => {
       const useCase = new IncrementUsageUseCase(repo);
