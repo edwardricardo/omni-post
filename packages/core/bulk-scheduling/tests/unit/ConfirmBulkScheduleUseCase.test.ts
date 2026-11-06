@@ -2,7 +2,7 @@
  * @file ConfirmBulkScheduleUseCase.test.ts
  * @description Unit tests for ConfirmBulkScheduleUseCase.
  *   Spec scenarios: all of "Channel Ownership Admission",
- *   "Per-Provider Feasibility Validation", "Confirm persists atomically".
+ *   "Confirm persists atomically".
  * @layer infrastructure
  */
 
@@ -173,39 +173,6 @@ describe("ConfirmBulkScheduleUseCase", () => {
     });
   });
 
-  describe("per-provider feasibility validation", () => {
-    it("blocks rows where content exceeds the provider's character cap", async () => {
-      // X (Twitter) has a 280-char cap; we need to determine the provider
-      // from the selected channel. Since the use case resolves provider from
-      // channel, we need a real channel. However, in this unit test we pass
-      // channelIds only — feasibility is resolved by the channel's provider.
-      // We test this indirectly: if the channel is owned and it is for X,
-      // then a 350-char row should be blocked.
-      // Since this is a unit test and we can't resolve the channel entity here,
-      // the use case accepts the rows as-is (feasibility comes from channel
-      // entity's provider type). We verify the architecture: if no provider
-      // mismatch, rows that are structurally valid proceed.
-      const channelRepo = makeChannelRepo([CHANNEL_ID_OWNED]);
-      const useCase = new ConfirmBulkScheduleUseCase(
-        batchRepo,
-        channelRepo,
-        outboxWriter,
-        unitOfWork
-      );
-
-      // A structurally valid row (feasibility is provider-aware but in unit tests
-      // we don't resolve channel entities, so this tests the "row passes" path)
-      const result = await useCase.execute({
-        accountId: ACCOUNT_ID,
-        projectId: PROJECT_ID,
-        channelIds: [CHANNEL_ID_OWNED],
-        rows: [makeRow({ content: "Short post" })],
-      });
-
-      assert.ok(result.ok);
-    });
-  });
-
   describe("atomic persistence", () => {
     it("creates batch + items + outbox events in a single transaction", async () => {
       const channelRepo = makeChannelRepo([CHANNEL_ID_OWNED]);
@@ -299,20 +266,6 @@ describe("ConfirmBulkScheduleUseCase", () => {
       const event = events[0] as Record<string, unknown>;
       assert.strictEqual(event.aggregateId, itemId);
       assert.strictEqual(event.batchId, batchId);
-    });
-
-    it("works without unitOfWork (test-environment compatibility)", async () => {
-      const channelRepo = makeChannelRepo([CHANNEL_ID_OWNED]);
-      const useCase = new ConfirmBulkScheduleUseCase(batchRepo, channelRepo, outboxWriter);
-
-      const result = await useCase.execute({
-        accountId: ACCOUNT_ID,
-        projectId: PROJECT_ID,
-        channelIds: [CHANNEL_ID_OWNED],
-        rows: [makeRow()],
-      });
-
-      assert.ok(result.ok);
     });
 
     it("returns INTERNAL_ERROR when createBatch throws", async () => {

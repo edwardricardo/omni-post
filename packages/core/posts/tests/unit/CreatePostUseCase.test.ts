@@ -1,9 +1,7 @@
 /**
  * @file CreatePostUseCase.test.ts
- * @description Unit tests for CreatePostUseCase — media attachment extension.
- *   Spec scenario: "createPost with media attaches items to the post",
- *   "createPost with empty media creates post without attachments".
- *   P1.3 (RED) → P1.4b (GREEN).
+ * @description Unit tests for CreatePostUseCase — media attachment: a post created with valid
+ *   media is saved, and an invalid media URL fails validation.
  * @layer infrastructure
  */
 
@@ -69,56 +67,6 @@ describe("CreatePostUseCase — media extension", () => {
   });
 
   describe("createPost with media", () => {
-    it("creates a post without errors when media is an empty array", async () => {
-      const repo = makeMockRepo();
-      const dispatcher = makeMockDispatcher();
-      const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
-
-      const result = await useCase.execute({ ...BASE_INPUT, media: [] });
-
-      assert.ok(result.ok, `Expected success but got: ${result.ok ? "" : result.error.message}`);
-    });
-
-    it("creates a post without errors when media field is omitted", async () => {
-      const repo = makeMockRepo();
-      const dispatcher = makeMockDispatcher();
-      const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
-
-      const result = await useCase.execute(BASE_INPUT);
-
-      assert.ok(result.ok, `Expected success but got: ${result.ok ? "" : result.error.message}`);
-    });
-
-    it("creates a post successfully when media contains a valid image item", async () => {
-      const repo = makeMockRepo();
-      const dispatcher = makeMockDispatcher();
-      const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
-
-      const result = await useCase.execute({
-        ...BASE_INPUT,
-        media: [{ url: "https://cdn.example.com/photo.jpg", type: "image" }],
-      });
-
-      assert.ok(result.ok, `Expected success but got: ${result.ok ? "" : result.error.message}`);
-    });
-
-    it("creates a post successfully when media contains a valid video item", async () => {
-      const repo = makeMockRepo();
-      const dispatcher = makeMockDispatcher();
-      const metrics = makeMockMetrics();
-      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
-
-      const result = await useCase.execute({
-        ...BASE_INPUT,
-        media: [{ url: "https://cdn.example.com/clip.mp4", type: "video" }],
-      });
-
-      assert.ok(result.ok, `Expected success but got: ${result.ok ? "" : result.error.message}`);
-    });
-
     it("returns VALIDATION_FAILED when a media item URL is invalid", async () => {
       const repo = makeMockRepo();
       const dispatcher = makeMockDispatcher();

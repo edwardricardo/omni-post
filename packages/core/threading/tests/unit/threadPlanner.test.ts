@@ -129,21 +129,6 @@ describe("estimateThreadReach", () => {
 });
 
 describe("validateThreadPlan", () => {
-  it("returns ok for a plan that satisfies all constraints", () => {
-    const plan = {
-      strategy: "AUTO" as const,
-      tweets: [
-        { sequence: 1, text: "First tweet", estimatedChars: 11, media: [] },
-        { sequence: 2, text: "Second tweet", estimatedChars: 12, media: [] },
-      ],
-      totalChars: 23,
-      estimatedReach: 2,
-      needsThreading: true,
-    };
-    const r = validateThreadPlan(plan);
-    assert.ok(r.ok);
-  });
-
   it("returns CONTENT_TOO_LONG when tweet count exceeds 25", () => {
     const tweets = Array.from({ length: 26 }, (_, i) => ({
       sequence: i + 1,

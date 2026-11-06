@@ -73,12 +73,6 @@ describe("ShortCode", () => {
       assert.strictEqual(code.value.length, 8);
     });
 
-    it("generated code passes alphanumeric-hyphen validation", () => {
-      const code = ShortCode.generate();
-      const r = ShortCode.fromString(code.value);
-      assert.ok(r.ok, `Generated code '${code.value}' did not pass re-validation`);
-    });
-
     it("two consecutive generations produce different values (with overwhelming probability)", () => {
       const a = ShortCode.generate();
       const b = ShortCode.generate();

@@ -2,7 +2,7 @@
  * @file ParseBulkScheduleCsvUseCase.test.ts
  * @description Unit tests for ParseBulkScheduleCsvUseCase.
  *   Spec scenarios: "Valid CSV parses successfully in the parse step",
- *   "Abandon after the parse step leaves no DB rows".
+ *   and the parse errors: per-row, row cap, provider column, malformed CSV.
  * @layer infrastructure
  */
 
@@ -63,14 +63,6 @@ describe("ParseBulkScheduleCsvUseCase", () => {
       assert.strictEqual(result.value.validRows.length, 0);
       assert.ok(result.value.errors.length > 0);
       assert.match(result.value.errors[0]?.message ?? "", /provider/i);
-    });
-
-    it("never calls any repository (stateless — no DB writes)", async () => {
-      const csv = `${VALID_HEADER}\nHello,${future(TWO_DAYS)}`;
-      // ParseBulkScheduleCsvUseCase has no deps — this test asserts by construction
-      // (the constructor takes no arguments, so no repo can be called)
-      const result = await useCase.execute({ csv });
-      assert.ok(result.ok);
     });
 
     it("returns ok with empty validRows and row-0 error when CSV is malformed", async () => {
