@@ -354,6 +354,43 @@
         "files": 0,
         "blocks": 52
       }
+    },
+    "2.8.6c": {
+      "files": [
+        "packages/providers/bluesky/tests/BlueskyAdapter.test.ts",
+        "packages/providers/bluesky/tests/BlueskyClient.test.ts",
+        "packages/providers/facebook/tests/FacebookAdapter.stories-reels.test.ts",
+        "packages/providers/facebook/tests/FacebookApiClient.writeFailFast.test.ts",
+        "packages/providers/instagram/tests/InstagramAdapter.stories-reels.test.ts",
+        "packages/providers/instagram/tests/InstagramApiClient.writeFailFast.test.ts",
+        "packages/providers/instagram/tests/index.test.ts",
+        "packages/providers/instagram/tests/mediaProcessor.test.ts",
+        "packages/providers/instagram/tests/mediaProcessor.validation.test.ts",
+        "packages/providers/instagram/tests/schedulingService.management.test.ts",
+        "packages/providers/linkedin/tests/LinkedInAdapter.test.ts",
+        "packages/providers/linkedin/tests/LinkedInApiClient.writeFailFast.test.ts",
+        "packages/providers/pinterest/tests/PinterestApiClient.writeFailFast.test.ts",
+        "packages/providers/shared/tests/helpers.test.ts",
+        "packages/providers/snapchat/tests/SnapchatApiClient.writeFailFast.test.ts",
+        "packages/providers/snapchat/tests/responseParsers.test.ts",
+        "packages/providers/telegram/tests/TelegramAdapter.test.ts",
+        "packages/providers/tiktok/tests/TikTokAdapter.test.ts",
+        "packages/providers/tiktok/tests/apiClient.test.ts",
+        "packages/providers/tiktok/tests/authService.test.ts",
+        "packages/providers/tiktok/tests/contentAnalyticsClient.test.ts",
+        "packages/providers/tiktok/tests/hashtagManager.test.ts",
+        "packages/providers/tiktok/tests/marketingApiClient.test.ts",
+        "packages/providers/tiktok/tests/researchApiClient.test.ts",
+        "packages/providers/tiktok/tests/videoProcessor.test.ts",
+        "packages/providers/x/tests/XAdapter.content.test.ts",
+        "packages/providers/x/tests/XAdapter.test.ts",
+        "packages/providers/x/tests/XApiClient.writeFailFast.test.ts",
+        "packages/providers/youtube/tests/YouTubeAdapter.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 43
+      }
     }
   }
 }
