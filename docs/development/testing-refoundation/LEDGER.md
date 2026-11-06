@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1185  |
 | DELETE                  | 19    |
-| REWRITE                 | 158   |
-| KEEP                    | 907   |
+| REWRITE                 | 149   |
+| KEEP                    | 916   |
 | ADJUDICATE              | 101   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14794 |
-| Blocks with a criterion | 602   |
+| Blocks                  | 14735 |
+| Blocks with a criterion | 543   |
 
 ## Slice 2.6a
 
@@ -233,6 +233,33 @@ Deleted: 0 files, 26 blocks. Floors lowered: functions from 60.3 to 60.2.
 | `apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts`           | test  | 10     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts`           | test  | 19     | 0          | KEEP    | machine | behavioural     |
 
+## Slice 2.8.5
+
+Deleted: 0 files, 59 blocks.
+
+| Path                                                                                         | Shape            | Blocks | Decorative | Verdict    | Status  | Basis                |
+| -------------------------------------------------------------------------------------------- | ---------------- | ------ | ---------- | ---------- | ------- | -------------------- |
+| `apps/api/tests/accountLifecycle.integration.test.ts`                                        | integration-test | 14     | 2          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/adapters.integration.test.ts`                                                | integration-test | 2      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/analytics.flow.integration.test.ts`                                          | integration-test | 11     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/auth.integration.test.ts`                                                    | integration-test | 14     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/cache.integration.test.ts`                                                   | integration-test | 26     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts`         | integration-test | 21     | 1          | ADJUDICATE | machine | subject-not-imported |
+| `apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts`      | integration-test | 16     | 0          | ADJUDICATE | machine | subject-not-imported |
+| `apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts`    | integration-test | 9      | 1          | ADJUDICATE | machine | subject-not-imported |
+| `apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts` | integration-test | 12     | 1          | ADJUDICATE | machine | subject-not-imported |
+| `apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts`           | integration-test | 18     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts`              | integration-test | 20     | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/integration/repositories/UserRepository.integration.test.ts`                 | integration-test | 34     | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/integration/rls-tenant-isolation.integration.test.ts`                        | integration-test | 30     | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts`                  | integration-test | 9      | 8          | ADJUDICATE | machine | title-contradiction  |
+| `apps/api/tests/mfa.integration.test.ts`                                                     | integration-test | 20     | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/planPublication.integration.test.ts`                                         | integration-test | 8      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/schedule.flow.integration.test.ts`                                           | integration-test | 9      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/threading.canonical.integration.test.ts`                                     | integration-test | 7      | 1          | REWRITE    | machine | some-decorative      |
+| `apps/api/tests/threading.planner.integration.test.ts`                                       | integration-test | 12     | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/threading.xprovider.integration.test.ts`                                     | integration-test | 14     | 0          | KEEP       | machine | behavioural          |
+
 ## Rows without a slice
 
 | Path                                                                                                  | Shape            | Blocks | Decorative | Verdict    | Status                      | Basis                |
@@ -271,12 +298,7 @@ Deleted: 0 files, 26 blocks. Floors lowered: functions from 60.3 to 60.2.
 | `apps/admin/tests/unit/subscriptions/subscriptionsLocaleFormatting.test.tsx`                          | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/scripts/seed-demo-data.ts`                                                                  | none             | 0      | 0          | ADJUDICATE | machine                     | excluded-by-decision |
 | `apps/api/scripts/seed-large-dataset.ts`                                                              | none             | 0      | 0          | ADJUDICATE | machine                     | excluded-by-decision |
-| `apps/api/tests/accountLifecycle.integration.test.ts`                                                 | integration-test | 15     | 3          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/adapters.integration.test.ts`                                                         | integration-test | 14     | 12         | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/analytics.flow.integration.test.ts`                                                   | integration-test | 12     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/audit.integration.test.ts`                                                            | integration-test | 7      | 0          | ADJUDICATE | machine                     | subject-not-imported |
-| `apps/api/tests/auth.integration.test.ts`                                                             | integration-test | 15     | 1          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/cache.integration.test.ts`                                                            | integration-test | 27     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/chaos/chaos-helpers.ts`                                                               | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/chaos/saga-step-retry-recovery.integration.test.ts`                                   | integration-test | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/chaos/sagaWaitAmplification.integration.test.ts`                                      | integration-test | 2      | 0          | KEEP       | machine                     | behavioural          |
@@ -343,18 +365,10 @@ Deleted: 0 files, 26 blocks. Floors lowered: functions from 60.3 to 60.2.
 | `apps/api/tests/integration/publishing/failedWrite.smoke.integration.test.ts`                         | integration-test | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/recurringPostTenantIsolation.integration.test.ts`                         | integration-test | 14     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/integration/redisTokenBucketRateLimiter.integration.test.ts`                          | integration-test | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts`                  | integration-test | 24     | 4          | ADJUDICATE | machine                     | subject-not-imported |
-| `apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts`               | integration-test | 17     | 1          | ADJUDICATE | machine                     | subject-not-imported |
-| `apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts`             | integration-test | 10     | 2          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/integration/repositories/AnalyticsRepository.test-helpers.ts`                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts`          | integration-test | 14     | 3          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/integration/repositories/ConversionRepository.integration.test.ts`                    | integration-test | 6      | 0          | ADJUDICATE | machine                     | subject-not-imported |
-| `apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts`                    | integration-test | 22     | 4          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts`                       | integration-test | 21     | 2          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/integration/repositories/UserRepository.integration.test.ts`                          | integration-test | 39     | 6          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/integration/repositories/sagaAccountIdBackfill.integration.test.ts`                   | integration-test | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/repurposeRoutes.live.test.ts`                                             | live-test        | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/integration/rls-tenant-isolation.integration.test.ts`                                 | integration-test | 31     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/integration/sagaCompensationRecovery.integration.test.ts`                             | integration-test | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/sagaCrashRecovery.integration.test.ts`                                    | integration-test | 21     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/integration/sagaCustomerFlow.live.test.ts`                                            | live-test        | 14     | 0          | KEEP       | machine                     | behavioural          |
@@ -367,7 +381,6 @@ Deleted: 0 files, 26 blocks. Floors lowered: functions from 60.3 to 60.2.
 | `apps/api/tests/integration/shareOfVoice.integration.test.ts`                                         | integration-test | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/syncEngine/syncEngine.conflicts.integration.test.ts`                      | integration-test | 6      | 6          | REWRITE    | confirmed (machine: DELETE) | all-decorative       |
 | `apps/api/tests/integration/syncEngine/syncEngine.helpers.ts`                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts`                           | integration-test | 10     | 9          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/integration/syncEngine/syncEngine.monitoring.integration.test.ts`                     | integration-test | 11     | 11         | REWRITE    | confirmed (machine: DELETE) | all-decorative       |
 | `apps/api/tests/integration/syncEngine/syncEngine.sync.integration.test.ts`                           | integration-test | 9      | 9          | REWRITE    | confirmed (machine: DELETE) | all-decorative       |
 | `apps/api/tests/integration/teamInviteDuplicateEmail.integration.test.ts`                             | integration-test | 1      | 0          | KEEP       | machine                     | behavioural          |
@@ -376,22 +389,16 @@ Deleted: 0 files, 26 blocks. Floors lowered: functions from 60.3 to 60.2.
 | `apps/api/tests/integration/trackedLinkTenantIsolation.integration.test.ts`                           | integration-test | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/trendRadarRoutes.live.test.ts`                                            | live-test        | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/media.flow.integration.test.ts`                                                       | integration-test | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/mfa.integration.test.ts`                                                              | integration-test | 21     | 2          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/multiproject.flow.live.test.ts`                                                       | live-test        | 20     | 20         | REWRITE    | confirmed (machine: DELETE) | all-decorative       |
-| `apps/api/tests/planPublication.integration.test.ts`                                                  | integration-test | 12     | 4          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/production.live.test.ts`                                                              | live-test        | 24     | 24         | REWRITE    | confirmed (machine: DELETE) | all-decorative       |
 | `apps/api/tests/providerRegistry.live.test.ts`                                                        | live-test        | 36     | 36         | REWRITE    | confirmed (machine: DELETE) | all-decorative       |
 | `apps/api/tests/publish.flow.integration.test.ts`                                                     | integration-test | 4      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/rbac.integration.test.ts`                                                             | integration-test | 23     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/schedule.flow.integration.test.ts`                                                    | integration-test | 10     | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/schemaUtils.integration.test.ts`                                                      | integration-test | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/security.live.test.ts`                                                                | live-test        | 18     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/setup-env.ts`                                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/setup.ts`                                                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/testUtils.ts`                                                                         | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `apps/api/tests/threading.canonical.integration.test.ts`                                              | integration-test | 10     | 4          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/threading.planner.integration.test.ts`                                                | integration-test | 15     | 3          | REWRITE    | machine                     | some-decorative      |
-| `apps/api/tests/threading.xprovider.integration.test.ts`                                              | integration-test | 26     | 12         | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/trialPeriod.integration.test.ts`                                                      | integration-test | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/AnalyticsAggregator.test.ts`                                                     | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/AuditableService.test.ts`                                                        | test             | 20     | 0          | KEEP       | machine                     | behavioural          |

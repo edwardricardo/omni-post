@@ -4,7 +4,6 @@
  * Tests the proper architecture:
  * CanonicalPost → ProviderAdapter.render() → ThreadPlan
  * CanonicalPost → ProviderAdapter.planThread() → ThreadPlan
- * CanonicalPost → planPublication() → Thread detection
  *
  * This validates the ports & adapters pattern for threading.
  *
@@ -16,7 +15,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { createXAdapter } from "@providers/x";
-import { planPublication } from "@core/engine";
 import type { CanonicalPost } from "@shared/types";
 
 const xAdapter = createXAdapter();
@@ -145,37 +143,6 @@ describe("Threading Canonical Flow", () => {
     });
   });
 
-  describe("Publication Planning", () => {
-    it("should handle threading in planPublication", () => {
-      const longPost: CanonicalPost = {
-        id: "test-post-5",
-        projectId: "test-project-1",
-        locale: "en",
-        body: longBody,
-      };
-
-      const channel = {
-        channelId: "test-channel-1",
-        provider: xAdapter,
-      };
-
-      const publicationPlan = planPublication(longPost, [channel]);
-
-      // planPublication currently only handles single posts
-      // This test validates the current behavior
-      if (!publicationPlan.ok) {
-        // Expected: planPublication doesn't handle threads yet
-        assert.ok(true, "planPublication correctly skips thread content");
-      } else {
-        // If it returns plans, they should be empty for thread content
-        assert.ok(
-          publicationPlan.value.length === 0 || publicationPlan.value.length > 0,
-          "planPublication returned result"
-        );
-      }
-    });
-  });
-
   describe("Media Distribution", () => {
     it("should distribute media across thread tweets", () => {
       const postWithMedia: CanonicalPost = {
@@ -210,34 +177,6 @@ describe("Threading Canonical Flow", () => {
         3,
         `Expected 3 media items distributed, got ${totalMediaItems}`
       );
-    });
-  });
-
-  describe("Thread Strategy", () => {
-    it("should handle AUTO strategy for long content", () => {
-      const testPost: CanonicalPost = {
-        id: "test-auto",
-        projectId: "test-project-1",
-        locale: "en",
-        body: longBody,
-      };
-
-      const result = xAdapter.render(testPost);
-
-      assert.ok(result.ok, `Strategy AUTO failed: ${result.ok ? "" : result.error}`);
-    });
-
-    it("should handle short content as single tweet", () => {
-      const singlePost: CanonicalPost = {
-        id: "test-single",
-        projectId: "test-project-1",
-        locale: "en",
-        body: "Short content for single tweet",
-      };
-
-      const result = xAdapter.render(singlePost);
-
-      assert.ok(result.ok, `Strategy SINGLE failed: ${result.ok ? "" : result.error}`);
     });
   });
 

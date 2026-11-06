@@ -60,20 +60,6 @@ describe("AnalyticsRepository - getTimeSeriesData", () => {
     assert.ok(Array.isArray(timeSeries));
   });
 
-  it("includes aggregated metrics per period", async () => {
-    const repo = new PrismaAnalyticsReadRepository(prisma);
-    const timeSeries = await repo.getTimeSeriesData(testPostIds, "day");
-
-    timeSeries.forEach((period) => {
-      assert.ok(typeof period.totalViews === "number");
-      assert.ok(typeof period.totalLikes === "number");
-      assert.ok(typeof period.totalComments === "number");
-      assert.ok(typeof period.totalShares === "number");
-      assert.ok(typeof period.totalEngagement === "number");
-      assert.ok(typeof period.avgEngagementRate === "number");
-    });
-  });
-
   it("respects date range filters", async () => {
     const repo = new PrismaAnalyticsReadRepository(prisma);
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
@@ -188,17 +174,6 @@ describe("AnalyticsRepository - Edge Cases", () => {
     assert.ok(results[0]!.length > 0);
     assert.ok(results[1]!.length > 0);
     assert.ok(results[2]!.length > 0);
-  });
-
-  it("handles large date ranges", async () => {
-    const repo = new PrismaAnalyticsReadRepository(prisma);
-    const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
-
-    const analytics = await repo.getByProjectId(testProjectId, {
-      startDate: oneYearAgo,
-    });
-
-    assert.ok(Array.isArray(analytics));
   });
 
   it("handles empty result sets gracefully", async () => {

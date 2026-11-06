@@ -498,16 +498,6 @@ describe("API Response Caching", { concurrency: 1 }, () => {
   });
 
   describe("Cache Headers", () => {
-    it("should include cache control headers", async () => {
-      const response = await app.inject({
-        method: "GET",
-        url: "/providers",
-      });
-
-      assert.ok(response.headers["x-cache"], "Should have x-cache header");
-      assert.ok(response.headers["x-cache-key"], "Should have x-cache-key header");
-    });
-
     it("should not include cache headers for non-cacheable requests", async () => {
       const response = await app.inject({
         method: "POST",

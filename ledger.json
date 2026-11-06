@@ -16,8 +16,8 @@
       },
       "byVerdict": {
         "DELETE": 19,
-        "REWRITE": 158,
-        "KEEP": 907,
+        "REWRITE": 149,
+        "KEEP": 916,
         "ADJUDICATE": 101,
         "unmeasured": 0
       }
@@ -28,14 +28,14 @@
       "total": 1185
     },
     "blocks": {
-      "total": 14794,
-      "decorative": 602,
+      "total": 14735,
+      "decorative": 543,
       "byClass": {
         "EMPTY": 13,
         "TAUTOLOGY-ONLY": 2,
-        "EXISTENCE-ONLY": 298,
-        "CONDITIONAL-ONLY": 170,
-        "SELF-SKIP": 112,
+        "EXISTENCE-ONLY": 253,
+        "CONDITIONAL-ONLY": 164,
+        "SELF-SKIP": 104,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 19,
         "BEHAVIOURAL": 14173
@@ -43,7 +43,7 @@
     },
     "deleted": {
       "files": 26,
-      "blocks": 461
+      "blocks": 520
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -341,6 +341,35 @@
           "to": 60.2
         }
       }
+    },
+    "2.8.5": {
+      "files": [
+        "apps/api/tests/accountLifecycle.integration.test.ts",
+        "apps/api/tests/adapters.integration.test.ts",
+        "apps/api/tests/analytics.flow.integration.test.ts",
+        "apps/api/tests/auth.integration.test.ts",
+        "apps/api/tests/cache.integration.test.ts",
+        "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts",
+        "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts",
+        "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts",
+        "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts",
+        "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts",
+        "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts",
+        "apps/api/tests/integration/repositories/UserRepository.integration.test.ts",
+        "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts",
+        "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts",
+        "apps/api/tests/mfa.integration.test.ts",
+        "apps/api/tests/planPublication.integration.test.ts",
+        "apps/api/tests/schedule.flow.integration.test.ts",
+        "apps/api/tests/threading.canonical.integration.test.ts",
+        "apps/api/tests/threading.planner.integration.test.ts",
+        "apps/api/tests/threading.xprovider.integration.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 59
+      },
+      "floors": {}
     }
   },
   "files": [
@@ -2706,7 +2735,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 15,
+      "blockCount": 14,
       "blocks": [
         {
           "id": "apps/api/tests/accountLifecycle.integration.test.ts::should create a new account with valid data",
@@ -2772,43 +2801,36 @@
           "bodyHash": "4e2a3ee945e2ca7ad022b809bbc440bbe7e49fcba608eef4392f52f03b18ce80"
         },
         {
-          "id": "apps/api/tests/accountLifecycle.integration.test.ts::should reset account password",
-          "line": 283,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "6eaf62e0164c147faa3f34a009d158f5868b306267046c3af8b12d8b510ff566"
-        },
-        {
           "id": "apps/api/tests/accountLifecycle.integration.test.ts::should list accounts with role filter",
-          "line": 300,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9bc8ca37b70719fcf9f936f0aed9c24659f475df78ee49e6a1270afa9f76a1af"
         },
         {
           "id": "apps/api/tests/accountLifecycle.integration.test.ts::should retrieve account statistics",
-          "line": 327,
+          "line": 310,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d761ef71281b7e72f44aeae734dc65f9478e3fddb17de79f357cd04e2ee9e0e4"
         },
         {
           "id": "apps/api/tests/accountLifecycle.integration.test.ts::should retrieve account sessions",
-          "line": 341,
+          "line": 324,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "6042892ddbb07353376bb338632284c72dbb77b94d8e913ce93c685412d4c128"
         },
         {
           "id": "apps/api/tests/accountLifecycle.integration.test.ts::should revoke all sessions for account",
-          "line": 351,
+          "line": 334,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "108471f667d5a819eca64e431cce855eec517dd7cb85fd5118be00a421a70828"
         },
         {
           "id": "apps/api/tests/accountLifecycle.integration.test.ts::should delete account",
-          "line": 363,
+          "line": 346,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5670e3e86a0a24c2c149448060e2caca2ec729b64ea5bd8278054bbe54913f15"
@@ -2818,7 +2840,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -2829,112 +2851,28 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 14,
+      "blockCount": 2,
       "blocks": [
         {
-          "id": "apps/api/tests/adapters.integration.test.ts::should check queue adapter availability",
-          "line": 57,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "628f81bfd3bfc6471c46c515f227f94ee96dbb887587b378d807637ac76ecd19"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should pass health check",
-          "line": 65,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "32d8780f02fc39d56304d4a5eefa429b5a498530785b03658d6105ddeb83f5be"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should return health status object",
-          "line": 75,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "0c58a9cecc329d289c9d20f00ffab58be90bc27e269feb9f5e46ee879b43d4e1"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should handle health check gracefully",
-          "line": 86,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "8e3d39bdfec0ff8bfc013d0ce5229ea7ceb9f8ac28e59171ad2c338e6dee55ae"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should query publish logs via Prisma",
-          "line": 104,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9a53ec98c011784da20fc46761edc4987c3cbf5692f67d98b96884e972983ad3"
-        },
-        {
           "id": "apps/api/tests/adapters.integration.test.ts::should respect limit parameter",
-          "line": 111,
+          "line": 34,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f226cde3fe9288b7c0d77b50884b63d3a1ae101fb10743e78d42ab1e24a5d58"
         },
         {
           "id": "apps/api/tests/adapters.integration.test.ts::should use UserRepository for user lookups",
-          "line": 121,
+          "line": 44,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c6795ba90bafc9fcfe6b5d951e2a39cd77d11e667e2954768a5bbe08647d9967"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should handle repository Result pattern",
-          "line": 128,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "1352db530483f1446c048c3baeca2c5ac950a8b628bdfa9a2600a8b7d9b71993"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should check adapter availability",
-          "line": 141,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "628f81bfd3bfc6471c46c515f227f94ee96dbb887587b378d807637ac76ecd19"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should have required methods on queue adapter",
-          "line": 149,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "385abd5ab4af41b3e0da2678e3f3827046610163c1141abd319266057696d400"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should have user repository available",
-          "line": 158,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d17b3b3578446ce0bb0589971ea477ee11a302db47c74d074282aced798f4046"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should handle concurrent operations",
-          "line": 167,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "725e0447a75ae4cfb33bf3079b70ade120cf1fe8af576e9cc7f727835cb3375a"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should follow Result pattern for queue health",
-          "line": 186,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "4801b5d7f7d0c903ccc3251436a0a9e83898cee4a03f314f3fafa016970ed31c"
-        },
-        {
-          "id": "apps/api/tests/adapters.integration.test.ts::should follow Result pattern for repository queries",
-          "line": 213,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "1352db530483f1446c048c3baeca2c5ac950a8b628bdfa9a2600a8b7d9b71993"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -2945,7 +2883,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 11,
       "blocks": [
         {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should create account and project for analytics",
@@ -2962,81 +2900,74 @@
           "bodyHash": "cb609d1bd8acff930ca7dfe19b8b862aaebca3b8b3610a0d89e27bd54fd3bd70"
         },
         {
-          "id": "apps/api/tests/analytics.flow.integration.test.ts::should list analytics data",
-          "line": 100,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f9ef7fc258fbff12fa1e38edceb6d9677f3d5485a653e1ef9365d2d34d667c55"
-        },
-        {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should verify post exists for analytics tracking",
-          "line": 113,
+          "line": 100,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "474b2d7ed0514c810672bc5eaa521f08922c3b1dc692ae2ef2c02554dd083382"
         },
         {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should validate analytics data structure",
-          "line": 153,
+          "line": 140,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b881b7a37ca727865377a733d9d274fce160ae6e4cfb6625532db7ac3cb16fee"
         },
         {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should handle analytics listing with custom limits",
-          "line": 205,
+          "line": 192,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae5c433d01a158dc281a121405386b4c0bc2bb87073faa770f0c9a10538cd5e7"
         },
         {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should validate analytics metrics types",
-          "line": 218,
+          "line": 205,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "05cd9c6212322804d34466bd3f4599414baf55844026f56b048c7d1383e3a0d5"
         },
         {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should handle analytics for multiple providers",
-          "line": 248,
+          "line": 235,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ead207c18336b3a01227005bdf72159b18aefbcc8cf573b0e44652fa204972ad"
         },
         {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should handle zero analytics metrics",
-          "line": 270,
+          "line": 257,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15eb1fd70df8303c61ad92d8a8d140eaf9f8d183342109f8e02407610ebbd3ab"
         },
         {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should complete full analytics workflow",
-          "line": 290,
+          "line": 277,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1ce9c6b34e9f5f48ee2b36b420c1e5dd2004f906522da9ee118931aaaf5f311e"
         },
         {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should handle analytics retrieval errors gracefully",
-          "line": 350,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ce442cb86493c7816c243501300672a91f383bb54feb3ec5e198c97c89fdb0b"
         },
         {
           "id": "apps/api/tests/analytics.flow.integration.test.ts::should validate engagement rate calculations",
-          "line": 360,
+          "line": 347,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d2c8add963737d0956e74b6c33fca0c40085d5cd9da976bec8edef549a62cfd"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -3118,7 +3049,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 15,
+      "blockCount": 14,
       "blocks": [
         {
           "id": "apps/api/tests/auth.integration.test.ts::should register a new admin user successfully",
@@ -3142,95 +3073,88 @@
           "bodyHash": "bec277793e6feaf0b2e6d6e1fbcbae93be8603b3296f899c9d22901296046fc5"
         },
         {
-          "id": "apps/api/tests/auth.integration.test.ts::should login with valid credentials",
-          "line": 137,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "985a59c85c1ed9a084724b273b1fe223eeb74be630c4bf4adff82256c44f1ad5"
-        },
-        {
           "id": "apps/api/tests/auth.integration.test.ts::should reject invalid password",
-          "line": 151,
+          "line": 137,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ebba3e55ac2a98e573e2906b60f72277300afc074c50a25fae867d097df4c594"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should reject non-existent user",
-          "line": 162,
+          "line": 148,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "135a8bd6930aa750ad5cfb09d4c2f3dfd171d5d1ee641e49c447d8c515229baa"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should verify valid access token",
-          "line": 205,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fe2f8dea9c287f0274b40161e739e802fdf651a826c60018c629a8cbd8108810"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should reject invalid access token",
-          "line": 214,
+          "line": 200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff713bf2847733c9c0d98e84df4ff61806bec7ab4352fb7adb6c13ef0a107d27"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should reject expired token after logout",
-          "line": 220,
+          "line": 206,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1030d957eeb55baa8aa64c18207798bd97472a6dfd041cebcaa9dfc17502041a"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should refresh tokens with valid refresh token",
-          "line": 285,
+          "line": 271,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "08edc0b3b9190240e5827de733f5beafea7df36128427c7318b77cc26cea26f5"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should reject invalid refresh token",
-          "line": 297,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d22c15bc55afc2696eec376a63ace88d0c0d923828a99eaf0a6a547fd6b11d17"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should reject refresh token after logout",
-          "line": 303,
+          "line": 289,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c40d71cc13251180669f50b993fda8fbcfb8fa3a32472e55c9dddb3a7c49bd8"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should retrieve user sessions",
-          "line": 357,
+          "line": 343,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ac29631aa346290e4576a3f0ed21a6094b4da33adc4d87b7cdf69d15b1234e61"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should return empty array when no sessions exist",
-          "line": 373,
+          "line": 359,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5523aa1ebbe36f58b7667bda1774bfc9822debfae81b8eb61b1e23a232af5b00"
         },
         {
           "id": "apps/api/tests/auth.integration.test.ts::should create users with different roles",
-          "line": 404,
+          "line": 390,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3d2b5a750f180359cf90b27912942fdaecb4947ae092966acecb77eb2a071c36"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -3241,7 +3165,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 27,
+      "blockCount": 26,
       "blocks": [
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have cache config for provider endpoints",
@@ -3398,46 +3322,39 @@
           "bodyHash": "6886140fb20940327d6c8fb2fe8cd16398f10d8fb3712dba20d66a0ae85e2245"
         },
         {
-          "id": "apps/api/tests/cache.integration.test.ts::should include cache control headers",
-          "line": 501,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "5ffebd26bfe61e1eb5c5074acb23331d0e2b208cdfbd03519bc3e4e6915974fc"
-        },
-        {
           "id": "apps/api/tests/cache.integration.test.ts::should not include cache headers for non-cacheable requests",
-          "line": 511,
+          "line": 501,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a64427b90d04e7a13bea18db59e82cafff09f5c4b7df2f492721fe6e02179c1"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should invalidate multiple tags at once",
-          "line": 527,
+          "line": 517,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5209d6a16cdb104a3ac3d4877a8c6f018ff14f42b19176307c9ab17925d6178"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have cache config for all critical endpoints",
-          "line": 570,
+          "line": 560,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "87ceef184476193623d50db884814ea7c713475e062827d58f1d5c19550b7fcf"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have invalidation rules for all mutation endpoints",
-          "line": 591,
+          "line": 581,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8516bfeb34fd47eb951d3b052b2753aff4d8ae273864c1642c143d75a82baaf2"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -7010,182 +6927,161 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 24,
+      "blockCount": 21,
       "blocks": [
         {
-          "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::AccountQueryRepository instantiates successfully",
-          "line": 126,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4bd72444aba4c88e9e462bdfc135bef48e88ed947d6e37291bb1818fbbe3732a"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns account with projects when account exists",
-          "line": 145,
+          "line": 138,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13b9fd8e80fe01930e6f56b35295a891aeef4dba69496afd9f3c8f89b96d67bd"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns NOT_FOUND error when account does not exist",
-          "line": 157,
+          "line": 150,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bec8c748a71190e1a812e49a634b69cb05f78201ecb40dbbcd40afee0072be6a"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::includes empty projects array when account has no projects",
-          "line": 167,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0098e602fab95e5e3a7fb89f80e0514fa34b12381cd86057eb1982141bacab7"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns account when it exists",
-          "line": 192,
+          "line": 185,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13464f36ad5b4dd03ca22fe972d58370aaf54c1cebf406b7b1dfef6d79e9a6c2"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns NOT_FOUND error when account does not exist #2",
-          "line": 204,
+          "line": 197,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1618964537805368461d816d1655a98075059c7ce9f34f5c21f64d0c072cfe42"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::does not include projects relationship",
-          "line": 214,
+          "line": 207,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7a259419571dc630e965c077c9ad5439ad789999012bdf885b190c926d2bd2c2"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns account when email matches",
-          "line": 239,
+          "line": 232,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "72fa380ffd13f622010af53db6d81efbbc8f5f6d08abba60780d08d19af2627d"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::normalizes email to lowercase",
-          "line": 254,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd8c1f064ddf36b0afc461b95f0160e8b6d9282617256728995be1d840620872"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns NOT_FOUND error when email does not exist",
-          "line": 269,
+          "line": 262,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bba256b14a17158e8b8199fa50d6dd27a41d0c9468b2a53766f447ba0316f8e4"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns multiple accounts with projects",
-          "line": 293,
+          "line": 286,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d191f3421c7f9a59260aa187ca58805e3b3f91fceb2e3c888c8c0c04b6a55644"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns empty array when no account IDs provided",
-          "line": 306,
+          "line": 299,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7df8cc882c5c52449a3da57087a41d206058db40b02787caa12708582c8f4650"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::only returns accounts that exist",
-          "line": 314,
+          "line": 307,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5501cb0d98948efa9a03cb863b72b01e11df105b89af2fa658e01d2298526df9"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns accounts in correct order",
-          "line": 322,
+          "line": 315,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "265a713735baf1db95cdf4703511b206219e64695899278709bdf42c3923f1e3"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns trials expiring within threshold",
-          "line": 348,
+          "line": 341,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "80a05d2f09435f80f3a72b524567116e9dfe30513a21ebfeddf04214645c6792"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::does not return trials expiring beyond threshold",
-          "line": 360,
+          "line": 353,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a4ba4ed1e4ba4f669ea6e91d03d7ce17eefef369969cc4f77b709db9c7188d76"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::does not return already expired trials",
-          "line": 369,
+          "line": 362,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1cb061ee2edf3fa066b06f7b22f2ea4dafb180dd53e8d99f087d626e36f6f343"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::does not return accounts not on trial",
-          "line": 378,
+          "line": 371,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d740acd7ad904728a300feaa54494daa45e8dfc242fb38b5f08fbd23d0cece45"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns accounts ordered by trial end date ascending",
-          "line": 387,
+          "line": 380,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "b04ab4aa2b748f552904033eab301d39d4427fddf75c2159bb1531c5c6b6aa5b"
         },
         {
-          "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns empty array when threshold is 0",
-          "line": 401,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d6151d5744c4e4dd3e717a389e500867b91794502a47640e0203f6604bc2cebf"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::returns correct accounts for different thresholds",
-          "line": 409,
+          "line": 394,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a32f608ba901947b6ebed04fdc89898db9184909c67d6538b9b48dd4949aa4e1"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::handles concurrent reads correctly",
-          "line": 438,
+          "line": 423,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4b47fe965627f41f834c6ce8ebc9f6b1a180e16c3a9f4a8d2d3d327a82690d72"
         },
         {
           "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::handles empty string account ID gracefully",
-          "line": 450,
+          "line": 435,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "402b818fc67e4c29b1f5d8887891cb79edeb6cb066a431127da1a82eb1cf55d7"
-        },
-        {
-          "id": "apps/api/tests/integration/repositories/AccountQueryRepository.integration.test.ts::handles very long threshold values for expiring trials",
-          "line": 457,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8116c3f3e7e04d3e6dc3259cf2a90a4296c9db248b5fa5382fd4fad6adfde381"
         }
       ],
       "verdict": "ADJUDICATE",
       "basis": "subject-not-imported",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": {
         "stem": "AccountQueryRepository",
         "module": "packages/core/domain/src/repositories/AccountQueryRepository.ts",
@@ -7200,123 +7096,116 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 17,
+      "blockCount": 16,
       "blocks": [
         {
-          "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::AnalyticsRepository instantiates successfully",
-          "line": 24,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3ce0376e6423ef8351a3436e022503aa00a97014bec82953886f914a7b6ec630"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::returns analytics for given post IDs with relationships",
-          "line": 39,
+          "line": 32,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a1936f13243bb8d62fa3484c727275514a4740b168986102ce5e3e3d1f1eacb9"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::respects startDate filter",
-          "line": 52,
+          "line": 45,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "808e72e1aab8ce4ac5b852a638435cf6c185ec38b343d982b50cff85d7244f04"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::respects endDate filter",
-          "line": 65,
+          "line": 58,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ba322b0661de83951f1045a93eda186eb103736f05b221c9523d03b2ec8da7e"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::respects provider filter",
-          "line": 78,
+          "line": 71,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb6404afdd63f7db3fc39935cacc770eb6b4da6a0149e504eb9907ac0caa20ff"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::respects take option for pagination",
-          "line": 90,
+          "line": 83,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65e028fefcf909847654c3514eed5b2cc98fd866e78f1d488dac6ee0981f0da5"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::respects skip option for pagination",
-          "line": 97,
+          "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7ca4c2f5fa2c4267ab3ff5e306b4cf57055b05ade3ef6e370711010de96b77a3"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::orders by capturedAt desc by default",
-          "line": 105,
+          "line": 98,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8413243ff2e54590b30cb606222c9b7fd692a336d8c67902f8158752125de1e8"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::returns empty array for empty post IDs",
-          "line": 114,
+          "line": 107,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c4abf0d01e1d81c12450c987f14afeb8c05b7f9585a44027829c8365d6fbd47"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::returns all analytics for a project",
-          "line": 132,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d4db98ce1871c090a6a2a04678bffde933731c3596bea781a42302e221051458"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::respects date range filters",
-          "line": 142,
+          "line": 135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f2e4f3aa50fd281c177704210a0b2bf1ca7ad8da14bb1d745d4dcbd0e6c4fb2a"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::respects provider filter #2",
-          "line": 158,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8074cf8eeb70b202d2fd4ec98adf12c1c2a13140001341fc40e4f53e603148e9"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::returns empty array for non-existent project",
-          "line": 171,
+          "line": 164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "11e473bfa53e05c1c2dedfe2ec117a10ac6cc9b57398835a5f5532157f586c52"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::returns empty array for project with no posts",
-          "line": 178,
+          "line": 171,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0aab25654ee3593f304a7400a7860112f1d8cd9ac0aa0dcbe046dde0adb730c3"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::returns analytics for specific channel with post relationship",
-          "line": 205,
+          "line": 198,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4690bb6babb283cb9a9911d9db74adb44f894b5b52d869332dc3f997fd31e216"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::filters analytics by date range",
-          "line": 218,
+          "line": 211,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "256e5935de0038400294be5eb8d2106494628ab8cb7b601c430426b3d206c309"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.basic.integration.test.ts::returns empty array for non-existent channel",
-          "line": 231,
+          "line": 224,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "91b77abdef98ebcad99e6e4c4071f3a6326e02262e0ef1ab3206c3bc71b57113"
@@ -7326,7 +7215,7 @@
       "basis": "subject-not-imported",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": {
         "stem": "AnalyticsRepository",
         "module": "packages/adapters/db-prisma/src/AnalyticsRepository.ts",
@@ -7341,7 +7230,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 10,
+      "blockCount": 9,
       "blocks": [
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts::returns latest analytics record for each post",
@@ -7372,43 +7261,36 @@
           "bodyHash": "0631dc2f409e2a9068f226b5b54c92c228d4c2b57e0421293f8d7e2ace9bab15"
         },
         {
-          "id": "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts::calculates engagement metrics correctly",
-          "line": 103,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "15aa99040abaa76d77c34fb34d625d09c8625bdf3e1d94403d6923e6d5a86d32"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts::calculates total engagement as sum of likes, comments, and shares",
-          "line": 117,
+          "line": 103,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "29b531640ba7e2a543ff4ea0ab12e9928762bd43aefeff1b63b036147b4e609b"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts::calculates engagement rate as percentage",
-          "line": 127,
+          "line": 113,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "fd77d956799d6353d6de9b486748faf1f9137c7b4452453a792e284a8d840669"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts::returns zero engagement rate when views are zero",
-          "line": 139,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "444b4cf7f264a2d766f895ec11defb052a1ca1f86c2f7a96319e7110b04170dc"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts::handles empty analytics array",
-          "line": 168,
+          "line": 154,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ac429d3aa93216b860234cf78530fc56703a8aa5598ed2fc79d9ef2ab1784027"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.channel.integration.test.ts::handles null/undefined values in analytics",
-          "line": 180,
+          "line": 166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cc5f9e4671f94b2f7d0f9a42dc8bff876753b89baf14a75a597552b84a325c64"
@@ -7418,7 +7300,7 @@
       "basis": "subject-not-imported",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": {
         "stem": "AnalyticsRepository",
         "module": "packages/adapters/db-prisma/src/AnalyticsRepository.ts",
@@ -7450,7 +7332,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 14,
+      "blockCount": 12,
       "blocks": [
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::groups analytics by day",
@@ -7474,78 +7356,64 @@
           "bodyHash": "c5e75a1255e7ee87c397f1eea3204edde7c1d7be7fb72084f0c12a2cc6bf0947"
         },
         {
-          "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::includes aggregated metrics per period",
-          "line": 63,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "107eeb38df93394d817717ac599cc0c6a6c14addb8b0a7bf6d63a6c4e0bb1c76"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::respects date range filters",
-          "line": 77,
+          "line": 63,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "752afa65416720db642deedee7bd2d066157cbfe92fa4ade4b770033379560b3"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::returns posts with analytics in single query",
-          "line": 98,
+          "line": 84,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "baedbdfa7c8f284c826ce3872b3f431bc2e18d9f93ba8e47717e9f7faa0486d8"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::filters analytics by date range",
-          "line": 112,
+          "line": 98,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "55434171a4e599bbef409205ba6c7928000c0332de5b4b2e19c091ec0098d2c9"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::filters analytics by provider",
-          "line": 127,
+          "line": 113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f2c9dcf07e7b86b6ae8a91218c65f7a983c95b89bf1b6ef7a0b058c0f4614adc"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::respects post pagination",
-          "line": 140,
+          "line": 126,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7a499d706e363883daea75855a5e7e10c9e7a8529869c3c95c6c6c62a6bbe3cd"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::orders posts by createdAt desc",
-          "line": 147,
+          "line": 133,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ebd2d6034a59910be37dfec7424d90d3d8ecb06b5beb1401df6953e5c56ace04"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::orders analytics by capturedAt desc within each post",
-          "line": 156,
+          "line": 142,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b5c967b549584e677de19568584cbd50e523e272c41f2b74b30223f11b12ed1a"
         },
         {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::handles concurrent queries correctly",
-          "line": 177,
+          "line": 163,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "55b362931169e8cd7271fe3bf502e6aa352f53f94451e360da35607ab6c1c8c9"
         },
         {
-          "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::handles large date ranges",
-          "line": 193,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "35070886776878833ab54a80ad38cc73bb07eeb98d775730e0aeabc675f283b8"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::handles empty result sets gracefully",
-          "line": 204,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0f0fe0f0337218be1db30838a284903a29f7edb161162f1d13eaf5fae32cb8cc"
@@ -7555,7 +7423,7 @@
       "basis": "subject-not-imported",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": {
         "stem": "AnalyticsRepository",
         "module": "packages/adapters/db-prisma/src/AnalyticsRepository.ts",
@@ -7634,7 +7502,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 22,
+      "blockCount": 18,
       "blocks": [
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should create a new post and retrieve it",
@@ -7658,144 +7526,116 @@
           "bodyHash": "0072d68f9b0b76ce8f6e96f654450e65176d894831855dbc834573839e63027b"
         },
         {
-          "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should return true for existing post",
-          "line": 187,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "05e479adeca55ce9964e467cacfcb6394c3c64290aafd2192d761e6a4e1f6e3b"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should return false for non-existent post",
-          "line": 206,
+          "line": 187,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c9bfdb07e4ad28cd6735203b9503c620be20aa5d8889f43ae7784504278236da"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should delete an existing post",
-          "line": 214,
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "41588282e60cdbab8f3322585179b558193f6ae13392fa685112702dd4cee5f5"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should return error when deleting non-existent post",
-          "line": 238,
+          "line": 219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "10da324062fb40a27872fb753edd57f7c3bf9a92590785f2c7fc93f8afcfc337"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should find all posts for a project with pagination",
-          "line": 250,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c68f7c727de29637572dab9807945ac90c2cc7fa135b7e7153bb56acb527d73d"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should find posts by single status",
-          "line": 280,
+          "line": 261,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1357e77f84062e01b6436a35362df5fadfa6affc9389e6db8b7343032bc79bb"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should find posts by multiple statuses",
-          "line": 298,
+          "line": 279,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f163a0a19f0c14dc76c7f62d5f439274f7cefdb941f41b1fca69c5a483701c2c"
         },
         {
-          "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should find scheduled posts with passed time",
-          "line": 309,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "db35d680f6b64673d61a6770badd0db5195502e009f1ac9a021600a444043980"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should filter posts by project and status",
-          "line": 318,
+          "line": 290,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4b2f63d600069790348c3ae8bd4e4c63401aaee120de61157bc38508a8b4bf39"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should filter posts with media",
-          "line": 330,
+          "line": 302,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f780efb764561406f243d03c3d5f4f544c4660659a6c9ae99a87135bcc5e293b"
         },
         {
-          "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should count posts for a project",
-          "line": 343,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "069f0b9f0dcd874d96f60e5425bb4443e549e03abbf5cca76d905d500d230c67"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::counts only the posts of the given project that carry the given status",
-          "line": 352,
+          "line": 315,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9aa1490634694329f9311df31e893f7a73c4f566229be717beed98650fafdf58"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should return project statistics",
-          "line": 483,
+          "line": 446,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8fc86775d5c54c123c1d7ded6ba83acd0daa88b3e098d526bb18089377aa7841"
         },
         {
-          "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should update status for multiple posts",
-          "line": 498,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "185445c4a0e37c892c3ea1bafde7e2eeaed66b66b7284386ecdca8617f2a76a9"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should map Prisma post to domain aggregate",
-          "line": 526,
+          "line": 463,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2cea807543607c4ad6ee05ee2091de85f73ba449d68ec937eae45fd2820c99a2"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should map scheduled post with past date",
-          "line": 562,
+          "line": 499,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "52eaa0e6b14ee30f2950bcc256cbf8f0771a0ed2eebbf5c3f358e6067013bd22"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should map post with media",
-          "line": 599,
+          "line": 536,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f32e1f1da66d3809301f78a8cf3581fbc024051852873f02a694d66457dbbd2"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should map aggregate to Prisma create input",
-          "line": 648,
+          "line": 585,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "36a610d51387d83fbb3056bb5e3d7823ce3acac34af42ed757fca6d96bd68d1a"
         },
         {
           "id": "apps/api/tests/integration/repositories/PrismaPostRepository.integration.test.ts::should map aggregate to read model",
-          "line": 672,
+          "line": 609,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5496dfa8e4829fc6e438d5b5ab39e3a47074cf582a2ced074b19438bff4aa26d"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": {
         "stem": "PrismaPostRepository",
         "module": "packages/adapters/db-prisma/src/post/PrismaPostRepository.ts",
@@ -7810,151 +7650,144 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 21,
+      "blockCount": 20,
       "blocks": [
         {
-          "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::ProjectRepository instantiates successfully",
-          "line": 149,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "5c210acf63e5b75343a27eb79c359029b994470de43027829340986b54eff1e5"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns all post IDs for a project",
-          "line": 168,
+          "line": 161,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8bb04932763857736f6de640c7379731319f33b53c364592d68178e6d34a8492"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns empty array for project with no posts",
-          "line": 181,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0899026e134f2bc175d0fabb91857c366f2e5fa8f0564893eefea3bf9e2f885a"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns empty array for non-existent project",
-          "line": 199,
+          "line": 192,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "31817afd4177dc55f175670bf2f40b231db22474c205d91e1fcd92e98e9f9133"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns posts with content and media",
-          "line": 221,
+          "line": 214,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "62aaf462f28fbec96c23b13bbfe4f73b732d5905eb2c701f93b255a1a711faa8"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::respects take option for pagination",
-          "line": 237,
+          "line": 230,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d91396be598e1aa3c3cd11fc25fb73f158883fd6fc54ba8b47a41851498a92e"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::respects skip option for pagination",
-          "line": 244,
+          "line": 237,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4a5eaa12817f621fb1a04719a308a1f529d11ec8f61d973ad0d257fa6ac7ffdc"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::orders by createdAt desc by default",
-          "line": 253,
+          "line": 246,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95d33b22c76986bfb269666cb50363c2b4f997571082c1e4a0b768af300506ff"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns posts with analytics data",
-          "line": 279,
+          "line": 272,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "144812cbf18e76f1af244cd8008eb6a27ecccb7810c87a1885ed51202e8c2af3"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::includes draft posts even without analytics",
-          "line": 294,
+          "line": 287,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "82701873f40b6d927bb10de89c15586b19aab0dd4f070b59d13ca49c08c289e1"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns project when it exists",
-          "line": 321,
+          "line": 314,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "540582665bfad7134fb4894b6046bb6dc237a0ab6ebfe27c91c80b8d24267c07"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns null when project does not exist",
-          "line": 330,
+          "line": 323,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f3838267a5e97625cb0a2abf02a5f5550113079969feb80fe8bd526b0d2d90bb"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns all projects for an account",
-          "line": 351,
+          "line": 344,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "029d496e6ab0c2cd37197553d740b71a15cd344cd27c3ccf23d6831af5e88847"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns empty array for account with no projects",
-          "line": 370,
+          "line": 363,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f46f7cfa5fc447b81116f8e7b20aa1e3d6307931c5139539dd7fb29316519753"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::orders projects by createdAt desc",
-          "line": 378,
+          "line": 371,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "47ef59ac162e53a76b33ad1f49b78a6d8ad585e6b6a2b53dfd8a0b4187d02b50"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns correct count of posts",
-          "line": 414,
+          "line": 407,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b5167a473a9ce90c632b2106b33778bdbc2b5de71842a944666dde622baedbae"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns 0 for project with no posts",
-          "line": 421,
+          "line": 414,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40c299f129b69c6be8f6f0d61a1fa3f8d1ffbf965985072b5c7bd7f36d93b438"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::returns only published posts",
-          "line": 451,
+          "line": 444,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ffcc1d48042e33b651d0cb874f99504455453da89d53a75cf0d3e04853cfc37"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::includes content and media",
-          "line": 464,
+          "line": 457,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ac90bd059f534d2e9c015cf9d4715b9d964a41af68cda44387bca53dbf7312b7"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::orders by publishedAt desc by default",
-          "line": 476,
+          "line": 469,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "835693a0e91e55473fc2bfb5296a1b2825d7a9e3dbb31ee6b8a5fa8250c39033"
         },
         {
           "id": "apps/api/tests/integration/repositories/ProjectRepository.integration.test.ts::respects pagination options",
-          "line": 490,
+          "line": 483,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0965b634b2e980abfefc38a78d2d5f26cb20db79977a1b1dbbb951bce7b50921"
@@ -7964,7 +7797,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -7975,277 +7808,242 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 39,
+      "blockCount": 34,
       "blocks": [
         {
-          "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::UserRepository instantiates successfully",
-          "line": 138,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e918a6461d00e3d1879133452a575514c4e4fa1d7586644660536995654706f1"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns active user when searching by ID",
-          "line": 157,
+          "line": 150,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e13f6c37133ae54b1136feebaaa7c34e9ad3b0f7e7ef23bc18242e27879d5b06"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns active user when searching by email",
-          "line": 168,
+          "line": 161,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1d0a3976b6b1d74928c6196427425daf1c95b85712b0862bc7a1a85844b6e19b"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::normalizes email to lowercase when searching",
-          "line": 183,
+          "line": 176,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40488831d23277f47a2537ccc13751472137c36aa3d85507fc9722386db5ff5a"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns USER_INACTIVE error for inactive user by ID",
-          "line": 198,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a20ce945eff347f285b88c47ec529ea7bd2b3a921d54ff295ee97b597559a620"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns USER_INACTIVE error for inactive user by email",
-          "line": 208,
+          "line": 201,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e5ade96712e7ab9e223c04d18f17efa6d84a805b3af217261b8cc77efa89aae"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns NOT_FOUND error for non-existent user by ID",
-          "line": 222,
+          "line": 215,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "caeba80e004f76930a6b260402238741882d65fdd8906046583218740832f8f8"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns NOT_FOUND error for non-existent user by email",
-          "line": 232,
+          "line": 225,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de1f655274b81b0d6ccf74d48c5d4ad8101158866952a08ce6988bce81fdc7b3"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::defaults to 'id' type when not specified",
-          "line": 242,
+          "line": 235,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1269ec438ff04fc7acc7b5d9190a46192506c6a15075a8e8395d14bc8b0413f"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns user when it exists",
-          "line": 266,
+          "line": 259,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4b7c87c72436348f75d5e5a1dd78d7eca9f2fb8695a5f7851d0b294d0e34a2bd"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns inactive user without error",
-          "line": 278,
+          "line": 271,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "315bd574feafa0709cab4f01e084eb14c92e79d4cbd89946ed97a4ad9d7c1719"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns NOT_FOUND error when user does not exist",
-          "line": 289,
+          "line": 282,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7eaa991ed01eefd566abe47345b2d5b0b562616305d5fd8a43e9fe8bc6f4b519"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns the public credential-free user fields",
-          "line": 299,
+          "line": 292,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "314698995d76c8ab8ed676010ace252aa503db13b59df5ffb2aa81e6369f5d55"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns user when email matches",
-          "line": 332,
+          "line": 325,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1abecda687981eb6b2037c3b0b1ce00ded671f83dcbbcc2d153632e537509fd"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::normalizes email to lowercase",
-          "line": 346,
+          "line": 339,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e88d98c89dc5ef2e790e533efa3abf7be0102d992c16eb0ff29966fb5ea4675"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns inactive user without error #2",
-          "line": 365,
+          "line": 358,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "58cbe44d2de419419e96654dee3556e489713691199ba181d14bfe5c9a337b8b"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns NOT_FOUND error when email does not exist",
-          "line": 379,
+          "line": 372,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "82bc7618d17cd0e7a8432a2e716187ba8d4b54552beb6f9c563742e74a1a0471"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles emails with special characters",
-          "line": 389,
+          "line": 382,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "471b0bbfaf3a73c4b1491fe6e5e718842fd9e8a73e8a3555dd441cb9afa46414"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns success for active user",
-          "line": 425,
+          "line": 418,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b8b7ed8031d83910694159d9f554c703655b987fc7e03889ac5387be28608cc"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns USER_INACTIVE error for inactive user",
-          "line": 439,
+          "line": 432,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d13113a92bdfe4df34bf5c14b714ba8dd9b32b6862478a90c38f7342c1d0c96b"
         },
         {
-          "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::can be used to validate after findById",
-          "line": 453,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d965a1eb44bc330f518c0b01a8db4e417c93e1fa3b04282da323269a8e3e62f0"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::detects inactive user after findById",
-          "line": 465,
+          "line": 446,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd8863a2ba2d5f8d8f74f7acfd5be24b6a1a2b9138a89132ad462c950b5e438b"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns multiple users for given IDs",
-          "line": 494,
+          "line": 475,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "44de1489c9cd68059d72a862910273e9d3bd2c0b9cf31c7b9132b7dbafeb1bd4"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns empty array for empty IDs",
-          "line": 507,
+          "line": 488,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50925e3f9ab7b0718514e4b24bb04b54ff7decf78fc5a633c5aa84da9a35c5ec"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::only returns users that exist",
-          "line": 515,
+          "line": 496,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1913a4a9fc95a193d99959c9eb57c8a6198f8b871a33afa8b195d6618fe24060"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::includes inactive users",
-          "line": 523,
+          "line": 504,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "07cd31838881281c7bf1ebd39dd46c16f066dd09d7b9fdb86cbfda356a23778a"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns users with all fields",
-          "line": 534,
+          "line": 515,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f7f607702f222f0290b7f21ab7b19e28c50981c03e562bae25b61054bf34ddd4"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles duplicate IDs gracefully",
-          "line": 544,
+          "line": 525,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f06844601cb8b8b61cfe03b11a580292833925a2fd164d5d9b7899b87519860b"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::returns users of different roles",
-          "line": 554,
+          "line": 535,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8c1642841915a6f4d5b5f7875e20d25cb9bfd94f3edd4a14b91b1341536c0d9b"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles concurrent reads correctly",
-          "line": 579,
+          "line": 560,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0452800d64442dc15a8cf2788b3cb057a985d3f115b72bc990c3e368c23c4f60"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles concurrent active user lookups",
-          "line": 591,
+          "line": 572,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66c22d6d9403047a72afd3bb2179b1aaaf5666cf38da5c6caf80a4d805e9ef69"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles empty string user ID gracefully",
-          "line": 605,
+          "line": 586,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9e07fa972107840803ef32c08db565a38491991b8aec05633407a4398511e56a"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles empty string email gracefully",
-          "line": 612,
+          "line": 593,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cda150c88bbd54039430fe414947015536a6478af614267109c6f8fa85143297"
         },
         {
-          "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles very long email addresses",
-          "line": 619,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "cc6dc936a2da87eeece89260f9ea9e1f68c821c14f2b2f54193c6fc4a2c25d1e"
-        },
-        {
-          "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::validates multiple users in sequence",
-          "line": 641,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "57e6cc83d4baa7402e175c651c8b7c9f1eeb6e1c5761d38397b2b89c87d60bb4"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles batch operations with mixed results",
-          "line": 656,
+          "line": 600,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f61a61592d0ad2f1962b92c0704a2d0b3fa34e4af91d2e75cf06e8b8001c47dd"
         },
         {
-          "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::supports authentication flow pattern",
-          "line": 684,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4704c4768222103520a1ccdb9a61153eb300a5b391ab4284eec9732bf10e161d"
-        },
-        {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::supports authorization flow pattern",
-          "line": 701,
+          "line": 628,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d5a190ecd95b9254607d092336fe9a11d8af1a6bade9e3fa42fde6ddb163432b"
         },
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::supports user management pattern",
-          "line": 718,
+          "line": 645,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6600c80d262faf41b23a2ce4193872a61b26597bc36c3a9a79a857051a6774f4"
@@ -8255,7 +8053,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -8407,7 +8205,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 31,
+      "blockCount": 30,
       "blocks": [
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::the application role exists and carries neither SUPERUSER nor BYPASSRLS",
@@ -8445,183 +8243,176 @@
           "bodyHash": "ec89760732f21909dbd7e871d54971d540c1d9d478398f2c17c78c7247fa7303"
         },
         {
-          "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::writes an RLS-covered row with no tenant context bound",
-          "line": 462,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "5a900429dd7b9cb7affb5f96e5ec766ff5d1c0975b66f131a01d893afcfb1df9"
-        },
-        {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::every guard-enrolled model is fully covered, and any partial state is named",
-          "line": 518,
+          "line": 504,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f9d9644a1d7106df3c782006b1d5d7d5956fec981667075c47e509ccd8440eeb"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::no guard-enrolled table is owned by the application role",
-          "line": 545,
+          "line": 531,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c09bf4917364db2ee7a443511598d86f3b816aad1f6f0389daf1b175d9bc47c8"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::tenant_isolation policy count equals the guard's enrolled-model count",
-          "line": 566,
+          "line": 552,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "81bea3de343dbc36626757a3e8b2f0d49f15d6debb94ee0e55d3dc3b0cc48773"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::every tenant_isolation policy maps 1:1 to a guard-enrolled model",
-          "line": 578,
+          "line": 564,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "11e315e346ead8aee273afbd48319864379e66b2e6506319fd69889d61a56a63"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::Account (global) does NOT have RLS enabled",
-          "line": 609,
+          "line": 595,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a52dff34363f3679e5c5f334c0e7ffc0b4b1ca535fdfc19756b71f8d21b39234"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::the post trio (directly scoped) HAS RLS enabled",
-          "line": 622,
+          "line": 608,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "15e4618eac12195eec195950825057c6324b7ddbe87e82b008803032e7803b44"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::every GUC read in the trio's policies is hoisted into a sub-select",
-          "line": 671,
+          "line": 657,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "324e31455c184a5a37a2bf0f60bc888c1e9d44272eafee065124e0de12141b1a"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::both clauses of each trio policy are rendered in one and the same form",
-          "line": 700,
+          "line": 686,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd7ed2a907d6676901779e1bc04871215ef17e8c82e763de1dc49b41d6f803c9"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::exactly the policies expected to declare no WITH CHECK declare none",
-          "line": 731,
+          "line": 717,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4575db16a523dff6cbc30f1939001363715fcacbd1ae83156f420bfa827ce046"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::exactly the policies expected to carry the IS NULL third arm carry one",
-          "line": 788,
+          "line": 774,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "239a78248fa1e2f8817b13f54430ef22b629e182658395e8fbeaa824faf72bf7"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::the sweep left the trio's committed body and the enrolled population untouched",
-          "line": 836,
+          "line": 822,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "342dbfc236f5d10182ac3dc50b690d8b78924d0a40d722044a6407f7ce21d7c8"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::every enrolled tenant_isolation policy expresses the GUC read in the hoisted form",
-          "line": 908,
+          "line": 894,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "692b7d8e46bbef53b806bda1f2f100e7d968bf1ee1d9b11218f6afad0e7a5f26"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::the compliance rule accepts the deployed rendering and rejects a bare or half-wrapped one",
-          "line": 997,
+          "line": 983,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "82e04841827d7e61663ad0318e6b2798be5285546b498bd2f870edfb201c6121"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::a policy that declares no WITH CHECK is COMPLIANT, and the 3-arm variant passes",
-          "line": 1039,
+          "line": 1025,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b3c8c5d05b2a1cc0141d8c932d3291d6c2f0d52ab4180e0811ccfcf9029654d6"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::the variant that exists in the catalog is audited as compliant by the same rule",
-          "line": 1076,
+          "line": 1062,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50b3a309b914e2080d08ec0752c780c67a46c536ee6d96f383636a0737916088"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::returns 0 rows when app.account_id is unset (fail-closed)",
-          "line": 1101,
+          "line": 1087,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8dad7c8e409208472e50b08e07da2c72dc1b3f60daba0513d1050a16178b7a10"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::returns only tenant A's rows, and a non-zero count of them, when A is bound",
-          "line": 1108,
+          "line": 1094,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4d906c00ac632b499cc93dc5ad62da8a59be37e6f74ab0e7963462dcd9dbdcb"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::returns only tenant B's rows, and a non-zero count of them, when B is bound",
-          "line": 1124,
+          "line": 1110,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cd6a6def2fa030e83df9f0ca71c14867e7e773ca74f011bff15b4eb8b5d40672"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::returns all matching rows across tenants when app.account_id = __system__",
-          "line": 1137,
+          "line": 1123,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "502576f0066967a9b8d9fc66376a10ed4db6ae04a7ed76fe2d50e3ff478d2f21"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::AIPromptTemplate: NULL accountId rows visible to any tenant context",
-          "line": 1144,
+          "line": 1130,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e6d7c7a068544db81632d588fe063ba4db4576c9bcc1114ce917adb8c62fc70e"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::AIPromptTemplate: a tenant reads its OWN rows AND the global rows, and no other tenant's",
-          "line": 1157,
+          "line": 1143,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c5c59fcd73f391224d324059a474f8bfede886b0d1f11f419962e1012d4c64a7"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::INSERT with mismatching accountId is rejected",
-          "line": 1233,
+          "line": 1219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a8dc6fd3899def210256d79b3d7c8011af8f28262784292aeaf172152b5456ea"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::INSERT with matching accountId succeeds and cleanup removes it",
-          "line": 1251,
+          "line": 1237,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "2e5eac232c454ee73815dd0d137ec2aa14403e1de31a4b4de9d3da35c8a3b9d4"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::a tenant-scoped read plans as an index scan on a tenant-leading index",
-          "line": 1274,
+          "line": 1260,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6cea28e43c77c7d91075c4078f98cf87652d683d9944c4f9b0266e713412c18a"
         },
         {
           "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::set_config persists for the duration of the tx and resets on COMMIT",
-          "line": 1319,
+          "line": 1305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e4a83196e685e3c947c5655c46ec543ee1830c65772c4c7140691cb2a11e90e8"
@@ -8631,7 +8422,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -9606,74 +9397,67 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 10,
+      "blockCount": 9,
       "blocks": [
         {
-          "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should initialize with empty channel map",
-          "line": 71,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "4dc8007eccfabdc445d9496997fea0a2a54bf64b547e02b988fe6f416ff12997"
-        },
-        {
           "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should setup Redis streams on initialization",
-          "line": 89,
+          "line": 71,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "6b887b40b40306280fc71cd4240685102a3a67572430e8167a81f51bb3d362f9"
         },
         {
           "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should not re-initialize when called multiple times",
-          "line": 101,
+          "line": 83,
           "blockClass": "TITLE-CONTRADICTION",
           "criteria": [],
           "bodyHash": "5e39b17b208271426f72bea5dba241ba0dd514f86615a4b037dc1fc23b350859"
         },
         {
           "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should load existing sync channels from Redis",
-          "line": 111,
+          "line": 93,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "ab1ebb7f11a7fbd10209178f0b3c40bf141b534b7b4e3bbafac9879d7c31ac20"
         },
         {
           "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should create unidirectional sync channel",
-          "line": 170,
+          "line": 152,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "c093c2d2b02d20210dcfe942c4b0c866d315f6876e46882a1f9045aa7caf2d7c"
         },
         {
           "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should create bidirectional sync channel",
-          "line": 199,
+          "line": 181,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "6d7185f4437d9ec936a1f93f4f0bb7ada647e84ce8a3bcc570e425c4cba4bba5"
         },
         {
           "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should reject channel with same source and target",
-          "line": 223,
+          "line": 205,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "8cd11efeb65269de76b86f80a66fd7de2d659cdc175d0707ce06be71ed1ea481"
         },
         {
           "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should reject duplicate channel creation",
-          "line": 247,
+          "line": 229,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "ab39f19813ebbdc5719959f30791bd1391449628341e6b2e5ed6dee5db0f33d3"
         },
         {
           "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should store channel configuration in Redis",
-          "line": 280,
+          "line": 262,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "691c17d0d616018eae96aee0ed2b4c406da25f92125e8ccbf8e85cd6fd8bb937"
         },
         {
           "id": "apps/api/tests/integration/syncEngine/syncEngine.init.integration.test.ts::should initialize channel with healthy status",
-          "line": 309,
+          "line": 291,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "8693fb52aea22cf5ad014d33f99540b2d48e2acfeabb4ac101853e73acd17324"
@@ -9683,7 +9467,7 @@
       "basis": "title-contradiction",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -10335,7 +10119,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 21,
+      "blockCount": 20,
       "blocks": [
         {
           "id": "apps/api/tests/mfa.integration.test.ts::should return disabled status for user without MFA",
@@ -10429,57 +10213,50 @@
           "bodyHash": "b2c2affd2944c9f9f12ebf137bede0673f0acb5aa1356c4c217d8ab054032339"
         },
         {
-          "id": "apps/api/tests/mfa.integration.test.ts::should complete login with valid MFA token",
-          "line": 423,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b968b9a79c85a2819e0723b33ad37d26797aac4e25773f7f38ea048602eed27b"
-        },
-        {
           "id": "apps/api/tests/mfa.integration.test.ts::should reject login with invalid MFA token",
-          "line": 437,
+          "line": 423,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9ba064180cd153efded864d109694269c3fa159d6dca302f5ba52cf44b995da6"
         },
         {
           "id": "apps/api/tests/mfa.integration.test.ts::should complete login with backup code",
-          "line": 447,
+          "line": 433,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "70c86befd2b7191f45cb47980205d64eed18f854d8d31804fb64484bc7ec7d9f"
         },
         {
           "id": "apps/api/tests/mfa.integration.test.ts::should disable MFA successfully",
-          "line": 500,
+          "line": 486,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c05be58c3f9e92cb09b46485b14dede6714137ddb8ed798cbeac5a6ded54603"
         },
         {
           "id": "apps/api/tests/mfa.integration.test.ts::should allow normal login after MFA disabled",
-          "line": 514,
+          "line": 500,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "015fc82750b01f641914c2150b42fe2a86ff44cde35460ab819d8a066e2a9a1b"
         },
         {
           "id": "apps/api/tests/mfa.integration.test.ts::should reject MFA disable with invalid token",
-          "line": 532,
+          "line": 518,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "02ed52d4dafdd494751217fd487d0c910b14702398f78c200fa65c80d7e3022d"
         },
         {
           "id": "apps/api/tests/mfa.integration.test.ts::should handle non-existent user gracefully",
-          "line": 540,
+          "line": 526,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a81072e696908917c5cbf5bdf9e698ef4029b57cb88af45ce85ae619ca68a538"
         },
         {
           "id": "apps/api/tests/mfa.integration.test.ts::should validate token format",
-          "line": 552,
+          "line": 538,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c7e8c4cc29aecd0697abb11ebdd4c186c11165ec566be62dc64a2117808c0ed9"
@@ -10489,7 +10266,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -10658,7 +10435,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 8,
       "blocks": [
         {
           "id": "apps/api/tests/planPublication.integration.test.ts::should plan publication for single channel",
@@ -10668,88 +10445,60 @@
           "bodyHash": "a9d589d9b1647f5b0562bd8db7d2e99dd25c229d82128d0edcee696990f16694"
         },
         {
-          "id": "apps/api/tests/planPublication.integration.test.ts::should include required plan properties",
-          "line": 42,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "60d9f286dccea3a3258744dc5df868c0dcd7a29b8f2dc7153bc1cdea7986182e"
-        },
-        {
           "id": "apps/api/tests/planPublication.integration.test.ts::should use correct channel ID",
-          "line": 53,
+          "line": 42,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e0b39251795f3ce1c9b61aacbcf5302903528a28f4dc1c1a543c4bee00d6e3f"
         },
         {
           "id": "apps/api/tests/planPublication.integration.test.ts::should use correct provider ID",
-          "line": 62,
+          "line": 51,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ef5a7e3461c6ac1478b0cf35c3a52e3c78ec3116101c5ba4efd5ae80b874f0eb"
         },
         {
           "id": "apps/api/tests/planPublication.integration.test.ts::should plan for multiple channels",
-          "line": 73,
+          "line": 62,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b93c0a273e59bd07a9dcb64baffbdd22d159a612e396bb9d3145d9e2bd060778"
         },
         {
           "id": "apps/api/tests/planPublication.integration.test.ts::should maintain channel IDs for multiple channels",
-          "line": 83,
+          "line": 72,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "704b6f0374a3dc06a19cc70f8524c062a7f774f048f97d8b82de2863116d02b3"
         },
         {
-          "id": "apps/api/tests/planPublication.integration.test.ts::should render content for provider",
-          "line": 98,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "6a060a6e980e5be821631c42c696f638614b41cb1623863b75b7818edb274cc1"
-        },
-        {
-          "id": "apps/api/tests/planPublication.integration.test.ts::should preserve post content in rendering",
-          "line": 107,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "0925619053512fd3cac277d1ace5520c226417aa4c64b792d96784d6c2fbb03e"
-        },
-        {
           "id": "apps/api/tests/planPublication.integration.test.ts::should handle empty channels array",
-          "line": 119,
+          "line": 87,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9f6bb1cccba5cc2b5d972de1e0238fa7b5fb98fcee204aa452174ba37d108bdf"
         },
         {
-          "id": "apps/api/tests/planPublication.integration.test.ts::should handle posts with minimal required fields",
-          "line": 126,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a8f11cb8d871aef244c92a2800feaeab0af0d5fc2e5fc51580e2eddc9615a231"
-        },
-        {
           "id": "apps/api/tests/planPublication.integration.test.ts::should handle Spanish locale",
-          "line": 148,
+          "line": 96,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "266334f1bd8f8b861631b328b7f1c02aa5b2e9d5e77aa34af3e5d3129ce9ed13"
         },
         {
           "id": "apps/api/tests/planPublication.integration.test.ts::should handle English locale",
-          "line": 164,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cc02567caa94a4df2ebbfab8fc2319d4b24d1825d8abedcb36ab1d5e59771084"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": {
         "stem": "planPublication",
         "module": "packages/core/src/planPublication.ts",
@@ -11445,7 +11194,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 10,
+      "blockCount": 9,
       "blocks": [
         {
           "id": "apps/api/tests/schedule.flow.integration.test.ts::should create account and project for scheduling",
@@ -11462,67 +11211,60 @@
           "bodyHash": "c32d0aaf17e66f93040db2f65dfbf77dc028c193e3660d04b6b1a8cddb515e7c"
         },
         {
-          "id": "apps/api/tests/schedule.flow.integration.test.ts::should verify queue health for scheduling operations",
-          "line": 100,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "dbb6a40ebd22971068b84f83cbd1d6d889cda20e4ce6798c0fe6265221819ff7"
-        },
-        {
           "id": "apps/api/tests/schedule.flow.integration.test.ts::should prepare post for scheduling",
-          "line": 110,
+          "line": 100,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "09ec630e1f8002e89a984ee4c35b594e3fb633de15f16abee48fc86704de5bc0"
         },
         {
           "id": "apps/api/tests/schedule.flow.integration.test.ts::should validate scheduling logic and parameters",
-          "line": 150,
+          "line": 140,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9e8f616b5a0c05877c6c7c89ce8d823b7ed94d7da903ea997f70306bf970ebc7"
         },
         {
           "id": "apps/api/tests/schedule.flow.integration.test.ts::should handle scheduling errors gracefully",
-          "line": 191,
+          "line": 181,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ce442cb86493c7816c243501300672a91f383bb54feb3ec5e198c97c89fdb0b"
         },
         {
           "id": "apps/api/tests/schedule.flow.integration.test.ts::should validate past schedule times are rejected",
-          "line": 201,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f03bea2826fa877582161c44b08bbeea31b8b726bc00215509c4404c88d727f4"
         },
         {
           "id": "apps/api/tests/schedule.flow.integration.test.ts::should validate future schedule times are accepted",
-          "line": 211,
+          "line": 201,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0710553dacaead99b5cbbc6cee360fedfbf2feab8ce815ca2377b2655cff9be"
         },
         {
           "id": "apps/api/tests/schedule.flow.integration.test.ts::should complete full scheduling workflow",
-          "line": 224,
+          "line": 214,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fbffb188d3f3bd89348e1d9e2a3584b482e0ec245e585f4dda9cc5d5efd3faec"
         },
         {
           "id": "apps/api/tests/schedule.flow.integration.test.ts::should handle concurrent scheduling requests",
-          "line": 277,
+          "line": 267,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e440fc1503cc04ca24cfb2e5ac0b0af8bd1dea4b311215b157e21029a0a7cd4"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -11904,74 +11646,53 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 10,
+      "blockCount": 7,
       "blocks": [
         {
           "id": "apps/api/tests/threading.canonical.integration.test.ts::should render short content as single tweet",
-          "line": 31,
+          "line": 29,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee2554cc87023e54686ff8028577d17f770378f75223f055a27acf7f692900ce"
         },
         {
           "id": "apps/api/tests/threading.canonical.integration.test.ts::should render long content as thread",
-          "line": 53,
+          "line": 51,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ffaccdfa628243ba5760341f3eb75ec67b45c474d89eb95d16f126e610b5cc6e"
         },
         {
           "id": "apps/api/tests/threading.canonical.integration.test.ts::should plan thread with planThread() method",
-          "line": 89,
+          "line": 87,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e189cfff20b5f88a764231634835b53ab05805d277793135668c103eabc4bc6"
         },
         {
           "id": "apps/api/tests/threading.canonical.integration.test.ts::should create valid thread plan structure",
-          "line": 110,
+          "line": 108,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bc076ebb9a66836d0184f1c52e319f087733f4e379fbf7abce816b0d1e05d0a3"
         },
         {
-          "id": "apps/api/tests/threading.canonical.integration.test.ts::should handle threading in planPublication",
-          "line": 149,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "5fb2a7d362bc950e7829f3c9abc1446ce50d847868dbecad4bfb6a220fbdb6a6"
-        },
-        {
           "id": "apps/api/tests/threading.canonical.integration.test.ts::should distribute media across thread tweets",
-          "line": 180,
+          "line": 147,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "57ca5b239f431f117749994b860417c70e1019cce6507746d276eeaa6743af20"
         },
         {
-          "id": "apps/api/tests/threading.canonical.integration.test.ts::should handle AUTO strategy for long content",
-          "line": 217,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f4bd57e053275f32c61c578c01671a9eb1dae9ab6b85255b486d64c060d4cd6d"
-        },
-        {
-          "id": "apps/api/tests/threading.canonical.integration.test.ts::should handle short content as single tweet",
-          "line": 230,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "dd7ba6e3846e57096d274b41e050ba57fb6d3d5ab98e5547a0595e568cfdc64d"
-        },
-        {
           "id": "apps/api/tests/threading.canonical.integration.test.ts::should account for thread indicators in character limits",
-          "line": 245,
+          "line": 184,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "c5fc166cf61569964a1ef15ec77f6886d2d8f2b0008e664c040718f1f5d53804"
         },
         {
           "id": "apps/api/tests/threading.canonical.integration.test.ts::should ensure all tweets stay within character limit",
-          "line": 268,
+          "line": 207,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "367c717fd121a77525d472ac3e8388473d99e4f76e2005772d245662966a7d50"
@@ -11981,7 +11702,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -11992,7 +11713,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 15,
+      "blockCount": 12,
       "blocks": [
         {
           "id": "apps/api/tests/threading.planner.integration.test.ts::should not need threading for short posts",
@@ -12037,74 +11758,53 @@
           "bodyHash": "492d534ace8b16977e45aa8ddd50564a0c2f7b8cffe19be3a8867b1d57b26f4c"
         },
         {
-          "id": "apps/api/tests/threading.planner.integration.test.ts::should not exceed max media limit per tweet",
-          "line": 207,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "50b575bdd6f8528fa9a07d9bebc2222121304900ba4c3195ea6386e109f02495"
-        },
-        {
           "id": "apps/api/tests/threading.planner.integration.test.ts::should force single tweet with SINGLE strategy",
-          "line": 240,
+          "line": 209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "34abd9804f7f1f286d01bb2b627def2d0d62407a7c72287e1eb94d8dd3822b1b"
         },
         {
           "id": "apps/api/tests/threading.planner.integration.test.ts::should respect AUTO strategy for long content",
-          "line": 270,
+          "line": 239,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5d9e4319c7a17eb99be7c0b6d50cbe4448770a99dbff7e9df2dc4c6891bcd062"
         },
         {
           "id": "apps/api/tests/threading.planner.integration.test.ts::should respect 280 character limit per tweet",
-          "line": 295,
+          "line": 264,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e287337cef9978186fc41fbf745603a99f0a88128c43b357209f3a62aaf76ee6"
         },
         {
           "id": "apps/api/tests/threading.planner.integration.test.ts::should handle content at character boundary",
-          "line": 322,
+          "line": 291,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f24aef2ca7f96414f5713cf5304589d622787960c65d65c48c9292b6c758c791"
         },
         {
           "id": "apps/api/tests/threading.planner.integration.test.ts::should account for thread indicators in character count",
-          "line": 346,
+          "line": 315,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd160cf6f17e33cb6ba78cfaff837104629b12d9f2604b69b54abdc9685bf7b2"
         },
         {
-          "id": "apps/api/tests/threading.planner.integration.test.ts::should handle empty body gracefully",
-          "line": 381,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "419869eec0ae5283cba04a9ae31700c78383ddaa6298446aaa7a997ebc6c8162"
-        },
-        {
           "id": "apps/api/tests/threading.planner.integration.test.ts::should handle special characters correctly",
-          "line": 403,
+          "line": 350,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "427447c0e74325826b253c4d9298b8e77b786123ba74710319da26012aeed0e5"
-        },
-        {
-          "id": "apps/api/tests/threading.planner.integration.test.ts::should handle very long continuous words",
-          "line": 421,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c85edf807d2c562e1c428e5d628055971ba91a6dca729606bd3cd65c43ed0685"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -12115,7 +11815,7 @@
       "framework": "node",
       "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
       "quarantined": null,
-      "blockCount": 26,
+      "blockCount": 14,
       "blocks": [
         {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should render short content as single tweet",
@@ -12132,179 +11832,95 @@
           "bodyHash": "4ddfdbea213bb6a989df4e4773635d601ae1511c974777553bc061a2d336aafb"
         },
         {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle media content rendering",
-          "line": 81,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b1e4f9cbc143dfbb8a776cfe39906fd7dd5afa7e76070f7a5ff3706b50fa39f0"
-        },
-        {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should plan thread for long content",
-          "line": 122,
+          "line": 83,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc98537923423f2a652f3631dc98e2497507a93fd009ab38150b1feba522e831"
         },
         {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should enforce character limits in thread planning",
-          "line": 144,
+          "line": 105,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3092d4e17aa8d724b414b3c53ca016cb806f8c5736b3bd8e869dba3abc743cc1"
         },
         {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should add thread indicators to tweets",
-          "line": 172,
+          "line": 133,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5ab085fd17d4eac41e1c8101eecc750b5b1f285a577b094e504ec46b86cf548e"
         },
         {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should maintain tweet sequence integrity",
-          "line": 199,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d46ebe7f6dee121e63b93e67815e8a09764f34cac8f98531795391bf6544e1a1"
         },
         {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should fail validation with placeholder credentials",
-          "line": 227,
+          "line": 188,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "91e5b3add1c6d9fe0bceef976cad572c54fa025f0e7dcf60da351288f63d6e18"
         },
         {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should fail validation with empty credentials",
-          "line": 238,
+          "line": 199,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1fa787f3bb2a0235384fbe446c8b985a92181dbe71b8ef8a2f744651ef330140"
         },
         {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should have correct character limit",
-          "line": 250,
+          "line": 211,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2a023ca7a2c907359d046d5cecc2b12c165558d928f01cbcdef1eedd8c528f45"
         },
         {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should support threading",
-          "line": 258,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e4a097fe936e86038ab27576cc927c08c3780585471136e42c29dbe47f71186e"
-        },
-        {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should have maximum tweets per thread limit",
-          "line": 263,
+          "line": 219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae8ce3a92075ea27f73198f5876d315b4fe573d31c2b0989e8bf63786e98b12c"
         },
         {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should have media capabilities",
-          "line": 271,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a3107188e12bd5ac3578e64b5541a9751e83d909cb98ca815e333a271bf85906"
-        },
-        {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should have correct media limits",
-          "line": 277,
+          "line": 227,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "55039f613a0b43c1646084bf9f1b1d59d1083adf0dccfe1832bd6ca8ebac6427"
         },
         {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle single media item",
-          "line": 287,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d649fce0315c352c9f5fae2bce19c871530b3b350f0bd2ea0cf4bdf5e769eec0"
-        },
-        {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle multiple media items",
-          "line": 312,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f96548d00f7552a058319c14937ca7f8ba130acde9f4e00dbebe6144606daec8"
-        },
-        {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should distribute media in thread",
-          "line": 333,
+          "line": 237,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "db43a2d426074094e19156fb1e502354ddfacf85af5edd94646a9d04ddb901e5"
         },
         {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle exactly 280 characters",
-          "line": 364,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c9a8056917e8aa5c60ffcece6b586a3e36f3f998bddd1cefe5a2da0b3ee87567"
-        },
-        {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle empty body",
-          "line": 383,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "53ea5835a4cad93feed985403c73ebf176dae8d92534e115d60f45bc7428b0e8"
-        },
-        {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle unicode characters",
-          "line": 403,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "58b3c108c78f7f5e4b0c7b49ebebad48601e7a3bb6b126ac69868e9ef18f8a56"
-        },
-        {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle mentions and hashtags",
-          "line": 420,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d8b555ae4691fde88b4b57948443c32082ba67d1b00d358a19230c2dd627b173"
-        },
-        {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle URLs in content",
-          "line": 437,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f7ee9be5cbd49af35fca8cc8ec54564527fd8e0f1b628517f09b0a30ed965365"
-        },
-        {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should create valid thread plan with all required fields",
-          "line": 456,
+          "line": 268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cc51c2036a667632b61f88ec2fdec0bebc51c07c022c8f1a5818736a6ba62171"
         },
         {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should include metadata in thread plan",
-          "line": 489,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "690501a7d600fbc1d12ea768a1c2fb4290c24b2f1a2048845e25ff3627f38e8b"
-        },
-        {
           "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle very long content efficiently",
-          "line": 511,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e0c00997490dee0bb2b45ecfcbcc7016843212ab6160ad0d3444112f498c497"
-        },
-        {
-          "id": "apps/api/tests/threading.xprovider.integration.test.ts::should handle multiple consecutive calls",
-          "line": 533,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3747113ab0326ec0d5f0364f4406fdbb214e168f9afbac4978443a9368f8fb76"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.5",
       "subject": null,
       "duplicate": null,
       "importers": null

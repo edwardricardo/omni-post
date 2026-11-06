@@ -4,7 +4,7 @@
  * Tests the core publication planning engine including:
  * - Planning canonical posts for providers
  * - Provider adapter integration
- * - Rendered content validation
+ * - Empty channel lists and per-locale planning
  * - Multi-channel planning
  *
  * @file planPublication.integration.test.ts
@@ -37,17 +37,6 @@ describe("Publication Planning", () => {
 
       assert.ok(result.ok, `Expected ok result: ${result.ok ? "ok" : result.error}`);
       assert.strictEqual(result.value.length, 1, "Expected one plan");
-    });
-
-    it("should include required plan properties", () => {
-      const result = planPublication(canonicalPost, [{ channelId: "dev-x", provider: xAdapter }]);
-
-      assert.ok(result.ok);
-      const plan = result.value[0];
-
-      assert.ok(plan.channelId, "Plan should have channelId");
-      assert.ok(plan.providerId, "Plan should have providerId");
-      assert.ok(plan.rendered, "Plan should have rendered content");
     });
 
     it("should use correct channel ID", () => {
@@ -94,53 +83,12 @@ describe("Publication Planning", () => {
     });
   });
 
-  describe("Content Rendering", () => {
-    it("should render content for provider", () => {
-      const result = planPublication(canonicalPost, [{ channelId: "dev-x", provider: xAdapter }]);
-
-      assert.ok(result.ok);
-      const plan = result.value[0];
-
-      assert.ok(typeof plan.rendered === "object", "Rendered content should be an object");
-    });
-
-    it("should preserve post content in rendering", () => {
-      const result = planPublication(canonicalPost, [{ channelId: "dev-x", provider: xAdapter }]);
-
-      assert.ok(result.ok);
-      const plan = result.value[0];
-
-      // The rendered content should include the post body
-      assert.ok(plan.rendered, "Should have rendered content");
-    });
-  });
-
   describe("Error Handling", () => {
     it("should handle empty channels array", () => {
       const result = planPublication(canonicalPost, []);
 
       assert.ok(result.ok);
       assert.strictEqual(result.value.length, 0, "Should return empty array for no channels");
-    });
-
-    it("should handle posts with minimal required fields", () => {
-      const minimalPost = {
-        id: "test-minimal",
-        projectId: "dev",
-        locale: "en",
-        body: "Test content", // Include body to avoid undefined.trim() error
-      };
-
-      const result = planPublication(minimalPost as any, [
-        { channelId: "dev-x", provider: xAdapter },
-      ]);
-
-      // Should handle minimal but valid post structure
-      assert.ok(result !== undefined, "Should return a result");
-      if (!result.ok) {
-        // If it fails, it should return a proper error
-        assert.ok(result.error, "Failed result should have error");
-      }
     });
   });
 

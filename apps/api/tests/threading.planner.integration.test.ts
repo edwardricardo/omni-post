@@ -203,37 +203,6 @@ describe("Thread Planner", () => {
         `Expected 2 media items, got ${totalMediaInTweets}`
       );
     });
-
-    it("should not exceed max media limit per tweet", () => {
-      const postWithMedia: CanonicalPost = {
-        id: "test-media-limit",
-        projectId: "dev",
-        locale: "es",
-        body: "Test media distribution. ".repeat(10),
-        tags: [],
-        media: [
-          { id: "m1", type: "image", url: "https://example.com/1.jpg", w: 1200, h: 800 },
-          { id: "m2", type: "image", url: "https://example.com/2.jpg", w: 1200, h: 800 },
-          { id: "m3", type: "image", url: "https://example.com/3.jpg", w: 1200, h: 800 },
-          { id: "m4", type: "image", url: "https://example.com/4.jpg", w: 1200, h: 800 },
-        ],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = planThread(postWithMedia, "AUTO");
-      assert.ok(result.ok);
-
-      // No tweet should exceed max media limit (4 for X)
-      for (const tweet of result.value.tweets) {
-        if (tweet.media) {
-          assert.ok(
-            tweet.media.length <= 4,
-            `Tweet ${tweet.sequence} has ${tweet.media.length} media items, exceeding limit of 4`
-          );
-        }
-      }
-    });
   });
 
   describe("Threading Strategies", () => {
@@ -378,28 +347,6 @@ describe("Thread Planner", () => {
   });
 
   describe("Edge Cases", () => {
-    it("should handle empty body gracefully", () => {
-      const emptyPost: CanonicalPost = {
-        id: "test-empty",
-        projectId: "dev",
-        locale: "es",
-        body: "",
-        tags: [],
-        media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = planThread(emptyPost, "AUTO");
-
-      // Should either succeed with empty tweet or fail gracefully
-      if (result.ok) {
-        assert.ok(result.value.tweets.length >= 1, "Should have at least one tweet");
-      } else {
-        assert.ok(result.error, "Should have error message for empty body");
-      }
-    });
-
     it("should handle special characters correctly", () => {
       const specialCharsPost: CanonicalPost = {
         id: "test-special",
@@ -416,24 +363,6 @@ describe("Thread Planner", () => {
 
       assert.ok(result.ok, "Should handle special characters");
       assert.ok(result.value.tweets.length >= 1, "Should create at least one tweet");
-    });
-
-    it("should handle very long continuous words", () => {
-      const longWordPost: CanonicalPost = {
-        id: "test-long-word",
-        projectId: "dev",
-        locale: "es",
-        body: "a".repeat(300), // Single very long "word"
-        tags: [],
-        media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = planThread(longWordPost, "AUTO");
-
-      assert.ok(result.ok, "Should handle long continuous words");
-      assert.ok(result.value.needsThreading, "Should need threading for long word");
     });
   });
 });

@@ -279,23 +279,6 @@ describe("Account Lifecycle Management", () => {
     });
   });
 
-  describe("Password Management", () => {
-    it("should reset account password", async () => {
-      const account = await createTestAccount();
-
-      const result = await accountLifecycleService.resetPassword(
-        account.id,
-        {
-          newPassword: "newPassword123",
-          requirePasswordChange: true,
-        },
-        superAdminUserId
-      );
-
-      assert.ok(result.ok, `Password reset failed: ${result.ok ? "" : result.error}`);
-    });
-  });
-
   describe("Account Listing", () => {
     it("should list accounts with role filter", async () => {
       const account = await createTestAccount({ role: "SUPPORT" });

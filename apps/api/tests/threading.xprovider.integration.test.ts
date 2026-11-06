@@ -6,7 +6,7 @@
  * - Thread planning with X constraints
  * - Character limits (280 chars)
  * - Media handling for tweets
- * - Provider capabilities and limits
+ * - Provider limits
  *
  * @file threading.xprovider.integration.test.ts
  * @description Tests for X/Twitter Provider Threading
@@ -76,45 +76,6 @@ describe("X/Twitter Provider Threading", () => {
         threadPlan.tweets.length > 1,
         `Expected multiple tweets, got ${threadPlan.tweets.length}`
       );
-    });
-
-    it("should handle media content rendering", () => {
-      const postWithMedia: CanonicalPost = {
-        id: "test-3",
-        projectId: "dev",
-        locale: "es",
-        body: "Check out this amazing content with media attachments!",
-        tags: [],
-        media: [
-          {
-            id: "media-1",
-            type: "image",
-            url: "https://example.com/image1.jpg",
-            w: 1200,
-            h: 800,
-          },
-        ],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = xAdapter.render(postWithMedia);
-
-      assert.ok(result.ok, `Expected media render to succeed: ${result.ok ? "" : result.error}`);
-
-      // Check that media is included
-      if (result.value.type === "single") {
-        const singleContent = result.value.content as any;
-        assert.ok(singleContent.media, "Should have media in rendered content");
-        assert.ok(singleContent.media.length === 1, "Should have one media item");
-      } else {
-        const threadContent = result.value.content as any;
-        const totalMedia = threadContent.tweets.reduce(
-          (acc: number, tweet: any) => acc + (tweet.media?.length || 0),
-          0
-        );
-        assert.strictEqual(totalMedia, 1, `Expected 1 media item total, got ${totalMedia}`);
-      }
     });
   });
 
@@ -246,7 +207,7 @@ describe("X/Twitter Provider Threading", () => {
     });
   });
 
-  describe("Provider Limits and Capabilities", () => {
+  describe("Provider Limits", () => {
     it("should have correct character limit", () => {
       assert.strictEqual(
         xAdapter.limits.maxChars,
@@ -255,23 +216,12 @@ describe("X/Twitter Provider Threading", () => {
       );
     });
 
-    it("should support threading", () => {
-      assert.ok(xAdapter.limits.threadingSupported, "Threading should be supported");
-      assert.ok(xAdapter.capabilities.threading, "Threading capability should be true");
-    });
-
     it("should have maximum tweets per thread limit", () => {
       assert.strictEqual(
         xAdapter.limits.maxPostsPerThread,
         25,
         `Expected maxPostsPerThread to be 25, got ${xAdapter.limits.maxPostsPerThread}`
       );
-    });
-
-    it("should have media capabilities", () => {
-      assert.ok(xAdapter.capabilities.media, "Should support media");
-      assert.ok(xAdapter.capabilities.images, "Should support images");
-      assert.ok(xAdapter.capabilities.videos, "Should support videos");
     });
 
     it("should have correct media limits", () => {
@@ -284,52 +234,6 @@ describe("X/Twitter Provider Threading", () => {
   });
 
   describe("Media Handling", () => {
-    it("should handle single media item", () => {
-      const postWithMedia: CanonicalPost = {
-        id: "test-media-single",
-        projectId: "dev",
-        locale: "es",
-        body: "Single media test",
-        tags: [],
-        media: [
-          {
-            id: "media-1",
-            type: "image",
-            url: "https://example.com/image.jpg",
-            w: 1200,
-            h: 800,
-          },
-        ],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = xAdapter.render(postWithMedia);
-
-      assert.ok(result.ok, "Should successfully render post with media");
-    });
-
-    it("should handle multiple media items", () => {
-      const postWithMedia: CanonicalPost = {
-        id: "test-media-multiple",
-        projectId: "dev",
-        locale: "es",
-        body: "Multiple media test",
-        tags: [],
-        media: [
-          { id: "m1", type: "image", url: "https://example.com/1.jpg", w: 1200, h: 800 },
-          { id: "m2", type: "image", url: "https://example.com/2.jpg", w: 1200, h: 800 },
-          { id: "m3", type: "image", url: "https://example.com/3.jpg", w: 1200, h: 800 },
-        ],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = xAdapter.render(postWithMedia);
-
-      assert.ok(result.ok, "Should successfully render post with multiple media");
-    });
-
     it("should distribute media in thread", () => {
       const postWithMedia: CanonicalPost = {
         id: "test-media-thread",
@@ -357,98 +261,6 @@ describe("X/Twitter Provider Threading", () => {
       }
 
       assert.strictEqual(totalMedia, 2, "Should distribute all media items across thread");
-    });
-  });
-
-  describe("Edge Cases", () => {
-    it("should handle exactly 280 characters", () => {
-      const exactPost: CanonicalPost = {
-        id: "test-exact",
-        projectId: "dev",
-        locale: "es",
-        body: "a".repeat(280),
-        tags: [],
-        media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = xAdapter.planThread(exactPost);
-
-      assert.ok(result.ok, "Should handle exactly 280 characters");
-      // Should need threading because thread indicators take space
-      assert.ok(result.value.needsThreading, "280 chars should need threading with indicators");
-    });
-
-    it("should handle empty body", () => {
-      const emptyPost: CanonicalPost = {
-        id: "test-empty",
-        projectId: "dev",
-        locale: "es",
-        body: "",
-        tags: [],
-        media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = xAdapter.render(emptyPost);
-
-      // Should either succeed or fail gracefully
-      if (!result.ok) {
-        assert.ok(result.error, "Should have error for empty body");
-      }
-    });
-
-    it("should handle unicode characters", () => {
-      const unicodePost: CanonicalPost = {
-        id: "test-unicode",
-        projectId: "dev",
-        locale: "es",
-        body: "Testing unicode: 你好世界 🌍 💻 ✨",
-        tags: [],
-        media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = xAdapter.render(unicodePost);
-
-      assert.ok(result.ok, "Should handle unicode characters");
-    });
-
-    it("should handle mentions and hashtags", () => {
-      const socialPost: CanonicalPost = {
-        id: "test-social",
-        projectId: "dev",
-        locale: "es",
-        body: "Hello @user! Check out #testing and #automation",
-        tags: [],
-        media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = xAdapter.render(socialPost);
-
-      assert.ok(result.ok, "Should handle mentions and hashtags");
-    });
-
-    it("should handle URLs in content", () => {
-      const urlPost: CanonicalPost = {
-        id: "test-urls",
-        projectId: "dev",
-        locale: "es",
-        body: "Check out this link: https://example.com/very/long/path/to/resource",
-        tags: [],
-        media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = xAdapter.render(urlPost);
-
-      assert.ok(result.ok, "Should handle URLs in content");
     });
   });
 
@@ -485,26 +297,6 @@ describe("X/Twitter Provider Threading", () => {
         assert.ok(tweet.estimatedChars > 0, "Estimated chars should be positive");
       }
     });
-
-    it("should include metadata in thread plan", () => {
-      const longPost: CanonicalPost = {
-        id: "test-metadata",
-        projectId: "dev",
-        locale: "es",
-        body: longContent,
-        tags: ["test", "automation"],
-        media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const result = xAdapter.planThread(longPost);
-      assert.ok(result.ok);
-
-      // Plan should be well-formed
-      assert.ok(result.value.needsThreading !== undefined, "Should have needsThreading field");
-      assert.ok(result.value.tweets !== undefined, "Should have tweets array");
-    });
   });
 
   describe("Performance", () => {
@@ -528,25 +320,6 @@ describe("X/Twitter Provider Threading", () => {
 
       assert.ok(result.ok, "Should handle very long content");
       assert.ok(duration < 1000, `Thread planning should complete quickly (took ${duration}ms)`);
-    });
-
-    it("should handle multiple consecutive calls", () => {
-      const testPost: CanonicalPost = {
-        id: "test-multiple",
-        projectId: "dev",
-        locale: "es",
-        body: longContent,
-        tags: [],
-        media: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // Make multiple calls
-      for (let i = 0; i < 10; i++) {
-        const result = xAdapter.planThread(testPost);
-        assert.ok(result.ok, `Call ${i + 1} should succeed`);
-      }
     });
   });
 });

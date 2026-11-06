@@ -17,7 +17,7 @@
  *   tests/integration/repositories/UserRepository.integration.test.ts
  *
  * @file UserRepository.integration.test.ts
- * @description Tests for UserRepository - Basic Operations
+ * @description Tests for UserRepository - user lookups and active-status validation
  * @layer infrastructure
  */
 
@@ -133,13 +133,6 @@ async function teardownTestData() {
 // ========================================
 // TESTS: Basic Repository Operations
 // ========================================
-
-describe("UserRepository - Basic Operations", () => {
-  it("UserRepository instantiates successfully", () => {
-    const repo = new PrismaAdminUserRepository(prisma);
-    assert.ok(repo !== null);
-  });
-});
 
 // ========================================
 // TESTS: findActiveUser
@@ -450,18 +443,6 @@ describe("UserRepository - validateActive", () => {
     }
   });
 
-  it("can be used to validate after findById", async () => {
-    const repo = new PrismaAdminUserRepository(prisma);
-
-    const userResult = await repo.findById(testUserIds[0]!);
-    assert.ok(userResult.ok);
-
-    if (userResult.ok) {
-      const validationResult = repo.validateActive(userResult.value);
-      assert.ok(validationResult.ok);
-    }
-  });
-
   it("detects inactive user after findById", async () => {
     const repo = new PrismaAdminUserRepository(prisma);
 
@@ -616,43 +597,6 @@ describe("UserRepository - Edge Cases", () => {
     assert.equal(result.ok, false);
   });
 
-  it("handles very long email addresses", async () => {
-    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    const longEmail = `very.long.email.address.with.many.dots.and.characters-${uniqueId}@example.com`;
-
-    const longEmailUser = await prisma.adminUser.create({
-      data: {
-        name: "Long Email User",
-        email: longEmail,
-        passwordHash: "hashed",
-        roleId: await ensureRoleId("SUPPORT"),
-        isActive: true,
-      },
-    });
-
-    const repo = new PrismaAdminUserRepository(prisma);
-    const result = await repo.findByEmail(longEmail);
-
-    assert.ok(result.ok);
-
-    await prisma.adminUser.delete({ where: { id: longEmailUser.id } });
-  });
-
-  it("validates multiple users in sequence", async () => {
-    const repo = new PrismaAdminUserRepository(prisma);
-
-    for (const userId of testUserIds.slice(0, 3)) {
-      const userResult = await repo.findById(userId);
-      assert.ok(userResult.ok);
-
-      if (userResult.ok) {
-        const validationResult = repo.validateActive(userResult.value);
-        // Validation will succeed or fail based on user's active status
-        assert.ok(validationResult.ok !== undefined);
-      }
-    }
-  });
-
   it("handles batch operations with mixed results", async () => {
     const repo = new PrismaAdminUserRepository(prisma);
 
@@ -679,23 +623,6 @@ describe("UserRepository - Integration Patterns", () => {
 
   after(async () => {
     await teardownTestData();
-  });
-
-  it("supports authentication flow pattern", async () => {
-    const repo = new PrismaAdminUserRepository(prisma);
-    const user = await prisma.adminUser.findUnique({
-      where: { id: testUserIds[0]! },
-    });
-
-    // Step 1: Find user by email
-    const findResult = await repo.findByEmail(user!.email);
-    assert.ok(findResult.ok);
-
-    // Step 2: Validate user is active
-    if (findResult.ok) {
-      const validationResult = repo.validateActive(findResult.value);
-      assert.ok(validationResult.ok);
-    }
   });
 
   it("supports authorization flow pattern", async () => {

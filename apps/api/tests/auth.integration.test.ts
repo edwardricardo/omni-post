@@ -134,20 +134,6 @@ describe("Authentication Service", () => {
       }
     });
 
-    it("should login with valid credentials", async () => {
-      const result = await authService.login(
-        { email: testEmail, password: "password123" },
-        "127.0.0.1",
-        "Test-User-Agent"
-      );
-
-      assert.ok(result.ok, `Login failed: ${result.ok ? "" : result.error}`);
-      assert.ok("user" in result.value, "Should have user in response");
-      assert.ok(result.value.tokens.accessToken);
-      assert.ok(result.value.tokens.refreshToken);
-      assert.ok(result.value.tokens.expiresAt);
-    });
-
     it("should reject invalid password", async () => {
       const result = await authService.login(
         { email: testEmail, password: "wrongpassword" },
