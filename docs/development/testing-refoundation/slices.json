@@ -391,6 +391,24 @@
         "files": 0,
         "blocks": 43
       }
+    },
+    "2.8.7": {
+      "files": [
+        "apps/admin/tests/e2e/auth.spec.ts",
+        "apps/admin/tests/unit/shared/SkipLink.test.tsx",
+        "apps/client/lib/providers/__tests__/registry.test.ts",
+        "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts",
+        "apps/client/lib/templates/__tests__/postTemplates.test.ts",
+        "apps/client/tests/e2e/tests/auth.spec.ts",
+        "apps/client/tests/e2e/tests/publishing.spec.ts",
+        "apps/client/tests/e2e/tests/visual.spec.ts",
+        "apps/client/tests/integration/useProviders.test.ts",
+        "apps/workers/tests/workerMetrics.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 31
+      }
     }
   }
 }
