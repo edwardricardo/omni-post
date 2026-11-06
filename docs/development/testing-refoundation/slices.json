@@ -9,7 +9,10 @@
         "apps/admin/tests/apiClient.smoke.test.ts",
         "apps/admin/tests/posts.flow.test.ts"
       ],
-      "deleted": { "files": 6, "blocks": 58 }
+      "deleted": {
+        "files": 6,
+        "blocks": 58
+      }
     },
     "2.6b": {
       "files": [
@@ -18,7 +21,10 @@
         "packages/providers/snapchat/tests/integration/apiClient.test.ts",
         "packages/providers/telegram/tests/integration/apiClient.test.ts"
       ],
-      "deleted": { "files": 4, "blocks": 43 }
+      "deleted": {
+        "files": 4,
+        "blocks": 43
+      }
     },
     "2.7": {
       "files": [
@@ -38,14 +44,20 @@
         "apps/api/tests/unit/helpers/InMemoryBruteForceAdapter.ts",
         "packages/providers/instagram/tests/mediaProcessor.test-helpers.ts"
       ],
-      "deleted": { "files": 15, "blocks": 0 }
+      "deleted": {
+        "files": 15,
+        "blocks": 0
+      }
     },
     "2.8.1a": {
       "files": [
         "apps/api/tests/unit/logger.test.ts",
         "apps/api/tests/unit/rateLimitingDashboard.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 30 }
+      "deleted": {
+        "files": 0,
+        "blocks": 30
+      }
     },
     "2.8.1b": {
       "files": [
@@ -53,12 +65,27 @@
         "apps/api/tests/unit/healthMetrics.test.ts",
         "apps/api/tests/unit/webhookHandler.stats.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 29 },
+      "deleted": {
+        "files": 0,
+        "blocks": 29
+      },
       "floors": {
-        "lines": { "from": 60, "to": 59.9 },
-        "functions": { "from": 60.5, "to": 60.4 },
-        "branches": { "from": 50.3, "to": 50.1 },
-        "statements": { "from": 59.5, "to": 59.3 }
+        "lines": {
+          "from": 60,
+          "to": 59.9
+        },
+        "functions": {
+          "from": 60.5,
+          "to": 60.4
+        },
+        "branches": {
+          "from": 50.3,
+          "to": 50.1
+        },
+        "statements": {
+          "from": 59.5,
+          "to": 59.3
+        }
       }
     },
     "2.8.2a": {
@@ -79,10 +106,19 @@
         "apps/api/tests/unit/activityFeedService.test.ts",
         "apps/api/tests/unit/aiOrchestrator.providers.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 51 },
+      "deleted": {
+        "files": 0,
+        "blocks": 51
+      },
       "floors": {
-        "lines": { "from": 59.9, "to": 59.8 },
-        "branches": { "from": 50.1, "to": 50 }
+        "lines": {
+          "from": 59.9,
+          "to": 59.8
+        },
+        "branches": {
+          "from": 50.1,
+          "to": 50
+        }
       }
     },
     "2.8.2b": {
@@ -102,10 +138,19 @@
         "apps/api/tests/unit/optimizedPostsRoutes.test.ts",
         "apps/api/tests/unit/performanceMonitor.init.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 55 },
+      "deleted": {
+        "files": 0,
+        "blocks": 55
+      },
       "floors": {
-        "functions": { "from": 60.4, "to": 60.3 },
-        "branches": { "from": 50, "to": 49.9 }
+        "functions": {
+          "from": 60.4,
+          "to": 60.3
+        },
+        "branches": {
+          "from": 50,
+          "to": 49.9
+        }
       }
     },
     "2.8.2c": {
@@ -128,9 +173,15 @@
         "apps/api/tests/unit/secureSchemas.query.test.ts",
         "apps/api/tests/unit/securityHeaders.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 47 },
+      "deleted": {
+        "files": 0,
+        "blocks": 47
+      },
       "floors": {
-        "statements": { "from": 59.3, "to": 59.2 }
+        "statements": {
+          "from": 59.3,
+          "to": 59.2
+        }
       }
     },
     "2.8.2d": {
@@ -148,10 +199,19 @@
         "apps/api/tests/unit/webhookJobProcessor.jobid-structure.test.ts",
         "apps/api/tests/unit/webhookManager.processing.test.ts"
       ],
-      "deleted": { "files": 1, "blocks": 65 },
+      "deleted": {
+        "files": 1,
+        "blocks": 65
+      },
       "floors": {
-        "lines": { "from": 59.8, "to": 59.7 },
-        "branches": { "from": 49.9, "to": 49.8 }
+        "lines": {
+          "from": 59.8,
+          "to": 59.7
+        },
+        "branches": {
+          "from": 49.9,
+          "to": 49.8
+        }
       }
     },
     "2.8.3a": {
@@ -169,7 +229,10 @@
         "apps/api/tests/unit/domain/value-objects.media-provider.test.ts",
         "apps/api/tests/unit/domain/value-objects.scheduled-time.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 30 }
+      "deleted": {
+        "files": 0,
+        "blocks": 30
+      }
     },
     "2.8.3b": {
       "files": [
@@ -190,7 +253,10 @@
         "apps/api/tests/unit/infrastructure/PrismaPostRepository.test.ts",
         "apps/api/tests/unit/infrastructure/adapters/Argon2PasswordHasher.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 27 }
+      "deleted": {
+        "files": 0,
+        "blocks": 27
+      }
     },
     "2.8.4": {
       "files": [
@@ -208,9 +274,15 @@
         "apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts",
         "apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 26 },
+      "deleted": {
+        "files": 0,
+        "blocks": 26
+      },
       "floors": {
-        "functions": { "from": 60.3, "to": 60.2 }
+        "functions": {
+          "from": 60.3,
+          "to": 60.2
+        }
       }
     },
     "2.8.5": {
@@ -236,7 +308,10 @@
         "apps/api/tests/threading.planner.integration.test.ts",
         "apps/api/tests/threading.xprovider.integration.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 59 }
+      "deleted": {
+        "files": 0,
+        "blocks": 59
+      }
     },
     "2.8.6a": {
       "files": [
@@ -251,7 +326,34 @@
         "packages/core/threading/tests/unit/threadPlanner.test.ts",
         "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts"
       ],
-      "deleted": { "files": 0, "blocks": 16 }
+      "deleted": {
+        "files": 0,
+        "blocks": 16
+      }
+    },
+    "2.8.6b": {
+      "files": [
+        "packages/adapters/cache-redis/tests/factory.test.ts",
+        "packages/adapters/cache-redis/tests/metrics.test.ts",
+        "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts",
+        "packages/adapters/db-prisma/tests/resilience.test.ts",
+        "packages/adapters/dead-letter-queue/tests/index.test.ts",
+        "packages/adapters/external-apis/tests/circuitBreaker.test.ts",
+        "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts",
+        "packages/adapters/fallback-strategies/tests/index.test.ts",
+        "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts",
+        "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts",
+        "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts",
+        "packages/adapters/queue-bullmq/tests/resilience.test.ts",
+        "packages/adapters/storage-cloudinary/tests/index.test.ts",
+        "packages/adapters/storage-s3/tests/index.test.ts",
+        "packages/observability/browser-logger/tests/context.test.tsx",
+        "packages/observability/logger/tests/createLogger.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 52
+      }
     }
   }
 }
