@@ -16,8 +16,8 @@
       },
       "byVerdict": {
         "DELETE": 19,
-        "REWRITE": 109,
-        "KEEP": 963,
+        "REWRITE": 106,
+        "KEEP": 966,
         "ADJUDICATE": 94,
         "unmeasured": 0
       }
@@ -28,14 +28,14 @@
       "total": 1185
     },
     "blocks": {
-      "total": 14624,
-      "decorative": 439,
+      "total": 14593,
+      "decorative": 408,
       "byClass": {
-        "EMPTY": 12,
-        "TAUTOLOGY-ONLY": 1,
-        "EXISTENCE-ONLY": 163,
-        "CONDITIONAL-ONLY": 152,
-        "SELF-SKIP": 104,
+        "EMPTY": 6,
+        "TAUTOLOGY-ONLY": 0,
+        "EXISTENCE-ONLY": 149,
+        "CONDITIONAL-ONLY": 148,
+        "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 12,
         "BEHAVIOURAL": 14173
@@ -43,7 +43,7 @@
     },
     "deleted": {
       "files": 26,
-      "blocks": 631
+      "blocks": 662
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -452,6 +452,25 @@
         "blocks": 43
       },
       "floors": {}
+    },
+    "2.8.7": {
+      "files": [
+        "apps/admin/tests/e2e/auth.spec.ts",
+        "apps/admin/tests/unit/shared/SkipLink.test.tsx",
+        "apps/client/lib/providers/__tests__/registry.test.ts",
+        "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts",
+        "apps/client/lib/templates/__tests__/postTemplates.test.ts",
+        "apps/client/tests/e2e/tests/auth.spec.ts",
+        "apps/client/tests/e2e/tests/publishing.spec.ts",
+        "apps/client/tests/e2e/tests/visual.spec.ts",
+        "apps/client/tests/integration/useProviders.test.ts",
+        "apps/workers/tests/workerMetrics.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 31
+      },
+      "floors": {}
     }
   },
   "files": [
@@ -649,7 +668,7 @@
       "framework": "vitest",
       "collectors": ["playwright:apps/admin/playwright.config.ts"],
       "quarantined": "WU-6.E8",
-      "blockCount": 21,
+      "blockCount": 20,
       "blocks": [
         {
           "id": "apps/admin/tests/e2e/auth.spec.ts::should render login page correctly",
@@ -743,57 +762,50 @@
           "bodyHash": "32f4541672307432452d8adb8c16d9c86d4d39016aeecb729ab8e5d1e9455b99"
         },
         {
-          "id": "apps/admin/tests/e2e/auth.spec.ts::should disable form during submission",
-          "line": 288,
-          "blockClass": "EMPTY",
-          "criteria": ["a"],
-          "bodyHash": "0be655ecd98e731e11db36ade2ae03bcbd72fc9f5b2a782c9e622a1757670136"
-        },
-        {
           "id": "apps/admin/tests/e2e/auth.spec.ts::should submit form on Enter key press",
-          "line": 306,
+          "line": 290,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9f9d1eb6a47281e192cdeba2c1519fe993241c54e20ccfe29645414f25a54726"
         },
         {
           "id": "apps/admin/tests/e2e/auth.spec.ts::should redirect to login when accessing protected route without auth",
-          "line": 322,
+          "line": 306,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f3d7789ec462b73d83fcfe89ab90310db9d30830c71b7386e3f9556d1c874c1e"
         },
         {
           "id": "apps/admin/tests/e2e/auth.spec.ts::should redirect to originally requested page after login",
-          "line": 337,
+          "line": 321,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e3acec66c678fd479e9c2e83744e84141769d70bab7209aa116845719bddbdf0"
         },
         {
           "id": "apps/admin/tests/e2e/auth.spec.ts::should logout successfully",
-          "line": 360,
+          "line": 344,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d6bb0d083e2f1bd60249718635d85dd4542b9b7e3b16da43a59fe42d422c2a43"
         },
         {
           "id": "apps/admin/tests/e2e/auth.spec.ts::should clear session on logout",
-          "line": 379,
+          "line": 363,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e9d8ce73f14b402e0cedca14453001fb8964bca0f2da4db301e67067b8c845b0"
         },
         {
           "id": "apps/admin/tests/e2e/auth.spec.ts::should maintain session across page reloads",
-          "line": 408,
+          "line": 392,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7786b7806bcf36946d525fdf155faa27972d457965531cceff5a875adfea617a"
         },
         {
           "id": "apps/admin/tests/e2e/auth.spec.ts::should maintain session across navigation",
-          "line": 428,
+          "line": 412,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c6205498110b209f0a0727ca928a6a1bfa50a08b02e2096a3b44d7d3b74e51a8"
@@ -803,7 +815,7 @@
       "basis": "opaque",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -2508,7 +2520,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/admin/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 8,
       "blocks": [
         {
           "id": "apps/admin/tests/unit/shared/SkipLink.test.tsx::renders with default text",
@@ -2560,25 +2572,18 @@
           "bodyHash": "5c8f4a0beeadc21631b7b62639e84005939a859a65278cb2b00c48b0b37bdab4"
         },
         {
-          "id": "apps/admin/tests/unit/shared/SkipLink.test.tsx::is a valid link element (role=link)",
-          "line": 75,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "5bd74b86c6012f6a1df15c783353fe77940c341b11bfeb4c25685eb056d939c3"
-        },
-        {
           "id": "apps/admin/tests/unit/shared/SkipLink.test.tsx::has skip-link class for CSS targeting",
-          "line": 80,
+          "line": 75,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7cabee600bd4d22c075a8ac9ad69072828ca2af050a5c1a187d0d8d3e375853a"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": {
         "stem": "SkipLink",
         "module": "apps/admin/components/shared/SkipLink.tsx",
@@ -91995,7 +92000,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/client/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 102,
+      "blockCount": 95,
       "blocks": [
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns a legacy config for X",
@@ -92082,641 +92087,592 @@
           "bodyHash": "5b7cb05dfeafecd27c41a20b56a26a0e575bca9e5431516f7921dc2a9a54ec05"
         },
         {
-          "id": "apps/client/lib/providers/__tests__/registry.test.ts::uses 5MB default when maxImageSize is undefined",
-          "line": 87,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "2238484ca847315c6bb78bed3a10eadf2c71fb0a4928f5e9d91e930c0c5b47e3"
-        },
-        {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns centralized metadata for known provider",
-          "line": 102,
+          "line": 93,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ca5fd32d78d69114efefa2bbe6615f0c12a505385d7c8aa3880ba51f7b019f1"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns undefined for unknown provider #2",
-          "line": 108,
+          "line": 99,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc7c1c796aab62599c8063ba2f3e934a2a104d76bcbfe0d9d3d2e8d902ed3016"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns an array of providers",
-          "line": 119,
+          "line": 110,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "80472ab4ed26a870a2e0830d67ffb026eeb22be6e8d9bd22243fddb98307159f"
         },
         {
-          "id": "apps/client/lib/providers/__tests__/registry.test.ts::only includes active providers",
-          "line": 125,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a54ffdeadb03e1b049fcf03cf8a19a22d65d5533bc2a483f03a0757095a05ab4"
-        },
-        {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns an array of metadata",
-          "line": 135,
+          "line": 118,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d06b37445b67427fb19d96d9ac6c9656e9985f6f96ef7fdf073f398eaadfb25c"
         },
         {
-          "id": "apps/client/lib/providers/__tests__/registry.test.ts::only includes active providers #2",
-          "line": 141,
+          "id": "apps/client/lib/providers/__tests__/registry.test.ts::only includes active providers",
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f99db17ada114fd800483b4ccfec3516154fb6ff331d82167e65ed7168decb3"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns providers that support threading",
-          "line": 154,
+          "line": 137,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ecbe007220b90fbfc908d221c637d1f850478430acd73e7a5c363bf5bad31aeb"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns providers that support scheduling",
-          "line": 162,
+          "line": 145,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e30405a65439a6f3f8508ace149e2b3dc3a02e6a85fe41d94bcc56df87e79ac9"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns empty array for feature no provider supports",
-          "line": 169,
+          "line": 152,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ad96d1e3b71adc25d9d263c07e74be46f947433d862e079ae4362aee634f550"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns valid for short X content",
-          "line": 181,
+          "line": 164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1d88289908c7daa0be480736f4cd0ce25cf78ea368af8884973745afb09fe620"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns error when X content exceeds 280 chars",
-          "line": 187,
+          "line": 170,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0add36cecaecca24e4c2ba0ce181eed20bbf60e415cb61dfcac5c95daa1ac4c2"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns error when X content is empty",
-          "line": 194,
+          "line": 177,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee6adf6659518b3eed8da2106f3ed4fbaae856900ecd13473919298690e1fed1"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns error when X content is only whitespace",
-          "line": 200,
+          "line": 183,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fde84fb49805f46b0696adb2a634acaf3e69006c5e4a5eafae1a50a1e02c91ca"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns error when X media exceeds 4 files",
-          "line": 205,
+          "line": 188,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "609575937a0f80e82e093e8d0b7b8b06ae2e7a56f943f03a529f96f6745335ce"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::accepts X with exactly 4 media files",
-          "line": 212,
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bbac6aecbdf453f6155d9c6272c3ec95894acc0347bf5745abb627ce42f811ba"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns error when Instagram has no media",
-          "line": 220,
+          "line": 203,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3890ee60bf9f2fc59f39176758850bc516175c944fa82010293945ee4012c59f"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns error when Instagram exceeds 10 media files",
-          "line": 226,
+          "line": 209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3d376bbe3d35d3db7d7f3b4c6b98e06727ebe1a4fe0fba067266a43ec18f6556"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns error when LinkedIn exceeds 3000 chars",
-          "line": 232,
+          "line": 215,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f2b079e18eca1fddd0eca1b22950ca1821c3856e5191965dfbad09d5379dbdf"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::accepts LinkedIn with exactly 3000 chars",
-          "line": 238,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "57d0494230b708c9e2932d645a92d55289f70d751a802022ebba81802ab186f5"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns error when YouTube has no media",
-          "line": 245,
+          "line": 228,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "78578d55bf8b49578f81c9c6b8f794e9b7108ce9b363867d945eb012c8bac375"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns error when TikTok exceeds 2200 chars",
-          "line": 250,
+          "line": 233,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a7fdc3e2a43632b3d91bc3c6c9703555b7fd3d0b114b7761dbae1fe03d8887c"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::avoids duplicate error messages",
-          "line": 256,
+          "line": 239,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c9b62589bd0bb203a432f55f4c2aa5c25b1a6648cb4c9aa3139abdd35db1948"
         },
         {
-          "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns valid=true for unknown provider with valid content",
-          "line": 262,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "6f9dc2d5ba33a57b31412ff0c87e8bc29c8ee51f29689427c5504a6c3c4618d3"
-        },
-        {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns times for X on a weekday",
-          "line": 274,
+          "line": 251,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7135aa85b24299b367d4f1e3f173fceb01ba2c5e422e14787b323894de2ee1b2"
         },
         {
-          "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns times array for X on a weekend day",
-          "line": 281,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "2ec61a6b42ba919bf0c7cf9bc2de9e90a52c0d5e21966a40a9ce170f8335b598"
-        },
-        {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns times for Instagram on a weekday",
-          "line": 287,
+          "line": 258,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "58e79172d0132117a68d1225500efb6cbd7469edf9fba16aae4bd42a0854d6c1"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns array for LinkedIn on any day",
-          "line": 293,
+          "line": 264,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c1fdab36417a7e0318eb8105b0d85e19f4f1e9a872abcc6764eb209dce1943e0"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns empty array for unknown provider",
-          "line": 300,
+          "line": 271,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea458123863201d938ab6be679f49936864d6dd5ebafe0182a7d416d8b68fe64"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns times for TikTok",
-          "line": 306,
+          "line": 277,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1887e46eef7d6f781a60f0b751147ca2fc16945378ce1402df6b92dd9692b85"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::reads each weekday's own list for X, Sunday through Saturday",
-          "line": 317,
+          "line": 288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b2c6ddbf507ba0ab1a8ac5cfcbaf99b568b897243fe21bbcb1eac222e4f4adb3"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::reads LinkedIn's empty weekend and its shorter Friday",
-          "line": 329,
+          "line": 300,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d9184e6a91e542d47cb74e8abd54daf106fc309e8c7621a3163ee9e3ee2c59b8"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns 280 for X",
-          "line": 341,
+          "line": 312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eaed730d8c11e48c4d5dd95bba5eb6f5a8cbbc6f7e55207e2def7b4398044557"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns 2200 for Instagram",
-          "line": 345,
+          "line": 316,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ffbe55d30c795edb4b3dc028d38dcbf9148ede76b2d8039e7a4036d4691526d7"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns 3000 for LinkedIn",
-          "line": 349,
+          "line": 320,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4bb2d740c42d7b95fb2a649c72918e00f572c2d93f37c0e5dfc6d9fcac9b1a09"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns 280 default for unknown provider",
-          "line": 353,
+          "line": 324,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "37c1c98cbf9d8b6bffdfd5824eb50c3e585468f9376ca0533b77baba8d234552"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns correct limits for X",
-          "line": 363,
+          "line": 334,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb49d85ea8043f39bcfe48c299b893a41dd40c4ad54f2682820126944996ed88"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns default limits for unknown provider",
-          "line": 368,
+          "line": 339,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4424eb58a63428c40d9fa0d3a02268059b0e54b01fe71f32ea1f77eea9623648"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns correct maxFileSize for known provider",
-          "line": 375,
+          "line": 346,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "92de50c33101697c5eb60d7bc7e2972815769445bc1abd3213d5db5452ce521f"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns X rate limits",
-          "line": 386,
+          "line": 357,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "837241c49e855a1bb9c0596256a44da9063ba033b1d1e5d62c87c404ebe738c3"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns Instagram rate limits",
-          "line": 392,
+          "line": 363,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c3688844aa0b7d9cd9b6124f2696761a9c56716e62e21e13b1cc539d3b9e3b49"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns LinkedIn rate limits",
-          "line": 398,
+          "line": 369,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "30524712ecbb98509a8beb512e07ad6ed5fa73ab8b91cddae803791828ffc604"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns Facebook rate limits",
-          "line": 404,
+          "line": 375,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a7fa89fc9367e38c1a75deef3eaf24106b07e8fcc0556d801db6b565ef5379da"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns YouTube rate limits",
-          "line": 410,
+          "line": 381,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "960698b907aa283b8f90c68813574cee79b2fb2c48d3376da699252d66e25d2f"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns TikTok rate limits",
-          "line": 416,
+          "line": 387,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "37a4b4561ba391cb571d1c3042abc00051e6cbf0a134d2a6f353bb5ae8aea8ed"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns default rate limits for unknown provider",
-          "line": 422,
+          "line": 393,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "12fa70c35ee33dd2af78c252ac997d3dee953de1eba26c8f4c7d5a5ff0da5689"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns true when X supports threads",
-          "line": 434,
+          "line": 405,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9382cb4813c652fd6cfa9ea69b661bfa92dfac62e79842e87316127bbb1d10e"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns false when provider does not support polls",
-          "line": 438,
+          "line": 409,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8057841b84ac79cdd5b8dd6b2bd9dfefa8512072c767cb8692b311ce6114123a"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns false for unknown provider",
-          "line": 442,
+          "line": 413,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea8b57cac27a4038ddb47e769e2dae664f86b1f37fe52ea08a040627a05bd60f"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns true for X content > 280 chars",
-          "line": 452,
+          "line": 423,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "10b1086b3bce2065e723f8d795bb15195c9bd389a5389e276ecd3df042763ac5"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns false for X content <= 280 chars",
-          "line": 457,
+          "line": 428,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a50ab3b8a5d2b6540e9847608a3673ea3f8d4c034a3536de06b7f5a90fa5db79"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns false for Instagram even with long content (no threading)",
-          "line": 462,
+          "line": 433,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "62756b71f17464332b47c691157ecee02c6283b9a8b7b7e4c721c1e6c5a4fd09"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns false for short content even on threading provider",
-          "line": 467,
+          "line": 438,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b901d01199580c094ae174c1706d31dcc17a50377b8f7e95bbfe815bb1cbef7"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns single segment when content fits",
-          "line": 477,
+          "line": 448,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a210c882a269854f20e9b55474344afda641fb3f7f41a6bf0fa27f98fbb40bf"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns single segment for non-threading provider with long content",
-          "line": 482,
+          "line": 453,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2033a05a51e4779e84fbf341f78f16b3bb3230a5dd3d3b82424f3e3d1096d785"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::splits long content into multiple segments for X",
-          "line": 488,
+          "line": 459,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b82951944317e2845ad77b7ab8e8133bc5c7695f52bdafbc52b8be2b2063dde7"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::preserves all content across segments",
-          "line": 497,
+          "line": 468,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c3b2b3504432baa63bb9f889e790edaa5342ab560270c97c4d861a42ebe62fcd"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::breaks at sentence boundaries when possible",
-          "line": 509,
+          "line": 480,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0b34f69fffd03150712c0491e3446881b3bfec08024ec09833c878c9b06279f8"
         },
         {
-          "id": "apps/client/lib/providers/__tests__/registry.test.ts::breaks at word boundaries when no sentence boundary exists",
-          "line": 517,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "0f7bf618e00c040fbf7e4cbc4c293e7f618803b973d3e9afd70b4e0b6b415616"
-        },
-        {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::X content required message mentions 'required'",
-          "line": 533,
+          "line": 494,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "081f02641e6e2d4dc659c55fce11a49255e88218dd18e7c6a03cb035c0cf132b"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::X char limit message mentions '280'",
-          "line": 542,
+          "line": 503,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "caa4472efa0b8057a54c246edecc2917d39464caacfd96943837ab7cb940dfd2"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::X media limit message mentions '4'",
-          "line": 547,
+          "line": 508,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f505b183d72f778d731825ce4f8fe9a181368d1b19a306983ba47329832a5c5c"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::Instagram media required message mentions 'image or video'",
-          "line": 553,
+          "line": 514,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "79c1102648791f76910da232f459ee90d379cb68693c5179aafe644190bde507"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::Instagram char limit is 2200",
-          "line": 562,
+          "line": 523,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3c99859be964ec1a8edac728f199b717c812a94370d20aaae44e021210aed5c9"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::Instagram media limit is 10",
-          "line": 569,
+          "line": 530,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c6d916c4d7b485627ba880b617fbb69be9000b7ee619c17e548e7329c6c908d4"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::LinkedIn content required message mentions 'required'",
-          "line": 575,
+          "line": 536,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7459bad64a22b61942ca46ace79168983e426d2cbb87b3c52a58ceef95bfcc78"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::LinkedIn char limit is 3000",
-          "line": 584,
+          "line": 545,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d6f04b2b83ee479a3df7035b27f5b8107183af896da430a31addde5d9e7ff324"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::LinkedIn media limit is 9",
-          "line": 589,
+          "line": 550,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a1067d44ba7c720edc21c3567d7bac6f3c07486cf92652fcb2d3f5a36d579bd1"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::Facebook char limit is 63206",
-          "line": 595,
+          "line": 556,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "09a8034d3e07c85e05a4fa840985c82fe323ef41218efec2c1ffcbc0c4fc96fb"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::Facebook media limit is 30",
-          "line": 600,
+          "line": 561,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "51738efb47a27af9a54340d7003c2082cd1d019b6eb5c6bb403b6de55294179d"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::YouTube title required message mentions 'required' or 'Title'",
-          "line": 606,
+          "line": 567,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f66266d9abe5a7196da2873f0a83d96096d79a95c64b48b87aaede81d1a0c8c1"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::YouTube char limit is 100",
-          "line": 613,
+          "line": 574,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "590b049b9a57c6b559d1eb6c4ae375fdfed9b8ac720b8a9922b5336cc4dba8e0"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::YouTube requires exactly 1 video",
-          "line": 620,
+          "line": 581,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a11a326ff0dc1416487310926a7f520b879ca541a5db78705caef7d06f5ecbef"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::TikTok requires exactly 1 video",
-          "line": 627,
+          "line": 588,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c93916671ddc4bc12c55ab27f4bd71ce86e806a197d066cfb84f432b42cce21"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::TikTok char limit is 2200",
-          "line": 634,
+          "line": 595,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c3b8586b7fa0d74e0f55b3e5ea8323defd73a54a4e28c49bf206c1faf941561c"
         },
         {
-          "id": "apps/client/lib/providers/__tests__/registry.test.ts::X has optimal times defined for all 7 days",
-          "line": 647,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "fae5699c0f5d9d6a749e7e05e2a08e455516f6d6630777bc25cc67ab741c8c34"
-        },
-        {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::Instagram has optimal times defined",
-          "line": 657,
+          "line": 608,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b2b70475ab29947356c7b76538b2fa8eac6191f481d9985f9f9245b860e2b69b"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::LinkedIn has empty arrays for weekend",
-          "line": 663,
+          "line": 614,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9cbe10f0132000e6e6310445073b7a234b7ce5d15ecd4354ce1cee7e298a3cfd"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::LinkedIn has 5 time slots on weekdays",
-          "line": 669,
+          "line": 620,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4f5ff91ead32c926894904ba4d544ab316ea74791683a499a6e4cec753bb3010"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::LinkedIn has 4 time slots on Friday",
-          "line": 675,
+          "line": 626,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a25fbc35f9b70c7463a021ccdd82a7da9714859e1c9f8110214c5768b6dcbc87"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::X has 4 time slots on weekdays",
-          "line": 680,
+          "line": 631,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "89d90e074b41dcc97be4e15542ff4680b7dd8971287a6d54e4af0ecf83b868c0"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::X has 3 time slots on Friday",
-          "line": 685,
+          "line": 636,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3dcd69c5b0e487ba3635b45942da51b6b5d84f8ebd2b78bed6bfc859ede9d550"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::X has 2 time slots on Saturday",
-          "line": 690,
+          "line": 641,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "99d105d0b6c431ef60da06efacc66c09d86b3c8d6342774983849135a6cebcbe"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::X has 3 time slots on Sunday",
-          "line": 695,
+          "line": 646,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "58af3cd614fd02778fee9c246e9471648d603d5d7c3a5c080690cd1ea3021701"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::Facebook has optimal times for all days",
-          "line": 700,
+          "line": 651,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d71ec4ad56c57f37334e9485c4f7bd58b9bdfa742cbda54bbad7267a213621c0"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::YouTube has optimal times for all days",
-          "line": 706,
+          "line": 657,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "399ac14d0ddc8b12dbab42e46a80ccd663b368b28394fa6764e37cf2409c7ca3"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::TikTok has 4 time slots on weekdays",
-          "line": 711,
+          "line": 662,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0693657c1268d6e6d23830270d96ca20716f40738f604e7512fd16e6d056ee63"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::maps features.scheduling from capabilities.schedule",
-          "line": 723,
+          "line": 674,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "3ab03bfaecd52a23d610f282e72cb8a3e0b4736a9ac7612aa4287394299d1d4b"
         },
         {
           "id": "apps/client/lib/providers/__tests__/registry.test.ts::maps color correctly for each provider",
-          "line": 728,
+          "line": 679,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e8c57881483544403befb7e49ad1a441112c1061df6e6cab95f5eb91d5ff002"
-        },
-        {
-          "id": "apps/client/lib/providers/__tests__/registry.test.ts::returns empty optimalTimes for unknown provider in legacy config",
-          "line": 737,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "a477275f9c24841bbc0ffdcdb1f5666a2b2d4b0b7a88c3b125553b8ab796eaee"
         }
       ],
       "verdict": "REWRITE",
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": {
         "stem": "registry",
         "module": "apps/client/lib/providers/registry.ts",
@@ -92731,7 +92687,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/client/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 42,
+      "blockCount": 37,
       "blocks": [
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::adds currentYear as a number",
@@ -92748,291 +92704,256 @@
           "bodyHash": "f7d19d4e00e989b2cc7d7ef364b1f75cb64a24118c20e8c918fbc8af668e952c"
         },
         {
-          "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::adds currentDay as a string",
-          "line": 72,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "77c96bdb14d8b98c40f56cb097fdc83a56867e5426d13bac80305dbf4069a1bf"
-        },
-        {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::defaults premium to false when not provided",
-          "line": 77,
+          "line": 72,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5135b546edbd1f9920bb8ca42009aab91e696eb10650be1e3bc63941e78b9608"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::preserves user-provided premium value",
-          "line": 82,
+          "line": 77,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b55384c20143fa462d9784f46d76e2033137b372c0ac04e96443b2d5041463a5"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::defaults platforms to twitter, linkedin, facebook",
-          "line": 87,
+          "line": 82,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1f60971396a7363ec6147e21e4703786139b9694d4021dbe97110197b11eecf"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::preserves user-provided platforms",
-          "line": 92,
+          "line": 87,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5cf62ed4d9d099214f63181d68edd2321f202f8ad8e3da43c5d50f91ccb0c277"
         },
         {
-          "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::sets date to current date when not provided",
-          "line": 97,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8a06778b8c465af66766753ab6e3eef8577a75ac8305ec0d7157e46002aea3b9"
-        },
-        {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::preserves user-provided date",
-          "line": 102,
+          "line": 92,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "59ef209add3af4b8cf70512531d4dcd2ee3010eb9fe3766f77042bada78a592b"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::user-provided context overrides defaults",
-          "line": 108,
+          "line": 98,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "165f1c3947a7ee7af6875b2c264534ff48f23bc84dcbcca8268f5a99c4a4e2df"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::renders template with default sample data",
-          "line": 126,
+          "line": 116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d00ffbf89c3401b2040c841d054daec3853681e493e412cf38fbb06e5455741d"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::uses provided sample data overrides",
-          "line": 135,
+          "line": 125,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cc76f64128d4faad23ac180b514ed020950545ef1237d5fa73ca2c058eab8b7d"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::includes default companyName in sample data",
-          "line": 144,
+          "line": 134,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b813ed98f888a183237256f962ce11b5ac83c845a03dd5dce39ee5aa4a18a7a"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::includes default price in sample data",
-          "line": 153,
+          "line": 143,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ad8cb010d7377a05c4d1b52e87e763630cc5146eeb7300fa41aedc12fffdd868"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::includes default discount in sample data",
-          "line": 162,
+          "line": 152,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8a64de5a60c59604ba86228006f028ad731c4687fa38aaac9590253aa2480a9b"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::extracts variable names from template",
-          "line": 184,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3704fc3ddb74965b7f048ac52d024b2c0196a3741c73031341cc84a1fc03809f"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::returns empty array for template without variables",
-          "line": 191,
+          "line": 181,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "578408c6a319b76cca33e54263a4de723f9ae3055e498542388ccb1ecbb8653a"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::sets type to string by default",
-          "line": 196,
+          "line": 186,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b343bd90e9f8afc7407b3eedf7e34f4e7cdedd3b820a5e8c15eb06cd9f87ce3c"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::sets required to true by default",
-          "line": 201,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a3b8eebb84be624ced31d00c76edefcfcf7b719d93293e33e2de3219984b216d"
         },
         {
-          "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::returns variables, helpers, and examples",
-          "line": 219,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e70f48dcf7db8b9411753ec130b4294cfbc830cb1a6ffa3fcf248dace0da767c"
-        },
-        {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::generates example for each variable",
-          "line": 227,
+          "line": 209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e480ed2640e48401f6df968e4c237d9abc3ff5c605fdca2533d6c000b5c656f5"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::example contains variable name",
-          "line": 233,
+          "line": 215,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4710990bb2fa579a38441e51c8b5791ca04b02e7499f5312bc01548163189ea7"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::string type example contains Example prefix",
-          "line": 239,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01bb904656d72a2559e5e7b848fbb27490167c4b1cfab7103b0cd4f032835152"
         },
         {
-          "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::validates a template object",
-          "line": 258,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "3fff9021cf53bd807affaa9d93eeb4f646ffd8316248837f64e1abeb6d49daad"
-        },
-        {
-          "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::validates a string directly",
-          "line": 264,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c7c82adde05b85adf89fe47784d1add7f004b6ffe0bc7151ac672179f8746cd2"
-        },
-        {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::fetches templates from API",
-          "line": 282,
+          "line": 240,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d6912e04ef2e48d0e4881442c8b4cb52212408fd1ee47c977b6c0b8f718f53c5"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::adds category filter to query params",
-          "line": 293,
+          "line": 251,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01dc228cdfd4106ebc9dad5be87f4f88064868c194fcb6b1912b5f59d8abc897"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::adds tags filter to query params",
-          "line": 303,
+          "line": 261,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84189a713af5750fafb7afba2b28309ee7faea73b79a272d51528d90cecd0c01"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::returns empty array when templates key missing",
-          "line": 317,
+          "line": 275,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "268a20091e6035ab50a4dbc4b5eff12dded75db43abb378458530ea2f26f5a9e"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::throws ApiError on non-ok response",
-          "line": 324,
+          "line": 282,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "58085eccadfe322792203c1da44cbd25357ca9a09b1787d9c72c26453db7cffd"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::fetches single template by ID",
-          "line": 343,
+          "line": 301,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eaf609b9e47ae5188bd94372ca053aeac326865f33dc0067b08e4525b7deffd2"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::returns null on 404",
-          "line": 351,
+          "line": 309,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "63b3a7463f6225d6cd942fb3342f34c91d1de41d6fef17a4ec08013064bcba57"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::throws ApiError on non-404 error",
-          "line": 358,
+          "line": 316,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70b0876aa63576fcb58c5a4bc244735c6d201a4336dc57d647da12288c0ee75c"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::returns null when template key missing",
-          "line": 364,
+          "line": 322,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1d5399f8af2694044f22acdff1b84b41a6bd0adb055e9016b62885cf7292426f"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::uses PUT for existing template with ID",
-          "line": 384,
+          "line": 342,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f044755d97a92b0275781d61b38842d9a6bca30497ca8f6ec1f581e1fff1443c"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::uses POST for new template without ID",
-          "line": 396,
+          "line": 354,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "abec019b04cfe789f1e459b67f2f10e1818659469cc36374a46de3d1882e1989"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::sends template as JSON body",
-          "line": 408,
+          "line": 366,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b4ce31ff4da879b1c28134bf769a0d71b1aa8ee2fa5561f65ea61a4e9210ae52"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::throws ApiError on non-ok response #2",
-          "line": 419,
+          "line": 377,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6339550ca6174a5d2de7fa85c4225155bd1616031eb6cb27381fc0d2372af528"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::sends DELETE to correct URL",
-          "line": 440,
+          "line": 398,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "57238c2cac2fe06c20648bcf7a19dde47b3c0a697a4a8e405b5cc3e39946158a"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::throws ApiError on non-ok response #3",
-          "line": 451,
+          "line": 409,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "304b5d37d9eabd9ce753acf5d22a7c57f9a4d7401c40a8fbc198ff5673db32e6"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::uses /api/backend as default base URL (canonical proxy)",
-          "line": 463,
+          "line": 421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4d62b6074bc80048cf230c02511e5b2ca0fb4858a79f6a90511c3793f56a7a6e"
         },
         {
           "id": "apps/client/lib/templates/__tests__/ClientTemplateEngine.test.ts::uses custom base URL when provided",
-          "line": 473,
+          "line": 431,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b191b95346b9edbba04ebb68288b3af177e79bff2786d08f010d5526e79518b2"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": {
         "stem": "ClientTemplateEngine",
         "module": "apps/client/lib/templates/ClientTemplateEngine.ts",
@@ -93047,7 +92968,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/client/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 39,
+      "blockCount": 37,
       "blocks": [
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::is a non-empty array",
@@ -93162,172 +93083,158 @@
           "bodyHash": "ce13303aca7ce490a586ace629b1e351412ad99959af71100c1e1295621520ad"
         },
         {
-          "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::each template has a preview string",
-          "line": 146,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "3d8903d94e64c57a0e870fa90ae2eb848cc9f0e23be8d4143be81f298efd6be5"
-        },
-        {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::returns announcement templates",
-          "line": 164,
+          "line": 156,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95a2f7376b6fdfe0b8dcf8ca460fef80093dfeb102281a621efefb39a3ce44a5"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::returns promotion templates",
-          "line": 172,
+          "line": 164,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ac5dac242d92dcdc7eb8d3584d1ff4b47277322c8fa93d0d237294dce3736871"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::returns engagement templates",
-          "line": 180,
+          "line": 172,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14a199715b74cee37fb1885136029364837edd8547809c8c250b371a276b1164"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::returns question templates",
-          "line": 185,
+          "line": 177,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7321947f528eea801b10c9c115b0991844a71f73c22c4faa8b64e391688d439c"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::returns educational templates",
-          "line": 190,
+          "line": 182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b19bc31624190e66f14b42dc7511c63079b944289805fc10c3b65fcb0a0e5d32"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::returns personal templates",
-          "line": 195,
+          "line": 187,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9897de4638b88b1bffedd9c52cbca23f53578bf76ab0e18b82621088a0231ed4"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::returns event templates",
-          "line": 200,
+          "line": 192,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ef05baa8f02eb9161b9d4dc902e6be0a9d9b9e81ffea25e4b4ed1f66d8801d1e"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::replaces single variable",
-          "line": 226,
+          "line": 218,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d1b22573e7cfb9da39f69cd6951b60f8cdf495b95ab69835e09f79444479f226"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::replaces multiple variables",
-          "line": 234,
+          "line": 226,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0bd647c1831e74a8a9d0c47bcaa25f696f71e15cbcdf402e497fc814b8e30c1d"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::replaces all occurrences of the same variable",
-          "line": 242,
+          "line": 234,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a30a1da85d134d1e26baa94fa6fd366cbf66affc5f0e071a7aa4c018b04531c"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::leaves unmatched variables as-is",
-          "line": 251,
+          "line": 243,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98ce50ce9cf7f450f7b4a1412b9df4f5b0c078c1c7ec3dd085512177f71986f1"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::handles empty variables object",
-          "line": 257,
+          "line": 249,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4067e123669d48a96e389e10bab72b6298f3598fd72ab3619780abf41c9fd3c1"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::works with real product-launch template",
-          "line": 262,
+          "line": 254,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c49c753167ae05fb02efe63ff968697e5ad07a4f1ce789ab3b54868a18c86abe"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::has 7 categories",
-          "line": 287,
+          "line": 279,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f4ce1928d9c42ada7b86f08cfa3b7fc2b82f0a58b531266a966b96451a69f148"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::includes announcement category",
-          "line": 291,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b89bd5daa98754bb5e3a2023603a9714869b3feb9f2baae1549286573d00e299"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::includes promotion category",
-          "line": 297,
+          "line": 289,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2fc31f67aba29d3c0bcfe2d6bad48cf930943d9b97312a3662ce05393d67ee5d"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::includes engagement category",
-          "line": 302,
+          "line": 294,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "507076f349ced487767b9ca48deb521ce3e08e31a6e6ddaa135885a4fce0bdc2"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::includes question category",
-          "line": 307,
+          "line": 299,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "db955076f7c3ee2d9910e76f2fb278b2e89dd7ddd314d3cf78e652a6a749567d"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::includes educational category",
-          "line": 312,
+          "line": 304,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b9f886ebbc4b014b08c6cc39ec037049e61e850dece903ea7ec817535b77e13"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::includes personal category",
-          "line": 317,
+          "line": 309,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "218f09d5a599a933f4787943df330048b3612ad3cc6350ba3e6652b9a777fbff"
         },
         {
           "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::includes event category",
-          "line": 322,
+          "line": 314,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a87306ada83d07b168fc6805ed03d21e00cac504738d2af729085601cb903257"
-        },
-        {
-          "id": "apps/client/lib/templates/__tests__/postTemplates.test.ts::each category has id, name, and description",
-          "line": 327,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "510517c34338801b52bf786a778a552a628587dfeeda7e3c16445d72986afe15"
         }
       ],
       "verdict": "REWRITE",
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": {
         "stem": "postTemplates",
         "module": "apps/client/lib/templates/postTemplates.ts",
@@ -94503,7 +94410,7 @@
       "framework": "vitest",
       "collectors": ["playwright:apps/client/tests/e2e/config/playwright.config.ts"],
       "quarantined": "WU-6.E8",
-      "blockCount": 32,
+      "blockCount": 27,
       "blocks": [
         {
           "id": "apps/client/tests/e2e/tests/auth.spec.ts::should successfully login with valid credentials",
@@ -94639,92 +94546,57 @@
           "bodyHash": "59134e6cbc22c6b7cb80ffe28861d2a8da4f4fa094924c3678eb2b5e5f00634b"
         },
         {
-          "id": "apps/client/tests/e2e/tests/auth.spec.ts::should handle MFA verification",
-          "line": 228,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "143519226eb8a17d9d328731843cd7a4cf8089f2a6be581c1e6a8eafa9f6d18f"
-        },
-        {
-          "id": "apps/client/tests/e2e/tests/auth.spec.ts::should show error for invalid MFA code",
-          "line": 243,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "1ac485a2a919ecb498dee84be803a2b0ca8f686fe58abfb088be6f2bfd3232fe"
-        },
-        {
-          "id": "apps/client/tests/e2e/tests/auth.spec.ts::should allow MFA code resend",
-          "line": 252,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "68bc860143ad36e7d37faf75dfe8fbfcfcb4c7fa28c13ab74a18450ed4e0f1f0"
-        },
-        {
-          "id": "apps/client/tests/e2e/tests/auth.spec.ts::should login with Google",
-          "line": 263,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "8927b0744e502a1e474c24967eb6d5437c2ab22055c21eb287739d3a27d21544"
-        },
-        {
-          "id": "apps/client/tests/e2e/tests/auth.spec.ts::should login with GitHub",
-          "line": 270,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "5f5a5c148e7d820b8de29852b2b712c429767d15de2c2858bd12fa5c5d07750a"
-        },
-        {
           "id": "apps/client/tests/e2e/tests/auth.spec.ts::should handle expired session",
-          "line": 279,
+          "line": 228,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c1047ff1f8b14ba9dcdbfe2add5a92102882aeae61b797c4e547094dee035634"
         },
         {
           "id": "apps/client/tests/e2e/tests/auth.spec.ts::should maintain session across tabs",
-          "line": 297,
+          "line": 246,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "03c44675938071c4a924e0f57f5832fe3e88fa421e7d95f76d9815b18324d634"
         },
         {
           "id": "apps/client/tests/e2e/tests/auth.spec.ts::should validate email format on login",
-          "line": 321,
+          "line": 270,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3afcd0fdc25e281e53e5da774aaaff8fca1dc906d7587406412d51e5a2de5265"
         },
         {
           "id": "apps/client/tests/e2e/tests/auth.spec.ts::should validate email format on registration",
-          "line": 331,
+          "line": 280,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0b16f2963e32213d3e3e91cb1db8e2a41e19c006d52221f6e153e5556b2daa24"
         },
         {
           "id": "apps/client/tests/e2e/tests/auth.spec.ts::should validate required fields on registration",
-          "line": 341,
+          "line": 290,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "260433f20cfe3c335867bf73d84540b163bcb51071609adbdf655a9355bc578c"
         },
         {
           "id": "apps/client/tests/e2e/tests/auth.spec.ts::login page should be accessible",
-          "line": 356,
+          "line": 305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d2cf840bf6d5fe176b174c1fae21c70a25f7f6330a60dadf16909168ff71b9f4"
         },
         {
           "id": "apps/client/tests/e2e/tests/auth.spec.ts::registration page should be accessible",
-          "line": 363,
+          "line": 312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "555530498cd2401416f126066b1777bfcb79951bb4742fbcc558c2462794481c"
         },
         {
           "id": "apps/client/tests/e2e/tests/auth.spec.ts::should support keyboard navigation on login form",
-          "line": 370,
+          "line": 319,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f431ffe9b1574d34026212529382fb90cbfa877c2b0ced01dba17b75c717dba"
@@ -94734,7 +94606,7 @@
       "basis": "opaque",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -94745,7 +94617,7 @@
       "framework": "vitest",
       "collectors": ["playwright:apps/client/tests/e2e/config/playwright.config.ts"],
       "quarantined": "WU-6.E8",
-      "blockCount": 38,
+      "blockCount": 33,
       "blocks": [
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should create a basic text post",
@@ -94881,144 +94753,109 @@
           "bodyHash": "eef82b4716985eca35d4f607dc02e32d007c860709e86a3989afcaebe6111f93"
         },
         {
-          "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should configure advanced post options",
-          "line": 288,
-          "blockClass": "EMPTY",
-          "criteria": ["a"],
-          "bodyHash": "4c8ce8a0ee4c7d81f701204ee140e258f3d9c6419a297b1a4859d6762e080284"
-        },
-        {
-          "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should enable cross-platform posting",
-          "line": 302,
-          "blockClass": "EMPTY",
-          "criteria": ["a"],
-          "bodyHash": "44f1ea17f13ab07cce10bb43d4201f006a24a6b7e0a2f5230fd541a2b0e64a08"
-        },
-        {
-          "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should configure Twitter thread",
-          "line": 312,
-          "blockClass": "EMPTY",
-          "criteria": ["a"],
-          "bodyHash": "c57b333d09ef2fc761f4a77543e964bc89114d902e0b4f0d68ba5c09dc96ddac"
-        },
-        {
-          "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should configure Instagram story",
-          "line": 326,
-          "blockClass": "EMPTY",
-          "criteria": ["a"],
-          "bodyHash": "4a4dcf2aab726ff001f32d2857c9901f074bdd8e99c984f2e41801411c100962"
-        },
-        {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should publish post immediately",
-          "line": 338,
+          "line": 288,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6c4e5b8921c1e71dceae7fa5aa8c22eb5dc4f90270cb04b0b9f3a8da0131ac5f"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should save post as draft",
-          "line": 348,
+          "line": 298,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "96e1f0375e43a504c152573188d5d61cac2eb7794675376eb3b5220265516d4b"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should preview post before publishing",
-          "line": 357,
+          "line": 307,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2c5935c7813a69b57bd627aabd938f93dc4b48590853ea4f526b14f283b3ce5b"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should cancel post creation",
-          "line": 366,
+          "line": 316,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7c7769303f2c6ff7e735c47798500f84ff813b30752d49690098fd71d0196c93"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should edit existing draft",
-          "line": 377,
+          "line": 327,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6b4dde0059d788c207c63193dc2d9a3800d7ffe9a7e50af37b43f0cb86271ac9"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should preserve existing media when editing",
-          "line": 391,
+          "line": 341,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b58351a84f370c8142a47d1fe2333a17c4abe8ebd7a5773b5197ce02e94112f3"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should handle character limit warnings",
-          "line": 404,
+          "line": 354,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "857f11110c25a9710010295d3230e76670ddca357befa27a67a0193642ad9de9"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should handle network errors gracefully",
-          "line": 419,
+          "line": 369,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5df8991eed69690eca2bd00cf5dff50d0ceed644257b666fa67542c06d10a314"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should handle media upload failures",
-          "line": 431,
+          "line": 381,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cdaeb4d62db9bef5246e7ee87ad28e3c5fd6d8f8bf02a90306792ea7bb23fecf"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should load post creation form quickly",
-          "line": 445,
+          "line": 395,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1cc610f8d58d7751c3b31bdf38153764c4fe88fc6ed4c0eb8760ce146ad5ce6f"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should handle large content efficiently",
-          "line": 455,
+          "line": 405,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd5889596a7a7b5c18680adfce296f980ba55a12264af0d4ebedbea4fd34016b"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::post creation form should be accessible",
-          "line": 469,
+          "line": 419,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "85c1d89acaf3a9c396366f888de76bb3944daffa2429dd06989881dea33f4243"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should support keyboard navigation",
-          "line": 476,
+          "line": 426,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "504e55eae4460e3ee301f4a9d5af0fb38265da8836bc35812e2baa95f37b99a1"
         },
         {
           "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should work on mobile devices",
-          "line": 497,
+          "line": 447,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "229f6ac27f80411be50f24a64ef4c358fd7efff161c24c0ee2756c631a23cd33"
-        },
-        {
-          "id": "apps/client/tests/e2e/tests/publishing.spec.ts::should handle touch interactions",
-          "line": 508,
-          "blockClass": "EMPTY",
-          "criteria": ["a"],
-          "bodyHash": "cdfea72eccedffdefeb1145d07c99561669bfcd77af6c7469e0819d15f16ab70"
         }
       ],
       "verdict": "ADJUDICATE",
       "basis": "opaque",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -95029,7 +94866,7 @@
       "framework": "vitest",
       "collectors": ["playwright:apps/client/tests/e2e/config/playwright.config.ts"],
       "quarantined": "WU-6.E8",
-      "blockCount": 26,
+      "blockCount": 25,
       "blocks": [
         {
           "id": "apps/client/tests/e2e/tests/visual.spec.ts::login page should match baseline",
@@ -95193,22 +95030,15 @@
           "bodyHash": "24a54c55ab0b35fc773bd74307ecfb35a3440248947b97c8bde825a8e15b516c"
         },
         {
-          "id": "apps/client/tests/e2e/tests/visual.spec.ts::should match baseline in different languages",
-          "line": 370,
-          "blockClass": "SELF-SKIP",
-          "criteria": ["c"],
-          "bodyHash": "f822d90d51532c6c3d8951ced4812a4fcb9c1ad62fe66ad7645a406b2dff84c4"
-        },
-        {
           "id": "apps/client/tests/e2e/tests/visual.spec.ts::hover states should match baseline",
-          "line": 384,
+          "line": 370,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65de9a537c7a0d942f2dfdd8079d86b4b0894cb44fc11a1037d64e6a6c9d5e5e"
         },
         {
           "id": "apps/client/tests/e2e/tests/visual.spec.ts::focus states should match baseline",
-          "line": 397,
+          "line": 383,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d289cb17b17ff0f67dc4818cf3c43fe55d28580fa979bd397ede27f1caa2894a"
@@ -95218,7 +95048,7 @@
       "basis": "opaque",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -96673,7 +96503,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/client/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 10,
+      "blockCount": 7,
       "blocks": [
         {
           "id": "apps/client/tests/integration/useProviders.test.ts::starts in loading state",
@@ -96718,29 +96548,8 @@
           "bodyHash": "3b5aed138c57e4e642deb25ab08b6c240c08377eab94200d8d82b7ec55296fdc"
         },
         {
-          "id": "apps/client/tests/integration/useProviders.test.ts::exposes validateContent function",
-          "line": 129,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "bfb597384a91ed52b6d5af9361e2e9a3700efe0011424c7fa161f90570141d0f"
-        },
-        {
-          "id": "apps/client/tests/integration/useProviders.test.ts::exposes supportsFeature function",
-          "line": 137,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f70ffb83bb4b1ed96f29ab6bdc961875c4df9731612a9d4bf1b3ef8eae9e87c3"
-        },
-        {
-          "id": "apps/client/tests/integration/useProviders.test.ts::exposes getOptimalTimes function",
-          "line": 145,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "06c119e77936a111370627cf90fcc9924dae9933f733c9fdf85899e5f8e5a004"
-        },
-        {
           "id": "apps/client/tests/integration/useProviders.test.ts::validates content correctly for a provider",
-          "line": 153,
+          "line": 129,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d87ea98ff15f3f59fa9c57ca4b40fb08ada940a43a4aafa1ca79f1a9cc2823c5"
@@ -96750,7 +96559,7 @@
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": {
         "stem": "useProviders",
         "module": "apps/client/lib/hooks/useProviders.ts",
@@ -99004,182 +98813,175 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/workers/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 24,
+      "blockCount": 23,
       "blocks": [
         {
-          "id": "apps/workers/tests/workerMetrics.test.ts::should create all expected metric collectors",
-          "line": 21,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "47906a2537a089fa61c5c0543f231b6ffd7483e7ce18ce1182c50e3b0709202a"
-        },
-        {
           "id": "apps/workers/tests/workerMetrics.test.ts::should register metrics on the provided registry",
-          "line": 47,
+          "line": 21,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f128d17be29c10fc98f75f84ef85d87af2748877c321ebf790bc9931ebbf4b93"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should return a UUID string",
-          "line": 58,
+          "line": 32,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7a0ec1af6fc1ca2592712f66c270f1c8cc22d78e4253890dc7c5f9ed4bc301de"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should store the correlation ID for the dedupe key",
-          "line": 64,
+          "line": 38,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b6b9df7d0afa2557c81538b770206129d6abe2939035c9cbfa3916bd509ac023"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should increment the correlation tracker gauge",
-          "line": 70,
+          "line": 44,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65eb1d44f568aaa05b7faf06dcba758862a23c7d10801d552af8a5b1f5f8371f"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should overwrite correlation ID for the same dedupe key",
-          "line": 78,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "08a24c688fcff3fa4d9cc0411a5aee462b3c3583792c213cb2f6d20058a4e0f8"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should remove the tracked correlation ID",
-          "line": 88,
+          "line": 62,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65ec100f5a64f45d5d4be2f70b402df04b0899f5e28448425df3fa5ab9a4df5e"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should decrement the correlation tracker gauge",
-          "line": 96,
+          "line": 70,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f0e17872a7b09500b37933c20becb8d0ebfde83a8082abdafefbee4f38e415bb"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should be a no-op for non-existent keys",
-          "line": 105,
+          "line": 79,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0147d4cc144137fc0738f8aeb55802eeac2c6ab8b30c97ae7e32187bbc449136"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should increment jobsActive gauge",
-          "line": 116,
+          "line": 90,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ccde9663c0b39c89353f220ac8471609250ad4334959b712bdc4290ab5bec8ad"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should return a finish function that decrements jobsActive",
-          "line": 123,
+          "line": 97,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "87822a1f7bfaa18ea0d49ef00862ffcfd6e69bce1e640d29d411a2440748c1b6"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should track multiple concurrent jobs",
-          "line": 135,
+          "line": 109,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a7dce165de441952b55ffeae81a20025d071406dd187916354e1e040f547f903"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should increment threadsInProgress gauge for provider",
-          "line": 157,
+          "line": 131,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aab6e707655c2c3449efd82a7a7e2e67ed38e74694ba1237e7793d4b10d2c283"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should return a finish function that decrements threadsInProgress",
-          "line": 166,
+          "line": 140,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "42685ae3a465452c77a2ec01254bc62a8abe7dbaa3e60750d8002956b50a044b"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should increment errorsByType counter with correct labels",
-          "line": 179,
+          "line": 153,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e53460a0b323ba854c2f5c020afbc3a4b9364854ce314eefd972d4609d096d97"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should track non-recoverable errors",
-          "line": 193,
+          "line": 167,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be701c9f40b6ea7db6f35aa2faa3ae0bd11957247a14687a87cad88ff23002a9"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should return '1-2' for counts 1 and 2",
-          "line": 206,
+          "line": 180,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a41bda2730f148c61d423d2fd3e66b87e869c00c48b28b105d3b2a6f52fcfbaf"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should return '3-5' for counts 3 to 5",
-          "line": 211,
+          "line": 185,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e28db88d824bbcc189ee84b81709a028dbf8c29c9f49747007b65949ca47f094"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should return '6-10' for counts 6 to 10",
-          "line": 217,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b4455ae0a163752365ad229b9213fa18072233c43e7a62773dcffe0dfc52ccf8"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should return '11-20' for counts 11 to 20",
-          "line": 222,
+          "line": 196,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3fced9a3011241841083c9fa761c3fc05ff25bc0a001e9dc69567edfa0e0fb75"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should return '20+' for counts above 20",
-          "line": 227,
+          "line": 201,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bd046f7f1ddf82222fa910bc2344c7cbd49c446802cd04d5c46c73bc9f0acce2"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should increment retry attempts counter",
-          "line": 234,
+          "line": 208,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "24d2c7dcfc28aef46e2182ab9b4e5a869244260109dd8828916b636683a6c13c"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should increment circuit breaker trips counter",
-          "line": 247,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fcf2c20e6ac142bf9e872ad06a63a73cb48d10bd6ea755fa48f5d3e18609002c"
         },
         {
           "id": "apps/workers/tests/workerMetrics.test.ts::should return the registry passed in constructor",
-          "line": 260,
+          "line": 234,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f4a3ac9acddae295cf7bcb82897f9695390dd0bb28ca84f10d18119953e6658e"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.7",
       "subject": {
         "stem": "workerMetrics",
         "module": "apps/workers/src/metrics/workerMetrics.ts",
