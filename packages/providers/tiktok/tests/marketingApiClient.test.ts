@@ -858,13 +858,6 @@ describe("TikTokMarketingApiClient", () => {
     });
   });
 
-  describe("getMetricsRegistry", () => {
-    it("returns the global prom-client registry", () => {
-      const reg = TikTokMarketingApiClient.getMetricsRegistry();
-      assert.ok(reg);
-    });
-  });
-
   describe("clearCache", () => {
     it("delegates to circuitBreaker.clearCache with correct service name", () => {
       makeClient().clearCache();

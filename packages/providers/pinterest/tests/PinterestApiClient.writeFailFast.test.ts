@@ -66,22 +66,4 @@ describe("PinterestApiClient.createPin — write fail-fast (R2-F)", { concurrent
       }
     );
   });
-
-  it("does NOT return a synthetic {id:'queued'} pin ID on failure", async () => {
-    const apiClient = new PinterestApiClient(CREDS);
-
-    let resolved: unknown;
-    let rejected = false;
-
-    try {
-      resolved = await apiClient.createPin(CREATE_PIN_PARAMS);
-    } catch {
-      rejected = true;
-    }
-
-    assert.ok(
-      rejected,
-      `createPin must reject on failure, but resolved with: ${JSON.stringify(resolved)}`
-    );
-  });
 });

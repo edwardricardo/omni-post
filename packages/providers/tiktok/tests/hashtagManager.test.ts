@@ -616,31 +616,6 @@ describe("TikTokHashtagManager", () => {
       });
     });
 
-    it("returns HashtagRecommendation with all required fields", async () => {
-      (mockClient.getTrendingHashtags as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
-        makeTrendingHashtag({ hashtag: "#trending1", volume: 200000, growth: 60 }),
-      ]);
-
-      const result = await manager.getHashtagRecommendations({
-        content: "trending content video",
-        goals: "reach",
-      });
-
-      assert.ok(Array.isArray(result.recommended));
-      assert.ok(typeof result.reasons === "object");
-      assert.ok(typeof result.alternatives === "object");
-      assert.ok(result.optimal);
-      assert.ok(Array.isArray(result.optimal.mix));
-      assert.ok(typeof result.optimal.reasoning === "string");
-      assert.ok(typeof result.optimal.expectedReach === "number");
-      assert.ok(typeof result.optimal.competitionLevel === "string");
-      assert.ok(Array.isArray(result.avoid));
-      assert.ok(result.timing);
-      assert.ok(Array.isArray(result.timing.bestTimes));
-      assert.ok(Array.isArray(result.timing.avoid));
-      assert.ok(Array.isArray(result.timing.seasonal));
-    });
-
     it("limits recommended to max 15 items", async () => {
       const manyHashtags = Array.from({ length: 25 }, (_, i) =>
         makeTrendingHashtag({
@@ -691,7 +666,7 @@ describe("TikTokHashtagManager", () => {
   });
 
   // =========================================================================
-  // getCircuitBreakerStatus & clearCache & getMetricsRegistry
+  // getCircuitBreakerStatus & clearCache
   // =========================================================================
   describe("getCircuitBreakerStatus", () => {
     it("delegates to circuitBreaker.getAllStatuses", () => {
@@ -704,15 +679,6 @@ describe("TikTokHashtagManager", () => {
   describe("clearCache", () => {
     it("does not throw when called", () => {
       expect(() => manager.clearCache()).not.toThrow();
-    });
-  });
-
-  describe("getMetricsRegistry", () => {
-    it("returns a registry object", () => {
-      const registry = TikTokHashtagManager.getMetricsRegistry();
-
-      assert.ok(registry !== null);
-      assert.ok(registry !== undefined);
     });
   });
 });

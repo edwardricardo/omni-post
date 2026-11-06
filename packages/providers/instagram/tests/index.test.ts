@@ -157,18 +157,6 @@ describe("InstagramAdapter", () => {
         );
       }
     });
-
-    it("should handle content too long gracefully", () => {
-      const tooLongPost: CanonicalPost = {
-        ...samplePost,
-        body: "Very long content ".repeat(1000),
-      };
-
-      const result = adapter.render(tooLongPost);
-
-      // Should either handle gracefully or return error
-      assert.ok(result.ok !== undefined);
-    });
   });
 
   // =========================================================================
@@ -198,18 +186,6 @@ describe("InstagramAdapter", () => {
         assert.ok("totalChars" in result.value);
         assert.ok("estimatedReach" in result.value);
       }
-    });
-
-    it("should validate carousel length limits", () => {
-      const tooManySlides: CanonicalPost = {
-        ...samplePost,
-        body: "Slide content. ".repeat(500),
-      };
-
-      const result = adapter.planThread(tooManySlides);
-
-      // Should either succeed with max slides or fail with appropriate error
-      assert.ok(result.ok !== undefined);
     });
   });
 

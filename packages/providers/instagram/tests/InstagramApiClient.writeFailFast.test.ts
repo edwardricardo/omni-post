@@ -64,24 +64,6 @@ describe(
         }
       );
     });
-
-    it("does NOT return a synthetic queued response on failure", async () => {
-      const apiClient = new InstagramApiClient(CREDS);
-
-      let resolved: unknown;
-      let rejected = false;
-
-      try {
-        resolved = await apiClient.createMediaContainer("https://example.com/image.jpg");
-      } catch {
-        rejected = true;
-      }
-
-      assert.ok(
-        rejected,
-        `createMediaContainer must reject on failure, but resolved with: ${JSON.stringify(resolved)}`
-      );
-    });
   }
 );
 

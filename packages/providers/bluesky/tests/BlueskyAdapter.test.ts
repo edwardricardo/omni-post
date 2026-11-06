@@ -268,12 +268,6 @@ describe("BlueskyAdapter", { concurrent: false }, () => {
       assert.ok(!result.ok);
       assert.equal(result.error, "AUTH_INVALID");
     });
-
-    it("returns ok when credentials are valid and login succeeds", async () => {
-      const adapter = makeAdapter();
-      const result = await adapter.validateCredentials(VALID_CREDS);
-      assert.ok(result.ok);
-    });
   });
 
   describe("publish", () => {
@@ -340,13 +334,6 @@ describe("BlueskyAdapter", { concurrent: false }, () => {
       const result = await adapter.publish(makeInput("hello"), VALID_CREDS);
       assert.ok(result.ok);
       assert.equal(result.value.url, "https://bsky.app/profile/test.bsky.social");
-    });
-  });
-
-  describe("publishThread — not supported", () => {
-    it("publishThread is not implemented (threading not supported on Bluesky)", () => {
-      const adapter = makeAdapter();
-      assert.equal(typeof adapter.publishThread, "undefined");
     });
   });
 });

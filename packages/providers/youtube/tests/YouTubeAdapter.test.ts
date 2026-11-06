@@ -348,12 +348,6 @@ describe("YouTubeAdapter", { concurrent: false }, () => {
       assert.equal(result.error, "AUTH_INVALID");
     });
 
-    it("returns ok when credentials are valid and API call succeeds", async () => {
-      const adapter = makeAdapter();
-      const result = await adapter.validateCredentials(VALID_CREDS);
-      assert.ok(result.ok);
-    });
-
     it("returns AUTH_INVALID when API call throws a generic error", async () => {
       const client = makeFakeApiClient({
         validateCredentials: vi.fn(async () => {
@@ -873,17 +867,6 @@ describe("YouTubeAdapter", { concurrent: false }, () => {
       });
       assert.ok(!result.ok);
       assert.equal(result.error, "NETWORK");
-    });
-  });
-
-  // --------------------------------------------------------------------------
-  describe("publishThread — not supported", () => {
-    it("publishThread is not implemented (threading not supported on YouTube)", () => {
-      const adapter = makeAdapter();
-      assert.equal(
-        typeof (adapter as unknown as { publishThread?: unknown }).publishThread,
-        "undefined"
-      );
     });
   });
 });

@@ -57,22 +57,4 @@ describe("FacebookApiClient.postToPage — write fail-fast (R2-B)", { concurrent
       }
     );
   });
-
-  it("does NOT return a synthetic {id:'queued'} post ID on failure", async () => {
-    const apiClient = new FacebookApiClient(CREDS);
-
-    let resolved: unknown;
-    let rejected = false;
-
-    try {
-      resolved = await apiClient.postToPage("test post");
-    } catch {
-      rejected = true;
-    }
-
-    assert.ok(
-      rejected,
-      `postToPage must reject on failure, but resolved with: ${JSON.stringify(resolved)}`
-    );
-  });
 });

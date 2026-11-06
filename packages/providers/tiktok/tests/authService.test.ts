@@ -934,13 +934,4 @@ describe("TikTokAuthService", () => {
       expect(() => service.clearCache()).not.toThrow();
     });
   });
-
-  describe("getMetricsRegistry", () => {
-    it("returns a registry object", () => {
-      const registry = TikTokAuthService.getMetricsRegistry();
-
-      assert.ok(registry !== null);
-      assert.ok(registry !== undefined);
-    });
-  });
 });

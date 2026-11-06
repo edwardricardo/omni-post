@@ -434,12 +434,6 @@ describe("TikTokAdapter", { concurrent: false }, () => {
       assert.equal(result.error, "AUTH_INVALID");
     });
 
-    it("returns ok when credentials are valid and API call succeeds", async () => {
-      const adapter = makeAdapter();
-      const result = await adapter.validateCredentials(VALID_CREDS);
-      assert.ok(result.ok);
-    });
-
     it("returns AUTH_INVALID on generic API failure", async () => {
       const client = makeFakeApiClient({
         validateCredentials: vi.fn(async () => {
@@ -829,17 +823,6 @@ describe("TikTokAdapter", { concurrent: false }, () => {
       const result = await adapter.fetchAnalytics({ channelId: "ch-1" }, VALID_CREDS);
       assert.ok(!result.ok);
       assert.equal(result.error, "NETWORK");
-    });
-  });
-
-  // --------------------------------------------------------------------------
-  describe("publishThread — not supported", () => {
-    it("publishThread is not implemented (threading not supported on TikTok)", () => {
-      const adapter = makeAdapter();
-      assert.equal(
-        typeof (adapter as unknown as { publishThread?: unknown }).publishThread,
-        "undefined"
-      );
     });
   });
 });

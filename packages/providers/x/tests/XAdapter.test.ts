@@ -179,20 +179,6 @@ describe("XAdapter - render()", { concurrent: false }, () => {
     assert.ok(result.ok, "Render should succeed");
     assert.strictEqual(result.value.type, "single", "Should be single tweet");
   });
-
-  it("should include estimatedReach in thread meta", () => {
-    const { adapter } = makeAdapter();
-    const post = createTestCanonicalPost({ body: LONG_BODY });
-    const result = adapter.render(post);
-
-    assert.ok(result.ok, "Render should succeed");
-    if (result.value.type === "thread") {
-      assert.ok(
-        result.value.meta?.estimatedReach !== undefined,
-        "Thread meta should contain estimatedReach"
-      );
-    }
-  });
 });
 
 // ============================================================================

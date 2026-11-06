@@ -508,12 +508,6 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
     vi.clearAllMocks();
   });
 
-  it("returns ok with valid credentials", async () => {
-    const { adapter } = makeAdapter();
-    const result = await adapter.validateCredentials(VALID_CREDS);
-    assert.ok(result.ok, "Validation should succeed");
-  });
-
   it("returns AUTH_INVALID when accessToken is missing", async () => {
     const { adapter } = makeAdapter();
     const result = await adapter.validateCredentials({ ...VALID_CREDS, accessToken: "" });

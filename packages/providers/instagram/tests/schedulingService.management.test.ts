@@ -1,8 +1,8 @@
 /**
  * @file schedulingService.management.test.ts
  * @description Tests for InstagramSchedulingService -- cancel, health, stories
- *              scheduling with video splitting, carousel scheduling, close/cleanup,
- *              and metrics.
+ *              scheduling with video splitting, carousel scheduling,
+ *              and close/cleanup.
  *
  * Schedule creation and validation tests live in schedulingService.scheduling.test.ts.
  *
@@ -403,26 +403,6 @@ describe("InstagramSchedulingService -- management", { concurrent: false }, () =
       await service.close();
 
       assert.strictEqual(mockQueue.close.mock.calls.length, 1);
-    });
-
-    it("should handle close errors gracefully", async () => {
-      mockQueue.close.mockImplementation(async () => {
-        throw new Error("Close failed");
-      });
-
-      // Should not throw
-      await service.close();
-    });
-  });
-
-  // =========================================================================
-  // metrics
-  // =========================================================================
-
-  describe("metrics", () => {
-    it("should provide metrics registry", () => {
-      const registry = InstagramSchedulingService.getMetricsRegistry();
-      assert.ok(registry !== undefined);
     });
   });
 

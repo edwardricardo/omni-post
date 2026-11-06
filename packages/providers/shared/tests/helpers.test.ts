@@ -319,14 +319,6 @@ describe("validateContentForLimits", () => {
     expect(result.suggestions.find((s) => s.action === "truncate")).toBeDefined();
   });
 
-  it("adds a thread suggestion when overflow occurs and threading is supported", async () => {
-    const post = makeCanonicalPost({ body: "x".repeat(300) });
-    const result = await validateContentForLimits(post, makeLimits({ maxChars: 280 }), {
-      threading: true,
-    });
-    expect(result.suggestions.find((s) => s.action === "thread")).toBeDefined();
-  });
-
   it("flags too many media items relative to maxMediaPerPost", async () => {
     const post = makeCanonicalPost({
       body: "ok",

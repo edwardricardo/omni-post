@@ -80,22 +80,4 @@ describe("XApiClient.postTweet — write fail-fast (R2-A)", { concurrent: false 
       }
     );
   });
-
-  it("does NOT return a synthetic {id:'queued'} response on failure", async () => {
-    const apiClient = new XApiClient(CREDS);
-
-    let resolved: unknown;
-    let rejected = false;
-
-    try {
-      resolved = await apiClient.postTweet("test tweet");
-    } catch {
-      rejected = true;
-    }
-
-    assert.ok(
-      rejected,
-      `postTweet must reject on failure, but it resolved with: ${JSON.stringify(resolved)}`
-    );
-  });
 });

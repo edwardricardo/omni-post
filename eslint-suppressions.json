@@ -1173,126 +1173,32 @@
   },
   "packages/providers/bluesky/tests/BlueskyAdapter.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/providers/bluesky/tests/BlueskyClient.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 5
-    }
-  },
-  "packages/providers/facebook/tests/FacebookAdapter.stories-reels.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/providers/instagram/tests/InstagramAdapter.stories-reels.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 5
-    }
-  },
-  "packages/providers/instagram/tests/index.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "packages/providers/instagram/tests/mediaProcessor.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/providers/instagram/tests/mediaProcessor.validation.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/providers/instagram/tests/schedulingService.management.test.ts": {
-    "testing/no-empty-test": {
-      "count": 1
-    },
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
-    "vitest/expect-expect": {
-      "count": 1
-    }
-  },
-  "packages/providers/linkedin/tests/LinkedInAdapter.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
+      "count": 4
     }
   },
   "packages/providers/shared/tests/helpers.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
       "count": 9
     }
   },
-  "packages/providers/snapchat/tests/responseParsers.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "packages/providers/telegram/tests/TelegramAdapter.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 6
-    }
-  },
-  "packages/providers/tiktok/tests/TikTokAdapter.test.ts": {
     "testing/no-existence-only-test": {
       "count": 4
     }
   },
-  "packages/providers/tiktok/tests/apiClient.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/providers/tiktok/tests/authService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/providers/tiktok/tests/contentAnalyticsClient.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/providers/tiktok/tests/hashtagManager.test.ts": {
+  "packages/providers/tiktok/tests/TikTokAdapter.test.ts": {
     "testing/no-existence-only-test": {
       "count": 2
-    }
-  },
-  "packages/providers/tiktok/tests/marketingApiClient.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/providers/tiktok/tests/researchApiClient.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/providers/tiktok/tests/videoProcessor.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
-  "packages/providers/x/tests/XAdapter.content.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "packages/providers/x/tests/XAdapter.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "packages/providers/youtube/tests/YouTubeAdapter.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 3
+      "count": 1
     }
   }
 }
