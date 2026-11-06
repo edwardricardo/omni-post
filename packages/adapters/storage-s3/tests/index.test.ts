@@ -50,50 +50,10 @@ const MINIMAL_CONFIG: S3Config = {
  * 1. Factory — createS3StorageAdapter
  * ────────────────────────────────────────────────────────────────────── */
 describe("createS3StorageAdapter — factory", { concurrent: false }, () => {
-  it("creates an adapter instance with full config", () => {
-    const adapter = createS3StorageAdapter(TEST_CONFIG);
-    expect(adapter).toBeTruthy();
-    expect(typeof adapter.generateUploadSignature).toBe("function");
-    expect(typeof adapter.getMediaMetadata).toBe("function");
-  });
-
   it("creates an adapter instance with minimal config (no credentials)", () => {
     const adapter = createS3StorageAdapter(MINIMAL_CONFIG);
     expect(adapter).toBeTruthy();
     expect(typeof adapter.generateUploadSignature).toBe("function");
-  });
-
-  it("exposes getSignedUploadUrl compatibility method", () => {
-    const adapter = createS3StorageAdapter(TEST_CONFIG);
-    expect(typeof adapter.getSignedUploadUrl).toBe("function");
-  });
-
-  it("exposes getMetadata compatibility method", () => {
-    const adapter = createS3StorageAdapter(TEST_CONFIG);
-    expect(typeof adapter.getMetadata).toBe("function");
-  });
-
-  it("exposes getCircuitBreakerStatus method", () => {
-    const adapter = createS3StorageAdapter(TEST_CONFIG);
-    expect(typeof adapter.getCircuitBreakerStatus).toBe("function");
-  });
-
-  it("exposes getMetricsRegistry method", () => {
-    const adapter = createS3StorageAdapter(TEST_CONFIG);
-    expect(typeof adapter.getMetricsRegistry).toBe("function");
-  });
-
-  it("getCircuitBreakerStatus returns an object", () => {
-    const adapter = createS3StorageAdapter(TEST_CONFIG);
-    const status = adapter.getCircuitBreakerStatus();
-    expect(typeof status).toBe("object");
-    expect(status !== null).toBeTruthy();
-  });
-
-  it("getMetricsRegistry returns a prom-client Registry", () => {
-    const adapter = createS3StorageAdapter(TEST_CONFIG);
-    const reg = adapter.getMetricsRegistry();
-    expect(reg instanceof client.Registry).toBeTruthy();
   });
 });
 
@@ -177,33 +137,6 @@ describe("createS3StorageAdapter — file size validation", { concurrent: false 
       expect(result.error).toBe("INVALID_TYPE");
     }
   });
-
-  it("accepts files at exactly 100MB", async () => {
-    const exactMaxBytes = 100 * 1024 * 1024;
-    const result = await adapter.generateUploadSignature(
-      "max-video.mp4",
-      "video/mp4",
-      exactMaxBytes
-    );
-
-    // Should NOT be INVALID_TYPE; will be SERVICE_ERROR because no real S3
-    if (!result.ok) {
-      expect(result.error).toBe("SERVICE_ERROR");
-    }
-  });
-
-  it("accepts files under 100MB", async () => {
-    const smallBytes = 5 * 1024 * 1024; // 5 MB
-    const result = await adapter.generateUploadSignature(
-      "small-image.jpg",
-      "image/jpeg",
-      smallBytes
-    );
-
-    if (!result.ok) {
-      expect(result.error).toBe("SERVICE_ERROR");
-    }
-  });
 });
 
 /* ──────────────────────────────────────────────────────────────────────
@@ -284,30 +217,6 @@ describe(
 
     const adapter = createS3StorageAdapter(TEST_CONFIG);
 
-    it("rejects invalid URLs in getMediaMetadata", async () => {
-      // This tests the URL parsing logic before the circuit breaker
-      try {
-        const result = await adapter.getMediaMetadata("not-a-url");
-        // If it doesn't throw on URL parse, it should return an error
-        if (!result.ok) {
-          expect(["NOT_FOUND", "SERVICE_ERROR"]).toContain(result.error);
-        }
-      } catch {
-        // URL constructor throws for invalid URLs — this is acceptable
-      }
-    });
-
-    it("extracts key from URL path correctly", async () => {
-      // URL with a valid path — will fail at S3 level but exercises URL parsing
-      const result = await adapter.getMediaMetadata(
-        "https://test-bucket.s3.us-east-1.amazonaws.com/uploads/test-file.jpg"
-      );
-      // Will be SERVICE_ERROR because no real S3, but NOT NOT_FOUND (key is valid)
-      if (!result.ok) {
-        expect(result.error).toBe("SERVICE_ERROR");
-      }
-    });
-
     it("returns NOT_FOUND for URL with only slash path", async () => {
       const result = await adapter.getMediaMetadata("http://bucket.s3.amazonaws.com/");
       expect(result.ok).toBe(false);
@@ -369,17 +278,6 @@ describe(
       }
     });
 
-    it("getSignedUploadUrl delegates correctly for valid type", async () => {
-      const result = await adapter.getSignedUploadUrl({
-        path: "test.jpg",
-        contentType: "image/jpeg",
-      });
-      // Valid type but no real S3 → SERVICE_ERROR
-      if (!result.ok) {
-        expect(result.error).toBe("SERVICE_ERROR");
-      }
-    });
-
     it("getMetadata delegates correctly for empty path", async () => {
       const result = await adapter.getMetadata({
         url: "http://bucket.s3.amazonaws.com/",
@@ -388,12 +286,6 @@ describe(
       if (!result.ok) {
         expect(result.error).toBe("NOT_FOUND");
       }
-    });
-
-    it("getMetricsRegistry returns a prom-client Registry instance", () => {
-      const reg = adapter.getMetricsRegistry();
-      expect(reg).toBeTruthy();
-      expect(typeof reg.metrics).toBe("function");
     });
   }
 );

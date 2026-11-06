@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1185  |
 | DELETE                  | 19    |
-| REWRITE                 | 141   |
-| KEEP                    | 925   |
+| REWRITE                 | 126   |
+| KEEP                    | 940   |
 | ADJUDICATE              | 100   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14719 |
-| Blocks with a criterion | 528   |
+| Blocks                  | 14667 |
+| Blocks with a criterion | 476   |
 
 ## Slice 2.6a
 
@@ -276,6 +276,29 @@ Deleted: 0 files, 16 blocks.
 | `packages/core/posts/tests/unit/CreatePostUseCase.test.ts`                       | test  | 2      | 0          | KEEP    | machine | behavioural     |
 | `packages/core/threading/tests/unit/threadPlanner.test.ts`                       | test  | 17     | 1          | REWRITE | machine | some-decorative |
 | `packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts`                   | test  | 3      | 0          | KEEP    | machine | behavioural     |
+
+## Slice 2.8.6b
+
+Deleted: 0 files, 52 blocks.
+
+| Path                                                                         | Shape | Blocks | Decorative | Verdict | Status  | Basis           |
+| ---------------------------------------------------------------------------- | ----- | ------ | ---------- | ------- | ------- | --------------- |
+| `packages/adapters/cache-redis/tests/factory.test.ts`                        | test  | 7      | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/cache-redis/tests/metrics.test.ts`                        | test  | 7      | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts`     | test  | 4      | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/db-prisma/tests/resilience.test.ts`                       | test  | 39     | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/dead-letter-queue/tests/index.test.ts`                    | test  | 22     | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/external-apis/tests/circuitBreaker.test.ts`               | test  | 35     | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts` | test  | 16     | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/fallback-strategies/tests/index.test.ts`                  | test  | 25     | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts`              | test  | 8      | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/queue-bullmq/tests/queue-adapter.test.ts`                 | test  | 15     | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts`           | test  | 6      | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/queue-bullmq/tests/resilience.test.ts`                    | test  | 27     | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/storage-cloudinary/tests/index.test.ts`                   | test  | 9      | 0          | KEEP    | machine | behavioural     |
+| `packages/adapters/storage-s3/tests/index.test.ts`                           | test  | 13     | 2          | REWRITE | machine | some-decorative |
+| `packages/observability/browser-logger/tests/context.test.tsx`               | test  | 5      | 0          | KEEP    | machine | behavioural     |
+| `packages/observability/logger/tests/createLogger.test.ts`                   | test  | 3      | 0          | KEEP    | machine | behavioural     |
 
 ## Rows without a slice
 
@@ -1088,42 +1111,28 @@ Deleted: 0 files, 16 blocks.
 | `packages/adapters/cache-redis/tests/access-patterns.test.ts`                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/cache-redis/tests/cache-manager.test.ts`                                           | test             | 48     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/cache-redis/tests/constants.test.ts`                                               | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/cache-redis/tests/factory.test.ts`                                                 | test             | 9      | 2          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/cache-redis/tests/in-memory-cache-adapter.test.ts`                                 | test             | 24     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/cache-redis/tests/invalidation.test.ts`                                            | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/cache-redis/tests/l1-cache.test.ts`                                                | test             | 27     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/cache-redis/tests/metrics.test.ts`                                                 | test             | 11     | 4          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/cache-redis/tests/redis-cache-adapter.test.ts`                                     | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/crm-hubspot/tests/HubSpotAdapter.test.ts`                                          | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/crm-salesforce/tests/SalesforceAdapter.test.ts`                                    | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/db-prisma/tests/channelRepository.decryptInput.unit.test.ts`                       | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts`                              | test             | 5      | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/db-prisma/tests/postRepositoryLiveness.test.ts`                                    | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/db-prisma/tests/postRepositoryStoredValues.test.ts`                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/db-prisma/tests/resilience.test.ts`                                                | test             | 40     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/db-prisma/tests/subRepos.di.test.ts`                                               | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/db-prisma/tests/uniqueViolationMapping.test.ts`                                    | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/dead-letter-queue/tests/connectionHonesty.test.ts`                                 | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/dead-letter-queue/tests/index.test.ts`                                             | test             | 23     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/dead-letter-queue/tests/mutation-killing-part2.test.ts`                            | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/dead-letter-queue/tests/mutation-killing.test.ts`                                  | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/external-apis/tests/circuitBreaker.test.ts`                                        | test             | 37     | 2          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/external-apis/tests/circuitBreakerC1bHardening.test.ts`                            | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/external-apis/tests/circuitBreakerTenantIsolation.test.ts`                         | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts`                          | test             | 18     | 2          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/external-apis/tests/unit/circuitBreakerNoEagerQueue.test.ts`                       | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/fallback-strategies/tests/fallbackTenantIsolation.test.ts`                         | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/fallback-strategies/tests/index.test.ts`                                           | test             | 28     | 3          | REWRITE    | machine                     | some-decorative      |
-| `packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts`                                       | test             | 9      | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/queue-bullmq/tests/dead-letter-queue-adapter.test.ts`                              | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/queue-bullmq/tests/queue-adapter.test.ts`                                          | test             | 16     | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts`                                    | test             | 7      | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/adapters/queue-bullmq/tests/resilience.test.ts`                                             | test             | 28     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/storage-azure/tests/index.test.ts`                                                 | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/storage-cloudinary/tests/index.test.ts`                                            | test             | 26     | 17         | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/storage-do-spaces/tests/index.test.ts`                                             | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/storage-gcs/tests/index.test.ts`                                                   | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/adapters/storage-s3/tests/index.test.ts`                                                    | test             | 26     | 15         | REWRITE    | machine                     | some-decorative      |
 | `packages/adapters/storage-s3/tests/s3-operations.test.ts`                                            | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/api-common/tests/webhookSignature.test.ts`                                                  | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/api-errors/tests/ApiError.test.ts`                                                          | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
@@ -1209,9 +1218,7 @@ Deleted: 0 files, 16 blocks.
 | `packages/observability/background-scheduler/tests/default-scheduler.test.ts`                         | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/background-scheduler/tests/noop-scheduler.test.ts`                            | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/browser-logger/tests/console-adapter.test.ts`                                 | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/observability/browser-logger/tests/context.test.tsx`                                        | test             | 6      | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/observability/browser-logger/tests/port.test.ts`                                            | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/observability/logger/tests/createLogger.test.ts`                                            | test             | 4      | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts`                                | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fsSpans.test.ts`                                          | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/httpProviderSpans.test.ts`                                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |

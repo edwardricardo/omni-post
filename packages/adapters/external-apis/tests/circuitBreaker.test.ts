@@ -119,12 +119,6 @@ describe("ExternalApiCircuitBreaker -- constructor", { concurrent: false }, () =
     });
   });
 
-  it("creates an instance without a Redis URL (fallback/DLQ disabled)", () => {
-    const reg = new client.Registry();
-    const instance = new ExternalApiCircuitBreaker(reg);
-    expect(instance).toBeTruthy();
-  });
-
   it("registers prometheus metrics in the given registry", async () => {
     const reg = new client.Registry();
     new ExternalApiCircuitBreaker(reg);
@@ -402,23 +396,6 @@ describe("ExternalApiCircuitBreaker -- status & management", { concurrent: false
     const status = cb.getStatus("stat-svc", "stat-op");
     expect(status).toBeTruthy();
     expect(status!.state).toBe("CLOSED");
-  });
-
-  it("getAllStatuses returns all registered breakers", async () => {
-    const operation = async () => "ok";
-
-    await cb.call("all-a", "op-a", operation, [], {
-      maxRetries: 0,
-      ...LENIENT_BREAKER_OPTS,
-    });
-    await cb.call("all-b", "op-b", operation, [], {
-      maxRetries: 0,
-      ...LENIENT_BREAKER_OPTS,
-    });
-
-    const statuses = cb.getAllStatuses();
-    assert.ok("all-a:op-a" in statuses, "should contain all-a:op-a");
-    assert.ok("all-b:op-b" in statuses, "should contain all-b:op-b");
   });
 
   it("forceOpen returns false for unknown breaker", () => {

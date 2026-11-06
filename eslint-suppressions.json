@@ -1098,44 +1098,9 @@
       "count": 1
     }
   },
-  "packages/adapters/cache-redis/tests/factory.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "packages/adapters/cache-redis/tests/metrics.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
-  "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/adapters/db-prisma/tests/resilience.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/adapters/dead-letter-queue/tests/index.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "packages/adapters/dead-letter-queue/tests/mutation-killing-part2.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 4
-    }
-  },
-  "packages/adapters/external-apis/tests/circuitBreaker.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
     }
   },
   "packages/adapters/fallback-strategies/tests/fallbackTenantIsolation.test.ts": {
@@ -1144,19 +1109,8 @@
     }
   },
   "packages/adapters/fallback-strategies/tests/index.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    },
-    "testing/no-tautological-assertion": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
       "count": 22
-    }
-  },
-  "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "packages/adapters/queue-bullmq/tests/dead-letter-queue-adapter.test.ts": {
@@ -1165,37 +1119,21 @@
     }
   },
   "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
       "count": 8
     }
   },
-  "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/adapters/queue-bullmq/tests/resilience.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "packages/adapters/storage-cloudinary/tests/index.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 10
-    },
     "vitest/no-conditional-expect": {
-      "count": 10
+      "count": 7
     }
   },
   "packages/adapters/storage-s3/tests/index.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 9
+      "count": 1
     },
     "vitest/no-conditional-expect": {
-      "count": 16
+      "count": 11
     }
   },
   "packages/core/application/tests/unit/UseCase.test.ts": {
@@ -1231,16 +1169,6 @@
   "packages/monitoring/circuit-breaker/tests/index.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 18
-    }
-  },
-  "packages/observability/browser-logger/tests/context.test.tsx": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/observability/logger/tests/createLogger.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "packages/providers/bluesky/tests/BlueskyAdapter.test.ts": {

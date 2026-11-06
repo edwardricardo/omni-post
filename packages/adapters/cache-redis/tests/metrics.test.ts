@@ -5,7 +5,7 @@
  * Tier 0: no Redis, no network.
  *
  * @file metrics.test.ts
- * @description Tests for Cache metrics — exports
+ * @description Tests for Cache metrics — counter, histogram and gauge behaviour
  * @layer infrastructure
  */
 
@@ -32,24 +32,6 @@ beforeAll(async () => {
 afterAll(() => {
   // Clear the registry so any other processes that share this module don't error.
   client.register.clear();
-});
-
-describe("Cache metrics — exports", { concurrency: 1 }, () => {
-  it("cacheHits is a Counter instance", () => {
-    expect(cacheHits instanceof client.Counter).toBe(true);
-  });
-
-  it("cacheMisses is a Counter instance", () => {
-    expect(cacheMisses instanceof client.Counter).toBe(true);
-  });
-
-  it("cacheOperationDuration is a Histogram instance", () => {
-    expect(cacheOperationDuration instanceof client.Histogram).toBe(true);
-  });
-
-  it("cacheSize is a Gauge instance", () => {
-    expect(cacheSize instanceof client.Gauge).toBe(true);
-  });
 });
 
 describe("Cache metrics — Counter behaviour", { concurrency: 1 }, () => {

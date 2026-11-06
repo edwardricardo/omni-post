@@ -45,14 +45,6 @@ describe("BullMQQueuePortRegistry", () => {
     vi.clearAllMocks();
   });
 
-  it("returns a QueuePort for the requested queue name", () => {
-    const registry = new BullMQQueuePortRegistry({ connection: fakeConnection });
-    const port = registry.forQueue("publish");
-    expect(typeof port.enqueue).toBe("function");
-    expect(typeof port.health).toBe("function");
-    expect(typeof port.remove).toBe("function");
-  });
-
   it("memoises by queue name (same instance across repeated calls)", () => {
     const registry = new BullMQQueuePortRegistry({ connection: fakeConnection });
     const a = registry.forQueue("publish");

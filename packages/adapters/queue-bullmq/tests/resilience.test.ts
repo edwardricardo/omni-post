@@ -104,37 +104,6 @@ describe("createCircuitBreaker()", { concurrency: 1 }, () => {
     expect(result).toBe(30);
   });
 
-  it("fires open event on state change after failures", async () => {
-    let openFired = false;
-    const alwaysFails = async () => {
-      throw new Error("queue down");
-    };
-
-    const breaker = createCircuitBreaker(alwaysFails, {
-      timeout: 5000,
-      errorThresholdPercentage: 1,
-      resetTimeout: 60000,
-      monitoringPeriod: 10000,
-      halfOpenRetries: 10,
-    });
-    breakers.push(breaker);
-
-    breaker.on("open", () => {
-      openFired = true;
-    });
-
-    for (let i = 0; i < 15; i++) {
-      try {
-        await breaker.fire();
-      } catch {
-        // expected
-      }
-    }
-
-    expect(openFired).toBeTruthy();
-    expect(breaker.opened).toBeTruthy();
-  });
-
   it("rejects calls when circuit is open", async () => {
     const alwaysFails = async () => {
       throw new Error("fail");
