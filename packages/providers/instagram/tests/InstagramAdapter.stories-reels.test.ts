@@ -212,27 +212,6 @@ describe("InstagramAdapter - Stories and Reels Publishing", () => {
       assert.strictEqual(validPost.media.length, 1, "Should have exactly one media item");
       assert.strictEqual(validPost.media[0]?.type, "video", "Should be video type");
     });
-
-    it("should validate reel video duration constraints", () => {
-      // Reels have max 90 seconds duration
-      // This would be validated by mediaProcessor.validateVideo()
-      const post: RenderedPost = {
-        body: "Reel video",
-        text: "Reel video",
-        media: [
-          {
-            type: "video",
-            url: "https://example.com/reel-video.mp4",
-            // In real scenario, durationMs would be checked
-          },
-        ],
-      };
-
-      assert.ok(post.media);
-      assert.ok(post.media[0], "Media should exist for validation");
-      // Real validation happens in mediaProcessor.validateVideo()
-      // which checks: max 90 seconds, proper codec, aspect ratio, etc.
-    });
   });
 
   describe("Carousel Publishing - publishCarousel()", () => {
@@ -425,36 +404,9 @@ describe("InstagramAdapter - Stories and Reels Publishing", () => {
       );
       assert.strictEqual(adapter.capabilities.analytics, true, "Should support analytics");
     });
-
-    it("should have media processor initialized", () => {
-      // Media processor is private, but we can verify it's used in reel publishing
-      // by checking the adapter has the mediaProcessor property
-      assert.ok(adapter, "Adapter should be initialized with mediaProcessor");
-    });
   });
 
   describe("Error Handling", () => {
-    it("should handle authentication errors", () => {
-      const input: PublishInput = {
-        channelId: "invalid-channel",
-        post: {
-          body: "Test",
-          text: "Test",
-          media: [
-            {
-              type: "image",
-              url: "https://example.com/image.jpg",
-            },
-          ],
-        },
-        dedupeKey: "test-1",
-      };
-
-      // With invalid credentials, should return AUTH error
-      // This would be tested with proper mocking in integration tests
-      assert.ok(input.channelId, "Channel ID should be required");
-    });
-
     it("should handle network errors gracefully", () => {
       // Network errors should be caught and mapped to PublishError type
       // This ensures proper error handling throughout the stack
@@ -474,21 +426,6 @@ describe("InstagramAdapter - Stories and Reels Publishing", () => {
   });
 
   describe("Integration Points", () => {
-    it("should accept an injected apiClientFactory dependency", () => {
-      // Composition root injects a factory that constructs InstagramApiClient
-      // from credentials. Verifies the constructor accepts the dep without throwing.
-      const customAdapter = new InstagramAdapter({
-        apiClientFactory: (() => ({}) as never) as never,
-      });
-      assert.ok(customAdapter, "Should accept apiClientFactory in constructor");
-    });
-
-    it("should integrate with InstagramMediaProcessor", () => {
-      // Media processor provides validateVideo and optimizeForReels
-      // Used in publishReel() method
-      assert.ok(adapter, "Adapter should integrate with media processor");
-    });
-
     it("should use waitForContainer for async processing", () => {
       // All publish methods use waitForContainer to wait for media processing
       // Default timeout: 60s for stories/feed, 180s for reels

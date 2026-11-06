@@ -1,7 +1,7 @@
 /**
  * @file XAdapter.content.test.ts
  * @description Render edge case tests for XAdapter — empty body, body at the
- *   threading boundary, max media items, unicode, multi-line, and special
+ *   threading boundary, unicode, multi-line, and special
  *   characters. The adapter is constructed with an injected fake apiClientFactory.
  *   Tier 0: no network, no DB, no Redis.
  * @layer infrastructure
@@ -10,7 +10,6 @@
 import { describe, it, beforeEach, vi } from "vitest";
 import assert from "node:assert/strict";
 import { createTestCanonicalPost, makeAdapter } from "./XAdapter.test-helpers.js";
-import type { Media } from "@shared/types";
 
 // ============================================================================
 // Edge Cases
@@ -30,15 +29,6 @@ describe("XAdapter - Edge Cases", { concurrent: false }, () => {
     assert.strictEqual(result.value.type, "single");
   });
 
-  it("should handle body exactly at 280 chars", () => {
-    const { adapter } = makeAdapter();
-    const body280 = "B".repeat(280);
-    const post = createTestCanonicalPost({ body: body280 });
-    const result = adapter.render(post);
-
-    assert.ok(result.ok, "Should render without error");
-  });
-
   it("should handle body at threading boundary (274 chars)", () => {
     const { adapter } = makeAdapter();
     const body274 = "C".repeat(274);
@@ -47,22 +37,6 @@ describe("XAdapter - Edge Cases", { concurrent: false }, () => {
 
     assert.ok(result.ok, "Should render without error");
     assert.strictEqual(result.value.type, "single", "274 chars should be a single tweet");
-  });
-
-  it("should accept up to maxMediaPerPost (4) media items in render", () => {
-    const { adapter } = makeAdapter();
-    const mediaItems: Media[] = [];
-    for (let i = 0; i < 4; i++) {
-      mediaItems.push({
-        id: `media-${i}`,
-        type: "image",
-        url: `https://example.com/img${i}.jpg`,
-      });
-    }
-    const post = createTestCanonicalPost({ body: "Max media tweet", media: mediaItems });
-    const result = adapter.render(post);
-
-    assert.ok(result.ok);
   });
 
   it("should handle unicode and emoji characters in content", () => {

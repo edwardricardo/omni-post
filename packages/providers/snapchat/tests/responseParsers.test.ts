@@ -392,14 +392,6 @@ describe("parseAnalyticsResponse", () => {
     assert.equal(result.total_views, 1500);
     assert.equal(result.avg_view_time_seconds, 4.5);
   });
-
-  it("handles total_stats that is null by falling back to root object", () => {
-    const data = { total_stats: null, total_views: 100 };
-    const result = parseAnalyticsResponse(data);
-    // When total_stats is null, typeof null === 'object' but it fails the check
-    // and falls to {}, producing 0s
-    assert.equal(typeof result.total_views, "number");
-  });
 });
 
 // ============================================================================

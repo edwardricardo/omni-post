@@ -239,24 +239,6 @@ describe("FacebookAdapter - Stories and Reels Publishing", () => {
       assert.strictEqual(post.media![0]!.type, "video");
     });
 
-    it("should support stories with interactive elements", () => {
-      const post: RenderedPost = {
-        body: "Interactive story",
-        text: "Interactive story",
-        media: [{ type: "image", url: "https://example.com/story.jpg" }],
-        meta: {
-          interactive: {
-            mentions: [{ id: "user-123", x: 0.5, y: 0.5 }],
-            polls: [{ question: "Choose one", option1: "A", option2: "B", x: 0.5, y: 0.7 }],
-          },
-        },
-      };
-
-      assert.ok(post.meta?.interactive);
-      assert.ok((post.meta.interactive as any).mentions);
-      assert.ok((post.meta.interactive as any).polls);
-    });
-
     it("should support stories with audience restrictions", () => {
       const post: RenderedPost = {
         body: "Friends-only story",

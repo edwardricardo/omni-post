@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1185  |
 | DELETE                  | 19    |
-| REWRITE                 | 126   |
-| KEEP                    | 940   |
-| ADJUDICATE              | 100   |
+| REWRITE                 | 109   |
+| KEEP                    | 963   |
+| ADJUDICATE              | 94    |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14667 |
-| Blocks with a criterion | 476   |
+| Blocks                  | 14624 |
+| Blocks with a criterion | 439   |
 
 ## Slice 2.6a
 
@@ -299,6 +299,42 @@ Deleted: 0 files, 52 blocks.
 | `packages/adapters/storage-s3/tests/index.test.ts`                           | test  | 13     | 2          | REWRITE | machine | some-decorative |
 | `packages/observability/browser-logger/tests/context.test.tsx`               | test  | 5      | 0          | KEEP    | machine | behavioural     |
 | `packages/observability/logger/tests/createLogger.test.ts`                   | test  | 3      | 0          | KEEP    | machine | behavioural     |
+
+## Slice 2.8.6c
+
+Deleted: 0 files, 43 blocks.
+
+| Path                                                                          | Shape | Blocks | Decorative | Verdict    | Status  | Basis                |
+| ----------------------------------------------------------------------------- | ----- | ------ | ---------- | ---------- | ------- | -------------------- |
+| `packages/providers/bluesky/tests/BlueskyAdapter.test.ts`                     | test  | 38     | 1          | REWRITE    | machine | some-decorative      |
+| `packages/providers/bluesky/tests/BlueskyClient.test.ts`                      | test  | 32     | 4          | REWRITE    | machine | some-decorative      |
+| `packages/providers/facebook/tests/FacebookAdapter.stories-reels.test.ts`     | test  | 48     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/facebook/tests/FacebookApiClient.writeFailFast.test.ts`   | test  | 1      | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/instagram/tests/InstagramAdapter.stories-reels.test.ts`   | test  | 25     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/instagram/tests/InstagramApiClient.writeFailFast.test.ts` | test  | 2      | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/instagram/tests/index.test.ts`                            | test  | 20     | 0          | ADJUDICATE | machine | subject-not-imported |
+| `packages/providers/instagram/tests/mediaProcessor.test.ts`                   | test  | 10     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/instagram/tests/mediaProcessor.validation.test.ts`        | test  | 9      | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/instagram/tests/schedulingService.management.test.ts`     | test  | 17     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/linkedin/tests/LinkedInAdapter.test.ts`                   | test  | 50     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/linkedin/tests/LinkedInApiClient.writeFailFast.test.ts`   | test  | 1      | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/pinterest/tests/PinterestApiClient.writeFailFast.test.ts` | test  | 1      | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/shared/tests/helpers.test.ts`                             | test  | 35     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/snapchat/tests/SnapchatApiClient.writeFailFast.test.ts`   | test  | 1      | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/snapchat/tests/responseParsers.test.ts`                   | test  | 49     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/telegram/tests/TelegramAdapter.test.ts`                   | test  | 61     | 4          | REWRITE    | machine | some-decorative      |
+| `packages/providers/tiktok/tests/TikTokAdapter.test.ts`                       | test  | 62     | 2          | REWRITE    | machine | some-decorative      |
+| `packages/providers/tiktok/tests/apiClient.test.ts`                           | test  | 47     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/tiktok/tests/authService.test.ts`                         | test  | 72     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/tiktok/tests/contentAnalyticsClient.test.ts`              | test  | 35     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/tiktok/tests/hashtagManager.test.ts`                      | test  | 49     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/tiktok/tests/marketingApiClient.test.ts`                  | test  | 43     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/tiktok/tests/researchApiClient.test.ts`                   | test  | 41     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/tiktok/tests/videoProcessor.test.ts`                      | test  | 45     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/x/tests/XAdapter.content.test.ts`                         | test  | 5      | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/x/tests/XAdapter.test.ts`                                 | test  | 21     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/x/tests/XApiClient.writeFailFast.test.ts`                 | test  | 1      | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/youtube/tests/YouTubeAdapter.test.ts`                     | test  | 75     | 1          | REWRITE    | machine | some-decorative      |
 
 ## Rows without a slice
 
@@ -1228,64 +1264,35 @@ Deleted: 0 files, 52 blocks.
 | `packages/observability/sentry-next/tests/client.test.ts`                                             | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/sentry-next/tests/server.test.ts`                                             | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts`                                    | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/bluesky/tests/BlueskyAdapter.test.ts`                                             | test             | 40     | 3          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts`                                          | test             | 15     | 0          | ADJUDICATE | machine                     | opaque               |
-| `packages/providers/bluesky/tests/BlueskyClient.test.ts`                                              | test             | 33     | 5          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/facebook/tests/FacebookAdapter.comments.test.ts`                                  | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/facebook/tests/FacebookAdapter.mentions.test.ts`                                  | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/facebook/tests/FacebookAdapter.stories-reels.test.ts`                             | test             | 49     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/facebook/tests/FacebookApiClient.cacheIsolation.test.ts`                          | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/facebook/tests/FacebookApiClient.writeFailFast.test.ts`                           | test             | 2      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `packages/providers/instagram/tests/InstagramAdapter.comments.test.ts`                                | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/instagram/tests/InstagramAdapter.mentions.test.ts`                                | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/instagram/tests/InstagramAdapter.stories-reels.test.ts`                           | test             | 30     | 5          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/instagram/tests/InstagramApiClient.writeFailFast.test.ts`                         | test             | 3      | 0          | ADJUDICATE | machine                     | title-contradiction  |
-| `packages/providers/instagram/tests/index.test.ts`                                                    | test             | 22     | 2          | ADJUDICATE | machine                     | subject-not-imported |
-| `packages/providers/instagram/tests/mediaProcessor.test.ts`                                           | test             | 11     | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/instagram/tests/mediaProcessor.validation.test.ts`                                | test             | 10     | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/instagram/tests/schedulingService.management.test.ts`                             | test             | 19     | 2          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/instagram/tests/schedulingService.scheduling.test.ts`                             | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/instagram/tests/schedulingService.test-helpers.ts`                                | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `packages/providers/linkedin/tests/LinkedInAdapter.documents.test.ts`                                 | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/linkedin/tests/LinkedInAdapter.polls.test.ts`                                     | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/linkedin/tests/LinkedInAdapter.test.ts`                                           | test             | 51     | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/linkedin/tests/LinkedInApiClient.writeFailFast.test.ts`                           | test             | 2      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `packages/providers/linkedin/tests/mediaUpload.test.ts`                                               | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/pinterest/tests/PinterestAdapter.boards.test.ts`                                  | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/pinterest/tests/PinterestAdapter.test.ts`                                         | test             | 40     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/pinterest/tests/PinterestApiClient.writeFailFast.test.ts`                         | test             | 2      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `packages/providers/shared/tests/ProviderError.test.ts`                                               | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/shared/tests/helpers.test.ts`                                                     | test             | 36     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/snapchat/tests/SnapchatAdapter.test.ts`                                           | test             | 57     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/snapchat/tests/SnapchatApiClient.cacheIsolation.test.ts`                          | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/snapchat/tests/SnapchatApiClient.writeFailFast.test.ts`                           | test             | 2      | 0          | ADJUDICATE | machine                     | title-contradiction  |
-| `packages/providers/snapchat/tests/responseParsers.test.ts`                                           | test             | 50     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts`                               | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/telegram/tests/TelegramAdapter.test.ts`                                           | test             | 63     | 6          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/telegram/tests/TelegramApiClient.cacheIsolation.test.ts`                          | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/telegram/tests/TelegramApiClient.writeFailFast.test.ts`                           | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/threads/tests/ThreadsAdapter.test.ts`                                             | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/tiktok/tests/TikTokAdapter.test.ts`                                               | test             | 64     | 4          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/tiktok/tests/TikTokAuthService.cacheIsolation.test.ts`                            | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/tiktok/tests/apiClient.test.ts`                                                   | test             | 48     | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/tiktok/tests/authService.test.ts`                                                 | test             | 73     | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/tiktok/tests/contentAnalyticsClient.test.ts`                                      | test             | 36     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/tiktok/tests/hashtagAnalytics.test.ts`                                            | test             | 63     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/tiktok/tests/hashtagDiscovery.test.ts`                                            | test             | 64     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/tiktok/tests/hashtagManager.test.ts`                                              | test             | 51     | 2          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/tiktok/tests/marketingApiClient.test.ts`                                          | test             | 44     | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/tiktok/tests/researchApiClient.test.ts`                                           | test             | 42     | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/tiktok/tests/videoProcessor.test.ts`                                              | test             | 48     | 3          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/tiktok/tests/videoProcessorHelpers.test.ts`                                       | test             | 89     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/x/tests/XAdapter.comments.test.ts`                                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/providers/x/tests/XAdapter.content.test.ts`                                                 | test             | 7      | 2          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/x/tests/XAdapter.mentions.test.ts`                                                | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/x/tests/XAdapter.polls.test.ts`                                                   | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/x/tests/XAdapter.publish.test.ts`                                                 | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/x/tests/XAdapter.test-helpers.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `packages/providers/x/tests/XAdapter.test.ts`                                                         | test             | 22     | 1          | REWRITE    | machine                     | some-decorative      |
-| `packages/providers/x/tests/XApiClient.writeFailFast.test.ts`                                         | test             | 2      | 0          | ADJUDICATE | machine                     | title-contradiction  |
-| `packages/providers/youtube/tests/YouTubeAdapter.test.ts`                                             | test             | 77     | 3          | REWRITE    | machine                     | some-decorative      |
 | `packages/providers/youtube/tests/YouTubeApiClient.cacheIsolation.test.ts`                            | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/youtube/tests/YouTubeCommunity.cacheIsolation.test.ts`                            | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/providers/youtube/tests/YouTubeUpdateSemantics.test.ts`                                     | test             | 3      | 0          | KEEP       | machine                     | behavioural          |

@@ -171,13 +171,6 @@ describe("TikTokVideoProcessor", () => {
     proc = new TikTokVideoProcessor("/tmp/test-tiktok");
   });
 
-  describe("constructor", () => {
-    it("accepts default and custom temp directories", () => {
-      expect(new TikTokVideoProcessor()).toBeInstanceOf(TikTokVideoProcessor);
-      expect(new TikTokVideoProcessor("/custom")).toBeInstanceOf(TikTokVideoProcessor);
-    });
-  });
-
   describe("getVideoTemplates", () => {
     it("returns all 3 templates when no filter", () => {
       expect(proc.getVideoTemplates()).toHaveLength(3);
@@ -532,11 +525,6 @@ describe("TikTokVideoProcessor", () => {
         "Template: nonexistent"
       );
     });
-    it("merges customizations over template options", async () => {
-      expect(
-        await proc.applyTemplate("/i/v.mp4", "educational-vertical", { quality: "ultra" })
-      ).toBeDefined();
-    });
     it("calls calculateProcessingParameters for each template", async () => {
       const { calculateProcessingParameters } = await import("../src/videoProcessorHelpers.js");
       await proc.applyTemplate("/i/v.mp4", "dance-challenge");
@@ -606,9 +594,6 @@ describe("TikTokVideoProcessor", () => {
   describe("circuit breaker utilities", () => {
     it("getAllStatuses delegates correctly", () => {
       expect(proc.getCircuitBreakerStatus()).toEqual({ status: "closed" });
-    });
-    it("getMetricsRegistry returns registry", () => {
-      expect(TikTokVideoProcessor.getMetricsRegistry()).toBeDefined();
     });
     it("clearCache delegates with tiktok-video-processor", () => {
       proc.clearCache();

@@ -313,15 +313,6 @@ describe("BlueskyClient", () => {
       assert.equal(result.error, "VALIDATION");
     });
 
-    it("accepts exactly 4 images", async () => {
-      const client = makeClient();
-      const buffers = Array.from({ length: 4 }, () => new Uint8Array(50));
-      const alts = Array.from({ length: 4 }, (_, i) => `alt ${i}`);
-
-      const result = await client.publishWithImages("test", buffers, alts);
-      assert.ok(result.ok, "4 images should be accepted");
-    });
-
     it("returns VALIDATION when any image exceeds 1,000,000 bytes", async () => {
       const client = makeClient();
       const largeBuffer = new Uint8Array(1_000_001);

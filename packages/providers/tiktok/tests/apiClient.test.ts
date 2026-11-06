@@ -718,9 +718,6 @@ describe("TikTokApiClient", () => {
     it("getAllStatuses delegates", () => {
       expect(client.getCircuitBreakerStatus()).toEqual({ status: "closed" });
     });
-    it("getMetricsRegistry returns registry", () => {
-      expect(TikTokApiClient.getMetricsRegistry()).toBeDefined();
-    });
     it("clearCache delegates with tiktok-api", () => {
       client.clearCache();
       expect(mockCbInstance.clearCache).toHaveBeenCalledWith("tiktok-api");

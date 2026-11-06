@@ -181,17 +181,6 @@ describe("InstagramMediaProcessor (validation)", { concurrent: false }, () => {
   // =========================================================================
 
   describe("validateVideo", { concurrent: false }, () => {
-    it("should validate video for STORIES", async () => {
-      const result = await mediaProcessor.validateVideo(
-        "https://example.com/story-video.mp4",
-        "STORIES"
-      );
-
-      assert.ok(typeof result.valid === "boolean");
-      assert.ok(Array.isArray(result.issues));
-      assert.ok(Array.isArray(result.recommendations));
-    });
-
     it("should detect duration issues for STORIES", async () => {
       probeDataRef.current = {
         streams: [{ codec_type: "video", width: 1080, height: 1920, r_frame_rate: "30/1" }],

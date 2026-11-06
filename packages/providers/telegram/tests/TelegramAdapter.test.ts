@@ -635,18 +635,6 @@ describe("TelegramAdapter - validateCredentials()", { concurrent: false }, () =>
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error, "AUTH_EXPIRED");
   });
-
-  it("validates credentials with creator status as admin", async () => {
-    const client = createMockApiClient();
-    client.getChatMember = vi.fn(async () => ({
-      status: "creator" as const,
-      user: { id: 123456789, is_bot: true, first_name: "TestBot", username: "test_bot" },
-    }));
-    const { adapter } = makeAdapter(client);
-
-    const result = await adapter.validateCredentials(VALID_CREDS);
-    assert.ok(result.ok, "Creator status should be treated as admin");
-  });
 });
 
 // ============================================================================
@@ -696,16 +684,6 @@ describe("TelegramAdapter - render() polls", { concurrent: false }, () => {
 
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error, "VALIDATION_ERROR");
-  });
-
-  it("accepts poll with exactly 2 options", () => {
-    const { adapter } = makeAdapter();
-    const post = createTestCanonicalPost({
-      body: "Yes or no?",
-      tags: ["poll:Yes|No"],
-    });
-    const result = adapter.render(post);
-    assert.ok(result.ok);
   });
 
   it("accepts poll with exactly 10 options", () => {

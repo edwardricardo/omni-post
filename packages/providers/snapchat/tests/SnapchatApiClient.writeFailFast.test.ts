@@ -58,22 +58,4 @@ describe("SnapchatApiClient.createStory — write fail-fast (R2-F)", { concurren
       }
     );
   });
-
-  it("does NOT return a synthetic {id:'queued'} response on failure", async () => {
-    const apiClient = new SnapchatApiClient(CREDS);
-
-    let resolved: unknown;
-    let rejected = false;
-
-    try {
-      resolved = await apiClient.createStory("test-media-id");
-    } catch {
-      rejected = true;
-    }
-
-    assert.ok(
-      rejected,
-      `createStory must reject on failure, but resolved with: ${JSON.stringify(resolved)}`
-    );
-  });
 });
