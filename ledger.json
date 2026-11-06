@@ -28,7 +28,7 @@
       "total": 1185
     },
     "blocks": {
-      "total": 14593,
+      "total": 14595,
       "decorative": 408,
       "byClass": {
         "EMPTY": 6,
@@ -38,7 +38,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 12,
-        "BEHAVIOURAL": 14173
+        "BEHAVIOURAL": 14175
       }
     },
     "deleted": {
@@ -84454,25 +84454,39 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 3,
+      "blockCount": 5,
       "blocks": [
         {
           "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should filter trending content by type",
-          "line": 23,
+          "line": 25,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fded6f7f29ee5ded572b7abe5094f5237b86be2179990eef1a5bc7da1ca0a883"
         },
         {
           "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should limit number of results",
-          "line": 34,
+          "line": 36,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6d122767454b4a16c869bdb73d38a6f5b71d343ce295f4b03e6c938c6a9325f3"
         },
         {
+          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::returns the requested region when given a region filter",
+          "line": 55,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b09e9b0fd8e4e5ddaec1d0e383aa1333c59633d5c29528bfa1151ebce1b50e4e"
+        },
+        {
+          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::returns the requested category when given a category filter",
+          "line": 62,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0b4f45075a23e35978727ca3ae6e18b50730a0c10ccd35c7e788f24e6dd0c851"
+        },
+        {
           "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should expose cache clearing method",
-          "line": 52,
+          "line": 77,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "017aae4d07a950340669d0fd9ebdc28f2a34a36c05b653fd51f719b5241d0406"

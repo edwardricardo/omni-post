@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14593 |
+| Blocks                  | 14595 |
 | Blocks with a criterion | 408   |
 
 ## Slice 2.6a
@@ -162,7 +162,7 @@ Deleted: 1 file, 65 blocks. Floors lowered: lines from 59.8 to 59.7, branches fr
 | `apps/api/tests/unit/templateAnalytics.test.ts`                      | test  | 3      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/templateService.crud.test.ts`                   | test  | 18     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/thumbnailGenerator.analysis.test.ts`            | test  | 4      | 0          | KEEP       | machine | behavioural          |
-| `apps/api/tests/unit/trendAnalysisService.init-trending.test.ts`     | test  | 3      | 0          | KEEP       | machine | behavioural          |
+| `apps/api/tests/unit/trendAnalysisService.init-trending.test.ts`     | test  | 5      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts` | test  | 1      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/unitOfWork.useCases.test.ts`                    | test  | 3      | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/unit/videoProcessor.features.test.ts`                | test  | 16     | 0          | KEEP       | machine | behavioural          |
