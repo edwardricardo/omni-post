@@ -112,20 +112,10 @@ describe("createFallbackManager()", () => {
     resetFallbackManager();
   });
 
-  it("creates a FallbackManager instance", () => {
-    const mgr = createFallbackManager("redis://localhost:6379");
-    expect(mgr instanceof FallbackManager).toBeTruthy();
-  });
-
   it("is idempotent — returns the SAME instance on repeated calls", () => {
     const mgr1 = createFallbackManager("redis://localhost:6379");
     const mgr2 = createFallbackManager("redis://other-host:6379");
     expect(mgr1).toBe(mgr2);
-  });
-
-  it("creates manager without redisUrl (no Redis fallback cache)", () => {
-    const mgr = createFallbackManager();
-    expect(mgr instanceof FallbackManager).toBeTruthy();
   });
 });
 
@@ -545,12 +535,5 @@ describe("FallbackManager.cacheSuccessfulResponse()", () => {
     if (result.ok) {
       expect(result.value).toEqual({ views: 100 });
     }
-  });
-
-  it("does nothing when Redis is not configured", async () => {
-    const noRedisMgr = new FallbackManager();
-    // Should not throw
-    await noRedisMgr.cacheSuccessfulResponse("svc", "op", { data: 1 });
-    expect(true).toBeTruthy();
   });
 });

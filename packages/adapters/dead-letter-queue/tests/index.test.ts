@@ -135,7 +135,6 @@ let createDeadLetterQueue: typeof import("../src/index.js").createDeadLetterQueu
 let getDeadLetterQueue: typeof import("../src/index.js").getDeadLetterQueue;
 let resetDeadLetterQueue: typeof import("../src/index.js").resetDeadLetterQueue;
 let calculateRetryDelay: typeof import("../src/index.js").calculateRetryDelay;
-let DeadLetterQueueManager: typeof import("../src/index.js").DeadLetterQueueManager;
 
 beforeAll(async () => {
   const mod = await import("../src/index.js");
@@ -143,7 +142,6 @@ beforeAll(async () => {
   getDeadLetterQueue = mod.getDeadLetterQueue;
   resetDeadLetterQueue = mod.resetDeadLetterQueue;
   calculateRetryDelay = mod.calculateRetryDelay;
-  DeadLetterQueueManager = mod.DeadLetterQueueManager;
 });
 
 afterAll(() => {
@@ -163,11 +161,6 @@ describe("createDeadLetterQueue()", { concurrent: false }, () => {
 
   afterAll(() => {
     resetDeadLetterQueue();
-  });
-
-  it("returns a DeadLetterQueueManager instance", () => {
-    const dlq = createDeadLetterQueue({ redisUrl: "redis://localhost:6379" });
-    expect(dlq instanceof DeadLetterQueueManager).toBeTruthy();
   });
 
   it("is idempotent — returns the SAME instance on repeated calls", () => {

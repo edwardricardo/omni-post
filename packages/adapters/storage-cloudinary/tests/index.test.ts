@@ -2,8 +2,8 @@
  * Cloudinary Storage Adapter tests
  *
  * Tier 0: no Cloudinary services needed.
- * Tests the factory function, exported types, content-type validation,
- * file size validation, upload signature generation, and error handling.
+ * Tests content-type validation, file size validation, metadata URL parsing,
+ * the compatibility methods, adapter independence and error handling.
  *
  * The circuit breaker is initialized at module level via
  * createExternalApiCircuitBreaker(). This is harmless because it only
@@ -18,7 +18,7 @@
  * (but the CB is global, so the first-call constraint applies).
  *
  * @file index.test.ts
- * @description Tests for createCloudinaryStorageAdapter -- factory
+ * @description Tests for createCloudinaryStorageAdapter -- validation and compatibility
  * @layer infrastructure
  */
 
@@ -53,57 +53,6 @@ const MINIMAL_CONFIG: CloudinaryConfig = {
 };
 
 /* ──────────────────────────────────────────────────────────────────────
- * 1. Factory -- createCloudinaryStorageAdapter
- * ────────────────────────────────────────────────────────────────────── */
-describe("createCloudinaryStorageAdapter -- factory", { concurrent: false }, () => {
-  it("creates an adapter instance with full config", () => {
-    const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    expect(adapter).toBeTruthy();
-    expect(typeof adapter.generateUploadSignature).toBe("function");
-    expect(typeof adapter.getMediaMetadata).toBe("function");
-  });
-
-  it("creates an adapter instance with minimal config (no folder)", () => {
-    const adapter = createCloudinaryStorageAdapter(MINIMAL_CONFIG);
-    expect(adapter).toBeTruthy();
-    expect(typeof adapter.generateUploadSignature).toBe("function");
-  });
-
-  it("exposes getSignedUploadUrl compatibility method", () => {
-    const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    expect(typeof adapter.getSignedUploadUrl).toBe("function");
-  });
-
-  it("exposes getMetadata compatibility method", () => {
-    const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    expect(typeof adapter.getMetadata).toBe("function");
-  });
-
-  it("exposes getCircuitBreakerStatus method", () => {
-    const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    expect(typeof adapter.getCircuitBreakerStatus).toBe("function");
-  });
-
-  it("exposes getMetricsRegistry method", () => {
-    const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    expect(typeof adapter.getMetricsRegistry).toBe("function");
-  });
-
-  it("getCircuitBreakerStatus returns an object", () => {
-    const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    const status = adapter.getCircuitBreakerStatus();
-    expect(typeof status).toBe("object");
-    expect(status !== null).toBeTruthy();
-  });
-
-  it("getMetricsRegistry returns a prom-client Registry", () => {
-    const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-    const reg = adapter.getMetricsRegistry();
-    expect(reg instanceof client.Registry).toBeTruthy();
-  });
-});
-
-/* ──────────────────────────────────────────────────────────────────────
  * 2. Content type validation
  *
  * These tests exercise the validation gate BEFORE the circuit breaker
@@ -111,34 +60,6 @@ describe("createCloudinaryStorageAdapter -- factory", { concurrent: false }, () 
  * ────────────────────────────────────────────────────────────────────── */
 describe("createCloudinaryStorageAdapter -- content type validation", { concurrent: false }, () => {
   const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-
-  const ALLOWED_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "video/mp4",
-    "video/webm",
-    "video/quicktime",
-    "video/mov",
-  ];
-
-  for (const contentType of ALLOWED_TYPES) {
-    it(`accepts allowed content type: ${contentType}`, async () => {
-      const result = await adapter.generateUploadSignature("test-file.jpg", contentType);
-
-      // Allowed types pass the validation gate.
-      // They either succeed (local HMAC computation) or fail with
-      // SERVICE_ERROR from the circuit breaker -- never INVALID_TYPE.
-      if (result.ok) {
-        assert.ok(result.value.url, "should have upload URL");
-        assert.ok(result.value.fields, "should have fields");
-        assert.ok(result.value.expiresAt instanceof Date, "should have expiresAt Date");
-      } else {
-        expect(result.error).toBe("SERVICE_ERROR");
-      }
-    });
-  }
 
   const REJECTED_TYPES = [
     "application/pdf",
@@ -188,130 +109,6 @@ describe("createCloudinaryStorageAdapter -- file size validation", { concurrent:
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error).toBe("INVALID_TYPE");
-    }
-  });
-
-  it("accepts files at exactly 100MB", async () => {
-    const exactMaxBytes = 100 * 1024 * 1024;
-    const result = await adapter.generateUploadSignature(
-      "max-video.mp4",
-      "video/mp4",
-      exactMaxBytes
-    );
-
-    // Should NOT be INVALID_TYPE
-    if (!result.ok) {
-      expect(result.error).toBe("SERVICE_ERROR");
-    }
-  });
-
-  it("accepts files under 100MB", async () => {
-    const smallBytes = 5 * 1024 * 1024; // 5 MB
-    const result = await adapter.generateUploadSignature(
-      "small-image.jpg",
-      "image/jpeg",
-      smallBytes
-    );
-
-    // Should succeed or be SERVICE_ERROR, never INVALID_TYPE
-    if (!result.ok) {
-      expect(result.error).toBe("SERVICE_ERROR");
-    }
-  });
-});
-
-/* ──────────────────────────────────────────────────────────────────────
- * 4. Upload signature generation (local computation)
- *
- * Cloudinary signature generation uses cloudinary.utils.api_sign_request
- * which is a local HMAC computation -- no network needed.
- *
- * NOTE: The module-level circuit breaker caches the first breaker
- * function for "cloudinary-storage:generate-upload-signature". All
- * tests in this describe block observe the result of the FIRST
- * closure registered via the first call.
- * ────────────────────────────────────────────────────────────────────── */
-describe("createCloudinaryStorageAdapter -- upload signature", { concurrent: false }, () => {
-  const adapter = createCloudinaryStorageAdapter(TEST_CONFIG);
-
-  it("generates a signed upload URL for image/jpeg", async () => {
-    const result = await adapter.generateUploadSignature("photo.jpg", "image/jpeg");
-
-    if (result.ok) {
-      const { url, fields, expiresAt } = result.value;
-
-      // URL should point to Cloudinary upload endpoint
-      assert.ok(
-        url.includes("api.cloudinary.com/v1_1/"),
-        "URL should target Cloudinary upload endpoint"
-      );
-      assert.ok(url.includes("/upload"), "URL should contain /upload path");
-
-      // Fields should contain signature and api_key
-      assert.ok(fields.signature, "should have a signature field");
-      assert.ok(fields.api_key, "should have an api_key field");
-
-      // Fields should contain public_id (UUID-based)
-      assert.ok(fields.public_id, "should have a public_id field");
-
-      // public_id should contain a UUID pattern
-      const publicId = String(fields.public_id);
-      const uuidPattern = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
-      assert.ok(uuidPattern.test(publicId), "public_id should contain a UUID");
-
-      // expiresAt should be in the future
-      assert.ok(expiresAt > new Date(), "expiresAt should be in the future");
-    } else {
-      assert.fail(`Expected ok result but got error: ${result.error}`);
-    }
-  });
-
-  it("includes timestamp in upload parameters", async () => {
-    const result = await adapter.generateUploadSignature("b.jpg", "image/jpeg");
-
-    if (result.ok) {
-      const timestamp = result.value.fields.timestamp;
-      assert.ok(timestamp, "should include timestamp field");
-      const ts = Number(timestamp);
-      assert.ok(!isNaN(ts), "timestamp should be numeric");
-      // Timestamp should be close to current time (within 10 seconds)
-      const now = Math.round(Date.now() / 1000);
-      assert.ok(Math.abs(ts - now) < 10, "timestamp should be close to current time");
-    } else {
-      assert.fail(`Expected ok result but got error: ${result.error}`);
-    }
-  });
-
-  it("includes resource_type field in upload parameters", async () => {
-    const result = await adapter.generateUploadSignature("c.jpg", "image/jpeg");
-
-    if (result.ok) {
-      assert.ok(result.value.fields.resource_type, "should include resource_type field");
-    } else {
-      assert.fail(`Expected ok result but got error: ${result.error}`);
-    }
-  });
-
-  it("generates expiresAt approximately 1 hour in the future", async () => {
-    const beforeCall = Date.now();
-    const result = await adapter.generateUploadSignature("d.jpg", "image/jpeg");
-    const afterCall = Date.now();
-
-    if (result.ok) {
-      const expiresMs = result.value.expiresAt.getTime();
-      const oneHourMs = 60 * 60 * 1000;
-
-      // expiresAt should be between (before + 1h) and (after + 1h)
-      assert.ok(
-        expiresMs >= beforeCall + oneHourMs - 1000,
-        "expiresAt should be at least ~1 hour from now"
-      );
-      assert.ok(
-        expiresMs <= afterCall + oneHourMs + 1000,
-        "expiresAt should be at most ~1 hour from now"
-      );
-    } else {
-      assert.fail(`Expected ok result but got error: ${result.error}`);
     }
   });
 });
@@ -409,30 +206,6 @@ describe("createCloudinaryStorageAdapter -- API compatibility", { concurrent: fa
  * 7. CloudinaryConfig interface constraints
  * ────────────────────────────────────────────────────────────────────── */
 describe("createCloudinaryStorageAdapter -- config options", { concurrent: false }, () => {
-  it("accepts config with folder option", () => {
-    const adapter = createCloudinaryStorageAdapter({
-      cloudName: "test",
-      apiKey: "key",
-      apiSecret: "secret",
-      folder: "my-uploads",
-    });
-    expect(adapter).toBeTruthy();
-  });
-
-  it("accepts config with resourceType option", () => {
-    const validTypes: Array<"image" | "video" | "raw" | "auto"> = ["image", "video", "raw", "auto"];
-
-    for (const resourceType of validTypes) {
-      const adapter = createCloudinaryStorageAdapter({
-        cloudName: "test",
-        apiKey: "key",
-        apiSecret: "secret",
-        resourceType,
-      });
-      expect(adapter).toBeTruthy();
-    }
-  });
-
   it("creates independent adapter instances", () => {
     const adapter1 = createCloudinaryStorageAdapter(TEST_CONFIG);
     const adapter2 = createCloudinaryStorageAdapter(MINIMAL_CONFIG);

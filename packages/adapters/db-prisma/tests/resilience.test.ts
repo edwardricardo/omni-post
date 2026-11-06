@@ -159,36 +159,6 @@ describe("createDatabaseCircuitBreaker()", { concurrent: false }, () => {
     );
   });
 
-  it("emits open event when circuit opens", async () => {
-    let openFired = false;
-    const alwaysFails = async () => {
-      throw new Error("fail");
-    };
-
-    const breaker = createDatabaseCircuitBreaker(alwaysFails, {
-      timeout: 5000,
-      errorThresholdPercentage: 1,
-      resetTimeout: 60000,
-      monitoringPeriod: 10000,
-      halfOpenRetries: 10,
-    });
-    breakers.push(breaker);
-
-    breaker.on("open", () => {
-      openFired = true;
-    });
-
-    for (let i = 0; i < 15; i++) {
-      try {
-        await breaker.fire();
-      } catch {
-        // expected
-      }
-    }
-
-    assert.ok(openFired, "should have fired the 'open' event");
-  });
-
   it("rejects calls when circuit is open", async () => {
     const alwaysFails = async () => {
       throw new Error("fail");

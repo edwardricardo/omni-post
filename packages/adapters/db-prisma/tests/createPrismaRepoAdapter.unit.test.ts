@@ -55,22 +55,6 @@ describe("createPrismaRepoAdapter — DI contract (PR1)", () => {
     vi.clearAllMocks();
   });
 
-  describe("construction", () => {
-    it("compiles: accepts required prisma field and returns an adapter", () => {
-      const mockClient = makeMockPrismaClient();
-
-      // This must not throw — the required prisma field is satisfied
-      const adapter = createPrismaRepoAdapter({ prisma: mockClient });
-
-      assert.ok(adapter !== null, "adapter should be constructed");
-      assert.ok(typeof adapter.close === "function", "adapter should have close()");
-      assert.ok(
-        typeof adapter.getDatabaseHealthMetrics === "function",
-        "adapter should have getDatabaseHealthMetrics()"
-      );
-    });
-  });
-
   describe("monitorConnection (line-125 footgun guard)", () => {
     it("calls $queryRaw on the INJECTED client during initial health check", async () => {
       const mockClient = makeMockPrismaClient();

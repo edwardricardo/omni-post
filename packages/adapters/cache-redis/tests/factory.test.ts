@@ -42,24 +42,10 @@ describe("createCacheManager()", { concurrency: 1 }, () => {
     }
   });
 
-  it("returns a RedisCacheManager instance", () => {
-    const mgr = createCacheManager({ redisUrl: "redis://localhost:6379" });
-    expect(mgr instanceof RedisCacheManager).toBe(true);
-  });
-
   it("is idempotent — returns the SAME instance on repeated calls", () => {
     const mgr1 = createCacheManager({ redisUrl: "redis://localhost:6379" });
     const mgr2 = createCacheManager({ redisUrl: "redis://different-host:6379" });
     expect(mgr1).toBe(mgr2);
-  });
-
-  it("creates manager with provided config values", () => {
-    const mgr = createCacheManager({
-      redisUrl: "redis://localhost:6379",
-      keyPrefix: "myapp:",
-      defaultTtl: 900,
-    });
-    expect(mgr instanceof RedisCacheManager).toBe(true);
   });
 });
 

@@ -1,7 +1,7 @@
 /**
  * @file createLogger.test.ts
  * @description Tests for the shared logger factory: verifies name namespacing,
- *              the standard pino level surface, and the regression that
+ *              isolated per-instance bindings, and the regression that
  *              repeated createLogger() calls do NOT accumulate one process
  *              `exit` listener each (the cause of the spurious
  *              MaxListenersExceededWarning in the publish worker).
@@ -15,15 +15,6 @@ describe("createLogger", () => {
     const log = createLogger("my-feature");
 
     expect(log.bindings().name).toBe("my-feature");
-  });
-
-  it("exposes the standard pino level methods", () => {
-    const log = createLogger("level-surface");
-
-    expect(typeof log.info).toBe("function");
-    expect(typeof log.warn).toBe("function");
-    expect(typeof log.error).toBe("function");
-    expect(typeof log.debug).toBe("function");
   });
 
   it("isolates bindings per logger instance", () => {

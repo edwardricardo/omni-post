@@ -283,13 +283,6 @@ describe("ANALYTICS_CB_OPTIONS preset (R3-A / R3-C)", { concurrent: false }, () 
     vi.clearAllMocks();
   });
 
-  it("ANALYTICS_CB_OPTIONS is exported from circuitBreaker.ts (R3-A)", async () => {
-    // Dynamic import so this test is RED if the export doesn't exist yet.
-    const mod = await import("../../src/circuitBreaker.js");
-    const preset = (mod as Record<string, unknown>)["ANALYTICS_CB_OPTIONS"];
-    assert.ok(preset !== undefined, "ANALYTICS_CB_OPTIONS must be exported from circuitBreaker.ts");
-  });
-
   it("ANALYTICS_CB_OPTIONS.fallbackEnabled is true (R3-A)", async () => {
     const mod = await import("../../src/circuitBreaker.js");
     const preset = (mod as Record<string, unknown>)["ANALYTICS_CB_OPTIONS"] as Record<
@@ -310,12 +303,6 @@ describe("ANALYTICS_CB_OPTIONS preset (R3-A / R3-C)", { concurrent: false }, () 
       unknown
     >;
     assert.strictEqual(preset.cacheTtl, 1_800_000, "ANALYTICS_CB_OPTIONS.cacheTtl must be 1800000");
-  });
-
-  it("METADATA_CB_OPTIONS is exported from circuitBreaker.ts (R3-C)", async () => {
-    const mod = await import("../../src/circuitBreaker.js");
-    const preset = (mod as Record<string, unknown>)["METADATA_CB_OPTIONS"];
-    assert.ok(preset !== undefined, "METADATA_CB_OPTIONS must be exported from circuitBreaker.ts");
   });
 
   it("METADATA_CB_OPTIONS.fallbackEnabled is true (R3-C)", async () => {

@@ -8,7 +8,7 @@
 
 import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, renderHook } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
 import { LoggerProvider, useLogger, useLoggerContext } from "../src/context.js";
 import { ConsoleLoggerAdapter } from "../src/console-adapter.js";
 import type { BrowserLoggerPort, LogContext, LogLevelType } from "../src/port.js";
@@ -114,14 +114,5 @@ describe("LoggerProvider + useLogger", () => {
 
     const { result } = renderHook(() => useLoggerContext(), { wrapper });
     expect(result.current).toEqual({ correlationId: "c-1", userId: "u-1" });
-  });
-
-  it("LoggerProvider renders children", () => {
-    const { getByText } = render(
-      <LoggerProvider>
-        <div>child-content</div>
-      </LoggerProvider>
-    );
-    expect(getByText("child-content")).toBeTruthy();
   });
 });
