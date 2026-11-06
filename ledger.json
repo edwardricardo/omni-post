@@ -16,8 +16,8 @@
       },
       "byVerdict": {
         "DELETE": 19,
-        "REWRITE": 141,
-        "KEEP": 925,
+        "REWRITE": 126,
+        "KEEP": 940,
         "ADJUDICATE": 100,
         "unmeasured": 0
       }
@@ -28,13 +28,13 @@
       "total": 1185
     },
     "blocks": {
-      "total": 14719,
-      "decorative": 528,
+      "total": 14667,
+      "decorative": 476,
       "byClass": {
         "EMPTY": 13,
-        "TAUTOLOGY-ONLY": 2,
-        "EXISTENCE-ONLY": 238,
-        "CONDITIONAL-ONLY": 164,
+        "TAUTOLOGY-ONLY": 1,
+        "EXISTENCE-ONLY": 199,
+        "CONDITIONAL-ONLY": 152,
         "SELF-SKIP": 104,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 18,
@@ -43,7 +43,7 @@
     },
     "deleted": {
       "files": 26,
-      "blocks": 536
+      "blocks": 588
     },
     "excluded": [
       "apps/api/scripts/seed-demo-data.ts: D17",
@@ -387,6 +387,31 @@
       "deleted": {
         "files": 0,
         "blocks": 16
+      },
+      "floors": {}
+    },
+    "2.8.6b": {
+      "files": [
+        "packages/adapters/cache-redis/tests/factory.test.ts",
+        "packages/adapters/cache-redis/tests/metrics.test.ts",
+        "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts",
+        "packages/adapters/db-prisma/tests/resilience.test.ts",
+        "packages/adapters/dead-letter-queue/tests/index.test.ts",
+        "packages/adapters/external-apis/tests/circuitBreaker.test.ts",
+        "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts",
+        "packages/adapters/fallback-strategies/tests/index.test.ts",
+        "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts",
+        "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts",
+        "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts",
+        "packages/adapters/queue-bullmq/tests/resilience.test.ts",
+        "packages/adapters/storage-cloudinary/tests/index.test.ts",
+        "packages/adapters/storage-s3/tests/index.test.ts",
+        "packages/observability/browser-logger/tests/context.test.tsx",
+        "packages/observability/logger/tests/createLogger.test.ts"
+      ],
+      "deleted": {
+        "files": 0,
+        "blocks": 52
       },
       "floors": {}
     }
@@ -99771,77 +99796,63 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/cache-redis/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 7,
       "blocks": [
         {
-          "id": "packages/adapters/cache-redis/tests/factory.test.ts::returns a RedisCacheManager instance",
-          "line": 45,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "e20b0b505f5d94870112c9aaf4e7114a96908a77d88c814a8b5c667d7658ee2a"
-        },
-        {
           "id": "packages/adapters/cache-redis/tests/factory.test.ts::is idempotent — returns the SAME instance on repeated calls",
-          "line": 50,
+          "line": 45,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fcb05db21d735f92096b2cd2bdc6483e9ff36122b695488a6c61de1adcc943b6"
         },
         {
-          "id": "packages/adapters/cache-redis/tests/factory.test.ts::creates manager with provided config values",
-          "line": 56,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4221ee0d23554bde2a95dd92ff011cda6ee77f302b9696063fc5323778de9bf7"
-        },
-        {
           "id": "packages/adapters/cache-redis/tests/factory.test.ts::returns null when no manager has been created yet",
-          "line": 75,
+          "line": 61,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3548baae6830e6c76255d8410d25ef1cbba914066ebb4a3b71a7350cde84aadb"
         },
         {
           "id": "packages/adapters/cache-redis/tests/factory.test.ts::returns the manager after createCacheManager() is called",
-          "line": 79,
+          "line": 65,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50478376940fa196974dfab411ffce0938dfa9a8c05329aec792f273ca206f6f"
         },
         {
           "id": "packages/adapters/cache-redis/tests/factory.test.ts::resets the singleton so getCacheManager() returns null",
-          "line": 95,
+          "line": 81,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a90cf92135ff96e15cfbae6c174d4c7d3d8abe2b73a65feb536a9c553a4ac0a2"
         },
         {
           "id": "packages/adapters/cache-redis/tests/factory.test.ts::allows a new instance to be created after reset",
-          "line": 106,
+          "line": 92,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e97ea4598ab66600edbe51244d653ddc3bad35c9f7acedb0f57838154417afd8"
         },
         {
           "id": "packages/adapters/cache-redis/tests/factory.test.ts::resetCacheManager() is safe to call multiple times",
-          "line": 115,
+          "line": 101,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "754c2ddcee491825c4a306fb311a2a16790f561aa20728023a050e29f3680744"
         },
         {
           "id": "packages/adapters/cache-redis/tests/factory.test.ts::close() resolves without error even when never connected",
-          "line": 144,
+          "line": 130,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3450a233df06e14643d36080cf1b62c442f78e1d1c823d3e1a72640f0d17e5a9"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "factory",
         "module": "packages/adapters/cache-redis/src/factory.ts",
@@ -100419,91 +100430,63 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/cache-redis/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 11,
+      "blockCount": 7,
       "blocks": [
         {
-          "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheHits is a Counter instance",
-          "line": 38,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "aedddfc7eda838add943c9e0c97db05bb955e717dbfb368b2f49b5cf31795874"
-        },
-        {
-          "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheMisses is a Counter instance",
-          "line": 42,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "07d2a0ba99e3392bc3cd8935c3d119b89f666721d1ef33d4baf1cf5eb5c42bf6"
-        },
-        {
-          "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheOperationDuration is a Histogram instance",
-          "line": 46,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f1b89a5d8cf3e1994a3ad997654c3e31c56ef1b4aeb9c7f1314b2099c77945a7"
-        },
-        {
-          "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheSize is a Gauge instance",
-          "line": 50,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "794d176ff0f05a1e458e689d1528524f34d9f79be323df67c83ab6b1fcccc497"
-        },
-        {
           "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheHits increments with labels",
-          "line": 56,
+          "line": 38,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b86383e220e50cf244c20fb1d56b5df028785e2b8e87e0e9fa5d6fd1e66d14a2"
         },
         {
           "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheMisses increments with labels",
-          "line": 63,
+          "line": 45,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9b54946b220800a42acf32751e7ca2882e18dfd653fd3e9d384a86c0753612f"
         },
         {
           "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheHits and cacheMisses are registered in the default registry",
-          "line": 70,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "011d77959fd36d441102420db5e5d3ab4e244bc7cb71a9df52307ffc8eb99875"
         },
         {
           "id": "packages/adapters/cache-redis/tests/metrics.test.ts::startTimer returns a callable that ends the timer",
-          "line": 78,
+          "line": 60,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "05bb911a34ec4bd4ccf7265f75590991bf87110d871f8f4922d8b80e8d922afd"
         },
         {
           "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheOperationDuration appears in registry output",
-          "line": 85,
+          "line": 67,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9e0114eeffe122aa963974c1bb0ff8d8f03c0651afa58004540cd8bec1e295da"
         },
         {
           "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheSize.set() does not throw",
-          "line": 92,
+          "line": 74,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "18adc60385bfece028dd61c19108ccb7c28bb6d65e1fffbbf4172c0f09757933"
         },
         {
           "id": "packages/adapters/cache-redis/tests/metrics.test.ts::cacheSize appears in registry output",
-          "line": 96,
+          "line": 78,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "36eb5c6224f4af252a7dad3b66e067a0a63d4aca6805c3d3a0007fd41a92455a"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "metrics",
         "module": "packages/adapters/cache-redis/src/metrics.ts",
@@ -100910,49 +100893,42 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/db-prisma/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 5,
+      "blockCount": 4,
       "blocks": [
         {
-          "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::compiles: accepts required prisma field and returns an adapter",
-          "line": 59,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "4032e9ce6621db125e61819c3c2fd56f5228be1210609f066492ce332eea3c6f"
-        },
-        {
           "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::calls $queryRaw on the INJECTED client during initial health check",
-          "line": 75,
+          "line": 59,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "922a894d54ec027c05230a1c0ae65335a4c1d0d78a590ebf6dfd2c650b3d828d"
         },
         {
           "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::registers connection monitor with scheduler and uses INJECTED client",
-          "line": 89,
+          "line": 73,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "795f86639d9e940fb87dbebc4f001a9e6a82f13799859e74f38fc1b7c4da6d00"
         },
         {
           "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::calls $disconnect on the INJECTED client",
-          "line": 112,
+          "line": 96,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ccbf7246602496818442988ba3319f2d207d3960b24251e16e91eb83c99b3ad"
         },
         {
           "id": "packages/adapters/db-prisma/tests/createPrismaRepoAdapter.unit.test.ts::unregisters the scheduler task on close()",
-          "line": 121,
+          "line": 105,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5dd80da2202d0e3f24bd9c78c499efd9d7a95ed0d5e29bb5cb9c04442cfe6d1"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": null,
       "duplicate": null,
       "importers": null
@@ -101111,7 +101087,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/db-prisma/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 40,
+      "blockCount": 39,
       "blocks": [
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::has expected timeout value",
@@ -101212,193 +101188,186 @@
           "bodyHash": "a0c7316d54bac5e9d68045ef27b42830c10adbe6a3820b38866c78acbd2b3b2c"
         },
         {
-          "id": "packages/adapters/db-prisma/tests/resilience.test.ts::emits open event when circuit opens",
-          "line": 162,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "de76f51b5b61083caed4e6791796ac82580d37e3605d2d9f71fed30f86aea228"
-        },
-        {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::rejects calls when circuit is open",
-          "line": 192,
+          "line": 162,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f7a74628210656b437c2f1708b82a1e55f12317bce5555bb09931d355dc02d3"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns true for Prisma P1001 error code",
-          "line": 236,
+          "line": 206,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4bcde7f4f417bf2b09ab504929f66f60a3ae5ac9c2e465a15510644b1ed3c2a8"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns true for ECONNRESET error code",
-          "line": 241,
+          "line": 211,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3eb99ea07a645a8c5184d67d14bdfd7198ee60b01a65eb774abe54ed0c428daa"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns true for ETIMEDOUT error code",
-          "line": 246,
+          "line": 216,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3cf79820c2c66c65c9d1a49f4601584bbc194c7a4a0fe89a1e83d44a4d4743f1"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns true for ECONNREFUSED error code",
-          "line": 251,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de250cc540238e31d3ff469d1f318942faae3184dadc1978414ba27b01da4ded"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns true when retryable code appears in message",
-          "line": 256,
+          "line": 226,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ca7a7465302699eb7eed0667bc9271e7da7b75f2555bb411d0d675c3c99e75d6"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns false for non-retryable errors",
-          "line": 261,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "448ac82728163049b408bc4b6ddb0be10668a55b84faf59193f09d223c017173"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns false for null/undefined",
-          "line": 266,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c961ec92db751e4d946a6affa3636ead0b8a604ef3b1a51d9a2d5617fc877b5f"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns false for plain strings",
-          "line": 271,
+          "line": 241,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e58c4b3bb806c2bbea37145a063c45f639489681d53828762604ae5d87883981"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns true for P2024 (connection pool timeout)",
-          "line": 275,
+          "line": 245,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9e54d88d43f805268672a034a808dfd0f0b7288fa8ecd25d6c022fd23f2303a4"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns true for error with code in name field",
-          "line": 280,
+          "line": 250,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f1c5f4206e4b30565dd5a47197cd394927a177a8d830aef10125f313d5defad"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::returns result on first success without retrying",
-          "line": 291,
+          "line": 261,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e17045c03d0c14c9d7f86f01036ae4d77b5b4e006410b96e9ddc7bf47ecfb2a3"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::retries on retryable errors and eventually succeeds",
-          "line": 305,
+          "line": 275,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "35ff2db22ad6ff80323bb0ad6a98d3628d5861aef16de7acf837e0003d74d3cb"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::does NOT retry on non-retryable errors",
-          "line": 324,
+          "line": 294,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f859b4128cf14d55ed1c220c578d9e9f24f9106620319792e7fca42ec1183a0"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::throws after exceeding maxRetries",
-          "line": 344,
+          "line": 314,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c51ee07a86957838503d35ad242f6866033bb671483916cebabd308db8b83423"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::retries on P1008 (operations timed out)",
-          "line": 367,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "033e0f25a97b1a4330d440ec4a91707ab45e2e1a44c973275a17853ea76a01ad"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::retries on P1017 (server closed connection)",
-          "line": 386,
+          "line": 356,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "442947d64fd88e40bfba3f14da76fa3022667d9c31ebda8beecd3c2cb0ecc356"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::uses custom options when provided",
-          "line": 405,
+          "line": 375,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8114ec5d3c5a32932e80c3e4de61d8d810d2104e0cf5c9e1c0c05bd35f361d65"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::initializes with zeroed metrics",
-          "line": 435,
+          "line": 405,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dbb0d16cef3b374a2183eee89262b819f595e613690ae7014fec9bb0bbea6d71"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::tracks successful operations via circuit breaker events",
-          "line": 449,
+          "line": 419,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5dcc5f0d28fd4efdb7bc473f7fa6cf67b2b719ff1192821722afbc9be9bd0c79"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::tracks failed operations via circuit breaker events",
-          "line": 469,
+          "line": 439,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0399dd386f6ee28a4ec9f4b8dbfb3cac0a94cd9c1a0867d7526d8236c11e5b1"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::tracks circuit breaker state transitions",
-          "line": 496,
+          "line": 466,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c95c6c0cb70c13ec59074886806f97ad445fdde6f09ba9dab51a85d42b9c0138"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::updateConnectionHealth sets health status",
-          "line": 524,
+          "line": 494,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "934a4335c28a4bd36f661d7235aacb99d1a2a88a88b0202882bf40f0f3519522"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::reset() clears all metrics",
-          "line": 535,
+          "line": 505,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e4f022d5395d159158208635fbc687d4d51de9e0ed0818dcadd869e59794d2c"
         },
         {
           "id": "packages/adapters/db-prisma/tests/resilience.test.ts::getMetrics() returns a copy (not a reference)",
-          "line": 559,
+          "line": 529,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab61c839483562abf738e0539f6357614af21b5c6e693165e80259e7ee78ea60"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "resilience",
         "module": "packages/adapters/db-prisma/src/resilience.ts",
@@ -101691,175 +101660,168 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/dead-letter-queue/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 23,
+      "blockCount": 22,
       "blocks": [
         {
-          "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::returns a DeadLetterQueueManager instance",
-          "line": 168,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "29820b60a1c59ac064fa4ec1e9e11a9b3d2a5ba0a4a0324d5ee0390a058ca7d9"
-        },
-        {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::is idempotent — returns the SAME instance on repeated calls",
-          "line": 173,
+          "line": 166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5d023730b64acfc89fb6232dc8d6fd2fe5c36db36f637e305bdbf4c307e085e"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::returns null when no manager has been created yet",
-          "line": 190,
+          "line": 183,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bf71c94e4555e4cb64fa6f4c8adc8547d3f77886a5e515c64f309f07154957ec"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::returns the manager after createDeadLetterQueue() is called",
-          "line": 194,
+          "line": 187,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f90deead9b7871b329bca8c9c9a6b8bf8549fe78b643dd2067dba0ff3bbb082"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::resets the singleton so getDeadLetterQueue() returns null",
-          "line": 207,
+          "line": 200,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e310d355674d6a521adc47596afeba9ed2aeb867d7d17dd5004f9ad78f4a52c"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::allows a new instance to be created after reset",
-          "line": 214,
+          "line": 207,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6f90c9b516ec60a90bf2e3bc685191434b7ea01b042228ea274094710fc1b047"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::is safe to call multiple times",
-          "line": 221,
+          "line": 214,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "90d1a840b0434838e4479bbb5a9c68a89c9610cf27f82737fe9411cbc32d98b4"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::returns deterministic values for the same inputs (jitter enabled)",
-          "line": 237,
+          "line": 230,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "540bd35d4b4e83bb966ea933eb48dc6425cde261cb540ca12cac19a2e7e83f9b"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::returns different delays for different attempt numbers (jitter enabled)",
-          "line": 243,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "18333c3876953fe36ebf0a6e57c8c46bec2e2f2632e9b016d6e90724f45d4b06"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::applies exponential backoff correctly (jitter disabled)",
-          "line": 249,
+          "line": 242,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "08188049b978c13aeceb48c1c2efe26ff62baca9a8218b780de1065cf2e62db8"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::caps delay at maxDelay (jitter disabled)",
-          "line": 266,
+          "line": 259,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ee4b7186224683d4d38bbd5f05602870fb7111031b0f8b649392f3bf47244b17"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::caps delay at maxDelay (jitter enabled)",
-          "line": 272,
+          "line": 265,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9434e86b6517013c161f4b12ddaaa85135407f3361a946deb534aef16b329a26"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::returns exactly baseDelay for attempt 0 with multiplier 2 (jitter disabled)",
-          "line": 283,
+          "line": 276,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7e6a3f8311f85c0e8bdd5041e139ac9395e7ff1a3d3f678219e7a6ad9fa877f"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::never returns a negative value (jitter enabled)",
-          "line": 288,
+          "line": 281,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "307218f10de4faebfc5aab5ccd55f6125eea29dfa7998760a3265482529bc8ca"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::applies correct default values when only redisUrl is provided",
-          "line": 311,
+          "line": 304,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "68fb83528e270b6db8e3b2ff9102b24dc0f9c5030e9451a15af5cde5741ce253"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::allows overriding default values",
-          "line": 322,
+          "line": 315,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6b16a491b92971f17aa0196333854adacc1685e784c70b47a4d28a1fd2925570"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::assigns correct priority scores (critical > high > normal > low)",
-          "line": 355,
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "64c3f124a3845da954fc1263cef148d183f51fd0d711047faa039d0beea086b2"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::assigns higher initial delay for lower priorities",
-          "line": 383,
+          "line": 376,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dfefcc2076122a669009ed9f40b6eece60f15a04a5890d47ca841d54440f9c56"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::processFailedOperation abandons when retryCount >= maxRetries",
-          "line": 421,
+          "line": 414,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "34dc935c52d0db6f12371b1dabaf1a802e89d4ba53718ab45e9bfb2a8cff99fd"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::processFailedOperation abandons when no retry target is registered",
-          "line": 457,
+          "line": 450,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f3acf53b9eb419c20973b938f3c2358dfb80732fa2632aeaddff12ed84569020"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::processFailedOperation re-enqueues when retryCount < maxRetries and target is registered",
-          "line": 490,
+          "line": 483,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0d302368df54008e96bc3cefadfde5b8718b626541b62cee02f778f37d17525a"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::registers a retry target for a service",
-          "line": 545,
+          "line": 538,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "80cf783b2074c925d6f3b3abdfab2b9376011d80cc999a4c6e8ec35b806ac88a"
         },
         {
           "id": "packages/adapters/dead-letter-queue/tests/index.test.ts::overwrites an existing target for the same service",
-          "line": 553,
+          "line": 546,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "40b2673b344431aedf47bab96414a3becf0ff48c481a4cadb3bb458725ba9aed"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "index",
         "module": "packages/adapters/dead-letter-queue/src/index.ts",
@@ -102351,7 +102313,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/external-apis/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 37,
+      "blockCount": 35,
       "blocks": [
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::has correct timeout value (10 seconds)",
@@ -102459,165 +102421,151 @@
           "bodyHash": "3f427aee6dec0ab09c41a9c73a91ea1303ab3148fbf651aeae0846ebc82aa72d"
         },
         {
-          "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::creates an instance without a Redis URL (fallback/DLQ disabled)",
-          "line": 122,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "85df1c971240ceb64a271907768577334cfaf38e1caf13079cb33d80efccd195"
-        },
-        {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::registers prometheus metrics in the given registry",
-          "line": 128,
+          "line": 122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d0fc288b8aab54e0587272d0c2cea1bac0105bd48519ba61b2b434e1e017ee7"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::passes through a successful async call and returns its result",
-          "line": 166,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2948c8ea609708c19d108d17d89cf63a35a578e0fc20421323dccbefda65c496"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::passes arguments to the underlying function",
-          "line": 177,
+          "line": 171,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e90e4462a2aec6079bc398e0da004b1bad91e17a235920f8d545a4827c5c641"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::returns cached result on cache hit",
-          "line": 188,
+          "line": 182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce11615f9e037705fc320e838972a60c90687424b3f8ec012f943974ea781ee1"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::throws on non-retryable error without retrying",
-          "line": 225,
+          "line": 219,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5ae6fad584d8236775db7f5a4d6db51b9f1d2d4d1f6c6a43aa8d133769f8c38e"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::retries on retryable errors (5xx) up to maxRetries",
-          "line": 250,
+          "line": 244,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "311fe40dd3943ff62efd20d102c47541b3bd0a2a7c7ae30f77b2c4ff456fa17c"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::retries on network errors (ECONNRESET) and recovers",
-          "line": 281,
+          "line": 275,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eebe0db379486a40019f762734f58df08b71f8ebc80efba2743ec9b8faa40769"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::retries on 429 Too Many Requests and recovers",
-          "line": 304,
+          "line": 298,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9153be1cd2f5bbc0a0664e0cefa2a1f052eaccd06e19f853c9d29436f942e0f0"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::retries on 408 Request Timeout",
-          "line": 329,
+          "line": 323,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b7eb338edd725578d3a253ece938ffcdd4daea110691209f193236c78da542be"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::does not retry on 501 Not Implemented",
-          "line": 354,
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a8a6a934e7efb951e4bb8a0709a12c56eda6e9543f4eb750e84a7a6564e892fb"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::getStatus returns null for unknown service/operation",
-          "line": 389,
+          "line": 383,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "933b83eafd8c60074814f445c2a490dddc64fa41a7b03339b785c1b7eb4da1ae"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::getStatus returns CLOSED state after successful call",
-          "line": 394,
+          "line": 388,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f964657c84bf682affc29077d3ff149aa1ee02b806690ae28a6e12d40731a4f6"
         },
         {
-          "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::getAllStatuses returns all registered breakers",
-          "line": 407,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "13f033bc2f4793d0e67ba6176a0c04d12d312dfbc9aea066ca136244f145029d"
-        },
-        {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::forceOpen returns false for unknown breaker",
-          "line": 424,
+          "line": 401,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3cda6a058eb1c1266a3c2678cbfb8c219a1d714cc91190981a2ff468e7760fbb"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::forceOpen opens a known breaker",
-          "line": 428,
+          "line": 405,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ece6c04ca36a6bc084f03a68881f85c7f265300e8697141b55b84274c21b4fb"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::forceClose returns false for unknown breaker",
-          "line": 444,
+          "line": 421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7382c57dd9e20658f6bab21e82346414f4dbfaf60846970ffdb9ff8442a7c50a"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::forceClose closes a known breaker",
-          "line": 448,
+          "line": 425,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "978aafc9e21868c061341053c8b9cce1da726b9540ab1d5a1c9fe42a3a473272"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::getCacheStats returns size 0 on fresh instance",
-          "line": 476,
+          "line": 453,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce89280328716675b753b2681f18ce26b2f38955d8b1fe45ccb79e9e03693293"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::getCacheStats shows cached entries after a cached call",
-          "line": 482,
+          "line": 459,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "182dd2e3cade3e99392579b13cad723c3e9bb01f936f21a99b5a9ae8c49bc006"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::clearCache removes all entries when called without arguments",
-          "line": 497,
+          "line": 474,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4b3e83cf3177906dc25fe4871de96f91fbe68f41c600fa2e932e1b40d0a0bc9c"
         },
         {
           "id": "packages/adapters/external-apis/tests/circuitBreaker.test.ts::clearCache with service/operation only removes matching entries",
-          "line": 515,
+          "line": 492,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f7f5e4d9b3192d95cd3ae219c060e9884a2608c94fe75379fe65cbb0a4b126b"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "circuitBreaker",
         "module": "packages/adapters/external-apis/src/circuitBreaker.ts",
@@ -102794,7 +102742,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/external-apis/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 18,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::fallbackEnabled MUST be false (R1-B)",
@@ -102839,95 +102787,81 @@
           "bodyHash": "bd07cad32ea671bec8073c406dd16c086b535513fa9d3d70c31fcd7b37455041"
         },
         {
-          "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::ANALYTICS_CB_OPTIONS is exported from circuitBreaker.ts (R3-A)",
-          "line": 286,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c4e6985c5d703df681c282698e3c39dc7bf68c778b7b6de4b3b61892aa77e2c8"
-        },
-        {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::ANALYTICS_CB_OPTIONS.fallbackEnabled is true (R3-A)",
-          "line": 293,
+          "line": 286,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "543df2d073715ffc58acc841eb348f486b15c9d7e2f843e8a30f2d586500c91a"
         },
         {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::ANALYTICS_CB_OPTIONS.cacheTtl is 1_800_000 (30 min) (R3-A)",
-          "line": 306,
+          "line": 299,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bffdcc1f71c669396fa84e9b874fd9a029714a9171da861882dfc3118e318e0f"
         },
         {
-          "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::METADATA_CB_OPTIONS is exported from circuitBreaker.ts (R3-C)",
-          "line": 315,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "92734773f72384f7c76e31e9540ab0a5e7a30119e844e7a4e33e78ae14ba9020"
-        },
-        {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::METADATA_CB_OPTIONS.fallbackEnabled is true (R3-C)",
-          "line": 321,
+          "line": 308,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bf001d73661e0cf728bc924f45056b45c6d9c160661c104be3abc0282cdab936"
         },
         {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::METADATA_CB_OPTIONS.cacheTtl is 3_600_000 (1 hr) (R3-C)",
-          "line": 334,
+          "line": 321,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70917de93b27efb71383ceebf59a7f7dab943b357eb301a1cab65d9caa32d72a"
         },
         {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::rejects when fallback is enabled but executeFallback returns err (empty Redis) (R3-B)",
-          "line": 356,
+          "line": 343,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4ed2322b1eb379d36394f8f5378a6ceb30694c52901f0a6ad8685bfb6af5b06"
         },
         {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::rejects AND DLQ addFailedOperation is called when deadLetterEnabled:true (R7-A)",
-          "line": 404,
+          "line": 391,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f78c1beb856b2a567736e3bbb8d30fa6d315c26ae0b1f70a163718df899ada7a"
         },
         {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::DLQ and fallback are independent — both false → rejects, neither fires (R7-B)",
-          "line": 434,
+          "line": 421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8642a6cee26081a3270543b353a1d3cb06b1a1df12c1fa898ee0ac72fa611c79"
         },
         {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::passes cacheKeyDiscriminant as the 5th arg of cacheSuccessfulResponse on success (write path)",
-          "line": 467,
+          "line": 454,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "903718bdc22caf5c1333104afedbdfed9c3a9faae519c1593fab52f14b23dd52"
         },
         {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::carries the discriminant on the executeFallback context on failure (read path)",
-          "line": 491,
+          "line": 478,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1abb968f7ec6284ed9147c00de48de11fe2eb79253a26058ddbae1129d02b9ef"
         },
         {
           "id": "packages/adapters/external-apis/tests/unit/circuitBreaker.fallback.test.ts::passes NO discriminant when none is supplied (fail-safe, un-migrated site)",
-          "line": 522,
+          "line": 509,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6e0c25987d83b2935c48924d9e3a71cc2fc6b0ead83864a7e1297f32101fd9af"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "circuitBreaker",
         "module": "packages/adapters/external-apis/src/circuitBreaker.ts",
@@ -103076,210 +103010,189 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/fallback-strategies/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 28,
+      "blockCount": 25,
       "blocks": [
         {
-          "id": "packages/adapters/fallback-strategies/tests/index.test.ts::creates a FallbackManager instance",
-          "line": 115,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "cb25807093a9a9222526d9636b4918b2f8eb7ae4e7e6d979a3f7c6b085f1950d"
-        },
-        {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::is idempotent — returns the SAME instance on repeated calls",
-          "line": 120,
+          "line": 115,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84d50c3df52161250622bd0a88b161df9e8e62d486fc95f5ef058f746f96766c"
         },
         {
-          "id": "packages/adapters/fallback-strategies/tests/index.test.ts::creates manager without redisUrl (no Redis fallback cache)",
-          "line": 126,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f85c8764a0ed2011c58a9bbec01e9f9471054763f30664431d774d9709141bb1"
-        },
-        {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns null when no manager has been created yet",
-          "line": 142,
+          "line": 132,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e1b33e12608252b4f1b2755f2867b93f7a9b9ff3dc45846c4e7fe6e1e8c5e810"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns the manager after createFallbackManager() is called",
-          "line": 146,
+          "line": 136,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7a1ef56df1c88cdf3468be7c7b322744171e4e103cd9e617dc11995a79b536e7"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::resets the singleton so getFallbackManager() returns null",
-          "line": 159,
+          "line": 149,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b75c65c64c2aa887b9a2825b2d9b90cf572ffb0f3abf25f76e84053b39e2b37a"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::allows a new instance to be created after reset",
-          "line": 166,
+          "line": 156,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1fd68feb2ac99a4f1e21fde708b396e5d130c41eb720d53832efe2d328837e16"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::is safe to call multiple times",
-          "line": 173,
+          "line": 163,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "57eec27d1d14c54b2477bd0cfcd56018ffbe66fa7a4b3d0bbf38581f0186b20e"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns static response from config when primary fails",
-          "line": 203,
+          "line": 193,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a80cd9e7a2d8aeedcf0d4a259b08ab3341b7fd198a273c8e4b83f87f01bbbcb5"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns static response from registered fallback",
-          "line": 216,
+          "line": 206,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f840940d81d368ae1f031ed4d25d46e1175de7c7cd583f41ae40bf0435e2de5"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns FALLBACK_FAILED when no static response is configured",
-          "line": 228,
+          "line": 218,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a7f3d5954395727781a6c705a31fbd34d565bbe634b6f7796f1d445381c6658"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns cached response when available (tenant-scoped by discriminant)",
-          "line": 242,
+          "line": 232,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc92f079c05149e566abe543abef3809098d1a0780c07cd67583bea6f4c8f6fb"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns FALLBACK_FAILED when cache is empty",
-          "line": 267,
+          "line": 257,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "683cba60799256aa5082110e6be8bad3e36201609fa73dcb76047b225b6e5f18"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns FALLBACK_FAILED when Redis is not configured",
-          "line": 276,
+          "line": 266,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3ecfed6dbb947418a774149d322f4fb72b59ff2a04e523689a814f3f0a322b51"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns a degraded response for known service:operation",
-          "line": 291,
+          "line": 281,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "20347cf69d3c9b8057af20111d118bae8ae6e8e410bf0cc66ff623737b5871cc"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns a generic degraded response for unknown service:operation",
-          "line": 309,
+          "line": 299,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f80f0e71720a276c837c8a858f002eea3cea205ab09ca31d3049ae01b8913251"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns a graceful failure response with custom message",
-          "line": 322,
+          "line": 312,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "45535821e237ad0a8c290db2b833cf283fcf0d6373f5588e2ccffcdfa003f991"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns a graceful failure response with default message",
-          "line": 340,
+          "line": 330,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9193ece984d3005bfc7cd3ab3c88be1e3387daa3790dc4f92f42d50eaf218e42"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns alternative response when endpoint is configured",
-          "line": 354,
+          "line": 344,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1b175c9f94e82cc379a8cab5410366cffef2282146c019b24b8215b51ccaaa5"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::returns FALLBACK_FAILED when no alternative endpoint is configured",
-          "line": 370,
+          "line": 360,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "394e507e70c735f8423e179d1153a58523638e4e3f958044333b43e157e632a9"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::falls back through strategies in order until one succeeds",
-          "line": 395,
+          "line": 385,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ca500005a820fc47dcf687a690d69475b62ba2ad609ea25d4b9d2294d48dc2ec"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::all strategies failing propagates error correctly",
-          "line": 437,
+          "line": 427,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66ed758d9b36b8539c8a79ea6ac95c25e5f07a82d2c9f02b54aa543b946e2df7"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::has ANALYTICS_FALLBACK config",
-          "line": 490,
+          "line": 480,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "411838bbf0cf2c4f92b8055a0508ce7fe9da9d7635550a665718706566394832"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::has UPLOAD_FALLBACK config",
-          "line": 496,
+          "line": 486,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d377580193b4f06adc063a7e4526a9d4a9734acaa410376838515baae68f45d"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::has METADATA_FALLBACK config",
-          "line": 501,
+          "line": 491,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e75e67291c44f31b8fccd2ba0f18388a4700657cc2600f8c71e2389d3adcd3ad"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::has exactly 3 pre-built strategies",
-          "line": 507,
+          "line": 497,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eca3f2bacc5533fa05713083c296780a70e1dd54f92c31a94679970e13d8696c"
         },
         {
           "id": "packages/adapters/fallback-strategies/tests/index.test.ts::caches a response that can be retrieved as fallback",
-          "line": 528,
+          "line": 518,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e00505bdb47501987b0018eb62679f141bd7ff9c703636db7037e60873c616d2"
-        },
-        {
-          "id": "packages/adapters/fallback-strategies/tests/index.test.ts::does nothing when Redis is not configured",
-          "line": 550,
-          "blockClass": "TAUTOLOGY-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "cf1e1ce5153774ee755522047f40f0dd0fffd4c317cb961d59231e5587fa9197"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "index",
         "module": "packages/adapters/fallback-strategies/src/index.ts",
@@ -103294,77 +103207,70 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/queue-bullmq/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 8,
       "blocks": [
         {
-          "id": "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts::requires `connection` at the type level (no caller can omit it)",
-          "line": 73,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ed0bf4dd6086ed1dea7858f8cb92f2010de76599c6ec14ae071f664a1d723a84"
-        },
-        {
           "id": "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts::throws identifying the missing connection when none is injected (runtime safety net)",
-          "line": 84,
+          "line": 73,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "24530be619aa0de43d547de88fd4370b1611dfadb066bc1cdd1e38a64d3df29b"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts::never constructs its own Redis (no env/localhost fallback) when no connection is injected",
-          "line": 92,
+          "line": 81,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "23b771df1b78971edc358648f7775cd7831673e88d856896c7cd9e7013fd468d"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts::uses the injected connection without constructing a new Redis",
-          "line": 98,
+          "line": 87,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd72bb65c533bfc683477698c716f13d59aa0550430edf6539b629711331f287"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts::creates a Worker bound to the supplied queueName",
-          "line": 106,
+          "line": 95,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "acc3f983775c075dbe2527c28625a6985515b7bea262f153873adfa071cb1170"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts::respects concurrency / removeOnComplete / removeOnFail when provided",
-          "line": 116,
+          "line": 105,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bbb8a46e71afa99cff20c7335e1bf3711c1ebce872eb46dad2dc18c097d12442"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts::falls back to defaults (concurrency=5, complete=100, fail=50) when options are omitted",
-          "line": 130,
+          "line": 119,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be2627269cce7dd75ba73dac47d397084d2dbe9c5156dc048ec7bc38cecfb1c3"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts::registers an error handler on the Worker",
-          "line": 141,
+          "line": 130,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e2671568845d71f265dbe56534ea410dd686deac2eaa23bfef236f88c85673f"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/consumer-adapter.test.ts::close() closes the worker and never quits the injected connection (composition root owns it)",
-          "line": 150,
+          "line": 139,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "11037e9e59f7a727cb94d739aa2eaa4f48b3be3442e60c12d3b49e54e8c7a3c4"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "consumer-adapter",
         "module": "packages/adapters/queue-bullmq/src/consumer-adapter.ts",
@@ -103457,126 +103363,119 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/queue-bullmq/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 16,
+      "blockCount": 15,
       "blocks": [
         {
-          "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::requires `connection` at the type level (no caller can omit it)",
-          "line": 88,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8e84b81fa13bfe3b79a8da6c1e6935ac0c3bc4ec8304299dae0e24fdbf01a707"
-        },
-        {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::throws identifying the missing connection when none is injected (runtime safety net)",
-          "line": 99,
+          "line": 88,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4956d89418af846f99371dd4738c048b8a541ecf8e025febb3faa8fb88b3835b"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::never constructs its own Redis (no env/localhost fallback) when no connection is injected",
-          "line": 108,
+          "line": 97,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd5564015a047e3016d1806395e89680d502acc6908b2795b47bafd6276d8f0a"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::creates the BullMQ Queue with the supplied queueName",
-          "line": 115,
+          "line": 104,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d8d6cea1c6571f7d34fd934389a8a6a6f4ef2793d1432695c94b7d194ad65ec5"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::calls queue.add with the supplied queueName when enqueueing",
-          "line": 124,
+          "line": 113,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "965e5e0fa6461b059aa28e9ad40a1c3ae285996e9ff8378c811b9af9e4518bc0"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::uses the injected connection without constructing a new Redis",
-          "line": 139,
+          "line": 128,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "278f85465945661f9bb90dc707a928efc0d4c2599b93f27dfb59ff5ee88b39c0"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::computes delay from runAt when present",
-          "line": 144,
+          "line": 133,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff0ae8067dc7731e904f0cff550fa6aa7df4e48733b970689910c6fb7896d9b5"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::returns an error Result when the queue.add path fails after retries",
-          "line": 156,
+          "line": 145,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6cebcacfcaf8c4b1264f3bed13a36b654339f232f1401afbd2bed724234c89a4"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::close() closes the queue and never quits the injected connection (composition root owns it)",
-          "line": 172,
+          "line": 161,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "380ed4528cbe63523f20f65baae3bc282d3f5ca3422917c529b5d2a9192f17f2"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() returns counts from BullMQ getters when reachable",
-          "line": 182,
+          "line": 171,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9efbe4e3b461f96cff5adcd2c613d7e96e5982869d081d46a4492fe9c9860cf4"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() reads counts without fetching job objects",
-          "line": 201,
+          "line": 190,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5ca9e0f19fac7da166c3beec4a7056e597d8561e2a75cd8c7df3371e19aa45f2"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() reports the consumers the broker has registered for this queue",
-          "line": 228,
+          "line": 217,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "22778bd9873be03b78da4c99cdaae69cbc07db124f73e5d64d8adfd1fd51eb6d"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() reports consumers as 0 when no client is registered for this queue",
-          "line": 244,
+          "line": 233,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d485af282037026ad6f014b695a6cb88880d9e85e17f3ec1dff8a6d4e567b5f4"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::health() reports consumers as null when the broker cannot answer CLIENT LIST",
-          "line": 257,
+          "line": 246,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "64c8fba27e6459ecad167810717c58331b66c6a9b2aba36db4ee42a40dbfed27"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::forwards defaultJobOptions to the BullMQ Queue constructor when provided",
-          "line": 276,
+          "line": 265,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b4920db4b9cb7066142778388482cfaa1b2f66c09b7f2de325675a036fa872aa"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-adapter.test.ts::omits defaultJobOptions from the Queue constructor when not provided",
-          "line": 294,
+          "line": 283,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9270a2a4b1894d95a7900e53181feced9f8f0f039602f7d8b85125c3c105b357"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "queue-adapter",
         "module": "packages/adapters/queue-bullmq/src/queue-adapter.ts",
@@ -103591,63 +103490,56 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/queue-bullmq/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 7,
+      "blockCount": 6,
       "blocks": [
         {
-          "id": "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts::returns a QueuePort for the requested queue name",
-          "line": 48,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f9df231898bcf65843fa7d791db881de92899269f03a606cbc77fdfa653b02ba"
-        },
-        {
           "id": "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts::memoises by queue name (same instance across repeated calls)",
-          "line": 56,
+          "line": 48,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff1528fadbd2dc2a603b774323f92a1bd31ba2278584827e8c472019bfae6207"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts::creates a distinct QueuePort per queue name",
-          "line": 64,
+          "line": 56,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5f32f92f8c83c85cf3fc5fa22d341a8eecdfe60079454a14b9df804a6ff445f3"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts::close() invokes underlying adapter close for each registered queue",
-          "line": 74,
+          "line": 66,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bcf6362fe1f51058e9acec642e9c0d76fa3157f8e29bd0c6587df5ab602145e4"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts::close() is idempotent — second call is a no-op",
-          "line": 82,
+          "line": 74,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "445bd0bc846e9d5f23cbe18187f55e6cf09ff6700f2d504eace8c8eee0fe5772"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts::forQueue() throws after close()",
-          "line": 90,
+          "line": 82,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f6398ef96a14ec7911bef7498500af2371c511688f748f61a88b226e36975957"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/queue-port-registry.test.ts::applies defaultJobOptionsByQueue lookup when constructing per-queue adapters",
-          "line": 96,
+          "line": 88,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7ac004ebb803074ce2229a2c672267d05d8929ea178532086de11cb2ac5eb1e4"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "queue-port-registry",
         "module": "packages/adapters/queue-bullmq/src/queue-port-registry.ts",
@@ -103662,7 +103554,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/queue-bullmq/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 28,
+      "blockCount": 27,
       "blocks": [
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::has expected timeout",
@@ -103742,130 +103634,123 @@
           "bodyHash": "62d7ab27c95c11933181300578fecbd2f165f904d5e70868a18c0c92b073e02b"
         },
         {
-          "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::fires open event on state change after failures",
-          "line": 107,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "d149e83536734922323ddf24c37cf192020fa455460c3bb0347ad42e17e9a0ed"
-        },
-        {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::rejects calls when circuit is open",
-          "line": 138,
+          "line": 107,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d560f69655141ac8afa808f3dabbb40d4142f2498fc0656c33beb156bcf7a43"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::applies custom options overriding defaults",
-          "line": 171,
+          "line": 140,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d480bdd0f97ab701318eb0d9e663e698a5c12f6413c61655856330ef62888dce"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::succeeds immediately on first try",
-          "line": 191,
+          "line": 160,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3c207d022fb6e8862218f0fcf1de3f6aa0e520bcfd385e2f0d8b3ef4c0d6a075"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::retries failed operations and eventually succeeds",
-          "line": 205,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b4c967b39ee31f05a2cf3fb9cb78283ab44db6797f8d5d7010ad8f70221bed79"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::throws after exceeding maxRetries",
-          "line": 222,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6da29ec04fc2f0ae8cad1d63e6575c5d1e49eb13d941bb8aaa982096f8326f0b"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::wraps non-Error thrown values into Error objects",
-          "line": 239,
+          "line": 208,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f30efc5e7bc84c8fa7522658d4722fd126760daebecb936a4a6bbb16d3082c43"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::respects maxRetries=0 (no retries)",
-          "line": 251,
+          "line": 220,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e63fc4575d46c5707f2c9cfe8e15fe641fb979dbc56c36812bd534c178ae16e0"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::applies backoff between retries (delay increases)",
-          "line": 266,
+          "line": 235,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7dbbbad273f87938e6d909db830173ef71ce0ac764eaa1c9b36d38dc32cf1684"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::caps delay at maxDelay",
-          "line": 294,
+          "line": 263,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7cf1e9095650da146c733829301a43a93a1bbb8bc2950f66ab29138c2a75c6de"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::initializes with zeroed metrics",
-          "line": 337,
+          "line": 306,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a5bbd4875ea538efa165bf14c8aa3c05d0a2c8a8a62469fd611faa8f8d3e753"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::tracks successful requests via circuit breaker events",
-          "line": 347,
+          "line": 316,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ebce801632d70f8fb14c1280ec8dbdde72cec994b13066f3431c426dd5cbdf8"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::tracks failed requests and records lastFailure",
-          "line": 368,
+          "line": 337,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a1dfa5020634de95500710200492933df8516436c5a4e1b200fbdd636454a6ed"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::tracks circuit breaker state transitions to OPEN",
-          "line": 397,
+          "line": 366,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c3fcb7883b7ac4eada1ad31f214d3eb0f6d3a86e0bbf1528409f0f82509b9357"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::computes averageResponseTime from recorded latencies",
-          "line": 424,
+          "line": 393,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f4b748ba9e61d7684b9adb8db19029a9b5ed384c0e77eeb54f90b8ba25d60634"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::reset() clears all metrics",
-          "line": 446,
+          "line": 415,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6c0f9d863ae786633aec233b3c91ee8159c2c81375c38edb0b5ff598a07f2f5c"
         },
         {
           "id": "packages/adapters/queue-bullmq/tests/resilience.test.ts::getMetrics() returns a copy (not a reference)",
-          "line": 472,
+          "line": 441,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "adda8e63f8f391e1b6f2cb9a64fd97525af418366e51a0e3614801fa134e9624"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "resilience",
         "module": "packages/adapters/queue-bullmq/src/resilience.ts",
@@ -103930,196 +103815,77 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/storage-cloudinary/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 26,
+      "blockCount": 9,
       "blocks": [
         {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::creates an adapter instance with full config",
-          "line": 59,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "1b6bd03b346bd9e424888602666c407c1fac71ef129701e06544df5521356526"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::creates an adapter instance with minimal config (no folder)",
-          "line": 66,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "6151c83edb4397ac33b5bd83454d383f03abe5a2a54ae62a1f8c9c7ec3fd08f5"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::exposes getSignedUploadUrl compatibility method",
-          "line": 72,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "b3221a320e6f404d1aee8d84cab333de98eb0f95f76720fefb7296d9e1b307ac"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::exposes getMetadata compatibility method",
-          "line": 77,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "46619000cb7ad44d79b9dac6e8bcba2f2a745e112597127770ba562ffa096b3f"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::exposes getCircuitBreakerStatus method",
-          "line": 82,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "88bd1778a65617bd683f9cf6f39c0e80cc8f635c40c610d9233682d7948897e9"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::exposes getMetricsRegistry method",
-          "line": 87,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "76b14585a5aca40fe6a81d5c06a49bdebf6077cc5a4855f4aa1a2a632e04f540"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::getCircuitBreakerStatus returns an object",
-          "line": 92,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9a44b98b36c2b2e64ca3a42904a6142289d71b463e9857054e11427d03a1222d"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::getMetricsRegistry returns a prom-client Registry",
-          "line": 99,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "fb195d7b89cd03a1c2adf321c175352e8543f98da6d91b511505a1503eeff8f4"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::accepts allowed content type: ${contentType}",
-          "line": 127,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "04c79194550e72f50e0ac83738ff01d3bc108931a02d7bccb90cc6373cc302c2"
-        },
-        {
           "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::rejects disallowed content type: ${contentType}",
-          "line": 154,
+          "line": 75,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5ef805871d27b26bda85fd4dafe57e4d1d794f69bd40c0633aad95ce5452df95"
         },
         {
           "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::rejects files exceeding 100MB",
-          "line": 180,
+          "line": 101,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2bdadff25a8a901cb1ba85693c138a2e963801c73e40601ba60bfa6a2afcd061"
         },
         {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::accepts files at exactly 100MB",
-          "line": 194,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "527a9eb5103317bf0685dd4628d929221a5eea221b1480b13d794895a454ee8d"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::accepts files under 100MB",
-          "line": 208,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "0c126ea896376875d5c40d2156f69f50cfeef763e9d65173d09acbd310ec02a4"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::generates a signed upload URL for image/jpeg",
-          "line": 237,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "9185a1fdc7cd431a67f3c22eebdcd87835aa3643de1348cc503f0d69e5871649"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::includes timestamp in upload parameters",
-          "line": 269,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "8e13fbb22559db65046ffae719e6f23e67300af5456e74c37eeaae756cab7c07"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::includes resource_type field in upload parameters",
-          "line": 285,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "059e7ef6043fabb4482ccc7258b2a0e7213591f9ceb06aa02a26d53004282cf7"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::generates expiresAt approximately 1 hour in the future",
-          "line": 295,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "4ab9664d8153200c258888a1388c1597fe86841a90dcf75f8b80ca0ee9a623ae"
-        },
-        {
           "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::returns NOT_FOUND for URL without version path",
-          "line": 325,
+          "line": 122,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9b2dad77efcb0823f8b69339bd738bf02902da3d32b8bb1568736742eed13e92"
         },
         {
           "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::returns NOT_FOUND for URL missing /v{digits}/ segment",
-          "line": 335,
+          "line": 132,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a6f5326e4816ced7c3a07caa50f75faa6ac5104ae64f06ed87439768c00e1f77"
         },
         {
           "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::returns error for URL with valid Cloudinary path (API unreachable)",
-          "line": 346,
+          "line": 143,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ae58c63fd3a2271067eda48470414bfde0091c2695930592bad827a70c71cd9"
         },
         {
           "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::getSignedUploadUrl delegates to generateUploadSignature",
-          "line": 369,
+          "line": 166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "749e125d2144cbeeb8ffb92b212f4d632be4e78742b7ecb09593d4706b03f46f"
         },
         {
           "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::getSignedUploadUrl passes sizeBytes when provided",
-          "line": 382,
+          "line": 179,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d9d25bde8e7e5c9ef5c2f2a6eb9bc0eeb59d82a563a8f3762b705aee501dcf99"
         },
         {
           "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::getMetadata delegates to getMediaMetadata",
-          "line": 396,
+          "line": 193,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0eb096a2d743fb34448e2633d489ab12059e17cf79e3773e4b73919be2956c47"
         },
         {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::accepts config with folder option",
-          "line": 412,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "ba08519ae619d6434032af2854431cf971c475acd49e37224f91f98688dd7e89"
-        },
-        {
-          "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::accepts config with resourceType option",
-          "line": 422,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "081b3c9bade00b97f0b8441f4b75026f2ab2deef66174a7dff87bd0bd000155d"
-        },
-        {
           "id": "packages/adapters/storage-cloudinary/tests/index.test.ts::creates independent adapter instances",
-          "line": 436,
+          "line": 209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65ddd76400cd4d954deabb76321f73803a57f65cddad25ae6a2e9a8594faeb13"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "index",
         "module": "packages/adapters/external-apis/src/index.ts",
@@ -104241,196 +104007,105 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/adapters/storage-s3/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 26,
+      "blockCount": 13,
       "blocks": [
         {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::creates an adapter instance with full config",
-          "line": 53,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "6569d11c9c41d2da6b0c40f85da7fb2cf861987ddfe7cbabd5a3376d7e91d627"
-        },
-        {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::creates an adapter instance with minimal config (no credentials)",
-          "line": 60,
+          "line": 53,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "47df3b79edc12f6b57915cc9e75c9971e799fe8a89876f705f85893918ea662d"
         },
         {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::exposes getSignedUploadUrl compatibility method",
-          "line": 66,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "97f4d017fbdb1a214261f2c5489303f874b5af388f01b98f2d08319d0f232b86"
-        },
-        {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::exposes getMetadata compatibility method",
-          "line": 71,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "1780ba4e493e9a38fb452969220d1d02478e5366dd65bf0bc97dc120f67c7040"
-        },
-        {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::exposes getCircuitBreakerStatus method",
-          "line": 76,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f8df892b6c0a3537a495cead764e1bfa16c4e14cef55759ee863e0b91e061884"
-        },
-        {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::exposes getMetricsRegistry method",
-          "line": 81,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "f5a97ef792fccde0ef5057066f78eb48d984b3f0782514f9a30ecbe426578d6d"
-        },
-        {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::getCircuitBreakerStatus returns an object",
-          "line": 86,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "37c67a48555307f8ba19f2292afb352448e346ad56018508046b0db074409dce"
-        },
-        {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::getMetricsRegistry returns a prom-client Registry",
-          "line": 93,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "c84900908444e32e20bbd719e51af39046625ac4496175cefe9d7e9d0f5c9ddd"
-        },
-        {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::accepts allowed content type: ${contentType}",
-          "line": 117,
+          "line": 77,
           "blockClass": "CONDITIONAL-ONLY",
           "criteria": ["d"],
           "bodyHash": "1c01a97d8e93d718954aad5f63a7059bc2bac8beb41a8674411cb29330c06bd1"
         },
         {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::rejects disallowed content type: ${contentType}",
-          "line": 141,
+          "line": 101,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5ef805871d27b26bda85fd4dafe57e4d1d794f69bd40c0633aad95ce5452df95"
         },
         {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::rejects files exceeding 100MB",
-          "line": 167,
+          "line": 127,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2bdadff25a8a901cb1ba85693c138a2e963801c73e40601ba60bfa6a2afcd061"
         },
         {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::accepts files at exactly 100MB",
-          "line": 181,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "527a9eb5103317bf0685dd4628d929221a5eea221b1480b13d794895a454ee8d"
-        },
-        {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::accepts files under 100MB",
-          "line": 195,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "0c126ea896376875d5c40d2156f69f50cfeef763e9d65173d09acbd310ec02a4"
-        },
-        {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::returns NOT_FOUND for URL with empty path",
-          "line": 215,
+          "line": 148,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d409b32097662258dedc4175d76b2335bd86c36cc85d29ee2e0dff1f5856c8d5"
         },
         {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::returns SERVICE_ERROR for valid URL with unreachable S3",
-          "line": 225,
+          "line": 158,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "71b4ca8048bef7e694d99575a639edd8f3cb0cfd07cd540e9b88d1e189545ffc"
         },
         {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::getSignedUploadUrl delegates to generateUploadSignature",
-          "line": 243,
+          "line": 176,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "749e125d2144cbeeb8ffb92b212f4d632be4e78742b7ecb09593d4706b03f46f"
         },
         {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::getMetadata delegates to getMediaMetadata",
-          "line": 256,
+          "line": 189,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4a5502681947a3a1e6705dfd6469deed8ed7f9181cec048905b04c29d6b3999d"
         },
         {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::rejects invalid URLs in getMediaMetadata",
-          "line": 287,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "ab07c7c0f0fbeb09c46b9c0797a4d9add6f93e3e026c1970a1606a5f9c0cbbbd"
-        },
-        {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::extracts key from URL path correctly",
-          "line": 300,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "8211c1d7388b61ec6b56fe14d3d23efb7d6d076e9665328754f1ef53fb7eb03a"
-        },
-        {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::returns NOT_FOUND for URL with only slash path",
-          "line": 311,
+          "line": 220,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d409b32097662258dedc4175d76b2335bd86c36cc85d29ee2e0dff1f5856c8d5"
         },
         {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::ALLOWED_TYPES list has exactly 7 entries",
-          "line": 319,
+          "line": 228,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b867719fce01fe13f6629cd098ee7e57c7b10d32e16e3836848b5cd0d0d333d3"
         },
         {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::MAX_FILE_SIZE is 100MB (100 * 1024 * 1024)",
-          "line": 338,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "495f0062dea4101c83c06d9f79fe34119e8040a8765a4dfd245d30b29ab2d933"
         },
         {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::getSignedUploadUrl delegates correctly for invalid type",
-          "line": 361,
+          "line": 270,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba522fa1d28546680b7f8f734791a3e7f3db763f73c99a0cab5fe335c7bc0eeb"
         },
         {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::getSignedUploadUrl delegates correctly for valid type",
-          "line": 372,
-          "blockClass": "CONDITIONAL-ONLY",
-          "criteria": ["d"],
-          "bodyHash": "1a2c2ad4e3b1d3a8da4ef20de1760e927f622b65ace46c409eb1a40cf55a3811"
-        },
-        {
           "id": "packages/adapters/storage-s3/tests/index.test.ts::getMetadata delegates correctly for empty path",
-          "line": 383,
+          "line": 281,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4a5502681947a3a1e6705dfd6469deed8ed7f9181cec048905b04c29d6b3999d"
-        },
-        {
-          "id": "packages/adapters/storage-s3/tests/index.test.ts::getMetricsRegistry returns a prom-client Registry instance",
-          "line": 393,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "9fc78e9942904438bf7f93bed692e153fa1f89f34b7190b17dd1c62e33c713b0"
         }
       ],
       "verdict": "REWRITE",
       "basis": "some-decorative",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "index",
         "module": "packages/adapters/external-apis/src/index.ts",
@@ -111863,7 +111538,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/observability/browser-logger/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 6,
+      "blockCount": 5,
       "blocks": [
         {
           "id": "packages/observability/browser-logger/tests/context.test.tsx::useLogger returns a ConsoleLoggerAdapter when no provider is present",
@@ -111899,20 +111574,13 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3924d222a63c1ce163761bdbbdc7b0c11101d4d4a0bf7855680731f9415c2804"
-        },
-        {
-          "id": "packages/observability/browser-logger/tests/context.test.tsx::LoggerProvider renders children",
-          "line": 119,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "8b40e41a96988bbd47ba8ac2205f29f2a267b5dc646cca8e111bebac56bf4ba7"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": {
         "stem": "context",
         "module": "packages/observability/browser-logger/src/context.tsx",
@@ -112026,7 +111694,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/observability/logger/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 3,
       "blocks": [
         {
           "id": "packages/observability/logger/tests/createLogger.test.ts::binds the given name onto the logger",
@@ -112036,32 +111704,25 @@
           "bodyHash": "5ba81aa49a920bcd7b7b16317c8758ef7a0f05cd18a13a7ea2254fc90dad71d7"
         },
         {
-          "id": "packages/observability/logger/tests/createLogger.test.ts::exposes the standard pino level methods",
-          "line": 20,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
-          "bodyHash": "a3cfaceb9821d42850da7bef6f277f86fe0ced97010290842ad0b02689a8b73e"
-        },
-        {
           "id": "packages/observability/logger/tests/createLogger.test.ts::isolates bindings per logger instance",
-          "line": 29,
+          "line": 20,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7237f7bbef5653174a23118af2ef5c10e7534c98ed4b564f5aa0995efc86dd59"
         },
         {
           "id": "packages/observability/logger/tests/createLogger.test.ts::does not add a process 'exit' listener per call (regression: MaxListenersExceededWarning)",
-          "line": 37,
+          "line": 28,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1dad5b21d7d80204e160261ca23299e1087fee4e633110fd93df44397a8bfbb"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "excluded": null,
       "status": "machine",
-      "sliceId": null,
+      "sliceId": "2.8.6b",
       "subject": null,
       "duplicate": null,
       "importers": null
