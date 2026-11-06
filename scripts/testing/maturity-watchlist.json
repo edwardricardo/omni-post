@@ -122,6 +122,17 @@
       "reviews": {}
     },
     {
+      "kind": "date",
+      "id": "zlib-cve-2026-76844",
+      "title": "Is CVE-2026-76844 fixed for trixie and carried by a distroless digest? When it is, remove its .trivyignore entry",
+      "due": "2026-11-10",
+      "refs": [
+        "docs/security/SECURITY_CANON.md, \"Ignored image CVEs\": the suppression expires on 2026-12-06, and while it holds Container Security stays green whether or not a fix exists, so this entry is what says when the fix arrives.",
+        "The read, each Tuesday: https://security-tracker.debian.org/tracker/CVE-2026-76844 for trixie, then the `Version:` of `var/lib/dpkg/status.d/zlib1g` in the newest digest of `gcr.io/distroless/nodejs26-debian13` (`podman image mount`). A new digest alone proves nothing: `c952ca0`, read 2026-11-06, carries Node 26.13.0 and the same `1:1.3.dfsg+really1.3.1-1+b1`. If trixie is fixed and a digest carries it, take that digest, confirm Trivy reports nothing with `.trivyignore` emptied, remove the entry and its canon paragraph, and delete this entry; if not, move `due` to the next Tuesday window."
+      ],
+      "reviews": {}
+    },
+    {
       "kind": "package",
       "name": "follow-redirects",
       "version": "1.16.2",
