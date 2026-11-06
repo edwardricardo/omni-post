@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1185  |
 | DELETE                  | 19    |
-| REWRITE                 | 149   |
-| KEEP                    | 916   |
-| ADJUDICATE              | 101   |
+| REWRITE                 | 141   |
+| KEEP                    | 925   |
+| ADJUDICATE              | 100   |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14735 |
-| Blocks with a criterion | 543   |
+| Blocks                  | 14719 |
+| Blocks with a criterion | 528   |
 
 ## Slice 2.6a
 
@@ -259,6 +259,23 @@ Deleted: 0 files, 59 blocks.
 | `apps/api/tests/threading.canonical.integration.test.ts`                                     | integration-test | 7      | 1          | REWRITE    | machine | some-decorative      |
 | `apps/api/tests/threading.planner.integration.test.ts`                                       | integration-test | 12     | 0          | KEEP       | machine | behavioural          |
 | `apps/api/tests/threading.xprovider.integration.test.ts`                                     | integration-test | 14     | 0          | KEEP       | machine | behavioural          |
+
+## Slice 2.8.6a
+
+Deleted: 0 files, 16 blocks.
+
+| Path                                                                             | Shape | Blocks | Decorative | Verdict | Status  | Basis           |
+| -------------------------------------------------------------------------------- | ----- | ------ | ---------- | ------- | ------- | --------------- |
+| `packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts`              | test  | 3      | 0          | KEEP    | machine | behavioural     |
+| `packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts`               | test  | 4      | 0          | KEEP    | machine | behavioural     |
+| `packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts`    | test  | 8      | 0          | KEEP    | machine | behavioural     |
+| `packages/core/bulk-scheduling/tests/unit/ParseBulkScheduleCsvUseCase.test.ts`   | test  | 5      | 0          | KEEP    | machine | behavioural     |
+| `packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts` | test  | 15     | 0          | KEEP    | machine | behavioural     |
+| `packages/core/domain/tests/unit/ScheduledTime.test.ts`                          | test  | 21     | 0          | KEEP    | machine | behavioural     |
+| `packages/core/domain/tests/unit/ShortCode.test.ts`                              | test  | 14     | 0          | KEEP    | machine | behavioural     |
+| `packages/core/posts/tests/unit/CreatePostUseCase.test.ts`                       | test  | 2      | 0          | KEEP    | machine | behavioural     |
+| `packages/core/threading/tests/unit/threadPlanner.test.ts`                       | test  | 17     | 1          | REWRITE | machine | some-decorative |
+| `packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts`                   | test  | 3      | 0          | KEEP    | machine | behavioural     |
 
 ## Rows without a slice
 
@@ -1121,16 +1138,12 @@ Deleted: 0 files, 59 blocks.
 | `packages/core/apiKeys/tests/unit/ApiKeyUseCases.test.ts`                                             | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/application/tests/unit/UseCase.test.ts`                                                | test             | 22     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/application/tests/unit/retryOnWriteConflict.test.ts`                                   | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts`                                   | test             | 4      | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/assets/tests/unit/CreateMediaAssetUseCase.test.ts`                                     | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/auth/tests/unit/RoleManagementService.test.ts`                                         | test             | 9      | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/billing/tests/unit/CreateAccountSubscriptionUseCase.test.ts`                           | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/billing/tests/unit/SubscriptionPlanService.calculateTrialInfo.test.ts`                 | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts`                                    | test             | 5      | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/brand-voice/tests/unit/UpsertBrandVoiceUseCase.test.ts`                                | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/bulk-scheduling/tests/unit/BulkScheduleRowConfirmed.test.ts`                           | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts`                         | test             | 10     | 2          | REWRITE    | machine                     | some-decorative      |
-| `packages/core/bulk-scheduling/tests/unit/ParseBulkScheduleCsvUseCase.test.ts`                        | test             | 6      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `packages/core/bulk-scheduling/tests/unit/schedulingCsv.property.test.ts`                             | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/bulk-scheduling/tests/unit/schedulingCsv.test.ts`                                      | test             | 43     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/campaigns/tests/unit/CreateCampaignUseCase.test.ts`                                    | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
@@ -1141,12 +1154,9 @@ Deleted: 0 files, 59 blocks.
 | `packages/core/crisis/tests/unit/EnterCrisisModeUseCase.test.ts`                                      | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/crm/tests/unit/ConnectCrmUseCase.test.ts`                                              | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/custom-reports/tests/unit/CreateCustomReportUseCase.test.ts`                           | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts`                      | test             | 16     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/customer-auth/tests/unit/LoginCustomerUseCase.test.ts`                                 | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/customer-auth/tests/unit/challengeBinding.test.ts`                                     | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/domain/tests/unit/EmailAddress.test.ts`                                                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/core/domain/tests/unit/ScheduledTime.test.ts`                                               | test             | 24     | 3          | REWRITE    | machine                     | some-decorative      |
-| `packages/core/domain/tests/unit/ShortCode.test.ts`                                                   | test             | 15     | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/domain/tests/unit/UTMParameters.test.ts`                                               | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/domain/tests/unit/value-objects.property.test.ts`                                      | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/embeddings/tests/unit/EmbeddingService.test.ts`                                        | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
@@ -1162,7 +1172,6 @@ Deleted: 0 files, 59 blocks.
 | `packages/core/ml/tests/unit/OptimizeContentUseCase.test.ts`                                          | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts`                            | test             | 4      | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/posts/tests/unit/CompletePostPublishingUseCase.test.ts`                                | test             | 21     | 0          | ADJUDICATE | machine                     | opaque               |
-| `packages/core/posts/tests/unit/CreatePostUseCase.test.ts`                                            | test             | 6      | 4          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/projects/tests/unit/DeleteProjectUseCase.test.ts`                                      | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/projects/tests/unit/HardDeleteProjectUseCase.test.ts`                                  | test             | 31     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/projects/tests/unit/RestoreProjectUseCase.test.ts`                                     | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
@@ -1180,9 +1189,7 @@ Deleted: 0 files, 59 blocks.
 | `packages/core/team/tests/unit/RemoveTeamMemberUseCase.test.ts`                                       | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/team/tests/unit/UpdateTeamMemberRoleUseCase.test.ts`                                   | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/tests/planPublication.test.ts`                                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/core/threading/tests/unit/threadPlanner.test.ts`                                            | test             | 18     | 2          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/trends/tests/unit/FetchTrendingTopicsUseCase.test.ts`                                  | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts`                                        | test             | 4      | 1          | REWRITE    | machine                     | some-decorative      |
 | `packages/core/utm/tests/unit/GenerateUTMLinksUseCase.test.ts`                                        | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/webhooks/tests/unit/RotateWebhookSecretKeyUseCase.test.ts`                             | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/eslint-plugin-testing/tests/assertions.test.ts`                                             | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
