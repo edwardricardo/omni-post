@@ -23,14 +23,13 @@
  *   A file that is no JSON, that writes a key twice in one object (which `JSON.parse` would settle
  *   by keeping the last, a guess at what the author meant), or that is not the one object it must
  *   be, is an input that could not be read. An entry that cannot be applied (a path the ledger
- *   does not list, a malformed entry, a DELETE or a slice for a row a decision excludes, a slice id
- *   outside ADR-0039's grammar, a slice with no file or an unknown key, a malformed deletion
- *   record, a path in two slices) is a problem naming it, and is left out, so the rows stay the
- *   machine's wherever the overlay is wrong. Pure: it reads the texts and the tracked set the
- *   command hands it, `null` for a file that is absent.
+ *   does not list, a malformed entry, a slice id outside ADR-0039's grammar, a slice with no file
+ *   or an unknown key, a malformed deletion record, a path in two slices) is a problem naming it,
+ *   and is left out, so the rows stay the machine's wherever the overlay is wrong. Pure: it reads
+ *   the texts and the tracked set the command hands it, `null` for a file that is absent.
  * @layer infrastructure
  */
-import { FLOOR_METRICS, decisionOf, shapeOf } from "./ledger-core.mjs";
+import { FLOOR_METRICS, shapeOf } from "./ledger-core.mjs";
 import { byCodeUnit, isObject, messageOf } from "./record-helpers.mjs";
 
 /** The directory of the files a human writes and reads beside `ledger.json`. */
@@ -167,10 +166,9 @@ function isDay(value) {
 }
 
 /**
- * @description Holds one overlay entry to the plan's fields: a verdict that decides, and is no
- *   DELETE for a row a decision excludes, distinct criteria of (a) to (d), distinct block ids of
- *   the row it confirms, non-empty evidence and reviewer, the status `confirmed` and a calendar
- *   day, and no other key.
+ * @description Holds one overlay entry to the plan's fields: a verdict that decides, distinct
+ *   criteria of (a) to (d), distinct block ids of the row it confirms, non-empty evidence and
+ *   reviewer, the status `confirmed` and a calendar day, and no other key.
  * @param {unknown} entry The entry as written.
  * @param {FileRow} row The row it confirms.
  * @returns {string[]} One problem per rule it breaks.
@@ -188,9 +186,6 @@ function entryProblems(entry, row) {
   const unknown = Object.keys(entry).filter((key) => !ENTRY_KEYS.includes(key));
   if (unknown.length > 0) problems.push(`has unknown keys ${unknown.join(", ")}`);
   if (!VERDICTS.includes(String(verdict))) refuse("verdict", verdict, VERDICTS.join("|"));
-  if (verdict === "DELETE" && row.excluded !== null) {
-    problems.push(`is excluded by ${row.excluded}, which no confirmation turns into DELETE`);
-  }
   if (!isDistinctList(criteria, (item) => CRITERIA.includes(item))) {
     refuse("criteria", criteria, `distinct criteria of ${CRITERIA.join("|")}`);
   }
@@ -409,10 +404,10 @@ function deletedPaths(declared, tracked) {
 
 /**
  * @description Says why a slice refuses one of its paths, or `null` when it takes it. A path the
- *   tree tracks follows a live slice's rules: it must be a ledger row, excluded by no decision and
- *   in no earlier slice; a whole-file slice refuses it first, row or not, since it records every
- *   file it lists deleted. A path that left the tree, which only a deleted slice may list, must be
- *   excluded by no decision, hold a ledger candidate's shape and sit in no earlier slice.
+ *   tree tracks follows a live slice's rules: it must be a ledger row and in no earlier slice; a
+ *   whole-file slice refuses it first, row or not, since it records every file it lists deleted. A
+ *   path that left the tree, which only a deleted slice may list, must hold a ledger candidate's
+ *   shape and sit in no earlier slice.
  * @param {string} file Repository-relative.
  * @param {{ row: FileRow | undefined, left: boolean, deleted: boolean, whole: boolean,
  *   other: string | undefined }} facts What the assignment knows of the path: its row, whether it
@@ -425,8 +420,6 @@ function refusalOf(file, { row, left, deleted, whole, other }) {
     return `${file}: is still tracked, yet the slice records every file it lists deleted`;
   }
   if (row === undefined && !(deleted && left)) return `${file}: the ledger lists no such row`;
-  const decision = row === undefined ? decisionOf(file) : row.excluded;
-  if (decision !== null) return `${file}: is excluded by ${decision} from every delete slice`;
   if (row === undefined && shapeOf(file) === null) {
     return `${file}: has no shape of a ledger row, so no deleted test had this path`;
   }
@@ -436,13 +429,12 @@ function refusalOf(file, { row, left, deleted, whole, other }) {
 /**
  * @description Applies the slice assignment: each slice whose id follows ADR-0039's grammar and
  *   whose value holds the slice grammar takes its paths in code-unit order, ids in code-unit order
- *   too. A live slice takes the paths that are ledger rows, excluded by no decision and in no
- *   earlier slice, and counts its expected drop from them. A deleted slice also accepts each path
- *   that left the tree, the ones git no longer tracks, with a ledger candidate's shape, which no
- *   decision excludes and no earlier slice holds, and carries its recorded drop and floor
- *   descents, never a drop recomputed from rows; a whole-file slice refuses every path the tree
- *   still tracks. Each row a slice takes carries its id. Each path `refusalOf` refuses, and a
- *   malformed or empty slice, is a problem naming it.
+ *   too. A live slice takes the paths that are ledger rows and in no earlier slice, and counts its
+ *   expected drop from them. A deleted slice also accepts each path that left the tree, the ones
+ *   git no longer tracks, with a ledger candidate's shape, which no earlier slice holds, and
+ *   carries its recorded drop and floor descents, never a drop recomputed from rows; a whole-file
+ *   slice refuses every path the tree still tracks. Each row a slice takes carries its id. Each
+ *   path `refusalOf` refuses, and a malformed or empty slice, is a problem naming it.
  * @param {readonly FileRow[]} rows
  * @param {Record<string, unknown> | null} declared The slices of `slices.json`, `null` when there
  *   is none.

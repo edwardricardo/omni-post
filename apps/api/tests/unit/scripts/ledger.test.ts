@@ -99,7 +99,7 @@ interface DuplicateInput {
 
 interface FileRow {
   readonly path: string;
-  readonly shape: Shape | null;
+  readonly shape: Shape;
   readonly framework: string | null;
   readonly collectors: readonly string[] | null;
   readonly quarantined: string | null;
@@ -107,7 +107,6 @@ interface FileRow {
   readonly blocks: readonly BlockRow[];
   readonly verdict: Verdict | null;
   readonly basis: string;
-  readonly excluded: string | null;
   readonly status: string;
   readonly sliceId: string | null;
   readonly subject: Subject | null;
@@ -125,7 +124,6 @@ interface RowInput extends Signals {
 interface MachineVerdict {
   readonly verdict: Verdict | null;
   readonly basis: string;
-  readonly excluded: string | null;
 }
 
 interface FileCounts {
@@ -156,7 +154,6 @@ interface Summary {
   readonly rows: RowCounts;
   readonly blocks: BlockCounts;
   readonly deleted: DeletedCounts;
-  readonly excluded: readonly string[];
 }
 
 /** What deleting a set of rows removes. */
@@ -192,7 +189,6 @@ interface Ledger {
 /** The core's surface; a literal import of an untyped `.mjs` would be an implicit any. */
 type LedgerCore = {
   LEDGER_VERSION: number;
-  EXCLUDED_BY_DECISION: Readonly<Record<string, string>>;
   CANONICAL_TEST_SHAPED: RegExp;
   shapeOf: (file: string) => Shape | null;
   blockRows: (classification: Classification) => BlockRow[];
@@ -360,7 +356,6 @@ const SHAPE_ORDER = [
   "runner",
   "helper",
   "disabled",
-  "none",
 ];
 const ROW_KEYS = [
   "path",
@@ -372,7 +367,6 @@ const ROW_KEYS = [
   "blocks",
   "verdict",
   "basis",
-  "excluded",
   "status",
   "sliceId",
   "subject",
@@ -413,19 +407,15 @@ const sampleRows = (): FileRow[] => [
   row("performance/k6/scenarios/load.k6.js", "noBlocks", ["k6:performance/k6/scenarios"]),
   row("apps/api/tests/old.test.ts.disabled", "existence"),
   row("apps/api/tests/run.ts", null),
-  row("apps/api/scripts/seed-demo-data.ts", "decorative"),
+  row("apps/api/tests/helpers/fixtures.ts", "decorative"),
 ];
 
 const total = (counts: Readonly<Record<string, number>>): number =>
   Object.values(counts).reduce((sum, count) => sum + count, 0);
 
 describe("the constants", () => {
-  it("returns version 1 and the two paths decision D17 keeps out of every delete slice", () => {
-    expect(core.LEDGER_VERSION).toBe(1);
-    expect(core.EXCLUDED_BY_DECISION).toEqual({
-      "apps/api/scripts/seed-demo-data.ts": "D17",
-      "apps/api/scripts/seed-large-dataset.ts": "D17",
-    });
+  it("returns version 2", () => {
+    expect(core.LEDGER_VERSION).toBe(2);
   });
 
   it("holds the test-shaped expression byte-equal to the two places M1 and the reach engine define it", () => {
@@ -470,7 +460,7 @@ describe("shapeOf", () => {
     ["apps/api/tests/run.ts.bak", "disabled"],
     ["apps/api/src/post.ts", null],
     ["apps/api/src/post.ts.bak", null],
-    ["apps/api/scripts/seed-demo-data.ts", null],
+    ["apps/api/scripts/some-cli.ts", null],
     ["apps/api/tests/fixtures/post.json", null],
     ["apps/api/tests/unit/runner/config.ts", "helper"],
   ])("returns the shape of %s as %s", (file, shape) => {
@@ -521,39 +511,21 @@ describe("blockRows", () => {
 });
 
 describe("verdictOf", () => {
-  it.each<[string, string, Source | null, Verdict | null, string, string | null]>([
-    [
-      "a path decision D17 excludes, every block decorative",
-      "apps/api/scripts/seed-demo-data.ts",
-      "decorative",
-      "ADJUDICATE",
-      "excluded-by-decision",
-      "D17",
-    ],
-    [
-      "the other path decision D17 excludes",
-      "apps/api/scripts/seed-large-dataset.ts",
-      "existence",
-      "ADJUDICATE",
-      "excluded-by-decision",
-      "D17",
-    ],
+  it.each<[string, string, Source | null, Verdict | null, string]>([
     [
       "a dead-suffix file whose blocks restrict behaviour",
       "apps/api/tests/old.test.ts.disabled",
       "behavioural",
       "DELETE",
       "dead-suffix",
-      null,
     ],
-    ["a runner", "apps/api/tests/run.ts", "noBlocks", null, "importers-not-measured", null],
+    ["a runner", "apps/api/tests/run.ts", "noBlocks", null, "importers-not-measured"],
     [
       "a helper whose blocks are decorative",
       "apps/api/tests/unit/post.test-helpers.ts",
       "existence",
       null,
       "importers-not-measured",
-      null,
     ],
     [
       "a file the classifier could not read",
@@ -561,7 +533,6 @@ describe("verdictOf", () => {
       "unreadable",
       "ADJUDICATE",
       "unreadable",
-      null,
     ],
     [
       "a test-shaped file with no classification",
@@ -569,7 +540,6 @@ describe("verdictOf", () => {
       null,
       "ADJUDICATE",
       "unreadable",
-      null,
     ],
     [
       "a file with no block",
@@ -577,7 +547,6 @@ describe("verdictOf", () => {
       "noBlocks",
       "ADJUDICATE",
       "no-blocks",
-      null,
     ],
     [
       "a title contradiction beside a decorative block",
@@ -585,7 +554,6 @@ describe("verdictOf", () => {
       "contradiction",
       "ADJUDICATE",
       "title-contradiction",
-      null,
     ],
     [
       "an opaque helper in a file whose blocks are all decorative",
@@ -593,7 +561,6 @@ describe("verdictOf", () => {
       "opaque",
       "ADJUDICATE",
       "opaque",
-      null,
     ],
     [
       "a file whose blocks are all decorative",
@@ -601,7 +568,6 @@ describe("verdictOf", () => {
       "decorative",
       "DELETE",
       "all-decorative",
-      null,
     ],
     [
       "a file with one decorative block of two",
@@ -609,7 +575,6 @@ describe("verdictOf", () => {
       "mixed",
       "REWRITE",
       "some-decorative",
-      null,
     ],
     [
       "a file whose blocks all restrict behaviour",
@@ -617,12 +582,11 @@ describe("verdictOf", () => {
       "behavioural",
       "KEEP",
       "behavioural",
-      null,
     ],
-  ])("returns the machine verdict of %s", (_case, file, source, verdict, basis, excluded) => {
+  ])("returns the machine verdict of %s", (_case, file, source, verdict, basis) => {
     const classification = source === null ? null : classify(file, source);
 
-    expect(core.verdictOf({ path: file, classification })).toEqual({ verdict, basis, excluded });
+    expect(core.verdictOf({ path: file, classification })).toEqual({ verdict, basis });
   });
 });
 
@@ -642,7 +606,6 @@ describe("fileRow", () => {
       blockCount: 2,
       verdict: "REWRITE",
       basis: "some-decorative",
-      excluded: null,
       status: "machine",
       sliceId: null,
       subject: null,
@@ -669,16 +632,16 @@ describe("fileRow", () => {
   it.each<[string, Source | null]>([
     ["apps/api/tests/unit/post.test-helpers.ts", "existence"],
     ["apps/api/tests/run.ts", null],
-    ["apps/api/scripts/seed-demo-data.ts", "decorative"],
+    ["apps/api/tests/helpers/fixtures.ts", "decorative"],
   ])("returns null collectors for %s, which is not test-shaped", (file, source) => {
     expect(row(file, source).collectors).toBeNull();
   });
 
   it.each<[string, RowInput, string]>([
     [
-      "a path no shape and no decision admits",
+      "a path no shape admits",
       { path: "apps/api/src/post.ts", classification: null, collectors: [], quarantined: null },
-      "apps/api/src/post.ts is not a ledger candidate: no shape and no decision admits it",
+      "apps/api/src/post.ts is not a ledger candidate: no shape admits it",
     ],
     [
       "the classification of another file",
@@ -786,14 +749,6 @@ describe("verdictOf over the subject, duplicate and importer signals", () => {
       { duplicate: UNION_COPY },
       "ADJUDICATE",
       "duplicate-union",
-    ],
-    [
-      "a path decision D17 excludes, whatever the signals",
-      "apps/api/scripts/seed-demo-data.ts",
-      "decorative",
-      { duplicate: EXACT_COPY, subject: SUBJECT_MISSED },
-      "ADJUDICATE",
-      "excluded-by-decision",
     ],
   ])("returns the machine verdict of %s", (_case, file, source, signals, verdict, basis) => {
     const classification = source === null ? null : classify(file, source);
@@ -959,11 +914,10 @@ describe("summarize", () => {
           spec: 1,
           k6: 1,
           runner: 1,
-          helper: 0,
+          helper: 1,
           disabled: 1,
-          none: 1,
         },
-        byVerdict: { DELETE: 1, REWRITE: 1, KEEP: 1, ADJUDICATE: 3, unmeasured: 1 },
+        byVerdict: { DELETE: 1, REWRITE: 1, KEEP: 1, ADJUDICATE: 2, unmeasured: 2 },
       },
       rows: { machine: 7, confirmed: 0, total: 7 },
       blocks: {
@@ -981,9 +935,8 @@ describe("summarize", () => {
         },
       },
       deleted: { files: 0, blocks: 0 },
-      excluded: ["apps/api/scripts/seed-demo-data.ts: D17"],
     });
-    expect(Object.keys(summary)).toEqual(["files", "rows", "blocks", "deleted", "excluded"]);
+    expect(Object.keys(summary)).toEqual(["files", "rows", "blocks", "deleted"]);
     expect(Object.keys(summary.files.byShape)).toEqual(SHAPE_ORDER);
     expect(Object.keys(summary.files.byVerdict)).toEqual([
       "DELETE",
@@ -1021,10 +974,10 @@ describe("buildLedger and render", () => {
     const ledger = valueOf(core.buildLedger(sampleRows()));
 
     expect(Object.keys(ledger)).toEqual(["version", "summary", "slices", "files"]);
-    expect(ledger.version).toBe(1);
+    expect(ledger.version).toBe(2);
     expect(ledger.slices).toEqual({});
     expect(ledger.files.map((file) => file.path)).toEqual([
-      "apps/api/scripts/seed-demo-data.ts",
+      "apps/api/tests/helpers/fixtures.ts",
       "apps/api/tests/old.test.ts.disabled",
       "apps/api/tests/run.ts",
       "apps/api/tests/unit/Post.test.ts",
@@ -1846,8 +1799,8 @@ describe("ledger.mjs --check", () => {
 const ADJUDICATIONS = "docs/development/testing-refoundation/adjudications.json";
 const SLICES = "docs/development/testing-refoundation/slices.json";
 const MARKDOWN = "docs/development/testing-refoundation/LEDGER.md";
-/** sha256 of the ledger `FIXTURE` rendered to before the overlay existed, at befcdae1. */
-const C1_FIXTURE_SHA256 = "23c2df68fa9544bb2e76bc5287c643aea68f7a5de7b489edf1d8a351c18e04c8";
+/** sha256 of what the ledger `FIXTURE` renders to with no overlay, in the row shape of version 2. */
+const C1_FIXTURE_SHA256 = "e180eb2b821b185af892fa94133e06987e92f623bc5e9770b9ece10c5006082e";
 
 /** B, machine REWRITE, confirmed KEEP: every field the overlay requires, each valid. */
 const CONFIRMATION = {
@@ -2088,9 +2041,6 @@ describe("ledger.mjs slices.json", () => {
   });
 });
 
-/** A seed script decision D17 excludes from every delete slice, listed beside `FIXTURE`. */
-const SEED = "apps/api/scripts/seed-demo-data.ts";
-
 describe("ledger.mjs overlay guards", () => {
   const keep = JSON.stringify(CONFIRMATION);
   const deleted = JSON.stringify({ ...CONFIRMATION, verdict: "DELETE", criteria: ["a"] });
@@ -2131,50 +2081,6 @@ describe("ledger.mjs overlay guards", () => {
       expect(existsSync(ledgerFile(root))).toBe(false);
     }
   );
-
-  it("refuses to confirm DELETE for a row decision D17 excludes, and to place it in a slice, naming the path and D17", () => {
-    const root = plant(
-      withOverlay({
-        [SEED]: "export {};\n",
-        [ADJUDICATIONS]: {
-          entries: { [SEED]: { ...CONFIRMATION, verdict: "DELETE", blocks: [] } },
-        },
-        [SLICES]: { slices: { "2.6a": { files: [SEED, C] } } },
-      })
-    );
-    const listing = [...Object.keys(FIXTURE), SEED];
-
-    const { ledger, problems } = valueOf(built(root, { listFiles: () => ({ value: listing }) }));
-
-    expect(problems).toEqual([
-      `${ADJUDICATIONS}: ${SEED}: is excluded by D17, which no confirmation turns into DELETE`,
-      `${SLICES}: 2.6a: ${SEED}: is excluded by D17 from every delete slice`,
-    ]);
-    expect(rowOf(ledger, SEED)).toMatchObject({
-      verdict: "ADJUDICATE",
-      excluded: "D17",
-      status: "machine",
-      sliceId: null,
-    });
-    expect(ledger.slices).toEqual({
-      "2.6a": { files: [C], expectedDrop: { files: 1, blocks: 2 } },
-    });
-  });
-
-  it("confirms KEEP for a row decision D17 excludes", () => {
-    const root = plant(
-      withOverlay({
-        [SEED]: "export {};\n",
-        [ADJUDICATIONS]: { entries: { [SEED]: { ...CONFIRMATION, blocks: [] } } },
-      })
-    );
-    const listing = [...Object.keys(FIXTURE), SEED];
-
-    const { ledger, problems } = valueOf(built(root, { listFiles: () => ({ value: listing }) }));
-
-    expect(problems).toEqual([]);
-    expect(rowOf(ledger, SEED)).toMatchObject({ verdict: "KEEP", status: "confirmed" });
-  });
 
   it("reports one file, one test-shaped file and one block in the singular", async () => {
     const files = {
@@ -2571,12 +2477,6 @@ describe("ledger.mjs slices.json deletion record", () => {
   it.each<
     [string, Readonly<Record<string, unknown>>, string, Readonly<Record<string, LedgerSlice>>]
   >([
-    [
-      "a path decision D17 excludes",
-      { "2.7": { files: [SEED], deleted: { files: 1, blocks: 0 } } },
-      `2.7: ${SEED}: is excluded by D17 from every delete slice`,
-      { "2.7": { files: [], deleted: { files: 1, blocks: 0 }, floors: {} } },
-    ],
     [
       "a deleted path in two slices",
       {
