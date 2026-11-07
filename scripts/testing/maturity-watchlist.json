@@ -123,12 +123,12 @@
     },
     {
       "kind": "date",
-      "id": "zlib-cve-2026-76844",
-      "title": "Is CVE-2026-76844 fixed for trixie and carried by a distroless digest? When it is, remove its .trivyignore entry",
+      "id": "zlib-stage-remove",
+      "title": "Does a distroless digest hold zlib1g 1:1.3.dfsg+really1.3.1-1+deb13u1 or later? When one does, take it and delete the zlib-patched stage of the four Dockerfiles",
       "due": "2026-11-10",
       "refs": [
-        "docs/security/SECURITY_CANON.md, \"Ignored image CVEs\": the suppression expires on 2026-12-06, and while it holds Container Security stays green whether or not a fix exists, so this entry is what says when the fix arrives.",
-        "The read, each Tuesday: https://security-tracker.debian.org/tracker/CVE-2026-76844 for trixie, then the `Version:` of `var/lib/dpkg/status.d/zlib1g` in the newest digest of `gcr.io/distroless/nodejs26-debian13` (`podman image mount`). A new digest alone proves nothing: `c952ca0`, read 2026-11-06, carries Node 26.13.0 and the same `1:1.3.dfsg+really1.3.1-1+b1`. If trixie is fixed and a digest carries it, take that digest, confirm Trivy reports nothing with `.trivyignore` emptied, remove the entry and its canon paragraph, and delete this entry; if not, move `due` to the next Tuesday window."
+        "docs/deployment/base-images.md, \"zlib1g from Debian's archive on 2026-11-07\": DSA-6613-1 fixes CVE-2026-85091, CVE-2026-76844 and CVE-2026-27171, and the images take that package from Debian's archive because no digest of the image held it. Container Security stays green while the stage stands, whether or not a digest has caught up, so this entry is what says when the stage can leave.",
+        "The read, each Tuesday: the `Version:` of `var/lib/dpkg/status.d/zlib1g` in the newest digest of `gcr.io/distroless/nodejs26-debian13` (`podman image mount`). A new digest alone proves nothing: `c952ca0a`, read 2026-11-07, carries Node 26.13.0 and the same `1:1.3.dfsg+really1.3.1-1+b1`. If a digest holds the fixed version or a later one, take that digest, delete the stage and its `COPY` from all four Dockerfiles, confirm Container Security stays green on the pull request, and delete this entry; if not, move `due` to the next Tuesday window."
       ],
       "reviews": {}
     },
