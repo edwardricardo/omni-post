@@ -57,7 +57,7 @@
 # remove-when fired on 2026-10-03, when the catalog moved image-size to 2.0.4,
 # outside both advisories' `<=2.0.2` range (canon row `image-size`, decision
 # D37), and the lockfile holds no 2.0.2 copy.
-
-# zlib1g in the distroless base: not reachable and with no Debian fix for trixie.
-# Canon: SECURITY_CANON.md, "Ignored image CVEs".
-CVE-2026-76844 exp:2026-12-06
+#
+# CVE-2026-76844 (zlib1g) left on 2026-11-07: Debian fixed it in DSA-6613-1, and
+# the images take that package ahead of a distroless rebuild
+# (docs/deployment/base-images.md).

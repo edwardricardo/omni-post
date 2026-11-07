@@ -36,13 +36,17 @@ that can run a Node process is also the smallest thing an attacker can reach.
 It has a cost that is easy to mistake for a limitation of your own permissions:
 **you cannot patch a distroless image from inside it.** There is no `apt-get
 upgrade` to run because there is no `apt` binary. When a system library in the
-base carries a CVE, the only real moves are to wait for the vendor to rebuild,
-or to move to a base generation that already carries the fix.
+base carries a CVE, the usual moves are to wait for the vendor to rebuild, or to
+move to a base generation that already carries the fix.
 
-Copying a patched `.so` in from the builder stage is not a third option. Trivy
-reads `var/lib/dpkg/status.d`, not the binaries, so the report would keep naming
-the old version while the library on disk was new — trading an honest red for an
-image whose own inventory lies.
+Copying a patched `.so` in alone is not a third option. Trivy reads
+`var/lib/dpkg/status.d`, not the binaries, so the report would keep naming the
+old version while the library on disk was new — trading an honest red for an
+image whose own inventory lies. The third option is the whole Debian package:
+its files and the `status.d` entry written from its own `control` and
+`md5sums`, so the inventory names the version on disk. The images took that
+option for `zlib1g` on 2026-11-07, while no digest held Debian's fix (§"zlib1g
+from Debian's archive on 2026-11-07").
 
 ---
 
@@ -174,6 +178,44 @@ The Trivy row stays at 0 because Trivy reports an image's Debian packages and th
 `package.json` of each module under `node_modules`, never the `node` executable:
 no gate saw that the images ran v26.12.0 after its advisories were published
 (SMELL-207, Master Plan DEF-160).
+
+### zlib1g from Debian's archive on 2026-11-07
+
+CVE-2026-85091 (HIGH, a heap buffer overflow in `gz_vacate()`) was in Trivy's
+database by 2026-11-07, when it turned all four Container Security jobs red with
+no change of ours. Debian fixes it, with CVE-2026-76844 and CVE-2026-27171, in
+`zlib1g` `1:1.3.dfsg+really1.3.1-1+deb13u1`
+([DSA-6613-1](https://security-tracker.debian.org/tracker/DSA-6613-1)). No digest
+of the distroless image holds that version: read on `linux/amd64`, both the pinned
+`456bd22a` and the `latest` index of 21:03Z that day, `c952ca0a`, hold
+`1:1.3.dfsg+really1.3.1-1+b1`. The Maintainer chose the fix on 2026-11-07 over a
+second `.trivyignore` entry and over waiting for the rebuild.
+
+A distroless image has no package manager, so all four Dockerfiles gain a stage,
+`zlib-patched`, on `debian:trixie-slim@sha256:a72b4433…`. It downloads the package
+apt verifies from Debian's archive, refuses a version below the fix, unpacks it to
+`/out` and writes the `status.d` entry from the package's own `control` and
+`md5sums`, the format the image already holds. The production stage runs
+`COPY --from=zlib-patched /out/ /` right after its `FROM`, before any `USER`.
+
+The version is a floor rather than a pin on purpose. Debian's archive drops a
+superseded security upload, so `zlib1g=<version>` would stop every image build the
+day Debian publishes the next one, while the floor takes that upload and still
+refuses anything older.
+
+Measured on 2026-11-07 on a scratch build of the stage over `456bd22a`: the status
+entry reads `1:1.3.dfsg+really1.3.1-1+deb13u1`; a recursive `diff` against the base
+names only the `libz` files, the package's Debian changelog and its two `status.d`
+files; and `/nodejs/bin/node` still runs v26.12.1 with its own zlib, gzipping and
+hashing normally. No program in the image loads the replaced `libz`: `node` links
+neither it nor `libcrypto`, the one library that does. Trivy runs in the Container
+Security jobs of the pull request, which hold the verdict.
+
+**Remove-when:** a digest of the distroless image holds that version or a later
+one. Dependabot's weekly digest pull request is the trigger: read
+`/var/lib/dpkg/status.d/zlib1g` of the new digest, and when it qualifies delete the
+stage and its `COPY` from all four Dockerfiles. The entry `zlib-stage-remove` of
+`scripts/testing/maturity-watchlist.json` makes that read every Tuesday.
 
 ### pnpm in the build stage
 
