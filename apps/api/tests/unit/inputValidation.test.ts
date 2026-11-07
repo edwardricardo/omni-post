@@ -376,7 +376,8 @@ describe("Secure Zod Schemas - Email", () => {
   it("should validate correct email format", () => {
     const result = SecureSchemas.userEmail.safeParse("user@example.com");
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("user@example.com");
   });
 
   it("should reject email with SQL injection", () => {
@@ -400,13 +401,15 @@ describe("Secure Zod Schemas - URL", () => {
   it("should validate HTTPS URLs", () => {
     const result = SecureSchemas.url.safeParse("https://example.com/page");
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("https://example.com/page");
   });
 
   it("should validate HTTP URLs", () => {
     const result = SecureSchemas.url.safeParse("http://example.com");
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("http://example.com");
   });
 
   it("should reject javascript protocol", () => {
@@ -430,7 +433,8 @@ describe("Secure Zod Schemas - File Path", () => {
   it("should validate safe file paths", () => {
     const result = SecureSchemas.filePath.safeParse("uploads/image.jpg");
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("uploads/image.jpg");
   });
 
   it("should reject path traversal in file paths", () => {
@@ -449,7 +453,8 @@ describe("Secure Zod Schemas - Post Body", () => {
     const validBody = "This is a normal post with some content.";
     const result = SecureSchemas.postBody.safeParse(validBody);
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe(validBody);
   });
 
   it("should reject post body with XSS", () => {
@@ -475,7 +480,8 @@ describe("Secure Zod Schemas - UUID", () => {
     const validUuid = "123e4567-e89b-12d3-a456-426614174000";
     const result = SecureSchemas.uuid.safeParse(validUuid);
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe(validUuid);
   });
 
   it("should reject invalid UUID", () => {
@@ -547,7 +553,8 @@ describe("Secure Schemas - Recursive Validation", () => {
 
     const result = testSchema.safeParse(cleanData);
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual(cleanData);
   });
 });
 
@@ -593,13 +600,15 @@ describe("Secure Zod Schemas - Media URL", () => {
   it("should validate HTTPS media URLs", () => {
     const result = SecureSchemas.mediaUrl.safeParse("https://cdn.example.com/media/video.mp4");
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("https://cdn.example.com/media/video.mp4");
   });
 
   it("should allow HTTP protocol for media URLs", () => {
     const result = SecureSchemas.mediaUrl.safeParse("http://example.com/image.jpg");
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("http://example.com/image.jpg");
   });
 
   it("should reject invalid media URL format", () => {
@@ -623,13 +632,15 @@ describe("Secure Zod Schemas - User Name", () => {
   it("should validate alphanumeric user names", () => {
     const result = SecureSchemas.userName.safeParse("JohnDoe123");
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("JohnDoe123");
   });
 
   it("should validate user names with spaces", () => {
     const result = SecureSchemas.userName.safeParse("John Doe");
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("John Doe");
   });
 
   it("should reject XSS attempts in user names", () => {
@@ -659,7 +670,8 @@ describe("Secure Zod Schemas - Channel ID", () => {
   it("should validate alphanumeric channel IDs with hyphens/underscores", () => {
     const result = SecureSchemas.channelId.safeParse("channel-123_abc");
 
-    expect(result.success).toBeTruthy();
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("channel-123_abc");
   });
 
   it("should reject SQL injection in channel IDs", () => {

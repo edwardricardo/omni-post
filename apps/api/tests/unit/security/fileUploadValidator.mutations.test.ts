@@ -1181,10 +1181,20 @@ describe("createFileUploadValidator — factory", () => {
     );
   });
 
-  it("creates validator with empty config", () => {
+  it("creates validator with empty config", async () => {
     const metrics = makeMockMetrics();
     const validator = createFileUploadValidator({}, metrics);
     expect(validator).toBeInstanceOf(FileUploadValidator);
+
+    const result = await validator.validateFile(
+      Buffer.from("plain text"),
+      "notes.txt",
+      "text/plain"
+    );
+
+    expect(result.threats).toEqual([]);
+    expect(result.isValid).toBe(true);
+    expect(metrics.metrics.inputValidationDuration.observe).toHaveBeenCalledTimes(1);
   });
 });
 

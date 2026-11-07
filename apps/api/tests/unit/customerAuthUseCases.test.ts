@@ -808,7 +808,8 @@ describe("RefreshCustomerTokenUseCase", () => {
   });
 
   it("issues new tokens when refresh token is valid and user is active", async () => {
-    const { signCustomerRefreshToken } = await import("../../src/auth/customerJwt.js");
+    const { signCustomerRefreshToken, verifyCustomerToken, verifyCustomerRefreshToken } =
+      await import("../../src/auth/customerJwt.js");
     const token = signCustomerRefreshToken("user-123", "session-123");
     const activeUser = makeExistingUser({ id: "user-123", isActive: true });
     customerUserRepo.findById.mockResolvedValue(ok(activeUser));
@@ -816,8 +817,19 @@ describe("RefreshCustomerTokenUseCase", () => {
     const result = await useCase.execute({ refreshToken: token });
 
     assert.ok(result.ok, `Expected ok, got: ${!result.ok ? result.error : ""}`);
-    expect(result.value.accessToken).toBeDefined();
-    expect(result.value.refreshToken).toBeDefined();
+    expect(customerUserRepo.findById).toHaveBeenCalledWith("user-123");
+    expect(verifyCustomerToken(result.value.accessToken)).toMatchObject({
+      sub: "user-123",
+      accountId: "existing-acc-001",
+      roleId: "role-owner",
+      roleName: "OWNER",
+      permissions: ["post:read", "billing:manage"],
+      type: "customer",
+    });
+    const refreshed = verifyCustomerRefreshToken(result.value.refreshToken);
+    expect(refreshed.sub).toBe("user-123");
+    expect(refreshed.sessionId).toMatch(/^[0-9a-f]{32}$/);
+    expect(refreshed.sessionId).not.toBe("session-123");
   });
 
   it("returns INVALID_TOKEN when the session has been revoked via logout", async () => {

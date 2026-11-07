@@ -370,7 +370,7 @@
   },
   "apps/api/tests/unit/auditService.query.test.ts": {
     "vitest/no-conditional-expect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/unit/auditService.retention.test.ts": {
@@ -380,7 +380,7 @@
   },
   "apps/api/tests/unit/authService.test.ts": {
     "vitest/no-conditional-expect": {
-      "count": 32
+      "count": 30
     }
   },
   "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts": {
@@ -715,24 +715,14 @@
       "count": 2
     }
   },
-  "apps/api/tests/unit/secureSchemas.basic.test.ts": {
-    "vitest/no-conditional-expect": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/secureSchemas.query.test.ts": {
     "vitest/no-conditional-expect": {
-      "count": 4
+      "count": 2
     }
   },
   "apps/api/tests/unit/security/PlatformCredentialService.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 16
-    }
-  },
-  "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/security/inputValidation.mutations.test.ts": {
@@ -753,11 +743,6 @@
   "apps/api/tests/unit/security/trustedProxy.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 8
-    }
-  },
-  "apps/api/tests/unit/securityHeaders.mutations.test.ts": {
-    "vitest/no-conditional-expect": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/settings/SettingsService.test.ts": {

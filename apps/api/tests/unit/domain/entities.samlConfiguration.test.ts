@@ -154,8 +154,7 @@ describe("SamlConfiguration entity", () => {
       assert.ok(result.ok);
 
       const json = result.value.toJSON();
-      const mapping = json.attributeMapping as Record<string, string>;
-      assert.ok(mapping.email, "should have email in mapping");
+      assert.deepStrictEqual(json.attributeMapping, makeValidInput().attributeMapping);
     });
   });
 

@@ -296,21 +296,21 @@ describe("SecurityManager — mutation-killing boundaries", () => {
       const mgr = new SecurityManager();
       // Headers JSON must be <= 8192 bytes
       const req = createMockRequest({
-        headers: { "user-agent": "OK", "x-data": "a".repeat(8100) },
+        headers: { "user-agent": "OK", "x-data": "a".repeat(8161) },
       });
-      const headerSize = JSON.stringify(req.headers).length;
-      if (headerSize <= 8192) {
-        const result = mgr.validateRequest(req);
-        expect(result.violations).not.toContain("Oversized headers detected");
-      }
+      expect(JSON.stringify(req.headers).length).toBe(8192);
+      const result = mgr.validateRequest(req);
+      expect(result.violations).toEqual([]);
+      expect(result.isValid).toBe(true);
     });
 
     it("fails at maxHeaderSize + 1", () => {
       const mgr = new SecurityManager();
-      // Create headers that exceed 8192
+      // Headers JSON one byte over 8192
       const req = createMockRequest({
-        headers: { "user-agent": "OK", "x-data": "a".repeat(8200) },
+        headers: { "user-agent": "OK", "x-data": "a".repeat(8162) },
       });
+      expect(JSON.stringify(req.headers).length).toBe(8193);
       const result = mgr.validateRequest(req);
       expect(result.violations).toContain("Oversized headers detected");
     });

@@ -305,20 +305,16 @@ describe("AuthService", () => {
         .all()
         .filter((s) => s.userId === testUserId && s.isActive === true);
 
-      if (sessions.length > 0) {
-        const sessionId = sessions[0]!.id as string;
-        stores.adminSession.update(sessionId, { isActive: false });
+      expect(sessions).toHaveLength(1);
+      const sessionId = sessions[0]!.id as string;
+      stores.adminSession.update(sessionId, { isActive: false });
 
-        const result = await authService.verifyAccessToken(accessToken);
+      const result = await authService.verifyAccessToken(accessToken);
 
-        expect(result.ok).toBe(false);
-        if (!result.ok) {
-          expect(result.error).toBe("SESSION_EXPIRED");
-        }
+      expect(result).toEqual({ ok: false, error: "SESSION_EXPIRED" });
 
-        // Reactivate session
-        stores.adminSession.update(sessionId, { isActive: true });
-      }
+      // Reactivate session
+      stores.adminSession.update(sessionId, { isActive: true });
     });
   });
 

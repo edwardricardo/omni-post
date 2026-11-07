@@ -151,10 +151,8 @@ describe("SecurityValidatedSchemas - Pagination Validation", () => {
 
   it("should apply default values", () => {
     const result = SecurityValidatedSchemas.pagination.safeParse({});
-    if (result.success) {
-      expect(result.data.page).toBe(1);
-      expect(result.data.limit).toBe(20);
-    }
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({ page: 1, limit: 20 });
   });
 });
 

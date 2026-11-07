@@ -235,6 +235,17 @@ describe("ComplianceService", () => {
         "admin-001"
       );
       assert.ok(result.ok);
+      expect(bag.gdpr.update).toHaveBeenCalledWith("gdpr-001", {
+        dpoType: "INTERNAL",
+        dpoEmail: "dpo@example.com",
+        updatedBy: "admin-001",
+      });
+      expect(bag.audit.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "GDPR_SETTINGS_UPDATED",
+          details: { dpoType: "INTERNAL", dpoEmail: "dpo@example.com" },
+        })
+      );
     });
 
     it("succeeds when dpoType=EXTERNAL and dpoUrl is valid", async () => {
@@ -243,6 +254,17 @@ describe("ComplianceService", () => {
         "admin-001"
       );
       assert.ok(result.ok);
+      expect(bag.gdpr.update).toHaveBeenCalledWith("gdpr-001", {
+        dpoType: "EXTERNAL",
+        dpoUrl: "https://dpo.example.com",
+        updatedBy: "admin-001",
+      });
+      expect(bag.audit.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "GDPR_SETTINGS_UPDATED",
+          details: { dpoType: "EXTERNAL", dpoUrl: "https://dpo.example.com" },
+        })
+      );
     });
 
     it("returns VALIDATION_ERROR when dataRetentionDays < 30", async () => {
@@ -561,6 +583,12 @@ describe("ComplianceService", () => {
       });
       const result = await service.submitDsarRequest(baseDsarInput);
       assert.ok(result.ok);
+      expect(bag.dsar.countPendingByEmail).toHaveBeenCalledWith("user@example.com");
+      assert.strictEqual(result.value.id, "dsar-001");
+      assert.strictEqual(
+        result.value.message,
+        "Your request has been received. We will respond within 30 days."
+      );
     });
 
     it("generates verificationToken", async () => {

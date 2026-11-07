@@ -54,9 +54,8 @@ describe("SecurityValidatedSchemas - Email Validation", () => {
 
   it("should normalize email addresses", () => {
     const result = SecurityValidatedSchemas.email.safeParse("User@Example.COM");
-    if (result.success) {
-      expect(result.data).toMatch(/@example\.com$/);
-    }
+    expect(result.success).toBe(true);
+    expect(result.data).toBe("user@example.com");
   });
 
   it("should enforce length limits", () => {
