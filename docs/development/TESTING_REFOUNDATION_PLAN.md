@@ -955,7 +955,7 @@ read), and before the first that lowers a floor, #37 checks the marker's slice a
   `PlatformContentAdapter.test-helpers.ts`, `auditService.test-helpers.ts`,
   `cqrsIntegration.test-helpers.ts`, `providers/instagram/tests/mediaProcessor.test-helpers.ts`.
   NOT here: `apps/api/scripts/seed-demo-data.ts`, `seed-large-dataset.ts` (CLI; 0 importers is normal
-  → D17's product classification). CODE ~5, EVIDENCE ~3,000. PR `refound/2-dead-helpers`.
+  → D17's product classification, decided DEAD on 2026-11-07, L42: tracker row D17). CODE ~5, EVIDENCE ~3,000. PR `refound/2-dead-helpers`.
 - **WU-2.8.x** Block deletion by `--area` (an emptied `describe` is removed; an emptied file is
   deleted whole; unused imports are caught by lint). 2.8.1a `rateLimitingDashboard.test.ts` (18) plus
   `logger.test.ts` (11) ~320 · 2.8.1b `auditMiddleware` (10, including :274) plus
@@ -972,7 +972,7 @@ read), and before the first that lowers a floor, #37 checks the marker's slice a
 - **WU-2.9** `git mv settingsRoutes.test.ts settingsSchemas.test.ts` plus its header; "settings route
   contract untested" into [§Declared gaps](TESTING_REFOUNDATION.md#declared-gaps) (owner: the Phase 9 queue). CODE ~6, inside
   2.8.4.
-- **WU-2.10** Weak but not decorative (REWRITE): `@core/webhooks` (activate `rotateFails` and assert
+- **WU-2.10** Weak but not decorative (REWRITE), run by L43 as the tracker's rows 2.10a to 2.10m: `@core/webhooks` (activate `rotateFails` and assert
   the failure), `@core/compliance` (assert values in the 2 happy paths), `@core/settings` (assert the
   exact masked shape). Acceptance: a RED probe on each. CODE ~60. PR `refound/2-rewrites`.
 

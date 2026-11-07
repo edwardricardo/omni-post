@@ -356,7 +356,7 @@ Every slice targets `main` (`stacked-to-main`) and is merged in the order below.
 | 2.3    | `refound/2-coverage-exception`       | —     | 2.2 · **H8**                              | 2.3.1–2.3.4  | ~44        | #37 scenario ✅                                     | M14, Decisions      |
 | 2.4    | `refound/2-whole-files`              | —     | 2.3                                       | 2.4.1–2.4.3  | ~10        | —                                                   | M1, M2, M4, M5      |
 | 2.5    | `refound/2-todo-stubs`               | —     | 2.2                                       | 2.5.1–2.5.3  | ~6         | —                                                   | M2, M9, gaps        |
-| 2.6    | `refound/2-dead-helpers`             | —     | 2.2 · **H2**                              | 2.6.1–2.6.4  | ~9         | —                                                   | M1, M4, M5          |
+| 2.6    | `refound/2-dead-helpers`             | —     | 2.2 · H2 (closed, L42)                    | 2.6.1–2.6.4  | ~9         | —                                                   | M1, M4, M5          |
 | 2.7    | `refound/2-blocks-1a`                | —     | 2.3                                       | 2.7.1–2.7.2  | ~324       | —                                                   | M2, M3, M14         |
 | 2.8    | `refound/2-blocks-1b`                | —     | 2.7                                       | 2.8.1–2.8.2  | ~354       | —                                                   | M2, M3, M14         |
 | 2.9    | `refound/2-blocks-2a`                | —     | 2.8                                       | 2.9.1–2.9.2  | ~354       | —                                                   | M2, M3, M14         |
@@ -366,7 +366,7 @@ Every slice targets `main` (`stacked-to-main`) and is merged in the order below.
 | 2.13   | `refound/2-blocks-5`                 | —     | 2.12, 1.19                                | 2.13.1–2     | ~304       | —                                                   | M2, M3              |
 | 2.14   | `refound/2-blocks-6`                 | —     | 2.3 (parallel)                            | 2.14.1–2     | ~304       | —                                                   | M2, M3              |
 | 2.15   | `refound/2-blocks-7`                 | —     | 2.3 (parallel)                            | 2.15.1–2     | ~304       | —                                                   | M2, M3              |
-| 2.16   | `refound/2-rewrites`                 | —     | 2.13, P.10                                | 2.16.1–3     | ~64        | probe RED per rewrite ✅                            | M6                  |
+| 2.16   | `tr-2-10a` to `tr-2-10h`             | —     | 2.13, P.10                                | 2.16.\*      | ~2400      | probe RED per rewrite ✅                            | M6                  |
 | 3.1    | `refound/3-coverage-certifies` (V4)  | —     | P.2                                       | 3.1.1–3.1.4  | ~44        | certify-refusal ✅                                  | M7                  |
 | 3.2    | `refound/3-remove-duplicate-gates`   | —     | 3.1 · **H4**                              | 3.2.1–3.2.5  | ~149       | (verdict rule V1 covers it)                         | M7, Decisions       |
 | 3.3    | `refound/3-skip-gate` (PR V8)        | —     | 2.5, P.2                                  | 3.3.1–3.3.5  | ~84        | skip gate ✅                                        | M2, M9, M7          |
