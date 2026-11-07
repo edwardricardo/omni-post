@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1185  |
+| Files                   | 1183  |
 | DELETE                  | 19    |
 | REWRITE                 | 106   |
 | KEEP                    | 966   |
-| ADJUDICATE              | 94    |
+| ADJUDICATE              | 92    |
 | unmeasured              | 0     |
-| Machine rows            | 1175  |
+| Machine rows            | 1173  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14595 |
+| Blocks                  | 14593 |
 | Blocks with a criterion | 408   |
 
 ## Slice 2.6a
@@ -387,8 +387,6 @@ Deleted: 0 files, 31 blocks.
 | `apps/admin/tests/unit/shared/SidebarNav.test.tsx`                                                    | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/unit/styles/tailwindSources.test.ts`                                                | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/admin/tests/unit/subscriptions/subscriptionsLocaleFormatting.test.tsx`                          | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/scripts/seed-demo-data.ts`                                                                  | none             | 0      | 0          | ADJUDICATE | machine                     | excluded-by-decision |
-| `apps/api/scripts/seed-large-dataset.ts`                                                              | none             | 0      | 0          | ADJUDICATE | machine                     | excluded-by-decision |
 | `apps/api/tests/audit.integration.test.ts`                                                            | integration-test | 7      | 0          | ADJUDICATE | machine                     | subject-not-imported |
 | `apps/api/tests/chaos/chaos-helpers.ts`                                                               | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/chaos/saga-step-retry-recovery.integration.test.ts`                                   | integration-test | 1      | 0          | KEEP       | machine                     | behavioural          |
@@ -942,7 +940,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/jscpdBaselineGate.test.ts`                                               | test             | 13     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/jsdocRules.test.ts`                                                      | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/jsdocTouchedGate.test.ts`                                                | test             | 18     | 0          | ADJUDICATE | machine                     | opaque               |
-| `apps/api/tests/unit/scripts/ledger.test.ts`                                                          | test             | 94     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/ledger.test.ts`                                                          | test             | 92     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/legalInventoryLib.test.ts`                                               | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/legalSourceScan.test.ts`                                                 | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/listedTestFiles.test.ts`                                                 | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
