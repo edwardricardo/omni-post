@@ -40,7 +40,8 @@ app's runtime plus every other app's dependencies, plus every package's source.
 `pnpm deploy --prod --filter <app> <target>` writes ONE tree for ONE app: its
 production closure only, with each workspace dependency **materialised into the
 target's own store** rather than symlinked back at the monorepo. The result is
-self-contained, so the production stage is a single `COPY`, and the target's
+self-contained, so the production stage copies the app with a single `COPY`
+(beside the `zlib1g` package of [base-images.md](base-images.md)), and the target's
 root IS the app — which is why the `CMD` is `dist/index.js` and not
 `apps/<name>/dist/index.js`.
 

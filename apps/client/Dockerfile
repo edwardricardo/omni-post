@@ -97,6 +97,25 @@ ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
 ARG NEXT_BUILD_FLAGS=""
 RUN pnpm --filter @apps/client exec next build ${NEXT_BUILD_FLAGS}
 
+# ---- zlib1g: Debian's fix, ahead of the distroless rebuild ---------------------
+# DSA-6613-1 fixes CVE-2026-85091, CVE-2026-76844 and CVE-2026-27171 in zlib1g
+# 1:1.3.dfsg+really1.3.1-1+deb13u1, and no digest of the distroless image holds
+# that version yet. This stage takes the package from Debian's archive, which apt
+# verifies, and refuses anything older. The production stage copies its files
+# over the image's, with the status entry a scanner reads.
+# Remove-when: a digest of the distroless image holds that version or a later one.
+# The record and the measurements: docs/deployment/base-images.md
+FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS zlib-patched
+RUN apt-get update -qq \
+  && cd /tmp \
+  && apt-get download zlib1g \
+  && dpkg --compare-versions "$(dpkg-deb -f zlib1g_*.deb Version)" ge "1:1.3.dfsg+really1.3.1-1+deb13u1" \
+  && dpkg-deb -x zlib1g_*.deb /out \
+  && dpkg-deb -e zlib1g_*.deb /tmp/control \
+  && mkdir -p /out/var/lib/dpkg/status.d \
+  && cp /tmp/control/control /out/var/lib/dpkg/status.d/zlib1g \
+  && cp /tmp/control/md5sums /out/var/lib/dpkg/status.d/zlib1g.md5sums
+
 # ==============================================================================
 # Production Runtime
 # ==============================================================================
@@ -108,6 +127,7 @@ RUN pnpm --filter @apps/client exec next build ${NEXT_BUILD_FLAGS}
 # The measurements, the glibc-direction reading and what the CI smoke proves:
 # docs/deployment/base-images.md
 FROM gcr.io/distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7 AS production
+COPY --from=zlib-patched /out/ /
 
 WORKDIR /app
 
