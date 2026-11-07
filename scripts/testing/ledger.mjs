@@ -57,7 +57,6 @@ import { binaryTexts, workspaceManifests } from "./lib/dependency-manifests.mjs"
 import { SOURCE_EXTENSIONS } from "./lib/dependency-sites.mjs";
 import {
   CANONICAL_TEST_SHAPED,
-  EXCLUDED_BY_DECISION,
   buildLedger,
   duplicatesOf,
   fileRow,
@@ -300,7 +299,7 @@ function optionalText(root, file) {
 
 /**
  * @description Builds the ledger of a repository: lists its tracked paths, keeps the candidates
- *   under the listed directories (a path `shapeOf` names, or one a decision excludes), reads the
+ *   under the listed directories (a path `shapeOf` names), reads the
  *   quarantine, the reach report and the import graph of every tracked file, classifies every
  *   test-shaped file, finds the duplicates among them, the module each stem names and each
  *   helper's and runner's live importers, assembles the rows, then applies the overlay and the
@@ -319,9 +318,7 @@ export function build(root, seams = {}) {
   const prefixes = scopePrefixes(workspace.value);
   if ("error" in prefixes) return prefixes;
   const candidates = listed.value.filter(
-    (file) =>
-      prefixes.value.some((prefix) => file.startsWith(prefix)) &&
-      (shapeOf(file) !== null || Object.hasOwn(EXCLUDED_BY_DECISION, file))
+    (file) => prefixes.value.some((prefix) => file.startsWith(prefix)) && shapeOf(file) !== null
   );
   if (!candidates.some((file) => CANONICAL_TEST_SHAPED.test(file))) {
     return { error: `git ls-files listed no test-shaped file under ${prefixes.value.join(", ")}` };

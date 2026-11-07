@@ -20,19 +20,7 @@ import { byCodeUnit, renderJson } from "./record-helpers.mjs";
 /** @typedef {import("../../../packages/eslint-plugin-testing/src/classify.js").FileClassification} FileClassification */
 
 /** The version of the ledger's JSON; a change of a row's shape raises it. */
-export const LEDGER_VERSION = 1;
-
-/**
- * The paths a decision keeps out of every delete slice, each mapped to the decision's id. D17
- * (`docs/development/TESTING_REFOUNDATION.md:360`, `TESTING_REFOUNDATION_PLAN.md:946-947`): the two
- * seed scripts are command-line tools with no importer, which is normal for them, and wait on a
- * product classification; their verdict is ADJUDICATE whatever their blocks, never DELETE.
- * @type {Readonly<Record<string, string>>}
- */
-export const EXCLUDED_BY_DECISION = Object.freeze({
-  "apps/api/scripts/seed-demo-data.ts": "D17",
-  "apps/api/scripts/seed-large-dataset.ts": "D17",
-});
+export const LEDGER_VERSION = 2;
 
 /**
  * A basename that names a test by convention, `.k6.js` being a tier of its own. It must stay
@@ -67,9 +55,6 @@ const SHAPES = Object.freeze(
 /** @type {readonly Shape[]} */
 const TEST_SHAPED = Object.freeze(["test", "integration-test", "live-test", "spec", "k6"]);
 
-/** The summary's key for the rows with no shape: the paths a decision excludes. */
-const NO_SHAPE = "none";
-
 /** A machine verdict; `null` on a row stands for a verdict no scan measures yet. */
 const VERDICT = Object.freeze(
   /** @type {const} */ ({
@@ -88,7 +73,6 @@ const UNMEASURED = "unmeasured";
 /** The rule of the verdict table each row was decided by. */
 const BASIS = Object.freeze(
   /** @type {const} */ ({
-    EXCLUDED: "excluded-by-decision",
     DEAD_SUFFIX: "dead-suffix",
     NOT_MEASURED: "importers-not-measured",
     UNREADABLE: "unreadable",
@@ -142,7 +126,7 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  *
  * @typedef {object} FileRow One file of the ledger.
  * @property {string} path Repository-relative.
- * @property {Shape | null} shape `null` only for a path a decision excludes.
+ * @property {Shape} shape
  * @property {string | null} framework The classifier's, `null` when the file was not read.
  * @property {string[] | null} collectors Reach's `collector:source` labels, `[]` for an orphan,
  *   `null` for a file that is not test-shaped.
@@ -151,7 +135,6 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  * @property {BlockRow[]} blocks In source order.
  * @property {Verdict | null} verdict
  * @property {Basis} basis
- * @property {string | null} excluded The id of the decision that excludes the path, else `null`.
  * @property {"machine" | "confirmed"} status `machine` until a human confirms the verdict.
  * @property {string | null} sliceId The demolition slice the file belongs to, `null` until assigned.
  * @property {Subject | null} subject The module the test's stem names, `null` when it names none.
@@ -199,11 +182,10 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  * @typedef {object} MachineVerdict
  * @property {Verdict | null} verdict
  * @property {Basis} basis
- * @property {string | null} excluded
  *
  * @typedef {object} FileCounts
  * @property {number} total
- * @property {Record<string, number>} byShape Every shape, then `none`.
+ * @property {Record<string, number>} byShape Every shape.
  * @property {Record<string, number>} byVerdict Every verdict, then `unmeasured`.
  *
  * @typedef {object} RowCounts
@@ -226,7 +208,6 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  * @property {BlockCounts} blocks
  * @property {DeletedCounts} deleted The sum of every deleted slice's recorded drop, zero while no
  *   slice records one.
- * @property {string[]} excluded `<path>: <decision>` per excluded row, sorted by path.
  *
  * @typedef {object} Drop What deleting a set of rows removes.
  * @property {number} files
@@ -262,16 +243,6 @@ const LEDGER_FILE = fileURLToPath(new URL("../../../ledger.json", import.meta.ur
  * @template T
  * @typedef {{ value: T } | { error: string }} Result
  */
-
-/**
- * @description Reads the decision that excludes a path, whether the tree still holds it or not:
- *   the verdict table reads it for a row, the slice assignment for a path a slice records deleted.
- * @param {string} file Repository-relative.
- * @returns {string | null} The decision's id, or `null` when none excludes the path.
- */
-export function decisionOf(file) {
-  return Object.hasOwn(EXCLUDED_BY_DECISION, file) ? (EXCLUDED_BY_DECISION[file] ?? null) : null;
-}
 
 /**
  * @description Names the shape of a ledger candidate. Test-shaped is `CANONICAL_TEST_SHAPED`; a
@@ -328,7 +299,6 @@ function orderedRow(row) {
     blocks: row.blocks.map(orderedBlock),
     verdict: row.verdict,
     basis: row.basis,
-    excluded: row.excluded,
     status: row.status,
     sliceId: row.sliceId,
     subject:
@@ -376,11 +346,10 @@ export function blockRows(classification) {
  * @description Builds a machine verdict.
  * @param {Verdict | null} verdict
  * @param {Basis} basis
- * @param {string | null} [excluded]
  * @returns {MachineVerdict}
  */
-function decided(verdict, basis, excluded = null) {
-  return { verdict, basis, excluded };
+function decided(verdict, basis) {
+  return { verdict, basis };
 }
 
 /**
@@ -397,16 +366,15 @@ function helperVerdict(importers) {
 
 /**
  * @description Decides a ledger candidate's machine verdict by the first rule of the table that
- *   applies, and names that rule as the basis: (1) a decision excludes the path: ADJUDICATE, never
- *   DELETE; (2) a dead suffix: DELETE; (3) a runner or a helper: DELETE when no live file
- *   references it, KEEP when one does, no verdict when the references were not all read; (4) no
- *   classification, or one that could not read the file: ADJUDICATE; (5) no block: ADJUDICATE;
- *   (6) an exact duplicate of a sibling that stays: DELETE; (7) a TITLE-CONTRADICTION block, or
- *   an opaque helper: ADJUDICATE; (8) every block falls under a criterion: DELETE; (9) a stem
- *   module the test never imports, or (10) a union duplicate: ADJUDICATE, the plan's mixed
- *   signals, which no rule of its DELETE list names; (11) some blocks fall under a criterion:
- *   REWRITE; (12) else KEEP. D55's narrowings of the plan's rules live in the classifier, which
- *   has already applied them to the blocks read here; this table adds none.
+ *   applies, and names that rule as the basis: (1) a dead suffix: DELETE; (2) a runner or a
+ *   helper: DELETE when no live file references it, KEEP when one does, no verdict when the
+ *   references were not all read; (3) no classification, or one that could not read the file:
+ *   ADJUDICATE; (4) no block: ADJUDICATE; (5) an exact duplicate of a sibling that stays: DELETE;
+ *   (6) a TITLE-CONTRADICTION block, or an opaque helper: ADJUDICATE; (7) every block falls under
+ *   a criterion: DELETE; (8) a stem module the test never imports, or (9) a union duplicate:
+ *   ADJUDICATE, the plan's mixed signals, which no rule of its DELETE list names; (10) some blocks
+ *   fall under a criterion: REWRITE; (11) else KEEP. D55's narrowings of the plan's rules live in
+ *   the classifier, which has already applied them to the blocks read here; this table adds none.
  * @param {VerdictInput} input
  * @returns {MachineVerdict}
  */
@@ -417,8 +385,6 @@ export function verdictOf({
   duplicate = null,
   importers = null,
 }) {
-  const decision = decisionOf(file);
-  if (decision !== null) return decided(VERDICT.ADJUDICATE, BASIS.EXCLUDED, decision);
   const shape = shapeOf(file);
   if (shape === "disabled") return decided(VERDICT.DELETE, BASIS.DEAD_SUFFIX);
   if (shape === "runner" || shape === "helper") return helperVerdict(importers);
@@ -463,13 +429,13 @@ export function fileRow({
   importers = null,
 }) {
   const shape = shapeOf(file);
-  if (shape === null && decisionOf(file) === null) {
-    return { error: `${file} is not a ledger candidate: no shape and no decision admits it` };
+  if (shape === null) {
+    return { error: `${file} is not a ledger candidate: no shape admits it` };
   }
   if (classification !== null && classification.path !== file) {
     return { error: `${file} carries the classification of ${classification.path}` };
   }
-  const testShaped = shape !== null && TEST_SHAPED.includes(shape);
+  const testShaped = TEST_SHAPED.includes(shape);
   if (!testShaped && collectors.length > 0) {
     return {
       error: `${file} is not test-shaped, yet reach lists it under ${collectors.join(", ")}`,
@@ -483,7 +449,7 @@ export function fileRow({
   }
   const blocks = classification === null ? [] : blockRows(classification);
   const signals = { subject, duplicate, importers };
-  const { verdict, basis, excluded } = verdictOf({ path: file, classification, ...signals });
+  const { verdict, basis } = verdictOf({ path: file, classification, ...signals });
   return {
     value: orderedRow({
       path: file,
@@ -495,7 +461,6 @@ export function fileRow({
       blocks,
       verdict,
       basis,
-      excluded,
       status: "machine",
       sliceId: null,
       ...signals,
@@ -610,16 +575,12 @@ function deletedBy(slices) {
 export function summarize(rows, slices = {}) {
   const blocks = rows.flatMap((row) => row.blocks);
   const verdicts = [...Object.values(VERDICT), UNMEASURED];
-  const excluded = rows
-    .filter((row) => row.excluded !== null)
-    .sort((left, right) => byCodeUnit(left.path, right.path))
-    .map((row) => `${row.path}: ${row.excluded}`);
   return {
     files: {
       total: rows.length,
       byShape: countBy(
-        [...SHAPES, NO_SHAPE],
-        rows.map((row) => row.shape ?? NO_SHAPE)
+        SHAPES,
+        rows.map((row) => row.shape)
       ),
       byVerdict: countBy(
         verdicts,
@@ -640,7 +601,6 @@ export function summarize(rows, slices = {}) {
       ),
     },
     deleted: deletedBy(slices),
-    excluded,
   };
 }
 

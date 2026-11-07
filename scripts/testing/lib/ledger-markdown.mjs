@@ -57,7 +57,7 @@ function cells(row, machine) {
       : "machine";
   return [
     `\`${row.path}\``,
-    row.shape ?? "none",
+    row.shape,
     `${row.blockCount}`,
     `${decorative}`,
     row.verdict ?? UNMEASURED,
