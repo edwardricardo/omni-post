@@ -130,7 +130,7 @@ RUN apt-get update -qq \
 # updates an ALREADY-pinned digest and does not add one to a bare reference.
 # The measurements, the glibc-direction reading and what the CI smoke proves:
 # docs/deployment/base-images.md
-FROM gcr.io/distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7 AS production
+FROM gcr.io/distroless/nodejs26-debian13@sha256:c952ca0a7057a306eadacf330fe972dffd016a22ec2c5b67cb3abb7d2746a276 AS production
 COPY --from=zlib-patched /out/ /
 WORKDIR /app
 
