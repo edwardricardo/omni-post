@@ -51,3 +51,11 @@ test("reports the load error through catch", async () => {
     assert.equal(error.code, "LOAD_FAILED");
   });
 });
+
+test("reads the first value, only its presence asserted", () => {
+  const first = parse("1");
+  const second = parse("2");
+  assert.ok(first.value);
+  if (!first.ok || !second.ok) return;
+  assert.equal(first.value, 1);
+});

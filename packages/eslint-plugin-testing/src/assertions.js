@@ -22,10 +22,15 @@
  *   `expect.any` or `expect.anything` as the whole expected value; `toBeInTheDocument()` over a
  *   `querySelector` call or a `*ByRole` query with no options. `expectTypeOf` and `assertType`
  *   are type contracts the compiler holds, not runtime presence checks: BEHAVIOURAL.
- *   One deliberate narrowing: a value named as a boolean predicate asserts a state, not a presence,
- *   and its truthiness is BEHAVIOURAL: a call of `includes`, `startsWith`, `has`, `some`, `test`
- *   and the like, and an identifier, member or call named `is…`, `has…`, `can…`, `should…`, ...
- *   (`comment.isDeleted()`, `notification.isRead`). `result.ok` stays EXISTENCE.
+ *   Two deliberate narrowings. A value named as a boolean predicate asserts a state, not a
+ *   presence, and its truthiness is BEHAVIOURAL: a call of `includes`, `startsWith`, `has`, `some`,
+ *   `test` and the like, and an identifier, member or call named `is…`, `has…`, `can…`, `should…`,
+ *   ... (`comment.isDeleted()`, `notification.isRead`). And a verdict pins a state its subject
+ *   computes: the truthiness of a member named `ok` or `success`, read by a dot or by a string
+ *   literal (`result.ok`, `body["success"]`), is BEHAVIOURAL, as `expect(result.ok).toBe(true)`
+ *   already is. A verdict read through a mock's own record (`save.mock.results[0].value.ok`)
+ *   stays EXISTENCE, because the test wrote that value itself; so do `toBeDefined` over a verdict
+ *   and a bare identifier named `ok`.
  *
  *   `readFact` reads what an assertion establishes when it passes: `result.ok` truthy after
  *   `expect(result.ok).toBe(true)`, `name` a string after `expect(name).toBeTypeOf("string")` or
@@ -88,6 +93,7 @@ const ASSERT_INEQUALITY = words("notEqual notStrictEqual notDeepEqual notDeepStr
 const ASSERT_THROWS = new Set(["throws", "rejects", "fail"]);
 const PREDICATE_METHODS = words("includes startsWith endsWith has some every test match equals");
 const PREDICATE_NAME = /^(?:is|has|can|should|was|were|did|does|contains|matches)[A-Z_]/;
+const VERDICT_NAMES = new Set(["ok", "success"]);
 const SIZE_NAME = /(?:length|size|count)$/i;
 const ROLE_QUERY = /^(?:get|query|find)(?:All)?ByRole$/;
 const SELECTOR_QUERY = /^(?:querySelector|querySelectorAll|getElementsByTagName|closest)$/;
@@ -221,9 +227,47 @@ function isPresenceTest(value) {
 }
 
 /**
+ * @param {ts.Expression} value
+ * @returns {boolean} Whether a member chain reads through a mock's own record: a `.mock` member
+ *   anywhere under the value (`save.mock.results[0].value`), whose values the test wrote itself.
+ */
+function readsMockRecord(value) {
+  const node = unwrap(value);
+  if (ts.isPropertyAccessExpression(node)) {
+    return node.name.text === "mock" || readsMockRecord(node.expression);
+  }
+  if (ts.isElementAccessExpression(node) || ts.isCallExpression(node)) {
+    return readsMockRecord(node.expression);
+  }
+  return false;
+}
+
+/**
+ * @param {ts.Expression} node An expression already unwrapped.
+ * @returns {boolean} Whether the value is a verdict: a member named `ok` or `success`, by a dot or
+ *   by a string literal (`result.ok`, `body["success"]`), not read through a mock's own record.
+ */
+function isVerdict(node) {
+  /** @type {string | null} */
+  let name = null;
+  /** @type {ts.Expression | null} */
+  let target = null;
+  if (ts.isPropertyAccessExpression(node)) {
+    name = node.name.text;
+    target = node.expression;
+  } else if (ts.isElementAccessExpression(node) && ts.isStringLiteral(node.argumentExpression)) {
+    name = node.argumentExpression.text;
+    target = node.expression;
+  }
+  if (name === null || target === null || !VERDICT_NAMES.has(name)) return false;
+  return !readsMockRecord(target);
+}
+
+/**
  * @param {ts.Expression | undefined} value
  * @returns {boolean} Whether truthiness is all an assertion over the value can say: an
- *   identifier, a member, a `new`, or a call, unless it is named as a boolean predicate.
+ *   identifier, a member, a `new`, or a call, unless it is named as a boolean predicate or it is a
+ *   verdict, whose truthiness pins a state the subject computes.
  */
 function isPresenceSubject(value) {
   if (value === undefined) return false;
@@ -237,6 +281,7 @@ function isPresenceSubject(value) {
   const name = nameOf(node) ?? "";
   return (
     presence &&
+    !isVerdict(node) &&
     !PREDICATE_NAME.test(name) &&
     !(ts.isCallExpression(node) && PREDICATE_METHODS.has(name))
   );
