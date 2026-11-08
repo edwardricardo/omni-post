@@ -129,7 +129,12 @@ function aliasTargets(specifier, aliases) {
       specifier.endsWith(suffix);
     if (!fits) return [];
     const captured = specifier.slice(prefix.length, specifier.length - suffix.length);
-    return targets.map((target) => target.replace("*", captured));
+    // TypeScript substitutes the captured part for a target's one `*` and refuses a target
+    // holding more than one (TS5062), so the substitution splits the target at its first `*`.
+    return targets.map((target) => {
+      const at = target.indexOf("*");
+      return at === -1 ? target : target.slice(0, at) + captured + target.slice(at + 1);
+    });
   });
 }
 
