@@ -246,6 +246,10 @@ Method for rows 2.16.2 to 2.16.9, slices in sequence, each from `main` (L43): th
 - [ ] 2.16.10 WU-2.10m · slice after 2.10h — the full M2 run: paste M2 and flip the rows PARTIAL on it, 2.5.3 with them.
 - [ ] 2.16.11 Tracker: M6 (REWRITE rows confirmed) · CODE ~4.
 
+### 2.17 · `refound/2-mutation-diff` (L44) — differential mutation
+
+- [x] 2.17.1 WU-2.3b · decorative-test-demolition › Weak-but-behavioural tests are rewritten, never deleted, and the rewrite is probe-proven · branch `workstream/tr-2-3b-mutation-diff` — the differential mutation tool, `pnpm mutation-diff`: each case's mutation runs against the base test files and the head ones, a rewrite counts only when the base stays green and the head goes red, a deletion only when a kept test goes red, and the record carries each block's `bodyHash` on both sides. — **DONE 2026-11-08** (`workstream/tr-2-3b-mutation-diff`, `PR d23b`): the evidence is in the tracker's §Log entry of that date.
+
 ---
 
 ## Phase 3 — Verdict (design §7.5)
