@@ -526,7 +526,7 @@ export function hashes(testText, subject) {
  * @param {unknown} value
  * @returns {unknown}
  */
-function sortedKeys(value) {
+export function sortedKeys(value) {
   if (Array.isArray(value)) return value.map(sortedKeys);
   if (typeof value !== "object" || value === null) return value;
   return Object.fromEntries(
