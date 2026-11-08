@@ -28,11 +28,11 @@ name: Architectural Fitness Functions
 #
 # Design: one named step per check with `if: always()` so a violation in one
 # step does NOT mask later violations — every PR sees every check. The greps, and
-# the node scripts of #37, #44 and #53, which read only tracked files, run in the
+# the node scripts of #37, #44, #53 and #54, which read only tracked files, run in the
 # `fitness` job, which installs nothing; a check that needs the installed
 # tree runs in a job that installs it: #45 to #48, #50 and #51 in `dependency-consistency`,
-# #30, #36 and #52 in `test-contracts`. Two exceptions to `if: always()` alone: #37
-# and #47 gate the delta against the PR base, which only exists on pull_request
+# #30, #36 and #52 in `test-contracts`. Three exceptions to `if: always()` alone: #37,
+# #47 and #54 gate the delta against the PR base, which only exists on pull_request
 # events — their `if` adds that event condition and the step is skipped
 # (visibly, not silently green) on push runs.
 # Annotations are aggregated to one `::error` per check (bypasses the
@@ -63,7 +63,7 @@ jobs:
         uses: actions/checkout@v7
 
       # #41 runs a node heredoc, expanding its scope with node's fs.glob
-      # (node >= 22; stable on 24), and #37, #44 and #53 run node scripts. The runner's default
+      # (node >= 22; stable on 24), and #37, #44, #53 and #54 run node scripts. The runner's default
       # node is not version-pinned, so pin it here to the version .nvmrc names. This job
       # sets up Node directly rather than through the setup-node-pnpm-cache action, because
       # that action installs pnpm and the dependency tree, and the fitness job runs zero
@@ -1652,6 +1652,42 @@ jobs:
           set -euo pipefail
           if ! node scripts/testing/artifact-language-gate.mjs; then
             echo "::error title=Fitness #53 violation::A tracked file's Spanish lines or personal-name mentions differ from scripts/testing/artifact-language-baseline.json (new debt, or a stale entry to lower in the same change), an exemption names no tracked file, or the gate could not read one of its inputs. The artifact-language-gate lines above name each file, its counter and its lines: write the text in English, name the role (Product Owner or Maintainer), and when a count falls rewrite the baseline with node scripts/testing/artifact-language-gate.mjs --write."
+            exit 1
+          fi
+
+      - name: "#54 Every deleted or rewritten test block has a committed mutation-diff record (pull_request only)"
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        env:
+          FITNESS_BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Mirrors CLAUDE.md #54. scripts/testing/record-coverage-gate.mjs, pinned by
+          # apps/api/tests/unit/scripts/recordCoverageGate.test.ts, binds every test block the pull
+          # request deletes or rewrites, read from the base and head ledger.json, and refuses one with
+          # no committed mutation-diff record that covers it. It imports Node's own modules only, so
+          # it runs here, in the job that installs nothing. pull_request only, like #37: the subject is
+          # the PR's delta against its base. The checkout is shallow, so the base is fetched in up to
+          # three bounded attempts, and the clone is deepened, in up to three more, until the merge
+          # base of the base and HEAD resolves; the gate itself fails closed when it does not.
+          set -uo pipefail
+          BASE_REF="${FITNESS_BASE_REF:-origin/main}"
+          if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+            for attempt in 1 2 3; do
+              git fetch --quiet --depth=1 origin "$BASE_REF" && break
+              [ "$attempt" -eq 3 ] || sleep $((attempt * 3))
+            done
+          fi
+          if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null; then
+            echo "fitness #54: base ref $BASE_REF did not resolve after 3 fetch attempts — either the base commit is genuinely gone (force-push, deleted branch) or the fetch hit a transient network failure. Failing closed rather than comparing against nothing; re-run the job if the network was the cause."
+            exit 1
+          fi
+          for attempt in 1 2 3; do
+            git merge-base "$BASE_REF" HEAD >/dev/null 2>&1 && break
+            [ "$(git rev-parse --is-shallow-repository)" = "true" ] || break
+            git fetch --quiet --unshallow origin && continue
+            [ "$attempt" -eq 3 ] || sleep $((attempt * 3))
+          done
+          if ! node scripts/testing/record-coverage-gate.mjs --summary "$GITHUB_STEP_SUMMARY"; then
+            echo "::error title=Fitness #54 violation::A test block this pull request deletes or rewrites has no committed mutation-diff record that covers it (no-record, stale-record, wrong-kind or failing-verdict), a record under docs/development/testing-refoundation/mutations/ is not the tool's shape, or the gate could not read its base, a ledger or git. The record-coverage-gate lines above name each block: run pnpm mutation-diff for it and commit its case file and record, or re-run it when the record is stale."
             exit 1
           fi
 

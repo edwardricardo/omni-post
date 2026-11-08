@@ -336,7 +336,7 @@ The hook searches the prior assistant message for a line that starts with `canon
 
 ## Automated Compliance Checks (CI Fitness Functions)
 
-**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37 and #47 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the Maintainer's decision. **#53 is held per file**: every tracked file's Spanish lines and name mentions equal its entry in `scripts/testing/artifact-language-baseline.json` in both directions, so each entry may fall and must never rise, and the file is deleted once every count is zero. Every baseline may fall and must never rise.) There are **53 checks, numbered #1-#53**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
+**Wired to CI.** Every check below runs automatically in `.github/workflows/fitness.yml` on every `push` and `pull_request` (#37, #47 and #54 run on `pull_request` only: the subject of each is the PR's delta against its base, which a push run does not have — their steps skip cleanly there). Threshold: **hard-zero** for every check — any new occurrence fails the workflow with an `::error` annotation. (#1 and #21 ran as ratchets during the prisma→DI remediation; that workstream is complete and both are now hard-zero like the rest. **#30 ran as an interim ratchet until 2026-10-14**, at a baseline of 3 quarantined test suites; the reach engine now holds it at a hard zero, and its quarantine is a list of named files, each with a reason and an owner, rather than a count, and may only shrink against the base commit's. **#38 is hard-zero over the swept tree and carries ONE ratcheted sub-count** for `packages/adapters/db-prisma` — a live-wired package whose sweep needs its own tests (SMELL-87). **#45 and #46 are hard-zero on stale pages and unclassified rows and carry one ratcheted `pending` count per inventory**, the `pendingBaseline` of its classification file — each file under `docs/legal/classification/` for the legal inventories of #45, `docs/support/classification/non-features.json` for the support inventory of #46: rows that wait for a human classification, not code to fix. **#50 is hard-zero on a stale record and stale entries and carries one ratcheted `pending` count**, the `pendingBaseline` of `scripts/testing/dependency-decisions.json`: the direct dependencies under the floor of real sites that wait for the Maintainer's decision. **#53 is held per file**: every tracked file's Spanish lines and name mentions equal its entry in `scripts/testing/artifact-language-baseline.json` in both directions, so each entry may fall and must never rise, and the file is deleted once every count is zero. Every baseline may fall and must never rise.) There are **54 checks, numbered #1-#54**. Run them locally before commit for fast feedback (the CI is the safety net, not the only enforcement).
 
 A check whose scope path does not exist is **worse than no check**: `grep -r` on an absent directory exits 2, prints nothing, and `| wc -l` renders that as `0` — a green annotation asserting an invariant nobody measured. #2, #3 and #4 spent the whole post-relocation period in exactly that state. The CI mirror therefore asserts every scope directory exists **before** running its grep, and fails loudly when one is missing rather than passing quietly.
 
@@ -2370,6 +2370,57 @@ node scripts/testing/artifact-language-gate.mjs   # expect exit 0 and one line:
 #   artifact-language-gate: <T> tracked files; <S> Spanish lines and <M> name mentions in <F> files equal scripts/testing/artifact-language-baseline.json
 node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baseline and prints one line:
 #   artifact-language-gate: wrote scripts/testing/artifact-language-baseline.json: <F> files, <S> Spanish lines, <M> name mentions
+
+# 54. Every test block a pull request deletes or rewrites has a committed mutation-diff record that covers it.
+# Threat: a deleted or rewritten test block reads as an improvement in review while it can take with
+# it the only check of a behaviour. The test ledger names each block by id and bodyHash, and the
+# differential mutation tool (WU-2.3b, `pnpm mutation-diff`) measures what a deletion or a rewrite
+# costs, but nothing required its record: measured at main 05d4b83d (2026-11-08), 18 of the 58
+# first-parent merges to main since ledger.json was committed (3ef9bf39, 2026-10-28) removed or
+# rewrote 695 blocks, 687 removed and 8 rewritten, with no measurement tied to any of them.
+# WHAT IT RUNS: `pnpm check:record-coverage`, which is `node scripts/testing/record-coverage-gate.mjs`,
+# with its pure core in scripts/testing/lib/record-coverage-core.mjs, pinned by
+# apps/api/tests/unit/scripts/recordCoverageGate.test.ts. It runs no mutation. The base is
+# FITNESS_BASE_REF, origin/main when unset, resolved to its merge base with HEAD; the base ledger is
+# `git show <merge base>:ledger.json`, the head is the working tree (CI checks out HEAD). It binds each
+# block id the head lost (a deletion) and each id whose bodyHash changed (a rewrite), and gives each
+# one class, in this order: moved (a deletion whose base bodyHash the head holds under an id the base did not hold); node
+# (a node:test row, counted until WU-2.3c brings the tool's node:test adapter); behaviour change (its
+# test imports a changed source directly, by a relative specifier or a bare specifier
+# tsconfig.base.json's `paths` maps, read at the base for a deletion and at the head for a rewrite; a
+# string literal holding the source's path is not an import); covered (a case of a committed record under
+# docs/development/testing-refoundation/mutations/*.record.json lists the id with both bodyHash values
+# equal to the ledgers', `null` at the head for a deletion, its kind, and SAFE for a deletion or GAIN
+# for a rewrite; a BEHAVIOUR-CHANGED case, the tool's measured verdict for a test whose base form
+# fails on the new code while the head is green, is listed as a behaviour change); or refused.
+# WHERE IT RUNS, and why: in the `fitness` job of fitness.yml, which installs nothing, after #53: the
+# gate and its core import Node's own modules only. On pull_request only, like #37 and #47, because its
+# subject is the pull request's delta against its base; the step fetches the base in three bounded
+# attempts and deepens the shallow checkout until the merge base resolves. The battery runs the same
+# command as its step `record-coverage`, against origin/main.
+# WHAT FAILS, exit 1, each printed as `record-coverage-gate: refused: <id> (<kind>): <reason>`:
+# `no-record`; `stale-record` (a bodyHash of the record differs from the ledgers: re-run
+# mutation-diff); `wrong-kind`; `failing-verdict: <verdict>` (NO-GAIN, BROKEN, UNDECIDED, LOST,
+# VACUOUS, or a verdict of the other kind); and a record under mutations/ that is not the tool's
+# shape, named with its file. Moved, node and behaviour-change blocks are listed, never refused.
+# FAIL-CLOSED, exit 3: a base that does not resolve or shares no merge base with HEAD; ledger.json
+# unreadable, not JSON or with no `files` array on either side; a tsconfig.base.json that is not JSON;
+# git failing. No mutations/ directory with a refused block is exit 1, not 3. A usage error exits 2:
+# the command takes no argument but `--summary <file>`, which appends the lines as a Markdown table,
+# the job summary's way.
+# RESIDUAL LIMITS, stated rather than implied: (1) it reads the committed ledgers, and that they
+# match the tree is #52's part; (2) it proves a matching record exists, never that its mutation was
+# realistic or the record genuine, which the verifier's re-run of mutation-diff proves; (3) a rename
+# with a body edit reads as a deletion plus an addition, and a deletion whose body the head holds
+# under a new id, a new copy included, reads as moved; (4) node:test blocks are exempt until WU-2.3c; (5) the
+# import exclusion reads direct imports only, and a test that reaches a changed source through another
+# module, or loads it by a path it builds (`path.join(ROOT, "…")`, the script suites' form), needs the
+# tool's measured BEHAVIOUR-CHANGED verdict in a committed record; (6) a file the ledger excludes is
+# invisible; (7) a block's bodyHash covers its callback body only, so a row deleted from an `it.each`
+# table, or an expected value weakened in one, changes no id and no hash and binds nothing (Master
+# Plan row RECORD-COVERAGE-EACH-TABLES).
+pnpm check:record-coverage   # expect exit 0, 0 refused, and first one line:
+#   record-coverage-gate: <n> bound blocks against <base> (<sha>): <c> covered, <m> moved, <k> node, <b> behaviour change, <r> refused
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One
@@ -2398,7 +2449,7 @@ A generic "RLS not covered" would send the reader toward the wrong fix.
 **Extending the suite.** Adding a new fitness check requires four coordinated steps, in order:
 
 1. Add the regex here with a one-line description of the threat being prevented and a comment justifying any exclusions.
-2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #36, #37, #44 to #48, #50 to #53) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
+2. Add the corresponding step in `.github/workflows/fitness.yml` mirroring the regex exactly (paste, don't paraphrase — drift between the doc and the workflow is the failure mode). A script-backed check (#30, #36, #37, #44 to #48, #50 to #54) is the same rule one level up: the workflow step and its block here call the same command, the script is the single source of the rule, and its own self-tests pin it, so neither file restates the logic.
 3. Prove the red path — mandatory for every NEW or MODIFIED check or CI gate, fitness or otherwise: plant the violation, run the gate, and observe a REAL failure (non-zero exit / `core.setFailed`; an `::error` annotation alone leaves the job green and proves nothing), then restore the tree byte-exact (verify with `cmp` or a checksum) and re-confirm the count is 0. A gate whose red path was never demonstrated does not merge.
 4. Verify `count = 0` on `main` before merging the wire. If the count is non-zero on existing code, document the baseline + ramp-down plan as a Master Plan row rather than locking in non-zero noise.
 

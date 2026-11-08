@@ -641,6 +641,109 @@ describe("decide", () => {
   });
 });
 
+describe("decide: a behaviour change measured on the clean runs", () => {
+  const deletionResolutions = {
+    [`${T}::target`]: { base: found(["s"], "target"), head: MISSING },
+  };
+  const headWithoutTarget = (): Run =>
+    run({ [T]: [["s", "kept", PASS]], [O]: [["o", "other", PASS]] });
+
+  it("gives a rewrite BEHAVIOUR-CHANGED when only its listed block is red at the base and the head is green", () => {
+    const decided = core.decide(
+      input({
+        runs: {
+          base: { clean: states(FAIL), mutated: greenRun() },
+          head: { clean: greenRun(), mutated: states(FAIL) },
+        },
+      })
+    );
+    expect(decided).toEqual({
+      verdict: "BEHAVIOUR-CHANGED",
+      reason: null,
+      red: { base: [`${T}::s > target`], head: [] },
+    });
+  });
+
+  it("gives a deletion BEHAVIOUR-CHANGED when only its deleted block is red at the base and the head is green", () => {
+    const decided = core.decide(
+      input({
+        kind: "deletion",
+        resolutions: deletionResolutions,
+        runs: {
+          base: { clean: states(FAIL), mutated: states(FAIL) },
+          head: { clean: headWithoutTarget(), mutated: headWithoutTarget() },
+        },
+      })
+    );
+    expect(decided).toEqual({
+      verdict: "BEHAVIOUR-CHANGED",
+      reason: null,
+      red: { base: [`${T}::s > target`], head: [] },
+    });
+  });
+
+  it("keeps UNDECIDED base-red-clean when a scope test besides the listed block is red at the base", () => {
+    const decided = core.decide(
+      input({
+        runs: {
+          base: { clean: states(FAIL, FAIL), mutated: greenRun() },
+          head: { clean: greenRun(), mutated: states(FAIL) },
+        },
+      })
+    );
+    expect(decided).toEqual({
+      verdict: "UNDECIDED",
+      reason: "base-red-clean",
+      red: { base: [`${T}::s > target`, `${O}::o > other`], head: [] },
+    });
+  });
+
+  it("keeps UNDECIDED base-red-clean when the head clean run is red too", () => {
+    const decided = core.decide(
+      input({
+        runs: {
+          base: { clean: states(FAIL), mutated: greenRun() },
+          head: { clean: states(PASS, FAIL), mutated: states(FAIL) },
+        },
+      })
+    );
+    expect(decided).toEqual({
+      verdict: "UNDECIDED",
+      reason: "base-red-clean",
+      red: { base: [`${T}::s > target`], head: [] },
+    });
+  });
+
+  it("keeps UNDECIDED base-red-clean when a base file failed with none of its tests failed", () => {
+    const decided = core.decide(
+      input({
+        runs: {
+          base: {
+            clean: run(
+              {
+                [T]: [
+                  ["s", "kept", PASS],
+                  ["s", "target", FAIL],
+                ],
+                [O]: [["o", "other", PASS]],
+              },
+              null,
+              { [O]: FAIL }
+            ),
+            mutated: greenRun(),
+          },
+          head: { clean: greenRun(), mutated: states(FAIL) },
+        },
+      })
+    );
+    expect(decided).toEqual({
+      verdict: "UNDECIDED",
+      reason: "base-red-clean",
+      red: { base: [`${T}::s > target`, `${O}::(the file failed)`], head: [] },
+    });
+  });
+});
+
 describe("the record and the exit", () => {
   const decided = (verdict: string, reason: string | null = null): Decided => ({
     verdict,
@@ -734,6 +837,9 @@ describe("the record and the exit", () => {
     [["SAFE", "LOST"], "safe", 1],
     [["SAFE", "VACUOUS"], "safe", 1],
     [["SAFE", "NO-GAIN"], "safe", 0],
+    [["GAIN", "SAFE", "BEHAVIOUR-CHANGED"], null, 0],
+    [["GAIN", "BEHAVIOUR-CHANGED"], "gain", 1],
+    [["SAFE", "BEHAVIOUR-CHANGED"], "safe", 1],
   ] as const)("exits %#: %j under --require %s", (verdicts, requirement, code) => {
     expect(
       core.exitOf(

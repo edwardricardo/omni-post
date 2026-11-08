@@ -200,14 +200,22 @@ carry the marker; a slice that forgets it MUST go red.
 A file that constrains behaviour weakly (a promised failure path never activated, a happy path
 asserting only success, a masking assertion by inequality) MUST be REWRITTEN rather than deleted.
 A file whose subject is misnamed MUST be renamed rather than deleted, with the untested surface it
-was pretending to cover recorded as a declared gap. Every rewrite's acceptance MUST be a hard
-probe that comes back RED.
+was pretending to cover recorded as a declared gap. Every rewrite's acceptance MUST be a differential GAIN
+in the committed mutation-diff record, and every deletion's acceptance a SAFE; the hard probe's
+RED stays as the orchestrator's record.
 
 #### Scenario: Each rewrite comes back RED under the probe [runtime]
 
 - **GIVEN** the rewritten files
 - **WHEN** the probe guts each subject
 - **THEN** every rewritten test fails, and the gap the rename exposed is listed with an owner
+
+#### Scenario: Each rewrite is a GAIN and each deletion a SAFE in the committed record [ci]
+
+- **GIVEN** a pull request that rewrites or deletes test blocks
+- **WHEN** the record-coverage gate, fitness #54, reads its ledgers and its committed records
+- **THEN** every rewritten block has a GAIN case and every deleted block a SAFE case whose hashes
+  equal the ledgers, or the gate refuses it
 
 ---
 

@@ -12,7 +12,8 @@
  *   and the record are `lib/mutation-diff-core.mjs`'s. A rewrite counts (GAIN) only when no scope
  *   test is red at the base under the mutation and every listed block is red at the head; a
  *   deletion counts (SAFE) only when the deleted block is red at the base and a kept test is red at
- *   the head.
+ *   the head. Either kind is BEHAVIOUR-CHANGED when the base clean run is red on its listed blocks
+ *   alone and the head clean run is green: the old test fails on the new code, measured.
  *
  *   ANY ROLE MAY RUN IT, the verifier included: it does no git write, creates no worktree and
  *   installs nothing. Git is only read (`rev-parse`, `ls-tree`, `show`), so git stays with the
@@ -29,8 +30,9 @@
  *   resolved relative to the file, name the subject. A test that reaches the subject through
  *   another module, or through an alias, is outside the default scope unless the case names it.
  *
- *   EXIT CODES: 0 every case is decided; 1 any BROKEN or UNDECIDED, with `--require gain` any
- *   NO-GAIN, with `--require safe` any LOST or VACUOUS; 2 a usage error, or a case file refused (an
+ *   EXIT CODES: 0 every case is decided, BEHAVIOUR-CHANGED included; 1 any BROKEN or UNDECIDED,
+ *   with `--require gain` any NO-GAIN or BEHAVIOUR-CHANGED, with `--require safe` any LOST, VACUOUS
+ *   or BEHAVIOUR-CHANGED; 2 a usage error, or a case file refused (an
  *   unknown key, a missing field, a duplicate id, a block outside its `test`, a test the ledger runs
  *   with no vitest config in the working tree's ledger nor in its base's, an `--only` that names no case); 3 the environment: the case file or
  *   the ledger cannot be read, git fails, the scratch directory cannot be made, the runner does not
@@ -39,7 +41,8 @@
  *   RESIDUAL LIMITS, stated rather than implied: (1) one search string, replaced at its first
  *   occurrence; (2) the realistic mutation stays a human choice, and the tool proves only what that
  *   one mutation shows; (3) whole files run, so a test's neighbours run with it; (4) vitest only,
- *   node:test is a later unit; (5) a flaky clean run is UNDECIDED, never a verdict; (6) a test file
+ *   node:test is a later unit; (5) a flaky clean run is UNDECIDED, never a verdict, unless its red
+ *   falls on the listed blocks alone at the base, which reads as BEHAVIOUR-CHANGED; (6) a test file
  *   the working tree lacks (a test the head deleted whole, say) runs from a copy under the scratch
  *   directory, its imports and mocks resolved from its own path, so `import.meta.url`, `__dirname`
  *   and a path it reads relative to itself see the copy, and a glob character in its path is
