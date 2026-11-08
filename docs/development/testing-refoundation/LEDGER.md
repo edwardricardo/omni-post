@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1184  |
+| Files                   | 1185  |
 | DELETE                  | 19    |
 | REWRITE                 | 106   |
-| KEEP                    | 967   |
+| KEEP                    | 968   |
 | ADJUDICATE              | 92    |
 | unmeasured              | 0     |
-| Machine rows            | 1174  |
+| Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14634 |
+| Blocks                  | 14659 |
 | Blocks with a criterion | 408   |
 
 ## Slice 2.6a
@@ -945,12 +945,13 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/legalSourceScan.test.ts`                                                 | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/listedTestFiles.test.ts`                                                 | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/maturityWatchlist.test.ts`                                               | test             | 30     | 0          | ADJUDICATE | machine                     | opaque               |
-| `apps/api/tests/unit/scripts/mutationDiff.test.ts`                                                    | test             | 41     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/mutationDiff.test.ts`                                                    | test             | 46     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/nodeSummaryReporter.test.ts`                                             | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/oauthScopesInventory.test.ts`                                            | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/overrideBandsGate.test.ts`                                               | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/storyPerComponentGate.test.ts`                                           | test             | 13     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/subprocessorsInventory.test.ts`                                          | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
