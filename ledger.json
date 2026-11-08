@@ -15,9 +15,9 @@
       },
       "byVerdict": {
         "DELETE": 19,
-        "REWRITE": 106,
-        "KEEP": 968,
-        "ADJUDICATE": 92,
+        "REWRITE": 59,
+        "KEEP": 1016,
+        "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
@@ -28,16 +28,16 @@
     },
     "blocks": {
       "total": 14659,
-      "decorative": 408,
+      "decorative": 305,
       "byClass": {
         "EMPTY": 6,
         "TAUTOLOGY-ONLY": 0,
-        "EXISTENCE-ONLY": 149,
+        "EXISTENCE-ONLY": 46,
         "CONDITIONAL-ONLY": 148,
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
-        "TITLE-CONTRADICTION": 12,
-        "BEHAVIOURAL": 14239
+        "TITLE-CONTRADICTION": 11,
+        "BEHAVIOURAL": 14343
       }
     },
     "deleted": {
@@ -2833,15 +2833,15 @@
         {
           "id": "apps/api/tests/accountLifecycle.integration.test.ts::should retrieve account sessions",
           "line": 324,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "6042892ddbb07353376bb338632284c72dbb77b94d8e913ce93c685412d4c128"
         },
         {
           "id": "apps/api/tests/accountLifecycle.integration.test.ts::should revoke all sessions for account",
           "line": 334,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "108471f667d5a819eca64e431cce855eec517dd7cb85fd5118be00a421a70828"
         },
         {
@@ -2852,8 +2852,8 @@
           "bodyHash": "5670e3e86a0a24c2c149448060e2caca2ec729b64ea5bd8278054bbe54913f15"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.5",
       "subject": null,
@@ -6064,8 +6064,8 @@
         {
           "id": "apps/api/tests/integration/post-trio-tenant-isolation.integration.test.ts::succeeds inside withSystemContext and derives the tenant from the recurrence's owner",
           "line": 540,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "9d0ce3ec9c3f51cad37e53f31147e3502cfd4d6fc9205d80997be28b26fc7e50"
         },
         {
@@ -6153,8 +6153,8 @@
           "bodyHash": "d08a7969469f8a8664594f041e71ee3ce7dfbadf2951385d99f91c36c86a865f"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -6193,13 +6193,13 @@
         {
           "id": "apps/api/tests/integration/postDeleteOwnership.integration.test.ts::lets the explicit system caller delete the post it owns (gate skipped)",
           "line": 191,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "e661a6aa6f1d649b5ceb6845be79a2f3db712df6b091ebd328b9bab3c9685773"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -6786,8 +6786,8 @@
         {
           "id": "apps/api/tests/integration/recurringPostTenantIsolation.integration.test.ts::ProcessRecurrenceUseCase SUCCEEDS inside withSystemContext('recurrence-sweep')",
           "line": 409,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "5f8a86450cf7188308c508d29622fb9f3c9d1a68c9df5af48e32fe2f5e90ee40"
         },
         {
@@ -6812,8 +6812,8 @@
           "bodyHash": "66bd9b566c19a99395d2ccfa9211f3a0cc12aa9a43e9f79f6e736c098a088638"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -7861,8 +7861,8 @@
         {
           "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles emails with special characters",
           "line": 382,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "471b0bbfaf3a73c4b1491fe6e5e718842fd9e8a73e8a3555dd441cb9afa46414"
         },
         {
@@ -7985,8 +7985,8 @@
           "bodyHash": "6600c80d262faf41b23a2ce4193872a61b26597bc36c3a9a79a857051a6774f4"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.5",
       "subject": null,
@@ -9778,8 +9778,8 @@
         {
           "id": "apps/api/tests/integration/tenantGucTransactionBinding.integration.test.ts::persists a tracked link through the unit of work instead of failing the tenant policy",
           "line": 448,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "85c62b5c168610b3be65d8e6ed3e7222b03e577f62e876ad8139b1bb7b3adb5a"
         },
         {
@@ -9790,8 +9790,8 @@
           "bodyHash": "c38ef70fdbd20ad5105be8507439eb907ca7a222f131329c32c939ddb0781107"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -10133,8 +10133,8 @@
         {
           "id": "apps/api/tests/mfa.integration.test.ts::should complete login with backup code",
           "line": 433,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "70c86befd2b7191f45cb47980205d64eed18f854d8d31804fb64484bc7ec7d9f"
         },
         {
@@ -10173,8 +10173,8 @@
           "bodyHash": "c7e8c4cc29aecd0697abb11ebdd4c186c11165ec566be62dc64a2117808c0ed9"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.5",
       "subject": null,
@@ -10901,13 +10901,13 @@
         {
           "id": "apps/api/tests/publish.flow.integration.test.ts::queue round-trip: enqueue and verify queue health",
           "line": 334,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "35848446253a999f8b2df5b5741c60681f4c40d7b42d7a70a9b43056e6db8942"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -11584,8 +11584,8 @@
         {
           "id": "apps/api/tests/threading.canonical.integration.test.ts::should account for thread indicators in character limits",
           "line": 184,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "c5fc166cf61569964a1ef15ec77f6886d2d8f2b0008e664c040718f1f5d53804"
         },
         {
@@ -11596,8 +11596,8 @@
           "bodyHash": "367c717fd121a77525d472ac3e8388473d99e4f76e2005772d245662966a7d50"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.5",
       "subject": null,
@@ -13458,8 +13458,8 @@
         {
           "id": "apps/api/tests/unit/ContentVersionManager.compare.test.ts::should compare adaptations across platforms",
           "line": 171,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "f2ddfcde8433ee3dce71e2f2eec8bdecf6654f28da580a98358a8a89507cafdd"
         },
         {
@@ -13519,8 +13519,8 @@
           "bodyHash": "2e178ea1cc386e41828f4abb8a2b53c16e8d3f737052fe8df83e74c34ba7531a"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": {
@@ -13696,15 +13696,15 @@
         {
           "id": "apps/api/tests/unit/ContentVersionManager.merge.test.ts::should detect conflicts automatically",
           "line": 215,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "2256f49de0cb91de3ea7a25e1c3b1ff38d0edf34c99e59bf83c6619764338ee3"
         },
         {
           "id": "apps/api/tests/unit/ContentVersionManager.merge.test.ts::should set status to pending when no conflicts",
           "line": 234,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "df642299b408bb93a4480cc20eb34a3a11f4ba1aebeb35a6a40033d7dc8ad321"
         },
         {
@@ -13738,13 +13738,13 @@
         {
           "id": "apps/api/tests/unit/ContentVersionManager.merge.test.ts::should emit VERSION_RESTORED event on version restoration",
           "line": 380,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "4b7fc8f451325817abb0d078faae40eff1cd70795edc2de7ac42219b39c1d022"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": {
@@ -15416,8 +15416,8 @@
         {
           "id": "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::forwards an applied promotion as a successful result carrying applied:true",
           "line": 109,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "07abd4ec79a0f618bc259518918f0236dff0bf6cb24c665ee6b9cc125235e636"
         },
         {
@@ -15456,8 +15456,8 @@
           "bodyHash": "70b7b59d84bb43f4c83469609c11a339a81eecbcb9324d055473c1428b3233e7"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.2a",
       "subject": {
@@ -17319,8 +17319,8 @@
         {
           "id": "apps/api/tests/unit/activityFeedService.test.ts::filters by resource type",
           "line": 255,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "790c76d19216998dd74b20ec7e125551b83443f8b2eb97eea09de865b6485151"
         },
         {
@@ -17345,8 +17345,8 @@
           "bodyHash": "b588089071d2d60fdd862382ab30b73ae682a4c63ec0a964991817543cf4202f"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.2a",
       "subject": {
@@ -21179,8 +21179,8 @@
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should clear cache via orchestrator",
           "line": 555,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "e35fc65f4cb654798d40a200725ede2495cc9946db4e64f8b2bde0f200072779"
         }
       ],
@@ -23289,15 +23289,15 @@
         {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should filter analytics by project",
           "line": 111,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "e2a9d704f6d9a14a4519f2e7bf583a4d8cd2dddee7d16ad2cab963e21535bc6d"
         },
         {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should support custom date range",
           "line": 125,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "c26f39e4acca1b09403e3af962fa2145efd2cbe7e6379c445960c502fdf0f802"
         },
         {
@@ -23310,15 +23310,15 @@
         {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should include industry benchmarks when requested",
           "line": 158,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "72472a861066dec0c39a324ee0fdd6bc3df49ba01fcb3ed5c6f7fa4e0c9d7225"
         },
         {
           "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should include historical comparison when requested",
           "line": 175,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "9b0b1988d4a0d2b550d4157141e02fc28e9a1afb8026f99559cdb8ddd542be34"
         },
         {
@@ -23343,8 +23343,8 @@
           "bodyHash": "096babeb7f02a81bafb554a5ba16f72e31e1f20b8ae5de3ff0a3203acac79cdc"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.3b",
       "subject": null,
@@ -23726,8 +23726,8 @@
         {
           "id": "apps/api/tests/unit/application/MLUseCases.test.ts::includes heuristic tone analysis when requested",
           "line": 195,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "f3a8f7758b9c51a4251774b5732aed517b3cb4b61b5b26b6cd146e819b740908"
         },
         {
@@ -23787,8 +23787,8 @@
           "bodyHash": "022d96ace379d5af175390c7c7604b132a85c2a00e8b3b4e2f419f73ee95c536"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -24613,8 +24613,8 @@
         {
           "id": "apps/api/tests/unit/application/brandVoiceUseCase.test.ts::accepts name of exactly 100 chars",
           "line": 89,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "d24867577e603a6eb404d018a1dd4d69004661c0a2c3eef1865c8b75729d33dd"
         },
         {
@@ -24634,13 +24634,13 @@
         {
           "id": "apps/api/tests/unit/application/brandVoiceUseCase.test.ts::accepts systemPrompt of exactly 2000 chars",
           "line": 101,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "494b881c90b7282a053c23bb6a51a4a8a70292a78931e66f265bf2003c806c58"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -24917,8 +24917,8 @@
         {
           "id": "apps/api/tests/unit/application/campaignUseCases.test.ts::passes optional dates",
           "line": 80,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "de3c9a2bcbc366bb7225562dad70438450ef92626412dbcdb93e9f6c32fdac99"
         },
         {
@@ -24929,8 +24929,8 @@
           "bodyHash": "cecc320e075a1498d246ece1b3f54a027ba5da7fc943f153e797e0efa1b4b000"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.3b",
       "subject": null,
@@ -25328,8 +25328,8 @@
         {
           "id": "apps/api/tests/unit/application/customReportUseCases.test.ts::accepts all optional fields",
           "line": 132,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "635fdbdb25d625f409b276f1a01cf86965c5e5f1b914b0987e52105b81eb51b5"
         },
         {
@@ -25370,8 +25370,8 @@
         {
           "id": "apps/api/tests/unit/application/customReportUseCases.test.ts::allows access to shared reports from different account",
           "line": 219,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "a27f8389eb8c9de92e7933441303d8f9da34eeed76ecea3f8570e756f3f82f65"
         },
         {
@@ -25440,8 +25440,8 @@
         {
           "id": "apps/api/tests/unit/application/customReportUseCases.test.ts::accepts all valid formats",
           "line": 417,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "a6b7cb6e8ffc242999b036e6c3314c3c6debc6cf7d6b56d52d4972d2357abe2b"
         },
         {
@@ -25515,8 +25515,8 @@
           "bodyHash": "40e4943b7ebf08428159944f8a74c2b87ab44df8897f779f5b50855f91ae3588"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -26607,8 +26607,8 @@
         {
           "id": "apps/api/tests/unit/application/getTopPerformersContext.test.ts::identifies top performing platform",
           "line": 106,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "aaf023a90d8c27892631803f66b12fc184f92a933b3288d5dedd6776df128b11"
         },
         {
@@ -26640,8 +26640,8 @@
           "bodyHash": "aa9f9358f2af91fa46b71ae75db1bad7fcdbf023ddc3981d5ed5cf4dc4068a19"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -27169,22 +27169,22 @@
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates message with MENTION type",
           "line": 263,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "8c90e159d0804436861f3d5fa91d97028fe0a3d72f2a5f7c00b854d00fa71594"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates message with DIRECT_MESSAGE type",
           "line": 268,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "76ba2bfc4ca5ca647f3bdd72b95f735946aa5cece28665df749c009c0c9c7cf6"
         },
         {
           "id": "apps/api/tests/unit/application/inboxUseCases.test.ts::creates message with REPLY type",
           "line": 273,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "d4e1529a2aefab91c362e46f6ef7c7290826cdb02247c25d208d43b28c7b3763"
         },
         {
@@ -27300,8 +27300,8 @@
           "bodyHash": "2a09bd8afc9871c757c70ca21e51348bc22ee1d2054a276a85343bd5449a387c"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.3b",
       "subject": null,
@@ -28187,8 +28187,8 @@
         {
           "id": "apps/api/tests/unit/application/oidcUseCases.test.ts::works without unit of work",
           "line": 244,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "4b6703bb414c94cad6be58572bb06a0e0c72d5bc89a232ebe5ad06948462e74f"
         },
         {
@@ -28290,8 +28290,8 @@
           "bodyHash": "27d714ddbffc0c13dc5c3dad70da7aaf177208399d4ec9d541aa41529e2f4aab"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -29200,15 +29200,15 @@
         {
           "id": "apps/api/tests/unit/application/recurringPostUseCases.test.ts::accepts optional endDate",
           "line": 106,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "079640e4a3f83e3771425e50eb35812a1f385680c7121931154ba27c7ff6d7cb"
         },
         {
           "id": "apps/api/tests/unit/application/recurringPostUseCases.test.ts::accepts optional maxOccurrences",
           "line": 111,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "519fe84f4151e221bf087754f2fb2ea5c4ea54e9a16044faeb2b70894ae714f9"
         },
         {
@@ -29219,8 +29219,8 @@
           "bodyHash": "2a6770c6e7483324fd6be82fa44630abdebfa3eca58d93971d51bc6d705bf57d"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.3b",
       "subject": null,
@@ -29343,13 +29343,13 @@
         {
           "id": "apps/api/tests/unit/application/referralConversion.test.ts::does not crash when email context lookup returns null",
           "line": 259,
-          "blockClass": "TITLE-CONTRADICTION",
+          "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd5a3525c878c78f0b3c6536db3ba1abd927dc845992c77a06ca3873deaf141d"
         }
       ],
-      "verdict": "ADJUDICATE",
-      "basis": "title-contradiction",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -29506,8 +29506,8 @@
         {
           "id": "apps/api/tests/unit/application/reportUseCases.test.ts::passes optional format",
           "line": 74,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "103a2b3a0c1b3aec1f8d2b28a94fd38ac97d18f1b5266c7b273f6f3fdf998a7d"
         },
         {
@@ -29602,8 +29602,8 @@
           "bodyHash": "1a0dbb039400661805fc1376fa2679dbc59531d0c981963fcdeccdaa57d0bffe"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.3b",
       "subject": null,
@@ -30967,20 +30967,20 @@
         {
           "id": "apps/api/tests/unit/application/usageUseCase.test.ts::accepts month 1 (boundary)",
           "line": 133,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "21d5482e4e45e0a9cb32379ca9428e5e7f00c76c89c2934898666257980bab7b"
         },
         {
           "id": "apps/api/tests/unit/application/usageUseCase.test.ts::accepts month 12 (boundary)",
           "line": 138,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "bc9a9a09156ab6c1f2e8406c812995b6f11955f202a58868e7f5f70229173a0d"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -32526,13 +32526,13 @@
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should order results by createdAt descending (newest first)",
           "line": 443,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "239799d422f637c375efb2091509adc17f82a85bfc7df3211b447a76eec81ea0"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.2b",
       "subject": {
@@ -36475,15 +36475,15 @@
         {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when dpoType=INTERNAL and dpoEmail is valid",
           "line": 232,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "6e8b9a026cc8fccff7489dd55dd0d0726fb2e629e9edcf742063f21224620d3d"
         },
         {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when dpoType=EXTERNAL and dpoUrl is valid",
           "line": 240,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "af5898e31ce8e17a858630a7acac5e1bf897e0e1d7e81d259646073817f79075"
         },
         {
@@ -36657,8 +36657,8 @@
         {
           "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when 2 pending requests (under limit)",
           "line": 557,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "f6478564c51d40c2b45a07b7aee9490c2e7116b32943b20aecfab3ebe308c3ec"
         },
         {
@@ -36704,8 +36704,8 @@
           "bodyHash": "e91fe23f228d7de5309269d42982af0f598fdfad76c7b7f8d3482097a7811d02"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.4",
       "subject": {
@@ -38261,8 +38261,8 @@
         {
           "id": "apps/api/tests/unit/customerAuthUseCases.test.ts::issues new tokens when refresh token is valid and user is active",
           "line": 810,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "04fbd7272afc50bb0a44890f6ed363a06bfc0db0df0e69a2399bc7114f2b31da"
         },
         {
@@ -38371,8 +38371,8 @@
           "bodyHash": "c58c2c31e710e028429dd1d8c2aab60f9bfb44bb96cde59cd323df6d4ee7ffe3"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -39767,8 +39767,8 @@
         {
           "id": "apps/api/tests/unit/domain/aggregates.social-message.test.ts::archives from REPLIED",
           "line": 233,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "369687e10e5461073b085e7af1c3f5ddf2d2e16c8cddd450181195d99e14a1de"
         },
         {
@@ -39856,8 +39856,8 @@
           "bodyHash": "0df92240c1b1102239d4fa889bdc48eb82adb0669dd9f85a90f4346adc6c21d4"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -40085,8 +40085,8 @@
         {
           "id": "apps/api/tests/unit/domain/aggregates.test.ts::should support multiple handlers for same event type",
           "line": 625,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "1edf4d71d3530d98a4c7c9dd6fb8c14148cb69ca11e34a6d7f5c54016f791eea"
         },
         {
@@ -40104,8 +40104,8 @@
           "bodyHash": "fe2ef9c25a680b2616b113bf5b5d463af33ed6c6f88a9822bc152d4f99ba2672"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.3a",
       "subject": null,
@@ -40319,8 +40319,8 @@
         {
           "id": "apps/api/tests/unit/domain/approvalWorkflow.test.ts::lets a reviewer act on a request whose submitter was erased",
           "line": 392,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "f3d1b8a223a0b6ccd2d9e4b0c922565efe61fae5ea6ad71454ce0a69f793d500"
         },
         {
@@ -40511,20 +40511,20 @@
         {
           "id": "apps/api/tests/unit/domain/crisisMode.test.ts::should emit CrisisModeEntered event",
           "line": 199,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "b544d4a8285efd28ec19f4c75a4e76734327ff07dcea6ceb49152666438c90be"
         },
         {
           "id": "apps/api/tests/unit/domain/crisisMode.test.ts::should emit CrisisModeExited event",
           "line": 216,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "90aaaec123dacb925d1a08cee0b1d702954fd302ff6d263cdbeaeb81f5723b4c"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -41422,8 +41422,8 @@
         {
           "id": "apps/api/tests/unit/domain/entities.campaign.test.ts::accepts endDate after startDate",
           "line": 73,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "de415128cc565c38599ac08645bf7218b8638cb97e16899b1932b4f7be4f71a5"
         },
         {
@@ -41504,8 +41504,8 @@
           "bodyHash": "5cdc26183bfb40e6e029acefabe3aeeced3a5f04a9e785961632cbe3f351ac54"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.3a",
       "subject": null,
@@ -42968,8 +42968,8 @@
         {
           "id": "apps/api/tests/unit/domain/entities.samlConfiguration.test.ts::includes attributeMapping in output",
           "line": 152,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "743ea89c9ef7eafe74b7047a0f6f8375e2cc161c8be65dc68d4d997442c51c23"
         },
         {
@@ -42987,8 +42987,8 @@
           "bodyHash": "4b5af956f4c50e726f04eeef913d18a54b9dc21469ec02f3714fac1114418743"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -46295,8 +46295,8 @@
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts exactly 280 chars on X",
           "line": 174,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "c5dfa982e6469890cb640f763e3405a3610d70151dee5567d63c08b1afaa1f03"
         },
         {
@@ -46309,22 +46309,22 @@
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts body up to 5000 chars on YouTube",
           "line": 189,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "d0750de7153401e6d9e4a97b2707379584ab570e2134d399fb4450bb3c30bc66"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts long body on Facebook (63206 limit)",
           "line": 196,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "1b653acc947f877f1805248f4ac0427873717ddc13e33c415886043573319b79"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts 2200 chars on Instagram",
           "line": 203,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "641dabde2002f4078e83c3037bc9049134623c98c73d0a71fc9ca4a9617c15bf"
         },
         {
@@ -46510,8 +46510,8 @@
           "bodyHash": "2ea4f48713c8a5e7cbb3e5923e6a87aaf55413e54d4e5904dec1c84f26d0ec34"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.3a",
       "subject": null,
@@ -47038,22 +47038,22 @@
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::image should be compatible with Facebook platform",
           "line": 200,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "e0182f62eff87f096e68d0f3133666fb382bcb31d5cfb93c62ef588a6264a57d"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::video should be compatible with YouTube platform",
           "line": 212,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "e9986ebfce7aed4010659ad8f99ce668cd659ea69bb9d71f00454e739fa3d6b6"
         },
         {
           "id": "apps/api/tests/unit/domain/value-objects.media-provider.test.ts::image should be compatible with TikTok platform",
           "line": 225,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "b43a6918c868abb5940030da519855f49e33b15b8e06b72194688a9d7568c29f"
         },
         {
@@ -47260,8 +47260,8 @@
           "bodyHash": "282f494417837f50aed86d95aae4f0fff2d95e0314ab68451a5f0ea50521e2fa"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.3a",
       "subject": null,
@@ -51969,8 +51969,8 @@
         {
           "id": "apps/api/tests/unit/infrastructure/adapters/PrismaMentionRepository.test.ts::treats a P2002 unique violation as idempotent success",
           "line": 129,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "5cc153a84d3a9330288aa2e1b342f97d7268e9b9bfb0e758b460fea8efcde8fe"
         },
         {
@@ -51981,8 +51981,8 @@
           "bodyHash": "3b1f887e5df70762fe5d0a83cb38f39a8c51a3570f54f6ad20aced35b001eecd"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": null,
@@ -55796,8 +55796,8 @@
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate correct email format",
           "line": 376,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "9d750f15e27f0078090a8e1cfd2b34e24541719eac5ea9aa5c05de93ca64c182"
         },
         {
@@ -55817,15 +55817,15 @@
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate HTTPS URLs",
           "line": 400,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "2eeebb22716f752ea7740b35ee6f4b861cbd09e9260816473a1b4717e0c27a61"
         },
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate HTTP URLs",
           "line": 406,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "b577fe4097cb6ebd55d64a06f30ae646e225b61e131015028bb3f2fb4b5bc360"
         },
         {
@@ -55845,8 +55845,8 @@
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate safe file paths",
           "line": 430,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "43331315c60a96c92ebbceb42ccc4a39c4fa073811b5bd13d0e69e4c91be635f"
         },
         {
@@ -55859,8 +55859,8 @@
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate normal post body",
           "line": 448,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "973f079c0befdab4249ce7fb1aad0660676c92963a8af2ba39b92f0ab38c93e6"
         },
         {
@@ -55880,8 +55880,8 @@
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate correct UUID format",
           "line": 474,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "d6618f8fe4397643a67527d2ffb8e2f7deb3232998470e1874e39719c4a3af2a"
         },
         {
@@ -55908,8 +55908,8 @@
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate clean nested data",
           "line": 535,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "c2777c81362c9e87e7c85c222e7811019521fe6879d7c0a84b4e8eea65f05d4f"
         },
         {
@@ -55943,15 +55943,15 @@
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate HTTPS media URLs",
           "line": 593,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "4bf1936d2ae27a60a64bc88261248b2cc1523672f62846933835838e5820ce43"
         },
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should allow HTTP protocol for media URLs",
           "line": 599,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "209fe57b03ae90c7c703acd53eb3e84935381c89b93ea765b1b10d5cd5087d7f"
         },
         {
@@ -55971,15 +55971,15 @@
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate alphanumeric user names",
           "line": 623,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "a4f65271f88070585bc5d5b0edc05bbbe5022bae83595cbd5db0af1068287713"
         },
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate user names with spaces",
           "line": 629,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "d03acc299556ba009f6997a55f438be1ccb54ffba345451810728fd516a8cbe9"
         },
         {
@@ -56006,8 +56006,8 @@
         {
           "id": "apps/api/tests/unit/inputValidation.test.ts::should validate alphanumeric channel IDs with hyphens/underscores",
           "line": 659,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "9d494976011a6833e5ffb9d8ca908104a1b7c9400653b8336f064beebcdc86bd"
         },
         {
@@ -56032,8 +56032,8 @@
           "bodyHash": "c5cf0036639deab99d3c42b916759b378be16925f1348788ca3db94086835d0e"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": {
@@ -82107,8 +82107,8 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts valid change request",
           "line": 22,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "e109098f05c6c76afad9b054c77a51bc24283431e1bf18be548f4413ef6bcb69"
         },
         {
@@ -82128,15 +82128,15 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional reason",
           "line": 46,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "240b32d774a93f41e7ce21930a434b6c02b6648cebf9b080d00ef2ce4d2c1b94"
         },
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional effectiveDate",
           "line": 55,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "ef284d35c6be44b101f6915ecb1014fdf4432fe412a80fdd55672413edcd4fdf"
         },
         {
@@ -82163,8 +82163,8 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts all valid operations",
           "line": 90,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "49b32cc2c77c213f54460f8780c4d0694f4f1a20077053bebd8fab0f108adef3"
         },
         {
@@ -82191,8 +82191,8 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts valid bulk upgrade",
           "line": 115,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "2aa26c8d378c4d3fe3269b9f0bc27e9f600306b22df5ac6102f2b9a526ba389d"
         },
         {
@@ -82212,8 +82212,8 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts exactly 50 accountIds",
           "line": 145,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "4aabff456714d631b8ebad2ccce0c6b4dfc6bec4d54c1f695df3dd30a6cdefdd"
         },
         {
@@ -82226,8 +82226,8 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts valid sort options",
           "line": 167,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "b12d44c00a90f762174db40c7cb6c368191acbc2e2b311c066b0184fd47b929f"
         },
         {
@@ -82268,8 +82268,8 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts csv format",
           "line": 202,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "dc3c205c168d7156df198d938b1b3d9a69ec3eb91511d4a7e79ab996a057a61b"
         },
         {
@@ -82282,15 +82282,15 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts date range",
           "line": 211,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "a938ddc7963c876334ca9d5aedefdea167802ba85c611c17eaace223695c1cc2"
         },
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts status filter",
           "line": 219,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "fe56fd4abcf44f84d3701399cf85755ff5ea1bf95720d525ed4ba3edde8cac9b"
         },
         {
@@ -82303,15 +82303,15 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional bundleId",
           "line": 232,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "9b27127ecd3a261572f2826dc570130717260aef088bd4d14103c81fe42046e7"
         },
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional providers array",
           "line": 237,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "cb1f16cffdd7f4282acc1ba7e63f67bece28a23397d37404244e74f68674089e"
         },
         {
@@ -82331,15 +82331,15 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts exactly 90 days",
           "line": 250,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "2281e85ab9fd90b23f6fd1fd56e5b12240cf1848230ba68368ea0d510126df36"
         },
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts exactly 1 day",
           "line": 254,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "c9829d7351bcf649d5876a1c02f7defc15069e88491a13c2521e389dc48fd5e5"
         },
         {
@@ -82352,8 +82352,8 @@
         {
           "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts yearly billing cycle",
           "line": 266,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "4013906ad94e1a5bf95432d1bffd9d4b486a74053ecb8076531c5a2c767c54cb"
         },
         {
@@ -82385,8 +82385,8 @@
           "bodyHash": "8f3da41e620aaac000d5a9c3824d624f18ba3f63fa3cee88d83c4c269f0f69a9"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": {
@@ -104903,8 +104903,8 @@
         {
           "id": "packages/core/auth/tests/unit/RoleManagementService.test.ts::returns void ok when the role exists, is not a system role, and has no users",
           "line": 140,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "4eb85ea01950757169202e857bbd792af9626d9b2378108078b10fe37a514138"
         },
         {
@@ -104936,8 +104936,8 @@
           "bodyHash": "847f3b14ca2c3bd69575303f10744dd2a2c1b2a4f3e24b30c96e86bcd203c564"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": {
@@ -106002,8 +106002,8 @@
         {
           "id": "packages/core/compliance/tests/unit/ComplianceService.test.ts::returns updated settings when data is valid",
           "line": 161,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "e6551872ad19d2a44ceef30dd4402920f9f970cca3d520c77aa42553649bb94e"
         },
         {
@@ -106030,8 +106030,8 @@
         {
           "id": "packages/core/compliance/tests/unit/ComplianceService.test.ts::returns the updated DSAR row when the request exists",
           "line": 197,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "742d6c5f1bbf038ab7b4b65479e264c010676d415dd0ff15407123ef953a75ba"
         },
         {
@@ -106042,8 +106042,8 @@
           "bodyHash": "040e7a3b0c2fc967806cd3a83d8ee287dcaa1012177dff6013bf5f0522890c8a"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": {
@@ -107356,8 +107356,8 @@
         {
           "id": "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::returns void ok when the conversation exists and can be resolved",
           "line": 52,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "6ee8c62644af35b670837651ddc362ddad9d118c70aea6684b9cbcda45630d4c"
         },
         {
@@ -107382,8 +107382,8 @@
           "bodyHash": "5fedba337d90e2959583e434943a65f610b9c2a65533c7e9db90c5bcac0f5470"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": {
@@ -107664,8 +107664,8 @@
         {
           "id": "packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts::returns ok with notification id when type is enabled and inputs are valid",
           "line": 67,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "52d8b4faa70e1f119fefd16731d84224745bf2ea1c50319e8280943e41562794"
         },
         {
@@ -107690,8 +107690,8 @@
           "bodyHash": "3b9f53b195d0b84e63d550c6f1d828c0569202dad4ed7c204e6a1e2d45550d55"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": null,
       "subject": {
@@ -109358,8 +109358,8 @@
         {
           "id": "packages/core/threading/tests/unit/threadPlanner.test.ts::thread fragments have a threadIndicator with sequence notation",
           "line": 92,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "33e37d573eb9e591fc4a67fc1f9f193e33aff15546388ba045330313536655e5"
         },
         {
@@ -109426,8 +109426,8 @@
           "bodyHash": "2b9e97ba2b7fd71bddcbf75a22d6bb12cf67384d0df5be6ae9903a3f2abf7091"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.6a",
       "subject": {
@@ -109637,49 +109637,49 @@
       "blocks": [
         {
           "id": "packages/eslint-plugin-testing/tests/assertions.test.ts::$code",
-          "line": 158,
+          "line": 170,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7c7340f0dd8274529ed54d8de09aabc071895a9c9bea61cac8459c7c614b85b3"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/assertions.test.ts::%s reads as assert.%s",
-          "line": 165,
+          "line": 177,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c03144828fa3fe6732194fbd43936f7fc2739e3faa3814db3b9b26acc9381bdd"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/assertions.test.ts::does not read a method imported by name unless the file imports it",
-          "line": 179,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "83ee90ab88b667045c255bdbbcef95d0f96208c40517b8b0be15a038f0df2e76"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/assertions.test.ts::%s",
-          "line": 185,
+          "line": 197,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3d601c727e8ef4f87aefd62947934520c7e202edcd08d41b5d6858adaa22105c"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/assertions.test.ts::%s establishes %s truthy=%s",
-          "line": 200,
+          "line": 212,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c0e1eddf4427fc4031d22d2088658fd90ba56ef44e1388992627d50ef99581b9"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/assertions.test.ts::%s establishes the type of %s, %s",
-          "line": 218,
+          "line": 230,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "187d25742dd878c69d657d325419be976331c719600be4ac27204388081818c3"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/assertions.test.ts::%s establishes nothing about truthiness or type",
-          "line": 228,
+          "line": 240,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65274c0c548dbe0e5cbc8159132375aeec465a37956483937c465f05f3702b1a"
@@ -109868,98 +109868,98 @@
       "blocks": [
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::reports every leaf block, in source order, with its file:line:title id",
-          "line": 407,
+          "line": 414,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7058318c5adbeed73ee43f78eb67c2c42a1974c970cee6cc965322fcb18d2858"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::line $line, $title: $blockClass",
-          "line": 416,
+          "line": 423,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "beca4c4094da63ad928458241e5c95f61a904295feefc2a8a7de30d776040497"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::names auditMiddleware.test.ts:274 a title contradiction: undefined promised, presence asserted",
-          "line": 430,
+          "line": 437,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a44894bc849127eb917f94d120f3688673929c0fea3bc180440061b393971ee9"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::names webhookHandler.stats.test.ts:337 a tautology: `retriedCount >= 0` (line 355) cannot fail",
-          "line": 444,
+          "line": 451,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "10f3d7db7d6e68fe73f8785dcde62c672a506329eefa4214bba74ded786abc66"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::states why a title contradiction is one, and only on a title contradiction",
-          "line": 459,
+          "line": 466,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e4473210005dbcd0ff060a981c72994d69f9c73843dfad4b877bc5950c45797"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::marks an imported or unseen helper opaque, and inlines a same-file helper one level",
-          "line": 492,
+          "line": 499,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bc00688af9a56453091229af2674ffe790f954387950c4b490b8e8e84c777850"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::records the line of every success print",
-          "line": 528,
+          "line": 535,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5a57dad94f8ddc16ea88307e3236aef1a449d4b96f783530b36473c4cb6dfd9e"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::maps every block class to its criterion of the demolition plan",
-          "line": 536,
+          "line": 543,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1225f9f18a6b59011c2e4c62078e78f2405c8302a764a5d000473238d0ec5404"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::carries the framework and the file-context hash of block discovery, and the opaque helpers",
-          "line": 551,
+          "line": 558,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "735427b43bf25f5d14d02a3129bd93886bf341523139601cb07cb0b8f3bbda49"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::returns the error of a file whose syntax nests deeper than the call stack, the same each run",
-          "line": 560,
+          "line": 567,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1e3c628411884b77d39b449d75a53fe3fb76195fe1d36198f3d1d64bf874d8e"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::turns a RangeError into the file's error, as `<name>: <message>`",
-          "line": 594,
+          "line": 601,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c598569ef7ff1cd6895f444c2d746b35aec5de9188ae5d7d9199f2110694307"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::lets any other error through: a defect is never read as an unreadable file",
-          "line": 607,
+          "line": 614,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65bbc4ea114805ac0243fa59b756b85b14208662ee4f53d60b26a212de3fcd32"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::returns deep-equal output for the same input, every fixture",
-          "line": 615,
+          "line": 622,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "57cc7b5825f342a68ba262349901d3f7e110c9037094c0b9c8cfb02728ea44b7"
         },
         {
           "id": "packages/eslint-plugin-testing/tests/classify.test.ts::loads under node's own ESM loader, outside vitest's module graph",
-          "line": 626,
+          "line": 633,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2d3c10785a275a1eb100b670ccc40f00bcccafa0550a103df0dfa8600b62e436"
@@ -111650,8 +111650,8 @@
         {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns ok for exactly 4 images",
           "line": 195,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "02a061755681977179207bd7ad5ccac9fca8ce960dcadad2311fe6c0dbd0f16d"
         },
         {
@@ -111760,8 +111760,8 @@
           "bodyHash": "773c9ffeb56daa7aaa11a1afadb1f2262a28378fd2988ea63e7567f5bff6283f"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.6c",
       "subject": {
@@ -111951,15 +111951,15 @@
         {
           "id": "packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts exactly 300 chars",
           "line": 178,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "5501e4b701f2dc2f8ff4197095a7ab62d1bdc2f375beaa3addcc679583f97bc1"
         },
         {
           "id": "packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts empty string",
           "line": 186,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "5a0d6f4d4fc7f07b27b852abeee1dabb88f2b89e2b71948acac003ef8317f48a"
         },
         {
@@ -112014,8 +112014,8 @@
         {
           "id": "packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts text of exactly 300 chars",
           "line": 300,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "e5352e8eea4c68695a8e3dd630f76253208c6fae3efbe2f360cae8fc4cab7377"
         },
         {
@@ -112035,8 +112035,8 @@
         {
           "id": "packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts image of exactly 1,000,000 bytes",
           "line": 324,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "e1c4037ca41b07f519a11d6584d406389aef8326a60a1abf61c99b4ebc2ff850"
         },
         {
@@ -112131,8 +112131,8 @@
           "bodyHash": "9e2554ca0701ea5db25aad70c433804c31cd08057773a41030b77ac5f3265616"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.6c",
       "subject": {
@@ -116370,8 +116370,8 @@
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll with exactly 10 options",
           "line": 689,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "6442a68fcc0b3f6005d063c25238ac0e6e9839eb601061a14efcf0a59d90fc4c"
         },
         {
@@ -116391,8 +116391,8 @@
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll question of exactly 300 chars",
           "line": 722,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "a82c8c55e9baf4048f41550485fefa76379e936ed46c63183d0424b9ac2bc7a4"
         },
         {
@@ -116482,8 +116482,8 @@
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts text of exactly 4096 chars",
           "line": 927,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "f55e1dab297f9c6401d3490c22262c3868bea74b473864ee1f78e68b9dd7904f"
         },
         {
@@ -116517,8 +116517,8 @@
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::handles exactly 10 media items (boundary)",
           "line": 982,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "2aea3ad6247e88cc755aabad5a838bc8fe8ec43f9bfba7b1feff4462ef6cfbe1"
         },
         {
@@ -116529,8 +116529,8 @@
           "bodyHash": "caf6fe74ea7c8f3fed65f30def2e504fcdf163b1b8b715a0fe281dbe530e6310"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.6c",
       "subject": {
@@ -116999,8 +116999,8 @@
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns ok for body exactly 2200 chars",
           "line": 296,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "a3b5668434b42488d62d4f4dfb6521ba1811bb9612b08ed807bd750940a4043e"
         },
         {
@@ -117048,8 +117048,8 @@
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::accepts exactly 35 images",
           "line": 379,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "79e31f11691f6bc077b0849a851e5b068273084d4ace752f36725d52824498b9"
         },
         {
@@ -117256,8 +117256,8 @@
           "bodyHash": "47ccc1b2b5b33391fd80c6585a5865d2fde870e5439027c3ee3a822ba0b0cf09"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.6c",
       "subject": {
@@ -122152,8 +122152,8 @@
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns ok for exactly 5000 chars",
           "line": 268,
-          "blockClass": "EXISTENCE-ONLY",
-          "criteria": ["a"],
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
           "bodyHash": "11c405458115e70102e91f3cfe76a7921c1291ff46d4672e7e8edfb18759cb5e"
         },
         {
@@ -122500,8 +122500,8 @@
           "bodyHash": "622f8c7dd113c7dbc70549696c91b6b3c69e5cbbd711715248c133059eef72ae"
         }
       ],
-      "verdict": "REWRITE",
-      "basis": "some-decorative",
+      "verdict": "KEEP",
+      "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.6c",
       "subject": {
