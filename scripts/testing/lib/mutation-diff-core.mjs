@@ -5,7 +5,8 @@
  *   the scope a case runs, the block a ledger id resolves to and the classifier's hash of it, the
  *   reading of a vitest JSON report, the verdict table, the record and the exit code. It spawns
  *   nothing and writes nothing; `scripts/testing/mutation-diff.mjs` runs the four vitest runs of
- *   each case and hands their reports here.
+ *   each case and hands their reports here. The direct-import read of the scope is
+ *   `record-coverage-core.mjs`'s, shared with the record-coverage gate, fitness #54.
  *
  *   THE TABLE. "Red" is a test the JSON report marks failed, or a file that failed with none of its
  *   tests failed (it did not load, or a hook of its own failed); a test that did not run is never
@@ -23,7 +24,10 @@
  *   deletion is SAFE when the deleted block is red at the base and a scope test is red at the head,
  *   LOST when no scope test is red at the head, VACUOUS when the deleted block is green at the base
  *   under the mutation. A listed block with no passed or failed result is `block-missing`, so it is
- *   never GAIN or SAFE.
+ *   never GAIN or SAFE. Either kind is BEHAVIOUR-CHANGED, ahead of `base-red-clean`, when its base
+ *   clean run is red on listed blocks alone, at least one of them, and its head clean run is green:
+ *   the old test fails on the new code, a fact measured, not declared. Any other clean-run red stays
+ *   UNDECIDED.
  *
  *   DETERMINISTIC. Every object of the record is written with its keys in code-unit order, its
  *   cases by id and every list sorted, with no clock and no path outside the repository, so the
@@ -34,6 +38,7 @@ import path from "node:path";
 import { classifyFile } from "@packages/eslint-plugin-testing";
 import { sortedKeys, testNamePattern } from "./hard-probe-core.mjs";
 import { blockRows } from "./ledger-core.mjs";
+import { importsSubject } from "./record-coverage-core.mjs";
 import { byCodeUnit, isObject } from "./record-helpers.mjs";
 
 /** The version of the record; a change of its shape raises it. */
@@ -70,16 +75,6 @@ const KINDS = Object.freeze(["rewrite", "deletion"]);
 
 /** The name a file that failed with no failed test is reported under. */
 const FILE_FAILED = "(the file failed)";
-
-/**
- * A relative module specifier of an `import … from`, an `export … from`, a bare `import "…"` or an
- * `import("…")`: the cheap static read the default scope makes.
- */
-const SPECIFIER =
-  /\b(?:import|export)\b[^'"`;]*?\bfrom\s*["']([^"']+)["']|\bimport\s*["']([^"']+)["']|\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
-
-/** The extensions a specifier without one, or with a JavaScript one, may resolve to. */
-const RESOLVED_EXTENSIONS = Object.freeze([".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".jsx"]);
 
 /**
  * @typedef {"rewrite" | "deletion"} Kind
@@ -238,32 +233,6 @@ export function parseCases(text) {
 }
 
 /**
- * @description Says whether a module imports the subject directly: one of its relative specifiers,
- *   resolved against its own directory, names the subject with its extension, with a JavaScript
- *   extension standing for a TypeScript one, with none, or as a directory's index.
- * @param {string} file The module, repository-relative.
- * @param {string} text
- * @param {string} subject Repository-relative.
- * @returns {boolean}
- */
-function importsSubject(file, text, subject) {
-  for (const match of text.matchAll(SPECIFIER)) {
-    const specifier = match[1] ?? match[2] ?? match[3] ?? "";
-    if (!specifier.startsWith(".")) continue;
-    const joined = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
-    const forms = [
-      joined,
-      joined.replace(/\.(m|c)?js$/, ".$1ts"),
-      joined.replace(/\.jsx$/, ".tsx"),
-      ...RESOLVED_EXTENSIONS.map((extension) => `${joined}${extension}`),
-      ...RESOLVED_EXTENSIONS.map((extension) => `${joined}/index${extension}`),
-    ];
-    if (forms.includes(subject)) return true;
-  }
-  return false;
-}
-
-/**
  * @description The test files a case runs: its test, the files its `scope` names, and every
  *   candidate (a test of the same vitest project) that imports the subject directly. A test that
  *   reaches the subject through another module is outside unless named.
@@ -410,8 +379,42 @@ function blockState(run, file, resolution) {
 }
 
 /**
+ * @description Says whether a run's red tests are the listed blocks alone: at least one listed
+ *   block is red, every failed test of the run is one a listed block's name matches in the test
+ *   file, and no file failed with none of its tests failed.
+ * @param {Run} run
+ * @param {readonly string[]} files
+ * @param {string} test
+ * @param {readonly (Resolution | undefined)[]} listed Each listed block's resolution on the run's side.
+ * @returns {boolean}
+ */
+function onlyListedRed(run, files, test, listed) {
+  const found = listed.filter((resolution) => resolution?.state === "found");
+  if (!found.some((resolution) => resolution && blockState(run, test, resolution) === "red")) {
+    return false;
+  }
+  const matchers = found.flatMap((resolution) =>
+    resolution?.state === "found"
+      ? [new RegExp(testNamePattern(resolution.describe, resolution.title))]
+      : []
+  );
+  return files.every((file) => {
+    const report = run.report.get(file);
+    if (report === undefined) return true;
+    const failed = report.tests.filter((result) => result.status === "failed");
+    if (report.status === "failed" && failed.length === 0) return false;
+    return failed.every(
+      (result) =>
+        file === test &&
+        matchers.some((matcher) => matcher.test([...result.ancestors, result.title].join(" ")))
+    );
+  });
+}
+
+/**
  * @description Gives a case its verdict from its four runs, in the table's order: the search, the
- *   blocks, the clean runs and their precondition, the mutated runs, then the kind's verdict.
+ *   blocks, the clean runs and their precondition (or the measured behaviour change), the mutated
+ *   runs, then the kind's verdict.
  * @param {DecideInput} input
  * @returns {Decided}
  */
@@ -453,8 +456,14 @@ export function decide({ kind, test, blocks, searchFound, resolutions, runs, fil
     });
   }
   const baseClean = redOf(runs.base.clean, files.base);
-  if (baseClean.length > 0) return undecided("base-red-clean", { base: baseClean, head: [] });
   const headClean = redOf(runs.head.clean, files.head);
+  if (baseClean.length > 0) {
+    const listed = blocks.map((id) => resolutions[id]?.base);
+    if (headClean.length === 0 && onlyListedRed(runs.base.clean, files.base, test, listed)) {
+      return { verdict: "BEHAVIOUR-CHANGED", reason: null, red: { base: baseClean, head: [] } };
+    }
+    return undecided("base-red-clean", { base: baseClean, head: [] });
+  }
   if (headClean.length > 0) return undecided("head-red-clean", { base: [], head: headClean });
   for (const each of /** @type {const} */ (["base", "head"])) {
     const failure = failureOf(runs[each].mutated, files[each]);
@@ -520,14 +529,16 @@ export function recordOf({ head, base, cases }) {
 }
 
 /**
- * @description The exit code of the verdicts: 1 on any BROKEN or UNDECIDED, on any NO-GAIN under
- *   `--require gain`, on any LOST or VACUOUS under `--require safe`; else 0.
+ * @description The exit code of the verdicts: 1 on any BROKEN or UNDECIDED, on any NO-GAIN or
+ *   BEHAVIOUR-CHANGED under `--require gain`, on any LOST, VACUOUS or BEHAVIOUR-CHANGED under
+ *   `--require safe`; else 0. BEHAVIOUR-CHANGED is decided, so it alone exits 0.
  * @param {readonly Decided[]} results
  * @param {"gain" | "safe" | null} requirement
  * @returns {number}
  */
 export function exitOf(results, requirement) {
   const failing = new Set(["BROKEN", "UNDECIDED"]);
+  if (requirement !== null) failing.add("BEHAVIOUR-CHANGED");
   if (requirement === "gain") failing.add("NO-GAIN");
   if (requirement === "safe") ["LOST", "VACUOUS"].forEach((verdict) => failing.add(verdict));
   return results.some((result) => failing.has(result.verdict)) ? 1 : 0;
