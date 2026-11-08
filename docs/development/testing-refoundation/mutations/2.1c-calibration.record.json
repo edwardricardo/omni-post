@@ -1,0 +1,474 @@
+{
+  "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+  "cases": [
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "4eb85ea01950757169202e857bbd792af9626d9b2378108078b10fe37a514138",
+            "head": "4eb85ea01950757169202e857bbd792af9626d9b2378108078b10fe37a514138"
+          },
+          "id": "packages/core/auth/tests/unit/RoleManagementService.test.ts::returns void ok when the role exists, is not a system role, and has no users"
+        }
+      ],
+      "id": "a1-role-delete",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/core/auth/tests/unit/RoleManagementService.test.ts::RoleManagementService > deleteRole > returns void ok when the role exists, is not a system role, and has no users"
+        ],
+        "head": [
+          "packages/core/auth/tests/unit/RoleManagementService.test.ts::RoleManagementService > deleteRole > returns void ok when the role exists, is not a system role, and has no users"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/auth/tests/unit/RoleManagementService.test.ts"],
+        "head": ["packages/core/auth/tests/unit/RoleManagementService.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "6ee8c62644af35b670837651ddc362ddad9d118c70aea6684b9cbcda45630d4c",
+            "head": "6ee8c62644af35b670837651ddc362ddad9d118c70aea6684b9cbcda45630d4c"
+          },
+          "id": "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::returns void ok when the conversation exists and can be resolved"
+        }
+      ],
+      "id": "a2-conversation-resolve",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::ResolveConversationUseCase > returns void ok when the conversation exists and can be resolved"
+        ],
+        "head": [
+          "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::ResolveConversationUseCase > returns void ok when the conversation exists and can be resolved"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts"],
+        "head": ["packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "52d8b4faa70e1f119fefd16731d84224745bf2ea1c50319e8280943e41562794",
+            "head": "52d8b4faa70e1f119fefd16731d84224745bf2ea1c50319e8280943e41562794"
+          },
+          "id": "packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts::returns ok with notification id when type is enabled and inputs are valid"
+        }
+      ],
+      "id": "a3-notification-create",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts::CreateNotificationUseCase > happy path — notification created > returns ok with notification id when type is enabled and inputs are valid"
+        ],
+        "head": [
+          "packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts::CreateNotificationUseCase > happy path — notification created > returns ok with notification id when type is enabled and inputs are valid"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts"],
+        "head": ["packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "5501e4b701f2dc2f8ff4197095a7ab62d1bdc2f375beaa3addcc679583f97bc1",
+            "head": "5501e4b701f2dc2f8ff4197095a7ab62d1bdc2f375beaa3addcc679583f97bc1"
+          },
+          "id": "packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts exactly 300 chars"
+        }
+      ],
+      "id": "a4-bluesky-text-limit",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > accepts exactly 300 chars"
+        ],
+        "head": [
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > accepts exactly 300 chars"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts",
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts"
+        ],
+        "head": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts",
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts"
+        ]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "f55e1dab297f9c6401d3490c22262c3868bea74b473864ee1f78e68b9dd7904f",
+            "head": "f55e1dab297f9c6401d3490c22262c3868bea74b473864ee1f78e68b9dd7904f"
+          },
+          "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts text of exactly 4096 chars"
+        }
+      ],
+      "id": "a5-telegram-text-limit",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - getProviderInfo / metadata > returns correct character limit of 4096",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() edge cases > accepts text of exactly 4096 chars"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - getProviderInfo / metadata > returns correct character limit of 4096",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() edge cases > accepts text of exactly 4096 chars"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "a3b5668434b42488d62d4f4dfb6521ba1811bb9612b08ed807bd750940a4043e",
+            "head": "a3b5668434b42488d62d4f4dfb6521ba1811bb9612b08ed807bd750940a4043e"
+          },
+          "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns ok for body exactly 2200 chars"
+        }
+      ],
+      "id": "a6-tiktok-body-limit",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/tiktok/tests/TikTokAdapter.test.ts::TikTokAdapter > metadata and capabilities > has correct character limit of 2200",
+          "packages/providers/tiktok/tests/TikTokAdapter.test.ts::TikTokAdapter > render — video posts > returns ok for body exactly 2200 chars"
+        ],
+        "head": [
+          "packages/providers/tiktok/tests/TikTokAdapter.test.ts::TikTokAdapter > metadata and capabilities > has correct character limit of 2200",
+          "packages/providers/tiktok/tests/TikTokAdapter.test.ts::TikTokAdapter > render — video posts > returns ok for body exactly 2200 chars"
+        ]
+      },
+      "scope": {
+        "base": ["packages/providers/tiktok/tests/TikTokAdapter.test.ts"],
+        "head": ["packages/providers/tiktok/tests/TikTokAdapter.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "47df3b79edc12f6b57915cc9e75c9971e799fe8a89876f705f85893918ea662d",
+            "head": "47df3b79edc12f6b57915cc9e75c9971e799fe8a89876f705f85893918ea662d"
+          },
+          "id": "packages/adapters/storage-s3/tests/index.test.ts::creates an adapter instance with minimal config (no credentials)"
+        }
+      ],
+      "id": "b1-s3-region",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "packages/adapters/storage-s3/tests/index.test.ts",
+          "packages/adapters/storage-s3/tests/s3-operations.test.ts"
+        ],
+        "head": [
+          "packages/adapters/storage-s3/tests/index.test.ts",
+          "packages/adapters/storage-s3/tests/s3-operations.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "fd36eb17ddf064d81cc4ecd9df1c1bb447f16408a20d7ef60a39a21f10b7965f",
+            "head": "fd36eb17ddf064d81cc4ecd9df1c1bb447f16408a20d7ef60a39a21f10b7965f"
+          },
+          "id": "apps/api/tests/unit/application/generatePlatformVariants.test.ts::all 10 platforms have profiles defined"
+        }
+      ],
+      "id": "b10-x-profile-limit",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/application/generatePlatformVariants.test.ts::GeneratePlatformVariantsUseCase > respects character limits per platform"
+        ],
+        "head": [
+          "apps/api/tests/unit/application/generatePlatformVariants.test.ts::GeneratePlatformVariantsUseCase > respects character limits per platform"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/generatePlatformVariants.test.ts"],
+        "head": ["apps/api/tests/unit/application/generatePlatformVariants.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "934e9bc5318e21f26725fc6b9461c678be3552b11a80afa603a0fc019fb2cc53",
+            "head": "934e9bc5318e21f26725fc6b9461c678be3552b11a80afa603a0fc019fb2cc53"
+          },
+          "id": "packages/core/application/tests/unit/UseCase.test.ts::is an instance of Error (extends Error)"
+        }
+      ],
+      "id": "b2-usecase-error-code",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/core/application/tests/unit/UseCase.test.ts::UseCaseError > code contract > code matches the USE_CASE_ERRORS constant passed at construction",
+          "packages/core/application/tests/unit/UseCase.test.ts::UseCaseError > construction > sets message, code, and name correctly"
+        ],
+        "head": [
+          "packages/core/application/tests/unit/UseCase.test.ts::UseCaseError > code contract > code matches the USE_CASE_ERRORS constant passed at construction",
+          "packages/core/application/tests/unit/UseCase.test.ts::UseCaseError > construction > sets message, code, and name correctly"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/application/tests/unit/UseCase.test.ts"],
+        "head": ["packages/core/application/tests/unit/UseCase.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "3ab03bfaecd52a23d610f282e72cb8a3e0b4736a9ac7612aa4287394299d1d4b",
+            "head": "3ab03bfaecd52a23d610f282e72cb8a3e0b4736a9ac7612aa4287394299d1d4b"
+          },
+          "id": "apps/client/lib/providers/__tests__/registry.test.ts::maps features.scheduling from capabilities.schedule"
+        }
+      ],
+      "id": "b3-registry-scheduling",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/client/lib/providers/__tests__/registry.test.ts"],
+        "head": ["apps/client/lib/providers/__tests__/registry.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "3b5aed138c57e4e642deb25ab08b6c240c08377eab94200d8d82b7ec55296fdc",
+            "head": "3b5aed138c57e4e642deb25ab08b6c240c08377eab94200d8d82b7ec55296fdc"
+          },
+          "id": "apps/client/tests/integration/useProviders.test.ts::exposes getProviderConfig function"
+        }
+      ],
+      "id": "b4-provider-config-lookup",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/client/tests/integration/useProviders.test.ts"],
+        "head": ["apps/client/tests/integration/useProviders.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "5620726771a07750d811e1b04348a6e0a6ec0dcaefc3bc4c8fac37313e652e8a",
+            "head": "5620726771a07750d811e1b04348a6e0a6ec0dcaefc3bc4c8fac37313e652e8a"
+          },
+          "id": "apps/api/tests/unit/DiffCalculator.test.ts::detects modified adaptation field"
+        }
+      ],
+      "id": "b5-diff-adaptation-order",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/DiffCalculator.test.ts"],
+        "head": ["apps/api/tests/unit/DiffCalculator.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "9ff1e0b9f659fbbcb885a6184135267dc682f397f081eb387c30286c379e0637",
+            "head": "9ff1e0b9f659fbbcb885a6184135267dc682f397f081eb387c30286c379e0637"
+          },
+          "id": "apps/api/tests/unit/ConflictDetector.test.ts::detects changes in nested objects via JSON comparison"
+        }
+      ],
+      "id": "b6-conflict-values-swapped",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/ConflictDetector.test.ts::ConflictDetector > detectChanges > returns update operations for modified fields"
+        ],
+        "head": [
+          "apps/api/tests/unit/ConflictDetector.test.ts::ConflictDetector > detectChanges > returns update operations for modified fields"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/ConflictDetector.test.ts"],
+        "head": ["apps/api/tests/unit/ConflictDetector.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "807e39ea01b2fb0729429e98393f7f0a921499a36c801355779f08491d771fdc",
+            "head": "807e39ea01b2fb0729429e98393f7f0a921499a36c801355779f08491d771fdc"
+          },
+          "id": "apps/api/tests/unit/application/reportSharing.test.ts::sets expiry date when provided"
+        }
+      ],
+      "id": "b7-report-share-expiry",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/reportSharing.test.ts"],
+        "head": ["apps/api/tests/unit/application/reportSharing.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2750d424d5ebbab0634988c8db441ae085485edd80c1b625c5ff1b17e6c59bc6",
+            "head": "2750d424d5ebbab0634988c8db441ae085485edd80c1b625c5ff1b17e6c59bc6"
+          },
+          "id": "apps/api/tests/unit/EventService.post-channel.test.ts::should create CHANNEL_CONNECTED events correctly"
+        }
+      ],
+      "id": "b8-channel-event-ids",
+      "kind": "rewrite",
+      "reason": "base-unreadable",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts::(the file failed)",
+          "apps/api/tests/unit/ContentVersionManager.create.test.ts::(the file failed)",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts::(the file failed)",
+          "apps/api/tests/unit/EventService.post-channel.test.ts::(the file failed)",
+          "apps/api/tests/unit/EventService.test.ts::(the file failed)",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::(the file failed)",
+          "apps/api/tests/unit/content/syncEngineContentRead.test.ts::(the file failed)"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts",
+          "apps/api/tests/unit/EventService.post-channel.test.ts",
+          "apps/api/tests/unit/EventService.test.ts",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.content.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts",
+          "apps/api/tests/unit/content/syncEngineContentRead.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts",
+          "apps/api/tests/unit/EventService.post-channel.test.ts",
+          "apps/api/tests/unit/EventService.test.ts",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.content.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts",
+          "apps/api/tests/unit/content/syncEngineContentRead.test.ts"
+        ]
+      },
+      "verdict": "UNDECIDED"
+    },
+    {
+      "base": "110c94e8ddb1cb747b3e71824e0f467d115827e6",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "41393c0af61b2fed8f439eebe2af96ce71a086420e3cfe6954849ad12cbd0653",
+            "head": "41393c0af61b2fed8f439eebe2af96ce71a086420e3cfe6954849ad12cbd0653"
+          },
+          "id": "apps/client/tests/integration/ListeningPage.test.tsx::renders the error state when the backend returns 500"
+        }
+      ],
+      "id": "b9-listening-error-message",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/client/tests/integration/ListeningPage.test.tsx"],
+        "head": ["apps/client/tests/integration/ListeningPage.test.tsx"]
+      },
+      "verdict": "BROKEN"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}
