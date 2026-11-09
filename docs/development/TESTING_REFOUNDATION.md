@@ -639,6 +639,7 @@ Newest first; a line with no date or no pull request number is one whose record 
 - 2026-10-23 — `@fastify/otel` 0.21.2 replaces the deprecated `@opentelemetry/instrumentation-fastify` with a committed span probe (`workstream/observability-fastify-otel`) — `PR fotel` — M1 `1027 + 13` → `1028 + 13`, M8 `1/93` → `1/94` (the OTel package gains its vitest config and `tests/fastifyRouteSpans.test.ts`)
 - 2026-10-23 — `@atproto/api` 0.13.28 → 0.27.0 with the SDK-level contract suite and the unresolved-mention fix (`workstream/provider-bluesky-atproto-0-25`) — `PR atpro` — M1 `1028 + 13` → `1029 + 13` (`packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts`)
 - 2026-10-23 — WU-2.2a a2-1: the ledger core is born with its suite `apps/api/tests/unit/scripts/ledger.test.ts` (`workstream/refound-2-ledger-a2`) — `PR ledga` — M1 `1029 + 13` → `1030 + 13`
+- 2026-11-09 — DEF-187, PR #848 (`workstream/def-187-mutation-diff-load`) — `mutation-diff` reports a load failure from both sides and carries vitest's load message (`377a9630`); the `b8-channel-event-ids` record of the 2.1c calibration is re-measured by EXISTENCE-ONLY-CALIBRATION-COMPLETION from a checkout that holds the test env file. The Product Owner's decisions L57 and L58 (every gate ships with its retire condition; the active suite is audited against it) enter the Master Plan as GATE-RETIREMENT-AUDIT (§5.1).
 
 ---
 
