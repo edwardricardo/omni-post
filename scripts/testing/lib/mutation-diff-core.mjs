@@ -11,9 +11,14 @@
  *   THE TABLE. "Red" is a test the JSON report marks failed, or a file that failed with none of its
  *   tests failed (it did not load, or a hook of its own failed); a test that did not run is never
  *   green. Precondition, for every kind: on both clean runs every scope test that exists on that
- *   side is green, else UNDECIDED `base-red-clean` or `head-red-clean`; a base file that fails to
- *   load with no test at all is `base-unreadable`, the base content not loading against today's
- *   subject. A rewrite needs its listed block on both sides and a deletion its block at the base
+ *   side is green, else UNDECIDED `base-red-clean` or `head-red-clean`. Ahead of those, a scope
+ *   file that fails to load on a clean run, with no test at all, is read on both sides:
+ *   `base-unreadable` when it fails at the base alone (the base content not loading against
+ *   today's subject), `head-unreadable` at the head alone, `both-unreadable` on both, which points
+ *   at the environment the runs share rather than at either side's content. Each such file is
+ *   named on its own side's red list, with the first non-empty line of the message vitest reports
+ *   for it, trimmed and cut at 200 characters, because the report keeps that message nowhere else.
+ *   A rewrite needs its listed block on both sides and a deletion its block at the base
  *   alone: a block the head still holds is `block-present-at-head`, a rewrite of a block the base
  *   lacks is `block-missing` (a new test is an addition, not a rewrite), and a base with no scope
  *   file to run is `base-empty`, since a mutated run that ran nothing is never a verdict; a deletion's
@@ -76,6 +81,14 @@ const KINDS = Object.freeze(["rewrite", "deletion"]);
 /** The name a file that failed with no failed test is reported under. */
 const FILE_FAILED = "(the file failed)";
 
+/** The reasons a clean run whose scope file did not load is undecided under, by side. */
+const BASE_UNREADABLE = "base-unreadable";
+const HEAD_UNREADABLE = "head-unreadable";
+const BOTH_UNREADABLE = "both-unreadable";
+
+/** The most characters of a load failure's message a red entry carries. */
+const MESSAGE_LIMIT = 200;
+
 /**
  * @typedef {"rewrite" | "deletion"} Kind
  * @typedef {"base" | "head"} Side
@@ -108,13 +121,17 @@ const FILE_FAILED = "(the file failed)";
  * @typedef {object} FileReport One file of a vitest report.
  * @property {string} status
  * @property {TestResult[]} tests
+ * @property {string} [message] Vitest's message for the file, present only when it is a non-empty
+ *   string: a file that did not load reports its error here and nowhere else.
  */
 
 /**
  * @typedef {object} Run What one vitest run gave.
  * @property {string | null} failure Why the run says nothing: `runner-failed`, `timeout`,
  *   `not-applied` (no marker of the mutation), `not-served` (a served file never reached
- *   the plugin) or `base-unreadable`.
+ *   the plugin) or `base-unreadable` (a scope file the base's tree lists whose content could not
+ *   be read, so nothing ran); the table's `head-unreadable` and `both-unreadable` come from the
+ *   clean reports, never from here.
  * @property {ReadonlyMap<string, FileReport>} report Each file's report, by repository-relative path.
  */
 
@@ -315,6 +332,7 @@ export function reportOf(json, root, aliases = {}) {
     if (typeof name !== "string") continue;
     const file = aliases[name] ?? path.relative(root, name).split(path.sep).join("/");
     const assertions = Array.isArray(result["assertionResults"]) ? result["assertionResults"] : [];
+    const message = result["message"];
     report.set(file, {
       status: String(result["status"]),
       tests: assertions.filter(isObject).map((test) => ({
@@ -322,6 +340,7 @@ export function reportOf(json, root, aliases = {}) {
         title: String(test["title"]),
         status: String(test["status"]),
       })),
+      ...(typeof message === "string" && message !== "" ? { message } : {}),
     });
   }
   return { value: report };
@@ -340,8 +359,39 @@ function failureOf(run, files) {
 }
 
 /**
+ * @description Says whether a file's report is one of a file that did not load: it failed and
+ *   holds no test at all.
+ * @param {FileReport | undefined} report
+ * @returns {boolean}
+ */
+function unloadedReport(report) {
+  return report?.status === "failed" && report.tests.length === 0;
+}
+
+/**
+ * @description The red entry of a file that failed with none of its tests failed,
+ *   `<file>::(the file failed)`, followed by `: <line>` when the file did not load and vitest's
+ *   message holds a non-empty line: its first, trimmed, cut at `MESSAGE_LIMIT` characters. A file
+ *   whose own hook failed keeps the bare entry, so a record without a load failure does not move.
+ * @param {string} file
+ * @param {FileReport} report
+ * @returns {string}
+ */
+function fileFailedEntry(file, report) {
+  const entry = `${file}::${FILE_FAILED}`;
+  if (!unloadedReport(report) || report.message === undefined) return entry;
+  const line = report.message
+    .split("\n")
+    .map((each) => each.trim())
+    .find((each) => each !== "");
+  return line === undefined
+    ? entry
+    : `${entry}: ${Array.from(line).slice(0, MESSAGE_LIMIT).join("")}`;
+}
+
+/**
  * @description The red scope tests of a run, each named `<file>::<describe > … > title>`, and a
- *   file that failed with none of its tests failed named `<file>::(the file failed)`.
+ *   file that failed with none of its tests failed named by `fileFailedEntry`.
  * @param {Run} run
  * @param {readonly string[]} files
  * @returns {string[]} Sorted.
@@ -354,9 +404,34 @@ function redOf(run, files) {
     if (report === undefined) continue;
     const failed = report.tests.filter((test) => test.status === "failed");
     for (const test of failed) red.push(`${file}::${[...test.ancestors, test.title].join(" > ")}`);
-    if (report.status === "failed" && failed.length === 0) red.push(`${file}::${FILE_FAILED}`);
+    if (report.status === "failed" && failed.length === 0) red.push(fileFailedEntry(file, report));
   }
   return [...new Set(red)].sort(byCodeUnit);
+}
+
+/**
+ * @description The red entries of a run's scope files that did not load, in the files' order.
+ * @param {Run} run
+ * @param {readonly string[]} files
+ * @returns {string[]}
+ */
+function unloadedOf(run, files) {
+  return files.flatMap((file) => {
+    const report = run.report.get(file);
+    return report !== undefined && unloadedReport(report) ? [fileFailedEntry(file, report)] : [];
+  });
+}
+
+/**
+ * @description The reason a case whose clean runs left scope files unloaded is undecided under,
+ *   by the side or sides that hold one, or `null` when neither does.
+ * @param {{ base: readonly string[], head: readonly string[] }} unloaded
+ * @returns {string | null}
+ */
+function unreadableReason(unloaded) {
+  if (unloaded.base.length > 0 && unloaded.head.length > 0) return BOTH_UNREADABLE;
+  if (unloaded.base.length > 0) return BASE_UNREADABLE;
+  return unloaded.head.length > 0 ? HEAD_UNREADABLE : null;
 }
 
 /**
@@ -445,16 +520,12 @@ export function decide({ kind, test, blocks, searchFound, resolutions, runs, fil
     const failure = failureOf(runs[each].clean, files[each]);
     if (failure !== null) return undecided(failure);
   }
-  const unloaded = files.base.filter((file) => {
-    const report = runs.base.clean.report.get(file);
-    return report?.status === "failed" && report.tests.length === 0;
-  });
-  if (unloaded.length > 0) {
-    return undecided("base-unreadable", {
-      base: unloaded.map((file) => `${file}::${FILE_FAILED}`),
-      head: [],
-    });
-  }
+  const unloaded = {
+    base: unloadedOf(runs.base.clean, files.base),
+    head: unloadedOf(runs.head.clean, files.head),
+  };
+  const unreadable = unreadableReason(unloaded);
+  if (unreadable !== null) return undecided(unreadable, unloaded);
   const baseClean = redOf(runs.base.clean, files.base);
   const headClean = redOf(runs.head.clean, files.head);
   if (baseClean.length > 0) {
