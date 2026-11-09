@@ -13,7 +13,14 @@
  *   test is red at the base under the mutation and every listed block is red at the head; a
  *   deletion counts (SAFE) only when the deleted block is red at the base and a kept test is red at
  *   the head. Either kind is BEHAVIOUR-CHANGED when the base clean run is red on its listed blocks
- *   alone and the head clean run is green: the old test fails on the new code, measured.
+ *   alone and the head clean run is green: the old test fails on the new code, measured. A scope
+ *   file that fails to load on a clean run, with no test at all, leaves the case UNDECIDED by the
+ *   side it failed on: `base-unreadable`, `head-unreadable`, or `both-unreadable` when it failed on
+ *   both, which points at the environment the runs share (a missing test env file, say) rather than
+ *   at either side's content. Each such file is named on its side's red list as
+ *   `<file>::(the file failed): <line>`, the line being the first non-empty one of the message
+ *   vitest reports for the file, trimmed and cut at 200 characters, since the JSON report keeps
+ *   the load error there and nowhere else.
  *
  *   ANY ROLE MAY RUN IT, the verifier included: it does no git write, creates no worktree and
  *   installs nothing. Git is only read (`rev-parse`, `ls-tree`, `show`), so git stays with the
@@ -47,7 +54,8 @@
  *   directory, its imports and mocks resolved from its own path, so `import.meta.url`, `__dirname`
  *   and a path it reads relative to itself see the copy, and a glob character in its path is
  *   residual; (7) a mutation that makes a test
- *   file fail to load leaves its blocks without a result, which is `block-missing`.
+ *   file fail to load leaves its blocks without a result, which is `block-missing`, the file named
+ *   on the mutated side's red list with its message's first line.
  *
  *   Usage: `node scripts/testing/mutation-diff.mjs --cases <file.json> --out <record.json>
  *   [--base <sha>] [--head <ref>] [--only <id>]... [--require gain|safe] [--root <dir>]`, or

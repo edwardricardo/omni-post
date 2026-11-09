@@ -56,6 +56,7 @@ interface TestResult {
 interface FileReport {
   readonly status: string;
   readonly tests: readonly TestResult[];
+  readonly message?: string;
 }
 
 /** What one vitest run gave. */
@@ -232,11 +233,15 @@ const found = (describe: readonly string[], title: string): Resolution => ({
 });
 const MISSING: Resolution = { state: "missing" };
 
-/** A run whose files report the tests given as `[describe, title, status]`. */
+/**
+ * A run whose files report the tests given as `[describe, title, status]`, with the file status
+ * and the vitest message a file carries where one is given.
+ */
 const run = (
   files: Readonly<Record<string, readonly (readonly [string, string, string])[]>>,
   failure: string | null = null,
-  status: Readonly<Record<string, string>> = {}
+  status: Readonly<Record<string, string>> = {},
+  messages: Readonly<Record<string, string>> = {}
 ): Run => ({
   failure,
   report: new Map(
@@ -249,6 +254,7 @@ const run = (
           title,
           status: state,
         })),
+        ...(messages[file] === undefined ? {} : { message: messages[file] }),
       },
     ])
   ),
@@ -434,6 +440,37 @@ describe("reportOf", () => {
       error: "the vitest report holds no testResults",
     });
   });
+
+  it("returns a file's vitest message when it is a non-empty string, and no message field when it is missing, empty or not a string", () => {
+    const file = (name: string, message: unknown): Record<string, unknown> => ({
+      name: `/repo/pkg/tests/${name}.test.ts`,
+      status: "failed",
+      assertionResults: [],
+      ...(message === undefined ? {} : { message }),
+    });
+
+    const report = core.reportOf(
+      {
+        testResults: [
+          file("loud", "Error: the env is invalid\n    at env.ts:1:1"),
+          file("empty", ""),
+          file("missing", undefined),
+          file("odd", 42),
+        ],
+      },
+      "/repo"
+    );
+
+    expect("value" in report ? [...report.value] : report).toStrictEqual([
+      [
+        "pkg/tests/loud.test.ts",
+        { status: "failed", tests: [], message: "Error: the env is invalid\n    at env.ts:1:1" },
+      ],
+      ["pkg/tests/empty.test.ts", { status: "failed", tests: [] }],
+      ["pkg/tests/missing.test.ts", { status: "failed", tests: [] }],
+      ["pkg/tests/odd.test.ts", { status: "failed", tests: [] }],
+    ]);
+  });
 });
 
 describe("decide", () => {
@@ -584,6 +621,48 @@ describe("decide", () => {
       { base: [`${T}::(the file failed)`], head: [] },
     ],
     [
+      "head-unreadable",
+      {
+        runs: {
+          base: { clean: greenRun(), mutated: greenRun() },
+          head: {
+            clean: run({ [T]: [], [O]: [["o", "other", PASS]] }, null, { [T]: FAIL }),
+            mutated: greenRun(),
+          },
+        },
+      },
+      { base: [], head: [`${T}::(the file failed)`] },
+    ],
+    [
+      "both-unreadable",
+      {
+        runs: {
+          base: {
+            clean: run(
+              { [T]: [], [O]: [["o", "other", PASS]] },
+              null,
+              { [T]: FAIL },
+              { [T]: "\n   Error: DATABASE_URL is required  \n    at env.ts:12:3" }
+            ),
+            mutated: greenRun(),
+          },
+          head: {
+            clean: run(
+              { [T]: [], [O]: [] },
+              null,
+              { [T]: FAIL, [O]: FAIL },
+              { [O]: "x".repeat(250) }
+            ),
+            mutated: greenRun(),
+          },
+        },
+      },
+      {
+        base: [`${T}::(the file failed): Error: DATABASE_URL is required`],
+        head: [`${T}::(the file failed)`, `${O}::(the file failed): ${"x".repeat(200)}`],
+      },
+    ],
+    [
       "base-red-clean",
       {
         runs: {
@@ -631,6 +710,24 @@ describe("decide", () => {
         },
       },
       none,
+    ],
+    [
+      "block-missing",
+      {
+        runs: {
+          base: { clean: greenRun(), mutated: greenRun() },
+          head: {
+            clean: greenRun(),
+            mutated: run(
+              { [T]: [], [O]: [["o", "other", PASS]] },
+              null,
+              { [T]: FAIL },
+              { [T]: "SyntaxError: the mutation broke the import" }
+            ),
+          },
+        },
+      },
+      { base: [], head: [`${T}::(the file failed): SyntaxError: the mutation broke the import`] },
     ],
   ] as const)("UNDECIDED on %s", (reason, overrides, red) => {
     expect(core.decide(input(overrides as Partial<DecideInput>))).toEqual({
@@ -1046,6 +1143,8 @@ const plantRepository = (
 /** How a replaced run behaves. */
 interface Plan {
   readonly failing?: (run: VitestRun) => readonly string[];
+  /** The files of a run that fail to load, each with the message vitest reports for it. */
+  readonly unloaded?: (run: VitestRun) => Readonly<Record<string, string>>;
   readonly applied?: boolean;
   readonly served?: boolean;
   readonly spawnError?: boolean;
@@ -1068,7 +1167,11 @@ const fakeVitest = (
       });
     }
     const failing = new Set(plan.failing?.(vitestRun) ?? []);
+    const unloaded = plan.unloaded?.(vitestRun) ?? {};
     const testResults = vitestRun.files.map((file) => {
+      const name = vitestRun.paths?.[file] ?? path.join(vitestRun.root, file);
+      const message = unloaded[file];
+      if (message !== undefined) return { name, status: FAIL, message, assertionResults: [] };
       const spec = TESTS[file];
       const assertionResults = (spec?.[vitestRun.side] ?? []).map((title) => ({
         ancestorTitles: [spec?.describe ?? ""],
@@ -1077,7 +1180,7 @@ const fakeVitest = (
         status: failing.has(title) ? FAIL : PASS,
       }));
       return {
-        name: vitestRun.paths?.[file] ?? path.join(vitestRun.root, file),
+        name,
         status: assertionResults.some((test) => test.status === FAIL) ? FAIL : PASS,
         assertionResults,
       };
@@ -1090,7 +1193,7 @@ const fakeVitest = (
       appendFileSync(vitestRun.servedLog, `${served}\n`);
     }
     return Promise.resolve({
-      status: failing.size > 0 ? 1 : 0,
+      status: failing.size > 0 || Object.keys(unloaded).length > 0 ? 1 : 0,
       stdout: "",
       stderr: "",
       timedOut: false,
@@ -1427,6 +1530,30 @@ describe("main", () => {
     expect(caseOf(result.record, "pins-limit")).toMatchObject({
       verdict: "UNDECIDED",
       reason: "not-served",
+    });
+  });
+
+  it("returns UNDECIDED both-unreadable with each side's unloaded file and its message's first line when the test module throws at import without the variable the fixture names", async () => {
+    const variable = "MUTATION_DIFF_SUITE_LOAD_KEY";
+    expect(process.env[variable]).toBeUndefined();
+    const { root, base } = plantRepository();
+    const throwsWithoutVariable = (): Readonly<Record<string, string>> =>
+      process.env[variable] === undefined
+        ? { [SUBJECT_TEST]: `\nError: ${variable} is not set\n    at ${SUBJECT_TEST}:2:9\n` }
+        : {};
+    const vitest = fakeVitest({
+      failing: headMutated(["pins the limit"]),
+      unloaded: throwsWithoutVariable,
+    });
+
+    const result = await command(root, [makeCase()], vitest.exec, ["--base", base]);
+
+    const entry = `${SUBJECT_TEST}::(the file failed): Error: ${variable} is not set`;
+    expect(result.code).toBe(1);
+    expect(caseOf(result.record, "pins-limit")).toMatchObject({
+      verdict: "UNDECIDED",
+      reason: "both-unreadable",
+      red: { base: [entry], head: [entry] },
     });
   });
 

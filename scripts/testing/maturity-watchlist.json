@@ -152,6 +152,11 @@
           "date": "2026-11-05",
           "outcome": "clean",
           "note": "Reviewed 2026-11-05, four days after the 2026-11-01 milestone: reminder #812 went unanswered until `Dependency Consistency` went red on #835. Registry, read 2026-11-05T19:20Z: 1.16.2 is latest and not deprecated. OSV lists nothing for it, and upstream has no issue opened since its publication. The lockfile holds one copy, under axios 1.20.0. The battery is GREEN with it on `617c01da`."
+        },
+        "final": {
+          "date": "2026-11-09",
+          "outcome": "clean",
+          "note": "Reviewed 2026-11-09, one day after the 2026-11-08 milestone. Registry, read 2026-11-09T03:07Z: 1.16.3 is latest (published 2026-11-08T16:53Z, inside the 7-day buffer until 2026-11-15T16:53Z), and neither 1.16.2 nor 1.16.3 is deprecated. 1.16.3 is one commit over 1.16.2, `5f624225` (\"Escape braces.\"): `escapeRegex` now escapes `{` and `}` too, the RegExp syntax characters the GHSA-8r9p-f939-6h3c fix left out, with no advisory of its own. OSV lists nothing for 1.16.2, and neither GitHub's global database nor the repository's advisories list one affecting it. Upstream, the one item opened since its publication is pull request #296 (open: maxBodyLength counts UTF-16 code units rather than bytes for string bodies), not a security issue. Not reachable here: no file of apps, packages, infra or scripts sets `sensitiveHeaders`, and axios 1.20.0 builds its own array. The lockfile holds one copy, under axios 1.20.0, and the battery is GREEN with it on `dad37fbf` (2026-11-09T04:07Z). 1.16.3 is taken in the weekly window once mature."
         }
       }
     },
