@@ -1,0 +1,137 @@
+{
+  "seed": "EXISTENCE-ONLY-CALIBRATION-COMPLETION@ce6c81936f10a49705c9f92003b31dffbb1fe711",
+  "base": "ce6c81936f10a49705c9f92003b31dffbb1fe711",
+  "method": "Each population id is ranked by the hex sha256 of the seed, a newline and the id, ascending, and the first n are drawn. K is the smallest count of bad blocks that puts the population's good rate under 90 %; n is the smallest sample whose probability of drawing no bad block among N with K bad is at most 0.05 (hypergeometric, no failure allowed). Only vitest blocks are drawn.",
+  "populations": {
+    "remaining": {
+      "query": "blocks whose blockClass is EXISTENCE-ONLY in ledger.json at base",
+      "total": 45,
+      "N": 42,
+      "K": 5,
+      "n": 18,
+      "p0": 0.049965,
+      "excluded": [
+        {
+          "id": "apps/api/tests/integration/customerRegisterHeldEmail.integration.test.ts::hands the registration a notice mailer that throttles each address",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts::groups analytics by week",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/integration/rls-tenant-isolation.integration.test.ts::INSERT with matching accountId succeeds and cleanup removes it",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        }
+      ],
+      "ids": [
+        "apps/api/tests/unit/application/reportSharing.test.ts::sets expiry date when provided",
+        "apps/api/tests/unit/infrastructure/container/setupLocalizedGenerationUseCases.test.ts::resolves the repositories to their Prisma adapters",
+        "apps/api/tests/unit/metrics/guardrailMetrics.test.ts::is idempotent when called twice on the same registry (HMR safety)",
+        "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle zero response time",
+        "apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts::builds each adapter from its key and webhook secret",
+        "apps/api/tests/unit/auditService.retention.test.ts::should use strict less-than for cutoff (not less-than-or-equal)",
+        "packages/adapters/storage-s3/tests/index.test.ts::creates an adapter instance with minimal config (no credentials)",
+        "apps/api/tests/unit/postsService.test.ts::should record performance metrics",
+        "apps/api/tests/unit/performanceMonitor.init.test.ts::should track user agent in metrics",
+        "apps/api/tests/unit/EventService.user-analytics.test.ts::should validate against AnalyticsCollectedEvent schema",
+        "apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts::boots a partial app whose routes collide with nothing",
+        "apps/workers/tests/unit/publishWorker.unit.test.ts::returns a PublishWorkerHandle with target, repo, and metricsRegistry",
+        "apps/api/tests/unit/infrastructure/adapters/SlackNotifierAdapter.test.ts::includes metadata fields when present in payload",
+        "apps/api/tests/unit/sagaManager.execution.test.ts::should pass context between steps with stepData",
+        "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns fallback result on internal error",
+        "apps/api/tests/unit/application/generatePlatformVariants.test.ts::all 10 platforms have profiles defined",
+        "apps/api/tests/unit/EventService.user-analytics.test.ts::should validate with optional metrics fields",
+        "apps/api/tests/unit/DiffCalculator.test.ts::detects modified adaptation field"
+      ]
+    },
+    "flipped": {
+      "query": "blocks EXISTENCE-ONLY in ledger.json at 0a30ce38^ and not at 0a30ce38, BEHAVIOURAL at base with the bodyHash they had at 0a30ce38^",
+      "total": 69,
+      "N": 59,
+      "K": 6,
+      "n": 23,
+      "p0": 0.043229,
+      "excluded": [
+        {
+          "id": "apps/api/tests/accountLifecycle.integration.test.ts::should retrieve account sessions",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/accountLifecycle.integration.test.ts::should revoke all sessions for account",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/integration/post-trio-tenant-isolation.integration.test.ts::succeeds inside withSystemContext and derives the tenant from the recurrence's owner",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/integration/postDeleteOwnership.integration.test.ts::lets the explicit system caller delete the post it owns (gate skipped)",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/integration/recurringPostTenantIsolation.integration.test.ts::ProcessRecurrenceUseCase SUCCEEDS inside withSystemContext('recurrence-sweep')",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/integration/repositories/UserRepository.integration.test.ts::handles emails with special characters",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/integration/tenantGucTransactionBinding.integration.test.ts::persists a tracked link through the unit of work instead of failing the tenant policy",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/mfa.integration.test.ts::should complete login with backup code",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/publish.flow.integration.test.ts::queue round-trip: enqueue and verify queue health",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        },
+        {
+          "id": "apps/api/tests/threading.canonical.integration.test.ts::should account for thread indicators in character limits",
+          "framework": "node",
+          "reason": "node:test block: mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures it as this row's residual"
+        }
+      ],
+      "ids": [
+        "apps/api/tests/unit/application/reportUseCases.test.ts::passes optional format",
+        "packages/core/auth/tests/unit/RoleManagementService.test.ts::returns void ok when the role exists, is not a system role, and has no users",
+        "packages/providers/telegram/tests/TelegramAdapter.test.ts::handles exactly 10 media items (boundary)",
+        "packages/core/compliance/tests/unit/ComplianceService.test.ts::returns the updated DSAR row when the request exists",
+        "apps/api/tests/unit/domain/crisisMode.test.ts::should emit CrisisModeExited event",
+        "apps/api/tests/unit/application/recurringPostUseCases.test.ts::accepts optional endDate",
+        "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::returns void ok when the conversation exists and can be resolved",
+        "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts 2200 chars on Instagram",
+        "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts text of exactly 4096 chars",
+        "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll with exactly 10 options",
+        "apps/api/tests/unit/domain/aggregates.social-message.test.ts::archives from REPLIED",
+        "packages/core/compliance/tests/unit/ComplianceService.test.ts::returns updated settings when data is valid",
+        "apps/api/tests/unit/application/brandVoiceUseCase.test.ts::accepts name of exactly 100 chars",
+        "apps/api/tests/unit/ContentVersionManager.compare.test.ts::should compare adaptations across platforms",
+        "apps/api/tests/unit/ContentVersionManager.merge.test.ts::should detect conflicts automatically",
+        "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts exactly 280 chars on X",
+        "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns ok for body exactly 2200 chars",
+        "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts body up to 5000 chars on YouTube",
+        "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should include historical comparison when requested",
+        "apps/api/tests/unit/application/MLUseCases.test.ts::includes heuristic tone analysis when requested",
+        "packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts empty string",
+        "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns ok for exactly 5000 chars",
+        "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll question of exactly 300 chars"
+      ]
+    }
+  }
+}

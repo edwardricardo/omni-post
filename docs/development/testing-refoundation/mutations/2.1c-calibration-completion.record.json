@@ -1,0 +1,1339 @@
+{
+  "base": "ce6c81936f10a49705c9f92003b31dffbb1fe711",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "103a2b3a0c1b3aec1f8d2b28a94fd38ac97d18f1b5266c7b273f6f3fdf998a7d",
+            "head": "103a2b3a0c1b3aec1f8d2b28a94fd38ac97d18f1b5266c7b273f6f3fdf998a7d"
+          },
+          "id": "apps/api/tests/unit/application/reportUseCases.test.ts::passes optional format"
+        }
+      ],
+      "id": "a01-report-format-case",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/application/reportUseCases.test.ts::CreateScheduledReportUseCase > creates report and returns ID",
+          "apps/api/tests/unit/application/reportUseCases.test.ts::CreateScheduledReportUseCase > passes optional format",
+          "apps/api/tests/unit/application/reportUseCases.test.ts::CreateScheduledReportUseCase > returns error when save fails"
+        ],
+        "head": [
+          "apps/api/tests/unit/application/reportUseCases.test.ts::CreateScheduledReportUseCase > creates report and returns ID",
+          "apps/api/tests/unit/application/reportUseCases.test.ts::CreateScheduledReportUseCase > passes optional format",
+          "apps/api/tests/unit/application/reportUseCases.test.ts::CreateScheduledReportUseCase > returns error when save fails"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/reportUseCases.test.ts"],
+        "head": ["apps/api/tests/unit/application/reportUseCases.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "4eb85ea01950757169202e857bbd792af9626d9b2378108078b10fe37a514138",
+            "head": "4eb85ea01950757169202e857bbd792af9626d9b2378108078b10fe37a514138"
+          },
+          "id": "packages/core/auth/tests/unit/RoleManagementService.test.ts::returns void ok when the role exists, is not a system role, and has no users"
+        }
+      ],
+      "id": "a02-role-in-use-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/core/auth/tests/unit/RoleManagementService.test.ts::RoleManagementService > deleteRole > returns void ok when the role exists, is not a system role, and has no users"
+        ],
+        "head": [
+          "packages/core/auth/tests/unit/RoleManagementService.test.ts::RoleManagementService > deleteRole > returns void ok when the role exists, is not a system role, and has no users"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/auth/tests/unit/RoleManagementService.test.ts"],
+        "head": ["packages/core/auth/tests/unit/RoleManagementService.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2aea3ad6247e88cc755aabad5a838bc8fe8ec43f9bfba7b1feff4462ef6cfbe1",
+            "head": "2aea3ad6247e88cc755aabad5a838bc8fe8ec43f9bfba7b1feff4462ef6cfbe1"
+          },
+          "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::handles exactly 10 media items (boundary)"
+        }
+      ],
+      "id": "a03-telegram-media-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() edge cases > handles exactly 10 media items (boundary)"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() edge cases > handles exactly 10 media items (boundary)"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "742d6c5f1bbf038ab7b4b65479e264c010676d415dd0ff15407123ef953a75ba",
+            "head": "742d6c5f1bbf038ab7b4b65479e264c010676d415dd0ff15407123ef953a75ba"
+          },
+          "id": "packages/core/compliance/tests/unit/ComplianceService.test.ts::returns the updated DSAR row when the request exists"
+        }
+      ],
+      "id": "a04-dsar-found-inverted",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/core/compliance/tests/unit/ComplianceService.test.ts::ComplianceService > acknowledgeDsar > returns NOT_FOUND when the DSAR request does not exist",
+          "packages/core/compliance/tests/unit/ComplianceService.test.ts::ComplianceService > acknowledgeDsar > returns the updated DSAR row when the request exists"
+        ],
+        "head": [
+          "packages/core/compliance/tests/unit/ComplianceService.test.ts::ComplianceService > acknowledgeDsar > returns NOT_FOUND when the DSAR request does not exist",
+          "packages/core/compliance/tests/unit/ComplianceService.test.ts::ComplianceService > acknowledgeDsar > returns the updated DSAR row when the request exists"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/compliance/tests/unit/ComplianceService.test.ts"],
+        "head": ["packages/core/compliance/tests/unit/ComplianceService.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "90aaaec123dacb925d1a08cee0b1d702954fd302ff6d263cdbeaeb81f5723b4c",
+            "head": "90aaaec123dacb925d1a08cee0b1d702954fd302ff6d263cdbeaeb81f5723b4c"
+          },
+          "id": "apps/api/tests/unit/domain/crisisMode.test.ts::should emit CrisisModeExited event"
+        }
+      ],
+      "id": "a05-crisis-exit-guard-inverted",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/domain/crisisMode.test.ts::Crisis Mode Domain > Crisis Mode Events > should emit CrisisModeExited event",
+          "apps/api/tests/unit/domain/crisisMode.test.ts::Crisis Mode Domain > Project Crisis Mode > should exit crisis mode",
+          "apps/api/tests/unit/domain/crisisMode.test.ts::Crisis Mode Domain > Project Crisis Mode > should track crisis mode history"
+        ],
+        "head": [
+          "apps/api/tests/unit/domain/crisisMode.test.ts::Crisis Mode Domain > Crisis Mode Events > should emit CrisisModeExited event",
+          "apps/api/tests/unit/domain/crisisMode.test.ts::Crisis Mode Domain > Project Crisis Mode > should exit crisis mode",
+          "apps/api/tests/unit/domain/crisisMode.test.ts::Crisis Mode Domain > Project Crisis Mode > should track crisis mode history"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/domain/crisisMode.test.ts"],
+        "head": ["apps/api/tests/unit/domain/crisisMode.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "079640e4a3f83e3771425e50eb35812a1f385680c7121931154ba27c7ff6d7cb",
+            "head": "079640e4a3f83e3771425e50eb35812a1f385680c7121931154ba27c7ff6d7cb"
+          },
+          "id": "apps/api/tests/unit/application/recurringPostUseCases.test.ts::accepts optional endDate"
+        }
+      ],
+      "id": "a06-recurring-end-from-start",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/application/recurringPostUseCases.test.ts::CreateRecurringPostUseCase > accepts optional endDate"
+        ],
+        "head": [
+          "apps/api/tests/unit/application/recurringPostUseCases.test.ts::CreateRecurringPostUseCase > accepts optional endDate"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/recurringPostUseCases.test.ts"],
+        "head": ["apps/api/tests/unit/application/recurringPostUseCases.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "6ee8c62644af35b670837651ddc362ddad9d118c70aea6684b9cbcda45630d4c",
+            "head": "6ee8c62644af35b670837651ddc362ddad9d118c70aea6684b9cbcda45630d4c"
+          },
+          "id": "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::returns void ok when the conversation exists and can be resolved"
+        }
+      ],
+      "id": "a07-resolver-check-inverted",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::ResolveConversationUseCase > returns NOT_FOUND when the conversation does not exist in the repository",
+          "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::ResolveConversationUseCase > returns void ok when the conversation exists and can be resolved"
+        ],
+        "head": [
+          "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::ResolveConversationUseCase > returns NOT_FOUND when the conversation does not exist in the repository",
+          "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::ResolveConversationUseCase > returns void ok when the conversation exists and can be resolved"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts"],
+        "head": ["packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "641dabde2002f4078e83c3037bc9049134623c98c73d0a71fc9ca4a9617c15bf",
+            "head": "641dabde2002f4078e83c3037bc9049134623c98c73d0a71fc9ca4a9617c15bf"
+          },
+          "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts 2200 chars on Instagram"
+        }
+      ],
+      "id": "a08-instagram-body-limit",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts 2200 chars on Instagram"
+        ],
+        "head": [
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts 2200 chars on Instagram"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/domain/value-objects.content.test.ts"],
+        "head": ["apps/api/tests/unit/domain/value-objects.content.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "f55e1dab297f9c6401d3490c22262c3868bea74b473864ee1f78e68b9dd7904f",
+            "head": "f55e1dab297f9c6401d3490c22262c3868bea74b473864ee1f78e68b9dd7904f"
+          },
+          "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts text of exactly 4096 chars"
+        }
+      ],
+      "id": "a09-telegram-text-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() edge cases > accepts text of exactly 4096 chars"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() edge cases > accepts text of exactly 4096 chars"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "6442a68fcc0b3f6005d063c25238ac0e6e9839eb601061a14efcf0a59d90fc4c",
+            "head": "6442a68fcc0b3f6005d063c25238ac0e6e9839eb601061a14efcf0a59d90fc4c"
+          },
+          "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll with exactly 10 options"
+        }
+      ],
+      "id": "a10-telegram-poll-options-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() polls > accepts poll with exactly 10 options"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() polls > accepts poll with exactly 10 options"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "369687e10e5461073b085e7af1c3f5ddf2d2e16c8cddd450181195d99e14a1de",
+            "head": "369687e10e5461073b085e7af1c3f5ddf2d2e16c8cddd450181195d99e14a1de"
+          },
+          "id": "apps/api/tests/unit/domain/aggregates.social-message.test.ts::archives from REPLIED"
+        }
+      ],
+      "id": "a11-replied-archive-transition",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/domain/aggregates.social-message.test.ts::SocialMessageAggregate > archive > archives from REPLIED"
+        ],
+        "head": [
+          "apps/api/tests/unit/domain/aggregates.social-message.test.ts::SocialMessageAggregate > archive > archives from REPLIED"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/domain/aggregates.social-message.test.ts"],
+        "head": ["apps/api/tests/unit/domain/aggregates.social-message.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "e6551872ad19d2a44ceef30dd4402920f9f970cca3d520c77aa42553649bb94e",
+            "head": "e6551872ad19d2a44ceef30dd4402920f9f970cca3d520c77aa42553649bb94e"
+          },
+          "id": "packages/core/compliance/tests/unit/ComplianceService.test.ts::returns updated settings when data is valid"
+        }
+      ],
+      "id": "a12-gdpr-default-dpo-type",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/core/compliance/tests/unit/ComplianceService.test.ts::ComplianceService > updateGdprSettings > returns DATABASE_ERROR and reports the cause through the injected logger when the settings write throws",
+          "packages/core/compliance/tests/unit/ComplianceService.test.ts::ComplianceService > updateGdprSettings > returns updated settings when data is valid"
+        ],
+        "head": [
+          "packages/core/compliance/tests/unit/ComplianceService.test.ts::ComplianceService > updateGdprSettings > returns DATABASE_ERROR and reports the cause through the injected logger when the settings write throws",
+          "packages/core/compliance/tests/unit/ComplianceService.test.ts::ComplianceService > updateGdprSettings > returns updated settings when data is valid"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/compliance/tests/unit/ComplianceService.test.ts"],
+        "head": ["packages/core/compliance/tests/unit/ComplianceService.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d24867577e603a6eb404d018a1dd4d69004661c0a2c3eef1865c8b75729d33dd",
+            "head": "d24867577e603a6eb404d018a1dd4d69004661c0a2c3eef1865c8b75729d33dd"
+          },
+          "id": "apps/api/tests/unit/application/brandVoiceUseCase.test.ts::accepts name of exactly 100 chars"
+        }
+      ],
+      "id": "a13-brand-voice-name-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/application/brandVoiceUseCase.test.ts::UpsertBrandVoiceUseCase > accepts name of exactly 100 chars"
+        ],
+        "head": [
+          "apps/api/tests/unit/application/brandVoiceUseCase.test.ts::UpsertBrandVoiceUseCase > accepts name of exactly 100 chars"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/brandVoiceUseCase.test.ts"],
+        "head": ["apps/api/tests/unit/application/brandVoiceUseCase.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "f2ddfcde8433ee3dce71e2f2eec8bdecf6654f28da580a98358a8a89507cafdd",
+            "head": "f2ddfcde8433ee3dce71e2f2eec8bdecf6654f28da580a98358a8a89507cafdd"
+          },
+          "id": "apps/api/tests/unit/ContentVersionManager.compare.test.ts::should compare adaptations across platforms"
+        }
+      ],
+      "id": "a14-adaptations-compared-to-self",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts::ContentVersionManager - compareVersions > Diff Generation > should compare adaptations across platforms",
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts::ContentVersionManager - compareVersions > Diff Generation > should detect added platform adaptations",
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts::ContentVersionManager - compareVersions > Diff Generation > should detect removed platform adaptations",
+          "apps/api/tests/unit/DiffCalculator.test.ts::DiffCalculator > generateDiff > detects added adaptation",
+          "apps/api/tests/unit/DiffCalculator.test.ts::DiffCalculator > generateDiff > detects modified adaptation field",
+          "apps/api/tests/unit/DiffCalculator.test.ts::DiffCalculator > generateDiff > detects removed adaptation"
+        ],
+        "head": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts::ContentVersionManager - compareVersions > Diff Generation > should compare adaptations across platforms",
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts::ContentVersionManager - compareVersions > Diff Generation > should detect added platform adaptations",
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts::ContentVersionManager - compareVersions > Diff Generation > should detect removed platform adaptations",
+          "apps/api/tests/unit/DiffCalculator.test.ts::DiffCalculator > generateDiff > detects added adaptation",
+          "apps/api/tests/unit/DiffCalculator.test.ts::DiffCalculator > generateDiff > detects modified adaptation field",
+          "apps/api/tests/unit/DiffCalculator.test.ts::DiffCalculator > generateDiff > detects removed adaptation"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/DiffCalculator.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/DiffCalculator.test.ts"
+        ]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2256f49de0cb91de3ea7a25e1c3b1ff38d0edf34c99e59bf83c6619764338ee3",
+            "head": "2256f49de0cb91de3ea7a25e1c3b1ff38d0edf34c99e59bf83c6619764338ee3"
+          },
+          "id": "apps/api/tests/unit/ContentVersionManager.merge.test.ts::should detect conflicts automatically"
+        }
+      ],
+      "id": "a15-merge-status-arms-swapped",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts::ContentVersionManager - createMergeRequest > Merge Request Creation > should detect conflicts automatically",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts::ContentVersionManager - createMergeRequest > Merge Request Creation > should set status to pending when no conflicts"
+        ],
+        "head": [
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts::ContentVersionManager - createMergeRequest > Merge Request Creation > should detect conflicts automatically",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts::ContentVersionManager - createMergeRequest > Merge Request Creation > should set status to pending when no conflicts"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/ContentVersionManager.merge.test.ts"],
+        "head": ["apps/api/tests/unit/ContentVersionManager.merge.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "c5dfa982e6469890cb640f763e3405a3610d70151dee5567d63c08b1afaa1f03",
+            "head": "c5dfa982e6469890cb640f763e3405a3610d70151dee5567d63c08b1afaa1f03"
+          },
+          "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts exactly 280 chars on X"
+        }
+      ],
+      "id": "a16-x-body-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts 2200 chars on Instagram",
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts body up to 5000 chars on YouTube",
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts exactly 280 chars on X"
+        ],
+        "head": [
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts 2200 chars on Instagram",
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts body up to 5000 chars on YouTube",
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts exactly 280 chars on X"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/domain/value-objects.content.test.ts"],
+        "head": ["apps/api/tests/unit/domain/value-objects.content.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "a3b5668434b42488d62d4f4dfb6521ba1811bb9612b08ed807bd750940a4043e",
+            "head": "a3b5668434b42488d62d4f4dfb6521ba1811bb9612b08ed807bd750940a4043e"
+          },
+          "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns ok for body exactly 2200 chars"
+        }
+      ],
+      "id": "a17-tiktok-body-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/tiktok/tests/TikTokAdapter.test.ts::TikTokAdapter > render — video posts > returns ok for body exactly 2200 chars"
+        ],
+        "head": [
+          "packages/providers/tiktok/tests/TikTokAdapter.test.ts::TikTokAdapter > render — video posts > returns ok for body exactly 2200 chars"
+        ]
+      },
+      "scope": {
+        "base": ["packages/providers/tiktok/tests/TikTokAdapter.test.ts"],
+        "head": ["packages/providers/tiktok/tests/TikTokAdapter.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d0750de7153401e6d9e4a97b2707379584ab570e2134d399fb4450bb3c30bc66",
+            "head": "d0750de7153401e6d9e4a97b2707379584ab570e2134d399fb4450bb3c30bc66"
+          },
+          "id": "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts body up to 5000 chars on YouTube"
+        }
+      ],
+      "id": "a18-youtube-limits-swapped",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts body up to 5000 chars on YouTube",
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > returns error for title > 100 chars on YouTube"
+        ],
+        "head": [
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > accepts body up to 5000 chars on YouTube",
+          "apps/api/tests/unit/domain/value-objects.content.test.ts::Content value object > fitsInPlatform > returns error for title > 100 chars on YouTube"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/domain/value-objects.content.test.ts"],
+        "head": ["apps/api/tests/unit/domain/value-objects.content.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "9b0b1988d4a0d2b550d4157141e02fc28e9a1afb8026f99559cdb8ddd542be34",
+            "head": "9b0b1988d4a0d2b550d4157141e02fc28e9a1afb8026f99559cdb8ddd542be34"
+          },
+          "id": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should include historical comparison when requested"
+        }
+      ],
+      "id": "a19-historical-comparison-inverted",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::Analytics Use Cases (TDD) > ComparePerformanceUseCase > should include historical comparison when requested"
+        ],
+        "head": [
+          "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::Analytics Use Cases (TDD) > ComparePerformanceUseCase > should include historical comparison when requested"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/AnalyticsUseCases.test.ts"],
+        "head": ["apps/api/tests/unit/application/AnalyticsUseCases.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "f3a8f7758b9c51a4251774b5732aed517b3cb4b61b5b26b6cd146e819b740908",
+            "head": "f3a8f7758b9c51a4251774b5732aed517b3cb4b61b5b26b6cd146e819b740908"
+          },
+          "id": "apps/api/tests/unit/application/MLUseCases.test.ts::includes heuristic tone analysis when requested"
+        }
+      ],
+      "id": "a20-heuristic-tone-flag-inverted",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/application/MLUseCases.test.ts::ML Use Cases (Tier 0) > OptimizeContentUseCase — Heuristic Fallback > includes heuristic tone analysis when requested"
+        ],
+        "head": [
+          "apps/api/tests/unit/application/MLUseCases.test.ts::ML Use Cases (Tier 0) > OptimizeContentUseCase — Heuristic Fallback > includes heuristic tone analysis when requested"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/MLUseCases.test.ts"],
+        "head": ["apps/api/tests/unit/application/MLUseCases.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "5a0d6f4d4fc7f07b27b852abeee1dabb88f2b89e2b71948acac003ef8317f48a",
+            "head": "5a0d6f4d4fc7f07b27b852abeee1dabb88f2b89e2b71948acac003ef8317f48a"
+          },
+          "id": "packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts empty string"
+        }
+      ],
+      "id": "a21-bluesky-length-inverted",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > creates an app.bsky.feed.post record in the session's repo with the access token",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > drops a mention facet whose handle does not resolve and keeps the text and other facets",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > keeps a mention facet whose handle resolves, carrying the resolved DID",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > publishes a link facet spanning the URL's UTF-8 bytes",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > publishes tag facets for hashtags and for cashtags",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > returns PUBLISH when createRecord fails",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > accepts empty string",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > calls detectFacets with the agent before posting",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > includes createdAt as ISO string",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > includes facets in post when detected",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > omits facets from post when none detected",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > returns PUBLISH error when agent.post throws",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > returns VALIDATION error for exactly 301 chars",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > returns VALIDATION error for text > 300 chars",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > returns uri and cid on successful publish"
+        ],
+        "head": [
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > creates an app.bsky.feed.post record in the session's repo with the access token",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > drops a mention facet whose handle does not resolve and keeps the text and other facets",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > keeps a mention facet whose handle resolves, carrying the resolved DID",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > publishes a link facet spanning the URL's UTF-8 bytes",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > publishes tag facets for hashtags and for cashtags",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts::BlueskyClient against the @atproto/api SDK > publishText > returns PUBLISH when createRecord fails",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > accepts empty string",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > calls detectFacets with the agent before posting",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > includes createdAt as ISO string",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > includes facets in post when detected",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > omits facets from post when none detected",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > returns PUBLISH error when agent.post throws",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > returns VALIDATION error for exactly 301 chars",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > returns VALIDATION error for text > 300 chars",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishText > returns uri and cid on successful publish"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts",
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts"
+        ],
+        "head": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts",
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts"
+        ]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "11c405458115e70102e91f3cfe76a7921c1291ff46d4672e7e8edfb18759cb5e",
+            "head": "11c405458115e70102e91f3cfe76a7921c1291ff46d4672e7e8edfb18759cb5e"
+          },
+          "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns ok for exactly 5000 chars"
+        }
+      ],
+      "id": "a22-youtube-description-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/youtube/tests/YouTubeAdapter.test.ts::YouTubeAdapter > render > returns ok for exactly 5000 chars"
+        ],
+        "head": [
+          "packages/providers/youtube/tests/YouTubeAdapter.test.ts::YouTubeAdapter > render > returns ok for exactly 5000 chars"
+        ]
+      },
+      "scope": {
+        "base": ["packages/providers/youtube/tests/YouTubeAdapter.test.ts"],
+        "head": ["packages/providers/youtube/tests/YouTubeAdapter.test.ts"]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "a82c8c55e9baf4048f41550485fefa76379e936ed46c63183d0424b9ac2bc7a4",
+            "head": "a82c8c55e9baf4048f41550485fefa76379e936ed46c63183d0424b9ac2bc7a4"
+          },
+          "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll question of exactly 300 chars"
+        }
+      ],
+      "id": "a23-telegram-poll-question-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() polls > accepts poll question of exactly 300 chars"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() polls > accepts poll question of exactly 300 chars"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ]
+      },
+      "verdict": "NO-GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "807e39ea01b2fb0729429e98393f7f0a921499a36c801355779f08491d771fdc",
+            "head": "807e39ea01b2fb0729429e98393f7f0a921499a36c801355779f08491d771fdc"
+          },
+          "id": "apps/api/tests/unit/application/reportSharing.test.ts::sets expiry date when provided"
+        }
+      ],
+      "id": "b01-report-share-expiry-now",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/reportSharing.test.ts"],
+        "head": ["apps/api/tests/unit/application/reportSharing.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "ee05fe9b802a1aced9dfc50a209f1facbe30ab2f97a78126ea7f3394ad020104",
+            "head": "ee05fe9b802a1aced9dfc50a209f1facbe30ab2f97a78126ea7f3394ad020104"
+          },
+          "id": "apps/api/tests/unit/infrastructure/container/setupLocalizedGenerationUseCases.test.ts::resolves the repositories to their Prisma adapters"
+        }
+      ],
+      "id": "b02-glossary-repo-transient",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/infrastructure/container/setupLocalizedGenerationUseCases.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/infrastructure/container/setupLocalizedGenerationUseCases.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "6061fbb202d6eeb35f101646195fbfc95cf3a4eb251b7f437a56920dda86dd39",
+            "head": "6061fbb202d6eeb35f101646195fbfc95cf3a4eb251b7f437a56920dda86dd39"
+          },
+          "id": "apps/api/tests/unit/metrics/guardrailMetrics.test.ts::is idempotent when called twice on the same registry (HMR safety)"
+        }
+      ],
+      "id": "b03-guardrail-labels-swapped",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/metrics/guardrailMetrics.test.ts::createGuardrailMetrics > increments the counter with the expected labels on each evaluation"
+        ],
+        "head": [
+          "apps/api/tests/unit/metrics/guardrailMetrics.test.ts::createGuardrailMetrics > increments the counter with the expected labels on each evaluation"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/metrics/guardrailMetrics.test.ts"],
+        "head": ["apps/api/tests/unit/metrics/guardrailMetrics.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "109db030f043fb70aa4614c37c04ed019a9f1bfe99a1fbb9b855d89847bd2166",
+            "head": "109db030f043fb70aa4614c37c04ed019a9f1bfe99a1fbb9b855d89847bd2166"
+          },
+          "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle zero response time"
+        }
+      ],
+      "id": "b04-monitor-method-lowercased",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Endpoint Statistics > should aggregate endpoint statistics"
+        ],
+        "head": [
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Endpoint Statistics > should aggregate endpoint statistics"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/performanceMonitor.init.test.ts",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/performanceMonitor.init.test.ts",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "6594f72983b969869ff8c2fd92cb59596b02d6854dc3ed41e3c974cb91d7c65d",
+            "head": "6594f72983b969869ff8c2fd92cb59596b02d6854dc3ed41e3c974cb91d7c65d"
+          },
+          "id": "apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts::builds each adapter from its key and webhook secret"
+        }
+      ],
+      "id": "b05-stripe-webhook-secret-is-key",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts"],
+        "head": ["apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "773a0e2aac404c2003279ae8f0be5bc2f893447557ef7794acdd295958a27daa",
+            "head": "773a0e2aac404c2003279ae8f0be5bc2f893447557ef7794acdd295958a27daa"
+          },
+          "id": "apps/api/tests/unit/auditService.retention.test.ts::should use strict less-than for cutoff (not less-than-or-equal)"
+        }
+      ],
+      "id": "b06-audit-cleanup-lte",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "47df3b79edc12f6b57915cc9e75c9971e799fe8a89876f705f85893918ea662d",
+            "head": "47df3b79edc12f6b57915cc9e75c9971e799fe8a89876f705f85893918ea662d"
+          },
+          "id": "packages/adapters/storage-s3/tests/index.test.ts::creates an adapter instance with minimal config (no credentials)"
+        }
+      ],
+      "id": "b07-s3-path-style-inverted",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "packages/adapters/storage-s3/tests/index.test.ts",
+          "packages/adapters/storage-s3/tests/s3-operations.test.ts"
+        ],
+        "head": [
+          "packages/adapters/storage-s3/tests/index.test.ts",
+          "packages/adapters/storage-s3/tests/s3-operations.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "7cf73df33e5eb38ee93b51534999e74dc97dfae9549fcf6c50fc54586edfe307",
+            "head": "7cf73df33e5eb38ee93b51534999e74dc97dfae9549fcf6c50fc54586edfe307"
+          },
+          "id": "apps/api/tests/unit/postsService.test.ts::should record performance metrics"
+        }
+      ],
+      "id": "b08-dashboard-metric-cached-tag",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts",
+          "apps/api/tests/unit/postsService.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts",
+          "apps/api/tests/unit/postsService.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "bb49f15655de27c3651f32a101662f5015c3c0aa84881721524e490f20a61116",
+            "head": "bb49f15655de27c3651f32a101662f5015c3c0aa84881721524e490f20a61116"
+          },
+          "id": "apps/api/tests/unit/performanceMonitor.init.test.ts::should track user agent in metrics"
+        }
+      ],
+      "id": "b09-monitor-response-time-seconds",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - Edge Cases > should handle very high response time",
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - Request Recording > should detect slow requests",
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - Request Recording > should record request metrics",
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - System Health Calculation > should calculate degraded system status for slow responses",
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - System Health Calculation > should calculate unhealthy status for critical response times",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Dashboard Data > should include slow requests in dashboard",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Endpoint Statistics > should calculate average response time",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Percentile Calculation > should calculate percentiles correctly",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Percentile Calculation > should handle single value for percentiles"
+        ],
+        "head": [
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - Edge Cases > should handle very high response time",
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - Request Recording > should detect slow requests",
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - Request Recording > should record request metrics",
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - System Health Calculation > should calculate degraded system status for slow responses",
+          "apps/api/tests/unit/performanceMonitor.init.test.ts::PerformanceMonitor - System Health Calculation > should calculate unhealthy status for critical response times",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Dashboard Data > should include slow requests in dashboard",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Endpoint Statistics > should calculate average response time",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Percentile Calculation > should calculate percentiles correctly",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts::PerformanceMonitor - Percentile Calculation > should handle single value for percentiles"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/performanceMonitor.init.test.ts",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/performanceMonitor.init.test.ts",
+          "apps/api/tests/unit/performanceMonitor.stats.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "4c0890bad6b23fa526334eac8b77a4d203a4dca12178aded2c750a9d5ab6e4e4",
+            "head": "4c0890bad6b23fa526334eac8b77a4d203a4dca12178aded2c750a9d5ab6e4e4"
+          },
+          "id": "apps/api/tests/unit/EventService.user-analytics.test.ts::should validate against AnalyticsCollectedEvent schema"
+        }
+      ],
+      "id": "b10-analytics-event-ids-swapped",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Data Structure and Required Fields > should include all required analytics fields"
+        ],
+        "head": [
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Data Structure and Required Fields > should include all required analytics fields"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts",
+          "apps/api/tests/unit/EventService.post-channel.test.ts",
+          "apps/api/tests/unit/EventService.test.ts",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.content.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts",
+          "apps/api/tests/unit/content/syncEngineContentRead.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts",
+          "apps/api/tests/unit/EventService.post-channel.test.ts",
+          "apps/api/tests/unit/EventService.test.ts",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.content.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts",
+          "apps/api/tests/unit/content/syncEngineContentRead.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2ff278a4c8a66d0f183219f2255430677112293f41f4858c725236433cafaeb0",
+            "head": "2ff278a4c8a66d0f183219f2255430677112293f41f4858c725236433cafaeb0"
+          },
+          "id": "apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts::boots a partial app whose routes collide with nothing"
+        }
+      ],
+      "id": "b11-cache-read-on-uncached-route",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache Invalidation > should invalidate cache on POST requests",
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache Key Variations > never echoes the bearer token in the X-Cache-Key response header",
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache Key Variations > should cache with different route parameters separately",
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache reads after the route's own hooks > keeps the current request's headers on a HIT instead of the ones cached with it",
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache reads after the route's own hooks > serves a HIT only after the route's own preHandler admits the request",
+          "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts::cached feed invalidation on soft delete > drops the cached posts feed when a project is soft-deleted",
+          "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts::cached feed invalidation on soft delete > drops the cached posts feed when an account is soft-deleted",
+          "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts::cached feed invalidation on soft delete > serves the posts feed from cache on a repeated GET"
+        ],
+        "head": [
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache Invalidation > should invalidate cache on POST requests",
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache Key Variations > never echoes the bearer token in the X-Cache-Key response header",
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache Key Variations > should cache with different route parameters separately",
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache reads after the route's own hooks > keeps the current request's headers on a HIT instead of the ones cached with it",
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts::autoCacheMiddleware - Invalidation, Key Variations and Config > Cache reads after the route's own hooks > serves a HIT only after the route's own preHandler admits the request",
+          "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts::cached feed invalidation on soft delete > drops the cached posts feed when a project is soft-deleted",
+          "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts::cached feed invalidation on soft delete > drops the cached posts feed when an account is soft-deleted",
+          "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts::cached feed invalidation on soft delete > serves the posts feed from cache on a repeated GET"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts",
+          "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts",
+          "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts",
+          "apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts",
+          "apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts",
+          "apps/api/tests/unit/cache/deleteInvalidatesCachedFeed.test.ts",
+          "apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "caa9bf548db3edf1f3af464ca14f2341cbf96a2c53c50023f97bca335a91ae76",
+            "head": "caa9bf548db3edf1f3af464ca14f2341cbf96a2c53c50023f97bca335a91ae76"
+          },
+          "id": "apps/workers/tests/unit/publishWorker.unit.test.ts::returns a PublishWorkerHandle with target, repo, and metricsRegistry"
+        }
+      ],
+      "id": "b12-worker-metrics-detached-registry",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/workers/tests/unit/publishWorker.unit.test.ts"],
+        "head": ["apps/workers/tests/unit/publishWorker.unit.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "51d818d5113a5072d8cfba50a699b59d948b0e9bb313ab64ac36a7e41a670362",
+            "head": "51d818d5113a5072d8cfba50a699b59d948b0e9bb313ab64ac36a7e41a670362"
+          },
+          "id": "apps/api/tests/unit/infrastructure/adapters/SlackNotifierAdapter.test.ts::includes metadata fields when present in payload"
+        }
+      ],
+      "id": "b13-slack-field-key-value-swapped",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/infrastructure/adapters/SlackNotifierAdapter.test.ts"],
+        "head": ["apps/api/tests/unit/infrastructure/adapters/SlackNotifierAdapter.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "8cae68cdc272257991d5f593fe0d10d424d6b6c84c87d2ed0630f0056e88835e",
+            "head": "8cae68cdc272257991d5f593fe0d10d424d6b6c84c87d2ed0630f0056e88835e"
+          },
+          "id": "apps/api/tests/unit/sagaManager.execution.test.ts::should pass context between steps with stepData"
+        }
+      ],
+      "id": "b14-saga-metadata-dropped",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/saga/sagaBootResume.test.ts",
+          "apps/api/tests/unit/saga/sagaCompensationWalk.test.ts",
+          "apps/api/tests/unit/saga/sagaPersistence.column.test.ts",
+          "apps/api/tests/unit/saga/sagaStepOutcome.test.ts",
+          "apps/api/tests/unit/sagaManager.execution.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/saga/sagaBootResume.test.ts",
+          "apps/api/tests/unit/saga/sagaCompensationWalk.test.ts",
+          "apps/api/tests/unit/saga/sagaPersistence.column.test.ts",
+          "apps/api/tests/unit/saga/sagaStepOutcome.test.ts",
+          "apps/api/tests/unit/sagaManager.execution.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2be203a0ba495c14952f441546fb6c66da83be0c30af56ed126a4e2b94241878",
+            "head": "2be203a0ba495c14952f441546fb6c66da83be0c30af56ed126a4e2b94241878"
+          },
+          "id": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns fallback result on internal error"
+        }
+      ],
+      "id": "b15-media-fallback-text-count",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts"],
+        "head": ["apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "fd36eb17ddf064d81cc4ecd9df1c1bb447f16408a20d7ef60a39a21f10b7965f",
+            "head": "fd36eb17ddf064d81cc4ecd9df1c1bb447f16408a20d7ef60a39a21f10b7965f"
+          },
+          "id": "apps/api/tests/unit/application/generatePlatformVariants.test.ts::all 10 platforms have profiles defined"
+        }
+      ],
+      "id": "b16-bluesky-profile-limit",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/generatePlatformVariants.test.ts"],
+        "head": ["apps/api/tests/unit/application/generatePlatformVariants.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d66ae6a5df3e4ea9803740e7077d58ec89dfb0fe2a60e2e5fa44e2ef7dd7a097",
+            "head": "d66ae6a5df3e4ea9803740e7077d58ec89dfb0fe2a60e2e5fa44e2ef7dd7a097"
+          },
+          "id": "apps/api/tests/unit/EventService.user-analytics.test.ts::should validate with optional metrics fields"
+        }
+      ],
+      "id": "b17-analytics-window-one-hour",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Period Calculation - 24 Hour Window > returns a period of exactly 24 hours when the clock ticks between reads",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Period Calculation - 24 Hour Window > should calculate period with 24-hour lookback",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Period Calculation - 24 Hour Window > should create different periods for events created at different times",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Period Calculation - 24 Hour Window > should have period.start exactly 24 hours before period.end"
+        ],
+        "head": [
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Period Calculation - 24 Hour Window > returns a period of exactly 24 hours when the clock ticks between reads",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Period Calculation - 24 Hour Window > should calculate period with 24-hour lookback",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Period Calculation - 24 Hour Window > should create different periods for events created at different times",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts::createAnalyticsEvent > Period Calculation - 24 Hour Window > should have period.start exactly 24 hours before period.end"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts",
+          "apps/api/tests/unit/EventService.post-channel.test.ts",
+          "apps/api/tests/unit/EventService.test.ts",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.content.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts",
+          "apps/api/tests/unit/content/syncEngineContentRead.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts",
+          "apps/api/tests/unit/EventService.post-channel.test.ts",
+          "apps/api/tests/unit/EventService.test.ts",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.content.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts",
+          "apps/api/tests/unit/content/syncEngineContentRead.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "5620726771a07750d811e1b04348a6e0a6ec0dcaefc3bc4c8fac37313e652e8a",
+            "head": "5620726771a07750d811e1b04348a6e0a6ec0dcaefc3bc4c8fac37313e652e8a"
+          },
+          "id": "apps/api/tests/unit/DiffCalculator.test.ts::detects modified adaptation field"
+        }
+      ],
+      "id": "b18-diff-modified-values-swapped",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/DiffCalculator.test.ts::DiffCalculator > generateDiff > detects modified field"
+        ],
+        "head": [
+          "apps/api/tests/unit/DiffCalculator.test.ts::DiffCalculator > generateDiff > detects modified field"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/DiffCalculator.test.ts"],
+        "head": ["apps/api/tests/unit/DiffCalculator.test.ts"]
+      },
+      "verdict": "BROKEN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2750d424d5ebbab0634988c8db441ae085485edd80c1b625c5ff1b17e6c59bc6",
+            "head": "2750d424d5ebbab0634988c8db441ae085485edd80c1b625c5ff1b17e6c59bc6"
+          },
+          "id": "apps/api/tests/unit/EventService.post-channel.test.ts::should create CHANNEL_CONNECTED events correctly"
+        }
+      ],
+      "id": "b8-channel-event-ids",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/EventService.post-channel.test.ts::createChannelEvent > Data Merging Logic > should merge channelId and projectId into data"
+        ],
+        "head": [
+          "apps/api/tests/unit/EventService.post-channel.test.ts::createChannelEvent > Data Merging Logic > should merge channelId and projectId into data"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts",
+          "apps/api/tests/unit/EventService.post-channel.test.ts",
+          "apps/api/tests/unit/EventService.test.ts",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.content.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts",
+          "apps/api/tests/unit/content/syncEngineContentRead.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+          "apps/api/tests/unit/ContentVersionManager.merge.test.ts",
+          "apps/api/tests/unit/EventService.post-channel.test.ts",
+          "apps/api/tests/unit/EventService.test.ts",
+          "apps/api/tests/unit/EventService.user-analytics.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter-simple.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.content.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.media-errors.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.platforms.test.ts",
+          "apps/api/tests/unit/PlatformContentAdapter.twitter.test.ts",
+          "apps/api/tests/unit/content/syncEngineContentRead.test.ts"
+        ]
+      },
+      "verdict": "BROKEN"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}
