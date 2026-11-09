@@ -4,11 +4,15 @@
  * @description The differential mutation tool: does a rewritten test catch a mutation its base
  *   form did not, and does a deleted block take with it a mutation nothing else catches? For each
  *   case of a case file it makes one realistic mutation of a subject (its `search`, replaced at the
- *   first occurrence by its `replace`) and runs the case's whole scope four times with vitest: the
+ *   first occurrence by its `replace`) and runs the case's whole scope four times with the collector the ledger names for its test, a
+ *   vitest config or node:test's integration tier: the
  *   test files at the base and at the head, each unmutated and mutated. The test files' base
  *   content (`git show <base>:<path>`), and the head's when `--head` is given, is served in memory
  *   by a Vite plugin (`lib/mutation-diff-plugin.mjs`), which also mutates the subject, always the
- *   working tree's file, in memory; nothing in the tree is changed. The verdict table, the scope
+ *   working tree's file, in memory; nothing in the tree is changed. A node:test run gets the same from
+ *   loader hooks (`lib/mutation-diff-hooks.mjs`, registered by `lib/mutation-diff-register.mjs`
+ *   ahead of tsx) and is read through `node-results-reporter.mjs`, from the package directory and
+ *   with the flags the integration collector uses. The verdict table, the scope
  *   and the record are `lib/mutation-diff-core.mjs`'s. A rewrite counts (GAIN) only when no scope
  *   test is red at the base under the mutation and every listed block is red at the head; a
  *   deletion counts (SAFE) only when the deleted block is red at the base and a kept test is red at
@@ -19,7 +23,7 @@
  *   both, which points at the environment the runs share (a missing test env file, say) rather than
  *   at either side's content. Each such file is named on its side's red list as
  *   `<file>::(the file failed): <line>`, the line being the first non-empty one of the message
- *   vitest reports for the file, trimmed and cut at 200 characters, since the JSON report keeps
+ *   the runner reports for the file, trimmed and cut at 200 characters, since the JSON report keeps
  *   the load error there and nowhere else.
  *
  *   ANY ROLE MAY RUN IT, the verifier included: it does no git write, creates no worktree and
@@ -32,7 +36,8 @@
  *   `<slice>.record.json`; the unit that added this tool commits none.
  *
  *   SCOPE, on each side from that side's tree. The case's test, the files its `scope` names, and
- *   every test file of the same vitest project (the collector `ledger.json` at that side names,
+ *   every test file the same collector runs (a vitest project, or node:test's integration tier, as
+ *   `ledger.json` at that side names it,
  *   today's when the side holds none) whose import specifiers, read statically and
  *   resolved relative to the file, name the subject. A test that reaches the subject through
  *   another module, or through an alias, is outside the default scope unless the case names it.
@@ -40,22 +45,25 @@
  *   EXIT CODES: 0 every case is decided, BEHAVIOUR-CHANGED included; 1 any BROKEN or UNDECIDED,
  *   with `--require gain` any NO-GAIN or BEHAVIOUR-CHANGED, with `--require safe` any LOST, VACUOUS
  *   or BEHAVIOUR-CHANGED; 2 a usage error, or a case file refused (an
- *   unknown key, a missing field, a duplicate id, a block outside its `test`, a test the ledger runs
- *   with no vitest config in the working tree's ledger nor in its base's, an `--only` that names no case); 3 the environment: the case file or
+ *   unknown key, a missing field, a duplicate id, a block outside its `test`, a test neither the
+ *   working tree's ledger nor its base's runs with a vitest config or node:test's integration tier,
+ *   a test of node:test's live tier or one no collector runs, an `--only` that names no case); 3 the environment: an empty `DATABASE_URL` before a
+ *   node:test run, the case file or
  *   the ledger cannot be read, git fails, the scratch directory cannot be made, the runner does not
  *   start, or the record cannot be written. Nothing is written on 2 or 3.
  *
  *   RESIDUAL LIMITS, stated rather than implied: (1) one search string, replaced at its first
  *   occurrence; (2) the realistic mutation stays a human choice, and the tool proves only what that
- *   one mutation shows; (3) whole files run, so a test's neighbours run with it; (4) vitest only,
- *   node:test is a later unit; (5) a flaky clean run is UNDECIDED, never a verdict, unless its red
+ *   one mutation shows; (3) whole files run, so a test's neighbours run with it; (4) node:test's live tier and a
+ *   row no collector runs are refused, never run; (5) a flaky clean run is UNDECIDED, never a verdict, unless its red
  *   falls on the listed blocks alone at the base, which reads as BEHAVIOUR-CHANGED; (6) a test file
  *   the working tree lacks (a test the head deleted whole, say) runs from a copy under the scratch
  *   directory, its imports and mocks resolved from its own path, so `import.meta.url`, `__dirname`
  *   and a path it reads relative to itself see the copy, and a glob character in its path is
  *   residual; (7) a mutation that makes a test
  *   file fail to load leaves its blocks without a result, which is `block-missing`, the file named
- *   on the mutated side's red list with its message's first line.
+ *   on the mutated side's red list with its message's first line; (8) a node:test run hands
+ *   its options path to its child alone through POSIX `env(1)`, which must be on PATH.
  *
  *   Usage: `node scripts/testing/mutation-diff.mjs --cases <file.json> --out <record.json>
  *   [--base <sha>] [--head <ref>] [--only <id>]... [--require gain|safe] [--root <dir>]`, or
@@ -83,7 +91,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { runTool } from "./hard-probe.mjs";
-import { pendingTempPath, probeCommand } from "./lib/hard-probe-core.mjs";
+import {
+  NODE_TEST_TIMEOUT,
+  RUNNABLE,
+  pendingTempPath,
+  probeCommand,
+} from "./lib/hard-probe-core.mjs";
 import {
   blocksOf,
   bodyHashes,
@@ -97,6 +110,7 @@ import {
   scopeOf,
 } from "./lib/mutation-diff-core.mjs";
 import { PLUGIN_FILE, mutationPlugin } from "./lib/mutation-diff-plugin.mjs";
+import { REGISTER_FILE } from "./lib/mutation-diff-register.mjs";
 import {
   EXIT,
   byCodeUnit,
@@ -105,6 +119,7 @@ import {
   messageOf,
   renderJson,
 } from "./lib/record-helpers.mjs";
+import { RESULTS_REPORTER_FILE } from "./node-results-reporter.mjs";
 
 /** This repository's root. */
 const ROOT = path.resolve(fileURLToPath(new URL("../../", import.meta.url)));
@@ -112,8 +127,21 @@ const ROOT = path.resolve(fileURLToPath(new URL("../../", import.meta.url)));
 /** Where a slice's record lives, the path its rendering reads the formatting rules for. */
 const RENDERED_AS = "docs/development/testing-refoundation/mutations/record.json";
 
-/** How long one vitest run may take before its process group is killed. */
+/** How long one run may take before its process group is killed. */
 const RUN_TIMEOUT = 600_000;
+
+/** The variable a node:test run's options path reaches its child in. */
+const OPTIONS_VARIABLE = "MUTATION_DIFF_OPTIONS";
+
+/** node:test's live tier, whose tests need a running API. */
+const LIVE_TIER = /^node:.*#live$/;
+
+/** node:test's integration tier, the one node:test collector this tool runs. */
+const INTEGRATION_TIER = /^node:.*#integration$/;
+
+/** The integration collector's own words when the test database is missing (`run-tests.sh`). */
+const NO_DATABASE =
+  "DATABASE_URL is empty, so there is no test database to run the integration suites against";
 
 const USAGE =
   "usage: node scripts/testing/mutation-diff.mjs --cases <file.json> --out <record.json> [--base <sha>] [--head <ref>] [--only <id>]... [--require gain|safe] [--root <dir>]";
@@ -136,11 +164,11 @@ const USAGE =
  */
 
 /**
- * @typedef {object} VitestRun One vitest run, as the `exec` seam receives it.
+ * @typedef {object} ScopeRun One run of a case's files, as the `exec` seam receives it.
  * @property {string} root The repository root, absolute.
  * @property {string} command
  * @property {string[]} args
- * @property {string} cwd The package directory of the vitest config, absolute.
+ * @property {string} cwd The package directory the runner runs from, absolute.
  * @property {Side} side
  * @property {boolean} mutated
  * @property {string[]} files The test files, repository-relative.
@@ -150,11 +178,15 @@ const USAGE =
  * @property {string} report Where the JSON reporter writes.
  * @property {string | null} marker Where the plugin marks the mutation applied.
  * @property {string} servedLog Where the plugin logs each served id.
+ * @property {Readonly<Record<string, string>> | null} env The variables the run sets for its child
+ *   alone: a node:test run's options path, `null` for vitest.
  */
 
 /**
  * @typedef {object} Seams What the suite replaces.
- * @property {(run: VitestRun) => Promise<Ran>} [exec] Runs one vitest run.
+ * @property {(run: ScopeRun) => Promise<Ran>} [exec] Runs one run.
+ * @property {Readonly<Record<string, string | undefined>>} [env] The environment the database
+ *   check of a node:test case reads, `process.env` by default.
  */
 
 /**
@@ -306,17 +338,19 @@ function rowsOf(ledger) {
 }
 
 /**
- * @description The vitest config a ledger runs a test with, or `null`.
+ * @description The runner a ledger runs a test with: its row's first `vitest:` or `node:`
+ *   collector label, else its first label of another kind, `""` for a row no collector runs, or
+ *   `null` when the ledger has no row for the test.
  * @param {readonly Record<string, unknown>[]} rows The ledger's `files`.
  * @param {string} test
- * @returns {string | null} Repository-relative.
+ * @returns {string | null}
  */
-function vitestConfigOf(rows, test) {
-  const collectors = rows.find((row) => row["path"] === test)?.["collectors"];
-  const collector = Array.isArray(collectors)
-    ? collectors.find((each) => typeof each === "string" && each.startsWith("vitest:"))
-    : undefined;
-  return typeof collector === "string" ? collector.slice("vitest:".length) : null;
+function runnerOf(rows, test) {
+  const row = rows.find((each) => each["path"] === test);
+  if (row === undefined) return null;
+  const listed = row["collectors"];
+  const labels = Array.isArray(listed) ? listed.filter((each) => typeof each === "string") : [];
+  return labels.find((label) => RUNNABLE.test(label)) ?? labels[0] ?? "";
 }
 
 /**
@@ -327,7 +361,7 @@ function vitestConfigOf(rows, test) {
  * @property {ReadonlyMap<string, string>} bases Each base ref, resolved to its sha.
  * @property {string} base `--base`, as given.
  * @property {string | null} head `--head`, resolved, or `null` for the working tree.
- * @property {(run: VitestRun) => Promise<Ran>} exec
+ * @property {(run: ScopeRun) => Promise<Ran>} exec
  * @property {Map<string, Run>} clean The clean runs made so far, shared between cases.
  * @property {{ count: number }} runs
  * @property {Map<string, string | null>} texts Each file's text at a side, read once.
@@ -395,37 +429,56 @@ function rowsAt(context, ref) {
 }
 
 /**
- * @description The vitest config a case's test runs with: the working tree's ledger's, else the
- *   ledger's at the case's base, so a test the head deleted whole is still a case.
+ * @description The runner a case's test runs with: the working tree's ledger's, else the ledger's
+ *   at the case's base, so a test the head deleted whole is still a case.
  * @param {Context} context
  * @param {Case} spec
  * @param {string} baseRef
  * @returns {string | null}
  */
-function configFor(context, spec, baseRef) {
-  return (
-    vitestConfigOf(context.rows, spec.test) ?? vitestConfigOf(rowsAt(context, baseRef), spec.test)
-  );
+function runnerFor(context, spec, baseRef) {
+  return runnerOf(context.rows, spec.test) ?? runnerOf(rowsAt(context, baseRef), spec.test);
+}
+
+/**
+ * @description Why a case cannot run, or `null` when its runner is a vitest config or node:test's
+ *   integration tier: no row on either side, a row no collector runs, node:test's live tier, which
+ *   needs a running API, or a runner of another kind.
+ * @param {Case} spec
+ * @param {string | null} runner
+ * @returns {string | null}
+ */
+function runnerRefusal(spec, runner) {
+  const named = `case ${spec.id}: field "test" names ${spec.test}`;
+  if (runner === null) {
+    return `${named}, which neither the working tree's ledger nor its base's runs with a vitest config or node:test's integration tier`;
+  }
+  if (runner === "") return `${named}, and no collector runs it`;
+  if (LIVE_TIER.test(runner)) {
+    return `${named}: a live-tier test needs a running API, which this tool does not start`;
+  }
+  if (runner.startsWith("vitest:") || INTEGRATION_TIER.test(runner)) return null;
+  return `${named}, which runs with ${runner}: this tool runs a vitest config or node:test's integration tier`;
 }
 
 /**
  * @description One side of a case: its default scope, computed from that side's tree (the
- *   candidates are the tests its own ledger runs with the case's config, read at that side), and
+ *   candidates are the tests its own ledger runs with the case's runner, read at that side), and
  *   the text of each scope file the side holds. A listed file git cannot show makes the side
  *   unreadable.
  * @param {Context} context
  * @param {string | null} ref `null` for the working tree.
  * @param {Case} spec
- * @param {string} config
+ * @param {string} runner
  * @returns {{ files: string[], texts: Map<string, string>, unreadable: boolean }}
  */
-function sideOf(context, ref, spec, config) {
-  const dir = path.posix.dirname(config);
+function sideOf(context, ref, spec, runner) {
+  const dir = probeCommand(spec.test, runner, "").cwd;
   const held = ref === null ? null : listedAt(context, ref, dir);
   const candidates = rowsAt(context, ref).flatMap((row) => {
     const file = row["path"];
     if (typeof file !== "string" || file === spec.test) return [];
-    if (vitestConfigOf([row], file) !== config || (held !== null && !held.has(file))) return [];
+    if (runnerOf([row], file) !== runner || (held !== null && !held.has(file))) return [];
     const text = textAt(context, ref, file);
     return text === null ? [] : [{ path: file, text }];
   });
@@ -501,18 +554,19 @@ function configText(config, root, options) {
 }
 
 /**
- * @description Makes one vitest run of a case's files on one side, the way the hard probe runs its
- *   collector (from the config's directory, with the JSON reporter), and reads what it gave: a
+ * @description Makes one run of a case's files on one side, the way the hard probe runs its
+ *   collector (vitest from the config's directory with the JSON reporter, node:test from the
+ *   package directory with the results reporter and the loader hooks), and reads what it gave: a
  *   timeout, no report, a mutated run with no marker, or a served file the plugin never
  *   transformed, is a failure, never a verdict. A file the working tree lacks runs from a copy
  *   under the scratch directory, its imports resolved from its own path by the plugin.
  * @param {Context} context
- * @param {{ config: string, side: Side, ref: string | null, mutated: boolean, files: readonly string[], texts: ReadonlyMap<string, string>, serve: boolean, spec: Case }} wanted
+ * @param {{ runner: string, side: Side, ref: string | null, mutated: boolean, files: readonly string[], texts: ReadonlyMap<string, string>, serve: boolean, spec: Case }} wanted
  *   `serve` serves the side's content for the files the working tree holds.
  * @returns {Promise<Run>}
  * @throws {Stop} Exit 3 when the runner does not start.
  */
-async function vitestRun(context, { config, side, ref, mutated, files, texts, serve, spec }) {
+async function scopeRun(context, { runner, side, ref, mutated, files, texts, serve, spec }) {
   if (files.length === 0) return { failure: null, report: new Map() };
   const { root, scratch } = context;
   context.runs.count += 1;
@@ -558,26 +612,55 @@ async function vitestRun(context, { config, side, ref, mutated, files, texts, se
       include: Object.keys(aliases),
     })
   );
-  const probe = probeCommand(files[0] ?? "", `vitest:${config}`, "");
+  const probe = probeCommand(files[0] ?? "", runner, "");
   const cwd = path.join(root, probe.cwd);
-  const generated = `${stem}.config.mjs`;
-  writeFileSync(generated, configText(path.join(root, config), cwd, options));
+  const targets = files.map((file) =>
+    paths[file] === path.join(root, file)
+      ? path.posix.relative(probe.cwd, file)
+      : (paths[file] ?? file)
+  );
+  /** @type {{ args: string[], env: Record<string, string> | null }} */
+  let how;
+  if (runner.startsWith("vitest:")) {
+    const generated = `${stem}.config.mjs`;
+    const config = path.join(root, runner.slice("vitest:".length));
+    writeFileSync(generated, configText(config, cwd, options));
+    how = {
+      args: [
+        path.join(ROOT, "node_modules/vitest/vitest.mjs"),
+        "run",
+        ...targets,
+        "--config",
+        generated,
+        "--reporter=json",
+        `--outputFile=${report}`,
+      ],
+      env: null,
+    };
+  } else {
+    how = {
+      args: [
+        "--conditions",
+        "development",
+        "--import",
+        REGISTER_FILE,
+        "--import",
+        "tsx",
+        "--test",
+        `--test-reporter=${RESULTS_REPORTER_FILE}`,
+        `--test-reporter-destination=${report}`,
+        "--test-force-exit",
+        "--test-concurrency=1",
+        `--test-timeout=${NODE_TEST_TIMEOUT}`,
+        ...targets,
+      ],
+      env: { [OPTIONS_VARIABLE]: options },
+    };
+  }
   const ran = await context.exec({
     root,
     command: process.execPath,
-    args: [
-      path.join(ROOT, "node_modules/vitest/vitest.mjs"),
-      "run",
-      ...files.map((file) =>
-        paths[file] === path.join(root, file)
-          ? path.posix.relative(probe.cwd, file)
-          : (paths[file] ?? file)
-      ),
-      "--config",
-      generated,
-      "--reporter=json",
-      `--outputFile=${report}`,
-    ],
+    args: how.args,
     cwd,
     side,
     mutated,
@@ -587,6 +670,7 @@ async function vitestRun(context, { config, side, ref, mutated, files, texts, se
     report,
     marker,
     servedLog,
+    env: how.env,
   });
   if (ran.spawnError !== null) {
     throw new Stop(
@@ -615,7 +699,7 @@ async function vitestRun(context, { config, side, ref, mutated, files, texts, se
 
 /**
  * @description Decides one case: its scope on each side, its blocks on each side, its four runs (the
- *   clean ones shared with any case of the same side, ref, config and scope) and its verdict. A case
+ *   clean ones shared with any case of the same side, ref, runner and scope) and its verdict. A case
  *   whose search, base scope or blocks already decide it runs nothing.
  * @param {Context} context
  * @param {Case} spec
@@ -624,12 +708,12 @@ async function vitestRun(context, { config, side, ref, mutated, files, texts, se
 async function decideCase(context, spec) {
   const { root } = context;
   const baseRef = context.bases.get(spec.base ?? context.base) ?? "";
-  const config = configFor(context, spec, baseRef) ?? "";
+  const runner = runnerFor(context, spec, baseRef) ?? "";
   const subjectPath = path.join(root, spec.subject);
   const subjectText = readOrNull(subjectPath);
   const searchFound = subjectText !== null && holdsSearch(subjectPath, subjectText, spec.search);
-  const base = sideOf(context, baseRef, spec, config);
-  const head = sideOf(context, context.head, spec, config);
+  const base = sideOf(context, baseRef, spec, runner);
+  const head = sideOf(context, context.head, spec, runner);
   /** @type {(texts: ReadonlyMap<string, string>) => ReturnType<typeof blocksOf> | null} */
   const blocksAt = (texts) => {
     const text = texts.get(spec.test);
@@ -670,11 +754,11 @@ async function decideCase(context, spec) {
         };
       }
       const ref = each === "base" ? baseRef : context.head;
-      const key = [each, ref ?? "worktree", config, ...files[each]].join("\u0000");
+      const key = [each, ref ?? "worktree", runner, ...files[each]].join("\u0000");
       const shared = mutated ? undefined : context.clean.get(key);
       if (shared !== undefined) return shared;
-      const made = await vitestRun(context, {
-        config,
+      const made = await scopeRun(context, {
+        runner,
         side: each,
         ref,
         mutated,
@@ -712,6 +796,19 @@ async function decideCase(context, spec) {
 }
 
 /**
+ * @description Runs one run in its own process group under `RUN_TIMEOUT`. A run with variables of
+ *   its own goes through POSIX `env(1)`, which sets them for that child alone, since the hard
+ *   probe's `runTool` hands every child this process's environment.
+ * @param {ScopeRun} run
+ * @returns {Promise<Ran>}
+ */
+function spawnRun(run) {
+  if (run.env === null) return runTool(run.command, run.args, run.cwd, RUN_TIMEOUT);
+  const assignments = Object.entries(run.env).map(([name, value]) => `${name}=${value}`);
+  return runTool("env", [...assignments, run.command, ...run.args], run.cwd, RUN_TIMEOUT);
+}
+
+/**
  * @description Writes the record without ever truncating an earlier one: the text goes to a temp
  *   file beside the target, created exclusively under `pendingTempPath`'s name, and is then renamed
  *   onto it; a failure removes the temp file and leaves the target as it was.
@@ -741,7 +838,8 @@ function writeOut(out, text) {
 
 /**
  * @description Reads the case file and the ledger, resolves the bases and the head, refuses a case
- *   whose test neither the working tree's ledger nor its base's runs with a vitest config, or an
+ *   whose runner this tool does not run (`runnerRefusal`), stops on an empty `DATABASE_URL`
+ *   before a node:test case, refuses an
  *   `--only` that names no case, and decides every selected case in a scratch directory it removes.
  * @param {Options} options
  * @param {Seams} seams
@@ -792,20 +890,27 @@ async function mutationRun(options, seams) {
     bases,
     base: options.base,
     head,
-    exec: seams.exec ?? ((run) => runTool(run.command, run.args, run.cwd, RUN_TIMEOUT)),
+    exec: seams.exec ?? spawnRun,
     clean: new Map(),
     runs: { count: 0 },
     texts: new Map(),
     listings: new Map(),
     ledgers: new Map(),
   };
-  const unrun = selected.find(
-    (spec) => configFor(context, spec, bases.get(spec.base ?? options.base) ?? "") === null
-  );
-  if (unrun !== undefined) {
-    return cliResult(EXIT.USAGE, [
-      `mutation-diff: refused: case ${unrun.id}: field "test" names ${unrun.test}, which neither the working tree's ledger nor its base's runs with a vitest config`,
-    ]);
+  /** @type {(spec: Case) => string | null} */
+  const runnerOfCase = (spec) =>
+    runnerFor(context, spec, bases.get(spec.base ?? options.base) ?? "");
+  for (const spec of selected) {
+    const refusal = runnerRefusal(spec, runnerOfCase(spec));
+    if (refusal !== null) return cliResult(EXIT.USAGE, [`mutation-diff: refused: ${refusal}`]);
+  }
+  const environment = seams.env ?? process.env;
+  const needsDatabase = selected.some((spec) => runnerOfCase(spec)?.startsWith("node:") === true);
+  if (needsDatabase && (environment["DATABASE_URL"] ?? "") === "") {
+    throw new Stop(
+      EXIT.UNREAD,
+      `mutation-diff: unread: ${NO_DATABASE}; export the test environment before a node:test case`
+    );
   }
   try {
     context.scratch = mkdtempSync(path.join(tmpdir(), "mutation-diff-"));

@@ -3,8 +3,8 @@
  * @file mutation-diff-core.mjs
  * @description The pure core of the differential mutation tool: the case file and its refusals,
  *   the scope a case runs, the block a ledger id resolves to and the classifier's hash of it, the
- *   reading of a vitest JSON report, the verdict table, the record and the exit code. It spawns
- *   nothing and writes nothing; `scripts/testing/mutation-diff.mjs` runs the four vitest runs of
+ *   reading of a JSON report (vitest's, or node:test's through `node-results-reporter.mjs`), the verdict table, the record and the exit code. It spawns
+ *   nothing and writes nothing; `scripts/testing/mutation-diff.mjs` runs the four runs of
  *   each case and hands their reports here. The direct-import read of the scope is
  *   `record-coverage-core.mjs`'s, shared with the record-coverage gate, fitness #54.
  *

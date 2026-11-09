@@ -59,13 +59,13 @@ const BEHAVIOURAL_FRACTION = 0.05;
 const LINT_RULE_RATE = 0.9;
 
 /** The collectors whose runners take a name pattern: a vitest config, or node:test's runner. */
-const RUNNABLE = /^(vitest|node):/;
+export const RUNNABLE = /^(vitest|node):/;
 
 /** The node:test reporter `apps/api/scripts/run-tests.sh` reads its verdict from. */
 const SUMMARY_REPORTER = "scripts/testing/node-summary-reporter.mjs";
 
 /** The per-test budget `run-tests.sh` gives node:test, in milliseconds. */
-const NODE_TEST_TIMEOUT = 30_000;
+export const NODE_TEST_TIMEOUT = 30_000;
 
 /** The reporter's one machine line, as `run-tests.sh` matches it. */
 const SUMMARY_LINE =

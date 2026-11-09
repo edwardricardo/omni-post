@@ -1,0 +1,141 @@
+[
+  { "type": "test:start", "data": { "name": "outer", "nesting": 0, "file": "/fixture/a.ts" } },
+  { "type": "test:start", "data": { "name": "passes", "nesting": 1, "file": "/fixture/a.ts" } },
+  {
+    "type": "test:pass",
+    "data": {
+      "name": "passes",
+      "nesting": 1,
+      "file": "/fixture/a.ts",
+      "details": { "type": "test" }
+    }
+  },
+  { "type": "test:start", "data": { "name": "inner", "nesting": 1, "file": "/fixture/a.ts" } },
+  { "type": "test:start", "data": { "name": "deep", "nesting": 2, "file": "/fixture/a.ts" } },
+  {
+    "type": "test:fail",
+    "data": {
+      "name": "deep",
+      "nesting": 2,
+      "file": "/fixture/a.ts",
+      "details": {
+        "type": "test",
+        "error": { "message": "expected 1", "failureType": "testCodeFailure" }
+      }
+    }
+  },
+  {
+    "type": "test:fail",
+    "data": {
+      "name": "inner",
+      "nesting": 1,
+      "file": "/fixture/a.ts",
+      "details": {
+        "type": "suite",
+        "error": { "message": "1 subtest failed", "failureType": "subtestsFailed" }
+      }
+    }
+  },
+  { "type": "test:start", "data": { "name": "skipped", "nesting": 1, "file": "/fixture/a.ts" } },
+  {
+    "type": "test:pass",
+    "data": {
+      "name": "skipped",
+      "nesting": 1,
+      "skip": "absent",
+      "file": "/fixture/a.ts",
+      "details": { "type": "test" }
+    }
+  },
+  { "type": "test:start", "data": { "name": "later", "nesting": 1, "file": "/fixture/a.ts" } },
+  {
+    "type": "test:pass",
+    "data": {
+      "name": "later",
+      "nesting": 1,
+      "todo": "not written",
+      "file": "/fixture/a.ts",
+      "details": { "type": "test" }
+    }
+  },
+  { "type": "test:start", "data": { "name": "cancelled", "nesting": 1, "file": "/fixture/a.ts" } },
+  {
+    "type": "test:fail",
+    "data": {
+      "name": "cancelled",
+      "nesting": 1,
+      "file": "/fixture/a.ts",
+      "details": {
+        "type": "test",
+        "error": {
+          "message": "test did not finish before its parent and was cancelled",
+          "failureType": "cancelledByParent"
+        }
+      }
+    }
+  },
+  {
+    "type": "test:fail",
+    "data": {
+      "name": "outer",
+      "nesting": 0,
+      "file": "/fixture/a.ts",
+      "details": {
+        "type": "suite",
+        "error": { "message": "2 subtests failed", "failureType": "subtestsFailed" }
+      }
+    }
+  },
+  {
+    "type": "test:pass",
+    "data": {
+      "name": "/fixture/empty.ts",
+      "nesting": 0,
+      "line": 1,
+      "column": 1,
+      "file": "/fixture/empty.ts",
+      "details": { "type": "test" }
+    }
+  },
+  {
+    "type": "test:stderr",
+    "data": {
+      "file": "/fixture/broken.ts",
+      "message": "file:///fixture/broken.ts:1\nimport { gone } from \"./missing.js\";\n^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find module '/fixture/missing.js' imported from /fixture/broken.ts\n    at finalizeResolution (node:internal/modules/esm/resolve:274:11)\n    at file:///fixture/broken.ts:1:1\n\nNode.js v26.12.1\n"
+    }
+  },
+  {
+    "type": "test:fail",
+    "data": {
+      "name": "/fixture/broken.ts",
+      "nesting": 0,
+      "line": 1,
+      "column": 1,
+      "file": "/fixture/broken.ts",
+      "details": {
+        "type": "test",
+        "error": { "message": "test failed", "failureType": "testCodeFailure", "exitCode": 1 }
+      }
+    }
+  },
+  {
+    "type": "test:fail",
+    "data": {
+      "name": "/fixture/thrown.ts",
+      "nesting": 0,
+      "file": "/fixture/thrown.ts",
+      "details": {
+        "type": "test",
+        "error": {
+          "message": "boom",
+          "failureType": "testCodeFailure",
+          "cause": {
+            "message": "boom",
+            "stack": "Error: boom\n    at load (node:internal/modules/run_main:1:1)\n    at /fixture/thrown.ts:2:9"
+          }
+        }
+      }
+    }
+  },
+  { "type": "test:summary", "data": { "counts": { "tests": 6 }, "success": false } }
+]

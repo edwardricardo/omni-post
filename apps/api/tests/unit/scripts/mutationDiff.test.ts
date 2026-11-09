@@ -1615,10 +1615,10 @@ describe("main", () => {
       "--only names no case: nope",
     ],
     [
-      "a test neither ledger runs with a vitest config",
+      "a test neither ledger runs with a runner this tool knows",
       [makeCase({ test: "pkg/tests/none.test.ts", blocks: ["pkg/tests/none.test.ts::x"] })],
       [],
-      'field "test" names pkg/tests/none.test.ts',
+      "field \"test\" names pkg/tests/none.test.ts, which neither the working tree's ledger nor its base's runs with a vitest config or node:test's integration tier",
     ],
   ])("exits 2 on %s and writes no record", async (_name, cases, extra, message) => {
     const { root, base } = plantRepository();

@@ -139,7 +139,7 @@ function counterOf(event) {
  * @param {TestEvent} event - Any event.
  * @returns {boolean} Whether the event is that stand-in.
  */
-function isNoTestStandIn(event) {
+export function isNoTestStandIn(event) {
   const data = event.data ?? {};
   return (
     event.type === "test:pass" &&
