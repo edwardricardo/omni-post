@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1176  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14696 |
+| Blocks                  | 14703 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -306,7 +306,7 @@ Deleted: 0 files, 43 blocks.
 
 | Path                                                                          | Shape | Blocks | Decorative | Verdict    | Status  | Basis                |
 | ----------------------------------------------------------------------------- | ----- | ------ | ---------- | ---------- | ------- | -------------------- |
-| `packages/providers/bluesky/tests/BlueskyAdapter.test.ts`                     | test  | 38     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/bluesky/tests/BlueskyAdapter.test.ts`                     | test  | 39     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/bluesky/tests/BlueskyClient.test.ts`                      | test  | 32     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/facebook/tests/FacebookAdapter.stories-reels.test.ts`     | test  | 48     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/facebook/tests/FacebookApiClient.writeFailFast.test.ts`   | test  | 1      | 0          | KEEP       | machine | behavioural          |
@@ -316,14 +316,14 @@ Deleted: 0 files, 43 blocks.
 | `packages/providers/instagram/tests/mediaProcessor.test.ts`                   | test  | 10     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/instagram/tests/mediaProcessor.validation.test.ts`        | test  | 9      | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/instagram/tests/schedulingService.management.test.ts`     | test  | 17     | 0          | KEEP       | machine | behavioural          |
-| `packages/providers/linkedin/tests/LinkedInAdapter.test.ts`                   | test  | 50     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/linkedin/tests/LinkedInAdapter.test.ts`                   | test  | 51     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/linkedin/tests/LinkedInApiClient.writeFailFast.test.ts`   | test  | 1      | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/pinterest/tests/PinterestApiClient.writeFailFast.test.ts` | test  | 1      | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/shared/tests/helpers.test.ts`                             | test  | 35     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/snapchat/tests/SnapchatApiClient.writeFailFast.test.ts`   | test  | 1      | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/snapchat/tests/responseParsers.test.ts`                   | test  | 49     | 0          | KEEP       | machine | behavioural          |
-| `packages/providers/telegram/tests/TelegramAdapter.test.ts`                   | test  | 61     | 0          | KEEP       | machine | behavioural          |
-| `packages/providers/tiktok/tests/TikTokAdapter.test.ts`                       | test  | 62     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/telegram/tests/TelegramAdapter.test.ts`                   | test  | 62     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/tiktok/tests/TikTokAdapter.test.ts`                       | test  | 63     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/tiktok/tests/apiClient.test.ts`                           | test  | 47     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/tiktok/tests/authService.test.ts`                         | test  | 72     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/tiktok/tests/contentAnalyticsClient.test.ts`              | test  | 35     | 0          | KEEP       | machine | behavioural          |
@@ -331,10 +331,10 @@ Deleted: 0 files, 43 blocks.
 | `packages/providers/tiktok/tests/marketingApiClient.test.ts`                  | test  | 43     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/tiktok/tests/researchApiClient.test.ts`                   | test  | 41     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/tiktok/tests/videoProcessor.test.ts`                      | test  | 45     | 0          | KEEP       | machine | behavioural          |
-| `packages/providers/x/tests/XAdapter.content.test.ts`                         | test  | 5      | 0          | KEEP       | machine | behavioural          |
-| `packages/providers/x/tests/XAdapter.test.ts`                                 | test  | 21     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/x/tests/XAdapter.content.test.ts`                         | test  | 6      | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/x/tests/XAdapter.test.ts`                                 | test  | 22     | 0          | KEEP       | machine | behavioural          |
 | `packages/providers/x/tests/XApiClient.writeFailFast.test.ts`                 | test  | 1      | 0          | KEEP       | machine | behavioural          |
-| `packages/providers/youtube/tests/YouTubeAdapter.test.ts`                     | test  | 75     | 0          | KEEP       | machine | behavioural          |
+| `packages/providers/youtube/tests/YouTubeAdapter.test.ts`                     | test  | 76     | 0          | KEEP       | machine | behavioural          |
 
 ## Slice 2.8.7
 

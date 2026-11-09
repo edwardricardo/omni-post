@@ -1,0 +1,309 @@
+{
+  "base": "f28f6a4d372acb4323110b9aa59aee0e1f37f54a",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "036864ad1f36d8c25fabccfb18367cbec88dea623f0e5f33defff39df8e01eba",
+            "head": null
+          },
+          "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns ok when credentials are valid and login succeeds"
+        }
+      ],
+      "id": "g01-bluesky-valid-login",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::BlueskyAdapter > validateCredentials > returns ok when credentials are valid and login succeeds"
+        ],
+        "head": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::BlueskyAdapter > validateCredentials > accepts credentials whose login succeeds, logging in once"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts",
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts",
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "8257a343c74d81580689c58c2a08e1bc80fbb3b8ae220ae9c2ace01c4d75cdce",
+            "head": null
+          },
+          "id": "packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts exactly 4 images"
+        }
+      ],
+      "id": "g02-bluesky-four-images",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishWithImages > accepts exactly 4 images",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishWithImages > measures every format Bluesky accepts"
+        ],
+        "head": [
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts::BlueskyClient > publishWithImages > measures every format Bluesky accepts"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts",
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts"
+        ],
+        "head": [
+          "packages/providers/bluesky/tests/BlueskyAdapter.mentions.test.ts",
+          "packages/providers/bluesky/tests/BlueskyAdapter.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.sdk.test.ts",
+          "packages/providers/bluesky/tests/BlueskyClient.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "f0fcfe6304361f2eb1443370b413f9e50080544d0fa83bcb4558720785f0ca09",
+            "head": null
+          },
+          "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns ok with valid credentials"
+        }
+      ],
+      "id": "g03-linkedin-valid-credentials",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::LinkedInAdapter - ValidateCredentials > returns ok with valid credentials"
+        ],
+        "head": [
+          "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::LinkedInAdapter - ValidateCredentials > accepts credentials the profile endpoint answers, reading the profile once"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/linkedin/tests/LinkedInAdapter.documents.test.ts",
+          "packages/providers/linkedin/tests/LinkedInAdapter.polls.test.ts",
+          "packages/providers/linkedin/tests/LinkedInAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/linkedin/tests/LinkedInAdapter.documents.test.ts",
+          "packages/providers/linkedin/tests/LinkedInAdapter.polls.test.ts",
+          "packages/providers/linkedin/tests/LinkedInAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "4774f534a5446f4422a95493896b38a9f0a5421b8615c859026a73eea7c058de",
+            "head": null
+          },
+          "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::validates credentials with creator status as admin"
+        }
+      ],
+      "id": "g04-telegram-creator-is-admin",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - validateCredentials() > validates credentials with creator status as admin"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - validateCredentials() > accepts a bot that created the chat as one of its administrators"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "3e4b2308e255f4ce28127a770faa8e0c013b3a4deb83d596cb368963ad8d710b",
+            "head": null
+          },
+          "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll with exactly 2 options"
+        }
+      ],
+      "id": "g05-telegram-two-option-poll",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() polls > accepts poll question of exactly 300 chars",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() polls > accepts poll with exactly 2 options",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() polls > returns CONTENT_TOO_LONG for poll question > 300 chars"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() polls > accepts poll question of exactly 300 chars",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts::TelegramAdapter - render() polls > returns CONTENT_TOO_LONG for poll question > 300 chars"
+        ]
+      },
+      "scope": {
+        "base": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/telegram/tests/TelegramAdapter.publish.msw.test.ts",
+          "packages/providers/telegram/tests/TelegramAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "036864ad1f36d8c25fabccfb18367cbec88dea623f0e5f33defff39df8e01eba",
+            "head": null
+          },
+          "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns ok when credentials are valid and API call succeeds"
+        }
+      ],
+      "id": "g06-tiktok-valid-credentials",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/providers/tiktok/tests/TikTokAdapter.test.ts::TikTokAdapter > validateCredentials > returns ok when credentials are valid and API call succeeds"
+        ],
+        "head": [
+          "packages/providers/tiktok/tests/TikTokAdapter.test.ts::TikTokAdapter > validateCredentials > accepts credentials the API client confirms, asking the client once"
+        ]
+      },
+      "scope": {
+        "base": ["packages/providers/tiktok/tests/TikTokAdapter.test.ts"],
+        "head": ["packages/providers/tiktok/tests/TikTokAdapter.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "eafcb678d3eae8b4e629f8549672eb994d228be5a92a3fba27a8b0f0486a8a74",
+            "head": null
+          },
+          "id": "packages/providers/x/tests/XAdapter.content.test.ts::should handle body exactly at 280 chars"
+        }
+      ],
+      "id": "g07-x-body-at-limit",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/providers/x/tests/XAdapter.content.test.ts::XAdapter - Edge Cases > should handle body exactly at 280 chars"
+        ],
+        "head": [
+          "packages/providers/x/tests/XAdapter.content.test.ts::XAdapter - Edge Cases > renders a body of exactly 280 characters, reporting all 280"
+        ]
+      },
+      "scope": {
+        "base": ["packages/providers/x/tests/XAdapter.content.test.ts"],
+        "head": ["packages/providers/x/tests/XAdapter.content.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "17494723516feed2b93e41c0e5d171c09c9ffd28b9b30f58cc8261b5f02102c1",
+            "head": null
+          },
+          "id": "packages/providers/x/tests/XAdapter.content.test.ts::should accept up to maxMediaPerPost (4) media items in render"
+        }
+      ],
+      "id": "g08-x-four-media",
+      "kind": "deletion",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "packages/providers/x/tests/XAdapter.content.test.ts",
+          "packages/providers/x/tests/XAdapter.test.ts"
+        ],
+        "head": [
+          "packages/providers/x/tests/XAdapter.content.test.ts",
+          "packages/providers/x/tests/XAdapter.test.ts"
+        ]
+      },
+      "verdict": "VACUOUS"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "c495fe8cb63ed066fa3494aea376b3de8b3fd6937b38c6f1e26c324716e76425",
+            "head": null
+          },
+          "id": "packages/providers/x/tests/XAdapter.test.ts::should include estimatedReach in thread meta"
+        }
+      ],
+      "id": "g09-x-thread-estimated-reach",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/providers/x/tests/XAdapter.test.ts::XAdapter - render() > should include estimatedReach in thread meta"
+        ],
+        "head": [
+          "packages/providers/x/tests/XAdapter.test.ts::XAdapter - render() > carries the planner's estimated reach in the meta of a rendered thread"
+        ]
+      },
+      "scope": {
+        "base": ["packages/providers/x/tests/XAdapter.test.ts"],
+        "head": ["packages/providers/x/tests/XAdapter.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "036864ad1f36d8c25fabccfb18367cbec88dea623f0e5f33defff39df8e01eba",
+            "head": null
+          },
+          "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns ok when credentials are valid and API call succeeds"
+        }
+      ],
+      "id": "g10-youtube-valid-credentials",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/providers/youtube/tests/YouTubeAdapter.test.ts::YouTubeAdapter > validateCredentials > returns ok when credentials are valid and API call succeeds"
+        ],
+        "head": [
+          "packages/providers/youtube/tests/YouTubeAdapter.test.ts::YouTubeAdapter > validateCredentials > accepts credentials the API client confirms, asking the client once"
+        ]
+      },
+      "scope": {
+        "base": ["packages/providers/youtube/tests/YouTubeAdapter.test.ts"],
+        "head": ["packages/providers/youtube/tests/YouTubeAdapter.test.ts"]
+      },
+      "verdict": "SAFE"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}

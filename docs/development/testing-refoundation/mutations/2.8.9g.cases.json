@@ -1,0 +1,120 @@
+[
+  {
+    "id": "g01-bluesky-valid-login",
+    "kind": "deletion",
+    "test": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts",
+    "blocks": [
+      "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns ok when credentials are valid and login succeeds"
+    ],
+    "subject": "packages/providers/bluesky/src/BlueskyAdapter.ts",
+    "search": "        return err(\"AUTH_INVALID\");\n      }\n      return ok(undefined);",
+    "replace": "        return err(\"AUTH_INVALID\");\n      }\n      return err(\"AUTH_INVALID\");",
+    "note": "validateCredentials's success branch is swapped for the rejection: credentials that pass the structure check and log in are reported AUTH_INVALID, while every failure path (missing fields, failed login, a 401) keeps its result."
+  },
+  {
+    "id": "g02-bluesky-four-images",
+    "kind": "deletion",
+    "test": "packages/providers/bluesky/tests/BlueskyClient.test.ts",
+    "blocks": ["packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts exactly 4 images"],
+    "subject": "packages/providers/bluesky/src/BlueskyClient.ts",
+    "search": "    if (imageBuffers.length > 4) {",
+    "replace": "    if (imageBuffers.length >= 4) {",
+    "note": "An off-by-one at the image limit of publishWithImages: a post with exactly 4 images, the maximum the lexicon allows, is refused with VALIDATION, while 5 images stay refused and 1 to 3 stay accepted."
+  },
+  {
+    "id": "g03-linkedin-valid-credentials",
+    "kind": "deletion",
+    "test": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts",
+    "blocks": [
+      "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns ok with valid credentials"
+    ],
+    "subject": "packages/providers/linkedin/src/LinkedInAdapter.ts",
+    "search": "      return ok(undefined);",
+    "replace": "      return err(\"AUTH_INVALID\");",
+    "note": "validateCredentials's success branch is swapped for the rejection: credentials the API client accepts are reported AUTH_INVALID, while the structure check and the 401 mapping keep their results."
+  },
+  {
+    "id": "g04-telegram-creator-is-admin",
+    "kind": "deletion",
+    "test": "packages/providers/telegram/tests/TelegramAdapter.test.ts",
+    "blocks": [
+      "packages/providers/telegram/tests/TelegramAdapter.test.ts::validates credentials with creator status as admin"
+    ],
+    "subject": "packages/providers/telegram/src/TelegramAdapter.ts",
+    "search": "      const adminStatuses = new Set([\"creator\", \"administrator\"]);",
+    "replace": "      const adminStatuses = new Set([\"administrator\"]);",
+    "note": "The creator status drops out of the admin set: a bot that owns the chat is rejected as not an administrator, while an administrator bot stays accepted and a member bot stays rejected."
+  },
+  {
+    "id": "g05-telegram-two-option-poll",
+    "kind": "deletion",
+    "test": "packages/providers/telegram/tests/TelegramAdapter.test.ts",
+    "blocks": [
+      "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll with exactly 2 options"
+    ],
+    "subject": "packages/providers/telegram/src/TelegramAdapter.ts",
+    "search": "    if (options.length < 2 || options.length > 10) {",
+    "replace": "    if (options.length <= 2 || options.length > 10) {",
+    "note": "An off-by-one at the lower bound of renderPoll: a poll with exactly 2 options, the minimum the Bot API allows, renders VALIDATION_ERROR, while 1 option stays refused and 3 to 10 stay accepted."
+  },
+  {
+    "id": "g06-tiktok-valid-credentials",
+    "kind": "deletion",
+    "test": "packages/providers/tiktok/tests/TikTokAdapter.test.ts",
+    "blocks": [
+      "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns ok when credentials are valid and API call succeeds"
+    ],
+    "subject": "packages/providers/tiktok/src/TikTokAdapter.ts",
+    "search": "      return ok(undefined);",
+    "replace": "      return err(\"AUTH_INVALID\");",
+    "note": "validateCredentials's success branch is swapped for the rejection: credentials the API client accepts are reported AUTH_INVALID, while the structure check and the 401 mapping keep their results."
+  },
+  {
+    "id": "g07-x-body-at-limit",
+    "kind": "deletion",
+    "test": "packages/providers/x/tests/XAdapter.content.test.ts",
+    "blocks": [
+      "packages/providers/x/tests/XAdapter.content.test.ts::should handle body exactly at 280 chars"
+    ],
+    "subject": "packages/core/threading/src/threadPlanner.ts",
+    "search": "  for (const tweet of tweets) {\n    if (tweet.estimatedChars > fullConfig.maxCharsPerTweet) {",
+    "replace": "  for (const tweet of tweets) {\n    if (tweet.estimatedChars > fullConfig.maxCharsPerTweet - fullConfig.threadIndicatorLength) {",
+    "note": "The ledger row's subject, XAdapter.ts, holds no length logic: render hands the body to planThread of @core/threading, which the x vitest config resolves to source, and the verdict comes from planThread's final length check. The check subtracts the thread indicator a second time, so a full tweet of a thread, indicator included, reads as over the limit and planThread returns THREAD_PLANNING_FAILED."
+  },
+  {
+    "id": "g08-x-four-media",
+    "kind": "deletion",
+    "test": "packages/providers/x/tests/XAdapter.content.test.ts",
+    "blocks": [
+      "packages/providers/x/tests/XAdapter.content.test.ts::should accept up to maxMediaPerPost (4) media items in render"
+    ],
+    "subject": "packages/providers/x/src/XAdapter.ts",
+    "search": "            media: canonical.media.map((m) => ({",
+    "replace": "            media: canonical.media.slice(0, 3).map((m) => ({",
+    "note": "The single-tweet render path keeps one medium fewer than the limit the block's title names: a tweet with 4 media renders with the first 3. The first mutation tried, X_LIMITS.maxMediaPerPost 4 -> 3, also read VACUOUS: the single-tweet path of render, and planThread's single-tweet branch, never read the media count, so no mutation of it can turn the block's result.ok false."
+  },
+  {
+    "id": "g09-x-thread-estimated-reach",
+    "kind": "deletion",
+    "test": "packages/providers/x/tests/XAdapter.test.ts",
+    "blocks": [
+      "packages/providers/x/tests/XAdapter.test.ts::should include estimatedReach in thread meta"
+    ],
+    "subject": "packages/providers/x/src/XAdapter.ts",
+    "search": "        meta: {\n          estimatedReach: threadPlan.value.estimatedReach,\n",
+    "replace": "        meta: {\n",
+    "note": "render drops estimatedReach from a thread's meta: the thread keeps its tweets and its poll, and the reach planThread estimated never reaches the caller."
+  },
+  {
+    "id": "g10-youtube-valid-credentials",
+    "kind": "deletion",
+    "test": "packages/providers/youtube/tests/YouTubeAdapter.test.ts",
+    "blocks": [
+      "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns ok when credentials are valid and API call succeeds"
+    ],
+    "subject": "packages/providers/youtube/src/YouTubeAdapter.ts",
+    "search": "      return ok(undefined);",
+    "replace": "      return err(\"AUTH_INVALID\");",
+    "note": "validateCredentials's success branch is swapped for the rejection: credentials the API client accepts are reported AUTH_INVALID, while the structure check and the 401 mapping keep their results."
+  }
+]
