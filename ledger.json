@@ -27,7 +27,7 @@
       "total": 1186
     },
     "blocks": {
-      "total": 14683,
+      "total": 14685,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14372
+        "BEHAVIOURAL": 14374
       }
     },
     "deleted": {
@@ -74007,7 +74007,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 26,
+      "blockCount": 28,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::passes a pull request that deletes and rewrites no block",
@@ -74150,43 +74150,57 @@
           "bodyHash": "3aebe92c89fa376da801341de8946c6d0ac0af7a8f17c08ede6fb325eefb2e2a"
         },
         {
-          "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::refuses that deletion when the script its scripts suite names is unchanged",
+          "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::refuses a deleted block whose scripts suite names the changed script only in its comments",
           "line": 475,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4a053b90c3137bfb1377e339e26c576b0b869325f547eeb7b014fe6c2b508f0b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::keeps a literal that holds a comment marker, so a file URL to the changed script still counts",
+          "line": 493,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d34dbb43b1c9b65adb2aae288bc612669475a524a21556afd40d97fd2d99cce1"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::refuses that deletion when the script its scripts suite names is unchanged",
+          "line": 514,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5920cfa3a2e1aab92ac1454286f3ac634e7887bcf0b89eaea26bb264d28b5591"
         },
         {
           "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::reads a rewrite's imports at the head, so an import only the base held excludes nothing",
-          "line": 491,
+          "line": 530,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "abbf8fa15d994aab78a9c7ec3ae15a21ecb93ac622a5dec1c8f4086086e40ccc"
         },
         {
           "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::exits 3 when the base does not resolve to a commit",
-          "line": 504,
+          "line": 543,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fe0f9b2c074f810fb2146c32045cff7f9f66fab6a469fb5656c4925445a42db3"
         },
         {
           "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::exits 3 when %s",
-          "line": 512,
+          "line": 551,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1cef25642feb396314652684e948a6486c8a2bc983f472d683d014cde29f9fa2"
         },
         {
           "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::exits 2 on the usage error %j",
-          "line": 527,
+          "line": 566,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98f0b6b40830583e6292bc554360950e3970a95b42b41f33e49267529bfc797a"
         },
         {
           "id": "apps/api/tests/unit/scripts/recordCoverageGate.test.ts::prints the lines and writes them to --summary as a Markdown table",
-          "line": 539,
+          "line": 578,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "428a212a7e232615d388497ca8a8a5b2c786053084c50d4907548537eb9c4062"
