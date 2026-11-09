@@ -27,7 +27,7 @@
       "total": 1186
     },
     "blocks": {
-      "total": 14687,
+      "total": 14691,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14376
+        "BEHAVIOURAL": 14380
       }
     },
     "deleted": {
@@ -104992,7 +104992,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/approvals/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 3,
+      "blockCount": 4,
       "blocks": [
         {
           "id": "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::returns VALIDATION_FAILED when postId is not a valid UUID",
@@ -105014,6 +105014,13 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d776e082ec74553812f596c340810fbe4c63bba9c7300f777886d4e4a1a559eb"
+        },
+        {
+          "id": "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::returns the id of the approval request it saves for a valid submission",
+          "line": 82,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b92a9982d5eb8a8c20c647771f78e0a99ffa6230d15f95c7c62f8fb7eed7a7f9"
         }
       ],
       "verdict": "KEEP",
@@ -106427,7 +106434,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/customer-auth/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 15,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::mints a session on a valid TOTP challenge",
@@ -106437,99 +106444,106 @@
           "bodyHash": "c03c436b0c07ced4b48d4c9705539df515c4aff21ae33ff10f2e7b080a232626"
         },
         {
-          "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::records BF success only AFTER the MFA code verifies (post-MFA)",
+          "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::mints a session and burns the challenge when the second factor is a backup code",
           "line": 169,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d68f61133904f7fb5601add75be305bb8375f1c5aa2fbcd7ec9ab8fcc156b527"
+        },
+        {
+          "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::records BF success only AFTER the MFA code verifies (post-MFA)",
+          "line": 181,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de2f361f9fd37f5aa0becbf0bffbd3a13b43695a6b339b18d6b8beee87d79f33"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns ACCOUNT_DEACTIVATED, mints nothing, and does NOT burn the challenge when the account was soft-deleted between the two steps",
-          "line": 179,
+          "line": 191,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3dbfd1fc8a045b31b4476af93415b4d9a90f5ccda69f22ee35b209aca8cf786b"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::mints exactly ONE session for two concurrent valid step-2 requests",
-          "line": 203,
+          "line": 215,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9262bd36900f6e624de0de0acea2aa20ce5f746ed967f3b25b923c43f69293d1"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::does NOT consume the challenge, records MFA_FAILED, and a retry succeeds",
-          "line": 219,
+          "line": 231,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5aeb0c5341b23ce633803ed8fa2df815ed8c5f0149c421d648890030c9877577"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INVALID_CHALLENGE when the challenge token fails to verify",
-          "line": 239,
+          "line": 251,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "623bc5b0470ade32d3962d9c03f297c1bc2950e969a20ab07ca7990f2dcb676f"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INVALID_CHALLENGE when the jti was already consumed",
-          "line": 247,
+          "line": 259,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "69b7a5a39f60f4ec06b7d52d66bc7e7af14e39eecc63cb7ff27048d90edab5a7"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns CHALLENGE_BINDING_MISMATCH on an IP/UA binding mismatch (route collapses to 401)",
-          "line": 254,
+          "line": 266,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8291af1711ecd4c270a1c0028e4213aeed40c55b24543947a27690978cb8feb3"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INVALID_CHALLENGE — byte-identical to expiry — when the challenge's accountId does not match the loaded user's account, and does NOT consume the jti",
-          "line": 261,
+          "line": 273,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e123216a8f67146f8745cb4a71c8d91da9ac23ace73a6c00ea5412aee2b996b"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns MFA_UNAVAILABLE when the consume store errors",
-          "line": 285,
+          "line": 297,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f9c812a454ea15194959e8ab83e2b7645af8fb597f6283056cffabb50f406e5c"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns USER_INACTIVE when the row was deactivated between steps",
-          "line": 296,
+          "line": 308,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "358e4b7b7af325d1761a7f3122a618f801bb5c3fac42cc02771d10b88d14fe48"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INVALID_CHALLENGE when MFA was disabled between steps",
-          "line": 303,
+          "line": 315,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4e80e2f75f753b42d0dba62565a85fb1397a8cd6594fe181407aa8e7fa88b4e8"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns RATE_LIMITED when the BF gate denies the attempt",
-          "line": 310,
+          "line": 322,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae4be8d41c4a8ef6f8bf4578961a9627c730b8f6d53eeca042fffb8b6606a01a"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::returns INTERNAL_ERROR and mints nothing when the stamp answers ${writeFailure}",
-          "line": 320,
+          "line": 332,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6e6df8528c27ea8664a2683fae2f54005312b6215b373c746be65ad15b4ecef0"
         },
         {
           "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::keeps INTERNAL_ERROR separable from the challenge failures around it",
-          "line": 337,
+          "line": 349,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "277727f8e453a074422a5507050e3ed4f6b9be52b77a3b7cb60d862913f2ce93"
@@ -108089,7 +108103,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/core/posts/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 2,
+      "blockCount": 4,
       "blocks": [
         {
           "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::returns VALIDATION_FAILED when a media item URL is invalid",
@@ -108104,6 +108118,20 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84567d8e97327ddab7234ffb80ca1ca100af22208432794a0ed14dffa37c3ece"
+        },
+        {
+          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::returns the saved draft with its body when the media array is empty",
+          "line": 102,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "764f8b4ba480e515f946ae2b1f7e2fc53346e85c4dcbf0486abe77383ae57d30"
+        },
+        {
+          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::returns the saved draft for its project when the input carries no media field",
+          "line": 115,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0d7fd30ce6ee9edd556a24b5d9343d66750ace288835c883e0088962b259b493"
         }
       ],
       "verdict": "KEEP",

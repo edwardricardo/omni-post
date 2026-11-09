@@ -1,0 +1,465 @@
+{
+  "base": "84627afdfd29de58dfbc246cbb98f3181df66d5e",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "98b9f16d9b1e94e4e29e8b44ec587c5e5b3e282c8b1c4af02d1638dec37fd951",
+            "head": null
+          },
+          "id": "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::returns ok with requestId when post exists and submission is valid"
+        }
+      ],
+      "id": "f01-submit-saves-request",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::SubmitForReviewUseCase > returns ok with requestId when post exists and submission is valid"
+        ],
+        "head": [
+          "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::SubmitForReviewUseCase > returns the id of the approval request it saves for a valid submission"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts"],
+        "head": ["packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d66b6c29f511e6ea82d80f6fdbab9c6535baa677a6562c268f83cff41cc6018e",
+            "head": null
+          },
+          "id": "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::returns ok when upserting with no colors (update metadata only)"
+        }
+      ],
+      "id": "f02-upsert-without-colors",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::UpsertBrandKitUseCase > returns INTERNAL_ERROR when repository throws",
+          "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::UpsertBrandKitUseCase > returns ok when upserting with no colors (update metadata only)",
+          "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::UpsertBrandKitUseCase > returns ok with brand kit data on successful upsert"
+        ],
+        "head": [
+          "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::UpsertBrandKitUseCase > returns INTERNAL_ERROR when repository throws",
+          "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::UpsertBrandKitUseCase > returns ok with brand kit data on successful upsert"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts"],
+        "head": ["packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "135277b2d0b7869bf3c70a5f60f63fefe33278302b14e4ae0eb104e1156575ab",
+            "head": null
+          },
+          "id": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::blocks rows where content exceeds the provider's character cap"
+        }
+      ],
+      "id": "f03-confirm-owned-row-passes",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > creates batch + items + outbox events in a single transaction",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > returns INTERNAL_ERROR when createBatch throws",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > returns the batchId after successful confirm",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > uses stable dedupeKey format bulk-{batchId}-{itemId} for outbox events",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > works without unitOfWork (test-environment compatibility)",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > channel ownership admission > does NOT write to DB before ownership check passes",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > channel ownership admission > proceeds to confirm when all channelIds belong to the project",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > channel ownership admission > rejects confirm when a channelId does not belong to the project (returns FORBIDDEN)",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > per-provider feasibility validation > blocks rows where content exceeds the provider's character cap"
+        ],
+        "head": [
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > creates batch + items + outbox events in a single transaction",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > returns INTERNAL_ERROR when createBatch throws",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > returns the batchId after successful confirm",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > uses stable dedupeKey format bulk-{batchId}-{itemId} for outbox events",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > channel ownership admission > does NOT write to DB before ownership check passes",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > channel ownership admission > proceeds to confirm when all channelIds belong to the project",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > channel ownership admission > rejects confirm when a channelId does not belong to the project (returns FORBIDDEN)"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts"],
+        "head": ["packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "04e7ca8e378521f976442559c6a28828a0c8359d02c9277bc24a63a575c91959",
+            "head": null
+          },
+          "id": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::works without unitOfWork (test-environment compatibility)"
+        }
+      ],
+      "id": "f04-confirm-without-unit-of-work",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > creates batch + items + outbox events in a single transaction",
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > works without unitOfWork (test-environment compatibility)"
+        ],
+        "head": [
+          "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::ConfirmBulkScheduleUseCase > atomic persistence > creates batch + items + outbox events in a single transaction"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts"],
+        "head": ["packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "09d3e216758601115a388a24b5ee9e049804e7cc203c73a55e2b40f686897e32",
+            "head": null
+          },
+          "id": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::mints a session on a valid backup code"
+        }
+      ],
+      "id": "f05-mfa-backup-code-session",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::CompleteCustomerMfaLoginUseCase > happy path > mints a session on a valid backup code"
+        ],
+        "head": [
+          "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::CompleteCustomerMfaLoginUseCase > happy path > mints a session and burns the challenge when the second factor is a backup code"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts"],
+        "head": ["packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "7d7e6978619158d16d23a09f8258c7bf7308895e071603478441a9e2436b77dd",
+            "head": null
+          },
+          "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs successfully for a date 10 minutes in the future"
+        }
+      ],
+      "id": "f06-scheduled-time-ten-minutes",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > compareTo > returns -1 when this is before other",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > compareTo > returns 1 when this is after other",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > create — invalid inputs > rejects an unrecognized timezone string",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > create — measured from a given now > returns ok when the date is exactly five minutes after the given now",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > create — valid inputs > constructs successfully for a date 10 minutes in the future",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > create — valid inputs > constructs with an explicit timezone and exposes it",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > create — valid inputs > defaults to UTC when timezone is omitted",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromISOString > constructs from a valid ISO string that is 10 minutes ahead",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > constructs when minutes >= 5",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > returns a time exactly five minutes after the clock when given 5 on a fixed clock",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > returns a time exactly five minutes after the first clock read when given 5 on a clock that advances between reads",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > immutability — dateTime getter returns a copy > mutating the returned dateTime does not affect the internal value"
+        ],
+        "head": [
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > compareTo > returns -1 when this is before other",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > compareTo > returns 1 when this is after other",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > create — invalid inputs > rejects an unrecognized timezone string",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > create — measured from a given now > returns ok when the date is exactly five minutes after the given now",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > create — valid inputs > constructs with an explicit timezone and exposes it",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > create — valid inputs > defaults to UTC when timezone is omitted",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > returns a time exactly five minutes after the clock when given 5 on a fixed clock",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > returns a time exactly five minutes after the first clock read when given 5 on a clock that advances between reads",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > immutability — dateTime getter returns a copy > mutating the returned dateTime does not affect the internal value"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/domain/tests/unit/ScheduledTime.test.ts"],
+        "head": ["packages/core/domain/tests/unit/ScheduledTime.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "c4967386a469b3bc586f780b1ed403dc56f4e1c70fd24f72ecb9836632c0a706",
+            "head": null
+          },
+          "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs from a valid ISO string that is 10 minutes ahead"
+        }
+      ],
+      "id": "f07-scheduled-time-from-iso",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromISOString > constructs from a valid ISO string that is 10 minutes ahead",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromISOString > rejects a non-date ISO string"
+        ],
+        "head": [
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromISOString > rejects a non-date ISO string"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/domain/tests/unit/ScheduledTime.test.ts"],
+        "head": ["packages/core/domain/tests/unit/ScheduledTime.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "30d5f84d2da5cc24cd308e57869b56e0df651a6a38bc8e9b49e6c62acfb830e6",
+            "head": null
+          },
+          "id": "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs when minutes >= 5"
+        }
+      ],
+      "id": "f08-scheduled-time-from-minutes",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > constructs when minutes >= 5",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > returns a time exactly five minutes after the clock when given 5 on a fixed clock",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > returns a time exactly five minutes after the first clock read when given 5 on a clock that advances between reads"
+        ],
+        "head": [
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > returns a time exactly five minutes after the clock when given 5 on a fixed clock",
+          "packages/core/domain/tests/unit/ScheduledTime.test.ts::ScheduledTime > fromNowPlusMinutes > returns a time exactly five minutes after the first clock read when given 5 on a clock that advances between reads"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/domain/tests/unit/ScheduledTime.test.ts"],
+        "head": ["packages/core/domain/tests/unit/ScheduledTime.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "c39fb89bb7ca9bb7e6648434fecadcd84802d06e0e18985bd23885fc0aaf2697",
+            "head": null
+          },
+          "id": "packages/core/domain/tests/unit/ShortCode.test.ts::generated code passes alphanumeric-hyphen validation"
+        }
+      ],
+      "id": "f09-short-code-generated-validates",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > equality + immutability > toString and toJSON both return the raw code string",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > equality + immutability > two instances with different values are not equal",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > equality + immutability > two instances with the same value are equal",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > fromString — invalid inputs > rejects a code shorter than 3 characters",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > fromString — valid inputs > constructs successfully with a 3-character alphanumeric code",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > fromString — valid inputs > trims surrounding whitespace before validating",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > generate > generated code passes alphanumeric-hyphen validation"
+        ],
+        "head": [
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > equality + immutability > toString and toJSON both return the raw code string",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > equality + immutability > two instances with different values are not equal",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > equality + immutability > two instances with the same value are equal",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > fromString — invalid inputs > rejects a code shorter than 3 characters",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > fromString — valid inputs > constructs successfully with a 3-character alphanumeric code",
+          "packages/core/domain/tests/unit/ShortCode.test.ts::ShortCode > fromString — valid inputs > trims surrounding whitespace before validating"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/domain/tests/unit/ShortCode.test.ts"],
+        "head": ["packages/core/domain/tests/unit/ShortCode.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "3e91df8d2cbcb13be70dc5ce6309473247560293bfd97d173d058339220555f7",
+            "head": null
+          },
+          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post without errors when media is an empty array"
+        }
+      ],
+      "id": "f10-create-post-empty-media",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > creates a post successfully when media contains a valid image item",
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > creates a post successfully when media contains a valid video item",
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > creates a post without errors when media field is omitted",
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > creates a post without errors when media is an empty array"
+        ],
+        "head": [
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > returns the saved draft for its project when the input carries no media field",
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > returns the saved draft with its body when the media array is empty"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/posts/tests/unit/CreatePostUseCase.test.ts"],
+        "head": ["packages/core/posts/tests/unit/CreatePostUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d60d98be11a6a83a6631381fa3152485f560c3ebd3b7e575523a8eaccc91ae9b",
+            "head": null
+          },
+          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post without errors when media field is omitted"
+        }
+      ],
+      "id": "f11-create-post-media-omitted",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > creates a post without errors when media field is omitted"
+        ],
+        "head": [
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > returns the saved draft for its project when the input carries no media field"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/posts/tests/unit/CreatePostUseCase.test.ts"],
+        "head": ["packages/core/posts/tests/unit/CreatePostUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "e7cc423a972019764b0c9941d6c3b9eddb8e62a124b8b7d898b44da4029ce14f",
+            "head": null
+          },
+          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post successfully when media contains a valid image item"
+        }
+      ],
+      "id": "f12-create-post-image-media",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > calls repo.save once per successful execution regardless of media count",
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > creates a post successfully when media contains a valid image item"
+        ],
+        "head": [
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > calls repo.save once per successful execution regardless of media count"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/posts/tests/unit/CreatePostUseCase.test.ts"],
+        "head": ["packages/core/posts/tests/unit/CreatePostUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "51aed1cdde7c35ab8c150490eddffbf7f2dfb3a747b28958ad1b157ee06317da",
+            "head": null
+          },
+          "id": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post successfully when media contains a valid video item"
+        }
+      ],
+      "id": "f13-create-post-video-media",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > calls repo.save once per successful execution regardless of media count",
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > creates a post successfully when media contains a valid video item"
+        ],
+        "head": [
+          "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::CreatePostUseCase — media extension > createPost with media > calls repo.save once per successful execution regardless of media count"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/posts/tests/unit/CreatePostUseCase.test.ts"],
+        "head": ["packages/core/posts/tests/unit/CreatePostUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "cbfe73eb9686d91e7d9b97145a9ac5903c913d57da7fd4ee0e92a47b247f98ca",
+            "head": null
+          },
+          "id": "packages/core/threading/tests/unit/threadPlanner.test.ts::returns ok for a plan that satisfies all constraints"
+        }
+      ],
+      "id": "f14-thread-plan-within-limits",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/threading/tests/unit/threadPlanner.test.ts::validateThreadPlan > returns CONTENT_TOO_LONG when tweet count exceeds 25",
+          "packages/core/threading/tests/unit/threadPlanner.test.ts::validateThreadPlan > returns MEDIA_DISTRIBUTION_FAILED when any tweet has more than 4 media items",
+          "packages/core/threading/tests/unit/threadPlanner.test.ts::validateThreadPlan > returns THREAD_PLANNING_FAILED when any tweet exceeds 280 chars",
+          "packages/core/threading/tests/unit/threadPlanner.test.ts::validateThreadPlan > returns ok for a plan that satisfies all constraints"
+        ],
+        "head": [
+          "packages/core/threading/tests/unit/threadPlanner.test.ts::validateThreadPlan > returns CONTENT_TOO_LONG when tweet count exceeds 25",
+          "packages/core/threading/tests/unit/threadPlanner.test.ts::validateThreadPlan > returns MEDIA_DISTRIBUTION_FAILED when any tweet has more than 4 media items",
+          "packages/core/threading/tests/unit/threadPlanner.test.ts::validateThreadPlan > returns THREAD_PLANNING_FAILED when any tweet exceeds 280 chars"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/threading/tests/unit/threadPlanner.test.ts"],
+        "head": ["packages/core/threading/tests/unit/threadPlanner.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "16ae858dcd1a6e9cabd32ef4e32b98ad3a1694772e3df65c4735aff93f8c7a81",
+            "head": null
+          },
+          "id": "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::returns ok(undefined) when field is aiCallsMade and delta is provided"
+        }
+      ],
+      "id": "f15-increment-ai-calls",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::IncrementUsageUseCase > happy path — increment aiCallsMade with custom delta > returns ok(undefined) when field is aiCallsMade and delta is provided",
+          "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::IncrementUsageUseCase > happy path — increment postsPublished > returns ok(undefined) when accountId is valid and field is postsPublished",
+          "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::IncrementUsageUseCase > internal error — repository throws > returns INTERNAL_ERROR when the repository increment call throws",
+          "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::IncrementUsageUseCase > validation failed — empty accountId > returns VALIDATION_FAILED error when accountId is an empty string"
+        ],
+        "head": [
+          "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::IncrementUsageUseCase > happy path — increment postsPublished > returns ok(undefined) when accountId is valid and field is postsPublished",
+          "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::IncrementUsageUseCase > internal error — repository throws > returns INTERNAL_ERROR when the repository increment call throws",
+          "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::IncrementUsageUseCase > validation failed — empty accountId > returns VALIDATION_FAILED error when accountId is an empty string"
+        ]
+      },
+      "scope": {
+        "base": ["packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts"],
+        "head": ["packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts"]
+      },
+      "verdict": "SAFE"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}

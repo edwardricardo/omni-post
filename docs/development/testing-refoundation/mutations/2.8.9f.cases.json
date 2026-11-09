@@ -1,0 +1,182 @@
+[
+  {
+    "id": "f01-submit-saves-request",
+    "kind": "deletion",
+    "test": "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts",
+    "blocks": [
+      "packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts::returns ok with requestId when post exists and submission is valid"
+    ],
+    "subject": "packages/core/approvals/src/SubmitForReviewUseCase.ts",
+    "search": "      if (!saveResult.ok) {",
+    "replace": "      if (saveResult.ok) {",
+    "note": "The ledger row's subject. The save check is inverted, so a valid submission whose request saves returns INTERNAL_ERROR instead of its requestId."
+  },
+  {
+    "id": "f02-upsert-without-colors",
+    "kind": "deletion",
+    "test": "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts",
+    "blocks": [
+      "packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts::returns ok when upserting with no colors (update metadata only)"
+    ],
+    "subject": "packages/core/brand-kit/src/UpsertBrandKitUseCase.ts",
+    "search": "if (field.value !== undefined && field.value !== null && !HEX_COLOR_REGEX.test(field.value)) {",
+    "replace": "if (field.value !== null && !HEX_COLOR_REGEX.test(field.value)) {",
+    "note": "The ledger row's subject. The color validation loses its undefined guard, so an upsert that omits every color fails the hex check and returns VALIDATION_FAILED."
+  },
+  {
+    "id": "f03-confirm-owned-row-passes",
+    "kind": "deletion",
+    "test": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts",
+    "blocks": [
+      "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::blocks rows where content exceeds the provider's character cap"
+    ],
+    "subject": "packages/core/bulk-scheduling/src/ConfirmBulkScheduleUseCase.ts",
+    "search": "const foreignIds = input.channelIds.filter((id) => !ownedSet.has(id));",
+    "replace": "const foreignIds = input.channelIds.filter((id) => ownedSet.has(id));",
+    "note": "The ledger row's subject. The block's title names a character cap the use case does not check; its verdict is that a structurally valid row on an owned channel is confirmed. The ownership filter is inverted, so an owned channel reads as foreign and the confirm returns FORBIDDEN."
+  },
+  {
+    "id": "f04-confirm-without-unit-of-work",
+    "kind": "deletion",
+    "test": "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts",
+    "blocks": [
+      "packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts::works without unitOfWork (test-environment compatibility)"
+    ],
+    "subject": "packages/core/bulk-scheduling/src/ConfirmBulkScheduleUseCase.ts",
+    "search": "      if (this.unitOfWork) {",
+    "replace": "      if (!this.unitOfWork) {",
+    "note": "The ledger row's subject. The branch on the Unit of Work is swapped, so a use case built without one dereferences it and returns INTERNAL_ERROR, while one built with it writes outside a transaction."
+  },
+  {
+    "id": "f05-mfa-backup-code-session",
+    "kind": "deletion",
+    "test": "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts",
+    "blocks": [
+      "packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts::mints a session on a valid backup code"
+    ],
+    "subject": "packages/core/customer-auth/src/CompleteCustomerMfaLoginUseCase.ts",
+    "search": "      if (!verification.ok) {",
+    "replace": "      if (!verification.ok || verification.value.usedBackupCode) {",
+    "note": "The ledger row's subject. The verification check gains a condition that refuses a second factor verified by a backup code, so a valid backup code returns INVALID_CHALLENGE and mints no session; a TOTP code is unaffected."
+  },
+  {
+    "id": "f06-scheduled-time-ten-minutes",
+    "kind": "deletion",
+    "test": "packages/core/domain/tests/unit/ScheduledTime.test.ts",
+    "blocks": [
+      "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs successfully for a date 10 minutes in the future"
+    ],
+    "subject": "packages/core/domain/src/value-objects/ScheduledTime.ts",
+    "search": "const MIN_LEAD_TIME_MS = 5 * 60 * 1000;",
+    "replace": "const MIN_LEAD_TIME_MS = 15 * 60 * 1000;",
+    "note": "The ledger row's subject. The minimum lead time becomes 15 minutes, so a date 10 minutes ahead is refused with a lead time error."
+  },
+  {
+    "id": "f07-scheduled-time-from-iso",
+    "kind": "deletion",
+    "test": "packages/core/domain/tests/unit/ScheduledTime.test.ts",
+    "blocks": [
+      "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs from a valid ISO string that is 10 minutes ahead"
+    ],
+    "subject": "packages/core/domain/src/value-objects/ScheduledTime.ts",
+    "search": "    if (isNaN(dateTime.getTime())) {",
+    "replace": "    if (!isNaN(dateTime.getTime())) {",
+    "note": "The ledger row's subject. The guard of fromISOString is inverted, so a valid ISO string is refused as an invalid ISO date string."
+  },
+  {
+    "id": "f08-scheduled-time-from-minutes",
+    "kind": "deletion",
+    "test": "packages/core/domain/tests/unit/ScheduledTime.test.ts",
+    "blocks": [
+      "packages/core/domain/tests/unit/ScheduledTime.test.ts::constructs when minutes >= 5"
+    ],
+    "subject": "packages/core/domain/src/value-objects/ScheduledTime.ts",
+    "search": "const dateTime = new Date(now.getTime() + minutes * 60 * 1000);",
+    "replace": "const dateTime = new Date(now.getTime() + minutes * 1000);",
+    "note": "The ledger row's subject. fromNowPlusMinutes converts minutes as seconds, so ten minutes ahead becomes ten seconds and is refused with a lead time error."
+  },
+  {
+    "id": "f09-short-code-generated-validates",
+    "kind": "deletion",
+    "test": "packages/core/domain/tests/unit/ShortCode.test.ts",
+    "blocks": [
+      "packages/core/domain/tests/unit/ShortCode.test.ts::generated code passes alphanumeric-hyphen validation"
+    ],
+    "subject": "packages/core/domain/src/value-objects/ShortCode.ts",
+    "search": "const MIN_LENGTH = 3;",
+    "replace": "const MIN_LENGTH = 10;",
+    "note": "The ledger row's subject. The minimum length rises above the generated length of 8, so a generated code fails its own re-validation."
+  },
+  {
+    "id": "f10-create-post-empty-media",
+    "kind": "deletion",
+    "test": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts",
+    "blocks": [
+      "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post without errors when media is an empty array"
+    ],
+    "subject": "packages/core/posts/src/CreatePostUseCase.ts",
+    "search": "    if (!persistResult.ok) {",
+    "replace": "    if (persistResult.ok) {",
+    "note": "The ledger row's subject. The persistence check is inverted, so a post created with an empty media array that persists returns an error instead of its id."
+  },
+  {
+    "id": "f11-create-post-media-omitted",
+    "kind": "deletion",
+    "test": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts",
+    "blocks": [
+      "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post without errors when media field is omitted"
+    ],
+    "subject": "packages/core/posts/src/CreatePostUseCase.ts",
+    "search": "for (const m of input.media ?? []) {",
+    "replace": "for (const m of input.media!) {",
+    "note": "The ledger row's subject. The media loop loses its default for an omitted field, so a post created without media throws on iterating undefined."
+  },
+  {
+    "id": "f12-create-post-image-media",
+    "kind": "deletion",
+    "test": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts",
+    "blocks": [
+      "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post successfully when media contains a valid image item"
+    ],
+    "subject": "packages/core/domain/src/value-objects/MediaAttachment.ts",
+    "search": "export const MEDIA_TYPES = [\"image\", \"video\", \"gif\"] as const;",
+    "replace": "export const MEDIA_TYPES = [\"video\", \"gif\"] as const;",
+    "note": "The ledger row's subject is CreatePostUseCase.ts, which delegates the media type check to the post aggregate; the verdict, that an image item is accepted, comes from MEDIA_TYPES in MediaAttachment.ts. The list loses image, so a post with an image item returns VALIDATION_FAILED."
+  },
+  {
+    "id": "f13-create-post-video-media",
+    "kind": "deletion",
+    "test": "packages/core/posts/tests/unit/CreatePostUseCase.test.ts",
+    "blocks": [
+      "packages/core/posts/tests/unit/CreatePostUseCase.test.ts::creates a post successfully when media contains a valid video item"
+    ],
+    "subject": "packages/core/domain/src/value-objects/MediaAttachment.ts",
+    "search": "export const MEDIA_TYPES = [\"image\", \"video\", \"gif\"] as const;",
+    "replace": "export const MEDIA_TYPES = [\"image\", \"gif\"] as const;",
+    "note": "The ledger row's subject is CreatePostUseCase.ts, which delegates the media type check to the post aggregate; the verdict, that a video item is accepted, comes from MEDIA_TYPES in MediaAttachment.ts. The list loses video, so a post with a video item returns VALIDATION_FAILED."
+  },
+  {
+    "id": "f14-thread-plan-within-limits",
+    "kind": "deletion",
+    "test": "packages/core/threading/tests/unit/threadPlanner.test.ts",
+    "blocks": [
+      "packages/core/threading/tests/unit/threadPlanner.test.ts::returns ok for a plan that satisfies all constraints"
+    ],
+    "subject": "packages/core/threading/src/threadPlanner.ts",
+    "search": "  if (plan.tweets.length > fullConfig.maxTweetsPerThread) {",
+    "replace": "  if (plan.tweets.length < fullConfig.maxTweetsPerThread) {",
+    "note": "The ledger row's subject. The thread length check of validateThreadPlan is inverted, so a two-tweet plan inside every limit is refused as CONTENT_TOO_LONG."
+  },
+  {
+    "id": "f15-increment-ai-calls",
+    "kind": "deletion",
+    "test": "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts",
+    "blocks": [
+      "packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts::returns ok(undefined) when field is aiCallsMade and delta is provided"
+    ],
+    "subject": "packages/core/usage/src/IncrementUsageUseCase.ts",
+    "search": "    if (!input.accountId) {",
+    "replace": "    if (input.accountId) {",
+    "note": "The ledger row's subject. The accountId guard is inverted, so an increment for a valid account returns VALIDATION_FAILED and never reaches the repository."
+  }
+]

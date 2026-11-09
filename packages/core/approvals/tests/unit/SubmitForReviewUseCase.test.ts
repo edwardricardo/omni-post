@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, vi, beforeEach } from "vitest";
+import { describe, it, vi, beforeEach, expect } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err } from "@shared/types";
 import { SubmitForReviewUseCase } from "../../src/SubmitForReviewUseCase.js";
@@ -77,5 +77,17 @@ describe("SubmitForReviewUseCase", () => {
     });
     assert.ok(!result.ok, "Expected err result");
     assert.strictEqual(result.error.code, "INTERNAL_ERROR");
+  });
+
+  it("returns the id of the approval request it saves for a valid submission", async () => {
+    const result = await useCase.execute({
+      postId: VALID_POST_ID,
+      submitterId: VALID_SUBMITTER_ID,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(approvalRepo.save).toHaveBeenCalledTimes(1);
+    const saved = approvalRepo.save.mock.calls[0]?.[0];
+    expect(result).toMatchObject({ value: { requestId: saved.id.value } });
   });
 });
