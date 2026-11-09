@@ -202,10 +202,47 @@ export function changedImports(file, text, sources, aliases) {
 }
 
 /**
+ * @description A module's text with its `//` and `/* … *\/` comments replaced by a space,
+ *   string-aware: a comment marker inside a quoted or template literal is kept. A quoted literal
+ *   ends at its line's end when it is not closed there.
+ * @param {string} text
+ * @returns {string}
+ */
+function withoutComments(text) {
+  let kept = "";
+  let at = 0;
+  while (at < text.length) {
+    const char = text[at] ?? "";
+    if (char === '"' || char === "'" || char === "`") {
+      let end = at + 1;
+      while (end < text.length && text[end] !== char && (char === "`" || text[end] !== "\n")) {
+        end += text[end] === "\\" ? 2 : 1;
+      }
+      kept += text.slice(at, end + 1);
+      at = end + 1;
+    } else if (char === "/" && text[at + 1] === "/") {
+      const end = text.indexOf("\n", at);
+      kept += " ";
+      at = end === -1 ? text.length : end;
+    } else if (char === "/" && text[at + 1] === "*") {
+      const end = text.indexOf("*/", at + 2);
+      kept += " ";
+      at = end === -1 ? text.length : end + 2;
+    } else {
+      kept += char;
+      at += 1;
+    }
+  }
+  return kept;
+}
+
+/**
  * @description The changed scripts a script suite names in a string literal: for a test under
  *   `apps/api/tests/unit/scripts/`, each changed source under `scripts/testing/` that a literal's
- *   whole value equals or ends with after a `/`. A template literal with a substitution, and a path
- *   built from fragments, name nothing.
+ *   whole value equals or ends with after a `/`, read once the test's comments are stripped, so a
+ *   path written only in a comment names nothing. A template literal with a substitution, and a
+ *   path built from fragments, name nothing either; a regular-expression literal holding a quote
+ *   can hide what follows it on its line.
  * @param {string} file The test, repository-relative.
  * @param {string} text Its text on the side the block is read at.
  * @param {readonly string[]} sources The changed files that are no ledger row.
@@ -213,7 +250,7 @@ export function changedImports(file, text, sources, aliases) {
  */
 export function changedLiterals(file, text, sources) {
   if (!file.startsWith(SCRIPT_SUITES)) return [];
-  const values = [...text.matchAll(LITERAL)]
+  const values = [...withoutComments(text).matchAll(LITERAL)]
     .map((match) => match[2] ?? "")
     .filter((value) => !value.includes("${"));
   return sources

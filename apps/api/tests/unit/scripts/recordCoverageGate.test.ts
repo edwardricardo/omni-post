@@ -472,6 +472,45 @@ describe("record-coverage-gate: exclusions", () => {
     });
   });
 
+  it("refuses a deleted block whose scripts suite names the changed script only in its comments", () => {
+    const base = plant(
+      { [LEDGER]: ledger([row({ one: H1 }, SCRIPT_TEST)]), [SCRIPT]: "export const gate = 2;\n" },
+      {
+        ...BASE,
+        [LEDGER]: ledger([row({ one: H1, two: H2 }, SCRIPT_TEST)]),
+        [SCRIPT_TEST]: testText(
+          `/**\n * @file Pins \`${SCRIPT}\`.\n */\n// reads "${SCRIPT}" by path`
+        ),
+        [SCRIPT]: "export const gate = 1;\n",
+      }
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${SCRIPT_TEST}::two (deletion): no-record`)],
+    });
+  });
+
+  it("keeps a literal that holds a comment marker, so a file URL to the changed script still counts", () => {
+    const base = plant(
+      { [LEDGER]: ledger([row({ one: H1 }, SCRIPT_TEST)]), [SCRIPT]: "export const gate = 2;\n" },
+      {
+        ...BASE,
+        [LEDGER]: ledger([row({ one: H1, two: H2 }, SCRIPT_TEST)]),
+        [SCRIPT_TEST]: testText(`const gate = new URL("file:///repo/${SCRIPT}"); // the gate`),
+        [SCRIPT]: "export const gate = 1;\n",
+      }
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 0,
+      lines: [
+        summary(base, { b: 1 }),
+        line(
+          `behaviour change: ${SCRIPT_TEST}::two (deletion): its test names ${SCRIPT} in a string literal, which this pull request changes`
+        ),
+      ],
+    });
+  });
+
   it("refuses that deletion when the script its scripts suite names is unchanged", () => {
     const base = plant(
       { [LEDGER]: ledger([row({ one: H1 }, SCRIPT_TEST)]) },

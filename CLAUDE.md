@@ -2378,8 +2378,9 @@ node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baselin
 # costs, but nothing required its record: measured at main 05d4b83d (2026-11-08), 18 of the 58
 # first-parent merges to main since ledger.json was committed (3ef9bf39, 2026-10-28) removed or
 # rewrote 695 blocks, 687 removed and 8 rewritten, with no measurement tied to any of them.
-# WHAT IT RUNS: `pnpm check:record-coverage`, which is `node scripts/testing/record-coverage-gate.mjs`,
-# with its pure core in scripts/testing/lib/record-coverage-core.mjs, pinned by
+# WHAT IT RUNS: `pnpm check:record-coverage`, which is `node scripts/testing/record-coverage-gate.mjs
+# --retire-check`; the battery step passes the flag too, and so will the CI step once the Maintainer
+# applies that edit. With its pure core in scripts/testing/lib/record-coverage-core.mjs, pinned by
 # apps/api/tests/unit/scripts/recordCoverageGate.test.ts. It runs no mutation. The base is
 # FITNESS_BASE_REF, origin/main when unset, resolved to its merge base with HEAD; the base ledger is
 # `git show <merge base>:ledger.json`, the head is the working tree (CI checks out HEAD). It binds each
@@ -2390,8 +2391,8 @@ node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baselin
 # test imports a changed source directly, by a relative specifier or a bare specifier
 # tsconfig.base.json's `paths` maps, read at the base for a deletion and at the head for a rewrite; a
 # string literal holding the source's path is not an import, except in a test under
-# apps/api/tests/unit/scripts/ whose literal's whole value is, or ends after a `/` with, the path of a
-# changed source under scripts/testing/); covered (a case of a committed record under
+# apps/api/tests/unit/scripts/ where a string literal outside its comments is, or ends after a `/` with, the
+# path of a changed source under scripts/testing/); covered (a case of a committed record under
 # docs/development/testing-refoundation/mutations/*.record.json lists the id with both bodyHash values
 # equal to the ledgers', `null` at the head for a deletion, its kind, and SAFE for a deletion or GAIN
 # for a rewrite; a BEHAVIOUR-CHANGED case, the tool's measured verdict for a test whose base form
@@ -2420,9 +2421,10 @@ node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baselin
 # realistic or the record genuine, which the verifier's re-run of mutation-diff proves; (3) a rename
 # with a body edit reads as a deletion plus an addition, and a deletion whose body the head holds
 # under a new id, a new copy included, reads as moved; (4) the
-# import exclusion reads direct imports only and the script suites' rule a whole literal only, so a
-# test that reaches a changed source through another module, a path built from fragments, a literal
-# outside apps/api/tests/unit/scripts/ or a changed file outside scripts/testing/ needs the
+# import exclusion reads direct imports only and the script suites' rule a whole literal only, read with
+# the test's `//` and `/* */` comments stripped, so a test that reaches a changed source through another
+# module, a path built from fragments, a path written only in a comment, a literal outside
+# apps/api/tests/unit/scripts/ or a changed file outside scripts/testing/ needs the
 # tool's measured BEHAVIOUR-CHANGED verdict in a committed record; (5) a file the ledger excludes is
 # invisible; (6) a block's bodyHash covers its callback body only, so a row deleted from an `it.each`
 # table, or an expected value weakened in one, changes no id and no hash and binds nothing (Master
