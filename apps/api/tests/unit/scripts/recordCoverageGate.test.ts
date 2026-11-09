@@ -2,7 +2,7 @@
  * @file recordCoverageGate.test.ts
  * @description Pins `scripts/testing/record-coverage-gate.mjs`, fitness #54, the gate behind
  *   `pnpm check:record-coverage`: every test block a pull request deletes or rewrites, read from
- *   the base and head `ledger.json`, is moved, a node:test block, a behaviour change by a direct
+ *   the base and head `ledger.json`, is moved, a live-tier or no-collector block, a behaviour change by a direct
  *   import of a changed source, or covered by a committed mutation-diff record with the same
  *   hashes and a GAIN, SAFE or BEHAVIOUR-CHANGED verdict; anything else is refused by name. Every
  *   case builds its own git repository in a scratch directory, a base commit and a head commit
@@ -29,7 +29,12 @@ type GateModule = {
   ) => Run;
 };
 type Tree = Readonly<Record<string, string | null>>;
-type Row = { path: string; framework: string; blocks: { id: string; bodyHash: string }[] };
+type Row = {
+  path: string;
+  framework: string;
+  collectors: string[];
+  blocks: { id: string; bodyHash: string }[];
+};
 type Hashes = { base: string | null; head: string | null };
 
 const REPO_ROOT = findMonorepoRoot(path.dirname(fileURLToPath(import.meta.url)));
@@ -42,6 +47,8 @@ const RECORD = "docs/development/testing-refoundation/mutations/slice.record.jso
 const TEST = "pkg/tests/a.test.ts";
 const MOVED_TO = "pkg/tests/b.test.ts";
 const SOURCE = "pkg/src/sub.ts";
+const SCRIPT_TEST = "apps/api/tests/unit/scripts/gate.test.ts";
+const SCRIPT = "scripts/testing/record-coverage-gate.mjs";
 const ONE = `${TEST}::one`;
 const TWO = `${TEST}::two`;
 const H1 = "1".repeat(64);
@@ -64,16 +71,29 @@ const gitEnvironment = (): NodeJS.ProcessEnv => ({
 const git = (...args: string[]): string =>
   execFileSync("git", args, { cwd: root, env: gitEnvironment(), encoding: "utf8" });
 
-const row = (blocks: Readonly<Record<string, string>>, file = TEST, framework = "vitest"): Row => ({
+const VITEST = "vitest:pkg/vitest.config.ts";
+const INTEGRATION = "node:apps/api/scripts/run-tests.sh#integration";
+const LIVE_TIER = "node:apps/api/scripts/run-tests.sh#live";
+
+const row = (
+  blocks: Readonly<Record<string, string>>,
+  file = TEST,
+  collectors: readonly string[] = [VITEST]
+): Row => ({
   path: file,
-  framework,
+  framework: collectors.some((label) => label.startsWith("vitest:")) ? "vitest" : "node",
+  collectors: [...collectors],
   blocks: Object.entries(blocks).map(([title, bodyHash]) => ({
     id: `${file}::${title}`,
     bodyHash,
   })),
 });
-const ledger = (rows: readonly Row[]): string =>
-  `${JSON.stringify({ version: 1, summary: {}, slices: {}, files: rows }, null, 2)}\n`;
+/** A row of node:test's live tier and a row no collector runs, the population the gate's
+ *  `--retire-check` reads on the head ledger. */
+const LIVE_ROW = row({}, "pkg/tests/live.test.ts", [LIVE_TIER]);
+const QUARANTINED_ROW = row({}, "pkg/tests/quarantined.test.ts", []);
+const ledger = (rows: readonly Row[], population: readonly Row[] = []): string =>
+  `${JSON.stringify({ version: 1, summary: {}, slices: {}, files: [...rows, ...population] }, null, 2)}\n`;
 const testText = (lines = ""): string =>
   `import { describe, expect, it } from "vitest";\n${lines}\ndescribe("s", () => {\n  it("one", () => {\n    expect(1).toBe(1);\n  });\n});\n`;
 const caseOf = (
@@ -132,12 +152,12 @@ const plant = (head: Tree, base: Tree = BASE): string => {
 
 const summary = (
   base: string,
-  counts: Readonly<Partial<Record<"c" | "m" | "k" | "b" | "r", number>>>
+  counts: Readonly<Partial<Record<"c" | "m" | "l" | "q" | "b" | "r", number>>>
 ): string => {
-  const { c = 0, m = 0, k = 0, b = 0, r = 0 } = counts;
+  const { c = 0, m = 0, l = 0, q = 0, b = 0, r = 0 } = counts;
   return (
-    `record-coverage-gate: ${c + m + k + b + r} bound blocks against ${base} (${base}): ` +
-    `${c} covered, ${m} moved, ${k} node, ${b} behaviour change, ${r} refused`
+    `record-coverage-gate: ${c + m + l + q + b + r} bound blocks against ${base} (${base}): ` +
+    `${c} covered, ${m} moved, ${l} live, ${q} no-collector, ${b} behaviour change, ${r} refused`
   );
 };
 const line = (text: string): string => `record-coverage-gate: ${text}`;
@@ -300,18 +320,81 @@ describe("record-coverage-gate: exclusions", () => {
     });
   });
 
-  it("counts a node:test block, not refused, until the node:test adapter exists", () => {
+  it("refuses a node:test integration block with no record, exit 1", () => {
     const base = plant(
-      { [LEDGER]: ledger([row({ one: H1 }, TEST, "node")]) },
-      { ...BASE, [LEDGER]: ledger([row({ one: H1, two: H2 }, TEST, "node")]) }
+      { [LEDGER]: ledger([row({ one: H1 }, TEST, [INTEGRATION])]) },
+      { ...BASE, [LEDGER]: ledger([row({ one: H1, two: H2 }, TEST, [INTEGRATION])]) }
     );
+
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${TWO} (deletion): no-record`)],
+    });
+  });
+
+  it.each([
+    [
+      "live",
+      [LIVE_TIER],
+      { l: 1 },
+      "counted, not refused: a live-tier test needs a running API, which mutation-diff does not start",
+    ],
+    [
+      "no-collector",
+      [],
+      { q: 1 },
+      "counted, not refused: no collector runs it, so mutation-diff cannot",
+    ],
+  ] as const)("lists a %s block, counted, never refused", (cls, collectors, counts, detail) => {
+    const base = plant(
+      { [LEDGER]: ledger([row({ one: H1 }, TEST, collectors)]) },
+      { ...BASE, [LEDGER]: ledger([row({ one: H1, two: H2 }, TEST, collectors)]) }
+    );
+
     expect(runGate({ root, baseRef: base })).toEqual({
       exitCode: 0,
-      lines: [
-        summary(base, { k: 1 }),
-        line(`node: ${TWO} (deletion): counted, not refused, until the node:test adapter exists`),
-      ],
+      lines: [summary(base, counts), line(`${cls}: ${TWO} (deletion): ${detail}`)],
     });
+  });
+
+  it.each([
+    [
+      "live",
+      [QUARANTINED_ROW],
+      "the live class matches no ledger row: delete it (its tier left the tree)",
+    ],
+    [
+      "no-collector",
+      [LIVE_ROW],
+      "the no-collector class matches no ledger row: delete it (its files left the quarantine)",
+    ],
+  ] as const)(
+    "fails under --retire-check, exit 1, once the head ledger holds no row of the %s class",
+    (_cls, population, problem) => {
+      const base = plant({ [LEDGER]: ledger([row({ one: H1, two: H2 })], population) });
+
+      const result = main(["--retire-check"], { root, env: { FITNESS_BASE_REF: base } });
+
+      expect([result.code, result.stdout]).toEqual([1, `${summary(base, {})}\n${line(problem)}\n`]);
+    }
+  );
+
+  it("passes under --retire-check a head ledger that holds a live-tier row and a row no collector runs", () => {
+    const base = plant({
+      [LEDGER]: ledger([row({ one: H1, two: H2 })], [LIVE_ROW, QUARANTINED_ROW]),
+    });
+
+    const result = main(["--retire-check"], { root, env: { FITNESS_BASE_REF: base } });
+
+    expect([result.code, result.stdout]).toEqual([0, `${summary(base, {})}\n`]);
+  });
+
+  it("skips the class check without --retire-check, so a head ledger with neither row passes", () => {
+    const base = plant({ [LEDGER]: ledger([row({ one: H1, two: H2 })]) });
+
+    const result = main([], { root, env: { FITNESS_BASE_REF: base } });
+
+    expect([result.code, result.stdout]).toEqual([0, `${summary(base, {})}\n`]);
   });
 
   it("lists as a behaviour change a deleted file whose base text imports a changed source by a relative specifier", () => {
@@ -368,6 +451,82 @@ describe("record-coverage-gate: exclusions", () => {
     });
   });
 
+  it("lists as a behaviour change a deleted block whose scripts suite names a changed script in a string literal", () => {
+    const base = plant(
+      { [LEDGER]: ledger([row({ one: H1 }, SCRIPT_TEST)]), [SCRIPT]: "export const gate = 2;\n" },
+      {
+        ...BASE,
+        [LEDGER]: ledger([row({ one: H1, two: H2 }, SCRIPT_TEST)]),
+        [SCRIPT_TEST]: testText(`const gate = path.join(ROOT, "${SCRIPT}");`),
+        [SCRIPT]: "export const gate = 1;\n",
+      }
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 0,
+      lines: [
+        summary(base, { b: 1 }),
+        line(
+          `behaviour change: ${SCRIPT_TEST}::two (deletion): its test names ${SCRIPT} in a string literal, which this pull request changes`
+        ),
+      ],
+    });
+  });
+
+  it("refuses a deleted block whose scripts suite names the changed script only in its comments", () => {
+    const base = plant(
+      { [LEDGER]: ledger([row({ one: H1 }, SCRIPT_TEST)]), [SCRIPT]: "export const gate = 2;\n" },
+      {
+        ...BASE,
+        [LEDGER]: ledger([row({ one: H1, two: H2 }, SCRIPT_TEST)]),
+        [SCRIPT_TEST]: testText(
+          `/**\n * @file Pins \`${SCRIPT}\`.\n */\n// reads "${SCRIPT}" by path`
+        ),
+        [SCRIPT]: "export const gate = 1;\n",
+      }
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${SCRIPT_TEST}::two (deletion): no-record`)],
+    });
+  });
+
+  it("keeps a literal that holds a comment marker, so a file URL to the changed script still counts", () => {
+    const base = plant(
+      { [LEDGER]: ledger([row({ one: H1 }, SCRIPT_TEST)]), [SCRIPT]: "export const gate = 2;\n" },
+      {
+        ...BASE,
+        [LEDGER]: ledger([row({ one: H1, two: H2 }, SCRIPT_TEST)]),
+        [SCRIPT_TEST]: testText(`const gate = new URL("file:///repo/${SCRIPT}"); // the gate`),
+        [SCRIPT]: "export const gate = 1;\n",
+      }
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 0,
+      lines: [
+        summary(base, { b: 1 }),
+        line(
+          `behaviour change: ${SCRIPT_TEST}::two (deletion): its test names ${SCRIPT} in a string literal, which this pull request changes`
+        ),
+      ],
+    });
+  });
+
+  it("refuses that deletion when the script its scripts suite names is unchanged", () => {
+    const base = plant(
+      { [LEDGER]: ledger([row({ one: H1 }, SCRIPT_TEST)]) },
+      {
+        ...BASE,
+        [LEDGER]: ledger([row({ one: H1, two: H2 }, SCRIPT_TEST)]),
+        [SCRIPT_TEST]: testText(`const gate = path.join(ROOT, "${SCRIPT}");`),
+        [SCRIPT]: "export const gate = 1;\n",
+      }
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${SCRIPT_TEST}::two (deletion): no-record`)],
+    });
+  });
+
   it("reads a rewrite's imports at the head, so an import only the base held excludes nothing", () => {
     const base = plant(
       { ...REWRITTEN, [TEST]: testText(), [SOURCE]: "export const sub = 2;\n" },
@@ -410,7 +569,8 @@ describe("record-coverage-gate: the environment and the command", () => {
       expect(main(argv)).toEqual({
         code: 2,
         stdout: "",
-        stderr: "usage: node scripts/testing/record-coverage-gate.mjs [--summary <file>]\n",
+        stderr:
+          "usage: node scripts/testing/record-coverage-gate.mjs [--summary <file>] [--retire-check]\n",
       });
     }
   );

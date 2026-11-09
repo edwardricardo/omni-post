@@ -9,28 +9,41 @@
  *
  *   1. moved: a deletion whose base `bodyHash` the head holds under an id the base did not hold,
  *      listed, never refused;
- *   2. node: a block of a ledger row whose `framework` is `node`, counted and listed, never
- *      refused, until the node:test adapter of the mutation tool exists (WU-2.3c);
- *   3. behaviour change: its test imports directly a changed source (a changed file that is no
+ *   2. live: a block of a ledger row whose collectors name node:test's live tier, which needs a
+ *      running API the mutation tool does not start, counted and listed, never refused;
+ *   3. no-collector: a block of a ledger row with `collectors: []`, which nothing runs, counted
+ *      and listed, never refused;
+ *   4. behaviour change: its test imports directly a changed source (a changed file that is no
  *      ledger row), read at the base for a deletion and at the head for a rewrite, by a relative
  *      specifier (with or without its extension, `.js` written for a `.ts` source, or a directory's
  *      index) or a bare specifier `tsconfig.base.json`'s `compilerOptions.paths` maps; listed with
- *      the files, never refused. A string literal that holds the source's path is not an import;
- *   4. covered: a case of a committed record under
+ *      the files, never refused. A string literal that holds the source's path is not an import, but
+ *      a test under `apps/api/tests/unit/scripts/` holding a string literal whose whole value is, or
+ *      ends after a `/` with, the path of a changed source under `scripts/testing/` is a behaviour
+ *      change too, listed with the files;
+ *   5. covered: a case of a committed record under
  *      `docs/development/testing-refoundation/mutations/*.record.json` lists the id with
  *      `bodyHash.base` and `bodyHash.head` equal to the two ledgers (`null` at the head for a
  *      deletion), its kind, and SAFE for a deletion or GAIN for a rewrite; a BEHAVIOUR-CHANGED case
  *      (either kind) is counted and listed as a behaviour change instead;
- *   5. refused, named by its reason: `no-record`; `stale-record`, a hash differs, so mutation-diff
+ *   6. refused, named by its reason: `no-record`; `stale-record`, a hash differs, so mutation-diff
  *      is run again; `wrong-kind`; or `failing-verdict: <verdict>`.
+ *
+ *   RETIRES WHEN, held under `--retire-check`, which `pnpm check:record-coverage` passes, on the
+ *   head `ledger.json`: the live class once no row's collectors name
+ *   node:test's live tier (`the live class matches no ledger row: delete it (its tier left the
+ *   tree)`), the no-collector class once no row has `collectors: []` (`the no-collector class
+ *   matches no ledger row: delete it (its files left the quarantine)`); each is exit 1 until the
+ *   class is deleted.
  *
  *   THE BASE is `FITNESS_BASE_REF`, `origin/main` when unset, resolved to its merge base with
  *   `HEAD`. The base ledger is `git show <merge base>:ledger.json`; the head is the working tree,
  *   which CI checks out at `HEAD`: its `ledger.json`, its records (the ones git tracks) and the
  *   changed files, `git diff --name-only <merge base>` against it.
  *
- *   EXIT CODES: 0 nothing refused; 1 a refused block, or a record that is not the tool's shape; 2 a
- *   usage error (the command takes no argument but `--summary <file>`); 3 the environment, failing
+ *   EXIT CODES: 0 nothing refused; 1 a refused block, a record that is not the tool's shape, or, under
+ *   `--retire-check`, a class that matches no row of the head ledger; 2 a
+ *   usage error (the command takes no argument but `--summary <file>` and `--retire-check`); 3 the environment, failing
  *   closed: a base that does not resolve or shares no merge base with `HEAD`, `ledger.json`
  *   unreadable, not JSON or with no `files` array on either side, a `tsconfig.base.json` that is
  *   not JSON, or git failing. No `mutations/` directory with a refused block is 1, not 3.
@@ -39,16 +52,16 @@
  *   match the tree is #52's part; (2) it proves a matching record exists, never that its mutation
  *   was realistic or the record genuine, which the verifier's re-run of mutation-diff proves; (3) a
  *   rename with a body edit reads as a deletion plus an addition, and a deletion whose body the head
- *   holds under a new id, a new copy included, reads as moved; (4) node:test blocks are exempt until
- *   WU-2.3c; (5) the import exclusion reads direct imports only, and a test that reaches a changed
- *   source through another module, or loads it by a path it builds (`path.join(ROOT, "…")`, the
- *   script suites' form), needs the tool's measured BEHAVIOUR-CHANGED verdict in a committed record;
- *   (6) a file the ledger excludes is invisible; (7) a block's
+ *   holds under a new id, a new copy included, reads as moved; (4) the import
+ *   exclusion reads direct imports only and the script suites' rule a whole literal only, so a test
+ *   that reaches a changed source through another module, a path built from fragments, a literal
+ *   outside `apps/api/tests/unit/scripts/` or a changed file outside `scripts/testing/` needs the tool's measured BEHAVIOUR-CHANGED verdict in a committed record;
+ *   (5) a file the ledger excludes is invisible; (6) a block's
  *   `bodyHash` covers its callback body only, so a row deleted from an `it.each` table, or an
  *   expected value weakened in one, changes no id and no hash and binds nothing (Master Plan row
- *   RECORD-COVERAGE-EACH-TABLES).
+ *   RECORD-COVERAGE-EACH-TABLES); (7) a live-tier or no-collector block is listed, never measured.
  *
- *   Usage: `node scripts/testing/record-coverage-gate.mjs [--summary <file>]`, or
+ *   Usage: `node scripts/testing/record-coverage-gate.mjs [--summary <file>] [--retire-check]`, or
  *   `pnpm check:record-coverage`. `--summary` appends the lines as a Markdown table, which is how
  *   the workflow step writes its job summary.
  * @layer infrastructure
@@ -60,12 +73,14 @@ import { fileURLToPath } from "node:url";
 import {
   boundBlocks,
   changedImports,
+  changedLiterals,
   classify,
   countsOf,
   ledgerIndexOf,
   listedOf,
   parseRecord,
   pathAliasesOf,
+  retiredClassesOf,
 } from "./lib/record-coverage-core.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -75,7 +90,8 @@ const RECORDS = "docs/development/testing-refoundation/mutations";
 const RECORD_SUFFIX = ".record.json";
 const TSCONFIG = "tsconfig.base.json";
 const PREFIX = "record-coverage-gate: ";
-const USAGE = "usage: node scripts/testing/record-coverage-gate.mjs [--summary <file>]";
+const USAGE =
+  "usage: node scripts/testing/record-coverage-gate.mjs [--summary <file>] [--retire-check]";
 const EXIT = Object.freeze({ CLEAN: 0, VERDICT: 1, USAGE: 2, UNREAD: 3 });
 
 /**
@@ -171,10 +187,11 @@ function cell(text) {
 
 /**
  * @description Runs the rule over a root and a base, and renders the job summary beside the lines.
- * @param {{ root: string, baseRef: string }} input
+ * @param {{ root: string, baseRef: string, retireCheck: boolean }} input `retireCheck` adds the
+ *   check that each counted class still matches a row of the head ledger.
  * @returns {Evaluation}
  */
-function evaluate({ root, baseRef }) {
+function evaluate({ root, baseRef, retireCheck }) {
   const git = gitIn(root);
   /** @type {(message: string) => Evaluation} */
   const unread = (message) => ({
@@ -212,7 +229,7 @@ function evaluate({ root, baseRef }) {
   const sources = pathsOf(changed.value).filter((file) => !rows.has(file));
 
   /** @type {string[]} */
-  const problems = [];
+  const problems = retireCheck ? [...retiredClassesOf(head.value)] : [];
   /** @type {CommittedRecord[]} */
   const records = [];
   const recordFiles = pathsOf(tracked.value).filter(
@@ -239,20 +256,24 @@ function evaluate({ root, baseRef }) {
   };
   /** @type {Map<string, string[]>} */
   const imports = new Map();
+  /** @type {Map<string, string[]>} */
+  const literals = new Map();
   if (sources.length > 0) {
     for (const block of bound) {
-      if (block.movedTo !== null || block.framework === "node") continue;
+      if (block.movedTo !== null) continue;
       const [side, file] =
         block.kind === "deletion" ? ["base", block.path] : ["head", block.headPath];
       const text = textAt(/** @type {"base" | "head"} */ (side), file);
       imports.set(block.id, changedImports(file, text, sources, aliases));
+      literals.set(block.id, changedLiterals(file, text, sources));
     }
   }
-  const entries = classify(bound, { imports, records });
+  const entries = classify(bound, { imports, literals, records });
   const counts = countsOf(entries);
   const summary =
     `${bound.length} bound blocks against ${baseRef} (${sha}): ${counts.covered} covered, ` +
-    `${counts.moved} moved, ${counts.node} node, ${counts.behaviour} behaviour change, ` +
+    `${counts.moved} moved, ${counts.live} live, ${counts.noCollector} no-collector, ` +
+    `${counts.behaviour} behaviour change, ` +
     `${counts.refused} refused`;
   const listed = listedOf(entries);
   const lines = [
@@ -290,16 +311,16 @@ function evaluate({ root, baseRef }) {
 /**
  * @description Runs the gate over a repository root against a base ref. Everything it reads lives
  *   under `root` and in its git history, so the suite drives the rule on scratch repositories.
- * @param {{ root?: string, baseRef?: string }} [input]
+ * @param {{ root?: string, baseRef?: string, retireCheck?: boolean }} [input]
  * @returns {Outcome} The exit code and the lines to print.
  */
-export function runGate({ root = ROOT, baseRef = DEFAULT_BASE_REF } = {}) {
-  const { exitCode, lines } = evaluate({ root, baseRef });
+export function runGate({ root = ROOT, baseRef = DEFAULT_BASE_REF, retireCheck = false } = {}) {
+  const { exitCode, lines } = evaluate({ root, baseRef, retireCheck });
   return { exitCode, lines };
 }
 
 /**
- * @description The command: reads `--summary <file>` and the base from `FITNESS_BASE_REF`, runs
+ * @description The command: reads `--summary <file>`, `--retire-check` and the base from `FITNESS_BASE_REF`, runs
  *   the gate, appends the job summary and returns what to print; the entry point prints it.
  * @param {readonly string[]} argv The arguments after the script.
  * @param {{ root?: string, env?: Readonly<Record<string, string | undefined>> }} [seams] The root
@@ -307,8 +328,14 @@ export function runGate({ root = ROOT, baseRef = DEFAULT_BASE_REF } = {}) {
  * @returns {{ code: number, stdout: string, stderr: string }}
  */
 export function main(argv, seams = {}) {
-  const summaryFile = argv.length === 2 && argv[0] === "--summary" ? (argv[1] ?? "") : null;
-  if ((argv.length > 0 && summaryFile === null) || summaryFile === "") {
+  const rest = argv.filter((arg) => arg !== "--retire-check");
+  const retireCheck = rest.length < argv.length;
+  const summaryFile = rest.length === 2 && rest[0] === "--summary" ? (rest[1] ?? "") : null;
+  if (
+    (rest.length > 0 && summaryFile === null) ||
+    summaryFile === "" ||
+    argv.length - rest.length > 1
+  ) {
     return { code: EXIT.USAGE, stdout: "", stderr: `${USAGE}\n` };
   }
   const env = seams.env ?? process.env;
@@ -316,7 +343,7 @@ export function main(argv, seams = {}) {
   /** @type {Evaluation} */
   let result;
   try {
-    result = evaluate({ root: seams.root ?? ROOT, baseRef });
+    result = evaluate({ root: seams.root ?? ROOT, baseRef, retireCheck });
   } catch (error) {
     result = {
       exitCode: EXIT.UNREAD,
