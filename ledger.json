@@ -27,7 +27,7 @@
       "total": 1186
     },
     "blocks": {
-      "total": 14691,
+      "total": 14696,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14380
+        "BEHAVIOURAL": 14385
       }
     },
     "deleted": {
@@ -21069,7 +21069,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 18,
+      "blockCount": 22,
       "blocks": [
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should generate content with default options",
@@ -21121,78 +21121,106 @@
           "bodyHash": "37745c25b8b6550805cd438b475a05405365e587a3819abf255857a7683cb007"
         },
         {
-          "id": "apps/api/tests/unit/aiService.test.ts::should throw when optimization fails",
+          "id": "apps/api/tests/unit/aiService.test.ts::returns the orchestrator's optimization for the requested platform",
           "line": 307,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d7d5ffa5923798696e8de8b06bdf5f1abc8a55e9379597c7533e4c9eb45aa08a"
+        },
+        {
+          "id": "apps/api/tests/unit/aiService.test.ts::passes the brand voice through and keeps the media suggestions of the optimization",
+          "line": 326,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "266fef15eac18e558254f2e68ca1589dfbee5e805970402c9ebb26374ee5f43f"
+        },
+        {
+          "id": "apps/api/tests/unit/aiService.test.ts::should throw when optimization fails",
+          "line": 349,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b3e015bffea6026a6b54770e08ad1db2ff64349b68aedc002dd93a69f50e2d36"
         },
         {
+          "id": "apps/api/tests/unit/aiService.test.ts::predicts performance from the content alone when no historical data is given",
+          "line": 366,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "76c4a5ae0dc927f56efef0a501b02a3a4e22e9cd98e840779f4ca2f97bf6ad5c"
+        },
+        {
           "id": "apps/api/tests/unit/aiService.test.ts::should predict performance with historical data",
-          "line": 324,
+          "line": 385,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1c5d3872a4a931106a5f00127f19261858d947cac33abb0abcfd21836723d657"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should throw when prediction fails",
-          "line": 343,
+          "line": 404,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1fa0e141e8eeef2a1c2e1fe5ddc4d23e7e888b1eb4a34f43f970d92504cb4d40"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should generate tone variations",
-          "line": 360,
+          "line": 421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4371c3a793b6f610138bbaa8ab60fdacece71dd15ab10182bda6b35046973c5a"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should throw when variation generation fails",
-          "line": 375,
+          "line": 436,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4b32af6379f79f247f83538b360d05a3f0f0efbde16dee2e8ca7d8423e9b0a2"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should perform smart analysis with all features enabled",
-          "line": 392,
+          "line": 453,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e234b96a9f423340364c73139efd40e14b6adb8f7fec9dd3ce4f8f1a1b38b586"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should omit optional features when disabled",
-          "line": 435,
+          "line": 496,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0dcf06d6e52ae14050391f2a29d3d101edd1f5bc4a2fb2d049f9e8efb75e01d4"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should default platform to twitter and enable optimization/prediction",
-          "line": 459,
+          "line": 520,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "35078bd9297766e2f9f519e04b199eab229a7729beda0c5e9782776e5c99865b"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should handle partial analysis failures gracefully",
-          "line": 482,
+          "line": 543,
           "blockClass": "EXISTENCE-ONLY",
           "criteria": ["a"],
           "bodyHash": "ab1086ce9e831b121feec6c0e19854cd86e32a52ce37087c8f5bae6372b1d596"
         },
         {
+          "id": "apps/api/tests/unit/aiService.test.ts::reports the orchestrator's cache stats beside its usage metrics",
+          "line": 568,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1cbfc54b581ac35573720342b33b13b40d7145eaf425da8cc2a2ea6597dda1f1"
+        },
+        {
           "id": "apps/api/tests/unit/aiService.test.ts::should expose per-provider metrics",
-          "line": 507,
+          "line": 579,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9844d622f413e164379abe60cebb2884c569d591d9f3e32dc3d48c9075d3a4e3"
         },
         {
           "id": "apps/api/tests/unit/aiService.test.ts::should clear cache via orchestrator",
-          "line": 555,
+          "line": 627,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e35fc65f4cb654798d40a200725ede2495cc9946db4e64f8b2bde0f200072779"
@@ -32654,88 +32682,95 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 12,
+      "blockCount": 13,
       "blocks": [
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should count total logs matching filter",
-          "line": 295,
+          "line": 296,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "78520b8386998e626979ab71ded64e27f72f3a938ccdffb2f0622cf479632667"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should count successful and failed separately",
-          "line": 304,
+          "line": 305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b705b10b712fe4e6f59dd160dae2f5ede782e7a78e425e69e99627a41bcceae"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should return top actions sorted by count descending",
-          "line": 317,
+          "line": 318,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "31a89a542b7b1a4d244bab36e8803386778361dfaf2b3ac1c947744463229002"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should limit top actions to 10",
-          "line": 332,
+          "line": 333,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2b3c68f65081e9e6b2ce6743979571697f4f3a081df4ae4a8da03824c8f2a01a"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should include action name and count",
-          "line": 339,
+          "line": 340,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c4c35bd2018733239b0475615038117ea69b06920689f6d7b3cf3c484b38fb8"
         },
         {
+          "id": "apps/api/tests/unit/auditService.stats.test.ts::names each top resource after the resource its logs record",
+          "line": 353,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0dc2326d80097669f87a579f75a8639d7bd3f096d927561932d7c2a0aae7be53"
+        },
+        {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should return top resources sorted by count descending",
-          "line": 352,
+          "line": 367,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ca981cf63adc686cf30474a69de166960a12e24575b52ca98572a5b7a55cee0"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should limit top resources to 10",
-          "line": 367,
+          "line": 382,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "69b616cb3a94a94881b88d28f281a2286906431e5d2923ec0cc6fb144f18143f"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should return top users with name and email",
-          "line": 376,
+          "line": 391,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9efa0309cac8d641233c6f695f287ce7abc34d40981b8060cea0b3333041b4e5"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should filter out null userIds",
-          "line": 390,
+          "line": 405,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5c997c350f8769c9a3bb3e157cb2d1a983a8ff076082abe01f009795dc77db1"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should limit top users to 10",
-          "line": 401,
+          "line": 416,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "77d0c828fba039d6366eec8c38efbfbc3140a037579d95156d0a3bb7de482f07"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should apply filters to all aggregations",
-          "line": 410,
+          "line": 425,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5cdf7944994058a6f28104d9937afa79aecaf3930c2658121a4adeaedc02ace7"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should apply date range to stats",
-          "line": 419,
+          "line": 434,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "25f322466d1cee7cff109a4c018b86ed2df610736f48769e75257cbbf80a63ff"

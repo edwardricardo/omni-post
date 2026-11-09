@@ -1,0 +1,156 @@
+[
+  {
+    "id": "g01-generate-options-content",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/aiService.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/aiService.test.ts::should generate content with custom model options"
+    ],
+    "subject": "apps/api/src/ai/aiService.ts",
+    "search": "        return { success: true, content: result.value, metadata: result.metadata };",
+    "replace": "        return { success: true, content: result.value.response, metadata: result.metadata };",
+    "note": "The block's verdict, that a generation with model options returns success and content, comes from the admin-orchestrator branch of AIService.generateContent. That branch reads the content from the per-account result's `response` field, the shape of the branch above it, so the content is undefined. The block's stub ignores its arguments, so it never read whether the options reach the orchestrator."
+  },
+  {
+    "id": "g02-analyze-tone-analysis",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/aiService.test.ts",
+    "blocks": ["apps/api/tests/unit/aiService.test.ts::should analyze tone successfully"],
+    "subject": "apps/api/src/ai/aiService.ts",
+    "search": "      return { success: true, analysis: result.value, metadata: result.metadata };",
+    "replace": "      return { success: true, analysis: result.value.response, metadata: result.metadata };",
+    "note": "The block's verdict, that a tone analysis returns the orchestrator's tone result, comes from the admin-orchestrator branch of AIService.analyzeContent. That branch reads the analysis from the per-account result's `response` field, so the analysis is undefined."
+  },
+  {
+    "id": "g03-optimize-twitter-optimization",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/aiService.test.ts",
+    "blocks": ["apps/api/tests/unit/aiService.test.ts::should optimize content for Twitter"],
+    "subject": "apps/api/src/ai/aiService.ts",
+    "search": "      return { success: true, optimization: result.value, metadata: result.metadata };",
+    "replace": "      return { success: true, optimization: result.value.response, metadata: result.metadata };",
+    "note": "The block's verdict, that an optimization for Twitter returns the optimized text, hashtags and platform details, comes from the admin-orchestrator branch of AIService.optimizeContent. That branch reads the optimization from the per-account result's `response` field, so the optimization is undefined."
+  },
+  {
+    "id": "g04-optimize-brand-voice-ok-check",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/aiService.test.ts",
+    "blocks": ["apps/api/tests/unit/aiService.test.ts::should optimize with brand voice"],
+    "subject": "apps/api/src/ai/aiService.ts",
+    "search": "      const result = await orchestrator.optimizeContent(content, platform, brandVoice);\n      if (!result.ok) {",
+    "replace": "      const result = await orchestrator.optimizeContent(content, platform, brandVoice);\n      if (result.ok) {",
+    "note": "The block's verdict, that an optimization with a brand voice returns the optimized text, comes from the admin-orchestrator branch of AIService.optimizeContent. The branch inverts its check of the orchestrator's result, so a successful optimization throws. The block's stub ignores its arguments, so it never read whether the brand voice reaches the orchestrator."
+  },
+  {
+    "id": "g05-optimize-instagram-media",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/aiService.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/aiService.test.ts::should include media suggestions for Instagram"
+    ],
+    "subject": "apps/api/src/ai/aiService.ts",
+    "search": "      return { success: true, optimization: result.value, metadata: result.metadata };",
+    "replace": "      return { success: true, optimization: result.value.optimizedText, metadata: result.metadata };",
+    "note": "The block's verdict, that an optimization for Instagram carries the orchestrator's media suggestions, comes from the admin-orchestrator branch of AIService.optimizeContent. The branch returns the optimized text alone in place of the optimization, so the media suggestions are lost."
+  },
+  {
+    "id": "g06-predict-without-history",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/aiService.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/aiService.test.ts::should predict performance without historical data"
+    ],
+    "subject": "apps/api/src/ai/aiService.ts",
+    "search": "        historicalData as Record<string, unknown>[] | undefined\n      );\n      if (!result.ok) {",
+    "replace": "        historicalData as Record<string, unknown>[] | undefined\n      );\n      if (!result.ok || !historicalData) {",
+    "note": "The block's verdict, that a prediction for content with no historical data returns its engagement, reach and timing, comes from the admin-orchestrator branch of AIService.predictPerformance. The branch treats a call without historical data as a failed prediction and throws."
+  },
+  {
+    "id": "g07-variations-length-ok-check",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/aiService.test.ts",
+    "blocks": ["apps/api/tests/unit/aiService.test.ts::should generate length variations"],
+    "subject": "apps/api/src/ai/aiService.ts",
+    "search": "        const result = await orchestrator.generateVariations(content, variationType, count);\n        if (!result.ok) {",
+    "replace": "        const result = await orchestrator.generateVariations(content, variationType, count);\n        if (result.ok) {",
+    "note": "The block's verdict, that length variations come back as a list, comes from the admin-orchestrator branch of AIService.generateVariations. The branch inverts its check of the orchestrator's result, so a successful generation throws. The block's stub ignores its arguments, so it never read the variation type."
+  },
+  {
+    "id": "g08-variations-audience-key",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/aiService.test.ts",
+    "blocks": ["apps/api/tests/unit/aiService.test.ts::should generate audience variations"],
+    "subject": "apps/api/src/ai/aiService.ts",
+    "search": "        return { success: true, variations, metadata: result.metadata };",
+    "replace": "        return { success: true, variants: variations, metadata: result.metadata };",
+    "note": "The block's verdict, that audience variations come back as a list, comes from the admin-orchestrator branch of AIService.generateVariations. The branch returns the list under a renamed key, so `variations` is undefined."
+  },
+  {
+    "id": "g09-metrics-cache-stats",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/aiService.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/aiService.test.ts::should retrieve usage metrics from orchestrator"
+    ],
+    "subject": "apps/api/src/ai/aiService.ts",
+    "search": "        success: true,\n        metrics: Object.fromEntries(usageMetrics),\n        cache: cacheStats,\n",
+    "replace": "        success: true,\n        metrics: Object.fromEntries(usageMetrics),\n",
+    "note": "The block's verdict, that the metrics carry usage metrics, cache stats and a timestamp, comes from AIService.getMetrics. The response drops the orchestrator's cache stats."
+  },
+  {
+    "id": "w01-create-default-workflow",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::creates a workflow with description and isDefault"
+    ],
+    "subject": "packages/core/approvals/src/CreateApprovalWorkflowUseCase.ts",
+    "search": "        if (currentDefault) {",
+    "replace": "        if (!currentDefault) {",
+    "note": "The ledger row has no subject; the block's title names CreateApprovalWorkflowUseCase, which the test imports from @core/approvals. The block's verdict, that a default workflow is created for an account with no default yet, comes from its default branch, which inverts its check of the current default, so it reads the fields of a missing workflow and the creation fails."
+  },
+  {
+    "id": "a01-logs-resource-id-filter",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/auditService.query.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/auditService.query.test.ts::should filter by resourceId exactly"
+    ],
+    "subject": "apps/api/src/audit/auditService.ts",
+    "search": "          offset = 0,\n        } = filters;\n\n        const where: Record<string, unknown> = {};\n\n        if (userId) where.userId = userId;\n        if (action) where.action = { contains: action, mode: \"insensitive\" };\n        if (resource) where.resource = resource;\n        if (resourceId) where.resourceId = resourceId;",
+    "replace": "          offset = 0,\n        } = filters;\n\n        const where: Record<string, unknown> = {};\n\n        if (userId) where.userId = userId;\n        if (action) where.action = { contains: action, mode: \"insensitive\" };\n        if (resource) where.resource = resource;\n        if (resourceId) where.resource = resourceId;",
+    "note": "The block's verdict, that a resource-id filter finds the log of that resource, comes from the where clause AuditService.getLogs builds. The clause writes the resource id into the resource key, so no log matches. A first mutation, the resource-id filter dropped, read VACUOUS: the seed holds one Post log, so the block found it with or without the filter."
+  },
+  {
+    "id": "s01-stats-null-resources",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/auditService.stats.test.ts",
+    "blocks": ["apps/api/tests/unit/auditService.stats.test.ts::should filter out null resources"],
+    "subject": "apps/api/src/audit/auditService.ts",
+    "search": "          resource: item.resource!,",
+    "replace": "          resource: item.resourceId!,",
+    "note": "The block's verdict, that every top resource carries a resource name, comes from the top-resources mapping of AuditService.getStats. The mapping reads each group's resource id in place of its resource, so the names are undefined. A first mutation, the aggregation's exclusion of logs with no resource dropped, read VACUOUS: the test's groupBy double skips empty keys itself and the seed holds no log without a resource."
+  },
+  {
+    "id": "s02-stats-top-users-order",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/auditService.stats.test.ts",
+    "blocks": ["apps/api/tests/unit/auditService.stats.test.ts::should sort by count descending"],
+    "subject": "apps/api/src/audit/auditService.ts",
+    "search": "          orderBy: { _count: { userId: \"desc\" } },",
+    "replace": "          orderBy: { userId: \"asc\" },",
+    "note": "The block's verdict, that the top users come in descending order of their log count, comes from the top-users aggregation of AuditService.getStats. The aggregation orders its groups by user id. A first mutation, the count order turned ascending, read VACUOUS too: the test's groupBy double sorts its groups by descending count whatever orderBy it receives, so the block pinned the double's own sort, and no reader of the service's orderBy exists without a double that applies it or a test against Postgres."
+  },
+  {
+    "id": "r01-optimized-posts-success-envelope",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/optimizedPostsRoutes.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/optimizedPostsRoutes.test.ts::should return consistent success response format"
+    ],
+    "subject": "apps/api/src/posts/optimizedPostsRoutes.ts",
+    "search": "      query: GetOptimizedPostsQuerySchema,\n    });\n\n    if (!validated.ok) {",
+    "replace": "      query: GetOptimizedPostsQuerySchema,\n    });\n\n    if (validated.ok) {",
+    "note": "The block's verdict, that a valid optimized-posts request answers with the success envelope, comes from getOptimizedPosts in optimizedPostsRoutes.ts. The handler inverts its validation check, so a valid request is refused. No composition root registers registerOptimizedPostsRoutes, and Master Plan row DC-11 deletes the module (FN-009) with its test."
+  }
+]

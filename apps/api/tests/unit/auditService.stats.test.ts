@@ -6,6 +6,7 @@
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
+import assert from "node:assert/strict";
 
 // ---------------------------------------------------------------------------
 // Mock setup — vi.hoisted runs before vi.mock factories
@@ -349,6 +350,20 @@ describe("AuditService - getStats()", () => {
   });
 
   describe("getStats() - Top Resources Aggregation", () => {
+    it("names each top resource after the resource its logs record", async () => {
+      const result = await auditService.getStats({ action: "STATS_" });
+
+      assert.ok(result.ok);
+      expect(result.value.topResources).toHaveLength(3);
+      expect(result.value.topResources).toEqual(
+        expect.arrayContaining([
+          { resource: "Session", count: 3 },
+          { resource: "Post", count: 3 },
+          { resource: "System", count: 2 },
+        ])
+      );
+    });
+
     it("should return top resources sorted by count descending", async () => {
       const result = await auditService.getStats({
         action: "STATS_",
