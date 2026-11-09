@@ -25,6 +25,7 @@ describe("SubscriptionChangeSchema", () => {
       billingCycle: "monthly",
     });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, { newTier: "PRO", billingCycle: "monthly" });
   });
 
   it("rejects invalid tier", () => {
@@ -50,6 +51,11 @@ describe("SubscriptionChangeSchema", () => {
       reason: "Business growth",
     });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, {
+      newTier: "ENTERPRISE",
+      billingCycle: "yearly",
+      reason: "Business growth",
+    });
   });
 
   it("accepts optional effectiveDate", () => {
@@ -59,6 +65,11 @@ describe("SubscriptionChangeSchema", () => {
       effectiveDate: "2025-04-01T00:00:00Z",
     });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, {
+      newTier: "PRO",
+      billingCycle: "monthly",
+      effectiveDate: new Date("2025-04-01T00:00:00Z"),
+    });
   });
 
   it("requires newTier", () => {
@@ -89,7 +100,9 @@ describe("ValidateLimitsSchema", () => {
 
   it("accepts all valid operations", () => {
     for (const op of ["CREATE_PROJECT", "ADD_TEAM_MEMBER", "UPLOAD_MEDIA"]) {
-      assert.ok(ValidateLimitsSchema.safeParse({ operation: op }).success);
+      const result = ValidateLimitsSchema.safeParse({ operation: op });
+      assert.ok(result.success);
+      assert.deepStrictEqual(result.data, { operation: op, amount: 1 });
     }
   });
 
@@ -119,6 +132,11 @@ describe("BulkUpgradeSchema", () => {
       billingCycle: "monthly",
     });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, {
+      accountIds: ["550e8400-e29b-41d4-a716-446655440000"],
+      newTier: "PRO",
+      billingCycle: "monthly",
+    });
   });
 
   it("rejects empty accountIds", () => {
@@ -143,14 +161,21 @@ describe("BulkUpgradeSchema", () => {
   });
 
   it("accepts exactly 50 accountIds", () => {
-    const ids = Array.from({ length: 50 }, () => "550e8400-e29b-41d4-a716-446655440000");
-    assert.ok(
-      BulkUpgradeSchema.safeParse({
-        accountIds: ids,
-        newTier: "PRO",
-        billingCycle: "monthly",
-      }).success
+    const ids = Array.from(
+      { length: 50 },
+      (_, i) => `550e8400-e29b-41d4-a716-${String(i).padStart(12, "0")}`
     );
+    const result = BulkUpgradeSchema.safeParse({
+      accountIds: ids,
+      newTier: "PRO",
+      billingCycle: "monthly",
+    });
+    assert.ok(result.success);
+    assert.deepStrictEqual(result.data, {
+      accountIds: ids,
+      newTier: "PRO",
+      billingCycle: "monthly",
+    });
   });
 });
 
@@ -166,7 +191,9 @@ describe("SubscriptionFiltersSchema", () => {
 
   it("accepts valid sort options", () => {
     for (const sortBy of ["createdAt", "updatedAt", "pricePerMonth", "status"]) {
-      assert.ok(SubscriptionFiltersSchema.safeParse({ sortBy }).success);
+      const result = SubscriptionFiltersSchema.safeParse({ sortBy });
+      assert.ok(result.success);
+      assert.deepStrictEqual(result.data, { sortBy, page: 1, limit: 50 });
     }
   });
 
@@ -202,6 +229,7 @@ describe("ExportQuerySchema", () => {
   it("accepts csv format", () => {
     const result = ExportQuerySchema.safeParse({ format: "csv" });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, { format: "csv" });
   });
 
   it("rejects invalid format", () => {
@@ -214,11 +242,17 @@ describe("ExportQuerySchema", () => {
       endDate: "2025-12-31T23:59:59Z",
     });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, {
+      format: "json",
+      startDate: new Date("2025-01-01T00:00:00Z"),
+      endDate: new Date("2025-12-31T23:59:59Z"),
+    });
   });
 
   it("accepts status filter", () => {
     const result = ExportQuerySchema.safeParse({ status: "ACTIVE" });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, { format: "json", status: "ACTIVE" });
   });
 });
 
@@ -232,11 +266,13 @@ describe("StartTrialSchema", () => {
   it("accepts optional bundleId", () => {
     const result = StartTrialSchema.safeParse({ bundleId: "bundle-123" });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, { bundleId: "bundle-123", trialDays: 14 });
   });
 
   it("accepts optional providers array", () => {
     const result = StartTrialSchema.safeParse({ providers: ["twitter", "instagram"] });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, { providers: ["twitter", "instagram"], trialDays: 14 });
   });
 
   it("rejects trial duration > 90 days", () => {
@@ -248,11 +284,15 @@ describe("StartTrialSchema", () => {
   });
 
   it("accepts exactly 90 days", () => {
-    assert.ok(StartTrialSchema.safeParse({ trialDays: 90 }).success);
+    const result = StartTrialSchema.safeParse({ trialDays: 90 });
+    assert.ok(result.success);
+    assert.deepStrictEqual(result.data, { trialDays: 90 });
   });
 
   it("accepts exactly 1 day", () => {
-    assert.ok(StartTrialSchema.safeParse({ trialDays: 1 }).success);
+    const result = StartTrialSchema.safeParse({ trialDays: 1 });
+    assert.ok(result.success);
+    assert.deepStrictEqual(result.data, { trialDays: 1 });
   });
 });
 
@@ -266,6 +306,7 @@ describe("ConvertTrialSchema", () => {
   it("accepts yearly billing cycle", () => {
     const result = ConvertTrialSchema.safeParse({ billingCycle: "yearly" });
     assert.ok(result.success);
+    assert.deepStrictEqual(result.data, { billingCycle: "yearly" });
   });
 });
 

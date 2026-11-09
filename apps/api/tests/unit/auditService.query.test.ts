@@ -447,13 +447,16 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
       });
 
       expect(result.ok).toBeTruthy();
-      const filtered = result.value.filter((log) => log.action.startsWith("TEST_FILTER"));
-
-      if (filtered.length >= 2) {
-        for (let i = 0; i < filtered.length - 1; i++) {
-          expect(filtered[i].createdAt >= filtered[i + 1].createdAt).toBeTruthy();
-        }
-      }
+      expect(mocks.auditLogFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { createdAt: "desc" } })
+      );
+      expect(result.value.map((log) => log.id)).toEqual([
+        "log-q-1",
+        "log-q-3",
+        "log-q-5",
+        "log-q-2",
+        "log-q-4",
+      ]);
     });
   });
 });

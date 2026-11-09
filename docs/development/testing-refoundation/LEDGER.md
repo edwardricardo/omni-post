@@ -8,14 +8,14 @@
 | ----------------------- | ----- |
 | Files                   | 1185  |
 | DELETE                  | 19    |
-| REWRITE                 | 59    |
-| KEEP                    | 1016  |
+| REWRITE                 | 54    |
+| KEEP                    | 1021  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
 | Machine rows            | 1175  |
 | Confirmed rows          | 10    |
 | Blocks                  | 14661 |
-| Blocks with a criterion | 305   |
+| Blocks with a criterion | 300   |
 
 ## Slice 2.6a
 
@@ -146,7 +146,7 @@ Deleted: 0 files, 47 blocks. Floors lowered: statements from 59.3 to 59.2.
 | `apps/api/tests/unit/sagaIntegration.init.test.ts`                   | test  | 5      | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/sagaIntegration.monitoring.test.ts`             | test  | 4      | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/sagaIntegration.routes.test.ts`                 | test  | 15     | 1          | REWRITE | machine | some-decorative |
-| `apps/api/tests/unit/secureSchemas.query.test.ts`                    | test  | 37     | 1          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/secureSchemas.query.test.ts`                    | test  | 37     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/securityHeaders.test.ts`                        | test  | 48     | 0          | KEEP    | machine | behavioural     |
 
 ## Slice 2.8.2d
@@ -229,7 +229,7 @@ Deleted: 0 files, 26 blocks. Floors lowered: functions from 60.3 to 60.2.
 | `apps/api/tests/unit/integration-events/EventSchemaRegistry.test.ts`      | test  | 29     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/lib/route-handler/BaseRouteHandler.test.ts`          | test  | 113    | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/security/EncryptionService.test.ts`                  | test  | 29     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts`      | test  | 80     | 1          | REWRITE | machine | some-decorative |
+| `apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts`      | test  | 80     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/webhooks/AbstractWebhookProcessor.test.ts`           | test  | 10     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/webhooks/snapchatWebhookProcessor.test.ts`           | test  | 19     | 0          | KEEP    | machine | behavioural     |
 
@@ -678,7 +678,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/auth/requireCallerOwnsAccountParam.test.ts`                                      | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/authMiddleware.test.ts`                                                          | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/authRoutes.test.ts`                                                              | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/authService.test.ts`                                                             | test             | 34     | 1          | REWRITE    | machine                     | some-decorative      |
+| `apps/api/tests/unit/authService.test.ts`                                                             | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/autoCacheMiddleware.invalidation-config.test.ts`                                 | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/backfillAdminMfaBackupCodesGuard.test.ts`                                        | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/backfillAdminMfaBackupCodesIsolation.test.ts`                                    | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
@@ -959,7 +959,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/supportIndex.test.ts`                                                    | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/supportNonFeatures.test.ts`                                              | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/testingMetrics.test.ts`                                                  | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/secureSchemas.basic.test.ts`                                                     | test             | 31     | 1          | REWRITE    | machine                     | some-decorative      |
+| `apps/api/tests/unit/secureSchemas.basic.test.ts`                                                     | test             | 31     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/secureSchemas.social.test.ts`                                                    | test             | 31     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/ChannelCredentialsCrypto.test.ts`                                       | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/PlatformCredentialService.test.ts`                                      | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
@@ -984,7 +984,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/security/tenantParamPreHandler.test.ts`                                          | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/tenantScopedQueryContract.type-test.ts`                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/security/trustedProxy.test.ts`                                                   | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/securityHeaders.mutations.test.ts`                                               | test             | 36     | 1          | REWRITE    | machine                     | some-decorative      |
+| `apps/api/tests/unit/securityHeaders.mutations.test.ts`                                               | test             | 36     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/AnalyticsStreamBroadcaster.test.ts`                                     | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/NotificationBroadcaster.test.ts`                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/StreamConnectionTracker.test.ts`                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |

@@ -253,6 +253,9 @@ describe("ConfigureOidcUseCase", () => {
     });
 
     assert.ok(result.ok, "should succeed without UoW");
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    expect(repo.findByAccountId).toHaveBeenCalledWith("account-001");
+    assert.deepStrictEqual(result.value, makeOidcConfigData());
   });
 });
 

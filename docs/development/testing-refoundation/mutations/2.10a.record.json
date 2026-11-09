@@ -1,0 +1,1100 @@
+{
+  "base": "0a30ce382bd6b6c0ef8578ac151231e72546295e",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "239799d422f637c375efb2091509adc17f82a85bfc7df3211b447a76eec81ea0",
+            "head": "e56d4b4eb6664ef98001fbc7c47be9fd8e9065c8354b31fc0de1d0390d040009"
+          },
+          "id": "apps/api/tests/unit/auditService.query.test.ts::should order results by createdAt descending (newest first)"
+        }
+      ],
+      "id": "a30-audit-order",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/auditService.query.test.ts::AuditService - getLogs() - Query and Filtering > Result Ordering > should order results by createdAt descending (newest first)"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "e14462e28c419c1d4111676dfba096080d15a5733e0fb383e9517576bc185891",
+            "head": "ef3c93046e902ce302f32f2cbdb43dd04b3d60d48e11bbbf0107b49b2a2065d4"
+          },
+          "id": "apps/api/tests/unit/authService.test.ts::should reject token from revoked session"
+        }
+      ],
+      "id": "a31-revoked-session",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/authService.test.ts::AuthService > Token Verification > should reject token from revoked session"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/authService.test.ts"],
+        "head": ["apps/api/tests/unit/authService.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "6e8b9a026cc8fccff7489dd55dd0d0726fb2e629e9edcf742063f21224620d3d",
+            "head": "33a3ddb210d5800218bbf81260f026df400d16437ce7c042e6f7e17461b44497"
+          },
+          "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when dpoType=INTERNAL and dpoEmail is valid"
+        }
+      ],
+      "id": "c32-dpo-internal",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > updateGdprSettings > succeeds when dpoType=EXTERNAL and dpoUrl is valid",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > updateGdprSettings > succeeds when dpoType=INTERNAL and dpoEmail is valid"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/compliance/ComplianceService.test.ts"],
+        "head": ["apps/api/tests/unit/compliance/ComplianceService.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "af5898e31ce8e17a858630a7acac5e1bf897e0e1d7e81d259646073817f79075",
+            "head": "c654c8aa277297ec2e820e1e031c12e2d98c68dffec2afac8fe52f9ff9a156c0"
+          },
+          "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when dpoType=EXTERNAL and dpoUrl is valid"
+        }
+      ],
+      "id": "c33-dpo-external",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > updateGdprSettings > succeeds when dpoType=EXTERNAL and dpoUrl is valid",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > updateGdprSettings > succeeds when dpoType=INTERNAL and dpoEmail is valid"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/compliance/ComplianceService.test.ts"],
+        "head": ["apps/api/tests/unit/compliance/ComplianceService.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "f6478564c51d40c2b45a07b7aee9490c2e7116b32943b20aecfab3ebe308c3ec",
+            "head": "fda43a07614712302012359f7315887acf0d83d174161c4b040fce07652e3441"
+          },
+          "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when 2 pending requests (under limit)"
+        }
+      ],
+      "id": "c34-dsar-under-limit",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > succeeds when 2 pending requests (under limit)"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/compliance/ComplianceService.test.ts"],
+        "head": ["apps/api/tests/unit/compliance/ComplianceService.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "743ea89c9ef7eafe74b7047a0f6f8375e2cc161c8be65dc68d4d997442c51c23",
+            "head": "31f0f2a58e6124adafb8f04f2017ea902c682e60f7fca93d98912fbc2a75e2b3"
+          },
+          "id": "apps/api/tests/unit/domain/entities.samlConfiguration.test.ts::includes attributeMapping in output"
+        }
+      ],
+      "id": "e37-saml-mapping",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/domain/entities.samlConfiguration.test.ts::SamlConfiguration entity > toJSON > includes attributeMapping in output"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/domain/entities.samlConfiguration.test.ts"],
+        "head": ["apps/api/tests/unit/domain/entities.samlConfiguration.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "02660b6de340ad65b0e157b30297b5af71c7ec77c530a6466a7b216fee8535a7",
+            "head": "28673c9c615492c8af082cda53a4fed6d0de52c8553b31a4bc2914668994894f"
+          },
+          "id": "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts::creates validator with empty config"
+        }
+      ],
+      "id": "f38-factory-metrics",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts::createFileUploadValidator — factory > creates validator with empty config"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/fileUploadValidator.test.ts",
+          "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/fileUploadValidator.test.ts",
+          "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "3b2d27632f9204aac30455d3941ba641a8ba49d868f2b819788a1a11b19ea437",
+            "head": "85e37e08761ea6f986f6c06717e9f0981f18a9bc4d80477e4f6aa0e76c312aff"
+          },
+          "id": "apps/api/tests/unit/securityHeaders.mutations.test.ts::passes at exactly maxHeaderSize boundary"
+        }
+      ],
+      "id": "h39-header-boundary",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/securityHeaders.mutations.test.ts::SecurityManager — mutation-killing boundaries > validateRequest boundaries > passes at exactly maxHeaderSize boundary"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/securityHeaders.mutations.test.ts",
+          "apps/api/tests/unit/securityHeaders.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/securityHeaders.mutations.test.ts",
+          "apps/api/tests/unit/securityHeaders.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "286932a886ace64ae7580e6b27e652735b089a6e8d70b1c6b5a05f2ca54f2c17",
+            "head": "3ab310054f484235c9d1c9cc8d8d21d69ddf7bf84ab0fe4f3c6972bdabc4f3e7"
+          },
+          "id": "apps/api/tests/unit/securityHeaders.mutations.test.ts::fails at maxHeaderSize + 1"
+        }
+      ],
+      "id": "h40-header-plus-one",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/securityHeaders.mutations.test.ts::SecurityManager — mutation-killing boundaries > validateRequest boundaries > fails at maxHeaderSize + 1"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/securityHeaders.mutations.test.ts",
+          "apps/api/tests/unit/securityHeaders.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/securityHeaders.mutations.test.ts",
+          "apps/api/tests/unit/securityHeaders.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "9d750f15e27f0078090a8e1cfd2b34e24541719eac5ea9aa5c05de93ca64c182",
+            "head": "ff37cf10f01e2d989c93686b2a8c533b1528e8d5e72aedd2138b6b208d49412e"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate correct email format"
+        }
+      ],
+      "id": "i16-email",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - Email > should validate correct email format"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2eeebb22716f752ea7740b35ee6f4b861cbd09e9260816473a1b4717e0c27a61",
+            "head": "1da559fc929384593db0d885fcee020cfa4130648077b01832c02b53ae1c17b8"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate HTTPS URLs"
+        }
+      ],
+      "id": "i17-https-url",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - URL > should validate HTTPS URLs"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "b577fe4097cb6ebd55d64a06f30ae646e225b61e131015028bb3f2fb4b5bc360",
+            "head": "cd657608575292489a1a7dba1da238b7059031338bfb44910bfe741d7f63d723"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate HTTP URLs"
+        }
+      ],
+      "id": "i18-http-url",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - URL > should validate HTTP URLs"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "43331315c60a96c92ebbceb42ccc4a39c4fa073811b5bd13d0e69e4c91be635f",
+            "head": "b8d0117d4b6f39246c4e8b1dea75cef8b7cfd028138f25939ee2a43fae8116f7"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate safe file paths"
+        }
+      ],
+      "id": "i19-file-path",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - File Path > should validate safe file paths"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "973f079c0befdab4249ce7fb1aad0660676c92963a8af2ba39b92f0ab38c93e6",
+            "head": "6f7c0f6ea28e94b2ce287b35cc59f6d6edbea1874087b1e53a076d845f0b865e"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate normal post body"
+        }
+      ],
+      "id": "i20-post-body",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - Post Body > should validate normal post body"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d6618f8fe4397643a67527d2ffb8e2f7deb3232998470e1874e39719c4a3af2a",
+            "head": "74d742f813c0a5d46da4ea32f36c9e449063076e0f94c7b6f7f28e9c728d2cf3"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate correct UUID format"
+        }
+      ],
+      "id": "i21-uuid",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - UUID > should validate correct UUID format"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "c2777c81362c9e87e7c85c222e7811019521fe6879d7c0a84b4e8eea65f05d4f",
+            "head": "140c968d25a8f3c94453b23aa21a42f79a45a1620fe3e3637ac4cf08a387e45f"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate clean nested data"
+        }
+      ],
+      "id": "i22-nested-data",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Schemas - Recursive Validation > should validate clean nested data"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "4bf1936d2ae27a60a64bc88261248b2cc1523672f62846933835838e5820ce43",
+            "head": "d3e091d037cc538e68d8bdb6c312f4ac7c3a0389ec5c63b88cce9270c56006bb"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate HTTPS media URLs"
+        }
+      ],
+      "id": "i23-https-media",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - Media URL > should allow HTTP protocol for media URLs",
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - Media URL > should validate HTTPS media URLs"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "209fe57b03ae90c7c703acd53eb3e84935381c89b93ea765b1b10d5cd5087d7f",
+            "head": "9e240de1ce22b62dcb26bde3c5f9313cc8b0061a890d677144418d8f416eb848"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should allow HTTP protocol for media URLs"
+        }
+      ],
+      "id": "i24-http-media",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - Media URL > should allow HTTP protocol for media URLs"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "a4f65271f88070585bc5d5b0edc05bbbe5022bae83595cbd5db0af1068287713",
+            "head": "8734c053d5c82fded6e65a91619b0ce9e548e810a05bb3c93c23ed02c4e5741f"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate alphanumeric user names"
+        }
+      ],
+      "id": "i25-alphanumeric-name",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - User Name > should validate alphanumeric user names",
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - User Name > should validate user names with spaces"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d03acc299556ba009f6997a55f438be1ccb54ffba345451810728fd516a8cbe9",
+            "head": "4300e4f7aebe76007089beca0c1ff345f81895e5d7462f43506ac387ba21932e"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate user names with spaces"
+        }
+      ],
+      "id": "i26-name-with-spaces",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - User Name > should validate user names with spaces"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "9d494976011a6833e5ffb9d8ca908104a1b7c9400653b8336f064beebcdc86bd",
+            "head": "c14c10f00d14107ec165afe5ea770d5cad537d40ee1d0a22f12e982fdeec82b3"
+          },
+          "id": "apps/api/tests/unit/inputValidation.test.ts::should validate alphanumeric channel IDs with hyphens/underscores"
+        }
+      ],
+      "id": "i27-channel-id",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts::Secure Zod Schemas - Channel ID > should validate alphanumeric channel IDs with hyphens/underscores"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/inputValidation.test.ts",
+          "apps/api/tests/unit/security/inputValidation.mutations.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "4b6703bb414c94cad6be58572bb06a0e0c72d5bc89a232ebe5ad06948462e74f",
+            "head": "ec06a86751ca49dec767a62d19fb797e9fd1fb1a5c2f30d63e1aad3168266d22"
+          },
+          "id": "apps/api/tests/unit/application/oidcUseCases.test.ts::works without unit of work"
+        }
+      ],
+      "id": "o36-oidc-no-uow",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/application/oidcUseCases.test.ts::ConfigureOidcUseCase > works without unit of work"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/application/oidcUseCases.test.ts"],
+        "head": ["apps/api/tests/unit/application/oidcUseCases.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "f9b628ad5ab6166476ad12caaa37bcb9a4eb59808b7976b26efa12a60d6bed1a",
+            "head": "f7a306c3e731a2c919dac5ea70edfbc1ffc46dc66dc8a37c90eab7a62443407b"
+          },
+          "id": "apps/api/tests/unit/secureSchemas.basic.test.ts::should normalize email addresses"
+        }
+      ],
+      "id": "q28-email-normalized",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/secureSchemas.basic.test.ts::SecurityValidatedSchemas - Email Validation > should normalize email addresses"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/secureSchemas.basic.test.ts",
+          "apps/api/tests/unit/secureSchemas.query.test.ts",
+          "apps/api/tests/unit/secureSchemas.social.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/secureSchemas.basic.test.ts",
+          "apps/api/tests/unit/secureSchemas.query.test.ts",
+          "apps/api/tests/unit/secureSchemas.social.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "18f5c4f5c9d7566abe478c6b6247b080a4f7b53afd694b1f88548d6773fa088d",
+            "head": "d1c4c0fc6a58457cdf0ae56c3a4914e0133b5a505ef4cd779175e400671a2593"
+          },
+          "id": "apps/api/tests/unit/secureSchemas.query.test.ts::should apply default values"
+        }
+      ],
+      "id": "q29-pagination-defaults",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/secureSchemas.query.test.ts::SecurityValidatedSchemas - Pagination Validation > should apply default values"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/secureSchemas.basic.test.ts",
+          "apps/api/tests/unit/secureSchemas.query.test.ts",
+          "apps/api/tests/unit/secureSchemas.social.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/secureSchemas.basic.test.ts",
+          "apps/api/tests/unit/secureSchemas.query.test.ts",
+          "apps/api/tests/unit/secureSchemas.social.test.ts"
+        ]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "e109098f05c6c76afad9b054c77a51bc24283431e1bf18be548f4413ef6bcb69",
+            "head": "1e4dbdb4039b57a39f71064416e2a6393f8ac1d6a27ba8a33f33858ca28d8aa9"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts valid change request"
+        }
+      ],
+      "id": "s01-change-request",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::SubscriptionChangeSchema > accepts optional effectiveDate",
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::SubscriptionChangeSchema > accepts optional reason",
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::SubscriptionChangeSchema > accepts valid change request"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "240b32d774a93f41e7ce21930a434b6c02b6648cebf9b080d00ef2ce4d2c1b94",
+            "head": "24ba1dc45f6dd56fe3d128bdfdc562176593405b66caa83e8c0efcd969efebc0"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional reason"
+        }
+      ],
+      "id": "s02-optional-reason",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::SubscriptionChangeSchema > accepts optional reason"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "ef284d35c6be44b101f6915ecb1014fdf4432fe412a80fdd55672413edcd4fdf",
+            "head": "34aab2e72d929ce4a998abf528e12fb29c6cba4332d1e23a9a0aebe4f70f64fc"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional effectiveDate"
+        }
+      ],
+      "id": "s03-effective-date",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::SubscriptionChangeSchema > accepts optional effectiveDate"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "49b32cc2c77c213f54460f8780c4d0694f4f1a20077053bebd8fab0f108adef3",
+            "head": "faf0f13e2f599003bb03b56f19858994ad4969d275768706b077e8d5e6201f6c"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts all valid operations"
+        }
+      ],
+      "id": "s04-all-operations",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::ValidateLimitsSchema > accepts all valid operations"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2aa26c8d378c4d3fe3269b9f0bc27e9f600306b22df5ac6102f2b9a526ba389d",
+            "head": "f69741a9803dd38a424c723c74d3f060f9fe685d83305abc6272647e126b9b40"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts valid bulk upgrade"
+        }
+      ],
+      "id": "s05-bulk-upgrade",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::BulkUpgradeSchema > accepts exactly 50 accountIds",
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::BulkUpgradeSchema > accepts valid bulk upgrade"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "4aabff456714d631b8ebad2ccce0c6b4dfc6bec4d54c1f695df3dd30a6cdefdd",
+            "head": "ab20ce8edd2c117be3d77e0d40da2d7ebc5ae23f60f4227461c9e5d198503fe8"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts exactly 50 accountIds"
+        }
+      ],
+      "id": "s06-fifty-account-ids",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::BulkUpgradeSchema > accepts exactly 50 accountIds"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "b12d44c00a90f762174db40c7cb6c368191acbc2e2b311c066b0184fd47b929f",
+            "head": "317df0fdeacbac63beaebec6f70dfda7ebd53f7363c747a928d74ba0ce41a988"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts valid sort options"
+        }
+      ],
+      "id": "s07-sort-options",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::SubscriptionFiltersSchema > accepts valid sort options"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "dc3c205c168d7156df198d938b1b3d9a69ec3eb91511d4a7e79ab996a057a61b",
+            "head": "50dbcdab4733dea9d2325908f0102a8f28cb2efa05b4c136db7122226287c4cc"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts csv format"
+        }
+      ],
+      "id": "s08-csv-format",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::ExportQuerySchema > accepts csv format"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "a938ddc7963c876334ca9d5aedefdea167802ba85c611c17eaace223695c1cc2",
+            "head": "4daa368a4861d1c051757edefffd136780363af1d6c8f5209a36692b8fa4d36f"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts date range"
+        }
+      ],
+      "id": "s09-date-range",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::ExportQuerySchema > accepts date range"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "fe56fd4abcf44f84d3701399cf85755ff5ea1bf95720d525ed4ba3edde8cac9b",
+            "head": "e7ad55d6adae6c6fb4df9d958903df5e8d955fe973dca48844a0a11d68d9f9b7"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts status filter"
+        }
+      ],
+      "id": "s10-status-filter",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::ExportQuerySchema > accepts status filter"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "9b27127ecd3a261572f2826dc570130717260aef088bd4d14103c81fe42046e7",
+            "head": "884c4eeb56f50c9b03d14ea0b643b56d1a6c4a5ca82a4d5572cec6d787e3e748"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional bundleId"
+        }
+      ],
+      "id": "s11-bundle-id",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::StartTrialSchema > accepts optional bundleId"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "cb1f16cffdd7f4282acc1ba7e63f67bece28a23397d37404244e74f68674089e",
+            "head": "b9b34d8e034589f5e693146614ee3a77a28bc8dd9569fe020138e0fe3a3fd4fb"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional providers array"
+        }
+      ],
+      "id": "s12-providers",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::StartTrialSchema > accepts optional providers array"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2281e85ab9fd90b23f6fd1fd56e5b12240cf1848230ba68368ea0d510126df36",
+            "head": "61b3fefc7023302686431159348f736a893e4e01ebfb12d39e200e8dcb6e4155"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts exactly 90 days"
+        }
+      ],
+      "id": "s13-ninety-days",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::StartTrialSchema > accepts exactly 90 days"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "c9829d7351bcf649d5876a1c02f7defc15069e88491a13c2521e389dc48fd5e5",
+            "head": "6288cdd8dc9d08a2790d0ac9d33f7c791377632ed16aa6cfc4a3187ede4f0bb1"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts exactly 1 day"
+        }
+      ],
+      "id": "s14-one-day",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::StartTrialSchema > accepts exactly 1 day"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "4013906ad94e1a5bf95432d1bffd9d4b486a74053ecb8076531c5a2c767c54cb",
+            "head": "906a8990d9635d0253e21b851324332b6738fa64a7d85c4b052dbb0a602a31ac"
+          },
+          "id": "apps/api/tests/unit/subscriptionSchemas.test.ts::accepts yearly billing cycle"
+        }
+      ],
+      "id": "s15-yearly-cycle",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/subscriptionSchemas.test.ts::ConvertTrialSchema > accepts yearly billing cycle"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/subscriptionSchemas.test.ts"],
+        "head": ["apps/api/tests/unit/subscriptionSchemas.test.ts"]
+      },
+      "verdict": "GAIN"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "04fbd7272afc50bb0a44890f6ed363a06bfc0db0df0e69a2399bc7114f2b31da",
+            "head": "cd48c2e999ee96caddcbe54c50e21f1844e883c8ebdcb7e8e7ab8ae56a1ba1a5"
+          },
+          "id": "apps/api/tests/unit/customerAuthUseCases.test.ts::issues new tokens when refresh token is valid and user is active"
+        }
+      ],
+      "id": "u35-refresh-tokens",
+      "kind": "rewrite",
+      "red": {
+        "base": [],
+        "head": [
+          "apps/api/tests/unit/customerAuthUseCases.test.ts::RefreshCustomerTokenUseCase > issues new tokens when refresh token is valid and user is active"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/customerAuthUseCases.test.ts"],
+        "head": ["apps/api/tests/unit/customerAuthUseCases.test.ts"]
+      },
+      "verdict": "GAIN"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}
