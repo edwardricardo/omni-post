@@ -1,0 +1,426 @@
+[
+  {
+    "id": "s01-change-request",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts valid change request"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  newTier: TierSchema,\n  billingCycle: BillingCycleSchema,\n  effectiveDate:",
+    "replace": "  newTier: TierSchema,\n  billingCycle: BillingCycleSchema.transform((cycle) => cycle.toUpperCase()),\n  effectiveDate:",
+    "note": "The legacy change schema hands on the billing cycle upper-cased. The base block reads only success, which stays true; the rewrite compares the parsed value."
+  },
+  {
+    "id": "s02-optional-reason",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional reason"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  effectiveDate: z.string().pipe(z.coerce.date()).optional(),\n  reason: z.string().optional(),\n",
+    "replace": "  effectiveDate: z.string().pipe(z.coerce.date()).optional(),\n",
+    "note": "The legacy change schema drops its reason field, so z.object strips the key. The parse still succeeds, which is all the base block reads."
+  },
+  {
+    "id": "s03-effective-date",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional effectiveDate"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  effectiveDate: z.string().pipe(z.coerce.date()).optional(),",
+    "replace": "  effectiveDate: z.string().optional(),",
+    "note": "The effective date stays a string instead of being coerced to a Date. The parse still succeeds, which is all the base block reads."
+  },
+  {
+    "id": "s04-all-operations",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts all valid operations"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  operation: z.enum([\"CREATE_PROJECT\", \"ADD_TEAM_MEMBER\", \"UPLOAD_MEDIA\"]),",
+    "replace": "  operation: z.enum([\"CREATE_PROJECT\", \"ADD_TEAM_MEMBER\", \"UPLOAD_MEDIA\"]).transform((op) => op.toLowerCase()),",
+    "note": "The limits schema hands on the operation lower-cased. Every operation still parses, which is all the base block reads."
+  },
+  {
+    "id": "s05-bulk-upgrade",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts valid bulk upgrade"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  newTier: TierSchema,\n  billingCycle: BillingCycleSchema,\n  reason: z.string().optional(),\n});",
+    "replace": "  newTier: TierSchema,\n  billingCycle: BillingCycleSchema.transform((cycle) => cycle.toUpperCase()),\n  reason: z.string().optional(),\n});",
+    "note": "The bulk upgrade schema hands on the billing cycle upper-cased. The base block reads only success, which stays true."
+  },
+  {
+    "id": "s06-fifty-account-ids",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts exactly 50 accountIds"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "export const BulkUpgradeSchema = z.object({\n  accountIds: z.array(IdSchema).min(1).max(50),",
+    "replace": "export const BulkUpgradeSchema = z.object({\n  accountIds: z.array(IdSchema).min(1).max(50).transform((ids) => ids.slice(0, 25)),",
+    "note": "The bulk upgrade schema keeps only the first 25 account ids after the 50-id bound passes. The base block reads only success; the rewrite compares the 50 distinct ids."
+  },
+  {
+    "id": "s07-sort-options",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts valid sort options"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  sortBy: z.enum([\"createdAt\", \"updatedAt\", \"pricePerMonth\", \"status\"]).optional(),",
+    "replace": "  sortBy: z\n    .enum([\"createdAt\", \"updatedAt\", \"pricePerMonth\", \"status\"])\n    .transform((s) => s.replace(/[A-Z]/g, (ch) => \"_\" + ch.toLowerCase()))\n    .optional(),",
+    "note": "The filters schema hands on the sort key in snake case. Every key still parses, which is all the base block reads."
+  },
+  {
+    "id": "s08-csv-format",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts csv format"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  format: z.enum([\"json\", \"csv\"]).default(\"json\"),\n  status:",
+    "replace": "  format: z.enum([\"json\", \"csv\"]).transform(() => \"json\" as const).default(\"json\"),\n  status:",
+    "note": "The export schema turns a requested csv format into json. The parse still succeeds, and the default stays json, so the base blocks stay green."
+  },
+  {
+    "id": "s09-date-range",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts date range"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  endDate: z.string().pipe(z.coerce.date()).optional(),",
+    "replace": "  endDate: z.string().optional(),",
+    "note": "The export schema leaves the end date a string instead of a Date. The parse still succeeds, which is all the base block reads."
+  },
+  {
+    "id": "s10-status-filter",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts status filter"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  format: z.enum([\"json\", \"csv\"]).default(\"json\"),\n  status: StatusSchema.optional(),\n",
+    "replace": "  format: z.enum([\"json\", \"csv\"]).default(\"json\"),\n",
+    "note": "The export schema drops its status field, so the filter is stripped from the parsed query. The parse still succeeds, which is all the base block reads."
+  },
+  {
+    "id": "s11-bundle-id",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional bundleId"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "export const StartTrialSchema = z.object({\n  bundleId: z.string().optional(),\n",
+    "replace": "export const StartTrialSchema = z.object({\n",
+    "note": "The trial schema drops its bundle id, so the key is stripped; the trial default is untouched, unlike the earlier .default(7) choice a kept sibling pins. The base block reads only success."
+  },
+  {
+    "id": "s12-providers",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts optional providers array"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  bundleId: z.string().optional(),\n  providers: z.array(z.string()).optional(),\n",
+    "replace": "  bundleId: z.string().optional(),\n",
+    "note": "The trial schema drops its providers list, so the key is stripped. The parse still succeeds, which is all the base block reads."
+  },
+  {
+    "id": "s13-ninety-days",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts exactly 90 days"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  trialDays: z.number().int().min(1).max(90).default(14),",
+    "replace": "  trialDays: z.number().int().min(1).max(90).transform((days) => Math.min(days, 30)).default(14),",
+    "note": "The trial schema caps an accepted duration at 30 days after the 90-day bound passes. A 90-day trial still parses and 91 is still refused, so the base blocks stay green."
+  },
+  {
+    "id": "s14-one-day",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts exactly 1 day"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  trialDays: z.number().int().min(1).max(90).default(14),",
+    "replace": "  trialDays: z.number().int().min(1).max(90).transform((days) => Math.max(days, 7)).default(14),",
+    "note": "The trial schema raises an accepted duration to at least 7 days. A 1-day trial still parses and 0 is still refused, so the base blocks stay green."
+  },
+  {
+    "id": "s15-yearly-cycle",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/subscriptionSchemas.test.ts",
+    "blocks": ["apps/api/tests/unit/subscriptionSchemas.test.ts::accepts yearly billing cycle"],
+    "subject": "apps/api/src/billing/subscriptionSchemas.ts",
+    "search": "  billingCycle: BillingCycleSchema.default(\"monthly\"),",
+    "replace": "  billingCycle: BillingCycleSchema.transform(() => \"monthly\" as const).default(\"monthly\"),",
+    "note": "The trial conversion schema turns a requested yearly cycle into monthly. The parse still succeeds and the default stays monthly, so the base blocks stay green."
+  },
+  {
+    "id": "i16-email",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": ["apps/api/tests/unit/inputValidation.test.ts::should validate correct email format"],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "          message: `Security threat detected in email: ${validation.threats.join(\", \")}`,\n        });\n      }\n    }),",
+    "replace": "          message: `Security threat detected in email: ${validation.threats.join(\", \")}`,\n        });\n      }\n    })\n    .transform((email) => email.toUpperCase()),",
+    "note": "The email schema hands on the address upper-cased after its threat check. Every verdict holds, so the base blocks, which read only success, stay green."
+  },
+  {
+    "id": "i17-https-url",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": ["apps/api/tests/unit/inputValidation.test.ts::should validate HTTPS URLs"],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "      return url;\n    }),\n\n  uuid: z.string().uuid(),",
+    "replace": "      return new URL(url).origin;\n    }),\n\n  uuid: z.string().uuid(),",
+    "note": "The URL schema hands on the origin and drops the path. A valid URL still parses, which is all the base block reads."
+  },
+  {
+    "id": "i18-http-url",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": ["apps/api/tests/unit/inputValidation.test.ts::should validate HTTP URLs"],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "      return url;\n    }),\n\n  uuid: z.string().uuid(),",
+    "replace": "      return url.startsWith(\"http:\") ? url.replace(/^http:/, \"https:\") : url;\n    }),\n\n  uuid: z.string().uuid(),",
+    "note": "The URL schema upgrades an http URL to https and hands every other URL on unchanged. A valid URL still parses, which is all the base block reads; the earlier .href choice also rewrote the https URL a kept sibling pins, so it read NO-GAIN."
+  },
+  {
+    "id": "i19-file-path",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": ["apps/api/tests/unit/inputValidation.test.ts::should validate safe file paths"],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "          message: `Invalid file path or security threat detected: ${validation.threats.join(\", \")}`,\n        });\n      }\n    }),",
+    "replace": "          message: `Invalid file path or security threat detected: ${validation.threats.join(\", \")}`,\n        });\n      }\n    })\n    .transform((path) => path.toUpperCase()),",
+    "note": "The file path schema hands on the path upper-cased after its traversal check. Every verdict holds, so the base blocks stay green."
+  },
+  {
+    "id": "i20-post-body",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": ["apps/api/tests/unit/inputValidation.test.ts::should validate normal post body"],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "          message: `Security threat detected in content: ${validation.threats.join(\", \")}`,\n        });\n      }\n    }),",
+    "replace": "          message: `Security threat detected in content: ${validation.threats.join(\", \")}`,\n        });\n      }\n    })\n    .transform((body) => body.trim().slice(0, 10)),",
+    "note": "The post body schema truncates the body to 10 characters after its threat check. Every verdict holds, so the base blocks stay green."
+  },
+  {
+    "id": "i21-uuid",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": ["apps/api/tests/unit/inputValidation.test.ts::should validate correct UUID format"],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "  uuid: z.string().uuid(),",
+    "replace": "  uuid: z.string().uuid().transform((u) => u.replace(/-/g, \"\")),",
+    "note": "The UUID schema hands on the id without its hyphens. A valid UUID still parses and an invalid one is still refused, so the base blocks stay green."
+  },
+  {
+    "id": "i22-nested-data",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": ["apps/api/tests/unit/inputValidation.test.ts::should validate clean nested data"],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "  return baseSchema.superRefine((data: unknown, ctx) => {",
+    "replace": "  return baseSchema.transform((data: unknown, ctx) => {",
+    "note": "The recursive secure schema becomes a transform with the same checks and no return value, so clean data parses to undefined. Threats still raise issues, so the base blocks stay green."
+  },
+  {
+    "id": "i23-https-media",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": ["apps/api/tests/unit/inputValidation.test.ts::should validate HTTPS media URLs"],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "  mediaUrl: makeMediaUrlSchema(env.ALLOWED_MEDIA_HOSTS?.split(\",\") ?? []),",
+    "replace": "  mediaUrl: makeMediaUrlSchema(env.ALLOWED_MEDIA_HOSTS?.split(\",\") ?? []).transform((u: string) => new URL(u).origin),",
+    "note": "The media URL schema hands on the origin and drops the path. A valid media URL still parses, which is all the base block reads."
+  },
+  {
+    "id": "i24-http-media",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/inputValidation.test.ts::should allow HTTP protocol for media URLs"
+    ],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "  mediaUrl: makeMediaUrlSchema(env.ALLOWED_MEDIA_HOSTS?.split(\",\") ?? []),",
+    "replace": "  mediaUrl: makeMediaUrlSchema(env.ALLOWED_MEDIA_HOSTS?.split(\",\") ?? []).transform((u: string) => u.replace(/^http:/, \"https:\")),",
+    "note": "The media URL schema rewrites an http URL to https. The URL still parses, which is all the base block reads."
+  },
+  {
+    "id": "i25-alphanumeric-name",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/inputValidation.test.ts::should validate alphanumeric user names"
+    ],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "          message: `Security threat detected in name: ${validation.threats.join(\", \")}`,\n        });\n      }\n    }),",
+    "replace": "          message: `Security threat detected in name: ${validation.threats.join(\", \")}`,\n        });\n      }\n    })\n    .transform((name) => name.toLowerCase()),",
+    "note": "The user name schema hands on the name lower-cased after its threat check; the earlier .max(5) choice changed a verdict the base pins. Every verdict holds here."
+  },
+  {
+    "id": "i26-name-with-spaces",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/inputValidation.test.ts::should validate user names with spaces"
+    ],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "          message: `Security threat detected in name: ${validation.threats.join(\", \")}`,\n        });\n      }\n    }),",
+    "replace": "          message: `Security threat detected in name: ${validation.threats.join(\", \")}`,\n        });\n      }\n    })\n    .transform((name) => name.replace(/ /g, \"_\")),",
+    "note": "The user name schema replaces spaces with underscores after its threat check. Every verdict holds, so the base blocks stay green."
+  },
+  {
+    "id": "i27-channel-id",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/inputValidation.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/inputValidation.test.ts::should validate alphanumeric channel IDs with hyphens/underscores"
+    ],
+    "subject": "apps/api/src/security/inputValidation.ts",
+    "search": "          message: `Invalid channel ID or security threat detected: ${validation.threats.join(\", \")}`,\n        });\n      }\n    }),",
+    "replace": "          message: `Invalid channel ID or security threat detected: ${validation.threats.join(\", \")}`,\n        });\n      }\n    })\n    .transform((channelId) => channelId.toUpperCase()),",
+    "note": "The channel id schema hands on the id upper-cased after its threat check. Every verdict holds, so the base blocks stay green."
+  },
+  {
+    "id": "q28-email-normalized",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/secureSchemas.basic.test.ts",
+    "blocks": ["apps/api/tests/unit/secureSchemas.basic.test.ts::should normalize email addresses"],
+    "subject": "apps/api/src/validation/secureSchemas.ts",
+    "search": "    .transform((email) => normalizeEmail(email)),",
+    "replace": "    .transform((email) => email.replace(/@.*$/, (domain) => domain.toLowerCase())),",
+    "note": "The email schema lower-cases the domain only and keeps the local part's case. The base block's /@example\\.com$/ still matches; the rewrite expects the whole address normalized."
+  },
+  {
+    "id": "q29-pagination-defaults",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/secureSchemas.query.test.ts",
+    "blocks": ["apps/api/tests/unit/secureSchemas.query.test.ts::should apply default values"],
+    "subject": "apps/api/src/validation/secureSchemas.ts",
+    "search": "    page: z.number().int().min(1).max(1000).default(1),",
+    "replace": "    page: z.number().int().min(1).max(1000),",
+    "note": "The pagination schema loses its page default, so an empty query is refused. The base block's if (result.success) then skips both reads and stays green."
+  },
+  {
+    "id": "a30-audit-order",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/auditService.query.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/auditService.query.test.ts::should order results by createdAt descending (newest first)"
+    ],
+    "subject": "apps/api/src/audit/auditService.ts",
+    "search": "          orderBy: { createdAt: \"desc\" },",
+    "replace": "          orderBy: { createdAt: \"desc\", action: \"asc\" },",
+    "note": "getLogs sends a second sort key beside createdAt descending, so the query it sends is no longer the one the rewrite pins. The test mock sorts by createdAt alone, so every base block stays green; the earlier \"asc\" choice reddened the base block itself, which already reads a reversed order."
+  },
+  {
+    "id": "a31-revoked-session",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/authService.test.ts",
+    "blocks": ["apps/api/tests/unit/authService.test.ts::should reject token from revoked session"],
+    "subject": "apps/api/src/auth/authServiceCore.ts",
+    "search": "      expiresAt: new Date(Date.now() + this.refreshTokenTtl * 1000),\n    });\n\n    const tokens = await this.generateTokens(",
+    "replace": "      expiresAt: new Date(Date.now() + this.refreshTokenTtl * 1000),\n    });\n    await this.sessionRepo.create({\n      userId: user.id,\n      refreshTokenHash: hashRefreshToken(randomBytes(32).toString(\"hex\")),\n      expiresAt: new Date(0),\n    });\n\n    const tokens = await this.generateTokens(",
+    "note": "A login leaves a second, already expired session row active beside the real one. The base block revokes the first row, the real one, and passes; the rewrite requires exactly one active session."
+  },
+  {
+    "id": "c32-dpo-internal",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/compliance/ComplianceService.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when dpoType=INTERNAL and dpoEmail is valid"
+    ],
+    "subject": "packages/core/compliance/src/ComplianceService.ts",
+    "search": "        ...(data as Partial<Omit<GdprSettings, \"id\" | \"updatedAt\">>),\n        updatedBy,",
+    "replace": "        ...({ dpoType: data.dpoType } as Partial<Omit<GdprSettings, \"id\" | \"updatedAt\">>),\n        updatedBy,",
+    "note": "updateGdprSettings persists only the DPO type and drops the DPO email the caller sent. The update still succeeds, which is all the base block reads."
+  },
+  {
+    "id": "c33-dpo-external",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/compliance/ComplianceService.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when dpoType=EXTERNAL and dpoUrl is valid"
+    ],
+    "subject": "packages/core/compliance/src/ComplianceService.ts",
+    "search": "        ...(data as Partial<Omit<GdprSettings, \"id\" | \"updatedAt\">>),\n        updatedBy,",
+    "replace": "        ...({ dpoType: data.dpoType } as Partial<Omit<GdprSettings, \"id\" | \"updatedAt\">>),\n        updatedBy,",
+    "note": "updateGdprSettings persists only the DPO type and drops the DPO URL the caller sent. The update still succeeds, which is all the base block reads."
+  },
+  {
+    "id": "c34-dsar-under-limit",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/compliance/ComplianceService.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when 2 pending requests (under limit)"
+    ],
+    "subject": "packages/core/compliance/src/ComplianceService.ts",
+    "search": "countPendingByEmail(data.requestorEmail)",
+    "replace": "countPendingByEmail(data.requestorName ?? \"\")",
+    "note": "The DSAR rate limit counts pending requests by the requestor's name instead of the email. The mocked count still allows the request, which is all the base block reads."
+  },
+  {
+    "id": "u35-refresh-tokens",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/customerAuthUseCases.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/customerAuthUseCases.test.ts::issues new tokens when refresh token is valid and user is active"
+    ],
+    "subject": "packages/core/customer-auth/src/RefreshCustomerTokenUseCase.ts",
+    "search": "this.tokenService.signRefreshToken(user.id, sessionId)",
+    "replace": "this.tokenService.signRefreshToken(user.id, payload.sessionId)",
+    "note": "The refreshed token reuses the old session id instead of a fresh one. Both tokens are still issued, which is all the base block reads."
+  },
+  {
+    "id": "o36-oidc-no-uow",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/oidcUseCases.test.ts",
+    "blocks": ["apps/api/tests/unit/application/oidcUseCases.test.ts::works without unit of work"],
+    "subject": "packages/core/auth/src/ConfigureOidcUseCase.ts",
+    "search": "        return result;\n      }\n      return await doWork();",
+    "replace": "        return result;\n      }\n      const outcome = await doWork();\n      return outcome.ok ? ok({ ...outcome.value, issuerUrl: `${outcome.value.issuerUrl}/` }) : outcome;",
+    "note": "Without a unit of work the use case returns the saved configuration with a trailing slash added to its issuer URL. The result is still ok, which is all the base block reads."
+  },
+  {
+    "id": "e37-saml-mapping",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/domain/entities.samlConfiguration.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/domain/entities.samlConfiguration.test.ts::includes attributeMapping in output"
+    ],
+    "subject": "packages/core/domain/src/entities/SamlConfiguration.ts",
+    "search": "      attributeMapping: this.props.attributeMapping,",
+    "replace": "      attributeMapping: { email: this.props.attributeMapping.email },",
+    "note": "toJSON keeps only the email attribute of the mapping. The base block reads only that the email is present, so it stays green."
+  },
+  {
+    "id": "f38-factory-metrics",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/security/fileUploadValidator.mutations.test.ts::creates validator with empty config"
+    ],
+    "subject": "apps/api/src/security/fileUploadValidator.ts",
+    "search": "  return new FileUploadValidator(config || {}, metrics);",
+    "replace": "  return new FileUploadValidator(config || {}, {\n    ...metrics,\n    metrics: { ...metrics.metrics, inputValidationDuration: { observe: () => undefined } },\n  } as ApiMetrics);",
+    "note": "The factory hands the validator a validation-duration metric of its own instead of the caller's. It still returns a FileUploadValidator, which is all the base block reads."
+  },
+  {
+    "id": "h39-header-boundary",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/securityHeaders.mutations.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/securityHeaders.mutations.test.ts::passes at exactly maxHeaderSize boundary"
+    ],
+    "subject": "apps/api/src/security/securityHeaders.ts",
+    "search": "    if (headerSize > maxHeaderSize) {",
+    "replace": "    if (headerSize >= maxHeaderSize) {",
+    "note": "Headers of exactly 8192 bytes are reported as oversized. The base fixture is 8131 bytes, under the limit either way, so the base block stays green."
+  },
+  {
+    "id": "h40-header-plus-one",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/securityHeaders.mutations.test.ts",
+    "blocks": ["apps/api/tests/unit/securityHeaders.mutations.test.ts::fails at maxHeaderSize + 1"],
+    "subject": "apps/api/src/security/securityHeaders.ts",
+    "search": "    if (headerSize > maxHeaderSize) {",
+    "replace": "    if (headerSize > maxHeaderSize + 1) {",
+    "note": "Headers one byte over the limit pass. The base fixture is 8231 bytes, still flagged, so the base block stays green; the fixture fix makes it 8193."
+  }
+]
