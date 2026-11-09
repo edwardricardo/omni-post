@@ -7,11 +7,6 @@
       "count": 2
     }
   },
-  "apps/api/tests/accountLifecycle.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
   "apps/api/tests/eval/localizedGeneration.eval.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 2
@@ -32,27 +27,7 @@
       "count": 1
     }
   },
-  "apps/api/tests/integration/post-trio-tenant-isolation.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/integration/postDeleteOwnership.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/integration/recurringPostTenantIsolation.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/integration/repositories/AnalyticsRepository.timeseries.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/integration/repositories/UserRepository.integration.test.ts": {
     "testing/no-existence-only-test": {
       "count": 1
     }
@@ -82,28 +57,8 @@
       "count": 3
     }
   },
-  "apps/api/tests/integration/tenantGucTransactionBinding.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/mfa.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/multiproject.flow.live.test.ts": {
     "testing/no-empty-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/publish.flow.integration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/threading.canonical.integration.test.ts": {
-    "testing/no-existence-only-test": {
       "count": 1
     }
   },
@@ -126,9 +81,6 @@
     "no-console": {
       "count": 3
     },
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
       "count": 25
     },
@@ -149,9 +101,6 @@
   },
   "apps/api/tests/unit/ContentVersionManager.merge.test.ts": {
     "no-console": {
-      "count": 3
-    },
-    "testing/no-existence-only-test": {
       "count": 3
     },
     "vitest/no-conditional-expect": {
@@ -201,11 +150,6 @@
       "count": 11
     }
   },
-  "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/PostCommandHandlers.test-helpers.ts": {
     "no-console": {
       "count": 1
@@ -219,11 +163,6 @@
   "apps/api/tests/unit/accountLifecycleService.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 20
-    }
-  },
-  "apps/api/tests/unit/activityFeedService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/admin/AdminUserAdminService.test.ts": {
@@ -269,7 +208,7 @@
   },
   "apps/api/tests/unit/aiService.test.ts": {
     "testing/no-existence-only-test": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/api/tests/unit/aiTypes.schemas.test.ts": {
@@ -288,9 +227,6 @@
     }
   },
   "apps/api/tests/unit/application/AnalyticsUseCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    },
     "vitest/no-conditional-expect": {
       "count": 9
     }
@@ -300,24 +236,9 @@
       "count": 1
     }
   },
-  "apps/api/tests/unit/application/MLUseCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/application/ai/GenerateLocalizedContentUseCase.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 6
-    }
-  },
-  "apps/api/tests/unit/application/brandVoiceUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "apps/api/tests/unit/application/campaignUseCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/application/conversationNoteUseCases.test.ts": {
@@ -332,11 +253,6 @@
   },
   "apps/api/tests/unit/application/crmUseCases.test.ts": {
     "vitest/no-conditional-expect": {
-      "count": 3
-    }
-  },
-  "apps/api/tests/unit/application/customReportUseCases.test.ts": {
-    "testing/no-existence-only-test": {
       "count": 3
     }
   },
@@ -358,11 +274,6 @@
   "apps/api/tests/unit/application/generateUTMLinks.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 3
-    }
-  },
-  "apps/api/tests/unit/application/getTopPerformersContext.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/application/glossary/DeleteGlossaryTermUseCase.test.ts": {
@@ -390,11 +301,6 @@
       "count": 4
     }
   },
-  "apps/api/tests/unit/application/inboxUseCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
   "apps/api/tests/unit/application/integrationUseCases.test.ts": {
     "testing/no-empty-test": {
       "count": 1
@@ -408,11 +314,6 @@
       "count": 8
     }
   },
-  "apps/api/tests/unit/application/oidcUseCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/application/optimizeContent.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 2
@@ -423,17 +324,7 @@
       "count": 3
     }
   },
-  "apps/api/tests/unit/application/recurringPostUseCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
   "apps/api/tests/unit/application/reportSharing.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "apps/api/tests/unit/application/reportUseCases.test.ts": {
     "testing/no-existence-only-test": {
       "count": 1
     }
@@ -461,11 +352,6 @@
       "count": 3
     }
   },
-  "apps/api/tests/unit/application/usageUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
   "apps/api/tests/unit/approvals/approvalRoutes.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 6
@@ -483,9 +369,6 @@
     }
   },
   "apps/api/tests/unit/auditService.query.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
       "count": 2
     }
@@ -525,11 +408,6 @@
       "count": 1
     }
   },
-  "apps/api/tests/unit/compliance/ComplianceService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    }
-  },
   "apps/api/tests/unit/config/nameDigestRing.test.ts": {
     "vitest/expect-expect": {
       "count": 14
@@ -540,38 +418,17 @@
       "count": 4
     }
   },
-  "apps/api/tests/unit/customerAuthUseCases.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/domain/aggregates.post.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 3
     }
   },
-  "apps/api/tests/unit/domain/aggregates.social-message.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/domain/aggregates.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    },
     "vitest/no-conditional-expect": {
       "count": 106
     }
   },
-  "apps/api/tests/unit/domain/approvalWorkflow.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "apps/api/tests/unit/domain/crisisMode.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    },
     "vitest/no-conditional-expect": {
       "count": 29
     }
@@ -579,11 +436,6 @@
   "apps/api/tests/unit/domain/domain-errors.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 2
-    }
-  },
-  "apps/api/tests/unit/domain/entities.campaign.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/domain/entities.conversationNote.test.ts": {
@@ -594,11 +446,6 @@
   "apps/api/tests/unit/domain/entities.crmConnection.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 9
-    }
-  },
-  "apps/api/tests/unit/domain/entities.samlConfiguration.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/domain/entities.test.ts": {
@@ -641,20 +488,12 @@
       "count": 9
     }
   },
-  "apps/api/tests/unit/domain/value-objects.content.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
   "apps/api/tests/unit/domain/value-objects.ids-content.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 36
     }
   },
   "apps/api/tests/unit/domain/value-objects.media-provider.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 3
-    },
     "vitest/no-conditional-expect": {
       "count": 41
     }
@@ -692,11 +531,6 @@
   "apps/api/tests/unit/infrastructure/adapters/FetchHttpClient.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 10
-    }
-  },
-  "apps/api/tests/unit/infrastructure/adapters/PrismaMentionRepository.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   },
   "apps/api/tests/unit/infrastructure/adapters/SlackNotifierAdapter.test.ts": {
@@ -755,11 +589,6 @@
   "apps/api/tests/unit/infrastructure/repositories/PrismaStyleGuideRuleRepository.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 8
-    }
-  },
-  "apps/api/tests/unit/inputValidation.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 12
     }
   },
   "apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts": {
@@ -956,11 +785,6 @@
       "count": 7
     }
   },
-  "apps/api/tests/unit/subscriptionSchemas.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 15
-    }
-  },
   "apps/api/tests/unit/templateAnalytics.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 9
@@ -1114,64 +938,14 @@
       "count": 1
     }
   },
-  "packages/core/auth/tests/unit/RoleManagementService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/core/compliance/tests/unit/ComplianceService.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/core/threading/tests/unit/threadPlanner.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
   "packages/monitoring/circuit-breaker/tests/index.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 18
     }
   },
-  "packages/providers/bluesky/tests/BlueskyAdapter.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
-    }
-  },
-  "packages/providers/bluesky/tests/BlueskyClient.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
   "packages/providers/shared/tests/helpers.test.ts": {
     "vitest/no-conditional-expect": {
       "count": 9
-    }
-  },
-  "packages/providers/telegram/tests/TelegramAdapter.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 4
-    }
-  },
-  "packages/providers/tiktok/tests/TikTokAdapter.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 2
-    }
-  },
-  "packages/providers/youtube/tests/YouTubeAdapter.test.ts": {
-    "testing/no-existence-only-test": {
-      "count": 1
     }
   }
 }

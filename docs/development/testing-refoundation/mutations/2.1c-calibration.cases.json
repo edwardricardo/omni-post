@@ -1,0 +1,206 @@
+[
+  {
+    "id": "a1-role-delete",
+    "kind": "rewrite",
+    "test": "packages/core/auth/tests/unit/RoleManagementService.test.ts",
+    "blocks": [
+      "packages/core/auth/tests/unit/RoleManagementService.test.ts::returns void ok when the role exists, is not a system role, and has no users"
+    ],
+    "subject": "packages/core/auth/src/RoleManagementService.ts",
+    "search": "      if (!deleted.ok) return err(\"DATABASE_ERROR\");\n\n      await this.rbacCache.invalidate(existing.name);\n\n      return ok(undefined);",
+    "replace": "      if (!deleted.ok) return err(\"DATABASE_ERROR\");\n\n      await this.rbacCache.invalidate(existing.name);\n\n      return err(\"ROLE_IN_USE\");",
+    "base": "110c94e8",
+    "note": "sample (a): S1 turns this block from EXISTENCE-ONLY into BEHAVIOURAL; the mutation flips the verdict, so the block is expected red at the head. deleteRole returns its ROLE_IN_USE failure where it returned success."
+  },
+  {
+    "id": "a2-conversation-resolve",
+    "kind": "rewrite",
+    "test": "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts",
+    "blocks": [
+      "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::returns void ok when the conversation exists and can be resolved"
+    ],
+    "subject": "packages/core/inbox/src/ResolveConversationUseCase.ts",
+    "search": "      return ok(undefined);",
+    "replace": "      return err(new UseCaseError(\"Failed to save conversation\", USE_CASE_ERRORS.INTERNAL_ERROR));",
+    "base": "110c94e8",
+    "note": "sample (a): S1 turns this block from EXISTENCE-ONLY into BEHAVIOURAL; the mutation flips the verdict, so the block is expected red at the head. The use case returns its save failure where it returned success."
+  },
+  {
+    "id": "a3-notification-create",
+    "kind": "rewrite",
+    "test": "packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts",
+    "blocks": [
+      "packages/core/notifications/tests/unit/CreateNotificationUseCase.test.ts::returns ok with notification id when type is enabled and inputs are valid"
+    ],
+    "subject": "packages/core/notifications/src/CreateNotificationUseCase.ts",
+    "search": "      return ok({ id: notification.id.value });",
+    "replace": "      return err(new UseCaseError(\"Failed to save notification\", USE_CASE_ERRORS.INTERNAL_ERROR));",
+    "base": "110c94e8",
+    "note": "sample (a): S1 turns this block from EXISTENCE-ONLY into BEHAVIOURAL; the mutation flips the verdict, so the block is expected red at the head. The use case returns a failure where it returned the created notification."
+  },
+  {
+    "id": "a4-bluesky-text-limit",
+    "kind": "rewrite",
+    "test": "packages/providers/bluesky/tests/BlueskyClient.test.ts",
+    "blocks": ["packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts exactly 300 chars"],
+    "subject": "packages/providers/bluesky/src/BlueskyClient.ts",
+    "search": "    if (text.length > 300) {",
+    "replace": "    if (text.length >= 300) {",
+    "base": "110c94e8",
+    "note": "sample (a): S1 turns this block from EXISTENCE-ONLY into BEHAVIOURAL; the mutation flips the verdict, so the block is expected red at the head. publishText refuses a text at the limit: an off-by-one boundary."
+  },
+  {
+    "id": "a5-telegram-text-limit",
+    "kind": "rewrite",
+    "test": "packages/providers/telegram/tests/TelegramAdapter.test.ts",
+    "blocks": [
+      "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts text of exactly 4096 chars"
+    ],
+    "subject": "packages/providers/telegram/src/TelegramAdapter.ts",
+    "search": "  maxChars: 4096,",
+    "replace": "  maxChars: 4095,",
+    "base": "110c94e8",
+    "note": "sample (a): S1 turns this block from EXISTENCE-ONLY into BEHAVIOURAL; the mutation flips the verdict, so the block is expected red at the head. The text limit is one short: an off-by-one boundary."
+  },
+  {
+    "id": "a6-tiktok-body-limit",
+    "kind": "rewrite",
+    "test": "packages/providers/tiktok/tests/TikTokAdapter.test.ts",
+    "blocks": [
+      "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns ok for body exactly 2200 chars"
+    ],
+    "subject": "packages/providers/tiktok/src/TikTokAdapter.ts",
+    "search": "  maxChars: 2200,",
+    "replace": "  maxChars: 2199,",
+    "base": "110c94e8",
+    "note": "sample (a): S1 turns this block from EXISTENCE-ONLY into BEHAVIOURAL; the mutation flips the verdict, so the block is expected red at the head. The body limit is one short: an off-by-one boundary."
+  },
+  {
+    "id": "b1-s3-region",
+    "kind": "rewrite",
+    "test": "packages/adapters/storage-s3/tests/index.test.ts",
+    "blocks": [
+      "packages/adapters/storage-s3/tests/index.test.ts::creates an adapter instance with minimal config (no credentials)"
+    ],
+    "subject": "packages/adapters/storage-s3/src/index.ts",
+    "search": "    region: config.region,",
+    "replace": "    region: \"eu-west-3\",",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. The S3 client ignores the configured region."
+  },
+  {
+    "id": "b2-usecase-error-code",
+    "kind": "rewrite",
+    "test": "packages/core/application/tests/unit/UseCase.test.ts",
+    "blocks": [
+      "packages/core/application/tests/unit/UseCase.test.ts::is an instance of Error (extends Error)"
+    ],
+    "subject": "packages/core/application/src/UseCase.ts",
+    "search": "    this.code = code;",
+    "replace": "    this.code = \"INTERNAL_ERROR\";",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. UseCaseError drops the code it is given."
+  },
+  {
+    "id": "b3-registry-scheduling",
+    "kind": "rewrite",
+    "test": "apps/client/lib/providers/__tests__/registry.test.ts",
+    "blocks": [
+      "apps/client/lib/providers/__tests__/registry.test.ts::maps features.scheduling from capabilities.schedule"
+    ],
+    "subject": "apps/client/lib/providers/registry.ts",
+    "search": "scheduling: metadata.capabilities.schedule,",
+    "replace": "scheduling: !metadata.capabilities.schedule,",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. The scheduling feature is the inverse of the capability: still a boolean."
+  },
+  {
+    "id": "b4-provider-config-lookup",
+    "kind": "rewrite",
+    "test": "apps/client/tests/integration/useProviders.test.ts",
+    "blocks": [
+      "apps/client/tests/integration/useProviders.test.ts::exposes getProviderConfig function"
+    ],
+    "subject": "apps/client/lib/hooks/useProviders.ts",
+    "search": "return providerRegistry.getProvider(providerId);",
+    "replace": "return providerRegistry.getProvider(\"x\");",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. getProviderConfig returns X's config for every provider."
+  },
+  {
+    "id": "b5-diff-adaptation-order",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/DiffCalculator.test.ts",
+    "blocks": ["apps/api/tests/unit/DiffCalculator.test.ts::detects modified adaptation field"],
+    "subject": "apps/api/src/content/DiffCalculator.ts",
+    "search": "          fromAdaptation,\n          toAdaptation,\n          `adaptations.${providerId}`",
+    "replace": "          toAdaptation,\n          fromAdaptation,\n          `adaptations.${providerId}`",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. A modified adaptation's old and new values are swapped."
+  },
+  {
+    "id": "b6-conflict-values-swapped",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/ConflictDetector.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/ConflictDetector.test.ts::detects changes in nested objects via JSON comparison"
+    ],
+    "subject": "apps/api/src/content/ConflictDetector.ts",
+    "search": "          oldValue: targetValue,\n          newValue: sourceValue,",
+    "replace": "          oldValue: sourceValue,\n          newValue: targetValue,",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. A detected change carries its old and new values swapped."
+  },
+  {
+    "id": "b7-report-share-expiry",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/reportSharing.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/application/reportSharing.test.ts::sets expiry date when provided"
+    ],
+    "subject": "packages/core/custom-reports/src/EnableReportSharingUseCase.ts",
+    "search": "{ shareExpiresAt: new Date(input.expiresAt) }",
+    "replace": "{ shareExpiresAt: new Date() }",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. The share expires now instead of on the requested date."
+  },
+  {
+    "id": "b8-channel-event-ids",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/EventService.post-channel.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/EventService.post-channel.test.ts::should create CHANNEL_CONNECTED events correctly"
+    ],
+    "subject": "apps/api/src/events/EventService.ts",
+    "search": "    \"Channel\",\n    {\n      channelId,\n      projectId,",
+    "replace": "    \"Channel\",\n    {\n      channelId: projectId,\n      projectId: channelId,",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. A channel event carries the channel and project ids swapped."
+  },
+  {
+    "id": "b9-listening-error-message",
+    "kind": "rewrite",
+    "test": "apps/client/tests/integration/ListeningPage.test.tsx",
+    "blocks": [
+      "apps/client/tests/integration/ListeningPage.test.tsx::renders the error state when the backend returns 500"
+    ],
+    "subject": "apps/client/app/[locale]/dashboard/listening/components/ListeningDashboard.tsx",
+    "search": "role=\"alert\">\n            <div className=\"text-lg text-red-600\">{displayMessage}</div>",
+    "replace": "role=\"alert\">\n            <div className=\"text-lg text-red-600\">{\"Loading…\"}</div>",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. The error alert shows a loading text instead of the error message."
+  },
+  {
+    "id": "b10-x-profile-limit",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/generatePlatformVariants.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/application/generatePlatformVariants.test.ts::all 10 platforms have profiles defined"
+    ],
+    "subject": "packages/core/domain/src/ai/PlatformContentProfile.ts",
+    "search": "    maxChars: 280,",
+    "replace": "    maxChars: 2800,",
+    "base": "110c94e8",
+    "note": "sample (b): this block still reads EXISTENCE-ONLY after S1; the mutation keeps the value present but wrong, so the block is expected green at the head. The X profile allows ten times its character limit."
+  }
+]

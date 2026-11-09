@@ -9,9 +9,11 @@
  *              `t.assert`), and a presence check beside a value check that runs on one path only.
  *              The valid cases are what the rule must not mistake for one: a presence check beside
  *              an assertion that restricts a value, `toHaveProperty` with a value, a role query
- *              with a name, a boolean predicate's truthiness, a helper the classifier cannot see
- *              into, a block that skips itself, and a block whose title promises an absence, which
- *              the title-contradiction class leaves to a human.
+ *              with a name, a boolean predicate's truthiness, a verdict's truthiness
+ *              (`result.success`), a helper the classifier cannot see into, a block that skips
+ *              itself, and a block whose title promises an absence, which the title-contradiction
+ *              class leaves to a human. A verdict read through a mock's own record
+ *              (`save.mock.results[0].value.ok`) stays a presence check, an invalid case.
  *
  *              A last invalid case stands in for the classifier, through the case's `before` and
  *              `after` hooks, with the result of a file it cannot read: the rule reports one
@@ -93,6 +95,12 @@ ruleTester.run("no-existence-only-test", rule, {
       "});"
     ),
     vitest(
+      'it("publishes the post", async () => {',
+      "  const result = await publish(post);",
+      "  expect(result.success).toBeTruthy();",
+      "});"
+    ),
+    vitest(
       'import { expectValidUser } from "./helpers/users.js";',
       'it("returns the user", async () => {',
       '  const user = await findUser("u1");',
@@ -169,6 +177,15 @@ ruleTester.run("no-existence-only-test", rule, {
         "});"
       ),
       errors: [{ ...existenceOnly("returns the user", 3), column: 1, endLine: 9, endColumn: 3 }],
+    },
+    {
+      ...vitest(
+        'it("saves the post", async () => {',
+        "  await savePost(post);",
+        "  expect(save.mock.results[0].value.ok).toBeTruthy();",
+        "});"
+      ),
+      errors: [existenceOnly("saves the post", 3)],
     },
     {
       ...vitest(

@@ -126,7 +126,7 @@ const FIXTURES: Fixture[] = [
       row(13, "creates the asset", "CONDITIONAL-ONLY", [BEHAV], ["GUARDED-RETURN"]),
       row(19, "reports the load error", "CONDITIONAL-ONLY", [EXISTS], ["CONDITIONAL"]),
       row(27, "creates the asset after asserting success", BEHAV, [BEHAV, BEHAV]),
-      row(34, "parses the year after asserting success", BEHAV, [EXISTS, BEHAV]),
+      row(34, "parses the year after asserting success", BEHAV, [BEHAV, BEHAV]),
       row(42, "reads the profile after asserting it is present", BEHAV, [EXISTS, BEHAV]),
       row(49, "reads the name after asserting its type", BEHAV, [EXISTS, BEHAV]),
       row(56, "adds both results after asserting each", BEHAV, [BEHAV, BEHAV, BEHAV]),
@@ -164,17 +164,24 @@ const FIXTURES: Fixture[] = [
     blocks: [
       row(6, "parses the year", "CONDITIONAL-ONLY", [BEHAV], ["CONDITIONAL"]),
       row(11, "creates the asset", "CONDITIONAL-ONLY", [BEHAV], ["GUARDED-RETURN"]),
-      row(19, "creates the asset after asserting success", BEHAV, [EXISTS, BEHAV]),
+      row(19, "creates the asset after asserting success", BEHAV, [BEHAV, BEHAV]),
       row(26, "reads the profile after asserting it is present", BEHAV, [EXISTS, BEHAV]),
       row(33, "reads the name after asserting its type", BEHAV, [EXISTS, BEHAV]),
       row(
         41,
         "reads the first result, the only one asserted",
+        BEHAV,
+        [BEHAV, BEHAV],
+        ["GUARDED-RETURN"]
+      ),
+      row(49, "reports the load error through catch", "CONDITIONAL-ONLY", [BEHAV], ["CONDITIONAL"]),
+      row(
+        55,
+        "reads the first value, only its presence asserted",
         "EXISTENCE-ONLY",
         [EXISTS, BEHAV],
         ["GUARDED-RETURN"]
       ),
-      row(49, "reports the load error through catch", "CONDITIONAL-ONLY", [BEHAV], ["CONDITIONAL"]),
     ],
   },
   {
@@ -304,8 +311,8 @@ const FIXTURES: Fixture[] = [
     framework: "node",
     blocks: [
       row(11, "isolates tenants", BEHAV, [OPAQUE]),
-      row(15, "saves the record", "EXISTENCE-ONLY", [EXISTS]),
-      row(19, "saves the record with its id", BEHAV, [EXISTS, BEHAV]),
+      row(15, "saves the record", BEHAV, [BEHAV]),
+      row(19, "saves the record with its id", BEHAV, [BEHAV, BEHAV]),
       row(30, "delivers to the subscription", "EXISTENCE-ONLY", [EXISTS]),
     ],
   },
@@ -358,8 +365,8 @@ const FIXTURES: Fixture[] = [
     framework: "node",
     blocks: [
       row(8, "should filter logs by success status", BEHAV, [
-        EXISTS,
-        EXISTS,
+        BEHAV,
+        BEHAV,
         BEHAV,
         BEHAV,
         BEHAV,
