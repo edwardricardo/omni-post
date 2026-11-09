@@ -195,7 +195,9 @@ step floors node scripts/testing/coverage-floor-gate.mjs
 # Fitness #54: every test block this branch deletes or rewrites against origin/main is moved, a
 # node:test block, a behaviour change, or covered by a committed mutation-diff record. CI runs it
 # on pull_request only, so without this step a missing record was first seen on the pull request.
-step record-coverage node scripts/testing/record-coverage-gate.mjs
+# --retire-check also holds the gate's counted classes to the real ledger: a class no row carries
+# any more fails the step with "delete it", so the gate sheds a class once its population is gone.
+step record-coverage node scripts/testing/record-coverage-gate.mjs --retire-check
 # Fitness #52: the committed test ledger and its page are what the tree yields, and every
 # overlay entry and slice assignment applies.
 step ledger pnpm check:ledger

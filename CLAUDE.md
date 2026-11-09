@@ -2384,11 +2384,14 @@ node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baselin
 # FITNESS_BASE_REF, origin/main when unset, resolved to its merge base with HEAD; the base ledger is
 # `git show <merge base>:ledger.json`, the head is the working tree (CI checks out HEAD). It binds each
 # block id the head lost (a deletion) and each id whose bodyHash changed (a rewrite), and gives each
-# one class, in this order: moved (a deletion whose base bodyHash the head holds under an id the base did not hold); node
-# (a node:test row, counted until WU-2.3c brings the tool's node:test adapter); behaviour change (its
+# one class, in this order: moved (a deletion whose base bodyHash the head holds under an id the base did not hold); live
+# (a row whose collectors name node:test's live tier, which needs a running API mutation-diff does not
+# start); no-collector (a row with `collectors: []`, which nothing runs); behaviour change (its
 # test imports a changed source directly, by a relative specifier or a bare specifier
 # tsconfig.base.json's `paths` maps, read at the base for a deletion and at the head for a rewrite; a
-# string literal holding the source's path is not an import); covered (a case of a committed record under
+# string literal holding the source's path is not an import, except in a test under
+# apps/api/tests/unit/scripts/ whose literal's whole value is, or ends after a `/` with, the path of a
+# changed source under scripts/testing/); covered (a case of a committed record under
 # docs/development/testing-refoundation/mutations/*.record.json lists the id with both bodyHash values
 # equal to the ledgers', `null` at the head for a deletion, its kind, and SAFE for a deletion or GAIN
 # for a rewrite; a BEHAVIOUR-CHANGED case, the tool's measured verdict for a test whose base form
@@ -2402,25 +2405,30 @@ node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baselin
 # `no-record`; `stale-record` (a bodyHash of the record differs from the ledgers: re-run
 # mutation-diff); `wrong-kind`; `failing-verdict: <verdict>` (NO-GAIN, BROKEN, UNDECIDED, LOST,
 # VACUOUS, or a verdict of the other kind); and a record under mutations/ that is not the tool's
-# shape, named with its file. Moved, node and behaviour-change blocks are listed, never refused.
+# shape, named with its file. Moved, live, no-collector and behaviour-change blocks are listed, never
+# refused. RETIRES WHEN, held by the gate under `--retire-check`, which `pnpm check:record-coverage` passes,
+# on the head ledger.json: the live class once no row's collectors name the live tier, exit 1 with `the live class matches no ledger row: delete it (its tier left the
+# tree)`; the no-collector class once no row has `collectors: []`, exit 1 with `the no-collector class
+# matches no ledger row: delete it (its files left the quarantine)`.
 # FAIL-CLOSED, exit 3: a base that does not resolve or shares no merge base with HEAD; ledger.json
 # unreadable, not JSON or with no `files` array on either side; a tsconfig.base.json that is not JSON;
 # git failing. No mutations/ directory with a refused block is exit 1, not 3. A usage error exits 2:
-# the command takes no argument but `--summary <file>`, which appends the lines as a Markdown table,
+# the command takes no argument but `--retire-check` and `--summary <file>`, which appends the lines as a Markdown table,
 # the job summary's way.
 # RESIDUAL LIMITS, stated rather than implied: (1) it reads the committed ledgers, and that they
 # match the tree is #52's part; (2) it proves a matching record exists, never that its mutation was
 # realistic or the record genuine, which the verifier's re-run of mutation-diff proves; (3) a rename
 # with a body edit reads as a deletion plus an addition, and a deletion whose body the head holds
-# under a new id, a new copy included, reads as moved; (4) node:test blocks are exempt until WU-2.3c; (5) the
-# import exclusion reads direct imports only, and a test that reaches a changed source through another
-# module, or loads it by a path it builds (`path.join(ROOT, "…")`, the script suites' form), needs the
-# tool's measured BEHAVIOUR-CHANGED verdict in a committed record; (6) a file the ledger excludes is
-# invisible; (7) a block's bodyHash covers its callback body only, so a row deleted from an `it.each`
+# under a new id, a new copy included, reads as moved; (4) the
+# import exclusion reads direct imports only and the script suites' rule a whole literal only, so a
+# test that reaches a changed source through another module, a path built from fragments, a literal
+# outside apps/api/tests/unit/scripts/ or a changed file outside scripts/testing/ needs the
+# tool's measured BEHAVIOUR-CHANGED verdict in a committed record; (5) a file the ledger excludes is
+# invisible; (6) a block's bodyHash covers its callback body only, so a row deleted from an `it.each`
 # table, or an expected value weakened in one, changes no id and no hash and binds nothing (Master
-# Plan row RECORD-COVERAGE-EACH-TABLES).
+# Plan row RECORD-COVERAGE-EACH-TABLES); (7) a live-tier or no-collector block is listed, never measured.
 pnpm check:record-coverage   # expect exit 0, 0 refused, and first one line:
-#   record-coverage-gate: <n> bound blocks against <base> (<sha>): <c> covered, <m> moved, <k> node, <b> behaviour change, <r> refused
+#   record-coverage-gate: <n> bound blocks against <base> (<sha>): <c> covered, <m> moved, <l> live, <q> no-collector, <b> behaviour change, <r> refused
 ````
 
 **Not a numbered check — the integration-tier RLS coverage gate.** One

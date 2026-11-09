@@ -9,11 +9,14 @@
  *   nothing; `scripts/testing/record-coverage-gate.mjs` reads git and the tree and hands it here.
  *
  *   THE CLASSES, in order: moved (a deleted block whose base `bodyHash` the head holds under
- *   an id the base did not hold), node (a block of a node:test row, counted until the node:test adapter exists), behaviour
- *   change (its test names a changed source directly, or its record says BEHAVIOUR-CHANGED),
+ *   an id the base did not hold), live (a block of a row node:test's live tier runs, which needs a
+ *   running API the mutation tool does not start), no-collector (a block of a row with
+ *   `collectors: []`, which nothing runs), behaviour change (its test imports a changed source directly, a test under
+ *   `apps/api/tests/unit/scripts/` names a changed `scripts/testing/` file in a string literal, or its record says BEHAVIOUR-CHANGED),
  *   covered (a record case lists it with both hashes equal to the ledgers and SAFE for a deletion
  *   or GAIN for a rewrite), and refused, named by its reason: `no-record`, `stale-record`,
- *   `wrong-kind` or `failing-verdict: <verdict>`.
+ *   `wrong-kind` or `failing-verdict: <verdict>`. The two counted classes retire themselves:
+ *   `retiredClassesOf` names each one no row of the head ledger matches any more.
  * @layer infrastructure
  */
 import path from "node:path";
@@ -25,6 +28,15 @@ import path from "node:path";
 const SPECIFIER =
   /\b(?:import|export)\b[^'"`;]*?\bfrom\s*["']([^"']+)["']|\bimport\s*["']([^"']+)["']|\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
 
+/** Where the script suites live: they load the scripts they test by a path written as a literal. */
+const SCRIPT_SUITES = "apps/api/tests/unit/scripts/";
+
+/** Where the scripts those suites load live. */
+const SCRIPT_SOURCES = "scripts/testing/";
+
+/** A string literal, quoted or a template, its value in the second group. */
+const LITERAL = /(["'`])((?:\\.|(?!\1)[^\\\n])*)\1/g;
+
 /** The extensions a specifier without one, or with a JavaScript one, may resolve to. */
 const RESOLVED_EXTENSIONS = Object.freeze([".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".jsx"]);
 
@@ -35,15 +47,18 @@ const ACCEPTED = Object.freeze({
 });
 
 /** The order the gate prints its listed and refused blocks in. */
-const CLASS_ORDER = Object.freeze(["refused", "behaviour change", "node", "moved"]);
+const CLASS_ORDER = Object.freeze(["refused", "behaviour change", "live", "no-collector", "moved"]);
+
+/** node:test's live tier, whose tests need a running API. */
+const LIVE_TIER = /^node:.*#live$/;
 
 /**
  * @typedef {"deletion" | "rewrite"} Kind
  * @typedef {{ pattern: string, targets: string[] }} Alias
  * @typedef {{ base: string | null, head: string | null }} Hashes
- * @typedef {{ id: string, path: string, framework: string, bodyHash: string }} LedgerBlock
- * @typedef {{ blocks: Map<string, LedgerBlock>, paths: Set<string> }} LedgerIndex
- * @typedef {{ id: string, path: string, headPath: string, framework: string, kind: Kind, hashes: Hashes, movedTo: string | null }} Bound
+ * @typedef {{ id: string, path: string, framework: string, collectors: readonly string[] | null, bodyHash: string }} LedgerBlock
+ * @typedef {{ blocks: Map<string, LedgerBlock>, paths: Set<string>, tiers: { live: number, noCollector: number } }} LedgerIndex
+ * @typedef {{ id: string, path: string, headPath: string, framework: string, collectors: readonly string[] | null, kind: Kind, hashes: Hashes, movedTo: string | null }} Bound
  * @typedef {{ cls: string, id: string, kind: Kind, detail: string }} Entry
  * @typedef {{ id: string, kind: string, verdict: string, blocks: { id: string, bodyHash: Hashes }[] }} RecordCase
  * @typedef {{ file: string, cases: RecordCase[] }} CommittedRecord
@@ -187,8 +202,32 @@ export function changedImports(file, text, sources, aliases) {
 }
 
 /**
- * @description Indexes a parsed `ledger.json`: every block by id with its row's path and framework,
- *   and every row's path.
+ * @description The changed scripts a script suite names in a string literal: for a test under
+ *   `apps/api/tests/unit/scripts/`, each changed source under `scripts/testing/` that a literal's
+ *   whole value equals or ends with after a `/`. A template literal with a substitution, and a path
+ *   built from fragments, name nothing.
+ * @param {string} file The test, repository-relative.
+ * @param {string} text Its text on the side the block is read at.
+ * @param {readonly string[]} sources The changed files that are no ledger row.
+ * @returns {string[]} Sorted.
+ */
+export function changedLiterals(file, text, sources) {
+  if (!file.startsWith(SCRIPT_SUITES)) return [];
+  const values = [...text.matchAll(LITERAL)]
+    .map((match) => match[2] ?? "")
+    .filter((value) => !value.includes("${"));
+  return sources
+    .filter(
+      (source) =>
+        source.startsWith(SCRIPT_SOURCES) &&
+        values.some((value) => value === source || value.endsWith(`/${source}`))
+    )
+    .sort(byCodeUnit);
+}
+
+/**
+ * @description Indexes a parsed `ledger.json`: every block by id with its row's path, framework and
+ *   collectors, every row's path, and how many rows node:test's live tier runs and no collector runs.
  * @param {unknown} ledger
  * @returns {{ value: LedgerIndex } | { error: string }}
  */
@@ -196,16 +235,26 @@ export function ledgerIndexOf(ledger) {
   const files = isObject(ledger) ? ledger["files"] : undefined;
   if (!Array.isArray(files)) return { error: "has no files array" };
   /** @type {LedgerIndex} */
-  const index = { blocks: new Map(), paths: new Set() };
+  const index = { blocks: new Map(), paths: new Set(), tiers: { live: 0, noCollector: 0 } };
   for (const row of files.filter(isObject)) {
     if (typeof row["path"] !== "string") continue;
     const file = row["path"];
     index.paths.add(file);
+    const listed = row["collectors"];
+    const collectors = Array.isArray(listed) ? listed.map(String) : null;
+    if (collectors !== null && collectors.length === 0) index.tiers.noCollector += 1;
+    if (collectors?.some((label) => LIVE_TIER.test(label)) === true) index.tiers.live += 1;
     const blocks = Array.isArray(row["blocks"]) ? row["blocks"] : [];
     for (const block of blocks.filter(isObject)) {
       const { id, bodyHash } = block;
       if (typeof id !== "string" || typeof bodyHash !== "string") continue;
-      index.blocks.set(id, { id, path: file, framework: String(row["framework"]), bodyHash });
+      index.blocks.set(id, {
+        id,
+        path: file,
+        framework: String(row["framework"]),
+        collectors,
+        bodyHash,
+      });
     }
   }
   return { value: index };
@@ -244,6 +293,7 @@ export function boundBlocks(base, head) {
       bound.push({
         ...block,
         headPath: now.path,
+        collectors: now.collectors,
         kind: "rewrite",
         hashes: { base: block.bodyHash, head: now.bodyHash },
         movedTo: null,
@@ -345,13 +395,37 @@ export function parseRecord(text) {
 }
 
 /**
+ * @description The counted class of a block by its row's collectors: `live` for node:test's live
+ *   tier, `no-collector` for a row with `collectors: []`, else `null`.
+ * @param {readonly string[] | null} collectors
+ * @returns {{ cls: string, detail: string } | null}
+ */
+function countedClassOf(collectors) {
+  if (collectors === null) return null;
+  if (collectors.length === 0) {
+    return {
+      cls: "no-collector",
+      detail: "counted, not refused: no collector runs it, so mutation-diff cannot",
+    };
+  }
+  if (collectors.some((label) => LIVE_TIER.test(label))) {
+    return {
+      cls: "live",
+      detail:
+        "counted, not refused: a live-tier test needs a running API, which mutation-diff does not start",
+    };
+  }
+  return null;
+}
+
+/**
  * @description Gives each bound block its class, in the order the header states; `imports` holds,
  *   per block id, the changed sources its test names directly.
  * @param {readonly Bound[]} bound
- * @param {{ imports: ReadonlyMap<string, readonly string[]>, records: readonly CommittedRecord[] }} input
+ * @param {{ imports: ReadonlyMap<string, readonly string[]>, literals?: ReadonlyMap<string, readonly string[]>, records: readonly CommittedRecord[] }} input
  * @returns {Entry[]}
  */
-export function classify(bound, { imports, records }) {
+export function classify(bound, { imports, literals = new Map(), records }) {
   /** @type {Map<string, { file: string, kase: RecordCase, hashes: Hashes }[]>} */
   const listed = new Map();
   for (const { file, cases } of records) {
@@ -370,14 +444,20 @@ export function classify(bound, { imports, records }) {
     if (block.movedTo !== null) {
       return entry("moved", `its bodyHash reappears as ${block.movedTo}`);
     }
-    if (block.framework === "node") {
-      return entry("node", "counted, not refused, until the node:test adapter exists");
-    }
+    const counted = countedClassOf(block.collectors);
+    if (counted !== null) return entry(counted.cls, counted.detail);
     const changed = imports.get(block.id) ?? [];
     if (changed.length > 0) {
       return entry(
         "behaviour change",
         `its test imports ${changed.join(", ")}, which this pull request changes`
+      );
+    }
+    const named = literals.get(block.id) ?? [];
+    if (named.length > 0) {
+      return entry(
+        "behaviour change",
+        `its test names ${named.join(", ")} in a string literal, which this pull request changes`
       );
     }
     const candidates = listed.get(block.id) ?? [];
@@ -416,7 +496,7 @@ export function classify(bound, { imports, records }) {
 /**
  * @description Counts the entries of each class.
  * @param {readonly Entry[]} entries
- * @returns {{ covered: number, moved: number, node: number, behaviour: number, refused: number }}
+ * @returns {{ covered: number, moved: number, live: number, noCollector: number, behaviour: number, refused: number }}
  */
 export function countsOf(entries) {
   /** @type {(cls: string) => number} */
@@ -424,10 +504,28 @@ export function countsOf(entries) {
   return {
     covered: count("covered"),
     moved: count("moved"),
-    node: count("node"),
+    live: count("live"),
+    noCollector: count("no-collector"),
     behaviour: count("behaviour change"),
     refused: count("refused"),
   };
+}
+
+/**
+ * @description The counted classes the head ledger no longer needs, each as the problem the gate
+ *   fails on: a class that matches no row is deleted, never kept as an exemption of nothing.
+ * @param {LedgerIndex} head
+ * @returns {string[]}
+ */
+export function retiredClassesOf(head) {
+  return [
+    ...(head.tiers.live === 0
+      ? ["the live class matches no ledger row: delete it (its tier left the tree)"]
+      : []),
+    ...(head.tiers.noCollector === 0
+      ? ["the no-collector class matches no ledger row: delete it (its files left the quarantine)"]
+      : []),
+  ];
 }
 
 /**
