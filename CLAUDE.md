@@ -2379,8 +2379,8 @@ node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baselin
 # first-parent merges to main since ledger.json was committed (3ef9bf39, 2026-10-28) removed or
 # rewrote 695 blocks, 687 removed and 8 rewritten, with no measurement tied to any of them.
 # WHAT IT RUNS: `pnpm check:record-coverage`, which is `node scripts/testing/record-coverage-gate.mjs
-# --retire-check`; the battery step passes the flag too, and so will the CI step once the Maintainer
-# applies that edit. With its pure core in scripts/testing/lib/record-coverage-core.mjs, pinned by
+# --retire-check`; the battery step and the CI step pass the flag too. Its pure core is
+# scripts/testing/lib/record-coverage-core.mjs, pinned by
 # apps/api/tests/unit/scripts/recordCoverageGate.test.ts. It runs no mutation. The base is
 # FITNESS_BASE_REF, origin/main when unset, resolved to its merge base with HEAD; the base ledger is
 # `git show <merge base>:ledger.json`, the head is the working tree (CI checks out HEAD). It binds each
