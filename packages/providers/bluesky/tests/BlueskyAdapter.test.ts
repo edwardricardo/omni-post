@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, vi } from "vitest";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { ok, err, type Result } from "@shared/types";
 import { BlueskyAdapter, type BlueskyClientFactory } from "../src/BlueskyAdapter.js";
@@ -267,6 +267,16 @@ describe("BlueskyAdapter", { concurrent: false }, () => {
       const result = await adapter.validateCredentials(VALID_CREDS);
       assert.ok(!result.ok);
       assert.equal(result.error, "AUTH_INVALID");
+    });
+
+    it("accepts credentials whose login succeeds, logging in once", async () => {
+      const client = makeFakeClient();
+      const adapter = makeAdapter(client);
+
+      const result = await adapter.validateCredentials(VALID_CREDS);
+
+      expect(result.ok).toBe(true);
+      expect(client.login).toHaveBeenCalledTimes(1);
     });
   });
 

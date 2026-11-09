@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, vi } from "vitest";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { YouTubeAdapter, type YouTubeApiClientFactory } from "../src/YouTubeAdapter.js";
 import type { YouTubeApiClient, YouTubeCredentials } from "../src/apiClient.js";
@@ -372,6 +372,16 @@ describe("YouTubeAdapter", { concurrent: false }, () => {
       const result = await adapter.validateCredentials(VALID_CREDS);
       assert.ok(!result.ok);
       assert.equal(result.error, "AUTH_EXPIRED");
+    });
+
+    it("accepts credentials the API client confirms, asking the client once", async () => {
+      const client = makeFakeApiClient();
+      const adapter = makeAdapter(client);
+
+      const result = await adapter.validateCredentials(VALID_CREDS);
+
+      expect(result.ok).toBe(true);
+      expect(client.validateCredentials).toHaveBeenCalledTimes(1);
     });
   });
 

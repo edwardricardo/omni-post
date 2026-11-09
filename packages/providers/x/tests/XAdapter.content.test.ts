@@ -7,7 +7,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, vi } from "vitest";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { createTestCanonicalPost, makeAdapter } from "./XAdapter.test-helpers.js";
 
@@ -37,6 +37,16 @@ describe("XAdapter - Edge Cases", { concurrent: false }, () => {
 
     assert.ok(result.ok, "Should render without error");
     assert.strictEqual(result.value.type, "single", "274 chars should be a single tweet");
+  });
+
+  it("renders a body of exactly 280 characters, reporting all 280", () => {
+    const { adapter } = makeAdapter();
+    const post = createTestCanonicalPost({ body: "B".repeat(280) });
+
+    const result = adapter.render(post);
+
+    expect(result.ok).toBe(true);
+    expect(result).toMatchObject({ value: { content: { totalChars: 280 } } });
   });
 
   it("should handle unicode and emoji characters in content", () => {
