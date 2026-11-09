@@ -1,0 +1,527 @@
+{
+  "base": "cc4d0d7a4a7d965d6be3a1005d02559a92292949",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2e5d22639340b1dac308682b0b461477f27cecd4efd29cf4d85427efd63f7233",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by resourceId exactly"
+        }
+      ],
+      "id": "a01-logs-resource-id-filter",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/auditService.query.test.ts::AuditService - getLogs() - Query and Filtering > Where Clause Building > should filter by resourceId exactly",
+          "apps/api/tests/unit/auditService.retention.test.ts::AuditService - getUserLogs(), getResourceLogs(), cleanup() > getResourceLogs() - Resource-Specific Queries > should filter by specific resourceId when provided"
+        ],
+        "head": [
+          "apps/api/tests/unit/auditService.retention.test.ts::AuditService - getUserLogs(), getResourceLogs(), cleanup() > getResourceLogs() - Resource-Specific Queries > should filter by specific resourceId when provided"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "7bacdffd205f106490fb855d1b662dca8b37b2aeabeb63c78d3e14b20c503c4e",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/aiService.test.ts::should generate content with custom model options"
+        }
+      ],
+      "id": "g01-generate-options-content",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Generation > should generate content with custom model options",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Generation > should generate content with default options"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Generation > should generate content with default options"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "815607c97ecd07e225e523bc7de6fad3eae4e31977b2aa42fc34ad9124338b1d",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/aiService.test.ts::should analyze tone successfully"
+        }
+      ],
+      "id": "g02-analyze-tone-analysis",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Analysis > should analyze engagement potential",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Analysis > should analyze readability successfully",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Analysis > should analyze sentiment successfully",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Analysis > should analyze tone successfully"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Analysis > should analyze engagement potential",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Analysis > should analyze readability successfully",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Analysis > should analyze sentiment successfully"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "05d7841eb242364919b255bf4ae83745b34fac11b41b6dcbe557719b770347f3",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/aiService.test.ts::should optimize content for Twitter"
+        }
+      ],
+      "id": "g03-optimize-twitter-optimization",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should include media suggestions for Instagram",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should optimize content for Twitter",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should optimize with brand voice"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > passes the brand voice through and keeps the media suggestions of the optimization",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > returns the orchestrator's optimization for the requested platform"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d388fa1d332ea9100a47659a7f0d04080394bd75f9d4c81d444edf66baff4b43",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/aiService.test.ts::should optimize with brand voice"
+        }
+      ],
+      "id": "g04-optimize-brand-voice-ok-check",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should include media suggestions for Instagram",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should optimize content for Twitter",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should optimize with brand voice",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should throw when optimization fails"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > passes the brand voice through and keeps the media suggestions of the optimization",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > returns the orchestrator's optimization for the requested platform",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should throw when optimization fails"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "e0e4f8b05ba256eb1639a10e481d44ce6624a470d40d0eea22600b646b7131ea",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/aiService.test.ts::should include media suggestions for Instagram"
+        }
+      ],
+      "id": "g05-optimize-instagram-media",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should include media suggestions for Instagram",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should optimize content for Twitter",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > should optimize with brand voice"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > passes the brand voice through and keeps the media suggestions of the optimization",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Optimization > returns the orchestrator's optimization for the requested platform"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d340de2602011820530817390499f4d0dd93ef855b68c33962dcaf7de8af256a",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/aiService.test.ts::should predict performance without historical data"
+        }
+      ],
+      "id": "g06-predict-without-history",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Performance Prediction > should predict performance without historical data"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Performance Prediction > predicts performance from the content alone when no historical data is given"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "9a9cd1c0a1494c0c23c4ef3a20902e16a94d9785c3870fb415e1efa604b2e4c7",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/aiService.test.ts::should generate length variations"
+        }
+      ],
+      "id": "g07-variations-length-ok-check",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should generate audience variations",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should generate length variations",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should generate tone variations",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should throw when variation generation fails"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should generate tone variations",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should throw when variation generation fails"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "4dbc26a959c37834683c4dbe322a6671937d3a878934ccd3cfec7b35f37979a6",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/aiService.test.ts::should generate audience variations"
+        }
+      ],
+      "id": "g08-variations-audience-key",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should generate audience variations",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should generate length variations",
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should generate tone variations"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Content Variations > should generate tone variations"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "8811d9bf22c37ad4402daf5cf6f19dafe6772effd17c708f7f19efec192f139d",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/aiService.test.ts::should retrieve usage metrics from orchestrator"
+        }
+      ],
+      "id": "g09-metrics-cache-stats",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Metrics > should retrieve usage metrics from orchestrator"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts::AIService - Metrics > reports the orchestrator's cache stats beside its usage metrics"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/aiService.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/AiServiceImageGenerationAdapter.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "be53a5eeffb3455ceabd735b0c6d3212614e79aa81d4fc889c3510c3a82e3959",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/optimizedPostsRoutes.test.ts::should return consistent success response format"
+        }
+      ],
+      "id": "r01-optimized-posts-success-envelope",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should calculate correct totalPages",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should enforce maximum limit (100)",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should require accountId parameter",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should return paginated posts with custom page and limit",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should return paginated posts with default parameters",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should return posts with correct structure",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should validate accountId as valid UUID",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should validate limit parameter as positive integer",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should validate page parameter as positive integer",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > Response Format > should include correct HTTP status codes",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > Response Format > should return consistent error response format",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > Response Format > should return consistent success response format"
+        ],
+        "head": [
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should calculate correct totalPages",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should enforce maximum limit (100)",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should require accountId parameter",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should return paginated posts with custom page and limit",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should return paginated posts with default parameters",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should return posts with correct structure",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should validate accountId as valid UUID",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should validate limit parameter as positive integer",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > GET /api/posts/optimized > should validate page parameter as positive integer",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > Response Format > should include correct HTTP status codes",
+          "apps/api/tests/unit/optimizedPostsRoutes.test.ts::optimizedPostsRoutes Unit Tests > Response Format > should return consistent error response format"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/optimizedPostsRoutes.test.ts"],
+        "head": ["apps/api/tests/unit/optimizedPostsRoutes.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "cc24a71d76d63a828db713ca8627171be676b02ecc3d17c28a39c54c793ba3c1",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/auditService.stats.test.ts::should filter out null resources"
+        }
+      ],
+      "id": "s01-stats-null-resources",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/auditService.stats.test.ts::AuditService - getStats() > getStats() - Top Resources Aggregation > should filter out null resources"
+        ],
+        "head": [
+          "apps/api/tests/unit/auditService.stats.test.ts::AuditService - getStats() > getStats() - Top Resources Aggregation > names each top resource after the resource its logs record"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "ed3a8881e1505a6a14f0724b003a9ffb6e2495e9f898ad783e5c98f5af1afaf8",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/auditService.stats.test.ts::should sort by count descending"
+        }
+      ],
+      "id": "s02-stats-top-users-order",
+      "kind": "deletion",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/activityFeedService.test.ts",
+          "apps/api/tests/unit/audit/auditService.logCredentialDecrypt.test.ts",
+          "apps/api/tests/unit/auditRoutes.test.ts",
+          "apps/api/tests/unit/auditService.log.test.ts",
+          "apps/api/tests/unit/auditService.query.test.ts",
+          "apps/api/tests/unit/auditService.retention.test.ts",
+          "apps/api/tests/unit/auditService.stats.test.ts",
+          "apps/api/tests/unit/infrastructure/adapters/RedisBruteForceAdapter.test.ts",
+          "apps/api/tests/unit/mfaRoutes.test.ts"
+        ]
+      },
+      "verdict": "VACUOUS"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "ca7d34e83935189227bed67cdf5a3ea8b65bb0086ef9e16a61b0b64853c7aa80",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::creates a workflow with description and isDefault"
+        }
+      ],
+      "id": "w01-create-default-workflow",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::CreateApprovalWorkflowUseCase > creates a workflow with description and isDefault",
+          "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::CreateApprovalWorkflowUseCase > unsets previous default when creating new default"
+        ],
+        "head": [
+          "apps/api/tests/unit/approvalWorkflowUseCases.test.ts::CreateApprovalWorkflowUseCase > unsets previous default when creating new default"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/approvalWorkflowUseCases.test.ts"],
+        "head": ["apps/api/tests/unit/approvalWorkflowUseCases.test.ts"]
+      },
+      "verdict": "SAFE"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}

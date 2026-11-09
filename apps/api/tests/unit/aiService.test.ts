@@ -304,6 +304,48 @@ describe("AIService - Content Analysis", () => {
 // ============================================================================
 
 describe("AIService - Content Optimization", () => {
+  it("returns the orchestrator's optimization for the requested platform", async () => {
+    const aiService = buildAIService();
+    stubOrchestrator("optimizeContent", async () => ({
+      ok: true,
+      value: OPTIMIZATION,
+      metadata: METADATA,
+    }));
+
+    const result = await aiService.optimizeContent("AI is changing things", "twitter");
+
+    expect(result.success).toBe(true);
+    expect(result.optimization).toEqual(OPTIMIZATION);
+    expect(mockOrchestrator.optimizeContent).toHaveBeenCalledWith(
+      "AI is changing things",
+      "twitter",
+      undefined
+    );
+  });
+
+  it("passes the brand voice through and keeps the media suggestions of the optimization", async () => {
+    const aiService = buildAIService();
+    stubOrchestrator("optimizeContent", async () => ({
+      ok: true,
+      value: OPTIMIZATION,
+      metadata: METADATA,
+    }));
+
+    const result = await aiService.optimizeContent("Visual content", "instagram", "Playful");
+
+    expect(result.success).toBe(true);
+    expect(result.optimization).toMatchObject({
+      mediasuggestions: [
+        { type: "image", description: "AI visualization", dimensions: "1200x630" },
+      ],
+    });
+    expect(mockOrchestrator.optimizeContent).toHaveBeenCalledWith(
+      "Visual content",
+      "instagram",
+      "Playful"
+    );
+  });
+
   it("should throw when optimization fails", async () => {
     const aiService = buildAIService();
     stubOrchestrator("optimizeContent", async () => ({
@@ -321,6 +363,25 @@ describe("AIService - Content Optimization", () => {
 // ============================================================================
 
 describe("AIService - Performance Prediction", () => {
+  it("predicts performance from the content alone when no historical data is given", async () => {
+    const aiService = buildAIService();
+    stubOrchestrator("predictPerformance", async () => ({
+      ok: true,
+      value: PREDICTION,
+      metadata: METADATA,
+    }));
+
+    const result = await aiService.predictPerformance("Great content!", "twitter");
+
+    expect(result.success).toBe(true);
+    expect(result.prediction).toEqual(PREDICTION);
+    expect(mockOrchestrator.predictPerformance).toHaveBeenCalledWith(
+      "Great content!",
+      "twitter",
+      undefined
+    );
+  });
+
   it("should predict performance with historical data", async () => {
     const aiService = buildAIService();
     stubOrchestrator("predictPerformance", async () => ({
@@ -504,6 +565,17 @@ describe("AIService - Smart Analysis", () => {
 // ============================================================================
 
 describe("AIService - Metrics", () => {
+  it("reports the orchestrator's cache stats beside its usage metrics", async () => {
+    const aiService = buildAIService();
+    stubOrchestrator("getUsageMetrics", () => new Map());
+    stubOrchestrator("getCacheStats", () => ({ size: 42, hitRate: 0.85 }));
+
+    const result = await aiService.getMetrics();
+
+    expect(result.success).toBe(true);
+    expect(result.cache).toEqual({ size: 42, hitRate: 0.85 });
+  });
+
   it("should expose per-provider metrics", async () => {
     const aiService = buildAIService();
 
