@@ -1,0 +1,496 @@
+[
+  {
+    "id": "b01-report-share-expiry-now",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/reportSharing.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/application/reportSharing.test.ts::sets expiry date when provided"
+    ],
+    "subject": "packages/core/custom-reports/src/EnableReportSharingUseCase.ts",
+    "search": "shareExpiresAt: new Date(input.expiresAt)",
+    "replace": "shareExpiresAt: new Date()",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. Only vitest blocks are drawn: the 13 node:test blocks of the two populations (3 remaining, 10 flipped) are excluded, listed in the draw file, because mutation-diff runs vitest cases only until the node:test adapter of WU-2.3c lands, which measures them as this row's residual. Enabling a share stores the current time as its expiry instead of the requested date."
+  },
+  {
+    "id": "b02-glossary-repo-transient",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/infrastructure/container/setupLocalizedGenerationUseCases.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/infrastructure/container/setupLocalizedGenerationUseCases.test.ts::resolves the repositories to their Prisma adapters"
+    ],
+    "subject": "apps/api/src/infrastructure/container/setupLocalizedGenerationUseCases.ts",
+    "search": "  container.registerInstance<GlossaryRepository>(\n    TOKENS.GlossaryRepository,\n    new PrismaGlossaryRepository(prisma)\n  );",
+    "replace": "  container.register<GlossaryRepository>(\n    TOKENS.GlossaryRepository,\n    () => new PrismaGlossaryRepository(prisma),\n    false\n  );",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. The glossary repository is registered transient, so every resolve builds a new adapter instead of the one singleton."
+  },
+  {
+    "id": "b03-guardrail-labels-swapped",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/metrics/guardrailMetrics.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/metrics/guardrailMetrics.test.ts::is idempotent when called twice on the same registry (HMR safety)"
+    ],
+    "subject": "apps/api/src/metrics/guardrailMetrics.ts",
+    "search": "      counter.inc({ guardrail, action, decision });",
+    "replace": "      counter.inc({ guardrail: action, action: guardrail, decision });",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. The evaluation counter is incremented with its guardrail and action labels swapped."
+  },
+  {
+    "id": "b04-monitor-method-lowercased",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/performanceMonitor.init.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/performanceMonitor.init.test.ts::should handle zero response time"
+    ],
+    "subject": "apps/api/src/monitoring/performanceMonitor.ts",
+    "search": "      method: req.method,\n      route: this.extractRoute(req.url),",
+    "replace": "      method: req.method.toLowerCase(),\n      route: this.extractRoute(req.url),",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. A recorded request carries its HTTP method lower-cased."
+  },
+  {
+    "id": "b05-stripe-webhook-secret-is-key",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/infrastructure/billing/GatewayAdapterRegistry.test.ts::builds each adapter from its key and webhook secret"
+    ],
+    "subject": "apps/api/src/infrastructure/billing/GatewayAdapterRegistry.ts",
+    "search": "          webhookSecret: env.STRIPE_WEBHOOK_SECRET,",
+    "replace": "          webhookSecret: env.STRIPE_SECRET_KEY,",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. The Stripe adapter is built with its secret key as its webhook secret."
+  },
+  {
+    "id": "b06-audit-cleanup-lte",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/auditService.retention.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/auditService.retention.test.ts::should use strict less-than for cutoff (not less-than-or-equal)"
+    ],
+    "subject": "apps/api/src/audit/auditService.ts",
+    "search": "              lt: cutoffDate,",
+    "replace": "              lte: cutoffDate,",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. Retention cleanup deletes logs at or before the cutoff instead of strictly before it."
+  },
+  {
+    "id": "b07-s3-path-style-inverted",
+    "kind": "rewrite",
+    "test": "packages/adapters/storage-s3/tests/index.test.ts",
+    "blocks": [
+      "packages/adapters/storage-s3/tests/index.test.ts::creates an adapter instance with minimal config (no credentials)"
+    ],
+    "subject": "packages/adapters/storage-s3/src/index.ts",
+    "search": "    forcePathStyle: !!config.endpoint,",
+    "replace": "    forcePathStyle: !config.endpoint,",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. The S3 client forces path-style addressing exactly when no custom endpoint is configured."
+  },
+  {
+    "id": "b08-dashboard-metric-cached-tag",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/postsService.test.ts",
+    "blocks": ["apps/api/tests/unit/postsService.test.ts::should record performance metrics"],
+    "subject": "apps/api/src/posts/postsService.ts",
+    "search": "        \"milliseconds\",\n        { cached: false, accountId }",
+    "replace": "        \"milliseconds\",\n        { cached: true, accountId }",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. A dashboard computed on a cache miss records its response time tagged as cached."
+  },
+  {
+    "id": "b09-monitor-response-time-seconds",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/performanceMonitor.init.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/performanceMonitor.init.test.ts::should track user agent in metrics"
+    ],
+    "subject": "apps/api/src/monitoring/performanceMonitor.ts",
+    "search": "      responseTime,\n      statusCode: reply.statusCode,",
+    "replace": "      responseTime: Math.round(responseTime / 1000),\n      statusCode: reply.statusCode,",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. A recorded request stores its response time in whole seconds instead of milliseconds."
+  },
+  {
+    "id": "b10-analytics-event-ids-swapped",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/EventService.user-analytics.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/EventService.user-analytics.test.ts::should validate against AnalyticsCollectedEvent schema"
+    ],
+    "subject": "apps/api/src/events/EventService.ts",
+    "search": "      postId,\n      channelId,\n      provider,\n      metrics,",
+    "replace": "      postId: channelId,\n      channelId: postId,\n      provider,\n      metrics,",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. An analytics event carries the post and channel ids swapped."
+  },
+  {
+    "id": "b11-cache-read-on-uncached-route",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/lib/cache/cacheRouteCoverage.test.ts::boots a partial app whose routes collide with nothing"
+    ],
+    "subject": "apps/api/src/middleware/autoCacheMiddleware.ts",
+    "search": "      servesFromCache(routeOptions.url, excludeRoutes)\n    ) {",
+    "replace": "      !servesFromCache(routeOptions.url, excludeRoutes)\n    ) {",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. The auto-cache plugin appends its cache read to every GET route no rule caches, the partial app's /item/:id among them, and leaves it off the cached ones; the coverage checks read the same registered routes, so the app still boots."
+  },
+  {
+    "id": "b12-worker-metrics-detached-registry",
+    "kind": "rewrite",
+    "test": "apps/workers/tests/unit/publishWorker.unit.test.ts",
+    "blocks": [
+      "apps/workers/tests/unit/publishWorker.unit.test.ts::returns a PublishWorkerHandle with target, repo, and metricsRegistry"
+    ],
+    "subject": "apps/workers/src/publishWorker.ts",
+    "search": "  const workerMetrics = new WorkerMetrics(metricsRegistry);",
+    "replace": "  const workerMetrics = new WorkerMetrics(new client.Registry());",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. The worker records its metrics in a registry other than the one its handle returns."
+  },
+  {
+    "id": "b13-slack-field-key-value-swapped",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/infrastructure/adapters/SlackNotifierAdapter.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/infrastructure/adapters/SlackNotifierAdapter.test.ts::includes metadata fields when present in payload"
+    ],
+    "subject": "apps/api/src/infrastructure/adapters/SlackNotifierAdapter.ts",
+    "search": "      text: `*${key}:*\\n${value}`,",
+    "replace": "      text: `*${value}:*\\n${key}`,",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. A Slack metadata field renders its value as the label and its key as the value."
+  },
+  {
+    "id": "b14-saga-metadata-dropped",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/sagaManager.execution.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/sagaManager.execution.test.ts::should pass context between steps with stepData"
+    ],
+    "subject": "apps/api/src/saga/SagaManagerLifecycle.ts",
+    "search": "      metadata: contextData.metadata || {},",
+    "replace": "      metadata: {},",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. A started saga drops the caller's metadata from the context its steps share."
+  },
+  {
+    "id": "b15-media-fallback-text-count",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/analytics/crossPlatform/PerformanceAnalyzer.test.ts::returns fallback result on internal error"
+    ],
+    "subject": "apps/api/src/analytics/crossPlatform/PerformanceAnalyzer.ts",
+    "search": "        textOnly: { count: 0, avgEngagement: 0, avgReach: 0 },\n        withImages: { count: 0, avgEngagement: 0, avgReach: 0 },\n        withVideos: { count: 0, avgEngagement: 0, avgReach: 0 },\n        withCarousel: { count: 0, avgEngagement: 0, avgReach: 0 },\n        mixed: { count: 0, avgEngagement: 0, avgReach: 0 },\n        recommendation: \"Unable to analyze media performance due to insufficient data.\",",
+    "replace": "        textOnly: { count: postsData.length, avgEngagement: 0, avgReach: 0 },\n        withImages: { count: 0, avgEngagement: 0, avgReach: 0 },\n        withVideos: { count: 0, avgEngagement: 0, avgReach: 0 },\n        withCarousel: { count: 0, avgEngagement: 0, avgReach: 0 },\n        mixed: { count: 0, avgEngagement: 0, avgReach: 0 },\n        recommendation: \"Unable to analyze media performance due to insufficient data.\",",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. The media fallback counts every post as an analysed text-only post although nothing was analysed."
+  },
+  {
+    "id": "b16-bluesky-profile-limit",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/generatePlatformVariants.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/application/generatePlatformVariants.test.ts::all 10 platforms have profiles defined"
+    ],
+    "subject": "packages/core/domain/src/ai/PlatformContentProfile.ts",
+    "search": "    name: \"Bluesky\",\n    maxChars: 300,",
+    "replace": "    name: \"Bluesky\",\n    maxChars: 3000,",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. The Bluesky content profile allows 3000 characters instead of 300."
+  },
+  {
+    "id": "b17-analytics-window-one-hour",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/EventService.user-analytics.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/EventService.user-analytics.test.ts::should validate with optional metrics fields"
+    ],
+    "subject": "apps/api/src/events/EventService.ts",
+    "search": "        start: new Date(collectedAtMs - 24 * 60 * 60 * 1000), // Last 24 hours",
+    "replace": "        start: new Date(collectedAtMs - 60 * 60 * 1000), // Last 24 hours",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. An analytics event's period starts one hour before collection instead of 24 hours."
+  },
+  {
+    "id": "b18-diff-modified-values-swapped",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/DiffCalculator.test.ts",
+    "blocks": ["apps/api/tests/unit/DiffCalculator.test.ts::detects modified adaptation field"],
+    "subject": "apps/api/src/content/DiffCalculator.ts",
+    "search": "          oldValue: val1,\n          newValue: val2,\n          changeType: \"modified\",",
+    "replace": "          oldValue: val2,\n          newValue: val1,\n          changeType: \"modified\",",
+    "note": "Sample (b): this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. A modified field's diff carries its old and new values swapped."
+  },
+  {
+    "id": "a01-report-format-case",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/reportUseCases.test.ts",
+    "blocks": ["apps/api/tests/unit/application/reportUseCases.test.ts::passes optional format"],
+    "subject": "packages/core/domain/src/entities/ScheduledReport.ts",
+    "search": "    if (format !== \"CSV\" && format !== \"JSON\") {",
+    "replace": "    if (format !== \"csv\" && format !== \"JSON\") {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. A scheduled report compares its format with a lower-case csv, so CSV is refused as invalid."
+  },
+  {
+    "id": "a02-role-in-use-boundary",
+    "kind": "rewrite",
+    "test": "packages/core/auth/tests/unit/RoleManagementService.test.ts",
+    "blocks": [
+      "packages/core/auth/tests/unit/RoleManagementService.test.ts::returns void ok when the role exists, is not a system role, and has no users"
+    ],
+    "subject": "packages/core/auth/src/RoleManagementService.ts",
+    "search": "      if (existing.userCount > 0) return err(\"ROLE_IN_USE\");",
+    "replace": "      if (existing.userCount >= 0) return err(\"ROLE_IN_USE\");",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. deleteRole treats a role with no users as in use and returns ROLE_IN_USE."
+  },
+  {
+    "id": "a03-telegram-media-boundary",
+    "kind": "rewrite",
+    "test": "packages/providers/telegram/tests/TelegramAdapter.test.ts",
+    "blocks": [
+      "packages/providers/telegram/tests/TelegramAdapter.test.ts::handles exactly 10 media items (boundary)"
+    ],
+    "subject": "packages/providers/telegram/src/TelegramAdapter.ts",
+    "search": "canonical.media.length > this.limits.maxMediaPerPost",
+    "replace": "canonical.media.length >= this.limits.maxMediaPerPost",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The Telegram adapter refuses a post that holds exactly the maximum number of media items."
+  },
+  {
+    "id": "a04-dsar-found-inverted",
+    "kind": "rewrite",
+    "test": "packages/core/compliance/tests/unit/ComplianceService.test.ts",
+    "blocks": [
+      "packages/core/compliance/tests/unit/ComplianceService.test.ts::returns the updated DSAR row when the request exists"
+    ],
+    "subject": "packages/core/compliance/src/ComplianceService.ts",
+    "search": "      if (!dsarResult.value) return err(\"NOT_FOUND\");\n\n      const updated = await this.dsarRepo.update(id, {\n        status: \"IN_PROGRESS\",",
+    "replace": "      if (dsarResult.value) return err(\"NOT_FOUND\");\n\n      const updated = await this.dsarRepo.update(id, {\n        status: \"IN_PROGRESS\",",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. acknowledgeDsar returns NOT_FOUND when the request exists."
+  },
+  {
+    "id": "a05-crisis-exit-guard-inverted",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/domain/crisisMode.test.ts",
+    "blocks": ["apps/api/tests/unit/domain/crisisMode.test.ts::should emit CrisisModeExited event"],
+    "subject": "packages/core/domain/src/entities/Project.ts",
+    "search": "    if (!this._isInCrisisMode || !this._crisisStartedAt) {\n      return false; // Not in crisis mode",
+    "replace": "    if (!this._isInCrisisMode || this._crisisStartedAt) {\n      return false; // Not in crisis mode",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. exitCrisisMode returns early when the crisis has a start time, so no CrisisModeExited event is emitted."
+  },
+  {
+    "id": "a06-recurring-end-from-start",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/recurringPostUseCases.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/application/recurringPostUseCases.test.ts::accepts optional endDate"
+    ],
+    "subject": "packages/core/recurring/src/CreateRecurringPostUseCase.ts",
+    "search": "      ...(command.endDate !== undefined && { endDate: new Date(command.endDate) }),",
+    "replace": "      ...(command.endDate !== undefined && { endDate: new Date(command.startDate) }),",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. A recurring post built with an end date takes its start date as the end, which the entity refuses."
+  },
+  {
+    "id": "a07-resolver-check-inverted",
+    "kind": "rewrite",
+    "test": "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts",
+    "blocks": [
+      "packages/core/inbox/tests/unit/ResolveConversationUseCase.test.ts::returns void ok when the conversation exists and can be resolved"
+    ],
+    "subject": "packages/core/inbox/src/ResolveConversationUseCase.ts",
+    "search": "      if (!input.resolvedById || input.resolvedById.trim().length === 0) {",
+    "replace": "      if (!input.resolvedById || input.resolvedById.trim().length > 0) {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The resolve use case refuses every non-empty resolver id as missing."
+  },
+  {
+    "id": "a08-instagram-body-limit",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/domain/value-objects.content.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts 2200 chars on Instagram"
+    ],
+    "subject": "packages/core/domain/src/value-objects/Content.ts",
+    "search": "  INSTAGRAM: { title: 2200, body: 2200 },",
+    "replace": "  INSTAGRAM: { title: 2200, body: 2000 },",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The Instagram body limit drops from 2200 to 2000 characters."
+  },
+  {
+    "id": "a09-telegram-text-boundary",
+    "kind": "rewrite",
+    "test": "packages/providers/telegram/tests/TelegramAdapter.test.ts",
+    "blocks": [
+      "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts text of exactly 4096 chars"
+    ],
+    "subject": "packages/providers/telegram/src/TelegramAdapter.ts",
+    "search": "    if (body.length > this.limits.maxChars) {",
+    "replace": "    if (body.length >= this.limits.maxChars) {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The Telegram adapter refuses a text of exactly the maximum length."
+  },
+  {
+    "id": "a10-telegram-poll-options-boundary",
+    "kind": "rewrite",
+    "test": "packages/providers/telegram/tests/TelegramAdapter.test.ts",
+    "blocks": [
+      "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll with exactly 10 options"
+    ],
+    "subject": "packages/providers/telegram/src/TelegramAdapter.ts",
+    "search": "    if (options.length < 2 || options.length > 10) {",
+    "replace": "    if (options.length < 2 || options.length >= 10) {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The Telegram adapter refuses a poll with exactly ten options."
+  },
+  {
+    "id": "a11-replied-archive-transition",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/domain/aggregates.social-message.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/domain/aggregates.social-message.test.ts::archives from REPLIED"
+    ],
+    "subject": "packages/core/domain/src/value-objects/SocialMessageStatus.ts",
+    "search": "  [SOCIAL_MESSAGE_STATUSES.REPLIED]: [SOCIAL_MESSAGE_STATUSES.ARCHIVED],",
+    "replace": "  [SOCIAL_MESSAGE_STATUSES.REPLIED]: [],",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The status table no longer lets a replied message move to ARCHIVED."
+  },
+  {
+    "id": "a12-gdpr-default-dpo-type",
+    "kind": "rewrite",
+    "test": "packages/core/compliance/tests/unit/ComplianceService.test.ts",
+    "blocks": [
+      "packages/core/compliance/tests/unit/ComplianceService.test.ts::returns updated settings when data is valid"
+    ],
+    "subject": "packages/core/compliance/src/ComplianceService.ts",
+    "search": "      const dpoType = (data.dpoType as string) ?? undefined;",
+    "replace": "      const dpoType = (data.dpoType as string) ?? \"INTERNAL\";",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. A GDPR settings update without a DPO type defaults to INTERNAL and is refused for its missing DPO email."
+  },
+  {
+    "id": "a13-brand-voice-name-boundary",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/brandVoiceUseCase.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/application/brandVoiceUseCase.test.ts::accepts name of exactly 100 chars"
+    ],
+    "subject": "packages/core/brand-voice/src/UpsertBrandVoiceUseCase.ts",
+    "search": "    if (input.name.trim().length > UpsertBrandVoiceUseCase.MAX_NAME_LENGTH) {",
+    "replace": "    if (input.name.trim().length >= UpsertBrandVoiceUseCase.MAX_NAME_LENGTH) {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The brand voice use case refuses a name of exactly the maximum length."
+  },
+  {
+    "id": "a14-adaptations-compared-to-self",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/ContentVersionManager.compare.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/ContentVersionManager.compare.test.ts::should compare adaptations across platforms"
+    ],
+    "subject": "apps/api/src/content/DiffCalculator.ts",
+    "search": "    const adaptationDiffs = this.compareAdaptations(fromVersion.adaptations, toVersion.adaptations);",
+    "replace": "    const adaptationDiffs = this.compareAdaptations(fromVersion.adaptations, fromVersion.adaptations);",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The diff compares the source version's adaptations with themselves, so no adaptation change is reported."
+  },
+  {
+    "id": "a15-merge-status-arms-swapped",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/ContentVersionManager.merge.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/ContentVersionManager.merge.test.ts::should detect conflicts automatically"
+    ],
+    "subject": "apps/api/src/content/MergeManager.ts",
+    "search": "        status: conflicts.length > 0 ? \"conflicted\" : \"pending\",",
+    "replace": "        status: conflicts.length > 0 ? \"pending\" : \"conflicted\",",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. A merge request with conflicts is created pending and one without them conflicted."
+  },
+  {
+    "id": "a16-x-body-boundary",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/domain/value-objects.content.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts exactly 280 chars on X"
+    ],
+    "subject": "packages/core/domain/src/value-objects/Content.ts",
+    "search": "    if (this._body.length > limits.body) {",
+    "replace": "    if (this._body.length >= limits.body) {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. fitsInPlatform refuses a body of exactly the platform's limit."
+  },
+  {
+    "id": "a17-tiktok-body-boundary",
+    "kind": "rewrite",
+    "test": "packages/providers/tiktok/tests/TikTokAdapter.test.ts",
+    "blocks": [
+      "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns ok for body exactly 2200 chars"
+    ],
+    "subject": "packages/providers/tiktok/src/TikTokAdapter.ts",
+    "search": "    if (this.limits.maxChars && description.length > this.limits.maxChars) {",
+    "replace": "    if (this.limits.maxChars && description.length >= this.limits.maxChars) {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The TikTok adapter refuses a description of exactly the maximum length."
+  },
+  {
+    "id": "a18-youtube-limits-swapped",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/domain/value-objects.content.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/domain/value-objects.content.test.ts::accepts body up to 5000 chars on YouTube"
+    ],
+    "subject": "packages/core/domain/src/value-objects/Content.ts",
+    "search": "  YOUTUBE: { title: 100, body: 5000 },",
+    "replace": "  YOUTUBE: { title: 5000, body: 100 },",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The YouTube limits carry the title and body values swapped, so the body limit is 100."
+  },
+  {
+    "id": "a19-historical-comparison-inverted",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/AnalyticsUseCases.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/application/AnalyticsUseCases.test.ts::should include historical comparison when requested"
+    ],
+    "subject": "packages/core/analytics/src/ComparePerformanceUseCase.ts",
+    "search": "        ...(comparison.historicalComparison !== undefined && {",
+    "replace": "        ...(comparison.historicalComparison === undefined && {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The comparison output keeps the historical comparison only when it is absent."
+  },
+  {
+    "id": "a20-heuristic-tone-flag-inverted",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/application/MLUseCases.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/application/MLUseCases.test.ts::includes heuristic tone analysis when requested"
+    ],
+    "subject": "packages/core/ml/src/OptimizeContentUseCase.ts",
+    "search": "      ...(input.includeToneAnalysis && {\n        toneAnalysis: {",
+    "replace": "      ...(!input.includeToneAnalysis && {\n        toneAnalysis: {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The heuristic optimizer adds the tone analysis only when it was not requested."
+  },
+  {
+    "id": "a21-bluesky-length-inverted",
+    "kind": "rewrite",
+    "test": "packages/providers/bluesky/tests/BlueskyClient.test.ts",
+    "blocks": ["packages/providers/bluesky/tests/BlueskyClient.test.ts::accepts empty string"],
+    "subject": "packages/providers/bluesky/src/BlueskyClient.ts",
+    "search": "  async publishText(text: string): Promise<Result<BlueskyPostResult, \"PUBLISH\" | \"VALIDATION\">> {\n    if (text.length > 300) {",
+    "replace": "  async publishText(text: string): Promise<Result<BlueskyPostResult, \"PUBLISH\" | \"VALIDATION\">> {\n    if (text.length < 300) {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. publishText refuses every text shorter than 300 characters, the empty one included."
+  },
+  {
+    "id": "a22-youtube-description-boundary",
+    "kind": "rewrite",
+    "test": "packages/providers/youtube/tests/YouTubeAdapter.test.ts",
+    "blocks": [
+      "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns ok for exactly 5000 chars"
+    ],
+    "subject": "packages/providers/youtube/src/YouTubeAdapter.ts",
+    "search": "    if (this.limits.maxChars && description.length > this.limits.maxChars) {",
+    "replace": "    if (this.limits.maxChars && description.length >= this.limits.maxChars) {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The YouTube adapter refuses a description of exactly the maximum length."
+  },
+  {
+    "id": "a23-telegram-poll-question-boundary",
+    "kind": "rewrite",
+    "test": "packages/providers/telegram/tests/TelegramAdapter.test.ts",
+    "blocks": [
+      "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll question of exactly 300 chars"
+    ],
+    "subject": "packages/providers/telegram/src/TelegramAdapter.ts",
+    "search": "    if (question.length > 300) {",
+    "replace": "    if (question.length >= 300) {",
+    "note": "Sample (a): this block read EXISTENCE-ONLY before the verdict rule (0a30ce38^) and reads BEHAVIOURAL at the base; the mutation turns its asserted success into a failure, so the block is expected red at the head. The Telegram adapter refuses a poll question of exactly 300 characters."
+  },
+  {
+    "id": "b8-channel-event-ids",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/EventService.post-channel.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/EventService.post-channel.test.ts::should create CHANNEL_CONNECTED events correctly"
+    ],
+    "subject": "apps/api/src/events/EventService.ts",
+    "search": "    \"Channel\",\n    {\n      channelId,\n      projectId,",
+    "replace": "    \"Channel\",\n    {\n      channelId: projectId,\n      projectId: channelId,",
+    "note": "Sample (b), carried with its id, subject, search and replace from 2.1c-calibration.cases.json, whose run left it UNDECIDED because its scope failed to load in a checkout with no test environment: this block reads EXISTENCE-ONLY at the base; the mutation keeps the value present but wrong, so the block is expected green at the head. A channel event carries the channel and project ids swapped."
+  }
+]
