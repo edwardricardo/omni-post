@@ -335,6 +335,16 @@ describe("ActivityFeedService", () => {
       expect(overlap.length).toBe(0);
     });
 
+    it("returns at most 100 items when a limit of 500 is requested", async () => {
+      await Promise.all(Array.from({ length: 101 }, () => createTestLog({ userId: testUserId })));
+
+      const result = await feedService.getFeed({ userId: testUserId, limit: 500 });
+
+      expect(result.ok).toBe(true);
+      expect(result).toMatchObject({ value: { hasMore: true } });
+      expect(result).toHaveProperty("value.items.length", 100);
+    });
+
     it("builds description from details metadata", async () => {
       await createTestLog({
         action: AuditActions.POST_CREATED,

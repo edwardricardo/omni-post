@@ -1,0 +1,238 @@
+[
+  {
+    "id": "q01-read-model-body",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should include post content in read model"
+    ],
+    "subject": "apps/api/src/cqrs/handlers/PostQueryGetList.ts",
+    "search": "      body: domainPost.body,\n      locale: domainPost.locale,",
+    "replace": "      body: domainPost.content,\n      locale: domainPost.locale,",
+    "note": "The ledger row's subject is the re-export facade PostQueryHandlers.ts, which holds no logic; the verdict comes from mapToCQRSReadModel in PostQueryGetList.ts. The mapper reads a renamed field, so the read model's body is undefined."
+  },
+  {
+    "id": "q02-list-page-metadata",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should include pagination metadata"
+    ],
+    "subject": "apps/api/src/cqrs/handlers/PostQueryGetList.ts",
+    "search": "          totalCount: paginatedResult.total,\n          page,\n          limit: data.limit,",
+    "replace": "          totalCount: paginatedResult.total,\n          limit: data.limit,",
+    "note": "The ledger row's subject is the re-export facade PostQueryHandlers.ts, which holds no logic; the verdict comes from ListPostsQueryHandler in PostQueryGetList.ts. The list result's metadata drops its page number."
+  },
+  {
+    "id": "q03-list-status-filter",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should accept status filter"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "    status: z.enum([\"DRAFT\", \"SCHEDULED\", \"PUBLISHED\", \"FAILED\"]).optional(),\n    channelId: z.string().optional(),",
+    "replace": "    status: z.enum([\"DRAFT\", \"SCHEDULED\", \"FAILED\"]).optional(),\n    channelId: z.string().optional(),",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict, that a status-filtered list is accepted, comes from ListPostsQuerySchema, which ListPostsQueryHandler validates against. The schema loses the PUBLISHED status, so the list refuses it."
+  },
+  {
+    "id": "q04-list-channel-filter",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should accept channel filter"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "    channelId: z.string().optional(),\n    fromDate: z.date().optional(),",
+    "replace": "    channelId: z.string().uuid().optional(),\n    fromDate: z.date().optional(),",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from ListPostsQuerySchema, which ListPostsQueryHandler validates against. The channel filter is tightened to a UUID, so the plain channel id the block passes is refused."
+  },
+  {
+    "id": "q05-list-date-range-filter",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should accept date range filter"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "    fromDate: z.date().optional(),\n    toDate: z.date().optional(),\n    tags: z.array(z.string()).optional(),\n    limit: z.number().min(1).max(100).default(20),",
+    "replace": "    fromDate: z.string().datetime().optional(),\n    toDate: z.string().datetime().optional(),\n    tags: z.array(z.string()).optional(),\n    limit: z.number().min(1).max(100).default(20),",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from ListPostsQuerySchema, which ListPostsQueryHandler validates against. The date bounds expect ISO strings instead of dates, so the Date objects of an in-process query are refused."
+  },
+  {
+    "id": "q06-list-tags-filter",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts",
+    "blocks": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should accept tags filter"],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "    tags: z.array(z.string()).optional(),\n    limit: z.number().min(1).max(100).default(20),\n    offset: z.number().min(0).default(0),\n    sortBy:",
+    "replace": "    tags: z.array(z.string().uuid()).optional(),\n    limit: z.number().min(1).max(100).default(20),\n    offset: z.number().min(0).default(0),\n    sortBy:",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from ListPostsQuerySchema, which ListPostsQueryHandler validates against. The tags filter expects tag ids, so the tag names the block passes are refused."
+  },
+  {
+    "id": "q07-list-sort-orders",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should support different sort orders"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "    sortOrder: z.enum([\"ASC\", \"DESC\"]).default(\"DESC\"),",
+    "replace": "    sortOrder: z.enum([\"asc\", \"desc\"]).default(\"desc\"),",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from ListPostsQuerySchema, which ListPostsQueryHandler validates against. The sort order switches to the repository's lower-case directions, so the upper-case orders of the query contract are refused."
+  },
+  {
+    "id": "q08-list-sort-fields",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should support different sort fields"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "    sortBy: z.enum([\"createdAt\", \"updatedAt\", \"scheduledAt\"]).default(\"createdAt\"),",
+    "replace": "    sortBy: z.enum([\"createdAt\", \"updatedAt\"]).default(\"createdAt\"),",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from ListPostsQuerySchema, which ListPostsQueryHandler validates against. The sort field enum loses scheduledAt, so a list sorted by schedule is refused."
+  },
+  {
+    "id": "s01-search-status-filters",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with status filters"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "        status: z.array(z.enum([\"DRAFT\", \"SCHEDULED\", \"PUBLISHED\", \"FAILED\"])).optional(),",
+    "replace": "        status: z.enum([\"DRAFT\", \"SCHEDULED\", \"PUBLISHED\", \"FAILED\"]).optional(),",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from SearchPostsQuerySchema, which SearchPostsQueryHandler validates against. The search's status filter takes one status instead of a list, so the block's list is refused."
+  },
+  {
+    "id": "s02-search-channel-filters",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with channel filters"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "        channelIds: z.array(z.string()).optional(),",
+    "replace": "        channelIds: z.array(z.string().uuid()).optional(),",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from SearchPostsQuerySchema, which SearchPostsQueryHandler validates against. The channel ids are tightened to UUIDs, so the plain ids the block passes are refused."
+  },
+  {
+    "id": "s03-search-tag-filters",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with tag filters"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "        tags: z.array(z.string()).optional(),\n        dateRange: z",
+    "replace": "        tags: z.string().optional(),\n        dateRange: z",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from SearchPostsQuerySchema, which SearchPostsQueryHandler validates against. The search's tags filter takes one tag instead of a list, so the block's list is refused."
+  },
+  {
+    "id": "s04-search-date-range",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with date range filter"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "            from: z.date(),\n            to: z.date(),",
+    "replace": "            from: z.string().datetime(),\n            to: z.string().datetime(),",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from SearchPostsQuerySchema, which SearchPostsQueryHandler validates against. The date range expects ISO strings instead of dates, so the Date objects of an in-process query are refused."
+  },
+  {
+    "id": "s05-search-combined-filters",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with combined filters"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "          .object({\n            from: z.date(),\n            to: z.date(),\n          })\n          .optional(),",
+    "replace": "          .object({\n            from: z.date(),\n            to: z.date(),\n          })\n          .refine((range) => range.from >= range.to, \"from must precede to\")\n          .optional(),",
+    "note": "The ledger row's subject is the facade PostQueryHandlers.ts; the block's verdict comes from SearchPostsQuerySchema, which SearchPostsQueryHandler validates against. A date-range order check is written with its comparison inverted, so the block's ordered range, combined with its other filters, is refused."
+  },
+  {
+    "id": "s06-search-total-metadata",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should include search metadata"
+    ],
+    "subject": "apps/api/src/cqrs/handlers/PostQuerySearchAnalytics.ts",
+    "search": "        metadata: {\n          totalCount: paginatedResult.total,\n          page,",
+    "replace": "        metadata: {\n          page,",
+    "note": "The ledger row's subject is the re-export facade PostQueryHandlers.ts, which holds no logic; the verdict comes from SearchPostsQueryHandler in PostQuerySearchAnalytics.ts. The search result's metadata drops its total count."
+  },
+  {
+    "id": "c01-complete-publishing-ok-branch",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::accepts a well-formed total-success outcome"
+    ],
+    "subject": "apps/api/src/cqrs/handlers/PostCommandHandlers.ts",
+    "search": "      if (!result.ok) {\n        return { success: false, error: result.error.message };\n      }\n\n      const promotion = result.value;",
+    "replace": "      if (result.ok) {\n        return { success: false, error: result.error.message };\n      }\n\n      const promotion = result.value;",
+    "note": "CompletePostPublishingCommandHandler inverts its check of the use case's result, so an applied outcome is reported as a failed command."
+  },
+  {
+    "id": "c02-publish-low-priority",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostCommandHandlers.publish.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostCommandHandlers.publish.test.ts::should handle different priority levels"
+    ],
+    "subject": "packages/shared/src/cqrs.ts",
+    "search": "    priority: z.enum([\"LOW\", \"NORMAL\", \"HIGH\"]).default(\"NORMAL\"),",
+    "replace": "    priority: z.enum([\"NORMAL\", \"HIGH\"]).default(\"NORMAL\"),",
+    "note": "The ledger row's subject is PostCommandHandlers.ts, whose PublishPostCommandHandler passes the priority through untouched; the block's verdict, that every priority is accepted, comes from PublishPostCommandSchema, which the handler validates against. The schema loses the LOW priority, so a low-priority publish is refused."
+  },
+  {
+    "id": "c03-update-ok-branch",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/PostCommandHandlers.update.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/PostCommandHandlers.update.test.ts::should update a post successfully when use case returns ok"
+    ],
+    "subject": "apps/api/src/cqrs/handlers/PostCommandHandlers.ts",
+    "search": "      if (!result.ok) {\n        return { success: false, error: result.error.message };\n      }\n\n      const updatedPost = result.value;",
+    "replace": "      if (result.ok) {\n        return { success: false, error: result.error.message };\n      }\n\n      const updatedPost = result.value;",
+    "note": "UpdatePostCommandHandler inverts its check of the use case's result, so a successful update is reported as a failed command."
+  },
+  {
+    "id": "v01-version-tags",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/ContentVersionManager.create.test.ts::should handle version creation with tags"
+    ],
+    "subject": "apps/api/src/content/VersionController.ts",
+    "search": "        tags: (Array.isArray(metadata.tags) ? metadata.tags : []) as string[],",
+    "replace": "        tags: [] as string[],",
+    "note": "The ledger row's subject is ContentVersionManager.ts, whose createVersion delegates to VersionController.createVersion; the tags are read in VersionController.createSnapshot. The snapshot drops the given tags. The first mutation, the snapshot dropping its array guard on the tags, read VACUOUS; this alternative reads VACUOUS too: the block reads only that createVersion resolves ok, and no reader sees the snapshot's tags, because storeVersion ignores its snapshot argument and the returned version carries none."
+  },
+  {
+    "id": "v02-version-category",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/ContentVersionManager.create.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/ContentVersionManager.create.test.ts::should handle version creation with category"
+    ],
+    "subject": "apps/api/src/content/VersionController.ts",
+    "search": "        category: typeof metadata.category === \"string\" ? metadata.category : \"general\",",
+    "replace": "        category: \"general\",",
+    "note": "The ledger row's subject is ContentVersionManager.ts, whose createVersion delegates to VersionController.createVersion; the category is read in VersionController.createSnapshot. The snapshot drops the given category for the default. The first mutation, the snapshot swapping the branches of its category default, read VACUOUS; this alternative reads VACUOUS too: the block reads only that createVersion resolves ok, and no reader sees the snapshot's category, because storeVersion ignores its snapshot argument and the returned version carries none."
+  },
+  {
+    "id": "a01-feed-limit-cap",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/activityFeedService.test.ts",
+    "blocks": ["apps/api/tests/unit/activityFeedService.test.ts::caps limit at 100"],
+    "subject": "apps/api/src/audit/activityFeedService.ts",
+    "search": "        const limit = Math.min(filters.limit ?? 25, 100);",
+    "replace": "        if ((filters.limit ?? 25) > 100) {\n          throw new Error(\"limit must be at most 100\");\n        }\n        const limit = filters.limit ?? 25;",
+    "note": "ActivityFeedService.getFeed turns its cap of 100 into a refusal, so a requested limit of 500 fails the call instead of being capped. The first mutation, the cap dropped so a limit of 500 reaches the query as is, read VACUOUS: the block reads only that the call resolves ok."
+  }
+]

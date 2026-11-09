@@ -179,6 +179,21 @@ describe("PublishPostCommandHandler", () => {
     expect(result.events.some((e: { type: string }) => e.type === "user.action")).toBeTruthy();
   });
 
+  it("carries a LOW priority onto every scheduled publish event", async () => {
+    const command = buildPublishPostCommand({
+      channelIds: [TEST_CHANNEL_ID_1, TEST_CHANNEL_ID_2],
+      priority: "LOW",
+    });
+
+    const result = await handler.handle(command);
+
+    expect(result.success).toBe(true);
+    expect(result.events?.filter((e) => e.type === "post.scheduled").map((e) => e.data)).toEqual([
+      expect.objectContaining({ priority: "LOW" }),
+      expect.objectContaining({ priority: "LOW" }),
+    ]);
+  });
+
   it("should invalidate cache on success", async () => {
     const command = buildPublishPostCommand();
     await handler.handle(command);

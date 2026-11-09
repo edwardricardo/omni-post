@@ -27,7 +27,7 @@
       "total": 1186
     },
     "blocks": {
-      "total": 14685,
+      "total": 14687,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14374
+        "BEHAVIOURAL": 14376
       }
     },
     "deleted": {
@@ -15684,7 +15684,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 13,
+      "blockCount": 14,
       "blocks": [
         {
           "id": "apps/api/tests/unit/PostCommandHandlers.publish.test.ts::should have correct command type",
@@ -15771,8 +15771,15 @@
           "bodyHash": "077be9c631f1983076334707350bc5dd827d12ae93acb9067250b50fa443c22c"
         },
         {
-          "id": "apps/api/tests/unit/PostCommandHandlers.publish.test.ts::should invalidate cache on success",
+          "id": "apps/api/tests/unit/PostCommandHandlers.publish.test.ts::carries a LOW priority onto every scheduled publish event",
           "line": 182,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e4c3dc3ba48357038fe6693e4c1fa3540349e0005cba9889c47da92ed7c64d57"
+        },
+        {
+          "id": "apps/api/tests/unit/PostCommandHandlers.publish.test.ts::should invalidate cache on success",
+          "line": 197,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "83706eb84ce487fb22bc921cf97c699165442ead40cbff4439adfd0f3cd687b7"
@@ -17293,7 +17300,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 7,
+      "blockCount": 8,
       "blocks": [
         {
           "id": "apps/api/tests/unit/activityFeedService.test.ts::returns empty feed when no audit logs exist for filters",
@@ -17338,8 +17345,15 @@
           "bodyHash": "eb3ef1c7ee3705b67ce8291ed78fe59a533d330327ae97d7b4619a597479d29d"
         },
         {
-          "id": "apps/api/tests/unit/activityFeedService.test.ts::builds description from details metadata",
+          "id": "apps/api/tests/unit/activityFeedService.test.ts::returns at most 100 items when a limit of 500 is requested",
           "line": 338,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e16e64a761f629e35d91d23ffbe8f6b689d255d32cf6764d44b2d18332e40720"
+        },
+        {
+          "id": "apps/api/tests/unit/activityFeedService.test.ts::builds description from details metadata",
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b588089071d2d60fdd862382ab30b73ae682a4c63ec0a964991817543cf4202f"
