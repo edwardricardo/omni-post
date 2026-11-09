@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1176  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14685 |
+| Blocks                  | 14687 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -97,11 +97,11 @@ Deleted: 0 files, 51 blocks. Floors lowered: lines from 59.9 to 59.8, branches f
 | `apps/api/tests/unit/EventStore.test.ts`                              | test  | 22     | 0          | KEEP    | machine | behavioural |
 | `apps/api/tests/unit/PlatformContentAdapter.content.test.ts`          | test  | 7      | 0          | KEEP    | machine | behavioural |
 | `apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts` | test  | 12     | 0          | KEEP    | machine | behavioural |
-| `apps/api/tests/unit/PostCommandHandlers.publish.test.ts`             | test  | 13     | 0          | KEEP    | machine | behavioural |
+| `apps/api/tests/unit/PostCommandHandlers.publish.test.ts`             | test  | 14     | 0          | KEEP    | machine | behavioural |
 | `apps/api/tests/unit/PostCommandHandlers.update.test.ts`              | test  | 12     | 0          | KEEP    | machine | behavioural |
 | `apps/api/tests/unit/PostQueryHandlers.get-list.test.ts`              | test  | 14     | 0          | KEEP    | machine | behavioural |
 | `apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts`      | test  | 14     | 0          | KEEP    | machine | behavioural |
-| `apps/api/tests/unit/activityFeedService.test.ts`                     | test  | 7      | 0          | KEEP    | machine | behavioural |
+| `apps/api/tests/unit/activityFeedService.test.ts`                     | test  | 8      | 0          | KEEP    | machine | behavioural |
 | `apps/api/tests/unit/aiOrchestrator.providers.test.ts`                | test  | 12     | 0          | KEEP    | machine | behavioural |
 
 ## Slice 2.8.2b

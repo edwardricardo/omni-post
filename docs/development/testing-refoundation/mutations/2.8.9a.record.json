@@ -1,0 +1,562 @@
+{
+  "base": "3e29a56ae322f2815d21699a76e8d5f6e24126e6",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d2cebade6a3ee50d15a91eda8606d75d91194d9f055c7df973dcdf104c5a1018",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/activityFeedService.test.ts::caps limit at 100"
+        }
+      ],
+      "id": "a01-feed-limit-cap",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/activityFeedService.test.ts::ActivityFeedService > getFeed > caps limit at 100"
+        ],
+        "head": [
+          "apps/api/tests/unit/activityFeedService.test.ts::ActivityFeedService > getFeed > returns at most 100 items when a limit of 500 is requested"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/activityFeedService.test.ts"],
+        "head": ["apps/api/tests/unit/activityFeedService.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "451be371db200d4111a8124113611e54d05e133ca5df8158a38f0148f4478d8f",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::accepts a well-formed total-success outcome"
+        }
+      ],
+      "id": "c01-complete-publishing-ok-branch",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > command contract > accepts a well-formed total-success outcome",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > delegation > forwards an applied promotion as a successful result carrying applied:true",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > delegation > surfaces a refusal from the use case as a failed command result",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > version, events and caches > emits exactly one user-action audit event when the promotion applied",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > version, events and caches > emits no event for an idempotent re-application — nothing happened to audit",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > version, events and caches > invalidates the same cache keys the update handler does",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > version, events and caches > returns the REAL aggregate version the use case reported, never a constant"
+        ],
+        "head": [
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > delegation > forwards an applied promotion as a successful result carrying applied:true",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > delegation > surfaces a refusal from the use case as a failed command result",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > version, events and caches > emits exactly one user-action audit event when the promotion applied",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > version, events and caches > emits no event for an idempotent re-application — nothing happened to audit",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > version, events and caches > invalidates the same cache keys the update handler does",
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts::CompletePostPublishingCommandHandler > version, events and caches > returns the REAL aggregate version the use case reported, never a constant"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.create.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.delete.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.publish.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.create.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.delete.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.publish.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "34aa3806fb02ca32c6bcf0b06b125456d487eaaba0f9211428af013b24c4c498",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostCommandHandlers.publish.test.ts::should handle different priority levels"
+        }
+      ],
+      "id": "c02-publish-low-priority",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostCommandHandlers.publish.test.ts::PublishPostCommandHandler > should handle different priority levels"
+        ],
+        "head": [
+          "apps/api/tests/unit/PostCommandHandlers.publish.test.ts::PublishPostCommandHandler > carries a LOW priority onto every scheduled publish event"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostCommandHandlers.publish.test.ts"],
+        "head": ["apps/api/tests/unit/PostCommandHandlers.publish.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "601622e4cfa4ef71f0e20fc535023a6b1371fd0364dd0c5eae1fcdfaf1cbe7c0",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostCommandHandlers.update.test.ts::should update a post successfully when use case returns ok"
+        }
+      ],
+      "id": "c03-update-ok-branch",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should generate post.updated event when changes are made",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should generate user.action event on successful update",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should invalidate cache after successful update with changes",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should not generate events when no content fields are provided",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should return error when use case fails with post not found",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should return error when use case fails with validation error",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should update a post successfully when use case returns ok",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should update only title without body or tags"
+        ],
+        "head": [
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should generate post.updated event when changes are made",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should generate user.action event on successful update",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should invalidate cache after successful update with changes",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should not generate events when no content fields are provided",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should return error when use case fails with post not found",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should return error when use case fails with validation error",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts::UpdatePostCommandHandler > should update only title without body or tags"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.create.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.delete.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.publish.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/PostCommandHandlers.complete-publishing.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.create.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.delete.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.publish.test.ts",
+          "apps/api/tests/unit/PostCommandHandlers.update.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "c7ce756a8e18511ae299515727be6026e0f68faefa68c864f7717e3d4c7e3928",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should include post content in read model"
+        }
+      ],
+      "id": "q01-read-model-body",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::GetPostQueryHandler - Basic Functionality > should include post content in read model",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::GetPostQueryHandler - Basic Functionality > should transform domain read model to CQRS envelope"
+        ],
+        "head": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::GetPostQueryHandler - Basic Functionality > should transform domain read model to CQRS envelope"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "67979a33378ca9225918832f13778b64088787c5c6a51865229c3e4c8c388a98",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should include pagination metadata"
+        }
+      ],
+      "id": "q02-list-page-metadata",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should include pagination metadata"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d0bc7c156e15d16700bf91afc2698408685be5a8ae5b501f44fe49051feb4477",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should accept status filter"
+        }
+      ],
+      "id": "q03-list-status-filter",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should accept status filter"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "96085d225b4f81089db981c6ceed868877ca3b0af6d9cfb2fb25796d095b88c5",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should accept channel filter"
+        }
+      ],
+      "id": "q04-list-channel-filter",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should accept channel filter"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "0d51bbaf23da8f694f3611ea4b3afa9e2569cf8505db3158da73626ba78ed988",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should accept date range filter"
+        }
+      ],
+      "id": "q05-list-date-range-filter",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should accept date range filter"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "5f34eea8b918bacc67d0a8e392c66b91002f130b70ab0ab8e8ae82ddd8e60d70",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should accept tags filter"
+        }
+      ],
+      "id": "q06-list-tags-filter",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should accept tags filter"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "ac114c2afad273df99fc913a93a47814e57fdb74dc56901b3acb605a1ac87ee7",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should support different sort orders"
+        }
+      ],
+      "id": "q07-list-sort-orders",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should accept channel filter",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should accept date range filter",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should accept status filter",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should accept tags filter",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should include channel counts in results",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should include hasMedia based on mediaCount",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should include pagination metadata",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should list posts successfully",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should return error for invalid project UUID",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should support different sort fields",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should support different sort orders"
+        ],
+        "head": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should include channel counts in results",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should include hasMedia based on mediaCount",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should list posts successfully",
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should return error for invalid project UUID"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d486295d44996363a8edb55e96d832861cb664e16b8cd28d7c07a5abd851fe0f",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::should support different sort fields"
+        }
+      ],
+      "id": "q08-list-sort-fields",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.get-list.test.ts::ListPostsQueryHandler - Basic Functionality > should support different sort fields"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.get-list.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "ec285d376141c6e53301653c8511cd004933eaffae0a160735837b2ccb64fbfd",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with status filters"
+        }
+      ],
+      "id": "s01-search-status-filters",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with combined filters",
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with status filters"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "3606282d33da1c731f4001b0bab97fafd82bd895e2e02c3017f961f9297cdcc4",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with channel filters"
+        }
+      ],
+      "id": "s02-search-channel-filters",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with channel filters",
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with combined filters"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "886323a9ea3da881e307156f1cc1181efeb31d76a0dbc0225c7ad56d33589c83",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with tag filters"
+        }
+      ],
+      "id": "s03-search-tag-filters",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with combined filters",
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with tag filters"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "81407a2da971c1b8bcc19d5d0536436abd9d5f8b07074d3d106fb567dac9fdad",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with date range filter"
+        }
+      ],
+      "id": "s04-search-date-range",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with combined filters",
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with date range filter"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "a5fbc8dd91d59ed707697ed81907951e453f97a0107c471d62ccc7233320a14b",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should search with combined filters"
+        }
+      ],
+      "id": "s05-search-combined-filters",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with combined filters",
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should search with date range filter"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "37df6536e8e3d7a9a47036d576e680f917a36179e1159fa8d4f8801000ea1b5d",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::should include search metadata"
+        }
+      ],
+      "id": "s06-search-total-metadata",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts::SearchPostsQueryHandler - Basic Functionality > should include search metadata"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"],
+        "head": ["apps/api/tests/unit/PostQueryHandlers.search-analytics.test.ts"]
+      },
+      "verdict": "LOST"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "c39f8e803b1b4b4f71658b6293429f2f2612390fa8c0e1b0091e749b4c0b1993",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/ContentVersionManager.create.test.ts::should handle version creation with tags"
+        }
+      ],
+      "id": "v01-version-tags",
+      "kind": "deletion",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/ContentVersionManager.create.test.ts"],
+        "head": ["apps/api/tests/unit/ContentVersionManager.create.test.ts"]
+      },
+      "verdict": "VACUOUS"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "616c0bfd50e18a1899b4f4b569c757ab5977b1d04ca3068bcbaed0431a71f997",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/ContentVersionManager.create.test.ts::should handle version creation with category"
+        }
+      ],
+      "id": "v02-version-category",
+      "kind": "deletion",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/ContentVersionManager.create.test.ts"],
+        "head": ["apps/api/tests/unit/ContentVersionManager.create.test.ts"]
+      },
+      "verdict": "VACUOUS"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}
