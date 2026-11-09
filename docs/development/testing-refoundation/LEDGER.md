@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1176  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14687 |
+| Blocks                  | 14691 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -266,14 +266,14 @@ Deleted: 0 files, 16 blocks.
 
 | Path                                                                             | Shape | Blocks | Decorative | Verdict | Status  | Basis       |
 | -------------------------------------------------------------------------------- | ----- | ------ | ---------- | ------- | ------- | ----------- |
-| `packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts`              | test  | 3      | 0          | KEEP    | machine | behavioural |
+| `packages/core/approvals/tests/unit/SubmitForReviewUseCase.test.ts`              | test  | 4      | 0          | KEEP    | machine | behavioural |
 | `packages/core/brand-kit/tests/unit/UpsertBrandKitUseCase.test.ts`               | test  | 4      | 0          | KEEP    | machine | behavioural |
 | `packages/core/bulk-scheduling/tests/unit/ConfirmBulkScheduleUseCase.test.ts`    | test  | 8      | 0          | KEEP    | machine | behavioural |
 | `packages/core/bulk-scheduling/tests/unit/ParseBulkScheduleCsvUseCase.test.ts`   | test  | 5      | 0          | KEEP    | machine | behavioural |
-| `packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts` | test  | 15     | 0          | KEEP    | machine | behavioural |
+| `packages/core/customer-auth/tests/unit/CompleteCustomerMfaLoginUseCase.test.ts` | test  | 16     | 0          | KEEP    | machine | behavioural |
 | `packages/core/domain/tests/unit/ScheduledTime.test.ts`                          | test  | 21     | 0          | KEEP    | machine | behavioural |
 | `packages/core/domain/tests/unit/ShortCode.test.ts`                              | test  | 14     | 0          | KEEP    | machine | behavioural |
-| `packages/core/posts/tests/unit/CreatePostUseCase.test.ts`                       | test  | 2      | 0          | KEEP    | machine | behavioural |
+| `packages/core/posts/tests/unit/CreatePostUseCase.test.ts`                       | test  | 4      | 0          | KEEP    | machine | behavioural |
 | `packages/core/threading/tests/unit/threadPlanner.test.ts`                       | test  | 17     | 0          | KEEP    | machine | behavioural |
 | `packages/core/usage/tests/unit/IncrementUsageUseCase.test.ts`                   | test  | 3      | 0          | KEEP    | machine | behavioural |
 

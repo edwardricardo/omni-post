@@ -166,6 +166,18 @@ describe("CompleteCustomerMfaLoginUseCase", () => {
       expect(uow.executeInTransaction).toHaveBeenCalledTimes(1);
     });
 
+    it("mints a session and burns the challenge when the second factor is a backup code", async () => {
+      mfaVerification = makeMfaVerification(ok({ verified: true, usedBackupCode: true }));
+
+      const result = await build().execute({ ...INPUT_BASE, code: "a1b2c3d4" });
+
+      expect(result.ok).toBe(true);
+      expect(result).toMatchObject({
+        value: { accessToken: "dummy-access-token", refreshToken: "dummy-refresh-token" },
+      });
+      expect(store.consume).toHaveBeenCalledWith(JTI);
+    });
+
     it("records BF success only AFTER the MFA code verifies (post-MFA)", async () => {
       await build().execute(INPUT_BASE);
       expect(bruteForce.recordSuccessfulAttempt).toHaveBeenCalledTimes(1);

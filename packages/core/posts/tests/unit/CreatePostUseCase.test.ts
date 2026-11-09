@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, vi, beforeEach } from "vitest";
+import { describe, it, vi, beforeEach, expect } from "vitest";
 import assert from "node:assert/strict";
 import { ok } from "@shared/types";
 import { CreatePostUseCase } from "../../src/CreatePostUseCase.js";
@@ -97,6 +97,33 @@ describe("CreatePostUseCase — media extension", () => {
       });
 
       assert.strictEqual((repo.save as ReturnType<typeof vi.fn>).mock.calls.length, 1);
+    });
+
+    it("returns the saved draft with its body when the media array is empty", async () => {
+      const repo = makeMockRepo();
+      const dispatcher = makeMockDispatcher();
+      const metrics = makeMockMetrics();
+      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
+
+      const result = await useCase.execute({ ...BASE_INPUT, media: [] });
+
+      expect(result.ok).toBe(true);
+      expect(result).toMatchObject({ value: { body: BASE_INPUT.body, status: "DRAFT" } });
+      expect(repo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns the saved draft for its project when the input carries no media field", async () => {
+      const repo = makeMockRepo();
+      const dispatcher = makeMockDispatcher();
+      const metrics = makeMockMetrics();
+      const useCase = new CreatePostUseCase(repo, dispatcher, metrics, passthroughUow);
+
+      const result = await useCase.execute(BASE_INPUT);
+
+      expect(result.ok).toBe(true);
+      expect(result).toMatchObject({
+        value: { projectId: BASE_INPUT.projectId, body: BASE_INPUT.body },
+      });
     });
   });
 });
