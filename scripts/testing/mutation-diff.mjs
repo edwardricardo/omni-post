@@ -4,8 +4,8 @@
  * @description The differential mutation tool: does a rewritten test catch a mutation its base
  *   form did not, and does a deleted block take with it a mutation nothing else catches? For each
  *   case of a case file it makes one realistic mutation of a subject (its `search`, replaced at the
- *   first occurrence by its `replace`) and runs the case's whole scope four times with the collector the ledger names for its test, a
- *   vitest config or node:test's integration tier: the
+ *   first occurrence by its `replace`) and runs the case's whole scope four times, each file with
+ *   the collector the ledger names for it, a vitest config or node:test's integration tier: the
  *   test files at the base and at the head, each unmutated and mutated. The test files' base
  *   content (`git show <base>:<path>`), and the head's when `--head` is given, is served in memory
  *   by a Vite plugin (`lib/mutation-diff-plugin.mjs`), which also mutates the subject, always the
@@ -41,13 +41,24 @@
  *   today's when the side holds none) whose import specifiers, read statically and
  *   resolved relative to the file, name the subject. A test that reaches the subject through
  *   another module, or through an alias, is outside the default scope unless the case names it.
+ *   A `scope` entry runs with the runner its own ledger row names, read as the test's is: one the
+ *   test's runner runs joins the test's run, and one another vitest config runs (a twin in another
+ *   project) runs under that config, rooted at its own package, in a run of its own on each side
+ *   and state, whose report merges into the case's, the mutation counting as applied when any of
+ *   the side's runs applied it. A twin of another project is named in `scope`, never discovered:
+ *   the importer search reads the test's own collector only. An entry no ledger row lists, that
+ *   no collector runs, or that a node:test runner other than the test's runs is refused. A side
+ *   whose scope holds no file spawns no run and finds nothing red, so a deletion whose head
+ *   keeps no importer of the subject reads LOST.
  *
  *   EXIT CODES: 0 every case is decided, BEHAVIOUR-CHANGED included; 1 any BROKEN or UNDECIDED,
  *   with `--require gain` any NO-GAIN or BEHAVIOUR-CHANGED, with `--require safe` any LOST, VACUOUS
  *   or BEHAVIOUR-CHANGED; 2 a usage error, or a case file refused (an
  *   unknown key, a missing field, a duplicate id, a block outside its `test`, a test neither the
  *   working tree's ledger nor its base's runs with a vitest config or node:test's integration tier,
- *   a test of node:test's live tier or one no collector runs, an `--only` that names no case); 3 the environment: an empty `DATABASE_URL` before a
+ *   a test of node:test's live tier or one no collector runs, a `scope` entry no ledger row lists,
+ *   that no collector runs or that a node:test runner other than the test's runs, an `--only` that
+ *   names no case); 3 the environment: an empty `DATABASE_URL` before a
  *   node:test run, the case file or
  *   the ledger cannot be read, git fails, the scratch directory cannot be made, the runner does not
  *   start, or the record cannot be written. Nothing is written on 2 or 3.
@@ -462,6 +473,96 @@ function runnerRefusal(spec, runner) {
 }
 
 /**
+ * @description The runner each `scope` entry of a case runs with, read as the case's test's is:
+ *   the working tree's ledger's, else the ledger's at the case's base; `null` for an entry
+ *   neither lists.
+ * @param {Context} context
+ * @param {Case} spec
+ * @param {string} baseRef
+ * @returns {Map<string, string | null>}
+ */
+function scopeRunnersOf(context, spec, baseRef) {
+  return new Map(
+    (spec.scope ?? []).map((entry) => [
+      entry,
+      runnerOf(context.rows, entry) ?? runnerOf(rowsAt(context, baseRef), entry),
+    ])
+  );
+}
+
+/**
+ * @description Why a `scope` entry cannot run, or `null` when it runs with the case's own runner
+ *   or with a vitest config of its own: no ledger row, a row no collector runs, a node:test
+ *   runner other than the test's (node:test runs only a case's own test), or a runner of another
+ *   kind.
+ * @param {Case} spec
+ * @param {string} entry
+ * @param {string | null} runner The entry's runner.
+ * @param {string | null} own The case's test's runner.
+ * @returns {string | null}
+ */
+function scopeRefusal(spec, entry, runner, own) {
+  const named = `case ${spec.id}: field "scope" names ${entry}`;
+  if (runner === null) return `${named}, which the ledger does not list`;
+  // A case whose own test has no runner was refused by `runnerRefusal` before this runs, so `own`
+  // is a label here.
+  if (runner === "") return `${named}, which no collector runs`;
+  if (runner === own) return null;
+  if (runner.startsWith("node:")) {
+    return `${named}, run by ${runner}, which this tool runs only as a case's own test`;
+  }
+  if (runner.startsWith("vitest:")) return null;
+  return `${named}, run by ${runner}: this tool runs a vitest config or node:test's integration tier`;
+}
+
+/**
+ * @description A side's files grouped by the runner each runs with: the case's own runner first,
+ *   for its test, its same-project importers and every `scope` entry it runs, then one group per
+ *   other runner a `scope` entry names, by label. Each group keeps the files' order.
+ * @param {readonly string[]} files The side's scope files, sorted.
+ * @param {ReadonlyMap<string, string | null>} runners Each `scope` entry's runner.
+ * @param {string} own The case's test's runner.
+ * @returns {{ runner: string, files: string[] }[]}
+ */
+function groupsOf(files, runners, own) {
+  /** @type {Map<string, string[]>} */
+  const groups = new Map();
+  for (const file of files) {
+    const runner = runners.get(file) ?? own;
+    groups.set(runner, [...(groups.get(runner) ?? []), file]);
+  }
+  const others = [...groups.keys()].filter((runner) => runner !== own).sort(byCodeUnit);
+  return [own, ...others].flatMap((runner) => {
+    const held = groups.get(runner);
+    return held === undefined ? [] : [{ runner, files: held }];
+  });
+}
+
+/**
+ * @description The run of one side and state, merged from its groups' runs: a group that timed
+ *   out or whose report could not be read leaves the whole run saying nothing; otherwise the
+ *   reports are joined, the mutation counts as applied when any group's run marked it (every
+ *   group of the side is handed the same marker, since only the groups that load the subject
+ *   apply it), and a served file that never reached a group's plugin is `not-served`. The
+ *   reasons come in the base tool's order for a single run: `timeout`, `runner-failed`,
+ *   `not-applied`, `not-served`.
+ * @param {readonly Run[]} runs The groups' runs, in the groups' order.
+ * @param {string | null} marker The side's marker on a mutated run,
+ *   `mutation-<case id>-<side>.applied` under the run's scratch (the id URI-encoded, so it names
+ *   one file whatever it holds), else `null`.
+ * @returns {Run}
+ */
+function mergedRun(runs, marker) {
+  if (runs.length === 0) return { failure: null, report: new Map() };
+  const hard = runs.find((each) => each.failure === "timeout" || each.failure === "runner-failed");
+  if (hard !== undefined) return { failure: hard.failure, report: new Map() };
+  const report = new Map(runs.flatMap((each) => [...each.report]));
+  if (marker !== null && !existsSync(marker)) return { failure: "not-applied", report };
+  const failed = runs.find((each) => each.failure !== null);
+  return { failure: failed === undefined ? null : failed.failure, report };
+}
+
+/**
  * @description One side of a case: its default scope, computed from that side's tree (the
  *   candidates are the tests its own ledger runs with the case's runner, read at that side), and
  *   the text of each scope file the side holds. A listed file git cannot show makes the side
@@ -554,25 +655,30 @@ function configText(config, root, options) {
 }
 
 /**
- * @description Makes one run of a case's files on one side, the way the hard probe runs its
- *   collector (vitest from the config's directory with the JSON reporter, node:test from the
- *   package directory with the results reporter and the loader hooks), and reads what it gave: a
- *   timeout, no report, a mutated run with no marker, or a served file the plugin never
- *   transformed, is a failure, never a verdict. A file the working tree lacks runs from a copy
+ * @description Makes one run of one runner group of a case's files on one side, the way the hard
+ *   probe runs its collector (vitest from the config's directory with the JSON reporter, node:test
+ *   from the package directory with the results reporter and the loader hooks), and reads what it
+ *   gave: a timeout, no report, or a served file the plugin never transformed, is a failure, never
+ *   a verdict. Whether the mutation was applied is read once the side's groups have all run
+ *   (`mergedRun`), since `marker` is the side's. A file the working tree lacks runs from a copy
  *   under the scratch directory, its imports resolved from its own path by the plugin.
  * @param {Context} context
- * @param {{ runner: string, side: Side, ref: string | null, mutated: boolean, files: readonly string[], texts: ReadonlyMap<string, string>, serve: boolean, spec: Case }} wanted
+ * @param {{ runner: string, side: Side, ref: string | null, mutated: boolean, marker: string | null, files: readonly string[], texts: ReadonlyMap<string, string>, serve: boolean, spec: Case }} wanted
  *   `serve` serves the side's content for the files the working tree holds.
  * @returns {Promise<Run>}
  * @throws {Stop} Exit 3 when the runner does not start.
  */
-async function scopeRun(context, { runner, side, ref, mutated, files, texts, serve, spec }) {
+async function scopeRun(
+  context,
+  { runner, side, ref, mutated, marker, files, texts, serve, spec }
+) {
+  // `marker` only reaches the plugin's options; `mergedRun` reads the file once every group of
+  // the side has run.
   if (files.length === 0) return { failure: null, report: new Map() };
   const { root, scratch } = context;
   context.runs.count += 1;
   const stem = path.join(scratch, `run-${context.runs.count}`);
   const report = `${stem}.report.json`;
-  const marker = mutated ? `${stem}.applied` : null;
   const servedLog = `${stem}.served`;
   /** @type {Record<string, string>} */
   const paths = {};
@@ -689,7 +795,6 @@ async function scopeRun(context, { runner, side, ref, mutated, files, texts, ser
   }
   const read = reportOf(json, root, named);
   if ("error" in read) return { failure: "runner-failed", report: new Map() };
-  if (marker !== null && !existsSync(marker)) return { failure: "not-applied", report: read.value };
   const logged = new Set((readOrNull(servedLog) ?? "").split("\n"));
   if (Object.keys(served).some((file) => !logged.has(file))) {
     return { failure: "not-served", report: read.value };
@@ -698,9 +803,10 @@ async function scopeRun(context, { runner, side, ref, mutated, files, texts, ser
 }
 
 /**
- * @description Decides one case: its scope on each side, its blocks on each side, its four runs (the
- *   clean ones shared with any case of the same side, ref, runner and scope) and its verdict. A case
- *   whose search, base scope or blocks already decide it runs nothing.
+ * @description Decides one case: its scope on each side, its blocks on each side, its four runs (one
+ *   side and state each, merged from one run per runner group, the clean ones shared with any case
+ *   of the same side, ref, runner and group files) and its verdict. A case whose search, base scope
+ *   or blocks already decide it runs nothing.
  * @param {Context} context
  * @param {Case} spec
  * @returns {Promise<{ entry: Record<string, unknown>, decided: import("./lib/mutation-diff-core.mjs").Decided }>}
@@ -709,6 +815,7 @@ async function decideCase(context, spec) {
   const { root } = context;
   const baseRef = context.bases.get(spec.base ?? context.base) ?? "";
   const runner = runnerFor(context, spec, baseRef) ?? "";
+  const runners = scopeRunnersOf(context, spec, baseRef);
   const subjectPath = path.join(root, spec.subject);
   const subjectText = readOrNull(subjectPath);
   const searchFound = subjectText !== null && holdsSearch(subjectPath, subjectText, spec.search);
@@ -754,21 +861,33 @@ async function decideCase(context, spec) {
         };
       }
       const ref = each === "base" ? baseRef : context.head;
-      const key = [each, ref ?? "worktree", runner, ...files[each]].join("\u0000");
-      const shared = mutated ? undefined : context.clean.get(key);
-      if (shared !== undefined) return shared;
-      const made = await scopeRun(context, {
-        runner,
-        side: each,
-        ref,
-        mutated,
-        files: files[each],
-        texts: held.texts,
-        serve: each === "base" || context.head !== null,
-        spec,
-      });
-      if (!mutated) context.clean.set(key, made);
-      return made;
+      const marker = mutated
+        ? path.join(context.scratch, `mutation-${encodeURIComponent(spec.id)}-${each}.applied`)
+        : null;
+      /** @type {Run[]} */
+      const made = [];
+      for (const group of groupsOf(files[each], runners, runner)) {
+        const key = [each, ref ?? "worktree", group.runner, ...group.files].join("\u0000");
+        const shared = mutated ? undefined : context.clean.get(key);
+        if (shared !== undefined) {
+          made.push(shared);
+          continue;
+        }
+        const ran = await scopeRun(context, {
+          runner: group.runner,
+          side: each,
+          ref,
+          mutated,
+          marker,
+          files: group.files,
+          texts: held.texts,
+          serve: each === "base" || context.head !== null,
+          spec,
+        });
+        if (!mutated) context.clean.set(key, ran);
+        made.push(ran);
+      }
+      return mergedRun(made, marker);
     };
     const baseClean = await make("base", false);
     const headClean = await make("head", false);
@@ -838,7 +957,8 @@ function writeOut(out, text) {
 
 /**
  * @description Reads the case file and the ledger, resolves the bases and the head, refuses a case
- *   whose runner this tool does not run (`runnerRefusal`), stops on an empty `DATABASE_URL`
+ *   whose runner this tool does not run (`runnerRefusal`) or whose `scope` names a file it cannot
+ *   run (`scopeRefusal`), stops on an empty `DATABASE_URL`
  *   before a node:test case, refuses an
  *   `--only` that names no case, and decides every selected case in a scratch directory it removes.
  * @param {Options} options
@@ -901,8 +1021,14 @@ async function mutationRun(options, seams) {
   const runnerOfCase = (spec) =>
     runnerFor(context, spec, bases.get(spec.base ?? options.base) ?? "");
   for (const spec of selected) {
-    const refusal = runnerRefusal(spec, runnerOfCase(spec));
+    const own = runnerOfCase(spec);
+    const refusal = runnerRefusal(spec, own);
     if (refusal !== null) return cliResult(EXIT.USAGE, [`mutation-diff: refused: ${refusal}`]);
+    const runners = scopeRunnersOf(context, spec, bases.get(spec.base ?? options.base) ?? "");
+    for (const [entry, runner] of runners) {
+      const refused = scopeRefusal(spec, entry, runner, own);
+      if (refused !== null) return cliResult(EXIT.USAGE, [`mutation-diff: refused: ${refused}`]);
+    }
   }
   const environment = seams.env ?? process.env;
   const needsDatabase = selected.some((spec) => runnerOfCase(spec)?.startsWith("node:") === true);

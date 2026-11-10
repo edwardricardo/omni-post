@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1176  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14706 |
+| Blocks                  | 14713 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -945,7 +945,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/legalSourceScan.test.ts`                                                 | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/listedTestFiles.test.ts`                                                 | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/maturityWatchlist.test.ts`                                               | test             | 30     | 0          | ADJUDICATE | machine                     | opaque               |
-| `apps/api/tests/unit/scripts/mutationDiff.test.ts`                                                    | test             | 48     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/mutationDiff.test.ts`                                                    | test             | 55     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/mutationDiffNode.test.ts`                                                | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/nodeSummaryReporter.test.ts`                                             | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/oauthScopesInventory.test.ts`                                            | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
