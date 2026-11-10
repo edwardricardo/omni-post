@@ -1118,9 +1118,13 @@ const writeSide = (root: string, side: Side): void => {
   );
 };
 
-/** A repository whose base commit holds the base tests and whose working tree the head ones. */
+/**
+ * A repository whose base commit holds the base tests and whose working tree the head ones;
+ * `extra` adds to each side once its tests and ledger are written.
+ */
 const plantRepository = (
-  commitHead = false
+  commitHead = false,
+  extra: (root: string, side: Side) => void = () => undefined
 ): { root: string; base: string; head: string | null } => {
   const root = scratchDir("mutation-diff-repo-");
   git(root, "init", "-q", "-b", "main");
@@ -1130,10 +1134,12 @@ const plantRepository = (
   writeFile(root, "pkg/src/subject.ts", "export const limit = 20;\n");
   writeFile(root, "pkg/src/fresh.ts", "export const fresh = 1;\n");
   writeSide(root, "base");
+  extra(root, "base");
   git(root, "add", "-A");
   git(root, "commit", "-q", "-m", "base");
   const base = git(root, "rev-parse", "HEAD").trim();
   writeSide(root, "head");
+  extra(root, "head");
   if (!commitHead) return { root, base, head: null };
   git(root, "add", "-A");
   git(root, "commit", "-q", "-m", "head");
@@ -1665,5 +1671,324 @@ describe("main", () => {
 
     expect([result.code, result.record]).toEqual([3, null]);
     expect(result.output).toContain("the runner did not start: spawn ENOENT");
+  });
+});
+
+const TWIN_TEST = "twin/tests/twin.test.ts";
+const TWIN_CONFIG = "twin/vitest.config.ts";
+const TWIN_TITLE = "holds its own";
+
+/** Appends rows to the ledger a side's `writeSide` wrote. */
+const addRows = (root: string, rows: readonly Record<string, unknown>[]): void => {
+  const ledger = JSON.parse(readFileSync(path.join(root, "ledger.json"), "utf8")) as {
+    files: Record<string, unknown>[];
+  };
+  writeFile(root, "ledger.json", `${JSON.stringify({ files: [...ledger.files, ...rows] })}\n`);
+};
+
+/** Plants a second vitest project, `twin/`, whose one test the ledger runs with its own config. */
+const plantTwin = (root: string): void => {
+  writeFile(root, TWIN_CONFIG, "export default {};\n");
+  writeFile(
+    root,
+    TWIN_TEST,
+    `import { describe, expect, it } from "vitest";\n\ndescribe("twin", () => {\n  it(${JSON.stringify(TWIN_TITLE)}, () => {\n    expect(1).toBe(1);\n  });\n});\n`
+  );
+  addRows(root, [{ path: TWIN_TEST, framework: "vitest", collectors: [`vitest:${TWIN_CONFIG}`] }]);
+};
+
+/**
+ * A replaced vitest over both projects: a run of `twin/` reports the twin's test, red where
+ * `failing` names its title, and never marks the mutation applied, since it does not load the
+ * subject; any other run is `fakeVitest`'s. Each run's generated config is kept beside it.
+ */
+const projectsVitest = (
+  failing: (run: VitestRun) => readonly string[] = () => []
+): { runs: { run: VitestRun; config: string }[]; exec: (run: VitestRun) => Promise<Ran> } => {
+  const runs: { run: VitestRun; config: string }[] = [];
+  const inner = fakeVitest({ failing });
+  const exec = (vitestRun: VitestRun): Promise<Ran> => {
+    const config = vitestRun.args[vitestRun.args.indexOf("--config") + 1] ?? "";
+    runs.push({ run: vitestRun, config: readFileSync(config, "utf8") });
+    if (vitestRun.cwd !== path.join(vitestRun.root, "twin")) return inner.exec(vitestRun);
+    const red = failing(vitestRun).includes(TWIN_TITLE);
+    const testResults = vitestRun.files.map((file) => ({
+      name: vitestRun.paths[file] ?? path.join(vitestRun.root, file),
+      status: red ? FAIL : PASS,
+      assertionResults: [
+        {
+          ancestorTitles: ["twin"],
+          title: TWIN_TITLE,
+          fullName: `twin ${TWIN_TITLE}`,
+          status: red ? FAIL : PASS,
+        },
+      ],
+    }));
+    writeFileSync(vitestRun.report, JSON.stringify({ testResults }));
+    for (const served of Object.keys(vitestRun.served)) {
+      appendFileSync(vitestRun.servedLog, `${served}\n`);
+    }
+    return Promise.resolve({
+      status: red ? 1 : 0,
+      stdout: "",
+      stderr: "",
+      timedOut: false,
+      spawnError: null,
+    });
+  };
+  return { runs, exec };
+};
+
+/** Names a run by its side, its state, the package it ran from and its files. */
+const runName = (root: string, vitestRun: VitestRun): string =>
+  `${vitestRun.side}${vitestRun.mutated ? "*" : ""} ${path.relative(root, vitestRun.cwd)} ${vitestRun.files.join(",")}`;
+
+describe("main: a scope entry of another vitest project", () => {
+  it("runs the twin under its own config, rooted at its package, in a run of its own per side and state, and merges its red into the case", async () => {
+    const { root, base } = plantRepository(false, plantTwin);
+    const vitest = projectsVitest((each) => {
+      if (!each.mutated) return [];
+      if (each.cwd === path.join(root, "twin")) return [TWIN_TITLE];
+      return each.side === "head" ? ["pins the limit"] : [];
+    });
+
+    const result = await command(root, [makeCase({ scope: [TWIN_TEST] })], vitest.exec, [
+      "--base",
+      base,
+    ]);
+
+    expect(result.code).toBe(0);
+    expect(caseOf(result.record, "pins-limit")).toMatchObject({
+      red: {
+        base: [`${TWIN_TEST}::twin > ${TWIN_TITLE}`],
+        head: [
+          "pkg/tests/subject.test.ts::subject > pins the limit",
+          `${TWIN_TEST}::twin > ${TWIN_TITLE}`,
+        ],
+      },
+      scope: { base: [...BASE_SCOPE, TWIN_TEST], head: [...HEAD_SCOPE, TWIN_TEST] },
+      verdict: "NO-GAIN",
+    });
+    expect(vitest.runs.map((each) => runName(root, each.run)).sort()).toEqual(
+      [
+        `base pkg ${BASE_SCOPE.join(",")}`,
+        `base twin ${TWIN_TEST}`,
+        `head pkg ${HEAD_SCOPE.join(",")}`,
+        `head twin ${TWIN_TEST}`,
+        `base* pkg ${BASE_SCOPE.join(",")}`,
+        `base* twin ${TWIN_TEST}`,
+        `head* pkg ${HEAD_SCOPE.join(",")}`,
+        `head* twin ${TWIN_TEST}`,
+      ].sort()
+    );
+    for (const { run: each, config } of vitest.runs) {
+      const project = path.relative(root, each.cwd);
+      expect(config).toContain(
+        `import base from ${JSON.stringify(path.join(root, project, "vitest.config.ts"))};`
+      );
+      expect(config).toContain(`root: ${JSON.stringify(path.join(root, project))}`);
+    }
+  });
+
+  it.each([
+    ["pkg/tests/nowhere.test.ts", null, "which the ledger does not list"],
+    [
+      "pkg/tests/flow.integration.test.ts",
+      ["node:pkg/scripts/run-tests.sh#integration"],
+      "run by node:pkg/scripts/run-tests.sh#integration, which this tool runs only as a case's own test",
+    ],
+    ["pkg/tests/idle.test.ts", [], "which no collector runs"],
+  ] as const)(
+    "refuses a scope entry %s with exit 2, naming the case, and runs nothing",
+    async (entry, collectors, reason) => {
+      const { root, base } = plantRepository(false, (planted) => {
+        if (collectors === null) return;
+        addRows(planted, [{ path: entry, framework: "vitest", collectors: [...collectors] }]);
+      });
+      const vitest = fakeVitest();
+
+      const result = await command(root, [makeCase({ scope: [entry] })], vitest.exec, [
+        "--base",
+        base,
+      ]);
+
+      expect([result.code, result.record, vitest.runs.length]).toEqual([2, null, 0]);
+      expect(result.output).toContain(
+        `mutation-diff: refused: case pins-limit: field "scope" names ${entry}, ${reason}`
+      );
+    }
+  );
+
+  it("shares the twin's clean runs between two cases whose own runs differ, and spawns every other run", async () => {
+    const { root, base } = plantRepository(false, plantTwin);
+    const vitest = projectsVitest(headMutated(["pins the limit"]));
+    const second = makeCase({
+      id: "second",
+      replace: "limit = 22",
+      scope: [TWIN_TEST, "pkg/tests/unrelated.test.ts"],
+    });
+
+    const result = await command(root, [makeCase({ scope: [TWIN_TEST] }), second], vitest.exec, [
+      "--base",
+      base,
+    ]);
+
+    const twinRun = (each: VitestRun): boolean => each.cwd === path.join(root, "twin");
+    const clean = vitest.runs.filter((each) => !each.run.mutated).map((each) => each.run);
+    expect(result.code).toBe(0);
+    expect(
+      clean
+        .filter(twinRun)
+        .map((each) => each.side)
+        .sort()
+    ).toEqual(["base", "head"]);
+    expect(clean.filter((each) => !twinRun(each))).toHaveLength(4);
+    expect(vitest.runs.filter((each) => each.run.mutated)).toHaveLength(8);
+    expect(vitest.runs).toHaveLength(14);
+    expect(
+      (JSON.parse(result.record ?? "{}") as { cases: { id: string; verdict: string }[] }).cases
+        .map((entry) => `${entry.id} ${entry.verdict}`)
+        .sort()
+    ).toEqual(["pins-limit GAIN", "second GAIN"]);
+  });
+
+  it("keeps a case with no scope entry of another project to one run per side and state, from its own package", async () => {
+    const { root, base } = plantRepository(false, plantTwin);
+    const vitest = projectsVitest(headMutated(["pins the limit"]));
+
+    const result = await command(root, [makeCase()], vitest.exec, ["--base", base]);
+
+    expect(result.code).toBe(0);
+    expect(caseOf(result.record, "pins-limit")).toMatchObject({
+      red: { base: [], head: ["pkg/tests/subject.test.ts::subject > pins the limit"] },
+      scope: { base: BASE_SCOPE, head: HEAD_SCOPE },
+      verdict: "GAIN",
+    });
+    expect(vitest.runs.map((each) => runName(root, each.run)).sort()).toEqual(
+      [
+        `base pkg ${BASE_SCOPE.join(",")}`,
+        `head pkg ${HEAD_SCOPE.join(",")}`,
+        `base* pkg ${BASE_SCOPE.join(",")}`,
+        `head* pkg ${HEAD_SCOPE.join(",")}`,
+      ].sort()
+    );
+  });
+});
+
+const LONE_TEST = "pkg/tests/lone.test.ts";
+const LONE_TITLE = "guards the lone limit";
+
+/**
+ * Plants, at the base only, a test of `pkg/` that alone imports a subject of its own,
+ * `pkg/src/lone.ts`; the head holds the subject and neither the test nor its ledger row.
+ */
+const plantLone = (root: string, side: Side): void => {
+  writeFile(root, "pkg/src/lone.ts", "export const lone = 20;\n");
+  const sides: Record<Side, () => void> = {
+    base: () => {
+      writeFile(
+        root,
+        LONE_TEST,
+        `import { describe, expect, it } from "vitest";\nimport { lone } from "../src/lone.js";\n\ndescribe("lone", () => {\n  it(${JSON.stringify(LONE_TITLE)}, () => {\n    expect(lone).toBe(20);\n  });\n});\n`
+      );
+      addRows(root, [
+        { path: LONE_TEST, framework: "vitest", collectors: ["vitest:pkg/vitest.config.ts"] },
+      ]);
+    },
+    head: () => rmSync(path.join(root, LONE_TEST), { force: true }),
+  };
+  sides[side]();
+};
+
+/** `fakeVitest`, whose report holds the lone test's block, red on a mutated run. */
+const loneVitest = (): { runs: VitestRun[]; exec: (run: VitestRun) => Promise<Ran> } => {
+  const inner = fakeVitest();
+  const exec = async (vitestRun: VitestRun): Promise<Ran> => {
+    const ran = await inner.exec(vitestRun);
+    const status = vitestRun.mutated ? FAIL : PASS;
+    const testResults = vitestRun.files.map((file) => ({
+      name: vitestRun.paths[file] ?? path.join(vitestRun.root, file),
+      status,
+      assertionResults: [
+        { ancestorTitles: ["lone"], title: LONE_TITLE, fullName: `lone ${LONE_TITLE}`, status },
+      ],
+    }));
+    writeFileSync(vitestRun.report, JSON.stringify({ testResults }));
+    return { ...ran, status: vitestRun.mutated ? 1 : 0 };
+  };
+  return { runs: inner.runs, exec };
+};
+
+describe("main: a scope entry's runner and a side's merged run", () => {
+  it("refuses a scope entry a runner of another kind collects with exit 2, naming the case and the runner, and runs nothing", async () => {
+    const entry = "pkg/e2e/flow.spec.ts";
+    const runner = "playwright:apps/admin/playwright.config.ts";
+    const { root, base } = plantRepository(false, (planted) =>
+      addRows(planted, [{ path: entry, framework: "playwright", collectors: [runner] }])
+    );
+    const vitest = fakeVitest();
+
+    const result = await command(root, [makeCase({ scope: [entry] })], vitest.exec, [
+      "--base",
+      base,
+    ]);
+
+    expect([result.code, result.record, vitest.runs.length]).toEqual([2, null, 0]);
+    expect(result.output).toContain(
+      `mutation-diff: refused: case pins-limit: field "scope" names ${entry}, run by ${runner}: this tool runs a vitest config or node:test's integration tier`
+    );
+  });
+
+  it("spawns nothing for a side whose scope is empty and reads the deletion LOST", async () => {
+    const { root, base } = plantRepository(false, plantLone);
+    const vitest = loneVitest();
+
+    const result = await command(
+      root,
+      [
+        makeCase({
+          id: "lone",
+          kind: "deletion",
+          test: LONE_TEST,
+          blocks: [`${LONE_TEST}::${LONE_TITLE}`],
+          subject: "pkg/src/lone.ts",
+          search: "lone = 20",
+          replace: "lone = 21",
+        }),
+      ],
+      vitest.exec,
+      ["--base", base]
+    );
+
+    expect(result.code).toBe(0);
+    expect(caseOf(result.record, "lone")).toMatchObject({
+      verdict: "LOST",
+      scope: { base: [LONE_TEST], head: [] },
+      red: { base: [`${LONE_TEST}::lone > ${LONE_TITLE}`], head: [] },
+    });
+    expect(vitest.runs.map((each) => runName(root, each))).toEqual([
+      `base pkg ${LONE_TEST}`,
+      `base* pkg ${LONE_TEST}`,
+    ]);
+  });
+
+  it("reads a mutated side whose one run serves nothing and leaves no marker as UNDECIDED not-applied, the base tool's order", async () => {
+    const { root, base } = plantRepository();
+    const clean = fakeVitest();
+    const mutated = fakeVitest({ applied: false, served: false });
+    const exec = (vitestRun: VitestRun): Promise<Ran> =>
+      (vitestRun.mutated ? mutated : clean).exec(vitestRun);
+
+    const result = await command(root, [makeCase()], exec, ["--base", base]);
+
+    expect(result.code).toBe(1);
+    expect(caseOf(result.record, "pins-limit")).toMatchObject({
+      verdict: "UNDECIDED",
+      reason: "not-applied",
+    });
+    expect(mutated.runs.map((each) => runName(root, each))).toEqual([
+      `base* pkg ${BASE_SCOPE.join(",")}`,
+      `head* pkg ${HEAD_SCOPE.join(",")}`,
+    ]);
   });
 });
