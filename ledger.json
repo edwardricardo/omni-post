@@ -27,7 +27,7 @@
       "total": 1186
     },
     "blocks": {
-      "total": 14696,
+      "total": 14703,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14385
+        "BEHAVIOURAL": 14392
       }
     },
     "deleted": {
@@ -111767,7 +111767,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/providers/bluesky/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 38,
+      "blockCount": 39,
       "blocks": [
         {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::has correct provider id",
@@ -111980,57 +111980,64 @@
           "bodyHash": "4a1d0b39603334524ce0dfdfe9b32308c59cb88a7e137c4cc7d4feb086bacd5c"
         },
         {
+          "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::accepts credentials whose login succeeds, logging in once",
+          "line": 272,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d027ef0deb9cca8ad00ae82db27abf5c3191d0dc2f78cc667f3245b3148903f8"
+        },
+        {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns AUTH error when credentials are missing",
-          "line": 274,
+          "line": 284,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a49be011cbb18f5b2264dbb86dcfdeb23f4bbbeee15831fde4f9de9c3c9b10e5"
         },
         {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns AUTH error when credentials lack identifier",
-          "line": 281,
+          "line": 291,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2bdc44b5d1a7820191c13b11afe7604ad7780b7ed1f4a42dcab896ce32fb653a"
         },
         {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns VALIDATION error for text > 300 chars",
-          "line": 288,
+          "line": 298,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c30bb675f4ef326fa09b23d67e7b417fec57208fd57cd94736e280cd0a63f5d8"
         },
         {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns AUTH error when login fails",
-          "line": 295,
+          "line": 305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cfa5c55f54432d9e2f63360b97ec28a21a5a32e1b72aca604372b42deaa69310"
         },
         {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns ok with providerPostId from publishText for text-only post",
-          "line": 303,
+          "line": 313,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7504d93940024a8092a233d63490a35b087a5ec727686199d4f5c2322c74cebf"
         },
         {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns VALIDATION when publishText returns VALIDATION error",
-          "line": 312,
+          "line": 322,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b739abed258e9f80bd1cec24c138a594562c20d16877d4bd2709a62d24b52a42"
         },
         {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::returns NETWORK when publishText returns PUBLISH error",
-          "line": 322,
+          "line": 332,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d348837e7db46518c679b72e587d46dd529335e2dc127686d6bbe37f361a4671"
         },
         {
           "id": "packages/providers/bluesky/tests/BlueskyAdapter.test.ts::includes profile URL in receipt",
-          "line": 332,
+          "line": 342,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "773c9ffeb56daa7aaa11a1afadb1f2262a28378fd2988ea63e7567f5bff6283f"
@@ -114151,7 +114158,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/providers/linkedin/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 50,
+      "blockCount": 51,
       "blocks": [
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns correct provider ID",
@@ -114385,120 +114392,127 @@
           "bodyHash": "47b4ee152d55688ff3610a503e1e0408bfccc3baff2731fca8f9270af90a0d4f"
         },
         {
+          "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::accepts credentials the profile endpoint answers, reading the profile once",
+          "line": 582,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8c53e33a62d9dca0488675fcf4f7bb1b9df405567d8e227064d02b8dc116210e"
+        },
+        {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns analytics data with correct metrics mapping",
-          "line": 592,
+          "line": 601,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c9d6fc88ae5fa6c4e7c2043259c51284b36ffc67b8a5be2c771192d6b6d80900"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::passes authorUrn from personUrn to getPostAnalytics",
-          "line": 618,
+          "line": 627,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "62a18037726f556907e81326408e7f0f52bb61002a5761c96dc69ef1e70c54b6"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::uses organizationUrn as authorUrn when available",
-          "line": 627,
+          "line": 636,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "78261275035036f35b91f46df815141386d223b0973de6af3a8745755c1c17d7"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns AUTH error when credentials are missing #2",
-          "line": 635,
+          "line": 644,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e70e45c3f2982a270dc763fdbc803d9791fc39bc9583fa185131e87536a50233"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns NETWORK error when API call fails",
-          "line": 645,
+          "line": 654,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5dd87f33c57adb5bd8fd172a0e3551824a1e7da831847e0c875bb9ea07aa0f4c"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::includes since and until dates in response when provided",
-          "line": 660,
+          "line": 669,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "548d37a450950c118eaf219cfb3bc6cc43cb080a19487d93cbaa5bc904ce1135"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns comments list with correct mapping",
-          "line": 688,
+          "line": 697,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c53ba382e8ed81c9413af599335f5dd09af4b983b22986b0a18f24c83c700f01"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns AUTH error when credentials are missing #3",
-          "line": 734,
+          "line": 743,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "26476d071cbc75f841408087a2b728909248df6ff818171d82cd0d02bb3b1134"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns AUTH error when accessToken is missing",
-          "line": 746,
+          "line": 755,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4d84eaee976fe81d9b518b3d789b7aaaa589705afb75edc9b350d7c103a9f76"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns NETWORK error when API call fails #2",
-          "line": 758,
+          "line": 767,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "27fe0bab9721eca0d64bee80aa351c3e15676445dd4e8ba0b42232539538b826"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns AUTH error when credentials are missing #4",
-          "line": 786,
+          "line": 795,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e58b5f6abe77ad012b2e52ea73b9f40d34c49a75431239133dfa0283d1ca1674"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns AUTH error when personUrn is missing",
-          "line": 800,
+          "line": 809,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2d78f3c6aebb674c76303895de305d8e13a8ff9ccdaad585b5f75bd5bddc611a"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns ok with reply receipt on success",
-          "line": 814,
+          "line": 823,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "36c1ab3a4a7ec2609e8ba17f9ff8be29855f1ffc30a779d6bfbca2d1dc361e48"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns RATE_LIMIT error on 429 status #2",
-          "line": 829,
+          "line": 838,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f5cec48db4dc142905780d17f421f9f6dc3d6bd3c36f006402a0d802811096a8"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::returns NETWORK error for non-rate-limit errors",
-          "line": 849,
+          "line": 858,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f412abb4646cc098d901b822acad91951b7ce2b491589604834bb60660f9551c"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::planThread returns THREAD_PLANNING_FAILED error",
-          "line": 878,
+          "line": 887,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dc1f72e49424462ee7c58ac5c8185da3c3ac0adac40db1a12d983e1111249d94"
         },
         {
           "id": "packages/providers/linkedin/tests/LinkedInAdapter.test.ts::publishThread returns VALIDATION error",
-          "line": 889,
+          "line": 898,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4efc4c443db7b610911711adf44ab19065e793b9d0a47f45cb822c7093eb6137"
@@ -116375,7 +116389,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/providers/telegram/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 61,
+      "blockCount": 62,
       "blocks": [
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::returns correct provider id",
@@ -116623,183 +116637,190 @@
           "bodyHash": "59f631b270dd4ee0daae814e26c93817858b07cea99849e3686218b1dc962a57"
         },
         {
+          "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts a bot that created the chat as one of its administrators",
+          "line": 639,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b56ed192d054d889052a0eaa20a0e5bec5a4f7a9f41ac9d2215c34d99716a3a9"
+        },
+        {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::renders a poll from tags with poll: prefix",
-          "line": 649,
+          "line": 663,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "58df437d33cb9e6f5397f0f67a9e37d22b2cd5a6d4d5bbed38307d7852a9daad"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::returns VALIDATION_ERROR for poll with fewer than 2 options",
-          "line": 664,
+          "line": 678,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4e2f23fde68dac37f698e471f1544787f3d7a058c7f0c7cf2b45c58640871a9"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::returns VALIDATION_ERROR for poll with more than 10 options",
-          "line": 676,
+          "line": 690,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e1dc1183551fba66c795fca24a7ae569e2577d0f99fe6e0eb49e98bcb04b3d6"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll with exactly 10 options",
-          "line": 689,
+          "line": 703,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6442a68fcc0b3f6005d063c25238ac0e6e9839eb601061a14efcf0a59d90fc4c"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::returns VALIDATION_ERROR for poll with empty question",
-          "line": 700,
+          "line": 714,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1fb8acef18276e36b9e8fe7fa9628b3d4ea08035e771ba5cf0afa796f8acc0bb"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::returns CONTENT_TOO_LONG for poll question > 300 chars",
-          "line": 711,
+          "line": 725,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "79b105703c38518ea880007a143792b754ddc85f04024686b92b006d62e8329b"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts poll question of exactly 300 chars",
-          "line": 722,
+          "line": 736,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a82c8c55e9baf4048f41550485fefa76379e936ed46c63183d0424b9ac2bc7a4"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::filters empty options from poll",
-          "line": 732,
+          "line": 746,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1ea9b9a1450777c0a8283974869921debb1be4f6ff29b5b775c6fe20db98f475"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::publishes a poll via sendPoll when meta.isPoll is true",
-          "line": 754,
+          "line": 768,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "682d11534a3c1c35dd5d3c4a25311c0c0ab026de3dcf2d8e30ae4f346bc00c63"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::returns member count analytics",
-          "line": 779,
+          "line": 793,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b1bacbe0066a4b411bfad0239417f2fbc32680e2f325ee68ae5971fcb684d646"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::includes since and until when provided",
-          "line": 792,
+          "line": 806,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "50a1faa2c5b877a789bb88119c3c54fb58f59345f581ef6b4b384f3d59fc74d9"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::omits since and until when not provided",
-          "line": 804,
+          "line": 818,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b09445ba912c7001e54f96eb451a4032623924a1b0467724b10c3dab1cb5fde4"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::returns AUTH error when credentials fail validation",
-          "line": 814,
+          "line": 828,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f77a30bb0725713dec2c92b5aeb505c96015a343099f28624fe78c155ebe7d79"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::returns NETWORK error when API call fails",
-          "line": 821,
+          "line": 835,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "23716c2b64bf31ea464e993f3d9a3145172d862411a50f195aa35f400cf210df"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::truncates caption to 1024 chars for single media",
-          "line": 843,
+          "line": 857,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b8e3622f8d0029b3b4972ee3cee87be203cb396216e899caba0c36ea1ea3f025"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::truncates caption to 1024 chars for media group",
-          "line": 858,
+          "line": 872,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5cb592e2b8b50c17039a0d3bf9213fd26b2fac67c52360f86a4df417ca0ed37f"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::passes undefined caption when body is empty for single media",
-          "line": 876,
+          "line": 890,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3c3d939516ff91ff534481af0b30f9f42e389773d7c58d770e891ff27768b942"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::returns NETWORK when sendMediaGroup returns empty array",
-          "line": 890,
+          "line": 904,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5bc0f4b1ff67092c6a60913a0780fdafb0696f8b4a436539d4135c4f5e64fb5b"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::converts message date from unix timestamp to Date",
-          "line": 908,
+          "line": 922,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7d6d2a652a5ca30e293ac4891d2b92c3178712a21917298d384a75ef15930d9f"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts text of exactly 4096 chars",
-          "line": 927,
+          "line": 941,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f55e1dab297f9c6401d3490c22262c3868bea74b473864ee1f78e68b9dd7904f"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::accepts media caption of exactly 1024 chars",
-          "line": 934,
+          "line": 948,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3c828a42f755a91de9b1a040838ec3a27a473c1a94784bd9f9ca7d3b3cd6cab8"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::omits alt from media when not provided",
-          "line": 946,
+          "line": 960,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "12e307a309998b181fc73cfaa531a96ac15554bbcd7fa69c166686bc35d12eb8"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::sets parseMode to HTML in meta",
-          "line": 961,
+          "line": 975,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a91d6ba602a9107014667ad792c0d0ba93b7c7b01f5caa029f43798583727f22"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::does not include captionLength in meta for text-only messages",
-          "line": 970,
+          "line": 984,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0012d514485e656fd8b25c17dd059b5ec01fbc24b83d43039e5a806f4b000d4f"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::handles exactly 10 media items (boundary)",
-          "line": 982,
+          "line": 996,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2aea3ad6247e88cc755aabad5a838bc8fe8ec43f9bfba7b1feff4462ef6cfbe1"
         },
         {
           "id": "packages/providers/telegram/tests/TelegramAdapter.test.ts::handles undefined body",
-          "line": 994,
+          "line": 1008,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "caf6fe74ea7c8f3fed65f30def2e504fcdf163b1b8b715a0fe281dbe530e6310"
@@ -117095,7 +117116,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/providers/tiktok/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 62,
+      "blockCount": 63,
       "blocks": [
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::has correct provider id",
@@ -117371,162 +117392,169 @@
           "bodyHash": "977fccb226bc8194106cf9b8206147f23465be5eae891062fada148d9985c8b5"
         },
         {
+          "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::accepts credentials the API client confirms, asking the client once",
+          "line": 463,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "275012790360b12baba8eb0211aa0adf5dc5a5a2ec5a845d39d3a67d71ab6e53"
+        },
+        {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns AUTH when credentials are missing",
-          "line": 466,
+          "line": 476,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e7d7a87c4687c672e6ba88c32717e2ecb1921225a1ef618889c142badb73431"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns AUTH when credentials are incomplete",
-          "line": 473,
+          "line": 483,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d190f4199d05ddbeb2f6a1e87bb1e97ca68f9c36af89bff0c0aa3b5758bd5aa3"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns VALIDATION when post has no media",
-          "line": 480,
+          "line": 490,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0249b9c1d7f53e6fdb44678d18b614f42b94546941e485f947ecaad30ac22ca5"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::uploads a public video by default",
-          "line": 490,
+          "line": 500,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "694a94e2d187d9c4679fe73ec78bf4dfaf914c6fa790dbf38fa55cb3b812c5a8"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::uploads a private video when meta.privacy='private'",
-          "line": 501,
+          "line": 511,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1902f28585062016d096c2bf968299940af89332560bbcd76ae7340a63d36f2"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::forwards interaction settings (disableComment, disableDuet, disableStitch)",
-          "line": 514,
+          "line": 524,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4dde03009c8216be623f081272a026cd0cabb827feed41fe9c1b0d3f5998390d"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::falls back to a constructed URL when shareUrl is empty",
-          "line": 535,
+          "line": 545,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bc01bb061c2d9b27313ac4bc6fabea43c613656b11e28a49d12c228f3bd12576"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns NETWORK on circuit-breaker open during publish",
-          "line": 549,
+          "line": 559,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba9b6dc1e058c0561d5866e40f347fbddfca3705983f7ecc7bb7c3056e4bfefa"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::maps a 401 upload failure to AUTH",
-          "line": 561,
+          "line": 571,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84ad9b29fde1ad6e5533323ed64a4333e1083138bfd29b24450ad29a9de90ef9"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::publishes a photo carousel via publishPhotoPost",
-          "line": 578,
+          "line": 588,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e40f77c53cd3489690c6eadeba8fb4d250f77730117dba5401bf3d0ac2f80483"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::auto-detects photo post when all media are images",
-          "line": 605,
+          "line": 615,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0a54b475c9cb6d89772aa7a041d8bd89894f709015ef056436b6fcae44eedf0f"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::uses SELF_ONLY privacy for private photo posts",
-          "line": 625,
+          "line": 635,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "27d27b06479eeddc31d9936cfdfa0e5a13ac632096167f4251f940e7183e447f"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns VALIDATION when contentType is photo but no images present",
-          "line": 645,
+          "line": 655,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "559b36a88b9ab23ef6e4eb50ff4b3ecdc5bd61b04107f3547e8274a00a70018b"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::falls back to constructed photo URL when shareUrl is empty",
-          "line": 664,
+          "line": 674,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a43ada548e0c839016ae70bb45f01ddc4618c80da21abd889d248cb238bd8b24"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::does not enrich description when useHashtagStrategy is unset",
-          "line": 692,
+          "line": 702,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae1606753fc44789d7dff53f23720a90519535dd0f8c2a03ed1ce1a5b539a075"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::does not enrich when useHashtagStrategy is true but no research factory wired",
-          "line": 702,
+          "line": 712,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6b6ec51903a954da91c45b3a0022ad53e31e40e26bb2c1f5fe44baa5eb5c7949"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::enriches description with hashtags when research factory is wired",
-          "line": 714,
+          "line": 724,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1055868f267395f455f1833a9d61ddc768fd22408b8c0f6c70174faea6fce025"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::falls back to original description when research factory itself throws",
-          "line": 732,
+          "line": 742,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "846949aa1dcba059d52f006665d96010fda8054e659fc98406c051d8ff6c4016"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::logs and swallows the NOT_IMPLEMENTED error when meta.promotedContent is set",
-          "line": 753,
+          "line": 763,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a493e50c6547cf7c93c1a063b6d7131d75ae163e1ad070b0520443204ec5b58a"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns AUTH when credentials are missing #2",
-          "line": 772,
+          "line": 782,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "48d43218543bd6d6415e82fd308d66c2751032d52df3e6dd7ee464e347213871"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns ok with channel analytics under metrics",
-          "line": 779,
+          "line": 789,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6056f42bf4c62fd9af5f57e7ca1b497a0d92921b1b179e0f2bee0967c7b44bba"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns NETWORK on circuit-breaker open",
-          "line": 804,
+          "line": 814,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e40f76eb7ffc5aaa3948bac37105aa65e459fe67567f97e4a55a709c1ec6e0c2"
         },
         {
           "id": "packages/providers/tiktok/tests/TikTokAdapter.test.ts::returns NETWORK on generic error",
-          "line": 816,
+          "line": 826,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "47ccc1b2b5b33391fd80c6585a5865d2fde870e5439027c3ee3a822ba0b0cf09"
@@ -121704,7 +121732,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/providers/x/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 5,
+      "blockCount": 6,
       "blocks": [
         {
           "id": "packages/providers/x/tests/XAdapter.content.test.ts::should handle empty body string",
@@ -121721,22 +121749,29 @@
           "bodyHash": "fa478d89659195f740963e38084d9aba6d2462d2e29620658d422504412c3b9e"
         },
         {
-          "id": "packages/providers/x/tests/XAdapter.content.test.ts::should handle unicode and emoji characters in content",
+          "id": "packages/providers/x/tests/XAdapter.content.test.ts::renders a body of exactly 280 characters, reporting all 280",
           "line": 42,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f1b74c351f3fc3b202cfba3d4db37727ed6cd3b14425dd3273ff8eafe920f408"
+        },
+        {
+          "id": "packages/providers/x/tests/XAdapter.content.test.ts::should handle unicode and emoji characters in content",
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb4910a60e79f0fb27e07f35a40680db4a60eab3d72a43d7313a6dfc4be6232f"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.content.test.ts::should handle multi-line content",
-          "line": 52,
+          "line": 62,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e6ed0f55c7b56b673221620b2cc9b20680972da6646fd9226186bf807d96f32"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.content.test.ts::should handle special characters in content",
-          "line": 66,
+          "line": 76,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da028f669f7bde0d07daf077b1bfda5926e397a59e42cb091515b1db653e9427"
@@ -122056,7 +122091,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/providers/x/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 21,
+      "blockCount": 22,
       "blocks": [
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should have correct provider ID",
@@ -122136,71 +122171,78 @@
           "bodyHash": "835a7aef843a83bba2f8b284cd32a2668322dc95a0254656baad0b42bfcf7901"
         },
         {
+          "id": "packages/providers/x/tests/XAdapter.test.ts::carries the planner's estimated reach in the meta of a rendered thread",
+          "line": 183,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e61da31f3d4d9972a39e8f947532d5961c02079805105a8b345751189c6f4f94"
+        },
+        {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should not need threading for short content",
-          "line": 193,
+          "line": 207,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "88db2541f653b81012249017af1772cd50c2ace312f9e8a068d198b7bc4e9d12"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should plan threading for long content",
-          "line": 204,
+          "line": 218,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "431bd5fb47d895ae4c5abe2441435fbf0419e4583e594e4932604b2e58fa8bec"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should respect maxChars limit in each tweet fragment",
-          "line": 215,
+          "line": 229,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d4141a4a0fc7679241f15d4c981123291ae120d6920bc92663400bd0d9751f86"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should return CONTENT_TOO_LONG for extremely long content",
-          "line": 230,
+          "line": 244,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13d00488c9c17dcc31432658ce0c33dd111a719817d9e9f46e3897ece8e6601f"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should return AUTH_INVALID when required fields are missing",
-          "line": 250,
+          "line": 264,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cd9cdc785989c568e72ca0507f76d8df81545967bfc3e3f32e45e9b33922699f"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should return AUTH_INVALID when credentials are null",
-          "line": 260,
+          "line": 274,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3311f698f680ed334fda579217da47a6f2dc034fd5e88ba357b75ccb68a3eb14"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should succeed with valid credentials and working API client",
-          "line": 267,
+          "line": 281,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c8daf251a08bf0cd7ca640944e65415ff6b38a5199aa1bd63af6fc07abc74db8"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should return AUTH_INVALID when API client throws generic error",
-          "line": 275,
+          "line": 289,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5780fc4e4734ad5f8579575bea1286d4e3c17a0d2e204226e64cc4931fd8a086"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should return AUTH_EXPIRED when API returns 401",
-          "line": 289,
+          "line": 303,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "83f2715f8ba8e763a915dfd82682c5c737b1c436070e6724a52e23ec25e04110"
         },
         {
           "id": "packages/providers/x/tests/XAdapter.test.ts::should return AUTH_INVALID when some required fields are empty strings",
-          "line": 303,
+          "line": 317,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "409b8f7a5df88c7fbbfe69e901a5a927946c3f0270f61c726adf6c3915f946a0"
@@ -122248,7 +122290,7 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/providers/youtube/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 75,
+      "blockCount": 76,
       "blocks": [
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::has correct provider id",
@@ -122503,274 +122545,281 @@
           "bodyHash": "9d940fb2f8061ef005e63ed68d4d7976a42fef45f31c3a0d682613ccc4fce507"
         },
         {
+          "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::accepts credentials the API client confirms, asking the client once",
+          "line": 377,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c6522a6a08abbe99cb7048eb38806f92a5b1ce447de71a549ea45bd68777589b"
+        },
+        {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns AUTH error when credentials are missing",
-          "line": 380,
+          "line": 390,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1e7d7a87c4687c672e6ba88c32717e2ecb1921225a1ef618889c142badb73431"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns AUTH error when credentials lack clientId",
-          "line": 387,
+          "line": 397,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1315a89a9aa84b7d030a17907a4e3bbeff774dfcb5e8288993b50db925585468"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::uploads a regular video via apiClient.uploadVideo",
-          "line": 401,
+          "line": 411,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2d1bcdc110ab888ecdbca6c3cc2572a933993356782287e7195e80d8277ec3be"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::constructs the watch URL with the returned video id",
-          "line": 413,
+          "line": 423,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "04a6cfda17d8154bd9bc22fa3c5a528876e51d8790e84133a3bac4fabd1efc61"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::extracts title from first line of body",
-          "line": 420,
+          "line": 430,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e38f1a21d54de3c864779e661d559f62cb901252ae898926180fda5955d49640"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::uses 'Untitled Video' when first line is empty #2",
-          "line": 429,
+          "line": 439,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1413ddaa0b2122ca083c346434019ded1ad6edfe86926f5a10aa3c425db99a52"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns NETWORK on circuit-breaker open during apiClient creation",
-          "line": 438,
+          "line": 448,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a60d4aeab03b3c4a2fb6b261a3bddccdeb24a5c55ba46bb4784cb6ffbb63240d"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::maps a 500 upload failure to NETWORK",
-          "line": 448,
+          "line": 458,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d10397e8fda745d64d572af479eb15cc019508cd10c4f270f18ee892c5cf05bd"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::maps a 401 upload failure to AUTH",
-          "line": 462,
+          "line": 472,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "023d5c7a6b86e2b74dc7a4658d62485c9ed5ec2667adbbc8991c96ee33327885"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects SHORT from meta.contentType='short'",
-          "line": 487,
+          "line": 497,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ac275a45f61714371d5c0500c20e4325f16c7c1a06bd8e4c9f36bf108ea7c5b8"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects SHORT from meta.type='SHORT'",
-          "line": 497,
+          "line": 507,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1375097709e6991b41a3c4438ca48fa68483f1945e87ca5b179eae91ceae335d"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects SHORT from aspect ratio 9:16 with video",
-          "line": 507,
+          "line": 517,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "34d1d6a2ddc2ed08d56d6f32bf26833827783d2400d9019a7ace550d3ff9f7a2"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects SHORT from isShort flag",
-          "line": 517,
+          "line": 527,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5bfe047d2ca95e003c189fbd00bd767d87f12ecae9ddc8e510e9a0fbe1ad5703"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects SHORT from durationSeconds<=60 + aspectRatio 9:16",
-          "line": 527,
+          "line": 537,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "636cdce40a48aeaec623b2515803cc8188dc00056a0d213c42896cc602cf4f94"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects COMMUNITY_POST from meta.contentType='community'",
-          "line": 537,
+          "line": 547,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "38ad7ab4242b88f6e600575cae157b7affe2a1a6ddd21efcc116554da664d78f"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects COMMUNITY_POST when no media is present",
-          "line": 543,
+          "line": 553,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e1a0c0ab872e363896eb7b94b131fb535f745a5554ef97a81fbdb249d9d2b8ba"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects LIVE_STREAM from meta.contentType='live'",
-          "line": 549,
+          "line": 559,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2cb0bdb4b5e03fe0cadd362a4d7b6e24e7d55362049c19c0c70840d9f2eb690d"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects LIVE_STREAM from isLive flag",
-          "line": 559,
+          "line": 569,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d84d55b331d976640fec1882974569d509202c5da986c32a81644648c0a661b0"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects LIVE_STREAM from streamKey metadata",
-          "line": 569,
+          "line": 579,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7d0e291b110cff57f18adfe689b5ed04f8683d7884f2bb4cd69dfb47df1e4d7b"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects LIVE_STREAM from scheduledStartTime metadata",
-          "line": 579,
+          "line": 589,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "68d3cd68ff120d3d0b8eb1225bdb67f7392e5c24c84d6c04d1505a548ddb819c"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects VIDEO as default for horizontal video without other hints",
-          "line": 589,
+          "line": 599,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5397cf5510c35903e3ed902b61f832f2aba90652f065b685a7c16dcfc87698d9"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::detects VIDEO for video without any specific metadata",
-          "line": 599,
+          "line": 609,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "44e9490ec9e52b87285a3c9af477749e3782f6d22f8c44dcfb6d9d8a8e90b380"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns VALIDATION (out of scope without YPP)",
-          "line": 611,
+          "line": 621,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13d6b7e8f6d40c2c2a7f19d538c467733bc9917ef8bbe6383a898b51b8152e7f"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns AUTH error when credentials missing",
-          "line": 624,
+          "line": 634,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "48d43218543bd6d6415e82fd308d66c2751032d52df3e6dd7ee464e347213871"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns ok with channel analytics under metrics",
-          "line": 631,
+          "line": 641,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0eb6a46eac8af1558f0d6dcf975527c0e4c76a353d19b3c1ad68db25c6d09024"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::forwards since/until to the api client",
-          "line": 659,
+          "line": 669,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f98aa9870328ce94d301d3ffdc2602a6a71d65bfa54b981e151ed942d63d0672"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns NETWORK on circuit-breaker open",
-          "line": 672,
+          "line": 682,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e95497c9ca8f1ffee44eb86b16163914b21fa18ac8be7c17a18ae64bcf5dcc83"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns NETWORK on generic error",
-          "line": 684,
+          "line": 694,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c864e6ae8e108b3dc522e673bf045f3348219c5340eb3b73d5b92fcda165af54"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns empty list when no postExternalId is provided",
-          "line": 699,
+          "line": 709,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aa90600e8adfc99172a0716586f419a7fa4e2e30b5f354855194b89f6932d837"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns AUTH when credentials are invalid",
-          "line": 706,
+          "line": 716,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff0197096f401f571cd5192cca567668cbdd2a063c1e37b32dac66350ff98260"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::maps comment threads into ProviderComment shape",
-          "line": 716,
+          "line": 726,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "01599e1c6cabe8297631bdc43a2a1905cb98abdf2e3f5c01a8397d8694a63880"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::forwards cursor and limit to the api client",
-          "line": 741,
+          "line": 751,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab395e59f229a79b2d3e2f02db7dbcb1ee8859ca208de8df24b268b6781d703c"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns NETWORK on api client failure",
-          "line": 757,
+          "line": 767,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c8be694ad8e0f8d1494be346ed87a9ad0d67d23ae68f1ddacd4fbfde582a7ee"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns AUTH when api client throws a 401 error",
-          "line": 772,
+          "line": 782,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1d720341af08722c7910f622ac31f31d32f1acaf9bdaaa0ced3b564a9d2cbc93"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns AUTH when credentials missing",
-          "line": 790,
+          "line": 800,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6f60f11c23842ad2a6c00cbc8ebf38fb7b4105a381ff711de74bdf15e238c8ad"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::posts a reply and forwards parent comment id",
-          "line": 801,
+          "line": 811,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "940cb861fe35f77577319e84632e199281e45b01235e1a1959d249a956bd6d19"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns RATE_LIMIT on 429 error",
-          "line": 821,
+          "line": 831,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d03cbfb033b23043897ac7ff88504505b6a9e22e000086ff6e8c7f641299c747"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns AUTH on 401/403",
-          "line": 838,
+          "line": 848,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "42bccc83821254451f21e13d6203b544bf07cf98a47ef3e38ad3215e2902f4a6"
         },
         {
           "id": "packages/providers/youtube/tests/YouTubeAdapter.test.ts::returns NETWORK on generic error #2",
-          "line": 855,
+          "line": 865,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "622f8c7dd113c7dbc70549696c91b6b3c69e5cbbd711715248c133059eef72ae"

@@ -6,7 +6,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, vi } from "vitest";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { XAdapter } from "../src/XAdapter.js";
 import {
@@ -178,6 +178,20 @@ describe("XAdapter - render()", { concurrent: false }, () => {
 
     assert.ok(result.ok, "Render should succeed");
     assert.strictEqual(result.value.type, "single", "Should be single tweet");
+  });
+
+  it("carries the planner's estimated reach in the meta of a rendered thread", () => {
+    const { adapter } = makeAdapter();
+    const post = createTestCanonicalPost({ body: LONG_BODY });
+    const plan = adapter.planThread(post);
+    assert.ok(plan.ok, "planThread should succeed");
+
+    const result = adapter.render(post);
+
+    expect(result.ok).toBe(true);
+    expect(result).toMatchObject({
+      value: { type: "thread", meta: { estimatedReach: plan.value.estimatedReach } },
+    });
   });
 });
 

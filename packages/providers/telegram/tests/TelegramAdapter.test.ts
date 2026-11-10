@@ -8,7 +8,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, vi } from "vitest";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { TelegramAdapter, type TelegramApiClientFactory } from "../src/TelegramAdapter.js";
 import { ok } from "@shared/types";
@@ -634,6 +634,20 @@ describe("TelegramAdapter - validateCredentials()", { concurrent: false }, () =>
 
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.error, "AUTH_EXPIRED");
+  });
+
+  it("accepts a bot that created the chat as one of its administrators", async () => {
+    const client = createMockApiClient();
+    client.getChatMember = vi.fn(async () => ({
+      status: "creator" as const,
+      user: { id: 123456789, is_bot: true, first_name: "TestBot", username: "test_bot" },
+    }));
+    const { adapter } = makeAdapter(client);
+
+    const result = await adapter.validateCredentials(VALID_CREDS);
+
+    expect(result.ok).toBe(true);
+    expect(client.getChatMember).toHaveBeenCalledWith(123456789);
   });
 });
 

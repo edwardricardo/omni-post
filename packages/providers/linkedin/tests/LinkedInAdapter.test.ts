@@ -9,7 +9,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, vi } from "vitest";
+import { describe, it, beforeEach, vi, expect } from "vitest";
 import assert from "node:assert/strict";
 import { LinkedInAdapter, type LinkedInApiClientFactory } from "../src/LinkedInAdapter.js";
 import type { LinkedInApiClient } from "../src/apiClient.js";
@@ -577,6 +577,15 @@ describe("LinkedInAdapter - ValidateCredentials", { concurrency: 1 }, () => {
     if (!result.ok) {
       assert.strictEqual(result.error, "AUTH_INVALID");
     }
+  });
+
+  it("accepts credentials the profile endpoint answers, reading the profile once", async () => {
+    const { adapter, client } = makeAdapter();
+
+    const result = await adapter.validateCredentials(VALID_CREDS);
+
+    expect(result.ok).toBe(true);
+    expect(client.getProfile).toHaveBeenCalledTimes(1);
   });
 });
 
