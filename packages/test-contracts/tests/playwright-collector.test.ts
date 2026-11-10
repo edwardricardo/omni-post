@@ -16,7 +16,7 @@ import {
   parsePlaywrightList,
   PLAYWRIGHT_CONFIG,
 } from "../src/lib/playwright-collector.js";
-import { REPOSITORY_ROOT } from "./fixtures/metrics.js";
+import { REPOSITORY_ROOT } from "./fixtures/repository-root.js";
 import { plantTree, removeTree, type PlantedTree } from "./fixtures/tree.js";
 
 /**

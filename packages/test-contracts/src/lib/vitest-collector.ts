@@ -40,17 +40,15 @@ import {
 } from "./registry.js";
 
 /**
- * A tracked vitest config, by name: the expression `scripts/testing/metrics.mjs` counts metric
- * M8 with, held equal to it by a self-test.
- * M8 counts the tracked vitest configs, with their coverage floors, and that script derives it;
- * this constant must equal the script's expression so the engine and the metric count one set.
+ * A tracked vitest config, by name: the basename the collector looks for in the git listing and
+ * the one the engine's own floor counts.
  */
 export const VITEST_CONFIG = /(^|\/)vitest\.config\.[cm]?[jt]s$/;
 
 /**
- * The fewest tracked vitest configs this repository may hold. It sits below the tracked count,
- * which metric M8 in `docs/development/TESTING_REFOUNDATION.md` measures, so adding or removing a
- * config does not trip it; a listing below it read the wrong directory or a partial index.
+ * The fewest tracked vitest configs this repository may hold. It sits below the tracked count, so
+ * adding or removing a config does not trip it; a listing below it read the wrong directory or a
+ * partial index.
  */
 export const VITEST_CONFIG_FLOOR = 80;
 

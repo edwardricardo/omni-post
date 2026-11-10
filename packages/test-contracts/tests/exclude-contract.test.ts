@@ -21,7 +21,7 @@ import {
   listWithCli,
   type ResolvedExcludes,
 } from "../src/lib/vitest-collector.js";
-import { REPOSITORY_ROOT } from "./fixtures/metrics.js";
+import { REPOSITORY_ROOT } from "./fixtures/repository-root.js";
 import {
   configCollecting,
   plantTree,

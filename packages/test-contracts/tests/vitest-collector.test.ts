@@ -2,9 +2,8 @@
  * @file vitest-collector.test.ts
  * @description Self-tests of the vitest collector over planted trees: what each config collects,
  *              per project, through the node API and through its CLI fallback, the two floors it
- *              fails closed on, the config expression metric M8 counts with, and how the CLI
- *              fallback names an output that is not the listing, a run past its time or output
- *              cap, and a run a signal stopped.
+ *              fails closed on, and how the CLI fallback names an output that is not the listing,
+ *              a run past its time or output cap, and a run a signal stopped.
  * @layer infrastructure
  */
 import path from "node:path";
@@ -13,10 +12,8 @@ import { err } from "@shared/types";
 import {
   createVitestCollector,
   listWithCli,
-  VITEST_CONFIG,
   type VitestStrategies,
 } from "../src/lib/vitest-collector.js";
-import { metricsExpression } from "./fixtures/metrics.js";
 import {
   configCollecting,
   plantTree,
@@ -59,12 +56,6 @@ const failingListing =
 describe("vitest collector", () => {
   afterEach(() => {
     for (const tree of planted.splice(0)) removeTree(tree);
-  });
-
-  it("uses the expression scripts/testing/metrics.mjs counts M8 with, pattern and flags", () => {
-    const { source, flags } = VITEST_CONFIG;
-
-    expect(metricsExpression("VITEST_CONFIG")).toEqual({ source, flags });
   });
 
   it("returns each config's files, repository-relative, when vitest lists them", async () => {

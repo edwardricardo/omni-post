@@ -14,8 +14,7 @@
  *   `lib/ledger-core.mjs`'s; the overlay and the deletion a set of rows stands for are
  *   `lib/ledger-overlay.mjs`'s; the page is `lib/ledger-markdown.mjs`'s; the import graph is
  *   `lib/ledger-imports.mjs`'s, over every tracked module, TypeScript project and command line;
- *   the reach report and the quarantine are read through `lib/reach-report.mjs`, which
- *   `metrics.mjs` M5 shares.
+ *   the reach report and the quarantine are read through `lib/reach-report.mjs`.
  *
  *   MODES. Without `--check` it writes the ledger to `--out`, by default `ledger.json` at the
  *   root, and the page to `docs/development/testing-refoundation/LEDGER.md`, never a Markdown file

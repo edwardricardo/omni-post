@@ -6,7 +6,6 @@
         ".dependency-cruiser-resolve.cjs",
         "eslint.jsdoc.config.ts",
         "scripts/rls-ab-measurement.ts",
-        "scripts/testing/metrics.mjs",
         "scripts/testing/lib/ledger-core.mjs",
         "scripts/testing/lib/dependency-sites.mjs",
         "scripts/testing/lib/dependency-manifests.mjs",

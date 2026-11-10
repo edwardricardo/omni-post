@@ -24,10 +24,9 @@ export const LEDGER_VERSION = 2;
 
 /**
  * A basename that names a test by convention, `.k6.js` being a tier of its own. It must stay
- * byte-equal to `CANONICAL_TEST_SHAPED` in `scripts/testing/metrics.mjs`, which defines metric
- * M1, and in `packages/test-contracts/src/lib/disk.ts:23`, the reach engine's: the ledger's
- * test-shaped population is M1's by construction. `ledger.test.ts` reads all three and fails on a
- * drift. Anchored at the end, so a `.disabled`, `.old` or `.bak` tail is not test-shaped.
+ * byte-equal to `CANONICAL_TEST_SHAPED` in `packages/test-contracts/src/lib/disk.ts`, the reach
+ * engine's: the ledger's test-shaped population is the engine's by construction. `ledger.test.ts`
+ * reads both and fails on a drift. Anchored at the end, so a `.disabled`, `.old` or `.bak` tail is not test-shaped.
  */
 export const CANONICAL_TEST_SHAPED = /(\.(test|spec)\.[cm]?[jt]sx?|\.k6\.js)$/;
 
