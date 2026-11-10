@@ -15,8 +15,8 @@
  *   `tmpdir()`, the git listing and the reach engine replaced, so they spawn nothing. Last, the run
  *   over this repository: the reach engine runs once and its report is handed back through
  *   `--reach`; the ledger's block counts must equal a direct `classifyFile` fold over the same
- *   tracked files, its test-shaped rows M1's count from `metrics.mjs --m1`, and a second run
- *   through the seam the first run's bytes.
+ *   tracked files, its test-shaped rows the count of the test-shaped tracked files, and a second
+ *   run through the seam the first run's bytes.
  *
  *   Between them, the import graph of `scripts/testing/lib/ledger-imports.mjs` (where a specifier,
  *   a relative string, a command line and a TypeScript project land, the live importers of each
@@ -310,7 +310,6 @@ const CORE_SCRIPT = path.join(REPO_ROOT, "scripts/testing/lib/ledger-core.mjs");
 const CLI_SCRIPT = path.join(REPO_ROOT, "scripts/testing/ledger.mjs");
 const REACH_LIB = path.join(REPO_ROOT, "scripts/testing/lib/reach-report.mjs");
 const IMPORTS_LIB = path.join(REPO_ROOT, "scripts/testing/lib/ledger-imports.mjs");
-const METRICS_SCRIPT = path.join(REPO_ROOT, "scripts/testing/metrics.mjs");
 const CLASSIFIER = path.join(REPO_ROOT, "packages/eslint-plugin-testing/src/index.js");
 const core = (await import(CORE_SCRIPT)) as LedgerCore;
 const cli = (await import(CLI_SCRIPT)) as LedgerCli;
@@ -418,7 +417,7 @@ describe("the constants", () => {
     expect(core.LEDGER_VERSION).toBe(2);
   });
 
-  it("holds the test-shaped expression byte-equal to the two places M1 and the reach engine define it", () => {
+  it("holds the test-shaped expression byte-equal in the ledger core and in the reach engine", () => {
     const literal = /^(?:export )?const CANONICAL_TEST_SHAPED = \/(.+)\/([a-z]*);$/m;
     const definedIn = (file: string): string | null => {
       const match = literal.exec(readFileSync(path.join(REPO_ROOT, file), "utf8"));
@@ -429,11 +428,10 @@ describe("the constants", () => {
 
     const literals = [
       "scripts/testing/lib/ledger-core.mjs",
-      "scripts/testing/metrics.mjs",
       "packages/test-contracts/src/lib/disk.ts",
     ].map(definedIn);
 
-    expect(literals).toEqual([expected, expected, expected]);
+    expect(literals).toEqual([expected, expected]);
     expect(expected).toBe("/(\\.(test|spec)\\.[cm]?[jt]sx?|\\.k6\\.js)$/");
   });
 });
@@ -2698,7 +2696,7 @@ describe("ledger.mjs --area", () => {
   });
 });
 
-/** The run over the repository pays the reach engine and two full ledgers, as `metrics.mjs` M5. */
+/** The run over the repository pays the reach engine and two full ledgers. */
 const REPOSITORY_TIMEOUT = 60_000;
 
 describe("ledger.mjs over the repository", () => {
@@ -2725,7 +2723,7 @@ describe("ledger.mjs over the repository", () => {
   });
 
   it(
-    "returns the blocks and decorative blocks of a direct classifyFile fold, over M1's test-shaped files",
+    "returns the blocks and decorative blocks of a direct classifyFile fold, over the test-shaped tracked files",
     { timeout: REPOSITORY_TIMEOUT },
     () => {
       const tracked = execFileSync("git", ["ls-files", "-z"], {
@@ -2738,12 +2736,6 @@ describe("ledger.mjs over the repository", () => {
       const blocks = tracked.flatMap(
         (file) => classifyFile(readFileSync(path.join(REPO_ROOT, file), "utf8"), file).blocks
       );
-      const m1 = /^M1\t(\d+) \+ (\d+)\t/m.exec(
-        execFileSync(process.execPath, [METRICS_SCRIPT, "--m1"], {
-          cwd: REPO_ROOT,
-          encoding: "utf8",
-        })
-      );
 
       const ledger = readLedger(path.join(scratch, "ledger.json"));
 
@@ -2755,7 +2747,6 @@ describe("ledger.mjs over the repository", () => {
         blocks.filter((block) => block.criteria.length > 0).length
       );
       expect(testShaped).toBe(tracked.length);
-      expect(testShaped).toBe(Number(m1?.[1]) + Number(m1?.[2]));
       const helpers = ledger.files.filter((file) =>
         ["runner", "helper"].includes(file.shape ?? "")
       );

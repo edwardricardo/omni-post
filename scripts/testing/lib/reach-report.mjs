@@ -2,8 +2,8 @@
 /**
  * @file reach-report.mjs
  * @description The reach engine's JSON report and the quarantine it runs with, read in one place
- *   outside `packages/test-contracts`: `metrics.mjs` runs the engine through it for M5, and
- *   `ledger.mjs` reads each collected file's sources and each quarantined file's owner. The command
+ *   outside `packages/test-contracts`: `ledger.mjs` runs the engine through it and reads each
+ *   collected file's sources and each quarantined file's owner. The command
  *   is fitness #30's plus `--json`. The engine exits 1 on a violation and still prints its report,
  *   so that exit is read rather than treated as no report. A report that names inputs the engine
  *   could not read is refused here, once, for every consumer. Every reader returns its value or
@@ -79,8 +79,8 @@ function spawnEngine(command, args, cwd) {
  * @description Runs `pnpm --filter @packages/test-contracts reach --quarantine quarantine.json
  *   --json` in a repository and reads its report.
  * @param {string} root The repository root, where `pnpm` runs.
- * @param {{ spawn?: Spawn }} [seams] The suite's replacement for the process; `metrics.mjs` and
- *   the ledger pass none.
+ * @param {{ spawn?: Spawn }} [seams] The suite's replacement for the process; the ledger
+ *   passes none.
  * @returns {ReachReport | string} The report, or why there is none.
  */
 export function reachReport(root, { spawn = spawnEngine } = {}) {

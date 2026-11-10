@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1186  |
+| Files                   | 1185  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1022  |
+| KEEP                    | 1021  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1176  |
+| Machine rows            | 1175  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14713 |
+| Blocks                  | 14702 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -952,14 +952,13 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/overrideBandsGate.test.ts`                                               | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 28     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/storyPerComponentGate.test.ts`                                           | test             | 13     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/subprocessorsInventory.test.ts`                                          | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/supportFrontMatter.test.ts`                                              | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/supportIndex.test.ts`                                                    | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/supportNonFeatures.test.ts`                                              | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/testingMetrics.test.ts`                                                  | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/secureSchemas.basic.test.ts`                                                     | test             | 31     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/secureSchemas.social.test.ts`                                                    | test             | 31     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/ChannelCredentialsCrypto.test.ts`                                       | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
@@ -1307,11 +1306,11 @@ Deleted: 0 files, 31 blocks.
 | `packages/query-client/tests/createAppQueryClient.test.ts`                                            | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/test-contracts/tests/child-exit.test.ts`                                                    | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/test-contracts/tests/cli.test.ts`                                                           | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/test-contracts/tests/disk.test.ts`                                                          | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/test-contracts/tests/disk.test.ts`                                                          | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/test-contracts/tests/exclude-contract.test.ts`                                              | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/test-contracts/tests/executed-by.test.ts`                                                   | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/test-contracts/tests/fixtures/ci.ts`                                                        | helper           | 0      | 0          | KEEP       | machine                     | imported             |
-| `packages/test-contracts/tests/fixtures/metrics.ts`                                                   | helper           | 0      | 0          | KEEP       | machine                     | imported             |
+| `packages/test-contracts/tests/fixtures/repository-root.ts`                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `packages/test-contracts/tests/fixtures/tree.ts`                                                      | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `packages/test-contracts/tests/k6.test.ts`                                                            | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/test-contracts/tests/node-collector.test.ts`                                                | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
@@ -1321,7 +1320,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/test-contracts/tests/rules.test.ts`                                                         | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/test-contracts/tests/scopes.test.ts`                                                        | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/test-contracts/tests/source-resolution.test.ts`                                             | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
-| `packages/test-contracts/tests/vitest-collector.test.ts`                                              | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
+| `packages/test-contracts/tests/vitest-collector.test.ts`                                              | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/vitest-shared/tests/defineWorkspaceVitestConfig.test.ts`                                    | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/vitest-shared/tests/determinism.test.ts`                                                    | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/vitest-shared/tests/workspaceReporters.test.ts`                                             | test             | 10     | 0          | KEEP       | machine                     | behavioural          |

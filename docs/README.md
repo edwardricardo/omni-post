@@ -219,3 +219,4 @@ ADRs live in [`technical/`](technical/) as `ADR-NNNN-*.md`; ADR-0001 holds the t
 | [0041](technical/ADR-0041-dead-code-cards-and-retired-intentions.md)          | Dead code: the cards C1 to C12 and the intentions each deletion retires        |
 | [0042](technical/ADR-0042-legal-facts-register-method.md)                     | The legal facts register: its method, from generated inventories to decisions  |
 | [0043](technical/ADR-0043-support-documentation-register.md)                  | Support documentation: one page per feature, its stamp, and answers Q1 to Q5   |
+| [0044](technical/ADR-0044-feature-ordered-plan.md)                            | One plan ordered by feature and dependency replaces the three old documents    |

@@ -67,5 +67,4 @@ A retro batch takes ledger rows in order of exposure (credentials, OAuth, billin
 3. Add `classification/<name>.json` (`generator`, `pendingBaseline`, `entries`) and write the page with `pnpm legal:inventory`.
 4. Add its suite under `apps/api/tests/unit/scripts/`, including the red paths: a planted row changes the page, and `--check` exits 1 on a stale page, an unclassified row and a `pending` count over its baseline.
 5. Add the script to the root `entry` list of [`knip.json`](../../knip.json).
-6. Move M1 in [`TESTING_REFOUNDATION.md`](../development/TESTING_REFOUNDATION.md): every new test file moves it.
-7. Add its row to the inventories table above, and set its section of [`REGISTER.md`](REGISTER.md) to `generated` with a link to the page.
+6. Add its row to the inventories table above, and set its section of [`REGISTER.md`](REGISTER.md) to `generated` with a link to the page.

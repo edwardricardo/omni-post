@@ -16,9 +16,9 @@ import { describeError } from "./registry.js";
 
 /**
  * A basename that names a test by convention, `.k6.js` being a tier of its own. It is the same
- * expression as `CANONICAL_TEST_SHAPED` in `scripts/testing/metrics.mjs`, which defines metric
- * M1, and a self-test holds the two byte-equal: that script runs on import, so it cannot be
- * imported here. Anchored at the end, so a `.disabled` or `.old` tail is not test-shaped.
+ * expression as `CANONICAL_TEST_SHAPED` in `scripts/testing/lib/ledger-core.mjs`, and the ledger's
+ * self-test holds the two byte-equal: a TypeScript package does not import that module. Anchored at
+ * the end, so a `.disabled` or `.old` tail is not test-shaped.
  */
 export const CANONICAL_TEST_SHAPED = /(\.(test|spec)\.[cm]?[jt]sx?|\.k6\.js)$/;
 

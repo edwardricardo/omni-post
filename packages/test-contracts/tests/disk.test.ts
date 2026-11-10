@@ -1,9 +1,9 @@
 /**
  * @file disk.test.ts
  * @description Self-tests of the disk side of the reach engine: the test-shaped expression stays
- *              the one metric M1 counts with, the floor fails closed, the git listing reads this
- *              repository in full and drops what the working tree lost, and a listing past its
- *              output cap and a directory outside any repository are failures.
+ *              the engine's own, the floor fails closed, the git listing reads this repository in
+ *              full and drops what the working tree lost, and a listing past its output cap and a
+ *              directory outside any repository are failures.
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
@@ -12,7 +12,6 @@ import { devNull, tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
-  CANONICAL_TEST_SHAPED,
   DISK_FLOOR,
   inventoryFromFiles,
   isTestShaped,
@@ -20,7 +19,7 @@ import {
   type DiskFailure,
   type DiskInventory,
 } from "../src/lib/disk.js";
-import { metricsExpression, REPOSITORY_ROOT } from "./fixtures/metrics.js";
+import { REPOSITORY_ROOT } from "./fixtures/repository-root.js";
 
 /**
  * Runs `action` with git confined to `root`, and restores the environment afterwards. Discovery
@@ -61,12 +60,6 @@ function commitTwoTestsThenLoseOne(repository: string): void {
 }
 
 describe("disk inventory", () => {
-  it("uses the expression scripts/testing/metrics.mjs counts M1 with, pattern and flags", () => {
-    const { source, flags } = CANONICAL_TEST_SHAPED;
-
-    expect(metricsExpression("CANONICAL_TEST_SHAPED")).toEqual({ source, flags });
-  });
-
   it.each([
     ["a.test.ts", true],
     ["a.spec.tsx", true],

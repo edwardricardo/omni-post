@@ -20,7 +20,11 @@
  *      the files, never refused. A string literal that holds the source's path is not an import, but
  *      a test under `apps/api/tests/unit/scripts/` holding a string literal whose whole value is, or
  *      ends after a `/` with, the path of a changed source under `scripts/testing/` is a behaviour
- *      change too, listed with the files;
+ *      change too, listed with the files, and so is one whose consecutive string-literal arguments
+ *      of a single `path.join(...)` call written in code (never text inside a string), joined with
+ *      `/`, are or end after a `/` with that path (a non-literal argument ends a run;
+ *      `path.resolve`, concatenation, a template literal, a call inside a template substitution and
+ *      a bare `join` import stay unseen);
  *   5. covered: a case of a committed record under
  *      `docs/development/testing-refoundation/mutations/*.record.json` lists the id with
  *      `bodyHash.base` and `bodyHash.head` equal to the two ledgers (`null` at the head for a

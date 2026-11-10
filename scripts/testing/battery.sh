@@ -36,7 +36,7 @@ set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly.
-PLANNED_STEPS=35
+PLANNED_STEPS=34
 
 if [ $# -gt 1 ]; then
   echo "usage: scripts/testing/battery.sh [<worktree>]" >&2
@@ -204,7 +204,6 @@ step ledger pnpm check:ledger
 # Fitness #53: per tracked file, its Spanish lines and its personal-name mentions equal
 # scripts/testing/artifact-language-baseline.json in both directions. It reads git's listing only.
 step artifact-language pnpm check:artifact-language
-step metrics node scripts/testing/metrics.mjs --all --offline
 # Every client story as a vitest browser test in headless Chromium: it renders,
 # its play function runs, and axe at `error` and the console contract can fail it.
 # The preflight turns a missing browser into a one-line verdict instead of a

@@ -12,7 +12,7 @@
  *   an id the base did not hold), live (a block of a row node:test's live tier runs, which needs a
  *   running API the mutation tool does not start), no-collector (a block of a row with
  *   `collectors: []`, which nothing runs), behaviour change (its test imports a changed source directly, a test under
- *   `apps/api/tests/unit/scripts/` names a changed `scripts/testing/` file in a string literal, or its record says BEHAVIOUR-CHANGED),
+ *   `apps/api/tests/unit/scripts/` names a changed `scripts/testing/` file in a string literal or a `path.join` run of literals, or its record says BEHAVIOUR-CHANGED),
  *   covered (a record case lists it with both hashes equal to the ledgers and SAFE for a deletion
  *   or GAIN for a rewrite), and refused, named by its reason: `no-record`, `stale-record`,
  *   `wrong-kind` or `failing-verdict: <verdict>`. The two counted classes retire themselves:
@@ -237,12 +237,120 @@ function withoutComments(text) {
 }
 
 /**
+ * @description A module's text with the inside of every quoted and template literal replaced by
+ *   spaces, quotes kept, so the result has the text's length and its offsets line up with it. A
+ *   quoted literal ends at its line's end when it is not closed there. The text must already be
+ *   free of comments.
+ * @param {string} text
+ * @returns {string}
+ */
+function withoutLiteralBodies(text) {
+  let masked = "";
+  let at = 0;
+  while (at < text.length) {
+    const char = text[at] ?? "";
+    if (char === '"' || char === "'" || char === "`") {
+      let end = at + 1;
+      while (end < text.length && text[end] !== char && (char === "`" || text[end] !== "\n")) {
+        end += text[end] === "\\" ? 2 : 1;
+      }
+      const close = Math.min(end, text.length - 1);
+      masked +=
+        char + " ".repeat(Math.max(close - at - 1, 0)) + (end < text.length ? text[end] : "");
+      at = end + 1;
+    } else {
+      masked += char;
+      at += 1;
+    }
+  }
+  return masked.slice(0, text.length);
+}
+
+/** One whole string literal, nothing around it. */
+const WHOLE_LITERAL = /^(["'`])((?:\\.|(?!\1)[^\\\n])*)\1$/;
+
+/**
+ * @description The arguments of the call whose opening parenthesis is at `open`: the text between
+ *   its top-level commas, split string-aware and with nested brackets kept whole. The text must
+ *   already be free of comments.
+ * @param {string} text
+ * @param {number} open Index of the call's `(`.
+ * @returns {string[]} The trimmed arguments; empty when the call is not closed.
+ */
+function callArguments(text, open) {
+  /** @type {string[]} */
+  const args = [];
+  let depth = 0;
+  let from = open + 1;
+  let at = open;
+  while (at < text.length) {
+    const char = text[at] ?? "";
+    if (char === '"' || char === "'" || char === "`") {
+      let end = at + 1;
+      while (end < text.length && text[end] !== char && (char === "`" || text[end] !== "\n")) {
+        end += text[end] === "\\" ? 2 : 1;
+      }
+      at = end + 1;
+      continue;
+    }
+    if (char === "(" || char === "[" || char === "{") depth += 1;
+    if (char === ")" || char === "]" || char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        args.push(text.slice(from, at).trim());
+        return args.filter((arg) => arg !== "");
+      }
+    }
+    if (char === "," && depth === 1) {
+      args.push(text.slice(from, at).trim());
+      from = at + 1;
+    }
+    at += 1;
+  }
+  return [];
+}
+
+/**
+ * @description The paths a test builds with `path.join`: in each call written `path.join(...)`,
+ *   each maximal run of consecutive string-literal arguments, joined with `/`. An argument that is
+ *   not one whole string literal (an identifier, a call, a template with a substitution) ends a
+ *   run, so each run stands on its own. A call is read only where it is written in code: the text
+ *   `path.join(` inside a quoted or template literal is not a call, and neither is a callee that
+ *   only ends with the name. Other ways to build a path (`path.resolve`, concatenation, a template
+ *   literal, a bare `join` import) are not read. The text must already be free of comments.
+ * @param {string} text
+ * @returns {string[]}
+ */
+function joinedRuns(text) {
+  /** @type {string[]} */
+  const runs = [];
+  for (const call of withoutLiteralBodies(text).matchAll(/(?<![\w$.])path\.join\s*\(/g)) {
+    /** @type {string[]} */
+    let run = [];
+    const flush = () => {
+      if (run.length > 0) runs.push(run.join("/"));
+      run = [];
+    };
+    for (const arg of callArguments(text, call.index + call[0].length - 1)) {
+      const literal = WHOLE_LITERAL.exec(arg);
+      const value = literal?.[2];
+      if (value === undefined || value.includes("${")) flush();
+      else run.push(value);
+    }
+    flush();
+  }
+  return runs;
+}
+
+/**
  * @description The changed scripts a script suite names in a string literal: for a test under
  *   `apps/api/tests/unit/scripts/`, each changed source under `scripts/testing/` that a literal's
- *   whole value equals or ends with after a `/`, read once the test's comments are stripped, so a
- *   path written only in a comment names nothing. A template literal with a substitution, and a
- *   path built from fragments, name nothing either; a regular-expression literal holding a quote
- *   can hide what follows it on its line.
+ *   whole value equals or ends with after a `/`, or that a run of consecutive literal arguments of
+ *   one `path.join` call, joined with `/`, equals or ends with after a `/`, read once the test's
+ *   comments are stripped, so a path written only in a comment names nothing. A template literal
+ *   with a substitution, a run broken by a non-literal argument, and any other way of building a
+ *   path (`path.resolve`, concatenation, a template literal, a bare `join`) name nothing either; a
+ *   regular-expression literal holding a quote can hide what follows it on its line.
  * @param {string} file The test, repository-relative.
  * @param {string} text Its text on the side the block is read at.
  * @param {readonly string[]} sources The changed files that are no ledger row.
@@ -250,9 +358,13 @@ function withoutComments(text) {
  */
 export function changedLiterals(file, text, sources) {
   if (!file.startsWith(SCRIPT_SUITES)) return [];
-  const values = [...withoutComments(text).matchAll(LITERAL)]
-    .map((match) => match[2] ?? "")
-    .filter((value) => !value.includes("${"));
+  const code = withoutComments(text);
+  const values = [
+    ...[...code.matchAll(LITERAL)]
+      .map((match) => match[2] ?? "")
+      .filter((value) => !value.includes("${")),
+    ...joinedRuns(code),
+  ];
   return sources
     .filter(
       (source) =>

@@ -527,6 +527,93 @@ describe("record-coverage-gate: exclusions", () => {
     });
   });
 
+  /** Plants a deleted block of the scripts suite whose base text is `body`, with the gate script changed. */
+  const planScriptSuite = (body: string): string =>
+    plant(
+      { [LEDGER]: ledger([row({ one: H1 }, SCRIPT_TEST)]), [SCRIPT]: "export const gate = 2;\n" },
+      {
+        ...BASE,
+        [LEDGER]: ledger([row({ one: H1, two: H2 }, SCRIPT_TEST)]),
+        [SCRIPT_TEST]: testText(body),
+        [SCRIPT]: "export const gate = 1;\n",
+      }
+    );
+
+  it("lists as a behaviour change a deleted block whose scripts suite names a changed script only through the literal arguments of path.join", () => {
+    const base = planScriptSuite(
+      'const gate = path.join(ROOT, "scripts", "testing", "record-coverage-gate.mjs");'
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 0,
+      lines: [
+        summary(base, { b: 1 }),
+        line(
+          `behaviour change: ${SCRIPT_TEST}::two (deletion): its test names ${SCRIPT} in a string literal, which this pull request changes`
+        ),
+      ],
+    });
+  });
+
+  it("refuses that deletion when a non-literal argument of path.join breaks the run", () => {
+    const base = planScriptSuite(
+      'const gate = path.join(ROOT, "scripts", dir, "record-coverage-gate.mjs");'
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${SCRIPT_TEST}::two (deletion): no-record`)],
+    });
+  });
+
+  it("refuses that deletion when the path.join call sits only in a comment", () => {
+    const base = planScriptSuite(
+      '// path.join(ROOT, "scripts", "testing", "record-coverage-gate.mjs")\n/* path.join("scripts", "testing", "record-coverage-gate.mjs") */'
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${SCRIPT_TEST}::two (deletion): no-record`)],
+    });
+  });
+
+  it("refuses that deletion when the path.join text sits only inside a single-quoted string literal", () => {
+    const base = planScriptSuite(
+      `const fixture = 'path.join("scripts", "testing", "record-coverage-gate.mjs")';`
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${SCRIPT_TEST}::two (deletion): no-record`)],
+    });
+  });
+
+  it("refuses that deletion when the path.join text sits only inside a template literal", () => {
+    const base = planScriptSuite(
+      'const fixture = `path.join("scripts", "testing", "record-coverage-gate.mjs")`;'
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${SCRIPT_TEST}::two (deletion): no-record`)],
+    });
+  });
+
+  it("refuses that deletion when the literal run of path.join names no changed source", () => {
+    const base = planScriptSuite(
+      'const other = path.join(ROOT, "scripts", "testing", "other.mjs");'
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${SCRIPT_TEST}::two (deletion): no-record`)],
+    });
+  });
+
+  it("refuses that deletion when the callee only ends with the name path.join", () => {
+    const base = planScriptSuite(
+      'const gate = xpath.join(ROOT, "scripts", "testing", "record-coverage-gate.mjs");'
+    );
+    expect(runGate({ root, baseRef: base })).toEqual({
+      exitCode: 1,
+      lines: [summary(base, { r: 1 }), line(`refused: ${SCRIPT_TEST}::two (deletion): no-record`)],
+    });
+  });
+
   it("reads a rewrite's imports at the head, so an import only the base held excludes nothing", () => {
     const base = plant(
       { ...REWRITTEN, [TEST]: testText(), [SOURCE]: "export const sub = 2;\n" },
