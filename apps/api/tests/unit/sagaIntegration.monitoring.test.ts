@@ -12,7 +12,8 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeEach, afterEach, expect } from "vitest";
+import { describe, it, beforeEach, afterEach, expect, vi } from "vitest";
+import assert from "node:assert/strict";
 import { SagaIntegration } from "../../src/saga/SagaIntegration.js";
 import { buildIntegration, passthroughReply } from "./sagaIntegration.helpers.js";
 
@@ -35,7 +36,27 @@ describe("SagaIntegration - Monitoring Routes", () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     await integration.shutdown();
+  });
+
+  it("lists the names of the registered saga definitions", async () => {
+    const handler = routes.get("GET:/sagas");
+    assert.ok(handler);
+    const result = await handler({}, passthroughReply);
+
+    expect(result.success).toBe(true);
+    expect(result.data.definitions).toEqual(["post-publishing-saga"]);
+  });
+
+  it("stamps the metrics snapshot with the time it was taken", async () => {
+    const handler = routes.get("GET:/sagas/metrics");
+    assert.ok(handler);
+    vi.useFakeTimers({ now: new Date("2026-11-10T00:00:00.000Z") });
+    const result = await handler({}, passthroughReply);
+
+    expect(result.success).toBe(true);
+    expect(result.timestamp).toEqual(new Date("2026-11-10T00:00:00.000Z"));
   });
 
   it("should calculate success rate in metrics", async () => {

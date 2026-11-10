@@ -1,0 +1,548 @@
+{
+  "base": "0a301639ec2fc1ee1752d9a356c1cf608fbc62eb",
+  "cases": [
+    {
+      "base": "dbd47d61642d32a0748b04041f5e48602daf8bb9",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "43604d337ac3562a147860b9084c01d07da0af6441f69eb3d8d51557111baf18",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when 3 COMPLETED requests (not counted)"
+        }
+      ],
+      "id": "c01-dsar-zero-pending",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > deadline +15 days for LGPD",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > deadline +30 days for GDPR",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > deadline +30 days for PIPEDA",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > deadline +45 days for CCPA",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > emits audit event",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > generates verificationToken",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > returns RATE_LIMITED when 3 pending requests for same email",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > succeeds when 2 pending requests (under limit)",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > succeeds when 3 COMPLETED requests (not counted)",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > uses gdprSettings.dsarResponseDays for unknown jurisdiction"
+        ],
+        "head": [
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > deadline +15 days for LGPD",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > deadline +30 days for GDPR",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > deadline +30 days for PIPEDA",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > deadline +45 days for CCPA",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > emits audit event",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > generates verificationToken",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > returns RATE_LIMITED when 3 pending requests for same email",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > succeeds when 2 pending requests (under limit)",
+          "apps/api/tests/unit/compliance/ComplianceService.test.ts::ComplianceService > submitDsarRequest > uses gdprSettings.dsarResponseDays for unknown jurisdiction"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/compliance/ComplianceService.test.ts"],
+        "head": ["apps/api/tests/unit/compliance/ComplianceService.test.ts"]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "base": "3cdf1b662c0cdacce56849c48e0fd1ab59bd79ca",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "8221ab260f802074c8482b61e85b632b910712262bd556e8414c9737f97b288a",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/sagaIntegration.init.test.ts::should configure command executor for saga steps"
+        }
+      ],
+      "id": "s01-saga-command-executor",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts::Saga — existing-post path (postId provided) > publish-now with postId starts the saga without creating a new post",
+          "apps/api/tests/unit/sagaExistingPost.test.ts::Saga — existing-post path (postId provided) > schedule with postId requires scheduledAt",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts::SagaIntegration - Initialization > should register saga definitions during initialization",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts::SagaIntegration - Saga Definition Registration > should register post publishing saga definition",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Event Handling > should emit saga started event when starting saga",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Graceful Shutdown > should persist running sagas during shutdown",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::SagaIntegration - Monitoring Routes > should include definition count in metrics",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Job Payload Shape > should pass postData through the saga context metadata",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Job Payload Shape > should set mode metadata for draft requests",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should emit saga started event containing the sagaId",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should execute the validate-post-data step with channel data",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should include sagaId in the correlationId of the context",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should schedule publishing jobs with sagaId in the job payload",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should start a saga and transition through steps asynchronously",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should accept all three modes (draft, schedule, publish-now)",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should create saga context with user and request metadata",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should start post publishing saga with valid request",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should support scheduled post publishing",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > starts a saga for a new post in es and in en",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Control Routes > should continue saga execution via API",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Control Routes > should handle saga compensation via API",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > maps every step outcome onto the response contract, including a step nobody reached",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should calculate saga progress percentage",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should retrieve saga status by ID",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should return step results with saga status"
+        ],
+        "head": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts::Saga — existing-post path (postId provided) > publish-now with postId starts the saga without creating a new post",
+          "apps/api/tests/unit/sagaExistingPost.test.ts::Saga — existing-post path (postId provided) > schedule with postId requires scheduledAt",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts::SagaIntegration - Initialization > should register saga definitions during initialization",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts::SagaIntegration - Saga Definition Registration > should register post publishing saga definition",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Event Handling > should emit saga started event when starting saga",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Graceful Shutdown > should persist running sagas during shutdown",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::SagaIntegration - Monitoring Routes > lists the names of the registered saga definitions",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::SagaIntegration - Monitoring Routes > should include definition count in metrics",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Job Payload Shape > should pass postData through the saga context metadata",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Job Payload Shape > should set mode metadata for draft requests",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should emit saga started event containing the sagaId",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should execute the validate-post-data step with channel data",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should include sagaId in the correlationId of the context",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should schedule publishing jobs with sagaId in the job payload",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should start a saga and transition through steps asynchronously",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should create saga context with user and request metadata",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should start post publishing saga with valid request",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should support scheduled post publishing",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > starts a saga for a new post in es and in en",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Control Routes > should continue saga execution via API",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Control Routes > should handle saga compensation via API",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > maps every step outcome onto the response contract, including a step nobody reached",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should calculate saga progress percentage",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should retrieve saga status by ID",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should return step results with saga status"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts"
+        ]
+      },
+      "verdict": "VACUOUS"
+    },
+    {
+      "base": "3cdf1b662c0cdacce56849c48e0fd1ab59bd79ca",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "f0a9488b777d16008861b0cf33996fa96f4564aff6e3667866f9c06055d9cd21",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::should return saga list with metrics"
+        }
+      ],
+      "id": "s02-saga-list-definitions",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::SagaIntegration - Monitoring Routes > should return saga list with metrics"
+        ],
+        "head": [
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::SagaIntegration - Monitoring Routes > lists the names of the registered saga definitions"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "base": "3cdf1b662c0cdacce56849c48e0fd1ab59bd79ca",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "d7b2895ce6b4cad0e35b95cc7000b36012ed85618f3aceb6b34ef9d1c16358c6",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::should return saga metrics with performance data"
+        }
+      ],
+      "id": "s03-saga-metrics-timestamp",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::SagaIntegration - Monitoring Routes > should return saga metrics with performance data"
+        ],
+        "head": [
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::SagaIntegration - Monitoring Routes > stamps the metrics snapshot with the time it was taken"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "base": "3cdf1b662c0cdacce56849c48e0fd1ab59bd79ca",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "59c9b14dc929cc602d3aba95a5decbe6a397c984cd5bd143536784938d350b28",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/sagaIntegration.routes.test.ts::should accept all three modes (draft, schedule, publish-now)"
+        }
+      ],
+      "id": "s04-saga-publish-now-mode",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts::Saga — existing-post path (postId provided) > publish-now with postId starts the saga without creating a new post",
+          "apps/api/tests/unit/sagaExistingPost.test.ts::Saga — existing-post path (postId provided) > rejects postId belonging to a different project (404 anti-IDOR)",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Error Handling > should handle errors when saga manager fails",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Event Handling > should emit saga started event when starting saga",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Graceful Shutdown > should persist running sagas during shutdown",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Job Payload Shape > should pass postData through the saga context metadata",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should emit saga started event containing the sagaId",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should execute the validate-post-data step with channel data",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should include sagaId in the correlationId of the context",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should schedule publishing jobs with sagaId in the job payload",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should start a saga and transition through steps asynchronously",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should accept all three modes (draft, schedule, publish-now)",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should create saga context with user and request metadata",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should start post publishing saga with valid request",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Control Routes > should continue saga execution via API",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > maps every step outcome onto the response contract, including a step nobody reached",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should calculate saga progress percentage",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should retrieve saga status by ID",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should return step results with saga status"
+        ],
+        "head": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts::Saga — existing-post path (postId provided) > publish-now with postId starts the saga without creating a new post",
+          "apps/api/tests/unit/sagaExistingPost.test.ts::Saga — existing-post path (postId provided) > rejects postId belonging to a different project (404 anti-IDOR)",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Error Handling > should handle errors when saga manager fails",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Event Handling > should emit saga started event when starting saga",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts::SagaIntegration - Graceful Shutdown > should persist running sagas during shutdown",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Job Payload Shape > should pass postData through the saga context metadata",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should emit saga started event containing the sagaId",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should execute the validate-post-data step with channel data",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should include sagaId in the correlationId of the context",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should schedule publishing jobs with sagaId in the job payload",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts::SagaIntegration - Queue Integration > should start a saga and transition through steps asynchronously",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should create saga context with user and request metadata",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Post Publishing Routes > should start post publishing saga with valid request",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Control Routes > should continue saga execution via API",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > maps every step outcome onto the response contract, including a step nobody reached",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should calculate saga progress percentage",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should retrieve saga status by ID",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts::SagaIntegration - Saga Status Routes > should return step results with saga status"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/sagaExistingPost.test.ts",
+          "apps/api/tests/unit/sagaIntegration.init.test.ts",
+          "apps/api/tests/unit/sagaIntegration.lifecycle.test.ts",
+          "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+          "apps/api/tests/unit/sagaIntegration.queue.test.ts",
+          "apps/api/tests/unit/sagaIntegration.routes.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "base": "33545efb885e0d86b37d32b6c6a4f731cff8d555",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "b1c5d0440e2df1ee775c370c0fcc5207f5f0eaf4b9a4d3d7aabb30821a65dbcb",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should retrieve trending content without filters"
+        }
+      ],
+      "id": "t01-trending-unfiltered",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Helper Methods (Pattern/Shift) > should generate pattern insights from trending content",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should filter trending content by category",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should filter trending content by type",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should include all required trend fields",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should include metrics with proper structure",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should include opportunity assessment",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should include trend phase information",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should limit number of results",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should retrieve trending content without filters",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::TrendAnalysisService - Comprehensive Trend Report > should generate comprehensive trend report"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trend Report > returns the requested category when given a category filter",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trend Report > returns the requested region when given a region filter",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should filter trending content by type",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trending Content > should limit number of results"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "base": "33545efb885e0d86b37d32b6c6a4f731cff8d555",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "53d392117032db80519b820fd80a9a56d8b86f426c5020ac806a4baf7ca36cd2",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should filter trending content by category"
+        }
+      ],
+      "id": "t02-trending-category-filter",
+      "kind": "deletion",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ]
+      },
+      "verdict": "VACUOUS"
+    },
+    {
+      "base": "33545efb885e0d86b37d32b6c6a4f731cff8d555",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "c58a2cdb6044bb132b7f6733a319f6d792adc35b1b572830dac4e8ef17a46b3c",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should include all required trend fields"
+        }
+      ],
+      "id": "t03-trending-limit-fields",
+      "kind": "deletion",
+      "red": {
+        "base": [],
+        "head": []
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ]
+      },
+      "verdict": "VACUOUS"
+    },
+    {
+      "base": "33545efb885e0d86b37d32b6c6a4f731cff8d555",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "546e1e07660650a73a42c6e3899a74c20c530d61a32ef2c2b8cfaca89cf043a8",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should discover content opportunities"
+        }
+      ],
+      "id": "t04-opportunities-value",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::TrendAnalysisService - Comprehensive Trend Report > should generate comprehensive trend report",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::TrendAnalysisService - Content Opportunity Discovery > should discover content opportunities",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::TrendAnalysisService - Content Opportunity Discovery > should include content gaps",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::TrendAnalysisService - Content Opportunity Discovery > should include emerging topics",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::TrendAnalysisService - Content Opportunity Discovery > should include saturated topics",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::TrendAnalysisService - Content Opportunity Discovery > should include seasonal topics"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trend Report > returns the requested category when given a category filter",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trend Report > returns the requested region when given a region filter"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "base": "33545efb885e0d86b37d32b6c6a4f731cff8d555",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "b7e168e5c2f174271ddb07522e9e1e772fe3cf25d68200d897756b4fcd301f96",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should generate comprehensive trend report"
+        }
+      ],
+      "id": "t05-report-predictions-guard",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::TrendAnalysisService - Comprehensive Trend Report > should generate comprehensive trend report"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trend Report > returns the requested category when given a category filter",
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::TrendAnalysisService - Trend Report > returns the requested region when given a region filter"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "base": "33545efb885e0d86b37d32b6c6a4f731cff8d555",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "8b78da31daba485d7f2c1f34bab73acbcde2625bb9dcbd42412363663999037a",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should generate trend predictions"
+        }
+      ],
+      "id": "t06-predictions-list",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::TrendAnalysisService - Comprehensive Trend Report > should generate comprehensive trend report",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::TrendAnalysisService - Trend Predictions > should generate trend predictions",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::TrendAnalysisService - Trend Predictions > should include actionable items",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::TrendAnalysisService - Trend Predictions > should include competitive intelligence",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::TrendAnalysisService - Trend Predictions > should include early signals",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::TrendAnalysisService - Trend Predictions > should include prediction metadata",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::TrendAnalysisService - Trend Predictions > should include prediction probabilities",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::TrendAnalysisService - Trend Predictions > should include risk factors"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::TrendAnalysisService - Trend Predictions > returns an empty list of predictions while no prediction provider is connected"
+        ]
+      },
+      "scope": {
+        "base": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ],
+        "head": [
+          "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+          "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts"
+        ]
+      },
+      "verdict": "SAFE"
+    },
+    {
+      "base": "33545efb885e0d86b37d32b6c6a4f731cff8d555",
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "b65ce07d6c462617ddbe942689a4701ba0dc9ed9e04eefc2484a6ff36c345bc8",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/unitOfWork.useCases.test.ts::should work without UoW (backward compat)"
+        }
+      ],
+      "id": "u01-create-without-uow",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/unitOfWork.useCases.test.ts::D3.3: CreatePostUseCase with UnitOfWork > should use UoW.executeInTransaction when UoW is provided",
+          "apps/api/tests/unit/unitOfWork.useCases.test.ts::D3.3: CreatePostUseCase with UnitOfWork > should work without UoW (backward compat)"
+        ],
+        "head": [
+          "apps/api/tests/unit/unitOfWork.useCases.test.ts::D3.3: CreatePostUseCase with UnitOfWork > should use UoW.executeInTransaction when UoW is provided"
+        ]
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/unitOfWork.useCases.test.ts"],
+        "head": ["apps/api/tests/unit/unitOfWork.useCases.test.ts"]
+      },
+      "verdict": "SAFE"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}

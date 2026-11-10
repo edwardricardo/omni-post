@@ -1,0 +1,158 @@
+[
+  {
+    "id": "s01-saga-command-executor",
+    "kind": "deletion",
+    "base": "3cdf1b66",
+    "test": "apps/api/tests/unit/sagaIntegration.init.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/sagaIntegration.init.test.ts::should configure command executor for saga steps"
+    ],
+    "subject": "apps/api/src/saga/SagaIntegration.ts",
+    "search": "    this.registerSagaDefinitions();",
+    "replace": "",
+    "note": "The ledger row has no subject; the block's title names the command executor SagaIntegration hands the post-publishing saga definition in `registerSagaDefinitions`. VACUOUS on the first mutation, the executor dropping its return; the alternative recorded here drops the registration of the definitions from `initialize()`, so no saga step has an executor. The block calls the CQRS bus double directly after `initialize()` and reads that double's own result, never the executor."
+  },
+  {
+    "id": "s02-saga-list-definitions",
+    "kind": "deletion",
+    "base": "3cdf1b66",
+    "test": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::should return saga list with metrics"
+    ],
+    "subject": "apps/api/src/saga/SagaIntegration.ts",
+    "search": "definitions: metrics.definitions,",
+    "replace": "definitions: metrics.definitions.length,",
+    "note": "The ledger row has no subject; the block's title names the saga list route, `GET /sagas`, which SagaIntegration registers. The list answers the count of the registered definitions where it carried their names, the shape `GET /sagas/metrics` uses."
+  },
+  {
+    "id": "s03-saga-metrics-timestamp",
+    "kind": "deletion",
+    "base": "3cdf1b66",
+    "test": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::should return saga metrics with performance data"
+    ],
+    "subject": "apps/api/src/saga/SagaIntegration.ts",
+    "search": "timestamp: new Date(),\n          };\n        } catch (error) {\n          logger.error({ err: error }, \"Failed to get saga metrics\");",
+    "replace": "};\n        } catch (error) {\n          logger.error({ err: error }, \"Failed to get saga metrics\");",
+    "note": "The ledger row has no subject; the block's title names the saga metrics route, `GET /sagas/metrics`, which SagaIntegration registers. The snapshot loses the time it was taken, the one field of that response the kept tests do not read."
+  },
+  {
+    "id": "s04-saga-publish-now-mode",
+    "kind": "deletion",
+    "base": "3cdf1b66",
+    "test": "apps/api/tests/unit/sagaIntegration.routes.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/sagaIntegration.routes.test.ts::should accept all three modes (draft, schedule, publish-now)"
+    ],
+    "subject": "apps/api/src/saga/SagaIntegration.ts",
+    "search": "mode: z.literal(\"publish-now\"),",
+    "replace": "mode: z.literal(\"publish_now\"),",
+    "note": "The ledger row has no subject; the block's title names the modes of `POST /sagas/post-publishing/start`, whose body schema lives in SagaIntegration. The publish-now branch of the start schema expects a misspelled mode, so every publish-now request is refused as an invalid body."
+  },
+  {
+    "id": "t01-trending-unfiltered",
+    "kind": "deletion",
+    "base": "33545efb",
+    "test": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should retrieve trending content without filters"
+    ],
+    "subject": "apps/api/src/trends/trendAnalysisService.ts",
+    "search": "        return filteredTrends;",
+    "replace": "        filteredTrends;",
+    "note": "The ledger row's subject. `getTrendingContent` drops the return of its filtered list, so the call resolves ok with no list."
+  },
+  {
+    "id": "t02-trending-category-filter",
+    "kind": "deletion",
+    "base": "33545efb",
+    "test": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should filter trending content by category"
+    ],
+    "subject": "apps/api/src/trends/trendAnalysisService.ts",
+    "search": "if (options.category) {",
+    "replace": "if (!options.category) {",
+    "note": "The ledger row's subject. VACUOUS on the first mutation, the category filter's comparison inverted; the alternative recorded here inverts the guard of that filter, so a category request is never filtered and a request with no category is filtered to nothing. `getTrendingContent` returns an empty list until a provider is connected (`apiCall`, `trendAnalysisService.ts:80-83`), so the block's per-trend assertion never runs."
+  },
+  {
+    "id": "t03-trending-limit-fields",
+    "kind": "deletion",
+    "base": "33545efb",
+    "test": "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/trendAnalysisService.init-trending.test.ts::should include all required trend fields"
+    ],
+    "subject": "apps/api/src/trends/trendAnalysisService.ts",
+    "search": "if (options.limit) {",
+    "replace": "if (!options.limit) {",
+    "note": "The ledger row's subject. VACUOUS on the first mutation, the limit passed as the start of the slice; the alternative recorded here inverts the guard of the limit, so a limited request is never limited. `getTrendingContent` returns an empty list until a provider is connected (`apiCall`, `trendAnalysisService.ts:80-83`), so the block's field assertions, guarded by a non-empty list, never run."
+  },
+  {
+    "id": "t04-opportunities-value",
+    "kind": "deletion",
+    "base": "33545efb",
+    "test": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should discover content opportunities"
+    ],
+    "subject": "apps/api/src/trends/trendAnalysisService.ts",
+    "search": "        return circuitBreaker.call(\n          \"trend-analysis-service\",\n          \"discover-content-opportunities\",",
+    "replace": "        circuitBreaker.call(\n          \"trend-analysis-service\",\n          \"discover-content-opportunities\",",
+    "note": "The ledger row's subject. `discoverContentOpportunities` drops the return of its circuit-breaker call, so it resolves ok with no insight."
+  },
+  {
+    "id": "t05-report-predictions-guard",
+    "kind": "deletion",
+    "base": "33545efb",
+    "test": "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/trendAnalysisService.opportunities-report.test.ts::should generate comprehensive trend report"
+    ],
+    "subject": "apps/api/src/trends/trendAnalysisService.ts",
+    "search": "if (!predictionsResult.ok) {",
+    "replace": "if (predictionsResult.ok) {",
+    "note": "The ledger row's subject. `generateTrendReport` inverts its check of the predictions result, so a report whose predictions succeed fails."
+  },
+  {
+    "id": "t06-predictions-list",
+    "kind": "deletion",
+    "base": "33545efb",
+    "test": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should generate trend predictions"
+    ],
+    "subject": "apps/api/src/trends/trendAnalysisService.ts",
+    "search": "        return circuitBreaker.call(\n          \"trend-analysis-service\",\n          \"generate-trend-predictions\",",
+    "replace": "        circuitBreaker.call(\n          \"trend-analysis-service\",\n          \"generate-trend-predictions\",",
+    "note": "The ledger row's subject. `generateTrendPredictions` drops the return of its circuit-breaker call, so it resolves ok with no list."
+  },
+  {
+    "id": "u01-create-without-uow",
+    "kind": "deletion",
+    "base": "33545efb",
+    "test": "apps/api/tests/unit/unitOfWork.useCases.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/unitOfWork.useCases.test.ts::should work without UoW (backward compat)"
+    ],
+    "subject": "packages/core/posts/src/CreatePostUseCase.ts",
+    "search": "if (this.unitOfWork) {",
+    "replace": "if (!this.unitOfWork) {",
+    "note": "The ledger row has no subject; the block's title names the unit of work of `CreatePostUseCase`, the use case it constructs without one. The branch on the unit of work is swapped, so a use case built without one dereferences it and returns INTERNAL_ERROR, and one built with one saves outside its transaction."
+  },
+  {
+    "id": "c01-dsar-zero-pending",
+    "kind": "deletion",
+    "base": "dbd47d61",
+    "test": "apps/api/tests/unit/compliance/ComplianceService.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/compliance/ComplianceService.test.ts::succeeds when 3 COMPLETED requests (not counted)"
+    ],
+    "subject": "packages/core/compliance/src/ComplianceService.ts",
+    "search": "if (!pendingCountResult.ok) return err(\"DATABASE_ERROR\");",
+    "replace": "if (pendingCountResult.ok) return err(\"DATABASE_ERROR\");",
+    "note": "The ledger row's subject. The block's title names a status filter the repository applies, which the suite's double replaces; its verdict is that a DSAR request with no pending request for its email is accepted. The check of the pending count is inverted, so a count the repository returns makes `submitDsarRequest` fail with DATABASE_ERROR."
+  }
+]

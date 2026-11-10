@@ -27,7 +27,7 @@
       "total": 1186
     },
     "blocks": {
-      "total": 14703,
+      "total": 14706,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14392
+        "BEHAVIOURAL": 14395
       }
     },
     "deleted": {
@@ -67365,32 +67365,46 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 4,
+      "blockCount": 6,
       "blocks": [
         {
+          "id": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::lists the names of the registered saga definitions",
+          "line": 43,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "915a97951acff56832c76d416ae13754dd85e498e70254d0966302c522686527"
+        },
+        {
+          "id": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::stamps the metrics snapshot with the time it was taken",
+          "line": 52,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ca986e950a2d514918e9792d19297b8c39d76bff86dfec9019e84a2417388630"
+        },
+        {
           "id": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::should calculate success rate in metrics",
-          "line": 41,
+          "line": 62,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "459f7b9144ec5de1770531edd8360c545389de4ba789f87efbe60146d5cc4cae"
         },
         {
           "id": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::should include definition count in metrics",
-          "line": 51,
+          "line": 72,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2743b0534ec1d007ebae2c8a92556f92570d8e17674e2d6b325b64dbfe86dbae"
         },
         {
           "id": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::should expose every recovery counter in metrics",
-          "line": 60,
+          "line": 81,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ad04dfd19ec81c6019990561a7bc82cd1a5843a06e1bbd2322551d3ca721d023"
         },
         {
           "id": "apps/api/tests/unit/sagaIntegration.monitoring.test.ts::should report a boot load failure through the health status, not only the counters",
-          "line": 85,
+          "line": 106,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7ce3cb62dcd910b9084f7a84b8f12ce7f0b780893cfb275ed1695bb1b4f3ec34"
@@ -84429,14 +84443,21 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 1,
+      "blockCount": 2,
       "blocks": [
         {
           "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::should analyze viral content",
-          "line": 24,
+          "line": 25,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8a603c4e65ee2a51397b5ccafd4f4c5e9aa2921b9ce0ec47906d69f7976ad17c"
+        },
+        {
+          "id": "apps/api/tests/unit/trendAnalysisService.predictions-viral.test.ts::returns an empty list of predictions while no prediction provider is connected",
+          "line": 43,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "709dca6df779171d4467b27040977eb85f50943a67f4d62b9f69e0029e7f75da"
         }
       ],
       "verdict": "KEEP",
