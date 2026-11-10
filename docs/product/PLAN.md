@@ -6,10 +6,13 @@ application, what is built, in which order, and when it is finished.
 Every status in it comes from reading the code at `main` `a72e0525` on 2026-11-10; nothing was run. A feature's
 record is read again against the code when the feature opens.
 
-This plan replaces `docs/product/MASTER_PLAN.md`, `docs/development/TESTING_REFOUNDATION.md` and
-`docs/development/TESTING_REFOUNDATION_PLAN.md`. Since 2026-11-10 the rules of `CLAUDE.md` send
-cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0044-feature-ordered-plan.md)); the
-three old documents take no new row.
+This plan replaces [MASTER_PLAN.md](MASTER_PLAN.md), the testing refoundation tracker and its fixed plan. The Master
+Plan stays in the tree as an archive that takes no new row; the tracker
+([TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md))
+and its fixed plan
+([TESTING_REFOUNDATION_PLAN.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION_PLAN.md))
+left the tree on 2026-11-10 and are read at those permanent links. Since 2026-11-10 the rules of `CLAUDE.md` send
+cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0044-feature-ordered-plan.md)).
 
 ## How it is organised
 

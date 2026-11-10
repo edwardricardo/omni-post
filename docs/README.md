@@ -9,7 +9,7 @@ This page indexes the living documents under `docs/`. [`CLAUDE.md`](../CLAUDE.md
 | Document                                                        | What it covers                                                                                                                      |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | [Getting Started](development/getting-started.md)               | Setup, environment, Docker services, local storage, tracing and mail, Turborepo, git and pull requests, troubleshooting             |
-| [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md)    | Variable reference by category; Master Plan DEF-97 tracks the required ones it misses                                               |
+| [Environment Variables](deployment/ENVIRONMENT_VARIABLES.md)    | Variable reference by category; the plan row DEF-97 (`product/plan/chain.md`) tracks the required ones it misses                    |
 | [Testing Infrastructure](development/TESTING_INFRASTRUCTURE.md) | Frameworks, reach, CI, the `node:test` runner, chaos, provider contract and end-to-end tests, gates that cannot fail, open findings |
 | [Coding Standards](development/CODING_STANDARDS.md)             | TypeScript, Result, error handling, testing, naming, JSDoc (canon)                                                                  |
 | [Governance](GOVERNANCE.md)                                     | The two roles, Product Owner and Maintainer, who holds each and since when, and where decisions are recorded                        |
@@ -64,17 +64,15 @@ The four canon documents are loaded into every agent session by `CLAUDE.md`.
 
 The route reference is generated: [`packages/shared/src/api-generated/types.gen.ts`](../packages/shared/src/api-generated/types.gen.ts) holds every registered method and path, and the running API serves the same OpenAPI document through Swagger. `docs/api/` keeps one hand-written page, the saga page below.
 
-| Document                             | What it covers                                                                                                        |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| [API Reference](architecture/API.md) | Hand-written endpoint guide; Master Plan DEF-80 tracks the routes it describes that the generated table does not have |
-| [Saga Orchestration](api/saga.md)    | Saga API and step classes                                                                                             |
+| Document                             | What it covers                                                                                                                                           |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [API Reference](architecture/API.md) | Hand-written endpoint guide; the plan row DEF-80 (`product/plan/cross-cutting.md`) tracks the routes it describes that the generated table does not have |
+| [Saga Orchestration](api/saga.md)    | Saga API and step classes                                                                                                                                |
 
 ## Development
 
 | Document                                                                               | What it covers                                                   |
 | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [Testing Re-foundation](development/TESTING_REFOUNDATION.md)                           | Progress tracker of the testing re-foundation                    |
-| [Testing Re-foundation Plan](development/TESTING_REFOUNDATION_PLAN.md)                 | Fixed plan of the testing re-foundation, phases 0–9              |
 | [Testing Re-foundation Measurements](development/TESTING_REFOUNDATION_MEASUREMENTS.md) | Toolchain-lag and OSV measurements of the testing re-foundation  |
 | [Foundation Practices](development/FOUNDATION_PRACTICES.md)                            | Practices the next application adopts from its first commit      |
 | [Saga Test Suites](development/saga-test-suites.md)                                    | Running the saga test suites                                     |
@@ -126,14 +124,15 @@ The route reference is generated: [`packages/shared/src/api-generated/types.gen.
 
 ## Product and plan
 
-| Document                                                                    | What it covers                                                   |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [Master Plan](product/MASTER_PLAN.md)                                       | The consolidated plan: every open item, its status and dashboard |
-| [Feature Trace Matrix](product/FEATURE_TRACE_MATRIX.md)                     | Each feature traced to the code that implements it               |
-| [Competitive Analysis](product/COMPETITIVE_ANALYSIS.md)                     | OmniPost against the 2026 market                                 |
-| Investor brief ([EN](product/INVESTOR_EN.md), [ES](product/INVESTOR_ES.md)) | Investor overview                                                |
-| Marketing ([EN](product/MARKETING_EN.md), [ES](product/MARKETING_ES.md))    | Marketing copy                                                   |
-| [Audit Methodology](audits/AUDIT_METHODOLOGY.md)                            | Method of the full-repository audits                             |
+| Document                                                                    | What it covers                                                           |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [Plan](product/PLAN.md)                                                     | The plan: every feature in dependency order, and where each old row went |
+| [Master Plan](product/MASTER_PLAN.md)                                       | Archive, frozen on 2026-11-10: the consolidated plan up to that day      |
+| [Feature Trace Matrix](product/FEATURE_TRACE_MATRIX.md)                     | Each feature traced to the code that implements it                       |
+| [Competitive Analysis](product/COMPETITIVE_ANALYSIS.md)                     | OmniPost against the 2026 market                                         |
+| Investor brief ([EN](product/INVESTOR_EN.md), [ES](product/INVESTOR_ES.md)) | Investor overview                                                        |
+| Marketing ([EN](product/MARKETING_EN.md), [ES](product/MARKETING_ES.md))    | Marketing copy                                                           |
+| [Audit Methodology](audits/AUDIT_METHODOLOGY.md)                            | Method of the full-repository audits                                     |
 
 ## Reports
 
