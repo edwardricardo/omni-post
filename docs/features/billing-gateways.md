@@ -12,9 +12,10 @@
 - **Research**: [research-2026-10-04-billing.md](https://github.com/edwardricardo/omni-post/blob/81a17c39312dae8eacce86f9ad7b07706dcb7d91/docs/reports/research-2026-10-04-billing.md) (removed from the repository on 2026-10-17; git history keeps it)
 - **Findings this work closes**: F13 (SMELL-184), F14 (SMELL-185), F16 (SMELL-187) and the pricing
   defects SMELL-188 to SMELL-193, rows of
-  [MASTER_PLAN.md §5.9 (BILL-3, BILL-5, BILL-8, BILL-19, BILL-22, BILL-27 to BILL-29)](../product/MASTER_PLAN.md#59-payments-and-media-storage--decisions-of-the-product-owner-and-the-maintainer-2026-10-04); master plan
+  the plan (BILL-3, BILL-8 and BILL-22 in [areas.md](../product/plan/areas.md); BILL-5, BILL-19 and
+  BILL-27 to BILL-29 in [chain.md](../product/plan/chain.md)); plan rows
   N-COR-4 (`BILLING-DUNNING-DEAD`) and L-6 (`BILLING-EVENTID-FALLBACK`) in
-  [MASTER_PLAN.md](../product/MASTER_PLAN.md)
+  [areas.md](../product/plan/areas.md)
 - **Related**: the billing code as it stands lives in `apps/api/src/billing/`,
   `apps/api/src/infrastructure/billing/` and `packages/core/billing/`, and the ADRs above govern
   its change; [the former billing API reference](https://github.com/edwardricardo/omni-post/blob/b87dc0639d0406e34d7c4681b11ce6957cdec4df/docs/api/billing.md),
@@ -124,7 +125,7 @@ Until the rename lands, an **organization** is an `Account` in the code (tenant-
   service reads no raw gateway key.
 - **R15** The webhook route passes the provider. Nothing infers it from a payload field.
 - **R16** Every payment event carries the gateway's native event id; a synthesised id is never used
-  for deduplication (master plan L-6).
+  for deduplication (plan row L-6).
 
 ### 3.4 Non-payment ([ADR-0026](../technical/ADR-0026-non-payment-lifecycle.md))
 

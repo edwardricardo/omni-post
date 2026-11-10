@@ -47,7 +47,7 @@ never wired; today's #28 is the trust-proxy check. The injection rule holds sinc
 composition-root swap (`433b92b6`): fitness #21 keeps the singleton out of every unit but the
 composition roots, and `apps/api/tests/integration/compositionRootTenantBinding.integration.test.ts`
 proves a repository the root registers receives the guarded client; no check gates the roots
-themselves (N-SEC-3 in the Master Plan).
+themselves (N-SEC-3 in the plan, `docs/product/plan/cross-cutting.md`).
 
 - **Part A** (baseline today: 12 → 0 at PR2):
   `grep -rlE "import \{[^}]*\bprisma\b[^}]*\} from \"@infra/prisma\"" apps/api/src/infrastructure/container --include="*.ts" | grep -vE "/setup\.ts$" | wc -l # expect 0`

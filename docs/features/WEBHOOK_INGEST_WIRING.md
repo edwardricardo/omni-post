@@ -117,4 +117,4 @@ WebhookManager(prisma, redis)
 
 - The pipeline is NOT deleted or rewritten: it is complete and tested. This workstream is **connect + harden**.
 - Reference for the DI migration that left everything ready: B7 (merged as `93ebcdc7`; ADR-0007).
-- Master Plan: SMELL-38, the WEBHOOK-INGEST entry of §5.3.
+- Plan: SMELL-38, the WEBHOOK-INGEST row (`docs/product/plan/areas.md`).

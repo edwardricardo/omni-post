@@ -1,7 +1,7 @@
 # Data Retention Calendar
 
 > **Workstream:** §4.3 of the normalization roadmap, phase A1 ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md)); the open
-> work is in Master Plan §5.2, rows GDPR-1 to GDPR-3.
+> work is in the plan rows GDPR-1 and GDPR-2 (`docs/product/plan/areas.md`) and GDPR-3 (`docs/product/plan/chain.md`).
 > **Owner:** Platform engineering · Compliance.
 > **Source of truth** for per-data-type retention windows, the field on
 > `GdprSettings` that drives each window, and the scheduled job that
@@ -34,7 +34,7 @@ Legend:
 - ✅ **automatic — HOURLY**: enforced by a scheduled task that runs every hour (the outbox's `OutboxCleaner`).
 - ⚠ **manual / no soft-delete**: deletion happens only via explicit operator action or DB cascade; no scheduled cleanup.
 - ✅ **automatic — key TTL**: the Redis key of the deleted-account notice claim expires on its own after 24h; no scheduled job runs.
-- ❌ **no automated retention**: data accumulates indefinitely; retention work tracked under the linked Master Plan row.
+- ❌ **no automated retention**: data accumulates indefinitely; retention work tracked under the linked plan row.
 
 ---
 
@@ -93,7 +93,7 @@ The current Phase A1 enforcement (`auditLogRetentionDays` default 90,
 the four regimes. Per-tenant overrides via `GdprSettings` allow tightening
 (e.g., a GDPR-strict tenant can drop `auditLogRetentionDays` to 30) but
 the system is meant not to allow loosening past the regulatory ceiling — that
-guard is open under Master Plan GDPR-3; today only the request schema bounds the value, to 30 to 3650 days (`apps/api/src/compliance/complianceSchemas.ts:17`).
+guard is open under the plan row GDPR-3; today only the request schema bounds the value, to 30 to 3650 days (`apps/api/src/compliance/complianceSchemas.ts:17`).
 
 ---
 
@@ -118,10 +118,10 @@ guard is open under Master Plan GDPR-3; today only the request schema bounds the
 
 ---
 
-## Out of scope (linked Master Plan rows)
+## Out of scope (linked plan rows)
 
-The following are NOT enforced by Phase A1. Each item is a row of
-[Master Plan](../product/MASTER_PLAN.md) §5.2 and keeps its roadmap id:
+The following are NOT enforced by Phase A1. Each item is a row of the plan
+([areas.md](../product/plan/areas.md), [chain.md](../product/plan/chain.md)) and keeps its roadmap id:
 
 - **GDPR-1 (§4.3.b) — DSAR EXPORT real dump.** Today the `exportUrl` is a manual
   operator input. A background job that (1) serializes every tenant-scoped
