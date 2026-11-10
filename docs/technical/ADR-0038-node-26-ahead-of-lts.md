@@ -10,12 +10,12 @@
 - **Amended**: 2026-10-22, §"Amendment of 2026-10-22: Node 26.12.1" (the `engines.node` floor and
   both image stages move to 26.12.1, the security release of 2026-10-21)
 - **Amends**: slice `0.16` of `openspec/changes/testing-refoundation/tasks.md` ("the runtime follows
-  LTS, never Current") and its dating to 2026-10-28 by tracker decisions D46 and D51
+  LTS, never Current") and its dating to 2026-10-28 by tracker decisions D46 and D51 (entries of the tracker's Decisions log, removed from the tree on 2026-11-10)
 - **Related**: [ADR-0017](ADR-0017-production-build-bundler.md) (the image build model);
   [ADR-0018](ADR-0018-dependency-freshness-canon.md) (the 7-day maturity buffer);
   [ADR-0036](ADR-0036-dependency-update-cadence.md) (security floors immediate, the Tuesday window);
   [ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md) (the patch the four Dockerfiles
-  copy); tracker decision D52 in [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md)
+  copy); tracker decision D52 in [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md)
 
 The runtime moves from Node 24 to Node 26 on 2026-10-15, thirteen days before Node 26 becomes Active
 LTS on 2026-10-28. One change raises `.nvmrc`, the `engines.node` of all 101 manifests, the
@@ -211,7 +211,7 @@ vitest.stories.config.ts`, which appends to the caller's `NODE_OPTIONS` and keep
   `docs/deployment/base-images.md` and `docs/deployment/LOCAL.md`; the stated runtime in
   `CLIENT-APP.md`, `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, the two standards documents, both
   investor documents, `TESTING_INFRASTRUCTURE.md` and the coverage note of
-  `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md`, `TESTING_REFOUNDATION.md` and
+  `apps/api/vitest.config.ts`; slice `0.16` in `tasks.md`, `TESTING_REFOUNDATION.md` (which left the tree on 2026-11-10) and
   `MASTER_PLAN.md`; the `tailwindcss` row of `DEPENDENCIES.md` and `DEPENDENCIES_ES.md`, and the
   `@tailwindcss/node` consumer named in the canon row `source-map-js`.
 
@@ -282,7 +282,7 @@ The lockfile does not move.
 
 **What no gate saw.** Trivy reports an image's Debian packages and its `node_modules` manifests,
 never the `node` executable, so the `Container Security` gate stayed green from 2026-10-21 over
-images that ran v26.12.0 (SMELL-207, the Master Plan's DEF-160: no gate sees a Node.js runtime
+images that ran v26.12.0 (SMELL-207, the plan row DEF-160 in `docs/product/plan/chain.md`: no gate sees a Node.js runtime
 advisory in the four images).
 
 **The re-check.** The watchlist's date entry `contract-0.16-node-26`, still due 2026-10-28,

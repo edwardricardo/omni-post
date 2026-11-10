@@ -115,7 +115,7 @@ that `packages/ports` carries says otherwise.
      `RedisCacheManager` methods `cacheStatsRoutes` calls, R6).
    - **The routes workstream, queued after N-TEST-1:** each route module moves to use cases and
      composition-root injection, area by area, as rows ARCH-1 to ARCH-22 of
-     [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.12.
+     [the plan](../product/PLAN.md) (`plan/areas.md`, `plan/chain.md` and `plan/cross-cutting.md`).
    - **The deviation, in plain terms:** until its area migrates, a route module keeps resolving
      from the container, 24 of them keep reaching Prisma, a repository or the email port, and five
      keep building value objects. Those edges are admitted only as entries of ADR-0032's baseline,
@@ -204,7 +204,8 @@ that `packages/ports` carries says otherwise.
   parameters, `new OAuthFlowStore` at `:32`) and `samlRoutes.ts:192` (`new SAML`) — are named in
   their rows.
 - **Nine defects found by the sizing and its verification are queued, not fixed here**:
-  [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11 DEF-7 to DEF-15, SMELL-194 to SMELL-202.
+  rows DEF-7 to DEF-15 of [the plan](../product/PLAN.md) (`plan/areas.md` and `plan/chain.md`), which
+  carry SMELL-194 to SMELL-202 (resolved in [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11).
 
 ## Revisit if
 
@@ -220,7 +221,7 @@ that `packages/ports` carries says otherwise.
 
 | Risk                                                         | Mitigation                                                                                                                                                                                                                                                |
 | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The deviation becomes permanent                              | The workstream has ids in the master plan (§5.12), and stale baseline entries fail, so every repair shrinks the list in the same change                                                                                                                   |
+| The deviation becomes permanent                              | The workstream has ids in the plan (ARCH-1 to ARCH-22), and stale baseline entries fail, so every repair shrinks the list in the same change                                                                                                              |
 | A plugin's dependency list and the root's wiring drift apart | The plugin's options are required fields, and `apps/api/src/index.ts` is compiled, so the root's call is type-checked. The test harnesses are not compiled (fitness #43's premise), so they build dependencies through the root's function, never by hand |
 | A migration changes behaviour a route suite asserts          | Behaviour-heavy suites keep running over the in-memory Prisma double through the root's function; an assertion a slice cannot keep moves to a use-case or adapter test in the same change                                                                 |
 | Fitness #40's floor is lowered to absorb a regression        | It falls only in the slice that moves a named seam site into the Unit of Work, with its red proof and the nesting test's entry removed                                                                                                                    |
@@ -264,8 +265,8 @@ order. The sixth, `DataRetentionService`, takes none: its one call was an `info`
 repeated the `DATA_RETENTION_CLEANUP` audit entry. The four `info` calls went as follows:
 `GatewayBillingService`'s two, because the invoice row and the subscription status already record
 the dunning outcome and the recovery; `DlqArchivalService`'s, because the method returns its count
-(the daily task discards it, which DEF-18 of [MASTER_PLAN.md](../product/MASTER_PLAN.md)
-§5.11 queues with the port failures the service swallows); and `DataRetentionService`'s, for the
+(the daily task discards it, which the plan row DEF-18 (`plan/areas.md`)
+queues with the port failures the service swallows); and `DataRetentionService`'s, for the
 reason above.
 
 **D-R10 confirmed as shipped.** The Maintainer confirmed D-R10 as shipped on 2026-10-05, in a veto
@@ -276,7 +277,7 @@ its `(msg, ...args)` overload — measured the same day with pino 10.3.1 and Typ
 assignment compiles — so the type could no longer reject a logger passed without the adapter, and
 the protection would rest on a rule instead of a type. A pass-through adapter kept as a seam for a
 future backend was declined as code with no present use. The opposite order has a measured failure
-in this repository: DEF-16 of [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11, the
+in this repository: the plan row DEF-16 (`plan/cross-cutting.md`), the
 scheduler's message-first `SchedulerLogger`, which receives a pino logger and records a scheduled
 task's error without its `taskId` or `err`.
 
@@ -298,8 +299,8 @@ task's error without its `taskId` or `err`.
   closed in the `onClose` hook at `:368-375`, registered at `:609`), typed as
   `Pick<Queue, "name" | "getJobCounts" | "getJobs" | "getJob" | "getJobLogs">` with a type-only
   `bullmq` import (`apps/api/src/admin/queueRoutes.ts:9,20-25`); the route imports neither
-  `QUEUE_NAMES` nor the queue adapter. The construction moved from the route unchanged; DEF-25 of
-  MASTER_PLAN §5.11 queues what it drops from `REDIS_URL` and its overlap with the registry's
+  `QUEUE_NAMES` nor the queue adapter. The construction moved from the route unchanged; the plan
+  row DEF-25 (`plan/areas.md`) queues what it drops from `REDIS_URL` and its overlap with the registry's
   adapter for the same queue.
 - **R6** (`PR v-e1`): `cacheStatsRoutes` receives a `CacheAdminPort`
   (`packages/ports/src/CacheAdminPort.ts:47`), the six operations the routes call, each returning a
@@ -334,7 +335,7 @@ task's error without its `taskId` or `err`.
   [CLAUDE.md](../../CLAUDE.md) fitness #40 and #43.
 - Plan: [MASTER_PLAN.md](../product/MASTER_PLAN.md) §5.11 and §5.12;
   [DEF-7 to DEF-15 of §5.11](../product/MASTER_PLAN.md#511-defects-found-on-2026-10-04--queued-after-n-test-1), which carry SMELL-194 to
-  SMELL-202; [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) D49.
+  SMELL-202; [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) D49 (a decision of its Decisions log; the tracker left the tree on 2026-11-10).
 - Code: `apps/api/src/index.ts:279-280,543,659`; `apps/api/src/types/fastify.d.ts:62`;
   `apps/api/src/infrastructure/container/Container.ts:86`; `apps/api/src/health/healthRoutes.ts:38-75`;
   `apps/api/src/auth/providerOAuth.ts:25-35`; the five guards named in Context; the six services in

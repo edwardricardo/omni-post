@@ -572,8 +572,8 @@ be written against.
 
 **Owner: Slice 2 / the FK slices.** The honest fix is a SPLIT (a scope-first per-project
 form beside a sweep that names its cross-tenant intent), not a signature bump, and a split
-needs the surrounding surface settled. Tracked as **SMELL-92**, the Master Plan row
-POST-UNSCOPED-READS (§5.1). The other half, a compile-time pin in an ordinary suite, was
+needs the surrounding surface settled. Tracked as **SMELL-92**, the plan row
+POST-UNSCOPED-READS (`docs/product/plan/off-the-map.md`). The other half, a compile-time pin in an ordinary suite, was
 inert while no tsconfig opened `apps/api/tests/**`; `apps/api/scripts/typecheck-tests-ratchet.mjs`
 compiles that tree under `tsconfig.tests.json` now, held to its ledger of known errors, so a
 pin written there is compiled and a new error fails the ratchet.

@@ -103,7 +103,9 @@
    still holds the file. Only what survives is translated. The Testing Refoundation tracker is the
    first to close this way: its state goes to `TESTING_INFRASTRUCTURE.md`, its binding decisions to
    ADRs or the canon, its lessons to `FOUNDATION_PRACTICES.md` and its pending items to the Master
-   Plan.
+   Plan. Amended on 2026-11-10 by [ADR-0044](ADR-0044-feature-ordered-plan.md): the tracker left
+   the tree, its state and decisions are read at their permanent link, and its live units went to
+   the plan.
 6. **A gate holds the debt.** The artifact-language gate counts, per tracked file, Spanish lines and
    personal-name mentions against a baseline that must equal the count in both directions: a file
    whose count rises fails, and a file whose count falls lowers its baseline in the same change. It

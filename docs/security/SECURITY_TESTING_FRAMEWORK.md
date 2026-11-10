@@ -13,7 +13,7 @@ This document describes the security testing infrastructure for the Social Media
 > reason.
 >
 > - Disposition of the suite is tracked as **SMELL-83** by
->   [N-TEST-1 in the Master Plan](../product/MASTER_PLAN.md#nc--regression-net-assurance);
+>   [the plan row N-TEST-1](../product/plan/cross-cutting.md);
 >   the in-tree warning is [`security/tests/README.md`](../../security/tests/README.md).
 > - Sections 1–4 below (§"Security Test Categories") describe **intent**, not
 >   verified behaviour. Nothing in them has ever been observed to run green.
@@ -312,7 +312,7 @@ rules file, no login and no custom scan policy. The key=value file
 `security/zap/zap-config.conf`, which described a login script, cookie sessions
 and custom policies, was in no format the action reads, was read by nothing, and
 was deleted on 2026-10-10. A versioned rules file that triages each alert is the
-open work of DEF-77 in `docs/product/MASTER_PLAN.md` §5.11.
+open work of the plan row DEF-77 (`docs/product/plan/cross-cutting.md`).
 
 ## 📈 Security Metrics & Reporting
 

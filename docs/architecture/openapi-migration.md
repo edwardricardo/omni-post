@@ -1,7 +1,7 @@
 # OpenAPI Auto-Gen Migration Guide
 
 > Workstream: §3.1 of the normalization roadmap ([its last version](https://github.com/edwardricardo/omni-post/blob/3758be3ee3d4274bcc01582b437080732f50d11d/docs/architecture/NORMALIZATION_ROADMAP.md); Phase A1 closed). The
-> open work is in Master Plan §5.2: API-TYPES-1 (§3.1.b, the route schemas) and API-TYPES-2
+> open work is in the plan ([cross-cutting.md](../product/plan/cross-cutting.md)): rows API-TYPES-1 (§3.1.b, the route schemas) and API-TYPES-2
 > (§3.1.c, the typed clients).
 
 ## Summary
@@ -108,7 +108,7 @@ Migrating one route takes ~5-15 min. The 342 remaining routes → §3.1.b (~50-6
 ## Consumption from the frontend (admin/client)
 
 The fetch client is not a separate package: the standalone `@hey-api/client-fetch` was removed on
-2026-10-03 (decision D35 in `docs/development/TESTING_REFOUNDATION.md`), because npm deprecates it as
+2026-10-03 (decision D35 in the Decisions log of the [testing refoundation tracker](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log), which left the tree on 2026-11-10), because npm deprecates it as
 bundled inside `@hey-api/openapi-ts` since 0.73. The bundled plugin carries the same name: adding
 `"@hey-api/client-fetch"` to `plugins` in `openapi-ts.config.ts` generates `client/` (which exports
 `createClient`) and `client.gen.ts` next to `types.gen.ts` — measured against openapi-ts 0.97.3 on
