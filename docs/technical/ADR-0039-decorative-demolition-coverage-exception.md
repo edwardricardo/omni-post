@@ -52,7 +52,8 @@
 5. **Reconciliation:** the slice's pull request records in the tracker its deleted files and blocks
    and the expected and real drop, and edits `MEASURED_FLOOR` in `coverageThresholds.test.ts` to the
    lowered values. M14, "coverage that was decorative", counts the descents carried by a marker,
-   re-derived by `metrics.mjs --m14` from the ledger's marker slices.
+   re-derived by `metrics.mjs --m14` from the ledger's marker slices until that script left the tree
+   on 2026-11-10.
 6. **The pre-edit tripwire hook** (`.claude/hooks-py/pre_edit_tripwire_blocker.py`) admits the
    scenario.
 

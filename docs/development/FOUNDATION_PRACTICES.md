@@ -16,35 +16,38 @@ It is read by whoever starts the next application, by whoever writes that prompt
 
 ## Entries at a glance
 
-| ID     | Area                 | Practice                                                                    | Kind                  |
-| ------ | -------------------- | --------------------------------------------------------------------------- | --------------------- |
-| FP-005 | Architecture         | One composition root from the first route; routes never see the container   | construction and gate |
-| FP-001 | Testing              | Each test file has exactly one collector, run by a required check           | construction and gate |
-| FP-002 | Testing              | A test run that collects zero tests fails                                   | gate                  |
-| FP-011 | Testing              | An error double carries the shape measured on the real dependency           | construction          |
-| FP-012 | Testing              | A command double answers only the inputs its test planned, refuses the rest | construction          |
-| FP-015 | Testing              | A test waits on the result it asserts; a lint rule rejects every fixed wait | construction and gate |
-| FP-016 | Testing              | A unit test starts no process; code that spawns receives its runner         | construction and gate |
-| FP-017 | Testing              | The integration tier runs nightly in seeded random order on fresh services  | construction and gate |
-| FP-018 | Testing              | A test stays far below its timeout in CI; a passing test near it fails      | gate                  |
-| FP-021 | Testing              | A test block that cannot fail is a lint error; suppressions only shrink     | gate                  |
-| FP-003 | CI and gates         | A gate fails closed on a missing scope, an empty scan or no measurement     | construction and gate |
-| FP-004 | CI and gates         | A gate merges only after its red path shows a real non-zero exit            | construction and gate |
-| FP-008 | CI and gates         | Every root config a package extends is part of the build cache key          | gate                  |
-| FP-013 | CI and gates         | One shared CI setup step; the runtime version comes from one file           | construction and gate |
-| FP-019 | CI and gates         | A workflow merges after each job runs green once, on provisioned inputs     | construction and gate |
-| FP-023 | CI and gates         | A check lands wired to CI and the local battery, or it does not land        | construction and gate |
-| FP-026 | CI and gates         | A deleted or rewritten test block lands only with its measured mutation     | construction and gate |
-| FP-027 | CI and gates         | A gate class or exemption ships with its retire condition, enforced apart   | construction and gate |
-| FP-007 | Security and tenancy | Tenant isolation fails closed from the first tenant-bearing model           | construction and gate |
-| FP-014 | Security and tenancy | A response cache keys each authenticated route by caller, held at boot      | construction and gate |
-| FP-020 | Security and tenancy | Every telemetry SDK strips what it must not send, proven on its payload     | construction and gate |
-| FP-024 | Security and tenancy | The API document is off unless a typed flag opts in; relative server        | construction and gate |
-| FP-009 | Dependencies         | A dependency check reads a checked list for what the fields cannot say      | construction and gate |
-| FP-010 | Dependencies         | A freshness gate covers every tool in the manifests, families in lockstep   | gate                  |
-| FP-022 | Dependencies         | Every dependency proves its use with real sites or an owner's decision      | gate                  |
-| FP-006 | Documentation        | Method-level documentation is enforced on every in-scope file from commit 1 | gate and hook         |
-| FP-025 | Documentation        | One artifact language and role names from the first commit, held by a gate  | construction and gate |
+| ID     | Area                 | Practice                                                                      | Kind                  |
+| ------ | -------------------- | ----------------------------------------------------------------------------- | --------------------- |
+| FP-005 | Architecture         | One composition root from the first route; routes never see the container     | construction and gate |
+| FP-001 | Testing              | Each test file has exactly one collector, run by a required check             | construction and gate |
+| FP-002 | Testing              | A test run that collects zero tests fails                                     | gate                  |
+| FP-011 | Testing              | An error double carries the shape measured on the real dependency             | construction          |
+| FP-012 | Testing              | A command double answers only the inputs its test planned, refuses the rest   | construction          |
+| FP-015 | Testing              | A test waits on the result it asserts; a lint rule rejects every fixed wait   | construction and gate |
+| FP-016 | Testing              | A unit test starts no process; code that spawns receives its runner           | construction and gate |
+| FP-017 | Testing              | The integration tier runs nightly in seeded random order on fresh services    | construction and gate |
+| FP-018 | Testing              | A test stays far below its timeout in CI; a passing test near it fails        | gate                  |
+| FP-021 | Testing              | A test block that cannot fail is a lint error; suppressions only shrink       | gate                  |
+| FP-003 | CI and gates         | A gate fails closed on a missing scope, an empty scan or no measurement       | construction and gate |
+| FP-004 | CI and gates         | A gate merges only after its red path shows a real non-zero exit              | construction and gate |
+| FP-008 | CI and gates         | Every root config a package extends is part of the build cache key            | gate                  |
+| FP-013 | CI and gates         | One shared CI setup step; the runtime version comes from one file             | construction and gate |
+| FP-019 | CI and gates         | A workflow merges after each job runs green once, on provisioned inputs       | construction and gate |
+| FP-023 | CI and gates         | A check lands wired to CI and the local battery, or it does not land          | construction and gate |
+| FP-026 | CI and gates         | A deleted or rewritten test block lands only with its measured mutation       | construction and gate |
+| FP-027 | CI and gates         | A gate class or exemption ships with its retire condition, enforced apart     | construction and gate |
+| FP-030 | CI and gates         | A gate that lets a change through by a named remedy is probed with it         | construction and gate |
+| FP-007 | Security and tenancy | Tenant isolation fails closed from the first tenant-bearing model             | construction and gate |
+| FP-014 | Security and tenancy | A response cache keys each authenticated route by caller, held at boot        | construction and gate |
+| FP-020 | Security and tenancy | Every telemetry SDK strips what it must not send, proven on its payload       | construction and gate |
+| FP-024 | Security and tenancy | The API document is off unless a typed flag opts in; relative server          | construction and gate |
+| FP-009 | Dependencies         | A dependency check reads a checked list for what the fields cannot say        | construction and gate |
+| FP-010 | Dependencies         | A freshness gate covers every tool in the manifests, families in lockstep     | gate                  |
+| FP-022 | Dependencies         | Every dependency proves its use with real sites or an owner's decision        | gate                  |
+| FP-006 | Documentation        | Method-level documentation is enforced on every in-scope file from commit 1   | gate and hook         |
+| FP-025 | Documentation        | One artifact language and role names from the first commit, held by a gate    | construction and gate |
+| FP-028 | Documentation        | One plan ordered by feature and dependency; a stray finding joins its feature | construction          |
+| FP-029 | Documentation        | A count that claims everything was moved is run against the source by id      | construction          |
 
 ## How to use this document
 
@@ -223,6 +226,13 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Day-one enforcement:** construction and gate. Construction: the gate's entry point takes the retire mode as a flag with a usage error on repetition, and every wiring of the gate (package script, battery step, workflow step) passes it, held by a suite case per class (no matching row → exit 1 naming the class; the flag absent → the check skipped). Gate: the same check is listed in the gate-retirement audit the Master Plan carries, so a class whose population is gone cannot outlive it unnoticed.
 - **Loosen if:** a class's population is known to return (a tier that reappears each release), in which case its retire condition names the inventory that proves the return instead of failing closed; never by removing the flag from one of the three wirings.
 
+### FP-030 — A gate that lets a change through by a named remedy is probed with that remedy when it lands, for each kind of change it refuses
+
+- **Practice:** A gate that refuses a change unless the change carries a named remedy (a measured record, a marker, a classification row) is run, when it lands, once per kind of change it refuses, each time with the remedy attached, and each run must exit zero. A kind of change that no remedy path reaches is repaired in the gate or named as unremediable in its text; it is never left for the first change that meets it.
+- **Why:** omni-post's fitness #54 refuses a deleted test block unless a record measured it or the block's test imports a changed source. On 2026-11-10 the deletion of `scripts/testing/metrics.mjs` together with its suite, `apps/api/tests/unit/scripts/testingMetrics.test.ts`, was reached by neither path: the suite built the script's path with `path.join(REPO_ROOT, "scripts", "testing", "metrics.mjs")`, which the literal rule did not read, so the gate refused all 16 of its blocks with `no-record` and the stated remedy could not be met by a record either, since no measurement exists for a test of a script that leaves with it ([`record-coverage-core.mjs`](../../scripts/testing/lib/record-coverage-core.mjs); fitness #54 in [CLAUDE.md](../../CLAUDE.md)).
+- **Day-one enforcement:** construction and gate. Construction: the gate's suite holds one case per kind of change the gate refuses, each carrying its remedy and expecting exit zero, beside the case that expects the refusal without it. Gate: the pull request that adds or changes the gate shows each of those runs. Carry-over: generalized gate; omni-post's fitness #54 suite holds the case for the `path.join` form.
+- **Loosen if:** never for a remedy the gate itself names; a kind of change that cannot be remedied is stated as such in the gate's text, with the review that decides it.
+
 ## Security and tenancy
 
 ### FP-007 — Tenant isolation fails closed from the first tenant-bearing model
@@ -291,3 +301,17 @@ The "Foundation practices flow" paragraph of [CLAUDE.md](../../CLAUDE.md) §Docu
 - **Why:** omni-post wrote its artifacts in two languages and named its one decision-maker in them. Measured on 2026-10-28, 83 tracked files held 2,975 Spanish lines and 187 files held 887 mentions of that person, 713 of them where a role decides, such as the decision-maker field of six accepted ADRs; every change could add more, because nothing counted them, and the tracked plans and trackers quoted each request verbatim in the language it was made in ([ADR-0040](../technical/ADR-0040-artifact-language-and-role-attribution.md) §Context).
 - **Day-one enforcement:** construction and gate. Construction: the governance page and the ADR template's role fields exist in the first commit, so the first ADR names a role; the agent instructions require a translated request in every feature document, keep the original outside the tree, and have the pull request that implements a request quote its translation, so the approval of that pull request approves the translation. Gate: the count runs in CI and in the local battery at zero, with an allowlist limited to the four exempt classes and the identities the roles rule keeps. Carry-over: generalized gate, omni-post's artifact-language gate without its per-file baseline.
 - **Loosen if:** never for the roles rule: a name goes stale the day its holder changes, and the governance page already resolves every role to a person. The language rule gains an allowlist entry only inside the four exempt classes, such as a new locale's data, each with its reason; a new class only by a recorded decision, and never a baseline.
+
+### FP-028 — One plan, ordered by feature and by dependency, from the first commit; a finding outside a task's scope is attached to its feature, and its viability is decided when the feature opens
+
+- **Practice:** The product has one plan, ordered by dependency and organised by feature: what makes the rest possible comes first, and each feature has one record that says what is built, in which order and when it is finished. Work that belongs to no feature has one cross-cutting part, and ideas with no slice have one parking part. A finding a task makes outside its scope is attached to the plan in the same change, with a descriptive id, `path:line` evidence and the task that found it, to its feature, to the cross-cutting part, or to parking; whether it is worth doing is decided when its feature opens, not when it is found. No second document lists pending work.
+- **Why:** omni-post listed pending work in three documents with no order by feature: 562 live rows and 110 live units had accumulated when the plan of 2026-11-10 placed each of them, and every finding of a task had kept adding a row to the oldest of them ([PLAN.md](../product/PLAN.md), section "Where the old plans went"; [ADR-0044](../technical/ADR-0044-feature-ordered-plan.md)).
+- **Day-one enforcement:** construction. The plan, its cross-cutting part and its parking part exist in the first commit, and the agent instructions name them as the destination of out-of-scope findings, so no rule names another document. Carry-over: omni-post's plan, with the rules of its `## Rules` section.
+- **Loosen if:** never for the single list; the parts of the plan may be split further, by a recorded decision, when one of them holds more items than a reader can order in one sitting.
+
+### FP-029 — A count that claims everything was moved is run against the source by id, never against an index built from the source
+
+- **Practice:** When a migration, a split or a deletion claims that every item of a source document was moved, the claim is checked by listing the items by their id in the source itself and finding each one in the destination. An index built from the source to drive the move is not evidence of the source: its shape decides what it holds, so a count of it agrees with itself whatever the source holds.
+- **Why:** the first index of omni-post's Master Plan took only the rows that start with a checkbox, and 191 lines of rows without one were in no record until a check by id against the source found them, before publication (pull request #858 records the control and those 191 lines in its Verification section; the corrected count, 562 live rows and tasks, and the rule that says which lines count as a live item are in [PLAN.md](../product/PLAN.md), section "Where the old plans went").
+- **Day-one enforcement:** construction. The brief of any move names the source's own id grammar and asks for the control count to be taken from the source by that grammar; the checker that reports "all moved" prints the ids it did not find.
+- **Loosen if:** never; the control is one pass over the source, and a source with no stable ids gets its lines numbered first.

@@ -7,8 +7,9 @@ Every status in it comes from reading the code at `main` `a72e0525` on 2026-11-1
 record is read again against the code when the feature opens.
 
 This plan replaces `docs/product/MASTER_PLAN.md`, `docs/development/TESTING_REFOUNDATION.md` and
-`docs/development/TESTING_REFOUNDATION_PLAN.md`. Until the change that removes them lands, the rules of
-`CLAUDE.md` that name the Master Plan still apply.
+`docs/development/TESTING_REFOUNDATION_PLAN.md`. Since 2026-11-10 the rules of `CLAUDE.md` send
+cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0044-feature-ordered-plan.md)); the
+three old documents take no new row.
 
 ## How it is organised
 
@@ -32,6 +33,9 @@ This plan replaces `docs/product/MASTER_PLAN.md`, `docs/development/TESTING_REFO
 - One slice at a time by default. The order is revisited only when a feature closes; what appears in between
   goes to [parking](plan/parking.md).
 - An old item is attached to its feature first; its viability is decided when the feature opens.
+- A finding a task makes outside its scope is attached in the same pull request, with a descriptive upper-case id,
+  `path:line` evidence and the task that found it: to its feature, to [cross-cutting](plan/cross-cutting.md) when it
+  belongs to no feature, to [parking](plan/parking.md) when it is an idea.
 - The accepted decision records under `docs/technical/` are cited, never reopened.
 - A feature outside the chain has one line until its turn comes; it gets its full record when it is scheduled.
 - Vocabulary (ADR-0031): Organization, Workspace, Member, Channel, Platform.
