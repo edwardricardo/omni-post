@@ -17,6 +17,7 @@
 import { execFile, execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -43,6 +44,7 @@ const CORE = path.join(REPO_ROOT, "scripts", "start", "lib", "start-environment.
 type Entries = Array<[string, string]>;
 
 interface EnvironmentModule {
+  REQUIRED_KEYS: readonly string[];
   generateEnvironment(options: {
     randomBytes: (size: number) => Buffer;
     postgresHostPort?: number;
@@ -88,19 +90,27 @@ const SECRETS = [
 ];
 
 /**
- * The stand-in for the Docker CLI: one line per call (its arguments, the Postgres port variable it
- * inherited, its working directory), and the exit code or the `psql` answer a case asks for.
+ * The stand-in for the Docker CLI. It logs one line per call (its arguments and its working
+ * directory), saves the environment it was given on `up` and on `exec`, and gives the exit code,
+ * the `psql` answer or the slow query a case asks for.
  */
 const DOCKER_DOUBLE = `#!/bin/sh
-printf '%s|%s|%s\\n' "$*" "\${POSTGRES_HOST_PORT-unset}" "$PWD" >> "$FAKE_DOCKER_LOG"
-case "$1 $2" in
-  "compose version") exit "\${FAKE_COMPOSE_VERSION_EXIT:-0}" ;;
-  "compose up") exit "\${FAKE_UP_EXIT:-0}" ;;
-  "compose exec")
+printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_DOCKER_LOG"
+case " $* " in
+  *" version "*) exit "\${FAKE_COMPOSE_VERSION_EXIT:-0}" ;;
+  *" up "*)
+    /usr/bin/env > "$FAKE_DOCKER_LOG.up"
+    exit "\${FAKE_UP_EXIT:-0}" ;;
+  *" exec "*)
+    /usr/bin/env > "$FAKE_DOCKER_LOG.exec"
+    if [ -n "$FAKE_QUERY_SECONDS" ]; then exec /bin/sleep "$FAKE_QUERY_SECONDS"; fi
     if [ -n "$FAKE_PSQL_STDERR" ]; then printf '%s\\n' "$FAKE_PSQL_STDERR" >&2; exit 2; fi ;;
 esac
 exit 0
 `;
+
+/** How every call after the first names the checkout's two files to Compose. */
+const COMPOSE = "compose -f docker-compose.yml --env-file .env";
 
 /** A socket standing for one service: the port it took and everything it was sent. */
 interface Listener {
@@ -157,13 +167,19 @@ function writeEnvironment(
   return text;
 }
 
-/** A socket on a free loopback port that records what it is sent and answers `reply`. */
-async function listen(reply: string): Promise<Listener> {
+/**
+ * A socket on a free loopback port that records what it is sent. Connection by connection it
+ * answers the next of `replies`, and the last one from then on; `null` is a peer that says nothing.
+ */
+async function listen(...replies: Array<string | null>): Promise<Listener> {
   const received: Buffer[] = [];
+  let connections = 0;
   const server = createServer((socket) => {
+    const reply = replies[Math.min(connections, replies.length - 1)] ?? null;
+    connections += 1;
     socket.on("data", (chunk) => {
       received.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-      socket.end(reply);
+      if (reply !== null) socket.end(reply);
     });
   });
   servers.push(server);
@@ -173,15 +189,18 @@ async function listen(reply: string): Promise<Listener> {
   return { port: address.port, received };
 }
 
-/** A checkout whose `PATH` holds only the Docker stand-in, and a listener answering as each service. */
-async function stage(): Promise<Stage> {
+/**
+ * A checkout whose `PATH` holds only the Docker stand-in, and a listener for each service: one
+ * that answers as the service does, unless the case brings its own.
+ */
+async function stage(services: { postgres?: Listener; redis?: Listener } = {}): Promise<Stage> {
   const { root, file } = makeRoot();
   const bin = path.join(root, "bin");
   mkdirSync(bin);
   writeFileSync(path.join(bin, "docker"), DOCKER_DOUBLE, { mode: 0o755 });
   const log = path.join(root, "docker.log");
-  const postgres = await listen("N");
-  const redis = await listen("+PONG\r\n");
+  const postgres = services.postgres ?? (await listen("N"));
+  const redis = services.redis ?? (await listen("+PONG\r\n"));
   return {
     root,
     file,
@@ -197,9 +216,21 @@ async function stage(): Promise<Stage> {
 function dockerCalls(staged: Stage): string[] {
   try {
     return readFileSync(staged.log, "utf8").trim().split("\n");
-  } catch {
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return [];
   }
+}
+
+/** The environment the stand-in was given on its last `up` or its last `exec`. */
+function dockerEnvironment(staged: Stage, call: "up" | "exec"): Record<string, string> {
+  const lines = readFileSync(`${staged.log}.${call}`, "utf8").split("\n");
+  return Object.fromEntries(
+    lines
+      .map((line) => [line, line.indexOf("=")] as const)
+      .filter(([, at]) => at > 0)
+      .map(([line, at]) => [line.slice(0, at), line.slice(at + 1)])
+  );
 }
 
 const execFileAsync = promisify(execFile);
@@ -429,14 +460,12 @@ describe("the start sequence", () => {
 
     const result = await start(["--root", staged.root], { ...staged.env, ...staged.ports });
 
-    const calls = dockerCalls(staged);
     expect(result).toMatchObject({ code: 0, stderr: "" });
-    expect(calls.slice(0, 2)).toEqual([
-      `compose version|unset|${staged.root}`,
-      `compose up -d postgres redis|unset|${staged.root}`,
+    expect(dockerCalls(staged)).toEqual([
+      `compose version|${staged.root}`,
+      `${COMPOSE} up -d postgres redis|${staged.root}`,
+      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT 1"|${staged.root}`,
     ]);
-    expect(calls[2]).toMatch(/^compose exec -T postgres sh -c .*psql .*SELECT 1/);
-    expect(calls).toHaveLength(3);
     expect(Buffer.concat(staged.postgres.received).toString("hex")).toBe("0000000804d2162f");
     expect(Buffer.concat(staged.redis.received).toString()).toBe("PING\r\n");
     expect(result.stdout).toContain(
@@ -469,7 +498,18 @@ describe("the start sequence", () => {
     expect(result.stderr).toBe(
       "platform-start: `docker compose version` failed: install the Docker Compose plugin\n"
     );
-    expect(dockerCalls(staged)).toEqual([`compose version|unset|${staged.root}`]);
+    expect(dockerCalls(staged)).toEqual([`compose version|${staged.root}`]);
+  });
+
+  it("names Docker when it is on PATH but cannot be run", async () => {
+    const staged = await stage();
+    chmodSync(path.join(staged.root, "bin", "docker"), 0o644);
+
+    const result = await start(["--root", staged.root], { ...staged.env, ...staged.ports });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe("platform-start: docker could not be run (EACCES)\n");
+    expect(staged.postgres.received).toEqual([]);
   });
 
   it("fails with Compose's exit code in the message when the services do not start", async () => {
@@ -531,9 +571,117 @@ describe("the start sequence", () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toBe(
-      `platform-start: Postgres did not accept a connection on 127.0.0.1:${staged.postgres.port} within 1 s (\`docker compose logs postgres\`)\n`
+      `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} did not answer a query within 1 s (\`docker compose logs postgres\`)\n`
     );
     expect(staged.redis.received).toEqual([]);
+  });
+
+  it("fails naming Postgres when nothing answers the protocol on its port, and runs no query", async () => {
+    const staged = await stage({ postgres: await listen(null) });
+
+    const result = await start(["--root", staged.root, "--wait-seconds", "1"], {
+      ...staged.env,
+      ...staged.ports,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} did not answer a query within 1 s (\`docker compose logs postgres\`)\n`
+    );
+    expect(dockerCalls(staged)).toHaveLength(2);
+    expect(staged.redis.received).toEqual([]);
+  });
+
+  it("stops a query that outlives the wait, and fails naming Postgres", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root, "--wait-seconds", "1"], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_QUERY_SECONDS: "4",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} did not answer a query within 1 s (\`docker compose logs postgres\`)\n`
+    );
+    expect(staged.redis.received).toEqual([]);
+  });
+
+  it("takes a Postgres that offers TLS as one that answers the protocol", async () => {
+    const staged = await stage({ postgres: await listen("S") });
+
+    const result = await start(["--root", staged.root], { ...staged.env, ...staged.ports });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(dockerCalls(staged)).toHaveLength(3);
+  });
+
+  it("keeps asking a service that is not ready until it answers", async () => {
+    const loading = "-LOADING Redis is loading the dataset in memory\r\n";
+    const staged = await stage({ redis: await listen(loading, loading, "+PONG\r\n") });
+
+    const result = await start(["--root", staged.root, "--wait-seconds", "5"], {
+      ...staged.env,
+      ...staged.ports,
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(Buffer.concat(staged.redis.received).toString()).toBe("PING\r\nPING\r\nPING\r\n");
+  });
+
+  it("hands Compose no variable the file owns, whatever the calling shell holds", async () => {
+    const staged = await stage();
+    const owned = [...core.REQUIRED_KEYS, "POSTGRES_HOST_PORT", "REDIS_HOST_PORT"];
+    const fromTheShell = Object.fromEntries(
+      core.REQUIRED_KEYS.map((key) => [key, "from-the-shell"])
+    );
+
+    const result = await start(["--root", staged.root], {
+      ...fromTheShell,
+      ...staged.env,
+      ...staged.ports,
+      KEPT_BY_THE_SHELL: "yes",
+    });
+
+    const up = dockerEnvironment(staged, "up");
+    const query = dockerEnvironment(staged, "exec");
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(owned.filter((key) => key in up || key in query)).toEqual([]);
+    expect([up.KEPT_BY_THE_SHELL, query.KEPT_BY_THE_SHELL]).toEqual(["yes", "yes"]);
+  });
+
+  it("queries Postgres as the user, with the password and for the database of the file", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const values = core.readEnvironment(writeEnvironment(staged.file, [], listening));
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      PGUSER: "from-the-shell",
+      PGPASSWORD: "from-the-shell",
+      PGDATABASE: "from-the-shell",
+    });
+
+    const query = dockerEnvironment(staged, "exec");
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect([query.PGUSER, query.PGPASSWORD, query.PGDATABASE]).toEqual([
+      values.POSTGRES_USER,
+      values.POSTGRES_PASSWORD,
+      values.POSTGRES_DB,
+    ]);
+  });
+
+  it("fails in one line when the environment file cannot be read", async () => {
+    const { root, file } = makeRoot();
+    mkdirSync(file);
+
+    const result = await start(["--root", root]);
+
+    expect(result.code).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr.startsWith(`platform-start: cannot use ${file}: EISDIR`)).toBe(true);
+    expect(result.stderr.trimEnd().split("\n")).toHaveLength(1);
   });
 
   it("refuses a wait that is not a whole number of seconds, with its usage", async () => {

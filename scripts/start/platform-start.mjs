@@ -13,13 +13,18 @@
  *   is generated, they are written into it, and into its URLs; from then on the file is their one
  *   source, and a shell value that disagrees with it is refused instead of ignored.
  *
- *   SERVICES. `docker compose up -d postgres redis`, run in the checkout so Compose interpolates the
- *   same file, with every variable the file owns removed from Compose's own environment: a variable
- *   of the calling shell would otherwise win over the file, and the services would start on values
- *   the file does not name. The run returns only when both accept a connection, and a bare TCP
- *   connect does not show that, because Docker's proxy accepts on the published port before the
- *   server behind it is up. Redis must answer `PING` on its published port. Postgres must answer
- *   the protocol's SSL request there, and then run `SELECT 1` for the file's user and password.
+ *   SERVICES. `docker compose up -d postgres redis`, run in the checkout and told which two files to
+ *   read (`-f docker-compose.yml --env-file .env`), so neither `COMPOSE_FILE` nor
+ *   `COMPOSE_ENV_FILES` of the calling shell points it elsewhere, and with every variable the file
+ *   owns removed from Compose's own environment: a variable of the calling shell would otherwise
+ *   win over the file, and the services would start on values the file does not name. The run
+ *   returns only when both accept a connection, and a bare TCP connect does not show that, because
+ *   Docker's proxy accepts on the published port before the server behind it is up. Redis must
+ *   answer `PING` on its published port. Postgres must answer the protocol's SSL request there, and
+ *   then run `SELECT 1` for the user, the password and the database the file names, whatever the
+ *   container was started with. `--wait-seconds` bounds each service: a query still running when
+ *   it runs out is stopped, and an attempt on a port that says nothing ends at most two seconds
+ *   after it.
  *
  *   Exit codes: 0 both services accept connections; 1 a step failed, each cause on its own line;
  *   2 a usage error.
@@ -55,6 +60,7 @@ Takes a checkout to a generated environment and to Postgres and Redis accepting 
 
   --root <dir>         the checkout to start (default: the one this script is in)
   --wait-seconds <n>   how long each service may take to accept a connection (default: 60)
+  --help               print this text
 
 A checkout with no ${ENVIRONMENT_FILE} file receives one, its secrets random; an existing file is
 never written, and the run fails naming each required variable it lacks. POSTGRES_HOST_PORT and
@@ -68,18 +74,48 @@ const PORT_KEYS = /** @type {const} */ ({
   Redis: "REDIS_HOST_PORT",
 });
 
-/** Every variable the environment file owns: none of them reaches Compose from the calling shell. */
+/**
+ * Every variable the environment file owns: none of them reaches Compose from the calling shell.
+ * The two port variables are added by name because `REQUIRED_KEYS` is read off a generation that
+ * chose no port, and the generator writes a port variable only when one was chosen.
+ */
 const OWNED_BY_THE_FILE = new Set([...REQUIRED_KEYS, ...Object.values(PORT_KEYS)]);
+
+/**
+ * How every call after the first names its two files to Compose, both relative to the checkout it
+ * runs in. Named on the command line, they win over `COMPOSE_FILE` and `COMPOSE_ENV_FILES`, which
+ * would otherwise let the calling shell start another file's services or interpolate another
+ * file's values.
+ */
+const COMPOSE = ["compose", "-f", "docker-compose.yml", "--env-file", ENVIRONMENT_FILE];
+
+/** How long one attempt waits for a peer that says nothing; a loopback round trip takes far less. */
+const PROBE_TIMEOUT_MS = 2000;
+
+/** The pause between two attempts: short beside the default wait, long beside one Compose call. */
+const POLL_INTERVAL_MS = 500;
 
 /** The startup packet a Postgres client opens with to ask for TLS; the server answers `S` or `N`. */
 const SSL_REQUEST = Buffer.from("0000000804d2162f", "hex");
 
 /**
  * Run inside the Postgres container, against its own network address: the image trusts loopback and
- * the local socket without a password, so this is the route that checks the file's password.
+ * the local socket without a password, so this is the route that checks one. `psql` reads the user,
+ * the password and the database from the three variables `QUERY_AS` names.
  */
-const AUTHENTICATED_SELECT =
-  'PGPASSWORD="$POSTGRES_PASSWORD" PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1"';
+const AUTHENTICATED_SELECT = 'PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT 1"';
+
+/**
+ * The variable of the environment file behind each one `psql` reads. Each is handed to the
+ * container by name alone (`-e PGPASSWORD`): its value travels in the Docker client's environment,
+ * never on a command line, and it is the file's, so the query proves the credentials the file's
+ * URLs carry.
+ */
+const QUERY_AS = /** @type {const} */ ({
+  PGUSER: "POSTGRES_USER",
+  PGPASSWORD: "POSTGRES_PASSWORD",
+  PGDATABASE: "POSTGRES_DB",
+});
 
 /** A run that failed, with one line per cause. */
 class StartFailure extends Error {
@@ -108,16 +144,17 @@ function portOrProblem(key, raw, problems) {
 
 /**
  * @function startFailureFor
- * @description Turns the three error codes a read or a write of the environment file can end in
- *   for a reason the operator can act on into a one-line failure.
+ * @description Turns what a read or a write of the environment file threw into a one-line failure,
+ *   in words the operator can act on for the three error codes whose cause is known.
  * @param {unknown} error - What the read or the write threw.
  * @param {string} file - The environment file's path.
  * @returns {unknown} A `StartFailure` when the checkout does not exist (`ENOENT`), when it is not a
- *   directory (`ENOTDIR`), or when the write found something where the read had found nothing
- *   (`EEXIST`); any other error as it came.
+ *   directory (`ENOTDIR`), when the write found something where the read had found nothing
+ *   (`EEXIST`), and, with the system's own message, for any other system error (a directory at
+ *   the file's path, a link that leads to itself); an error with no system code as it came.
  */
 function startFailureFor(error, file) {
-  const code = /** @type {NodeJS.ErrnoException} */ (error).code;
+  const { code, message } = /** @type {NodeJS.ErrnoException} */ (error);
   if (code === "ENOENT") return new StartFailure([`${path.dirname(file)} does not exist`]);
   if (code === "ENOTDIR") return new StartFailure([`${path.dirname(file)} is not a directory`]);
   if (code === "EEXIST") {
@@ -125,6 +162,7 @@ function startFailureFor(error, file) {
       `${file} exists but reads as absent (a link that leads nowhere?): nothing was written`,
     ]);
   }
+  if (typeof code === "string") return new StartFailure([`cannot use ${file}: ${message}`]);
   return error;
 }
 
@@ -154,7 +192,8 @@ function readIfPresent(file) {
  *   missing one reads as absent, and the write creates it only if nothing is there, so it never
  *   replaces a file that appeared meanwhile and never writes through a link.
  * @param {string} file - The environment file's path.
- * @returns {{ Postgres: number, Redis: number }} The host port each service is published on.
+ * @returns {{ values: Record<string, string>, ports: { Postgres: number, Redis: number } }} What
+ *   the file holds, and the host port each service is published on.
  */
 function prepareEnvironment(file) {
   const text = readIfPresent(file);
@@ -185,7 +224,7 @@ function prepareEnvironment(file) {
 
   if (values !== null) {
     process.stdout.write(`${NAME}: ${file} holds every required variable\n`);
-    return ports;
+    return { values, ports };
   }
   const entries = generateEnvironment({
     randomBytes,
@@ -200,7 +239,7 @@ function prepareEnvironment(file) {
   process.stdout.write(
     `${NAME}: wrote ${file} with ${entries.length} variables, its secrets random\n`
   );
-  return ports;
+  return { values: Object.fromEntries(entries), ports };
 }
 
 /**
@@ -218,7 +257,7 @@ function answers(port, message, accept) {
       socket.destroy();
       resolve(verdict);
     };
-    socket.setTimeout(2000, () => finish(false));
+    socket.setTimeout(PROBE_TIMEOUT_MS, () => finish(false));
     socket.once("connect", () => socket.write(message));
     socket.once("data", (reply) => finish(accept(reply.toString("latin1"))));
     socket.once("error", () => finish(false));
@@ -228,17 +267,20 @@ function answers(port, message, accept) {
 
 /**
  * @function waitFor
- * @description Repeats a probe twice a second until it succeeds or its time runs out.
+ * @description Repeats a probe, with a pause after each failed attempt, until it succeeds or its
+ *   time runs out. At least one attempt is made.
  * @param {string} failure - What to report when the time runs out.
  * @param {number} seconds - How long the probe may keep failing.
- * @param {() => Promise<boolean>} probe - One attempt.
+ * @param {(msLeft: () => number) => Promise<boolean>} probe - One attempt; it is handed a reading
+ *   of the time left, never less than a millisecond, to bound what it waits for.
  * @returns {Promise<void>} Resolves once an attempt succeeds.
  */
 async function waitFor(failure, seconds, probe) {
   const deadline = Date.now() + seconds * 1000;
-  while (!(await probe())) {
+  const msLeft = () => Math.max(deadline - Date.now(), 1);
+  while (!(await probe(msLeft))) {
     if (Date.now() >= deadline) throw new StartFailure([failure]);
-    await sleep(500);
+    await sleep(POLL_INTERVAL_MS);
   }
 }
 
@@ -248,43 +290,69 @@ async function waitFor(failure, seconds, probe) {
  *   connection.
  * @param {string} root - The checkout, where `docker-compose.yml` and the environment file are.
  * @param {string} file - The environment file's path, for the messages.
+ * @param {Record<string, string>} values - What the environment file holds.
  * @param {{ Postgres: number, Redis: number }} ports - The host port each service is published on.
  * @param {number} waitSeconds - How long each service may take.
  * @returns {Promise<void>} Resolves once both accept a connection.
  */
-async function startServices(root, file, ports, waitSeconds) {
+async function startServices(root, file, values, ports, waitSeconds) {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !OWNED_BY_THE_FILE.has(key))
   );
-  const docker = (/** @type {string[]} */ args, /** @type {"ignore" | "inherit" | "pipe"} */ out) =>
-    spawnSync("docker", args, { cwd: root, env, encoding: "utf8", stdio: ["ignore", out, out] });
+  /**
+   * @param {string[]} args - Docker's arguments.
+   * @param {"ignore" | "inherit" | "pipe"} out - Where its output goes.
+   * @param {{ add?: Record<string, string | undefined>, timeout?: number }} [more] - Variables
+   *   for this call alone, and how long it may run before it is stopped.
+   */
+  const docker = (args, out, more = {}) =>
+    spawnSync("docker", args, {
+      cwd: root,
+      env: { ...env, ...more.add },
+      encoding: "utf8",
+      stdio: ["ignore", out, out],
+      ...(more.timeout !== undefined && { timeout: more.timeout }),
+    });
 
   const version = docker(["compose", "version"], "ignore");
-  if (/** @type {NodeJS.ErrnoException | undefined} */ (version.error)?.code === "ENOENT") {
+  if (version.error) {
+    const { code } = /** @type {NodeJS.ErrnoException} */ (version.error);
     throw new StartFailure([
-      "docker is not on PATH: install Docker Engine with its Compose plugin",
+      code === "ENOENT"
+        ? "docker is not on PATH: install Docker Engine with its Compose plugin"
+        : `docker could not be run (${code})`,
     ]);
   }
   if (version.status !== 0) {
     throw new StartFailure(["`docker compose version` failed: install the Docker Compose plugin"]);
   }
 
-  const up = docker(["compose", "up", "-d", "postgres", "redis"], "inherit");
+  const up = docker([...COMPOSE, "up", "-d", "postgres", "redis"], "inherit");
   if (up.status !== 0) {
     throw new StartFailure([`\`docker compose up -d postgres redis\` exited ${up.status}`]);
   }
 
+  const query = [
+    ...COMPOSE,
+    "exec",
+    "-T",
+    ...Object.keys(QUERY_AS).flatMap((name) => ["-e", name]),
+    "postgres",
+    "sh",
+    "-c",
+    AUTHENTICATED_SELECT,
+  ];
+  const queryAs = Object.fromEntries(
+    Object.entries(QUERY_AS).map(([name, key]) => [name, values[key]])
+  );
   await waitFor(
-    `Postgres did not accept a connection on ${LOOPBACK}:${ports.Postgres} within ${waitSeconds} s ` +
+    `Postgres on ${LOOPBACK}:${ports.Postgres} did not answer a query within ${waitSeconds} s ` +
       `(\`docker compose logs postgres\`)`,
     waitSeconds,
-    async () => {
-      const listening = await answers(ports.Postgres, SSL_REQUEST, (reply) => /^[SN]/.test(reply));
-      if (!listening) return false;
-      const select = docker(
-        ["compose", "exec", "-T", "postgres", "sh", "-c", AUTHENTICATED_SELECT],
-        "pipe"
-      );
+    async (msLeft) => {
+      const speaks = await answers(ports.Postgres, SSL_REQUEST, (reply) => /^[SN]/.test(reply));
+      if (!speaks) return false;
+      const select = docker(query, "pipe", { add: queryAs, timeout: msLeft() });
       if (/password authentication failed/.test(select.stderr ?? "")) {
         throw new StartFailure([
           `Postgres refused the credentials of ${file}: its data volume was initialised with ` +
@@ -351,8 +419,8 @@ async function main(argv) {
 
   const file = path.join(options.root, ENVIRONMENT_FILE);
   try {
-    const ports = prepareEnvironment(file);
-    await startServices(options.root, file, ports, options.waitSeconds);
+    const { values, ports } = prepareEnvironment(file);
+    await startServices(options.root, file, values, ports, options.waitSeconds);
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);
