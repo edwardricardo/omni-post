@@ -1,0 +1,47 @@
+{
+  "base": "df4bfc3007375a2b2a41c024efc81ac1a4151ad7",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "2e1387eb7375eda67bc0cf03c51eae63319f616332c204a983c239643146887e",
+            "head": "3f4e00c65e798b675f8069607295882743539b10a25bf483f87f5bfb55c88773"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails in one line when the root is missing or is a file, not a directory"
+        },
+        {
+          "bodyHash": {
+            "base": "1a8652c03700e102e666b917aceba22dad5d95eed344237dc1e8618e161ee513",
+            "head": "ef2c3f5dfe1498a54a12d32f9909e75d1f6859e79fc09785552138bc6eeb0f21"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names"
+        },
+        {
+          "bodyHash": {
+            "base": "cba1a0d7d6780e6bc4c8b4a22ff03210f6cc32a9902b9f6382502c59feff4f0d",
+            "head": "fef3097f4d47a53c4b376f7ac81996fde90c16a307db1687aec67ad030f4938a"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret"
+        }
+      ],
+      "id": "t1b-01-start-reaches-the-services",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > fails in one line when the root is missing or is a file, not a directory",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > leaves a complete environment file untouched and reports the ports it names",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > writes the environment a checkout lacks, for its owner only, and shows no secret"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/platformStart.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/platformStart.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}

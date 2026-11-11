@@ -1,0 +1,16 @@
+[
+  {
+    "id": "t1b-01-start-reaches-the-services",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/scripts/platformStart.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::fails in one line when the root is missing or is a file, not a directory"
+    ],
+    "subject": "scripts/start/platform-start.mjs",
+    "search": "  if (up.status !== 0) {",
+    "replace": "  if (up.status === null) {",
+    "note": "The start command now goes on from the environment to Postgres and Redis, so a run that used to end after the environment file needs Docker and both services, and a missing root is reported as missing where it used to read as not a directory: the three base blocks fail on the new command while the head blocks pass, and that result of the clean runs alone gives the verdict. The suite runs the command as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case are never applied; the mutations of the command were run against a mutated clone with the suite pointed at it, and the pull request lists them."
+  }
+]
