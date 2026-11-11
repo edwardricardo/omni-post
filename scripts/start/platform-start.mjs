@@ -19,7 +19,7 @@
  * @layer infrastructure
  */
 import { randomBytes } from "node:crypto";
-import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -77,20 +77,50 @@ function portOf(key, raw, problems) {
 }
 
 /**
+ * @param {unknown} error - What a read or a write of the environment file threw.
+ * @param {string} file - The environment file's path.
+ * @returns {unknown} A one-line failure when the checkout is missing or is not a directory, or when
+ *   the write found something where the read had found nothing; otherwise the error as it came.
+ */
+function explained(error, file) {
+  const code = /** @type {NodeJS.ErrnoException} */ (error).code;
+  if (code === "ENOENT" || code === "ENOTDIR") {
+    return new StartFailure([`${path.dirname(file)} is not a directory`]);
+  }
+  if (code === "EEXIST") {
+    return new StartFailure([
+      `${file} exists but reads as absent (a link that leads nowhere?): nothing was written`,
+    ]);
+  }
+  return error;
+}
+
+/**
+ * @param {string} file - The environment file's path.
+ * @returns {string | null} Its text, or `null` when there is no such file.
+ */
+function readIfPresent(file) {
+  try {
+    return readFileSync(file, "utf8");
+  } catch (error) {
+    if (/** @type {NodeJS.ErrnoException} */ (error).code === "ENOENT") return null;
+    throw explained(error, file);
+  }
+}
+
+/**
  * @function prepareEnvironment
  * @description Writes the environment file when the checkout has none; otherwise checks the one it
  *   has, without writing it. Every cause of a refusal is collected before the run fails, so one run
- *   names them all.
+ *   names them all. Nothing asks whether the file exists before acting on it: the file is read, a
+ *   missing one reads as absent, and the write creates it only if nothing is there, so it never
+ *   replaces a file that appeared meanwhile and never writes through a link.
  * @param {string} file - The environment file's path.
  * @returns {{ Postgres: number, Redis: number }} The host port each service is published on.
  */
 function prepareEnvironment(file) {
-  const root = path.dirname(file);
-  if (!statSync(root, { throwIfNoEntry: false })?.isDirectory()) {
-    throw new StartFailure([`${root} is not a directory`]);
-  }
-
-  const values = existsSync(file) ? readEnvironment(readFileSync(file, "utf8")) : null;
+  const text = readIfPresent(file);
+  const values = text === null ? null : readEnvironment(text);
   const problems = values === null ? [] : missingKeys(values).map((key) => `${file} lacks ${key}`);
   const ports = { Postgres: DEFAULT_POSTGRES_HOST_PORT, Redis: DEFAULT_REDIS_HOST_PORT };
   for (const name of /** @type {const} */ (["Postgres", "Redis"])) {
@@ -124,7 +154,11 @@ function prepareEnvironment(file) {
     ...(ports.Postgres !== DEFAULT_POSTGRES_HOST_PORT && { postgresHostPort: ports.Postgres }),
     ...(ports.Redis !== DEFAULT_REDIS_HOST_PORT && { redisHostPort: ports.Redis }),
   });
-  writeFileSync(file, renderEnvironmentFile(entries), { flag: "wx", mode: 0o600 });
+  try {
+    writeFileSync(file, renderEnvironmentFile(entries), { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    throw explained(error, file);
+  }
   process.stdout.write(
     `${NAME}: wrote ${file} with ${entries.length} variables, its secrets random\n`
   );

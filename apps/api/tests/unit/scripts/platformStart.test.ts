@@ -20,6 +20,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -181,27 +182,23 @@ describe("the generated environment", () => {
 
   it("reads the same through Node's loader and through a shell that sources it", () => {
     const entries = core.generateEnvironment({ randomBytes });
-    const { file } = makeRoot();
-    writeFileSync(file, core.renderEnvironmentFile(entries));
+    const text = core.renderEnvironmentFile(entries);
 
+    // The shell sources the text from its standard input, so no path reaches its command line.
+    // `<(cat)` and not `/dev/stdin`: Node hands a child a socket, which cannot be opened by name.
     const sourced = execFileSync(
       "bash",
       [
         "--norc",
         "-c",
-        'set -a; . "$1"; shift; for key in "$@"; do printf "%s=%s\\n" "$key" "${!key}"; done',
+        'set -a; . <(cat); for key in "$@"; do printf "%s=%s\\n" "$key" "${!key}"; done',
         "bash",
-        file,
         ...entries.map(([key]) => key),
       ],
-      {
-        encoding: "utf8",
-        env: { PATH: process.env.PATH ?? "" },
-        stdio: ["ignore", "pipe", "pipe"],
-      }
+      { encoding: "utf8", env: { PATH: process.env.PATH ?? "" }, input: text }
     );
 
-    expect(core.readEnvironment(readFileSync(file, "utf8"))).toEqual(Object.fromEntries(entries));
+    expect(core.readEnvironment(text)).toEqual(Object.fromEntries(entries));
     expect(sourced).toBe(entries.map(([key, value]) => `${key}=${value}\n`).join(""));
   });
 });
@@ -296,16 +293,34 @@ describe("the start sequence", () => {
     expect(existsSync(file)).toBe(false);
   });
 
-  it("fails in one line when the root is not a directory", async () => {
-    const missing = path.join(makeRoot().root, "nowhere");
+  it("fails in one line when the root is missing or is a file, not a directory", async () => {
+    const { root, file } = makeRoot();
+    const missing = path.join(root, "nowhere");
+    const regularFile = path.join(root, "a-file");
+    writeFileSync(regularFile, "");
 
-    const result = await start(["--root", missing]);
+    const results = [await start(["--root", missing]), await start(["--root", regularFile])];
+
+    expect(results).toEqual([
+      { code: 1, stdout: "", stderr: `platform-start: ${missing} is not a directory\n` },
+      { code: 1, stdout: "", stderr: `platform-start: ${regularFile} is not a directory\n` },
+    ]);
+    expect(existsSync(file)).toBe(false);
+  });
+
+  it("writes nothing through a link that leads nowhere", async () => {
+    const { root, file } = makeRoot();
+    const target = path.join(root, "elsewhere");
+    symlinkSync(target, file);
+
+    const result = await start(["--root", root]);
 
     expect(result).toEqual({
       code: 1,
       stdout: "",
-      stderr: `platform-start: ${missing} is not a directory\n`,
+      stderr: `platform-start: ${file} exists but reads as absent (a link that leads nowhere?): nothing was written\n`,
     });
+    expect(existsSync(target)).toBe(false);
   });
 
   it("prints its usage and writes nothing when asked for help", async () => {
