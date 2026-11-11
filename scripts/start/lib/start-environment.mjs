@@ -85,7 +85,9 @@ export function generateEnvironment({ randomBytes, postgresHostPort, redisHostPo
   if (postgresHostPort !== undefined) {
     entries.push(["POSTGRES_HOST_PORT", String(postgresHostPort)]);
   }
-  if (redisHostPort !== undefined) entries.push(["REDIS_HOST_PORT", String(redisHostPort)]);
+  if (redisHostPort !== undefined) {
+    entries.push(["REDIS_HOST_PORT", String(redisHostPort)]);
+  }
   entries.push(
     ["DATABASE_URL", databaseUrl(database)],
     ["SHADOW_DATABASE_URL", databaseUrl(`${database}_shadow`)],
@@ -100,14 +102,22 @@ export function generateEnvironment({ randomBytes, postgresHostPort, redisHostPo
   return entries;
 }
 
-/** Every variable an environment file must hold: the ones a new checkout receives. */
-const REQUIRED_KEYS = generateEnvironment({
+/**
+ * Every variable an environment file must hold: the ones a new checkout receives. The list is read
+ * off one throwaway generation, of which only the names are kept (the zero-filled random source
+ * exists to make that call possible, and its values are discarded), so the generator stays the one
+ * place that says which variables there are.
+ */
+export const REQUIRED_KEYS = generateEnvironment({
   randomBytes: (size) => Buffer.alloc(size),
 }).map(([key]) => key);
 
 /**
  * @function renderEnvironmentFile
  * @description The text of the environment file: a header, then one `NAME=value` line per variable.
+ *   A value outside the plain set goes between single quotes as it is, with nothing escaped: no
+ *   generated value holds a single quote, and the suite's reader case, which compares what Node and
+ *   a shell read back with what was generated, goes red on the first one that does.
  * @param {Array<[string, string]>} entries - The variables, in file order.
  * @returns {string} The file's text.
  */
