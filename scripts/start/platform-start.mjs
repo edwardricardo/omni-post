@@ -2,7 +2,8 @@
 /**
  * @file platform-start.mjs
  * @description The start sequence of a clean checkout, as far as it goes today: its environment,
- *   then Postgres and Redis from the repository's `docker-compose.yml`.
+ *   then Postgres and Redis from the repository's `docker-compose.yml`, then the database's
+ *   migration.
  *
  *   ENVIRONMENT. A checkout with no root environment file receives one, its secrets random
  *   (`lib/start-environment.mjs` says which variables and why). An existing file is never written:
@@ -26,8 +27,15 @@
  *   it runs out is stopped, and an attempt on a port that says nothing ends at most two seconds
  *   after it.
  *
- *   Exit codes: 0 both services accept connections; 1 a step failed, each cause on its own line;
- *   2 a usage error.
+ *   MIGRATION. `pnpm --filter @infra/prisma run migrate`, the script CI runs (`prisma migrate
+ *   deploy`), in the checkout. Prisma's configuration loads the checkout's environment file and
+ *   lets a variable the process already holds win over it, so the variables the file owns are
+ *   removed here too, and with them a `MIGRATE_DATABASE_URL` of the calling shell, which that
+ *   configuration prefers to `DATABASE_URL`: the migration connects where the file says, as the
+ *   role the file names. A database that is already migrated is left as it is.
+ *
+ *   Exit codes: 0 both services accept connections and the database is migrated; 1 a step failed,
+ *   each cause on its own line; 2 a usage error.
  *
  *   Usage: `node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]`
  * @layer infrastructure
@@ -56,7 +64,8 @@ const NAME = "platform-start";
 
 const USAGE = `usage: node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]
 
-Takes a checkout to a generated environment and to Postgres and Redis accepting connections.
+Takes a checkout to a generated environment, to Postgres and Redis accepting connections and to
+a migrated database.
 
   --root <dir>         the checkout to start (default: the one this script is in)
   --wait-seconds <n>   how long each service may take to accept a connection (default: 60)
@@ -117,6 +126,9 @@ const QUERY_AS = /** @type {const} */ ({
   PGDATABASE: "POSTGRES_DB",
 });
 
+/** What pnpm is asked for: the migration script of the package that holds the schema. */
+const MIGRATE = ["--filter", "@infra/prisma", "run", "migrate"];
+
 /** A run that failed, with one line per cause. */
 class StartFailure extends Error {
   /** @param {string[]} lines - The causes. */
@@ -124,6 +136,46 @@ class StartFailure extends Error {
     super(lines.join("; "));
     this.lines = lines;
   }
+}
+
+/**
+ * @function shellEnvironment
+ * @description The calling shell's environment as a child of this command receives it: without the
+ *   variables the environment file owns, so the file stays their one source.
+ * @param {...string} alsoWithout - Other variables this child must not receive.
+ * @returns {Record<string, string | undefined>} The environment to hand to the child.
+ */
+function shellEnvironment(...alsoWithout) {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([key]) => !OWNED_BY_THE_FILE.has(key) && !alsoWithout.includes(key)
+    )
+  );
+}
+
+/**
+ * @function couldNotStart
+ * @description The failure of a program that could not be run at all.
+ * @param {string} program - The program's name.
+ * @param {Error} error - What the attempt to run it reported.
+ * @param {string} whenMissing - What to say when it is not on `PATH`.
+ * @returns {StartFailure} The failure, in one line.
+ */
+function couldNotStart(program, error, whenMissing) {
+  const { code } = /** @type {NodeJS.ErrnoException} */ (error);
+  return new StartFailure([
+    code === "ENOENT" ? whenMissing : `${program} could not be run (${code})`,
+  ]);
+}
+
+/**
+ * @function endOf
+ * @description How a child that did not succeed ended, for a failure line.
+ * @param {{ status: number | null, signal: NodeJS.Signals | null }} child - What the run returned.
+ * @returns {string} `exited <code>`, or `was ended by <signal>` when a signal stopped it.
+ */
+function endOf(child) {
+  return child.status === null ? `was ended by ${child.signal}` : `exited ${child.status}`;
 }
 
 /**
@@ -259,6 +311,8 @@ function answers(port, message, accept) {
     };
     socket.setTimeout(PROBE_TIMEOUT_MS, () => finish(false));
     socket.once("connect", () => socket.write(message));
+    // Read as `latin1`, which maps each byte to one character: a reply that is not text is still
+    // judged byte for byte, where `utf8` would replace the bytes it cannot decode.
     socket.once("data", (reply) => finish(accept(reply.toString("latin1"))));
     socket.once("error", () => finish(false));
     socket.once("close", () => resolve(false));
@@ -296,9 +350,7 @@ async function waitFor(failure, seconds, probe) {
  * @returns {Promise<void>} Resolves once both accept a connection.
  */
 async function startServices(root, file, values, ports, waitSeconds) {
-  const env = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => !OWNED_BY_THE_FILE.has(key))
-  );
+  const env = shellEnvironment();
   /**
    * @param {string[]} args - Docker's arguments.
    * @param {"ignore" | "inherit" | "pipe"} out - Where its output goes.
@@ -316,12 +368,11 @@ async function startServices(root, file, values, ports, waitSeconds) {
 
   const version = docker(["compose", "version"], "ignore");
   if (version.error) {
-    const { code } = /** @type {NodeJS.ErrnoException} */ (version.error);
-    throw new StartFailure([
-      code === "ENOENT"
-        ? "docker is not on PATH: install Docker Engine with its Compose plugin"
-        : `docker could not be run (${code})`,
-    ]);
+    throw couldNotStart(
+      "docker",
+      version.error,
+      "docker is not on PATH: install Docker Engine with its Compose plugin"
+    );
   }
   if (version.status !== 0) {
     throw new StartFailure(["`docker compose version` failed: install the Docker Compose plugin"]);
@@ -329,7 +380,7 @@ async function startServices(root, file, values, ports, waitSeconds) {
 
   const up = docker([...COMPOSE, "up", "-d", "postgres", "redis"], "inherit");
   if (up.status !== 0) {
-    throw new StartFailure([`\`docker compose up -d postgres redis\` exited ${up.status}`]);
+    throw new StartFailure([`\`docker compose up -d postgres redis\` ${endOf(up)}`]);
   }
 
   const query = [
@@ -372,6 +423,32 @@ async function startServices(root, file, values, ports, waitSeconds) {
     `${NAME}: Postgres on ${LOOPBACK}:${ports.Postgres} and Redis on ${LOOPBACK}:${ports.Redis} ` +
       `accept connections\n`
   );
+}
+
+/**
+ * @function migrateDatabase
+ * @description Applies the migrations the database lacks, through the repository's own script,
+ *   with its output shown as it comes.
+ * @param {string} root - The checkout.
+ * @returns {void}
+ */
+function migrateDatabase(root) {
+  const migrate = spawnSync("pnpm", MIGRATE, {
+    cwd: root,
+    env: shellEnvironment("MIGRATE_DATABASE_URL"),
+    stdio: ["ignore", "inherit", "inherit"],
+  });
+  if (migrate.error) {
+    throw couldNotStart(
+      "pnpm",
+      migrate.error,
+      "pnpm is not on PATH: the migration runs through it"
+    );
+  }
+  if (migrate.status !== 0) {
+    throw new StartFailure([`\`pnpm ${MIGRATE.join(" ")}\` ${endOf(migrate)}`]);
+  }
+  process.stdout.write(`${NAME}: the database is migrated\n`);
 }
 
 /**
@@ -421,6 +498,7 @@ async function main(argv) {
   try {
     const { values, ports } = prepareEnvironment(file);
     await startServices(options.root, file, values, ports, options.waitSeconds);
+    migrateDatabase(options.root);
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);
