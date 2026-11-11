@@ -62,7 +62,7 @@
  *   outside `apps/api/tests/unit/scripts/` or a changed file outside `scripts/testing/` needs the tool's measured BEHAVIOUR-CHANGED verdict in a committed record;
  *   (5) a file the ledger excludes is invisible; (6) a block's
  *   `bodyHash` covers its callback body only, so a row deleted from an `it.each` table, or an
- *   expected value weakened in one, changes no id and no hash and binds nothing (Master Plan row
+ *   expected value weakened in one, changes no id and no hash and binds nothing (plan row
  *   RECORD-COVERAGE-EACH-TABLES); (7) a live-tier or no-collector block is listed, never measured.
  *
  *   Usage: `node scripts/testing/record-coverage-gate.mjs [--summary <file>] [--retire-check]`, or

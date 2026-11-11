@@ -1384,7 +1384,7 @@ matches neither the generic-parameter form nor tagged templates. **No CLAUDE.md 
       its bound context still fails loudly; widen `sagaContextInvariants.static.test.ts:826` to
       admit exactly that write; note that layer 2 still evaluates it (the RLS policy's `USING` +
       `WITH CHECK` both admit the `__system__` sentinel — verified against migration `20260527000000`).
-- [ ] 23.3 **[C3]** `docs/product/MASTER_PLAN.md`, row N-AUTH-3 — record: "fitness #23
+- [ ] 23.3 **[C3]** `docs/product/plan/cross-cutting.md`, row N-AUTH-3 — record: "fitness #23
       regex blind to generic / tagged-template raw-query forms", with the 8-file baseline attached
       so the ramp-down starts from measured reality.
 - [ ] 23.4 `docs/security/MULTI_TENANT_GUARDS.md` — claim posture, the third named system surface,

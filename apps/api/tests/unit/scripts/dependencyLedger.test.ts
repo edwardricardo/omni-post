@@ -1033,7 +1033,7 @@ describe("joinDecisions", () => {
     expect(joined.problems).toEqual([]);
   });
 
-  it("joins a kept entry whose ground is planned, the Master Plan item in its note, with no problem", () => {
+  it("joins a kept entry whose ground is planned, the plan item in its note, with no problem", () => {
     const joined = core.joinDecisions(
       [rowOf("u", "production", ONE)],
       decisionsOf({ u: { ...KEPT, grounds: "planned", note: "STOR-4 wires it." } })
@@ -1080,9 +1080,9 @@ describe("joinDecisions", () => {
       'u has grounds "habit", not single-adapter|tool|plugin|types|peer|cve-floor|generated|in-use|planned',
     ],
     [
-      "a planned entry whose note names no Master Plan item",
+      "a planned entry whose note names no plan item",
       { ...KEPT, grounds: "planned", note: "Wired later." },
-      "u is planned, but its note names no Master Plan item (an id such as STOR-5)",
+      "u is planned, but its note names no plan item (an id such as STOR-5)",
     ],
     [
       "a remove entry with no utility",

@@ -48,9 +48,9 @@ Every qualitative item is a decision for the Product Owner, taken in short sessi
 
 ## Retro-documentation ledger
 
-The facts of work closed before the gate existed are collected once, through the retro-documentation ledger in [Master Plan](../product/MASTER_PLAN.md) §5.10, shared with the support documentation of §5.15. It has one row per closed item, and its `Legal`, `Soporte` and `Lote` columns start empty.
+The facts of work closed before the gate existed were to be collected through the retro-documentation ledger of the [Master Plan](../product/MASTER_PLAN.md), §5.10, shared with the support documentation of §5.15: one row per closed item, with `Legal`, `Soporte` and `Lote` columns that started empty. The Master Plan is an archive since 2026-11-10 and takes no new row ([ADR-0044](../technical/ADR-0044-feature-ordered-plan.md)), so the ledger stays there as it stood. From that date the legal facts of a feature are answered in its legal line when the feature closes in [the plan](../product/PLAN.md).
 
-A retro batch takes ledger rows in order of exposure (credentials, OAuth, billing, mention and analytics ingestion, AI subprocessors), at most 400 lines of evidence. It reads each item once, writes its legal facts here and its support page under `docs/support/`, and marks the row with the batch's pull request number. An item with nothing to record is marked not applicable, with its reason, in the batch's pull request. Work closed after the gate documents itself in its own pull request, because the gate fails until it does.
+A retro batch was to take ledger rows in order of exposure (credentials, OAuth, billing, mention and analytics ingestion, AI subprocessors), at most 400 lines of evidence: read each item once, write its legal facts here and its support page under `docs/support/`, and mark the row with the batch's pull request number, or mark the item not applicable with its reason. No batch marks the archived ledger now: the same reading is done feature by feature, when a feature closes in the plan. Work closed after the gate documents itself in its own pull request, because the gate fails until it does.
 
 ## Conventions
 

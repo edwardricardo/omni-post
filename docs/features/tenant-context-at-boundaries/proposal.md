@@ -2,7 +2,7 @@
 
 > Implements **ADR-0020**. Supersedes the drafted approach in
 > [`openspec/changes/api-guarded-client-injection/`](https://github.com/edwardricardo/omni-post/tree/e33fadb763be6e23dc79be89a7335869234a5afe/openspec/changes/api-guarded-client-injection) — the guarded-client injection and
-> its proposed raw-client gate survive (that gate, then numbered fitness #28, was never wired; see N-SEC-3 in the Master Plan); the per-call `withSystemContext` wrapping is replaced by
+> its proposed raw-client gate survive (that gate, then numbered fitness #28, was never wired; see N-SEC-3 in the plan, `docs/product/plan/cross-cutting.md`); the per-call `withSystemContext` wrapping is replaced by
 > context established at entry boundaries.
 
 ## Why

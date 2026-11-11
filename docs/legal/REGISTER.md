@@ -28,12 +28,12 @@ A dash in the art. 30(1) column marks a section the register keeps although that
 
 ### Status legend
 
-| Status                             | Meaning                                                                                         |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `generated`                        | Points at an inventory page under `inventories/`; a generator writes it, nobody edits it.       |
-| `linked`                           | Points at an existing document that is the source of truth for the element.                     |
-| `pending decision (Product Owner)` | Empty until the Product Owner decides; one line names the decision that fills it.               |
-| `upcoming (unit <name>)`           | A generator in its own unit of Master Plan §5.10 fills it when it lands; nothing is listed now. |
+| Status                             | Meaning                                                                                                                                                  |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `generated`                        | Points at an inventory page under `inventories/`; a generator writes it, nobody edits it.                                                                |
+| `linked`                           | Points at an existing document that is the source of truth for the element.                                                                              |
+| `pending decision (Product Owner)` | Empty until the Product Owner decides; one line names the decision that fills it.                                                                        |
+| `upcoming (unit <name>)`           | A generator in its own unit of the legal register rows of the plan (`docs/product/plan/cross-cutting.md`) fills it when it lands; nothing is listed now. |
 
 ### Decisions that span every section
 
@@ -131,7 +131,7 @@ Pending within this section: the retention period per data class (Product Owner)
 
 The generator scans the source of the API, both portals and `packages/ui` for every cookie and every `localStorage` / `sessionStorage` key, and joins each name with [`classification/cookies-and-storage.json`](classification/cookies-and-storage.json) as `<app>:<kind>:<name>`. Each row is classified `essential`, `functional`, `analytics`, `marketing` or `pending`, with the lifetime the code gives it. A cookie a dependency sets, which no call site names, is a manual addition, such as the `NEXT_LOCALE` cookie that next-intl sets in each portal. The current figures are the page's Summary table.
 
-Each lifetime is stated as the code sets it, not as its comment says. Reading them that way surfaced two defects, tracked in the [Master Plan](../product/MASTER_PLAN.md) as **DEF-52** (the lifetime of the API's `refreshToken` cookie) and **DEF-53** (the lifetime of `admin-session` when the Admin backend proxy renews it).
+Each lifetime is stated as the code sets it, not as its comment says. Reading them that way surfaced two defects, tracked in the plan ([chain.md](../product/plan/chain.md)) as **DEF-52** (the lifetime of the API's `refreshToken` cookie) and **DEF-53** (the lifetime of `admin-session` when the Admin backend proxy renews it).
 
 Pending within this section: whether any of these needs consent, under the consent policy of section 12 (Product Owner).
 
@@ -143,7 +143,7 @@ The generator reads four sources: the scopes each connect flow requests in `apps
 
 Each row is classified `required` (a shipped feature needs it), `optional` (a gated or partial feature asks for it), `unused` (declared or requested, but no code path uses it) or `pending`, and its Grants column states, in the provider's terms, what the scope lets the product read or do. The page leads with its Mismatches section and lists the declarations it does not scan, each with the reason. The current figures are the page's Summary table.
 
-The mismatches the page lists are tracked as defects in the [Master Plan](../product/MASTER_PLAN.md) once recorded.
+The mismatches the page lists are tracked as defects in [the plan](../product/PLAN.md) once recorded.
 
 ## 12. Consent and acceptance evidence
 

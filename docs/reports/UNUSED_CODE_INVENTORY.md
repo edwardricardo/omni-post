@@ -282,7 +282,7 @@ Four surfaces where the read path works — so the UI populates and looks functi
 
 ⚠️ **Before deleting any of these client methods**, note that `apps/client/lib/api/__tests__/client.test.ts` exercises several of them (`getHealth` ×7, `getProviderHealth:212`, `getPostAnalytics:311`). The route-graph BFS that found them cannot see test files. `getPostAnalytics` is asserted at `:311` against a route that does not exist — the test mocks fetch, so it passes green while the real call would 404. Fix or delete the test alongside the method.
 
-**Plan owner:** `FE-BE-CONTRACT-BREAKS` (`MASTER_PLAN.md` §5.3) covers all four.
+**Plan owner:** `FE-BE-CONTRACT-BREAKS` (plan row, `docs/product/plan/cross-cutting.md`) covers all four.
 
 ---
 

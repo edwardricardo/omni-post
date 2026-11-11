@@ -246,7 +246,7 @@ export const STATUSES = Object.freeze(/** @type {const} */ (["kept", "remove", "
  * Why a name under the floor is kept, one per entry: one adapter per SDK, a CLI or a library that
  * scripts and gates run, a plugin a host loads by name, a type package, a peer range it satisfies,
  * a CVE floor it holds, a load from code the tree does not track, a use the owner judges real, or a
- * feature a Master Plan item schedules to wire (the item named in the note; the code stays until
+ * feature a plan item schedules to wire (the item named in the note; the code stays until
  * that item runs).
  */
 export const GROUNDS = Object.freeze([
@@ -299,7 +299,7 @@ const STATUS_FIELDS = Object.freeze({
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /**
- * A Master Plan item id as the plan writes them: `STOR-5`, `N-COR-9`, `F2-API-12`, `WEBHOOK-INGEST`.
+ * A plan item id as the plan writes them: `STOR-5`, `N-COR-9`, `F2-API-12`, `WEBHOOK-INGEST`.
  * The shape, not the plan's list: a note that cites only an `ADR-0028` or a `CVE-2026-1234` passes
  * it too, so review still confirms the item exists.
  */
@@ -351,7 +351,7 @@ function isDate(value) {
 
 /**
  * @description Holds one entry to the rules of its status: the fields it needs and the ones it
- *   never carries, grounds one of {@link GROUNDS}, a `planned` note that names its Master Plan
+ *   never carries, grounds one of {@link GROUNDS}, a `planned` note that names its plan
  *   item, a decision date that is a calendar day, and no `manual` flag, which belongs to the legal
  *   inventory. A status the reader refused has no rules to hold; the reader already reported it.
  * @param {string} name The entry's name.
@@ -378,9 +378,7 @@ function entryProblems(name, entry) {
     problems.push(`${name} has grounds ${JSON.stringify(grounds)}, not ${GROUNDS.join("|")}`);
   }
   if (status === "kept" && grounds === "planned" && !PLAN_ITEM.test(String(entry.note ?? ""))) {
-    problems.push(
-      `${name} is planned, but its note names no Master Plan item (an id such as STOR-5)`
-    );
+    problems.push(`${name} is planned, but its note names no plan item (an id such as STOR-5)`);
   }
   if (rules.needs.includes("decidedOn") && decidedOn !== undefined && !isDate(decidedOn)) {
     problems.push(`${name} has decidedOn ${JSON.stringify(decidedOn)}, not a YYYY-MM-DD date`);

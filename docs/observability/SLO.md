@@ -97,7 +97,7 @@ If a target does NOT have all 4 items wired, it is incomplete.
 
 Phase A1 closes: 4 alerts + 4 runbooks + 1 SLO doc + Grafana provisioning.
 
-Two Master Plan rows (§5.2) close the gaps: OBS-5 (§4.2.b), the 6 additional alerts (availability, completion rate, avg duration, publish latency, post-creation p99, publish success rate), and OBS-6 (§4.2.c), the alertmanager wireup + Slack/PagerDuty notification routing.
+Two plan rows (`docs/product/plan/cross-cutting.md`) close the gaps: OBS-5 (§4.2.b), the 6 additional alerts (availability, completion rate, avg duration, publish latency, post-creation p99, publish success rate), and OBS-6 (§4.2.c), the alertmanager wireup + Slack/PagerDuty notification routing.
 
 ## When to review this doc
 
@@ -111,4 +111,4 @@ Two Master Plan rows (§5.2) close the gaps: OBS-5 (§4.2.b), the 6 additional a
 - Prometheus rules: `prometheus/alerts/`
 - Grafana dashboards: `grafana/dashboards/`
 - Metrics source: `apps/api/src/metrics/`
-- Open work: Master Plan §5.2, rows OBS-1 to OBS-6 (`docs/product/MASTER_PLAN.md`)
+- Open work: the plan rows OBS-1 and OBS-3 to OBS-6 (`docs/product/plan/cross-cutting.md`) and OBS-2 (`docs/product/plan/areas.md`)

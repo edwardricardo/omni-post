@@ -9,8 +9,10 @@
 - **Supersedes**: —
 - **Superseded by**: —
 - **Related**: [CLAUDE.md](../../CLAUDE.md) §Pragmatic Exceptions and fitness #37;
-  [TESTING_REFOUNDATION_PLAN.md](../development/TESTING_REFOUNDATION_PLAN.md) premise 5 and WU-2.0;
-  [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) decision D2 and metric M14
+  [TESTING_REFOUNDATION_PLAN.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION_PLAN.md) premise 5 and WU-2.0;
+  [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) decision D2 and metric M14. The `D` ids and the metric ids of this record are entries of the
+  tracker's Decisions log and its metrics, and its `WU-` ids are units of the tracker's fixed plan, both removed
+  from the tree on 2026-11-10 and read at the permanent links above
 
 ## Context
 
@@ -54,6 +56,13 @@
    lowered values. M14, "coverage that was decorative", counts the descents carried by a marker,
    re-derived by `metrics.mjs --m14` from the ledger's marker slices until that script left the tree
    on 2026-11-10.
+
+   Amended on 2026-11-10 by [ADR-0044](ADR-0044-feature-ordered-plan.md): the tracker left the tree
+   with the metrics script. The slice's pull request no longer records its drop there and M14 is no
+   longer derived; the review of that pull request reads the deleted files and blocks against the
+   descent, which the committed ledger records. The sentences of this record that name the tracker
+   or M14 as the place of that reconciliation are read with this amendment.
+
 6. **The pre-edit tripwire hook** (`.claude/hooks-py/pre_edit_tripwire_blocker.py`) admits the
    scenario.
 
@@ -144,7 +153,7 @@ post-deployment check is added, changed or retired`
 - `.github/workflows/fitness.yml`, step "#37 Coverage threshold floors never descend vs the PR base"
 - `.claude/hooks-py/pre_edit_tripwire_blocker.py` and its suite
   `.claude/hooks-py/tests/test_pre_edit_tripwire_blocker.py`
-- [TESTING_REFOUNDATION_PLAN.md](../development/TESTING_REFOUNDATION_PLAN.md) premise 5, WU-2.0,
+- [TESTING_REFOUNDATION_PLAN.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION_PLAN.md) premise 5, WU-2.0,
   WU-2.2, WU-2.5, the demolition slices 2.B, WU-5.1, WU-5.7
-- [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) decision D2, metric M14, §Gates
+- [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) decision D2, metric M14, §Gates
 - `apps/api/vitest.config.ts`; `apps/api/tests/unit/config/coverageThresholds.test.ts`

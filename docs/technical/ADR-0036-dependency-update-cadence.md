@@ -12,8 +12,8 @@
   the `testing-toolchain-alignment` requirement "every lag below latest mature carries a documented
   hold" (`openspec/changes/testing-refoundation/specs/testing-toolchain-alignment/spec.md`)
 - **Related**: [ADR-0019](ADR-0019-pnpm-11-migration.md) (pnpm's `minimumReleaseAge`, which the
-  follow-up unit adopts); tracker decisions D20, D25, D45 and D50 in
-  [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md)
+  follow-up unit adopts); tracker decisions D20, D25, D45 and D50 in the
+  [Decisions log of TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log) (removed from the tree on 2026-11-10)
 
 ## Context
 
@@ -175,7 +175,7 @@ post-deployment check is added, changed or retired`
 - [ADR-0019](ADR-0019-pnpm-11-migration.md) — pnpm 11, and the `minimumReleaseAge` revisit
 - Measurements: [TESTING_REFOUNDATION_MEASUREMENTS.md](../development/TESTING_REFOUNDATION_MEASUREMENTS.md) §Toolchain lag (the
   count's history, entries 21–33)
-- Tracker: [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) §Gates row "Testing toolchain holds", decisions D20, D25, D45 and D50
+- Tracker: [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) §Gates row "Testing toolchain holds", decisions D20, D25, D45 and D50
 - Canon: [SECURITY_CANON.md](../security/SECURITY_CANON.md) §"Build-tool version holds & dated-debt
   overrides"
 - Contract: `openspec/changes/testing-refoundation/specs/testing-toolchain-alignment/spec.md`,

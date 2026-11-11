@@ -174,7 +174,7 @@ Client already has `@import 'tw-animate-css'` at line 2 of `apps/client/app/glob
 }
 ```
 
-**Action:** Add this CSS block to `apps/client/app/globals.css` after the base layer rules, once DC-14 of `docs/product/MASTER_PLAN.md` §5.13 has decided to keep it: that unit decides, after a visual check of Dialog, AlertDialog and Toast, whether the rule stays in admin or goes with the safelist of §3.4.
+**Action:** Add this CSS block to `apps/client/app/globals.css` after the base layer rules, once the plan row DC-14 (`docs/product/plan/cross-cutting.md`) has decided to keep it: that unit decides, after a visual check of Dialog, AlertDialog and Toast, whether the rule stays in admin or goes with the safelist of §3.4.
 
 ### 3.3 @source Directives -- FIXED, no action needed
 
@@ -184,7 +184,7 @@ Both portals' line 6 read `@source '../../packages/ui/src/**/*.{ts,tsx}'` until 
 
 **Problem, as first diagnosed:** the Tailwind v4 `@source` scanner was believed unable to resolve classes from pnpm workspace symlinked packages, so Dialog overlay, Toast viewport and AlertDialog classes went missing from the generated CSS. The scanner resolves them; they were missing because the `packages/ui` `@source` path was wrong (§3.3).
 
-**Admin today:** `apps/admin/lib/ui-safelist.ts` exports string constants with the Tailwind classes of the `@packages/ui` Dialog, AlertDialog, Toast and Toaster, loaded through `@source "../lib/ui-safelist.ts"` in globals.css. With the path fixed, Tailwind's own oxide scanner extracts all 124 classes it lists from `packages/ui/src` alone (measured 2026-10-06), so the list is redundant, and DC-14 of `docs/product/MASTER_PLAN.md` §5.13 deletes it after a visual check.
+**Admin today:** `apps/admin/lib/ui-safelist.ts` exports string constants with the Tailwind classes of the `@packages/ui` Dialog, AlertDialog, Toast and Toaster, loaded through `@source "../lib/ui-safelist.ts"` in globals.css. With the path fixed, Tailwind's own oxide scanner extracts all 124 classes it lists from `packages/ui/src` alone (measured 2026-10-06), so the list is redundant, and the plan row DC-14 (`docs/product/plan/cross-cutting.md`) deletes it after a visual check.
 
 **Action:** none for the client: its `@source` directive scans `packages/ui` once the §3.3 fix is in place.
 

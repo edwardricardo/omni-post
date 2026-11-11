@@ -275,7 +275,8 @@ const WHOLE_LITERAL = /^(["'`])((?:\\.|(?!\1)[^\\\n])*)\1$/;
  *   already be free of comments.
  * @param {string} text
  * @param {number} open Index of the call's `(`.
- * @returns {string[]} The trimmed arguments; empty when the call is not closed.
+ * @returns {string[]} The trimmed arguments; empty when the call is not closed. A literal that never
+ *   ends leaves the call unclosed too, so it yields no argument and the gate refuses the block.
  */
 function callArguments(text, open) {
   /** @type {string[]} */

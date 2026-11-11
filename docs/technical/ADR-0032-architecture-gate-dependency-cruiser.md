@@ -32,7 +32,7 @@ nothing; they are still in the config at PR #408.
 
 **madge did not see cycles across packages.** `check:circular` ran only in the `code-quality` job
 of CI. It read 2,839 of 6,237 import edges and skipped 422 imports, 421 of them through workspace
-aliases, so a planted `@core/domain` → `@core/accounts` cycle exited 0 (tracker D43 (e)). madge
+aliases, so a planted `@core/domain` → `@core/accounts` cycle exited 0 (tracker D43 (e); the `D` ids of this record are entries of the testing refoundation tracker's [Decisions log](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log), which left the tree on 2026-11-10). madge
 8.0.0, the latest release, loses `module` and `moduleResolution` before its resolver runs.
 
 **eslint-plugin-boundaries was blind where most imports are, and stricter than the canon where it
@@ -158,7 +158,7 @@ A gate that reports a clean graph it never read is worse than no gate
   matured at 2026-10-07T19:18:29Z; [SECURITY_CANON.md](../security/SECURITY_CANON.md) carried a
   pre-registered hold row scheduled to it. 18.5.0 was taken on 2026-10-07, after it matured, and the
   hold row was deleted with the bump, the precedent D25 of
-  [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) set: nothing newer than 18.5.0
+  [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) set: nothing newer than 18.5.0
   is published, so nothing is left to pre-register. The lockfile moved `dependency-cruiser`,
   `enhanced-resolve`, `ignore` and `is-installed-globally` only. On the 2026-10-07 tree both
   versions cruise the same graph: 1,721 modules, 7,497 dependencies and the same 124 known
@@ -254,8 +254,8 @@ decisions stand as written; these notes record where the code differs from their
 ## Gate red proofs, dated
 
 The dated red and green proofs of `pnpm check:architecture`, moved out of the Red proof cell of the
-Architecture row of `### Gates` in `docs/development/TESTING_REFOUNDATION.md`, which now keeps the
-current proof only. Oldest first; each bullet is the fact as it was recorded.
+Architecture row of `### Gates` in the [testing refoundation tracker](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md), which kept the
+current proof only until it left the tree on 2026-11-10. Oldest first; each bullet is the fact as it was recorded.
 
 - **2026-10-05, resolution control.** With `packages/shared/dist/` built the command still cruises
   7325 dependencies; a config copy without `webpackConfig` cruises 7252, the 73 `@shared/types` edges
@@ -315,6 +315,6 @@ modules, 7497 dependencies cruised)`, 124 known violations ignored, 0 unresolved
   (engram 1208), `boundaries-violations-509.classified.json` (engram 1211), `boundaries-repair-plan.md`
   and `boundaries-repair-sizing.md` (engram 1213), in the same directory.
 - Repository: `.dependency-cruiser.cjs`, `.dependency-cruiser-resolve.cjs`;
-  [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) §Decisions log, D43 and D49;
+  [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log) §Decisions log, D43 and D49;
   [MASTER_PLAN.md §5.12, the card that names SMELL-183](../product/MASTER_PLAN.md#512-routes--use-cases-and-the-composition-root-adr-0033--queued-after-n-test-1);
   [SECURITY_CANON.md](../security/SECURITY_CANON.md) (the `dependency-cruiser` hold row).

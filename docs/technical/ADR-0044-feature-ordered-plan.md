@@ -84,6 +84,9 @@
 - Cross-cutting work and findings have one destination, named in `CLAUDE.md` and in the plan's
   rules.
 - The battery runs one step fewer, and no tool reads the tracker.
+- This record amends the sentence of [ADR-0040](ADR-0040-artifact-language-and-role-attribution.md)
+  on where a closed tracker's content goes: the tracker's state and decisions are kept at the
+  permanent link, and its live units went to the plan, not to the Master Plan.
 
 **Negative / costs**
 

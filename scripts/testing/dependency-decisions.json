@@ -5,7 +5,7 @@
   "entries": {
     "@faker-js/faker": {
       "status": "pending",
-      "note": "One real site since 2026-11-07, apps/api/tests/production.live.test.ts:13: the two seed scripts that held the other two were deleted under D17. Not removed here: row 4.3 of docs/development/TESTING_REFOUNDATION.md rewrites that suite and decides."
+      "note": "One real site since 2026-11-07, apps/api/tests/production.live.test.ts:13: the two seed scripts that held the other two were deleted under D17. Not removed here: row 4.3 of the testing refoundation tracker (https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md, removed from the tree on 2026-11-10) rewrites that suite and decides."
     },
     "zod-to-json-schema": {
       "status": "kept",
@@ -133,7 +133,7 @@
       "utility": "None today: its one binding, getSignedUrl, is imported as _getSignedUrl in packages/adapters/storage-s3/src/index.ts and never referenced, so the package is only evaluated at import.",
       "replacement": "None: a presigned GetObject on S3 and Spaces is the signed read STOR-5 adds, and getSignedUrl is the SDK v3 call that signs it.",
       "decidedOn": "2026-10-25",
-      "note": "Master Plan STOR-5 (signed read in the port and in each adapter, ADR-0028 decision 4: a presigned GetObject on S3 and Spaces) wires it; the unreferenced binding stays until then. Declared in packages/adapters/storage-s3 (dependencies)."
+      "note": "Plan row STOR-5 (signed read in the port and in each adapter, ADR-0028 decision 4: a presigned GetObject on S3 and Spaces) wires it; the unreferenced binding stays until then. Declared in packages/adapters/storage-s3 (dependencies)."
     },
     "@azure/storage-blob": {
       "status": "kept",
@@ -141,7 +141,7 @@
       "utility": "Builds the Azure Blob storage adapter (packages/adapters/storage-azure, 6 files, 298 lines); no workspace declares the package and createStorageAdapter never selects it, so nothing runs it today.",
       "replacement": "None: the adapter is the Azure implementation STOR-4 makes selectable.",
       "decidedOn": "2026-10-25",
-      "note": "Master Plan STOR-4 (credential modes and GCS/Azure selectable, ADR-0028) wires it and STOR-10 extends UploadTicket and verifyUpload to it; unreachable until then. The legal subprocessors classification already records it as unused. Declared in packages/adapters/storage-azure (dependencies)."
+      "note": "Plan row STOR-4 (credential modes and GCS/Azure selectable, ADR-0028) wires it and STOR-10 extends UploadTicket and verifyUpload to it; unreachable until then. The legal subprocessors classification already records it as unused. Declared in packages/adapters/storage-azure (dependencies)."
     },
     "@google-cloud/storage": {
       "status": "kept",
@@ -149,7 +149,7 @@
       "utility": "Builds the GCS storage adapter (packages/adapters/storage-gcs, 6 files, 329 lines); no workspace declares the package and createStorageAdapter never selects it, so nothing runs it today.",
       "replacement": "None: the adapter is the GCS implementation STOR-4 makes selectable.",
       "decidedOn": "2026-10-25",
-      "note": "Master Plan STOR-4 (credential modes and GCS/Azure selectable, ADR-0028) wires it and STOR-10 extends UploadTicket and verifyUpload to it; unreachable until then. Declared in packages/adapters/storage-gcs (dependencies)."
+      "note": "Plan row STOR-4 (credential modes and GCS/Azure selectable, ADR-0028) wires it and STOR-10 extends UploadTicket and verifyUpload to it; unreachable until then. Declared in packages/adapters/storage-gcs (dependencies)."
     },
     "@googleapis/youtubeanalytics": {
       "status": "kept",
@@ -157,14 +157,14 @@
       "utility": "Builds the YouTube Analytics client twice per YouTubeApiClient (apiClient.ts:96, never read; analytics.ts:133 for YouTubeAnalyticsService, whose four methods have no production caller); the channel analytics the adapter returns come from the Data API today.",
       "replacement": "None: the Analytics API is the source F2-API-12 types.",
       "decidedOn": "2026-10-25",
-      "note": "Master Plan F2-API-12 (typed fetchAnalytics contract on ProviderAdapter and the analytics model) wires it; the Product Owner's decision of 2026-10-25. Declared in packages/providers/youtube (dependencies)."
+      "note": "Plan row F2-API-12 (typed fetchAnalytics contract on ProviderAdapter and the analytics model) wires it; the Product Owner's decision of 2026-10-25. Declared in packages/providers/youtube (dependencies)."
     },
     "cloudinary": {
       "status": "remove",
       "utility": "None today: the Cloudinary adapter (packages/adapters/storage-cloudinary, 4 files, 729 lines) is declared by no workspace package and never selected by createStorageAdapter.",
       "replacement": "S3, DigitalOcean Spaces and the local adapter stay; STOR-1 deletes the Cloudinary package with every reference (ADR-0028).",
       "decidedOn": "2026-10-25",
-      "note": "Master Plan STOR-1. Declared in packages/adapters/storage-cloudinary (dependencies).",
+      "note": "Plan row STOR-1. Declared in packages/adapters/storage-cloudinary (dependencies).",
       "slice": "STOR-1"
     },
     "validator": {
@@ -172,7 +172,7 @@
       "utility": "isEmail, isUUID and isIP inside SecurityValidatedSchemas (apps/api/src/validation/secureSchemas.ts), a file with no importer but its three tests.",
       "replacement": "Zod's own string validators where a schema needs them. DC-3 deletes secureSchemas.ts except SecurityValidatedSchemas.password, kept verbatim for N-SEC-6 and free of validator, and the validator-using tests except the password cases; the catalog entry, the override and the SECURITY_CANON floor row leave with the package.",
       "decidedOn": "2026-10-25",
-      "note": "Master Plan DC-3 and DC-4 name validator and @types/validator as leaving once both are in main; DC-4 group (a) is in main since 2026-10-06 (#436, enhancedValidator.ts gone in f83000c3) while its other modules are still tracked, so the last import leaves with DC-3. Declared in apps/api (dependencies).",
+      "note": "Plan rows DC-3 and DC-4 name validator and @types/validator as leaving once both are in main; DC-4 group (a) is in main since 2026-10-06 (#436, enhancedValidator.ts gone in f83000c3) while its other modules are still tracked, so the last import leaves with DC-3. Declared in apps/api (dependencies).",
       "slice": "DC-3"
     },
     "ws": {
@@ -181,7 +181,7 @@
       "utility": "WebSocket.WebSocket.OPEN and its types in RealtimeWebhookBroadcaster's WebSocket half; addConnection, the only way a socket enters the map, has no production caller today, so the half never receives a socket (the SSE half is the live one).",
       "replacement": "None: a WebSocket server is the feature F2-CLI-5 brings back.",
       "decidedOn": "2026-10-25",
-      "note": "Master Plan F2-CLI-5 (presence WebSocket, dep F2-API-5) returns a WebSocket server to the API; the plan says @fastify/websocket comes back with it. Whether that server reuses the broadcaster's half is F2-CLI-5's design; until it lands, the half receives no socket. Declared in apps/api (dependencies)."
+      "note": "Plan row F2-CLI-5 (presence WebSocket, dep F2-API-5) returns a WebSocket server to the API; the plan says @fastify/websocket comes back with it. Whether that server reuses the broadcaster's half is F2-CLI-5's design; until it lands, the half receives no socket. Declared in apps/api (dependencies)."
     },
     "xml2js": {
       "status": "kept",
@@ -189,7 +189,7 @@
       "utility": "parseStringPromise parses the YouTube PubSubHubbub Atom payload in youtubeWebhookProcessor.ts, inside the inbound provider-webhook pipeline (webhookManager, webhookJobProcessor, webhookHandler, the eight processors), whose root has no production importer today.",
       "replacement": "None: the pipeline is the feature; its parser goes with it.",
       "decidedOn": "2026-10-25",
-      "note": "Master Plan WEBHOOK-INGEST (SMELL-38: the HMAC pipeline complete and unwired, P1, the eight processors named) and N-COR-9 (webhook rollups to PUBLISHED, youtube:400 among its five processors) wire the pipeline; only tests import the chain until then. Declared in apps/api (dependencies)."
+      "note": "Plan row WEBHOOK-INGEST (SMELL-38: the HMAC pipeline complete and unwired, P1, the eight processors named) and N-COR-9 (webhook rollups to PUBLISHED, youtube:400 among its five processors) wire the pipeline; only tests import the chain until then. Declared in apps/api (dependencies)."
     },
     "@formatjs/icu-messageformat-parser": {
       "status": "kept",
@@ -477,7 +477,7 @@
       "utility": "Editor extension (character count) of the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
       "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on plan rows C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
     },
     "@tiptap/extension-color": {
       "status": "kept",
@@ -509,7 +509,7 @@
       "utility": "Editor extension (placeholder) of the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
       "replacement": "None: an extension of the editor the client template editor runs on; it leaves only with that editor.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on plan rows C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
     },
     "@tiptap/extension-text-style": {
       "status": "kept",
@@ -533,7 +533,7 @@
       "utility": "useEditor and EditorContent in the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
       "replacement": "None: the editor's React binding (useEditor, EditorContent).",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on plan rows C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
     },
     "@tiptap/starter-kit": {
       "status": "kept",
@@ -541,7 +541,7 @@
       "utility": "The base extensions of the client template editor, TipTapEditor.tsx, loaded with next/dynamic from TemplateEditorCanvas.",
       "replacement": "None: the editor's base extensions.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on Master Plan C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
+      "note": "Declared in apps/client, packages/ui (dependencies). Its packages/ui site, TipTapContentEditor.tsx, has no importer, story or test, and packages/ui's six @tiptap declarations exist only for it: they wait on plan rows C9/DC-9 (the Product Owner's go-ahead); the client template editor is the live site."
     },
     "argon2": {
       "status": "kept",

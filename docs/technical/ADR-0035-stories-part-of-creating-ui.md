@@ -43,7 +43,7 @@ did not exist (MASTER_PLAN N-DOC-1).
 
 ## Decision
 
-Two decisions by the Maintainer, applied by slice 0.22 (tracker D29):
+Two decisions by the Maintainer, applied by slice 0.22 (tracker D29; the `D` ids and the slice ids of this record are entries of the testing refoundation tracker's [Decisions log](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md#decisions-log) and units of its fixed plan, both removed from the tree on 2026-11-10):
 
 - **D29, 2026-10-02:** measure the Storybook, keep what runs, remove what does not, backfill a
   runnable story per component, and make stories part of creating UI ("the plan is not to remove
@@ -189,7 +189,7 @@ A/AA; it is not an accessibility conformance claim for the product, and this ADR
 | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A story renders only the default state                                                    | The criterion names the states, and a state that does not apply is named absent in the header, so review sees the decision                            |
 | A failing story is silenced instead of fixed                                              | The canon names the three forms (`tags: ["!test"]`, an `a11y.test` of `todo` or `off`, an axe rule switched off); no gate reads them yet, review does |
-| The count masks a regression                                                              | The gate prints every uncovered file of a root whose count rose; the residual is stated in the tracker's Gates row                                    |
+| The count masks a regression                                                              | The gate prints every uncovered file of a root whose count rose; the residual is stated in the tracker's Gates row (see References)                   |
 | A console call made while a module loads, or a violation at another viewport, goes unseen | Stated residuals of the runner (tracker §Gates, "Story runner"); a change to the setup or the viewports carries its own red proof                     |
 | The admin backfill starts before its runner exists                                        | Its first slice re-creates the admin Storybook; an admin story written earlier runs when that lands                                                   |
 | A missing browser fails the run for the wrong reason                                      | The battery's preflight names the install command; CI keys its browser cache on the Playwright version                                                |
@@ -205,7 +205,7 @@ A/AA; it is not an accessibility conformance claim for the product, and this ADR
 - axe-core 4.13.0 README, environment support (`color-contrast` and JSDOM) — installed package,
   `node_modules/.pnpm/axe-core@4.13.0/node_modules/axe-core/README.md`
 - W3C, Web Content Accessibility Guidelines 2.1 — https://www.w3.org/TR/WCAG21/
-- Tracker: [TESTING_REFOUNDATION.md](../development/TESTING_REFOUNDATION.md) D29 and D25, §Gates
+- Tracker: [TESTING_REFOUNDATION.md](https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md) D29 and D25, §Gates
   rows "Story runner" and "Story per component"; contract
   `openspec/changes/testing-refoundation/tasks.md` 0.22.1–0.22.6
 - Pull requests: #336 (the test runner retired), #425–#428 (the barrel made browser-safe), #432

@@ -1,7 +1,7 @@
 /**
  * @file openapi-ts.config.ts
  * @description Config for `@hey-api/openapi-ts`; its design is in the OpenAPI migration guide
- *   (`docs/architecture/openapi-migration.md`), its open work in API-TYPES-1 of the Master Plan.
+ *   (`docs/architecture/openapi-migration.md`), its open work in API-TYPES-1 of the plan (`docs/product/plan/cross-cutting.md`).
  *   Generates TypeScript types from the OpenAPI spec emitted by Fastify.
  *
  *   Workflow:
