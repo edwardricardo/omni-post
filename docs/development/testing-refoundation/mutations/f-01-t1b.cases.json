@@ -11,6 +11,6 @@
     "subject": "scripts/start/platform-start.mjs",
     "search": "  if (up.status !== 0) {",
     "replace": "  if (up.status === null) {",
-    "note": "The start command now goes on from the environment to Postgres and Redis, so a run that used to end after the environment file needs Docker and both services, and a missing root is reported as missing where it used to read as not a directory: the three base blocks fail on the new command. The mutation ignores the exit code of `docker compose up`, so a start Compose refused goes on to the probes."
+    "note": "The start command now goes on from the environment to Postgres and Redis, so a run that used to end after the environment file needs Docker and both services, and a missing root is reported as missing where it used to read as not a directory: the three base blocks fail on the new command while the head blocks pass, and that result of the clean runs alone gives the verdict. The suite runs the command as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case are never applied; the mutations of the command were run against a mutated clone with the suite pointed at it, and the pull request lists them."
   }
 ]
