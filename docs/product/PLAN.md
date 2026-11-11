@@ -51,26 +51,26 @@ cross-cutting work and out-of-scope findings here ([ADR-0044](../technical/ADR-0
 
 ## The chain
 
-| #    | Feature                                                                           | Today                                      | Old rows attached | State | Closed by |
-| ---- | --------------------------------------------------------------------------------- | ------------------------------------------ | ----------------- | ----- | --------- |
-| F-01 | The platform starts from an empty database                                        | WORKS                                      | 20                | open  | —         |
-| F-02 | The first administrator comes to exist                                            | MISSING outside development                | 1                 | open  | —         |
-| F-03 | An administrator signs in, stays signed in and signs out                          | WORKS from page to data                    | 15                | open  | —         |
-| F-04 | An administrator recovers a password                                              | PARTIAL                                    | 5                 | open  | —         |
-| F-05 | Administrators and their roles are managed                                        | WORKS through the users and security pages | 10                | open  | —         |
-| F-06 | What an administrator configures takes effect                                     | PARTIAL                                    | 18                | open  | —         |
-| F-07 | The price catalog decides what an Organization pays and gets                      | PARTIAL                                    | 11                | open  | —         |
-| F-08 | An Organization comes to exist                                                    | WORKS for self-registration                | 2                 | open  | —         |
-| F-09 | An administrator manages an Organization                                          | PARTIAL                                    | 10                | open  | —         |
-| F-10 | A Member signs in, stays signed in and signs out                                  | WORKS from page to data                    | 5                 | open  | —         |
-| F-11 | A Member recovers or changes a password                                           | PARTIAL                                    | 2                 | open  | —         |
-| F-12 | The Organization has a Workspace (create, list, select)                           | PARTIAL                                    | 3                 | open  | —         |
-| F-13 | A Channel is connected                                                            | WORKS                                      | 4                 | open  | —         |
-| F-14 | A post is written and saved                                                       | PARTIAL                                    | 4                 | open  | —         |
-| F-15 | A post is published now                                                           | PARTIAL                                    | 15                | open  | —         |
-| F-16 | A post is scheduled and published later                                           | PARTIAL                                    | 2                 | open  | —         |
-| F-17 | The result is visible                                                             | PARTIAL                                    | 1                 | open  | —         |
-| F-18 | A Channel of a Platform that connects by authorization is connected and publishes | PARTIAL                                    | 2                 | open  | —         |
+| #    | Feature                                                                           | Today                                      | Old rows attached | State       | Closed by |
+| ---- | --------------------------------------------------------------------------------- | ------------------------------------------ | ----------------- | ----------- | --------- |
+| F-01 | The platform starts from an empty database                                        | PARTIAL                                    | 20                | in progress | —         |
+| F-02 | The first administrator comes to exist                                            | MISSING outside development                | 1                 | open        | —         |
+| F-03 | An administrator signs in, stays signed in and signs out                          | WORKS from page to data                    | 15                | open        | —         |
+| F-04 | An administrator recovers a password                                              | PARTIAL                                    | 5                 | open        | —         |
+| F-05 | Administrators and their roles are managed                                        | WORKS through the users and security pages | 10                | open        | —         |
+| F-06 | What an administrator configures takes effect                                     | PARTIAL                                    | 18                | open        | —         |
+| F-07 | The price catalog decides what an Organization pays and gets                      | PARTIAL                                    | 11                | open        | —         |
+| F-08 | An Organization comes to exist                                                    | WORKS for self-registration                | 2                 | open        | —         |
+| F-09 | An administrator manages an Organization                                          | PARTIAL                                    | 10                | open        | —         |
+| F-10 | A Member signs in, stays signed in and signs out                                  | WORKS from page to data                    | 5                 | open        | —         |
+| F-11 | A Member recovers or changes a password                                           | PARTIAL                                    | 2                 | open        | —         |
+| F-12 | The Organization has a Workspace (create, list, select)                           | PARTIAL                                    | 3                 | open        | —         |
+| F-13 | A Channel is connected                                                            | WORKS                                      | 4                 | open        | —         |
+| F-14 | A post is written and saved                                                       | PARTIAL                                    | 4                 | open        | —         |
+| F-15 | A post is published now                                                           | PARTIAL                                    | 15                | open        | —         |
+| F-16 | A post is scheduled and published later                                           | PARTIAL                                    | 2                 | open        | —         |
+| F-17 | The result is visible                                                             | PARTIAL                                    | 1                 | open        | —         |
+| F-18 | A Channel of a Platform that connects by authorization is connected and publishes | PARTIAL                                    | 2                 | open        | —         |
 
 The order of the Platforms: Bluesky proves the chain first, then X (F-18), Facebook, YouTube, Instagram, TikTok,
 and then, by rising complexity, Telegram, LinkedIn, Threads, Pinterest, Snapchat. YouTube is the first that
