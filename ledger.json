@@ -27,7 +27,7 @@
       "total": 1186
     },
     "blocks": {
-      "total": 14741,
+      "total": 14744,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14430
+        "BEHAVIOURAL": 14433
       }
     },
     "deleted": {
@@ -74119,7 +74119,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 39,
+      "blockCount": 42,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds every variable Compose and the API require, in values the API's schema accepts",
@@ -74374,22 +74374,43 @@
           "bodyHash": "397870bcbe02c6d259e8bbf19dedff831fa576122bd81594a55544d4ed014ae9"
         },
         {
-          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a wait that is not a whole number of seconds, with its usage",
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::migrates nothing when the file's URL names %s",
           "line": 825,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a90edea43884bc63fcba5f73119bf7ae1a5d3e2ad202bee773fbce45ab5759b8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds a migration URL the file itself gives to the same rule, and prints none of it",
+          "line": 857,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8a91f3906e09c1b4004c4c616d01cff0f90000602d3ef4daaf6b44680ffa9bc9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes localhost and a query string for the database the run started",
+          "line": 876,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a73ba85e6ee855ecc6570d06a50c2408982aed1855c7f4ac03b3b103a5916efb"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a wait that is not a whole number of seconds, with its usage",
+          "line": 891,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a632d9d54712d8b2eaea510a3501b078e841ad506ce63ba4db8ff2f44a5d0f35"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::prints its usage and writes nothing when asked for help",
-          "line": 836,
+          "line": 902,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea77212994578b72e13ff319e4949638a96d103712fb87e0b0374a9609938bbb"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses an argument it does not know, with its usage",
-          "line": 847,
+          "line": 913,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc0bb4dbef8f43cf5d5930688e3f9a65f7667ae65068fb300ed471d6ffbc2798"

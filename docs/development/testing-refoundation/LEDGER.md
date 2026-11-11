@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1176  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14741 |
+| Blocks                  | 14744 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -952,7 +952,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/overrideBandsGate.test.ts`                                               | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts`                                         | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 39     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 42     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/storyPerComponentGate.test.ts`                                           | test             | 13     | 0          | ADJUDICATE | machine                     | opaque               |
