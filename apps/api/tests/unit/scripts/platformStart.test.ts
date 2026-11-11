@@ -822,6 +822,72 @@ describe("the start sequence", () => {
     expect(loggedCalls(staged.pnpmLog)).toEqual([]);
   });
 
+  it.each<[string, (url: URL) => string]>([
+    ["another host", (url) => Object.assign(url, { hostname: "db.example.com" }).href],
+    ["another port", (url) => Object.assign(url, { port: "5999" }).href],
+    ["another user", (url) => Object.assign(url, { username: "someone" }).href],
+    ["another password", (url) => Object.assign(url, { password: "not-the-file-password" }).href],
+    ["another database", (url) => Object.assign(url, { pathname: "/elsewhere" }).href],
+    [
+      "a database name that cannot be decoded",
+      (url) => Object.assign(url, { pathname: "/%E0%A4%A" }).href,
+    ],
+    ["no port", (url) => Object.assign(url, { port: "" }).href],
+    [
+      "a host parameter, which replaces the host",
+      (url) => Object.assign(url, { search: "?host=db.example.com" }).href,
+    ],
+    ["text that is not a URL", () => "not-a-url"],
+  ])("migrates nothing when the file's URL names %s", async (_what, change) => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const text = writeEnvironment(staged.file, [], listening);
+    const changed = change(new URL(core.readEnvironment(text).DATABASE_URL ?? ""));
+    writeFileSync(staged.file, text.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${changed}`));
+
+    const result = await start(["--root", staged.root], staged.env);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: DATABASE_URL of ${staged.file} does not name the database this run started (127.0.0.1:${listening.postgres}, with the file's POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB): nothing was migrated, because a migration cannot be taken back (\`pnpm db:migrate\` migrates the database the file names)\n`
+    );
+    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+  });
+
+  it("holds a migration URL the file itself gives to the same rule, and prints none of it", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const text = writeEnvironment(staged.file, [], listening);
+    writeFileSync(
+      staged.file,
+      `${text}MIGRATE_DATABASE_URL=postgresql://owner:its-password@db.example.com:5432/omnipostdb\n`
+    );
+
+    const result = await start(["--root", staged.root], staged.env);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(
+      /^platform-start: MIGRATE_DATABASE_URL of \S+ does not name the database this run started/
+    );
+    expect(result.stderr).not.toContain("its-password");
+    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+  });
+
+  it("takes localhost and a query string for the database the run started", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+    const text = writeEnvironment(staged.file, [], listening);
+    const url = new URL(core.readEnvironment(text).DATABASE_URL ?? "");
+    url.hostname = "localhost";
+    url.search = "?schema=public";
+    writeFileSync(staged.file, text.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${url.href}`));
+
+    const result = await start(["--root", staged.root], staged.env);
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(loggedCalls(staged.pnpmLog)).toHaveLength(1);
+  });
+
   it("refuses a wait that is not a whole number of seconds, with its usage", async () => {
     const staged = await stage();
 

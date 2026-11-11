@@ -32,7 +32,10 @@
  *   lets a variable the process already holds win over it, so the variables the file owns are
  *   removed here too, and with them a `MIGRATE_DATABASE_URL` of the calling shell, which that
  *   configuration prefers to `DATABASE_URL`: the migration connects where the file says, as the
- *   role the file names. A database that is already migrated is left as it is.
+ *   role the file names. A database that is already migrated is left as it is. Only the database
+ *   this run started is migrated: a file whose `MIGRATE_DATABASE_URL`, or else `DATABASE_URL`,
+ *   names another host, port, user, password or database is refused before anything is applied,
+ *   because a migration cannot be taken back.
  *
  *   Exit codes: 0 both services accept connections and the database is migrated; 1 a step failed,
  *   each cause on its own line; 2 a usage error.
@@ -426,13 +429,54 @@ async function startServices(root, file, values, ports, waitSeconds) {
 }
 
 /**
+ * @function namesTheStartedDatabase
+ * @description Whether a connection URL names the Postgres this run started: loopback, the
+ *   published port, spelled out, and the user, the password and the database the environment file
+ *   gives the container. Of its query string one parameter is read, `host`, because Prisma connects
+ *   to that host in place of the URL's (measured: with `?host=` set it reaches for the other server
+ *   while it prints the URL's); a URL that carries one is not this run's database.
+ * @param {string} raw - The URL, as the environment file holds it.
+ * @param {Record<string, string>} values - What the environment file holds.
+ * @param {number} port - The host port Postgres is published on.
+ * @returns {boolean} `false` for another database, and for text that is not a URL.
+ */
+function namesTheStartedDatabase(raw, values, port) {
+  try {
+    const url = new URL(raw);
+    return (
+      [LOOPBACK, "localhost"].includes(url.hostname) &&
+      !url.searchParams.has("host") &&
+      Number(url.port) === port &&
+      decodeURIComponent(url.username) === values.POSTGRES_USER &&
+      decodeURIComponent(url.password) === values.POSTGRES_PASSWORD &&
+      decodeURIComponent(url.pathname.slice(1)) === values.POSTGRES_DB
+    );
+  } catch (error) {
+    if (error instanceof TypeError || error instanceof URIError) return false;
+    throw error;
+  }
+}
+
+/**
  * @function migrateDatabase
  * @description Applies the migrations the database lacks, through the repository's own script,
  *   with its output shown as it comes.
  * @param {string} root - The checkout.
+ * @param {string} file - The environment file's path, for the messages.
+ * @param {Record<string, string>} values - What the environment file holds.
+ * @param {number} port - The host port Postgres is published on.
  * @returns {void}
  */
-function migrateDatabase(root) {
+function migrateDatabase(root, file, values, port) {
+  const key = values.MIGRATE_DATABASE_URL ? "MIGRATE_DATABASE_URL" : "DATABASE_URL";
+  if (!namesTheStartedDatabase(values[key] ?? "", values, port)) {
+    throw new StartFailure([
+      `${key} of ${file} does not name the database this run started (${LOOPBACK}:${port}, with ` +
+        `the file's POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB): nothing was migrated, ` +
+        `because a migration cannot be taken back (\`pnpm db:migrate\` migrates the database ` +
+        `the file names)`,
+    ]);
+  }
   const migrate = spawnSync("pnpm", MIGRATE, {
     cwd: root,
     env: shellEnvironment("MIGRATE_DATABASE_URL"),
@@ -498,7 +542,7 @@ async function main(argv) {
   try {
     const { values, ports } = prepareEnvironment(file);
     await startServices(options.root, file, values, ports, options.waitSeconds);
-    migrateDatabase(options.root);
+    migrateDatabase(options.root, file, values, ports.Postgres);
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);
