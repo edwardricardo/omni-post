@@ -1,0 +1,16 @@
+[
+  {
+    "id": "t1b-01-start-reaches-the-services",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/scripts/platformStart.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::fails in one line when the root is missing or is a file, not a directory"
+    ],
+    "subject": "scripts/start/platform-start.mjs",
+    "search": "  if (up.status !== 0) {",
+    "replace": "  if (up.status === null) {",
+    "note": "The start command now goes on from the environment to Postgres and Redis, so a run that used to end after the environment file needs Docker and both services, and a missing root is reported as missing where it used to read as not a directory: the three base blocks fail on the new command. The mutation ignores the exit code of `docker compose up`, so a start Compose refused goes on to the probes."
+  }
+]
