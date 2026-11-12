@@ -11,7 +11,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, afterEach, expect, vi } from "vitest";
 import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
 
 // ---------------------------------------------------------------------------
@@ -289,6 +289,68 @@ describe("analyticsRoutes Unit Tests", () => {
     const body = JSON.parse(res.body);
     expect(body.ok).toBeTruthy();
     expect(Array.isArray(body.data.data)).toBeTruthy();
+  });
+
+  describe("audit logs success flag", () => {
+    const FLAG_ACTION = "AUDIT_FLAG_PROBE";
+    let succeededLogId: string;
+    let failedLogId: string;
+
+    const listLogIds = async (query: string): Promise<{ status: number; ids: string[] }> => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/admin/compliance/audit-logs?action=${FLAG_ACTION}${query}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      const body = JSON.parse(res.body);
+      const logs: { id: string }[] = body.data?.data ?? [];
+      return { status: res.statusCode, ids: logs.map((log) => log.id) };
+    };
+
+    beforeEach(async () => {
+      const auditLog = (mockPrisma.prisma as Record<string, unknown>).auditLog as {
+        create: Function;
+      };
+      const succeeded = await auditLog.create({ data: { action: FLAG_ACTION, success: true } });
+      const failed = await auditLog.create({ data: { action: FLAG_ACTION, success: false } });
+      succeededLogId = succeeded.id;
+      failedLogId = failed.id;
+    });
+
+    afterEach(async () => {
+      const auditLog = (mockPrisma.prisma as Record<string, unknown>).auditLog as {
+        deleteMany: Function;
+      };
+      await auditLog.deleteMany({ where: { id: { in: [succeededLogId, failedLogId] } } });
+    });
+
+    it("returns only failed rows when success is false", async () => {
+      const { status, ids } = await listLogIds("&success=false");
+
+      expect(status).toBe(200);
+      expect(ids).toEqual([failedLogId]);
+    });
+
+    it("returns only succeeded rows when success is true", async () => {
+      const { status, ids } = await listLogIds("&success=true");
+
+      expect(status).toBe(200);
+      expect(ids).toEqual([succeededLogId]);
+    });
+
+    it("returns succeeded and failed rows when success is absent", async () => {
+      const { status, ids } = await listLogIds("");
+
+      expect(status).toBe(200);
+      expect(ids).toHaveLength(2);
+      expect(ids).toEqual(expect.arrayContaining([succeededLogId, failedLogId]));
+    });
+
+    it.each(["yes", "1", ""])("answers 400 when success is %j", async (value) => {
+      const { status } = await listLogIds(`&success=${value}`);
+
+      expect(status).toBe(400);
+    });
   });
 
   it("should filter audit logs by date range", async () => {
