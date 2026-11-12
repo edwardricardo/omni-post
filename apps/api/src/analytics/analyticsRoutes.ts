@@ -163,8 +163,9 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
    * @description GET /analytics/roi — ROI for the authenticated account over a
    *   time range. accountId comes from the token (never the client query). If a
    *   projectId is supplied it is ownership-checked.
-   * @param request - Fastify request (customerUser set by requireClientAuth)
-   * @param reply - Fastify reply
+   * @param request - Carries the ROI query (`projectId`, `timeRange`, a custom
+   *   range, `byChannel`) and the account that `requireClientAuth` resolved.
+   * @param reply - Answers the ROI figures, or the refusal of an invalid query.
    */
   async getROI(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -208,8 +209,9 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
    * @description GET /analytics/cross-platform — cross-platform (optionally
    *   competitive) analytics for the authenticated account. Same tenancy rules
    *   as getROI.
-   * @param request - Fastify request (customerUser set by requireClientAuth)
-   * @param reply - Fastify reply
+   * @param request - Holds the comparison's query (`projectId`, `timeRange`,
+   *   `includeCompetitive`) for the authenticated account.
+   * @param reply - Receives the cross-platform analytics the use case returns.
    */
   async getCrossPlatform(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -874,8 +876,8 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
    * @method getProjectAnalytics
    * @description GET /analytics/project/:projectId — analytics summary for a
    *   project the authenticated account owns.
-   * @param request - Fastify request (customerUser set by requireClientAuth)
-   * @param reply - Fastify reply
+   * @param request - Names the project in its path.
+   * @param reply - Sends back that project's summary.
    */
   async getProjectAnalytics(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
