@@ -17,8 +17,12 @@ services:
     # (`pnpm start:platform` writes it, with the URLs that name it).
     ports:
       - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
+    # The init script runs once, when the image initialises an empty data
+    # volume: it marks the database the volume is created for, and
+    # `pnpm start:platform` migrates no other.
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
 
   redis:
     image: redis:7

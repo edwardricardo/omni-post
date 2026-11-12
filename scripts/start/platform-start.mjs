@@ -41,14 +41,17 @@
  *   this run started is migrated, and that is proven against the server, never read off a URL's
  *   text, which Compose, Node and Prisma each read their own way. The query that shows Postgres
  *   ready, run inside the container for the database the file names (the one the container was
- *   created with, as the services step has just shown), returns which database it reached: the
- *   identifier its cluster was given when it was initialised, and the database's oid. Before
- *   anything is
- *   applied, Prisma runs through the connection the migration will use (`prisma db execute`, same
- *   checkout, same environment) a statement that fails unless it reached that same database.
- *   Another server, another database of the same server and a database that does not exist each
- *   end the run with nothing applied, because a migration cannot be taken back; a URL spelled
- *   another way that reaches the same database is accepted, since it is that database. Four
+ *   created with, as the services step has just shown), returns which database it reached (the
+ *   identifier its cluster was given when it was initialised, and the database's oid) and
+ *   whether that database is the one its data volume was initialised for: the image's init
+ *   script, `postgres/init/mark-initial-database.sql`, marks that one, once, when it creates the
+ *   volume. A database without the mark is not migrated, whether the volume was initialised for
+ *   another database or before the mark existed. Then, before anything is applied, Prisma runs
+ *   through the connection the migration will use (`prisma db execute`, same checkout, same
+ *   environment) a statement that fails unless it reached that same database. Another server,
+ *   another database of the same server and a database that does not exist each end the run
+ *   with nothing applied, because a migration cannot be taken back; a URL spelled another way
+ *   that reaches the same database is accepted, since it is that database. Four
  *   limits, stated: the proof and the migration are two connections, resolved alike a moment
  *   apart; a `schema` parameter in the file's URL moves the migration to another schema of that
  *   database, and the run still ends by calling the database migrated; `--wait-seconds` bounds
@@ -104,7 +107,8 @@ Postgres and Redis on.
 
 The database is migrated with \`pnpm --filter @infra/prisma run migrate\`, so pnpm must be on PATH,
 and only after Prisma proves, through the connection the migration will use, that it reaches the
-database this run started: another server or another database ends the run with nothing applied.
+database this run started, the one its data volume was initialised for: another server or another
+database ends the run with nothing applied.
 `;
 
 /** The variable that chooses the host port each service is published on. */
@@ -146,8 +150,19 @@ const DATABASE_IDENTITY =
   "(SELECT system_identifier FROM pg_control_system())::text || ' ' || " +
   "(SELECT oid FROM pg_database WHERE datname = current_database())::text";
 
-/** What `DATABASE_IDENTITY` answers. Nothing else is ever written into a statement. */
-const IDENTITY_SHAPE = /^\d+ \d+$/;
+/**
+ * Whether the database a connection reached is the one its data volume was initialised for: the
+ * image's init script (`postgres/init/mark-initial-database.sql`) leaves this setting on that
+ * database and on no other, at the one moment the answer is knowable.
+ */
+const INITIAL_DATABASE =
+  "CASE WHEN current_setting('omnipost.initial_database', true) = 'on' THEN 'on' ELSE 'off' END";
+
+/**
+ * What the readiness query answers: `DATABASE_IDENTITY`, then `INITIAL_DATABASE`. Of an answer,
+ * nothing but the identity's two numbers is ever written into a statement.
+ */
+const ANSWER_SHAPE = /^(\d+ \d+) (on|off)$/;
 
 /**
  * The variable of the environment file behind each one `psql` reads. Each is handed to the
@@ -182,9 +197,9 @@ const SAME_READING =
  * Run inside the Postgres container, against its own network address: the image trusts loopback and
  * the local socket without a password, so this is the route that checks one. `psql` reads the user,
  * the password and the database from the three variables `QUERY_AS` names, and prints which
- * database answered.
+ * database answered and whether it is the initial one.
  */
-const AUTHENTICATED_IDENTITY = `${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${DATABASE_IDENTITY}"`;
+const AUTHENTICATED_IDENTITY = `${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${DATABASE_IDENTITY} || ' ' || ${INITIAL_DATABASE}"`;
 
 /**
  * What pnpm is asked for first: Prisma, in the package that holds the schema, running the statement
@@ -509,19 +524,30 @@ async function startServices(root, file, values, ports, waitSeconds) {
 /**
  * @function migrateDatabase
  * @description Applies the migrations the database lacks, through the repository's own script,
- *   with its output shown as it comes, and only to the database this run started: Prisma first
- *   proves, through the connection the migration will use, that it reaches the database the
- *   container named. What that proof prints is shown only when it fails.
+ *   with its output shown as it comes, and only to the database this run started: it must be
+ *   the one its data volume was initialised for, and Prisma first proves, through the connection
+ *   the migration will use, that it reaches it. What that proof prints is shown only when it
+ *   fails.
  * @param {string} root - The checkout.
  * @param {string} file - The environment file's path, for the messages.
- * @param {string} started - Which database answered inside the container, in its own words.
+ * @param {string} answered - What the database said of itself inside the container.
  * @returns {void}
  */
-function migrateDatabase(root, file, started) {
-  if (!IDENTITY_SHAPE.test(started)) {
+function migrateDatabase(root, file, answered) {
+  const said = ANSWER_SHAPE.exec(answered);
+  if (said === null) {
     throw new StartFailure([
-      `Postgres did not say which database it is (a cluster identifier and a database oid were ` +
-        `expected): nothing was migrated`,
+      `Postgres did not say which database it is (a cluster identifier, a database oid and ` +
+        `whether it is the initial one were expected): nothing was migrated`,
+    ]);
+  }
+  const [, started, initial] = said;
+  if (initial !== "on") {
+    throw new StartFailure([
+      `POSTGRES_DB of ${file} names a database without the mark the Postgres image leaves on the ` +
+        `one its data volume is initialised for: the volume was initialised for another ` +
+        `database, or before that mark existed; nothing was migrated (\`docker compose down ` +
+        `--volumes\` removes the volume and its data, and the next run initialises a new one)`,
     ]);
   }
   // Both calls get the same environment, so Prisma's configuration resolves the same URL for the
@@ -611,8 +637,8 @@ async function main(argv) {
   const file = path.join(options.root, ENVIRONMENT_FILE);
   try {
     const { values, ports } = prepareEnvironment(file);
-    const started = await startServices(options.root, file, values, ports, options.waitSeconds);
-    migrateDatabase(options.root, file, started);
+    const answered = await startServices(options.root, file, values, ports, options.waitSeconds);
+    migrateDatabase(options.root, file, answered);
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);

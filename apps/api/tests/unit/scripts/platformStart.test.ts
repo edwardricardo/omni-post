@@ -100,8 +100,15 @@ const WHICH_DATABASE =
 const SAME_READING =
   'd=; [ "$POSTGRES_USER" = "$PGUSER" ] || d="$d POSTGRES_USER"; [ "$POSTGRES_PASSWORD" = "$PGPASSWORD" ] || d="$d POSTGRES_PASSWORD"; [ "$POSTGRES_DB" = "$PGDATABASE" ] || d="$d POSTGRES_DB"; if [ -n "$d" ]; then echo "read differently:$d" >&2; exit 3; fi';
 
-/** What the stand-in's Postgres answers to that, unless a case gives it another answer. */
-const STARTED = "7707325603935821862 16384";
+/** Whether that database is the one its data volume was initialised for, as the command asks. */
+const INITIAL_DATABASE =
+  "CASE WHEN current_setting('omnipost.initial_database', true) = 'on' THEN 'on' ELSE 'off' END";
+
+/**
+ * What the stand-in's Postgres answers the readiness query, unless a case gives it another answer:
+ * a database's identity, and that it is the initial one.
+ */
+const STARTED = "7707325603935821862 16384 on";
 
 /**
  * The stand-in for the Docker CLI. It logs one line per call (its arguments and its working
@@ -524,7 +531,7 @@ describe("the start sequence", () => {
     expect(dockerCalls(staged)).toEqual([
       `compose version|${staged.root}`,
       `${COMPOSE} up -d postgres redis|${staged.root}`,
-      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c ${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${WHICH_DATABASE}"|${staged.root}`,
+      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c ${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${WHICH_DATABASE} || ' ' || ${INITIAL_DATABASE}"|${staged.root}`,
     ]);
     expect(Buffer.concat(staged.postgres.received).toString("hex")).toBe("0000000804d2162f");
     expect(Buffer.concat(staged.redis.received).toString()).toBe("PING\r\n");
@@ -780,7 +787,7 @@ describe("the start sequence", () => {
     const result = await start(["--root", staged.root], {
       ...staged.env,
       ...staged.ports,
-      FAKE_IDENTITY: "7000000000000000001 24601",
+      FAKE_IDENTITY: "7000000000000000001 24601 on",
     });
 
     expect(result).toMatchObject({ code: 0, stderr: "" });
@@ -857,11 +864,30 @@ describe("the start sequence", () => {
     expect(loggedCalls(staged.pnpmLog)).toEqual([]);
   });
 
+  it("asks for no proof and migrates nothing when the database is not the one its data volume was initialised for", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_IDENTITY: "7707325603935821862 5 off",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: POSTGRES_DB of ${staged.file} names a database without the mark the Postgres image leaves on the one its data volume is initialised for: the volume was initialised for another database, or before that mark existed; nothing was migrated (\`docker compose down --volumes\` removes the volume and its data, and the next run initialises a new one)\n`
+    );
+    expect(result.stdout).toContain("accept connections");
+    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+  });
+
   it.each<[string, string]>([
     ["nothing", ""],
-    ["one number", "7707325603935821862"],
-    ["text after the two numbers", "7707325603935821862 16384'; DROP TABLE x; --"],
-    ["text before the two numbers", "x'; SELECT 1; -- 7707325603935821862 16384"],
+    ["one number", "7707325603935821862 on"],
+    ["two numbers and no word about the mark", "7707325603935821862 16384"],
+    ["a word about the mark that is neither on nor off", "7707325603935821862 16384 maybe"],
+    ["text after the answer", "7707325603935821862 16384 on'; DROP TABLE x; --"],
+    ["text before the answer", "x'; SELECT 1; -- 7707325603935821862 16384 on"],
   ])(
     "asks for no proof and migrates nothing when Postgres answers %s for its identity",
     async (_what, answer) => {
@@ -875,7 +901,7 @@ describe("the start sequence", () => {
 
       expect(result.code).toBe(1);
       expect(result.stderr).toBe(
-        "platform-start: Postgres did not say which database it is (a cluster identifier and a database oid were expected): nothing was migrated\n"
+        "platform-start: Postgres did not say which database it is (a cluster identifier, a database oid and whether it is the initial one were expected): nothing was migrated\n"
       );
       expect(loggedCalls(staged.pnpmLog)).toEqual([]);
     }
