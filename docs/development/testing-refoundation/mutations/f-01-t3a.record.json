@@ -1,0 +1,39 @@
+{
+  "base": "4a6ab997551625a05367e241df9ff1a3280c3db3",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "289fe9800705c75df1be0fae77573e6578e0d8588b68e83220b950b5d94579c4",
+            "head": "ce9dbd46d7228f475158bbd3ccda86376d721c28737a1e0542e5e4763b6cc0e7"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::asks for no proof and migrates nothing when the database is not the one its data volume was initialised for"
+        },
+        {
+          "bodyHash": {
+            "base": "03a4afae8e7b4ed53d34ff40ee5f4ba98cb0a11e9181d9eeabd494a0e4ab381f",
+            "head": "03a4afae8e7b4ed53d34ff40ee5f4ba98cb0a11e9181d9eeabd494a0e4ab381f"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, naming each variable, when the container was created with another value than the command read"
+        }
+      ],
+      "id": "t3a-01-the-refusal-names-the-way-out",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > asks for no proof and migrates nothing when the database is not the one its data volume was initialised for",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > fails at once, naming each variable, when the container was created with another value than the command read"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/platformStart.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/platformStart.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}
