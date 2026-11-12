@@ -33,9 +33,18 @@
  *   removed here too, and with them a `MIGRATE_DATABASE_URL` of the calling shell, which that
  *   configuration prefers to `DATABASE_URL`: the migration connects where the file says, as the
  *   role the file names. A database that is already migrated is left as it is. Only the database
- *   this run started is migrated: a file whose `MIGRATE_DATABASE_URL`, or else `DATABASE_URL`,
- *   names another host, port, user, password or database is refused before anything is applied,
- *   because a migration cannot be taken back.
+ *   this run started is migrated: the file's `MIGRATE_DATABASE_URL`, or else its `DATABASE_URL`,
+ *   must be the very URL this command writes for that Postgres (loopback by address, the published
+ *   port, the file's user, password and database, and nothing after them), and any other is
+ *   refused before anything is applied, because a migration cannot be taken back. `localhost` is
+ *   among the refused: it can resolve to an address the compose file does not publish on, where
+ *   another server may listen. One thing this command cannot keep to itself: Prisma hands its
+ *   schema engine the URL, password included, on a command line, as it does for every migration
+ *   of this repository, so `ps` on the host shows it while the migration runs.
+ *
+ *   THE SEQUENCE IS CUMULATIVE. A step that fails leaves what the steps before it did (the
+ *   environment file, the running services, the migrations already applied), and a second run
+ *   goes on from there.
  *
  *   Exit codes: 0 both services accept connections and the database is migrated; 1 a step failed,
  *   each cause on its own line; 2 a usage error.
@@ -61,6 +70,7 @@ import {
   parsePort,
   readEnvironment,
   renderEnvironmentFile,
+  startedDatabaseUrl,
 } from "./lib/start-environment.mjs";
 
 const NAME = "platform-start";
@@ -78,6 +88,11 @@ A checkout with no ${ENVIRONMENT_FILE} file receives one, its secrets random; an
 never written, and the run fails naming each required variable it lacks. POSTGRES_HOST_PORT and
 REDIS_HOST_PORT, set when the file is generated, choose the host ports the compose file publishes
 Postgres and Redis on.
+
+The database is migrated with \`pnpm --filter @infra/prisma run migrate\`, so pnpm must be on PATH,
+and only when the file's MIGRATE_DATABASE_URL, or else its DATABASE_URL, is the URL this command
+writes for the Postgres it starts: the file's POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB on
+${LOOPBACK} and the published port, with nothing after them.
 `;
 
 /** The variable that chooses the host port each service is published on. */
@@ -429,38 +444,10 @@ async function startServices(root, file, values, ports, waitSeconds) {
 }
 
 /**
- * @function namesTheStartedDatabase
- * @description Whether a connection URL names the Postgres this run started: loopback, the
- *   published port, spelled out, and the user, the password and the database the environment file
- *   gives the container. Of its query string one parameter is read, `host`, because Prisma connects
- *   to that host in place of the URL's (measured: with `?host=` set it reaches for the other server
- *   while it prints the URL's); a URL that carries one is not this run's database.
- * @param {string} raw - The URL, as the environment file holds it.
- * @param {Record<string, string>} values - What the environment file holds.
- * @param {number} port - The host port Postgres is published on.
- * @returns {boolean} `false` for another database, and for text that is not a URL.
- */
-function namesTheStartedDatabase(raw, values, port) {
-  try {
-    const url = new URL(raw);
-    return (
-      [LOOPBACK, "localhost"].includes(url.hostname) &&
-      !url.searchParams.has("host") &&
-      Number(url.port) === port &&
-      decodeURIComponent(url.username) === values.POSTGRES_USER &&
-      decodeURIComponent(url.password) === values.POSTGRES_PASSWORD &&
-      decodeURIComponent(url.pathname.slice(1)) === values.POSTGRES_DB
-    );
-  } catch (error) {
-    if (error instanceof TypeError || error instanceof URIError) return false;
-    throw error;
-  }
-}
-
-/**
  * @function migrateDatabase
  * @description Applies the migrations the database lacks, through the repository's own script,
- *   with its output shown as it comes.
+ *   with its output shown as it comes, and only to the database this run started: the file's
+ *   migration URL has to be exactly the one `startedDatabaseUrl` gives for it.
  * @param {string} root - The checkout.
  * @param {string} file - The environment file's path, for the messages.
  * @param {Record<string, string>} values - What the environment file holds.
@@ -468,13 +455,21 @@ function namesTheStartedDatabase(raw, values, port) {
  * @returns {void}
  */
 function migrateDatabase(root, file, values, port) {
+  // An empty `MIGRATE_DATABASE_URL` counts as absent, as it does for Prisma's configuration, so
+  // the URL judged here is the one the migration will use.
   const key = values.MIGRATE_DATABASE_URL ? "MIGRATE_DATABASE_URL" : "DATABASE_URL";
-  if (!namesTheStartedDatabase(values[key] ?? "", values, port)) {
+  const started = startedDatabaseUrl({
+    user: values.POSTGRES_USER,
+    password: values.POSTGRES_PASSWORD,
+    database: values.POSTGRES_DB,
+    port,
+  });
+  if (values[key] !== started) {
     throw new StartFailure([
-      `${key} of ${file} does not name the database this run started (${LOOPBACK}:${port}, with ` +
-        `the file's POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB): nothing was migrated, ` +
-        `because a migration cannot be taken back (\`pnpm db:migrate\` migrates the database ` +
-        `the file names)`,
+      `${key} of ${file} is not the URL of the database this run started (the file's ` +
+        `POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB on ${LOOPBACK}:${port}, as this command ` +
+        `writes it, with nothing after them): nothing was migrated, because a migration cannot ` +
+        `be taken back (\`pnpm db:migrate\` migrates the database the file names)`,
     ]);
   }
   const migrate = spawnSync("pnpm", MIGRATE, {

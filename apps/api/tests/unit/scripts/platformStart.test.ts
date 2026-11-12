@@ -112,11 +112,16 @@ exit 0
 
 /**
  * The stand-in for pnpm: it logs its call and its working directory, saves the environment it was
- * given, and ends with the exit code or by the signal a case asks for.
+ * given, says on both streams what a case asks it to, and ends with the exit code or by the signal
+ * a case asks for.
  */
 const PNPM_DOUBLE = `#!/bin/sh
 printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG"
 /usr/bin/env > "$FAKE_PNPM_LOG.env"
+if [ -n "$FAKE_MIGRATE_SAYS" ]; then
+  printf 'out: %s\\n' "$FAKE_MIGRATE_SAYS"
+  printf 'err: %s\\n' "$FAKE_MIGRATE_SAYS" >&2
+fi
 if [ -n "$FAKE_MIGRATE_SIGNAL" ]; then kill -s "$FAKE_MIGRATE_SIGNAL" $$; fi
 exit "\${FAKE_MIGRATE_EXIT:-0}"
 `;
@@ -824,19 +829,24 @@ describe("the start sequence", () => {
 
   it.each<[string, (url: URL) => string]>([
     ["another host", (url) => Object.assign(url, { hostname: "db.example.com" }).href],
+    [
+      "localhost, which can resolve to an address the services are not published on",
+      (url) => Object.assign(url, { hostname: "localhost" }).href,
+    ],
     ["another port", (url) => Object.assign(url, { port: "5999" }).href],
+    ["no port", (url) => Object.assign(url, { port: "" }).href],
     ["another user", (url) => Object.assign(url, { username: "someone" }).href],
     ["another password", (url) => Object.assign(url, { password: "not-the-file-password" }).href],
     ["another database", (url) => Object.assign(url, { pathname: "/elsewhere" }).href],
     [
-      "a database name that cannot be decoded",
-      (url) => Object.assign(url, { pathname: "/%E0%A4%A" }).href,
-    ],
-    ["no port", (url) => Object.assign(url, { port: "" }).href],
-    [
       "a host parameter, which replaces the host",
       (url) => Object.assign(url, { search: "?host=db.example.com" }).href,
     ],
+    [
+      "a schema parameter, which moves the migration to another schema",
+      (url) => Object.assign(url, { search: "?schema=other" }).href,
+    ],
+    ["another scheme", (url) => url.href.replace(/^postgresql:/, "postgres:")],
     ["text that is not a URL", () => "not-a-url"],
   ])("migrates nothing when the file's URL names %s", async (_what, change) => {
     const staged = await stage();
@@ -849,7 +859,7 @@ describe("the start sequence", () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toBe(
-      `platform-start: DATABASE_URL of ${staged.file} does not name the database this run started (127.0.0.1:${listening.postgres}, with the file's POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB): nothing was migrated, because a migration cannot be taken back (\`pnpm db:migrate\` migrates the database the file names)\n`
+      `platform-start: DATABASE_URL of ${staged.file} is not the URL of the database this run started (the file's POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB on 127.0.0.1:${listening.postgres}, as this command writes it, with nothing after them): nothing was migrated, because a migration cannot be taken back (\`pnpm db:migrate\` migrates the database the file names)\n`
     );
     expect(loggedCalls(staged.pnpmLog)).toEqual([]);
   });
@@ -867,25 +877,38 @@ describe("the start sequence", () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toMatch(
-      /^platform-start: MIGRATE_DATABASE_URL of \S+ does not name the database this run started/
+      /^platform-start: MIGRATE_DATABASE_URL of \S+ is not the URL of the database this run started/
     );
     expect(result.stderr).not.toContain("its-password");
     expect(loggedCalls(staged.pnpmLog)).toEqual([]);
   });
 
-  it("takes localhost and a query string for the database the run started", async () => {
+  it("takes an empty migration URL in the file as none, as the migration tool does", async () => {
     const staged = await stage();
     const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
     const text = writeEnvironment(staged.file, [], listening);
-    const url = new URL(core.readEnvironment(text).DATABASE_URL ?? "");
-    url.hostname = "localhost";
-    url.search = "?schema=public";
-    writeFileSync(staged.file, text.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${url.href}`));
+    writeFileSync(staged.file, `${text}MIGRATE_DATABASE_URL=\n`);
 
     const result = await start(["--root", staged.root], staged.env);
 
     expect(result).toMatchObject({ code: 0, stderr: "" });
     expect(loggedCalls(staged.pnpmLog)).toHaveLength(1);
+  });
+
+  it("shows what the migration tool prints, on the stream it printed it on", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_MIGRATE_SAYS: "83 migrations found",
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("err: 83 migrations found\n");
+    expect(result.stdout).toMatch(
+      /accept connections\nout: 83 migrations found\nplatform-start: the database is migrated\n$/
+    );
   });
 
   it("refuses a wait that is not a whole number of seconds, with its usage", async () => {
