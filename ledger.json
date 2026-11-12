@@ -5902,17 +5902,17 @@
       "blocks": [
         {
           "id": "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts::holds no row but Prisma's own record of the migrations it applied",
-          "line": 136,
+          "line": 155,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d91b178a6892a36719a89204f3200d9f2dacb0af4c505a7c7d602ae7816d9d0a"
         },
         {
           "id": "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts::loses the rotation log's baseline rows and keeps every row recorded after them",
-          "line": 154,
+          "line": 173,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "09abbebffeebcd8d908fe78061e5164b3efb0d5f4c9ee765b88f64e1c9e750ed"
+          "bodyHash": "fc75822a27de9c6387be00e2a1ab0c206a69bc1881fe5249f498aeeb2b1e6afb"
         }
       ],
       "verdict": "KEEP",
