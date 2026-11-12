@@ -22,7 +22,7 @@
  *   returns only when both accept a connection, and a bare TCP connect does not show that, because
  *   Docker's proxy accepts on the published port before the server behind it is up. Redis must
  *   answer `PING` on its published port. Postgres must answer the protocol's SSL request there, and
- *   then run `SELECT 1` for the user, the password and the database the file names, whatever the
+ *   then run a query for the user, the password and the database the file names, whatever the
  *   container was started with. `--wait-seconds` bounds each service: a query still running when
  *   it runs out is stopped, and an attempt on a port that says nothing ends at most two seconds
  *   after it.
@@ -33,17 +33,20 @@
  *   removed here too, and with them a `MIGRATE_DATABASE_URL` of the calling shell, which that
  *   configuration prefers to `DATABASE_URL`: the migration connects where the file says, as the
  *   role the file names. A database that is already migrated is left as it is. Only the database
- *   this run started is migrated: the file's `MIGRATE_DATABASE_URL`, or else its `DATABASE_URL`,
- *   must be the very URL this command writes for that Postgres (loopback by address, the published
- *   port, the file's user, password and database, and nothing after them), and any other is
- *   refused before anything is applied, because a migration cannot be taken back. `localhost` is
- *   among the refused: it can resolve to an address the compose file does not publish on, where
- *   another server may listen. And the three values that URL is built from must be made of
- *   letters, digits, `_` and `-`, characters no reader of a URL gives a meaning to or rewrites:
- *   with any other (a `?`, a `%`, a `.`), the same text can name one database to Compose and
- *   another to Prisma. One thing this command cannot keep to itself: Prisma hands its
- *   schema engine the URL, password included, on a command line, as it does for every migration
- *   of this repository, so `ps` on the host shows it while the migration runs.
+ *   this run started is migrated, and that is proven against the server, never read off a URL's
+ *   text, which Compose, Node and Prisma each read their own way. The query that shows Postgres
+ *   ready, run inside the container, returns which database it reached: the identifier its
+ *   cluster was given when it was initialised, and the database's oid. Before anything is
+ *   applied, Prisma runs through the connection the migration will use (`prisma db execute`, same
+ *   checkout, same environment) a statement that fails unless it reached that same database.
+ *   Another server, another database of the same server and a database that does not exist each
+ *   end the run with nothing applied, because a migration cannot be taken back; a URL spelled
+ *   another way that reaches the same database is accepted, since it is that database. Three
+ *   limits, stated: the proof and the migration are two connections, resolved alike a moment
+ *   apart; a `schema` parameter in the file's URL moves the migration to another schema of that
+ *   database; and Prisma hands its schema engine the URL, password included, on a command line,
+ *   as it does for every migration of this repository, so `ps` on the host shows it during both
+ *   calls.
  *
  *   THE SEQUENCE IS CUMULATIVE. A step that fails leaves what the steps before it did (the
  *   environment file, the running services, the migrations already applied), and a second run
@@ -73,7 +76,6 @@ import {
   parsePort,
   readEnvironment,
   renderEnvironmentFile,
-  startedDatabaseUrl,
 } from "./lib/start-environment.mjs";
 
 const NAME = "platform-start";
@@ -93,10 +95,8 @@ REDIS_HOST_PORT, set when the file is generated, choose the host ports the compo
 Postgres and Redis on.
 
 The database is migrated with \`pnpm --filter @infra/prisma run migrate\`, so pnpm must be on PATH,
-and only when the file's MIGRATE_DATABASE_URL, or else its DATABASE_URL, is the URL this command
-writes for the Postgres it starts: the file's POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB on
-${LOOPBACK} and the published port, with nothing after them, those three values made of letters,
-digits, _ and - only.
+and only after Prisma proves, through the connection the migration will use, that it reaches the
+database this run started: another server or another database ends the run with nothing applied.
 `;
 
 /** The variable that chooses the host port each service is published on. */
@@ -130,11 +130,24 @@ const POLL_INTERVAL_MS = 500;
 const SSL_REQUEST = Buffer.from("0000000804d2162f", "hex");
 
 /**
+ * Which database a connection reached, as the server itself says it: the identifier its cluster
+ * was given when it was initialised, and the oid of the database. Two numbers, the same on every
+ * connection to that database of that server and on no other; any role may ask for them.
+ */
+const DATABASE_IDENTITY =
+  "(SELECT system_identifier FROM pg_control_system())::text || ' ' || " +
+  "(SELECT oid FROM pg_database WHERE datname = current_database())::text";
+
+/** What `DATABASE_IDENTITY` answers. Nothing else is ever written into a statement. */
+const IDENTITY_SHAPE = /^\d+ \d+$/;
+
+/**
  * Run inside the Postgres container, against its own network address: the image trusts loopback and
  * the local socket without a password, so this is the route that checks one. `psql` reads the user,
- * the password and the database from the three variables `QUERY_AS` names.
+ * the password and the database from the three variables `QUERY_AS` names, and prints which
+ * database answered.
  */
-const AUTHENTICATED_SELECT = 'PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT 1"';
+const AUTHENTICATED_IDENTITY = `PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${DATABASE_IDENTITY}"`;
 
 /**
  * The variable of the environment file behind each one `psql` reads. Each is handed to the
@@ -149,14 +162,12 @@ const QUERY_AS = /** @type {const} */ ({
 });
 
 /**
- * What the three values a database URL is built from must be made of for a migration to run:
- * characters a URL gives no meaning to and does not rewrite. Without that, the URL the rule
- * compares can equal the file's and still be read as another host (`name?host=other`), another
- * database (`%70` is decoded) or no database at all (`..` is removed).
+ * What pnpm is asked for first: Prisma, in the package that holds the schema, running the statement
+ * it is given on its input through the connection its configuration resolves, the migration's own.
  */
-const NO_URL_MEANING = /^[A-Za-z0-9_-]+$/;
+const PROVE = ["--filter", "@infra/prisma", "exec", "prisma", "db", "execute", "--stdin"];
 
-/** What pnpm is asked for: the migration script of the package that holds the schema. */
+/** What pnpm is asked for then: the migration script of that package. */
 const MIGRATE = ["--filter", "@infra/prisma", "run", "migrate"];
 
 /** A run that failed, with one line per cause. */
@@ -377,7 +388,8 @@ async function waitFor(failure, seconds, probe) {
  * @param {Record<string, string>} values - What the environment file holds.
  * @param {{ Postgres: number, Redis: number }} ports - The host port each service is published on.
  * @param {number} waitSeconds - How long each service may take.
- * @returns {Promise<void>} Resolves once both accept a connection.
+ * @returns {Promise<string>} Resolves once both accept a connection, with what Postgres answered
+ *   inside the container when asked which database it is.
  */
 async function startServices(root, file, values, ports, waitSeconds) {
   const env = shellEnvironment();
@@ -421,11 +433,12 @@ async function startServices(root, file, values, ports, waitSeconds) {
     "postgres",
     "sh",
     "-c",
-    AUTHENTICATED_SELECT,
+    AUTHENTICATED_IDENTITY,
   ];
   const queryAs = Object.fromEntries(
     Object.entries(QUERY_AS).map(([name, key]) => [name, values[key]])
   );
+  let answered = "";
   await waitFor(
     `Postgres on ${LOOPBACK}:${ports.Postgres} did not answer a query within ${waitSeconds} s ` +
       `(\`docker compose logs postgres\`)`,
@@ -440,6 +453,7 @@ async function startServices(root, file, values, ports, waitSeconds) {
             `others (\`docker compose down --volumes\` removes it)`,
         ]);
       }
+      answered = (select.stdout ?? "").trim();
       return select.status === 0;
     }
   );
@@ -453,57 +467,62 @@ async function startServices(root, file, values, ports, waitSeconds) {
     `${NAME}: Postgres on ${LOOPBACK}:${ports.Postgres} and Redis on ${LOOPBACK}:${ports.Redis} ` +
       `accept connections\n`
   );
+  return answered;
 }
 
 /**
  * @function migrateDatabase
  * @description Applies the migrations the database lacks, through the repository's own script,
- *   with its output shown as it comes, and only to the database this run started: the file's
- *   migration URL has to be exactly the one `startedDatabaseUrl` gives for it.
+ *   with its output shown as it comes, and only to the database this run started: Prisma first
+ *   proves, through the connection the migration will use, that it reaches the database the
+ *   container named. What that proof prints is shown only when it fails.
  * @param {string} root - The checkout.
  * @param {string} file - The environment file's path, for the messages.
- * @param {Record<string, string>} values - What the environment file holds.
- * @param {number} port - The host port Postgres is published on.
+ * @param {string} started - Which database answered inside the container, in its own words.
  * @returns {void}
  */
-function migrateDatabase(root, file, values, port) {
-  // An empty `MIGRATE_DATABASE_URL` counts as absent, as it does for Prisma's configuration, so
-  // the URL judged here is the one the migration will use.
-  const key = values.MIGRATE_DATABASE_URL ? "MIGRATE_DATABASE_URL" : "DATABASE_URL";
-  const readable = Object.values(QUERY_AS).filter((name) => !NO_URL_MEANING.test(values[name]));
-  if (readable.length > 0) {
+function migrateDatabase(root, file, started) {
+  if (!IDENTITY_SHAPE.test(started)) {
     throw new StartFailure([
-      `${readable.join(", ")} of ${file}: only values made of letters, digits, \`_\` and \`-\` are ` +
-        `migrated from here, because a database URL can read any other character as something ` +
-        `else; nothing was migrated (\`pnpm db:migrate\` migrates the database the file names)`,
+      `Postgres did not say which database it is (a cluster identifier and a database oid were ` +
+        `expected): nothing was migrated`,
     ]);
   }
-  const started = startedDatabaseUrl({
-    user: values.POSTGRES_USER,
-    password: values.POSTGRES_PASSWORD,
-    database: values.POSTGRES_DB,
-    port,
+  // Both calls get the same environment, so Prisma's configuration resolves the same URL for the
+  // proof and for the migration.
+  const env = shellEnvironment("MIGRATE_DATABASE_URL");
+  /**
+   * @param {string[]} args - pnpm's arguments.
+   * @param {import("node:child_process").SpawnSyncOptionsWithStringEncoding} how - Its input and
+   *   where its output goes.
+   */
+  const pnpm = (args, how) => {
+    const child = spawnSync("pnpm", args, { cwd: root, env, ...how });
+    if (child.error) {
+      throw couldNotStart(
+        "pnpm",
+        child.error,
+        "pnpm is not on PATH: the migration runs through it"
+      );
+    }
+    return child;
+  };
+
+  const proof = pnpm(PROVE, {
+    encoding: "utf8",
+    input:
+      `DO $$ BEGIN IF (${DATABASE_IDENTITY}) IS DISTINCT FROM '${started}' THEN ` +
+      `RAISE EXCEPTION 'this connection is not the database this run started'; END IF; END $$;\n`,
   });
-  if (values[key] !== started) {
+  if (proof.status !== 0) {
+    process.stderr.write(`${proof.stdout}${proof.stderr}`);
     throw new StartFailure([
-      `${key} of ${file} is not the URL of the database this run started (the file's ` +
-        `POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB on ${LOOPBACK}:${port}, as this command ` +
-        `writes it, with nothing after them): nothing was migrated, because a migration cannot ` +
-        `be taken back (\`pnpm db:migrate\` migrates the database the file names)`,
+      `MIGRATE_DATABASE_URL of ${file}, or else its DATABASE_URL, does not reach the database ` +
+        `this run started, or could not be asked (\`pnpm ${PROVE.join(" ")}\` ${endOf(proof)}): ` +
+        `nothing was migrated, because a migration cannot be taken back`,
     ]);
   }
-  const migrate = spawnSync("pnpm", MIGRATE, {
-    cwd: root,
-    env: shellEnvironment("MIGRATE_DATABASE_URL"),
-    stdio: ["ignore", "inherit", "inherit"],
-  });
-  if (migrate.error) {
-    throw couldNotStart(
-      "pnpm",
-      migrate.error,
-      "pnpm is not on PATH: the migration runs through it"
-    );
-  }
+  const migrate = pnpm(MIGRATE, { encoding: "utf8", stdio: ["ignore", "inherit", "inherit"] });
   if (migrate.status !== 0) {
     throw new StartFailure([`\`pnpm ${MIGRATE.join(" ")}\` ${endOf(migrate)}`]);
   }
@@ -556,8 +575,8 @@ async function main(argv) {
   const file = path.join(options.root, ENVIRONMENT_FILE);
   try {
     const { values, ports } = prepareEnvironment(file);
-    await startServices(options.root, file, values, ports, options.waitSeconds);
-    migrateDatabase(options.root, file, values, ports.Postgres);
+    const started = await startServices(options.root, file, values, ports, options.waitSeconds);
+    migrateDatabase(options.root, file, started);
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);

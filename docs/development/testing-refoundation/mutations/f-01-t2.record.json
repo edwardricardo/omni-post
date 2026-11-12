@@ -1,0 +1,79 @@
+{
+  "base": "bd8f12f065db3619ef28c1e77caacb6302f513be",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "7bff0ce58852043b754c7878d0ebea6e155bd80b13da6fe2a59cc8d50eabf459",
+            "head": "7bff0ce58852043b754c7878d0ebea6e155bd80b13da6fe2a59cc8d50eabf459"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands Compose no variable the file owns, whatever the calling shell holds"
+        },
+        {
+          "bodyHash": {
+            "base": "14379fca9e739faad96b080093d2d67194cc595142c2930739e282a7667c008a",
+            "head": "14379fca9e739faad96b080093d2d67194cc595142c2930739e282a7667c008a"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::keeps asking a service that is not ready until it answers"
+        },
+        {
+          "bodyHash": {
+            "base": "ef2c3f5dfe1498a54a12d32f9909e75d1f6859e79fc09785552138bc6eeb0f21",
+            "head": "ef2c3f5dfe1498a54a12d32f9909e75d1f6859e79fc09785552138bc6eeb0f21"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names"
+        },
+        {
+          "bodyHash": {
+            "base": "fc70e642a43137c2d0543135e15be2f77364a8cf6c59326335718a04ee672919",
+            "head": "fc70e642a43137c2d0543135e15be2f77364a8cf6c59326335718a04ee672919"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::queries Postgres as the user, with the password and for the database of the file"
+        },
+        {
+          "bodyHash": {
+            "base": "fa6ef58c01527fcfe331e57693ff75efa7ecd6664478ac64b4ba2b1162da55e3",
+            "head": "e9f6f191c5a8de495028926860767455a139b81aa4f82a102fd52dc12d553aca"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services from the compose file, the file its only source, and returns once each answers"
+        },
+        {
+          "bodyHash": {
+            "base": "5c0de59185cd45d1572dbfa54355db23e3eaa0d3131f019a4820879afaa61dbb",
+            "head": "5c0de59185cd45d1572dbfa54355db23e3eaa0d3131f019a4820879afaa61dbb"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes a Postgres that offers TLS as one that answers the protocol"
+        },
+        {
+          "bodyHash": {
+            "base": "fef3097f4d47a53c4b376f7ac81996fde90c16a307db1687aec67ad030f4938a",
+            "head": "fef3097f4d47a53c4b376f7ac81996fde90c16a307db1687aec67ad030f4938a"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret"
+        }
+      ],
+      "id": "t2-01-readiness-query-names-the-database",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > hands Compose no variable the file owns, whatever the calling shell holds",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > keeps asking a service that is not ready until it answers",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > leaves a complete environment file untouched and reports the ports it names",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > queries Postgres as the user, with the password and for the database of the file",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > starts both services from the compose file, the file its only source, and returns once each answers",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > takes a Postgres that offers TLS as one that answers the protocol",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > writes the environment a checkout lacks, for its owner only, and shows no secret"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/platformStart.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/platformStart.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}

@@ -50,23 +50,6 @@ const HEADER = [
 ].join("\n");
 
 /**
- * @function startedDatabaseUrl
- * @description The URL of a database of the Postgres the compose file starts, as this checkout's
- *   processes reach it: on loopback by address, on the published host port, as the user the
- *   container is given. It is the one place that says what that URL looks like: the generator
- *   writes it, and the start command compares an existing file's URL with it.
- * @param {{ user: string, password: string, database: string, port: number }} target - The user,
- *   its password, the database and the host port Postgres is published on.
- * @returns {string} The URL.
- */
-export function startedDatabaseUrl({ user, password, database, port }) {
-  const url = new URL(`postgresql://${LOOPBACK}:${port}/${database}`);
-  url.username = user;
-  url.password = password;
-  return url.href;
-}
-
-/**
  * @function generateEnvironment
  * @description The environment of a checkout that has none, in file order: the seven variables
  *   Compose interpolates, the host ports when one was chosen, and the twelve the API requires.
@@ -80,13 +63,14 @@ export function generateEnvironment({ randomBytes, postgresHostPort, redisHostPo
   const user = "omnipost";
   const database = "omnipostdb";
   const password = hex(24);
-  const databaseUrl = (/** @type {string} */ name) =>
-    startedDatabaseUrl({
-      user,
-      password,
-      database: name,
-      port: postgresHostPort ?? DEFAULT_POSTGRES_HOST_PORT,
-    });
+  const databaseUrl = (/** @type {string} */ name) => {
+    const url = new URL(
+      `postgresql://${LOOPBACK}:${postgresHostPort ?? DEFAULT_POSTGRES_HOST_PORT}/${name}`
+    );
+    url.username = user;
+    url.password = password;
+    return url.href;
+  };
 
   /** @type {Array<[string, string]>} */
   const entries = [

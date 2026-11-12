@@ -45,12 +45,6 @@ type Entries = Array<[string, string]>;
 
 interface EnvironmentModule {
   REQUIRED_KEYS: readonly string[];
-  startedDatabaseUrl(target: {
-    user: string;
-    password: string;
-    database: string;
-    port: number;
-  }): string;
   generateEnvironment(options: {
     randomBytes: (size: number) => Buffer;
     postgresHostPort?: number;
@@ -95,10 +89,18 @@ const SECRETS = [
   "DELETION_NAME_DIGEST_KEY_RING",
 ];
 
+/** Which database a connection reached, as the command asks a server for it. */
+const WHICH_DATABASE =
+  "(SELECT system_identifier FROM pg_control_system())::text || ' ' || (SELECT oid FROM pg_database WHERE datname = current_database())::text";
+
+/** What the stand-in's Postgres answers to that, unless a case gives it another answer. */
+const STARTED = "7707325603935821862 16384";
+
 /**
  * The stand-in for the Docker CLI. It logs one line per call (its arguments and its working
  * directory), saves the environment it was given on `up` and on `exec`, and gives the exit code,
- * the `psql` answer or the slow query a case asks for.
+ * the `psql` answer or the slow query a case asks for. A query that runs prints which database
+ * answered: `STARTED`, or what `FAKE_IDENTITY` holds when a case sets it.
  */
 const DOCKER_DOUBLE = `#!/bin/sh
 printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_DOCKER_LOG"
@@ -111,18 +113,31 @@ case " $* " in
   *" exec "*)
     /usr/bin/env > "$FAKE_DOCKER_LOG.exec"
     if [ -n "$FAKE_QUERY_SECONDS" ]; then exec /bin/sleep "$FAKE_QUERY_SECONDS"; fi
-    if [ -n "$FAKE_PSQL_STDERR" ]; then printf '%s\\n' "$FAKE_PSQL_STDERR" >&2; exit 2; fi ;;
+    if [ -n "$FAKE_PSQL_STDERR" ]; then printf '%s\\n' "$FAKE_PSQL_STDERR" >&2; exit 2; fi
+    printf '%s\\n' "\${FAKE_IDENTITY-${STARTED}}" ;;
 esac
 exit 0
 `;
 
 /**
- * The stand-in for pnpm: it logs its call and its working directory, saves the environment it was
- * given, says on both streams what a case asks it to, and ends with the exit code or by the signal
- * a case asks for.
+ * The stand-in for pnpm: it logs its call and its working directory and saves the environment it
+ * was given. Asked for the proof (`db execute`), it also saves the statement it reads on its
+ * input; asked for the migration, it does not. For each of the two it says on both streams what a
+ * case asks it to, and ends with the exit code or by the signal a case asks for.
  */
 const PNPM_DOUBLE = `#!/bin/sh
 printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG"
+case " $* " in
+  *" db execute "*)
+    /usr/bin/env > "$FAKE_PNPM_LOG.proof.env"
+    /bin/cat > "$FAKE_PNPM_LOG.proof.sql"
+    if [ -n "$FAKE_PROOF_SAYS" ]; then
+      printf 'out: %s\\n' "$FAKE_PROOF_SAYS"
+      printf 'err: %s\\n' "$FAKE_PROOF_SAYS" >&2
+    fi
+    if [ -n "$FAKE_PROOF_SIGNAL" ]; then kill -s "$FAKE_PROOF_SIGNAL" $$; fi
+    exit "\${FAKE_PROOF_EXIT:-0}" ;;
+esac
 /usr/bin/env > "$FAKE_PNPM_LOG.env"
 if [ -n "$FAKE_MIGRATE_SAYS" ]; then
   printf 'out: %s\\n' "$FAKE_MIGRATE_SAYS"
@@ -502,7 +517,7 @@ describe("the start sequence", () => {
     expect(dockerCalls(staged)).toEqual([
       `compose version|${staged.root}`,
       `${COMPOSE} up -d postgres redis|${staged.root}`,
-      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT 1"|${staged.root}`,
+      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${WHICH_DATABASE}"|${staged.root}`,
     ]);
     expect(Buffer.concat(staged.postgres.received).toString("hex")).toBe("0000000804d2162f");
     expect(Buffer.concat(staged.redis.received).toString()).toBe("PING\r\n");
@@ -744,6 +759,7 @@ describe("the start sequence", () => {
 
     expect(result).toMatchObject({ code: 0, stderr: "" });
     expect(loggedCalls(staged.pnpmLog)).toEqual([
+      `--filter @infra/prisma exec prisma db execute --stdin|${staged.root}`,
       `--filter @infra/prisma run migrate|${staged.root}`,
     ]);
     expect(result.stdout).toMatch(
@@ -751,7 +767,96 @@ describe("the start sequence", () => {
     );
   });
 
-  it("hands the migration no variable the file owns and no migration URL of the calling shell", async () => {
+  it("has the migration's connection prove, before it migrates, that it reached the database the container named", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_IDENTITY: "7000000000000000001 24601",
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(readFileSync(`${staged.pnpmLog}.proof.sql`, "utf8")).toBe(
+      `DO $$ BEGIN IF (${WHICH_DATABASE}) IS DISTINCT FROM '7000000000000000001 24601' THEN RAISE EXCEPTION 'this connection is not the database this run started'; END IF; END $$;\n`
+    );
+  });
+
+  it("migrates nothing when the migration's connection does not prove to be that database, and shows what the proof printed", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PROOF_SAYS: "this connection is not the database this run started",
+      FAKE_PROOF_EXIT: "1",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      "out: this connection is not the database this run started\n" +
+        "err: this connection is not the database this run started\n" +
+        `platform-start: MIGRATE_DATABASE_URL of ${staged.file}, or else its DATABASE_URL, does not reach the database this run started, or could not be asked (\`pnpm --filter @infra/prisma exec prisma db execute --stdin\` exited 1): nothing was migrated, because a migration cannot be taken back\n`
+    );
+    expect(loggedCalls(staged.pnpmLog)).toEqual([
+      `--filter @infra/prisma exec prisma db execute --stdin|${staged.root}`,
+    ]);
+    expect(result.stdout).not.toContain("the database is migrated");
+  });
+
+  it("says which signal ended the proof when one stopped it, and migrates nothing", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PROOF_SIGNAL: "TERM",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      "(`pnpm --filter @infra/prisma exec prisma db execute --stdin` was ended by SIGTERM): nothing was migrated"
+    );
+    expect(loggedCalls(staged.pnpmLog)).toHaveLength(1);
+  });
+
+  it("says nothing of a proof that passes", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PROOF_SAYS: "Script executed successfully.",
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(result.stdout).not.toContain("Script executed successfully.");
+  });
+
+  it.each<[string, string]>([
+    ["nothing", ""],
+    ["one number", "7707325603935821862"],
+    ["text that is not two numbers", "7707325603935821862 16384'; DROP TABLE x; --"],
+  ])(
+    "asks for no proof and migrates nothing when Postgres answers %s for its identity",
+    async (_what, answer) => {
+      const staged = await stage();
+
+      const result = await start(["--root", staged.root], {
+        ...staged.env,
+        ...staged.ports,
+        FAKE_IDENTITY: answer,
+      });
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toBe(
+        "platform-start: Postgres did not say which database it is (a cluster identifier and a database oid were expected): nothing was migrated\n"
+      );
+      expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+    }
+  );
+
+  it("hands the proof and the migration no variable the file owns and no migration URL of the calling shell", async () => {
     const staged = await stage();
     const refused = [
       ...core.REQUIRED_KEYS,
@@ -770,10 +875,12 @@ describe("the start sequence", () => {
       KEPT_BY_THE_SHELL: "yes",
     });
 
-    const given = savedEnvironment(`${staged.pnpmLog}.env`);
     expect(result).toMatchObject({ code: 0, stderr: "" });
-    expect(refused.filter((key) => key in given)).toEqual([]);
-    expect(given.KEPT_BY_THE_SHELL).toBe("yes");
+    for (const saved of [`${staged.pnpmLog}.proof.env`, `${staged.pnpmLog}.env`]) {
+      const given = savedEnvironment(saved);
+      expect(refused.filter((key) => key in given)).toEqual([]);
+      expect(given.KEPT_BY_THE_SHELL).toBe("yes");
+    }
   });
 
   it("names pnpm when it is not on PATH, after the services answered", async () => {
@@ -831,112 +938,6 @@ describe("the start sequence", () => {
 
     expect(result.code).toBe(1);
     expect(loggedCalls(staged.pnpmLog)).toEqual([]);
-  });
-
-  it.each<[string, (url: URL) => string]>([
-    ["another host", (url) => Object.assign(url, { hostname: "db.example.com" }).href],
-    [
-      "localhost, which can resolve to an address the services are not published on",
-      (url) => Object.assign(url, { hostname: "localhost" }).href,
-    ],
-    ["another port", (url) => Object.assign(url, { port: "5999" }).href],
-    ["no port", (url) => Object.assign(url, { port: "" }).href],
-    ["another user", (url) => Object.assign(url, { username: "someone" }).href],
-    ["another password", (url) => Object.assign(url, { password: "not-the-file-password" }).href],
-    ["another database", (url) => Object.assign(url, { pathname: "/elsewhere" }).href],
-    [
-      "a host parameter, which replaces the host",
-      (url) => Object.assign(url, { search: "?host=db.example.com" }).href,
-    ],
-    [
-      "a schema parameter, which moves the migration to another schema",
-      (url) => Object.assign(url, { search: "?schema=other" }).href,
-    ],
-    ["another scheme", (url) => url.href.replace(/^postgresql:/, "postgres:")],
-    ["text that is not a URL", () => "not-a-url"],
-  ])("migrates nothing when the file's URL names %s", async (_what, change) => {
-    const staged = await stage();
-    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
-    const text = writeEnvironment(staged.file, [], listening);
-    const changed = change(new URL(core.readEnvironment(text).DATABASE_URL ?? ""));
-    writeFileSync(staged.file, text.replace(/^DATABASE_URL=.*$/m, `DATABASE_URL=${changed}`));
-
-    const result = await start(["--root", staged.root], staged.env);
-
-    expect(result.code).toBe(1);
-    expect(result.stderr).toBe(
-      `platform-start: DATABASE_URL of ${staged.file} is not the URL of the database this run started (the file's POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB on 127.0.0.1:${listening.postgres}, as this command writes it, with nothing after them): nothing was migrated, because a migration cannot be taken back (\`pnpm db:migrate\` migrates the database the file names)\n`
-    );
-    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
-  });
-
-  it.each<[string, string]>([
-    ["POSTGRES_DB", "omnipostdb?host=localhost"],
-    ["POSTGRES_DB", "omni%70ostdb"],
-    ["POSTGRES_DB", ".."],
-    ["POSTGRES_USER", "omni@post"],
-    ["POSTGRES_PASSWORD", "pass/word"],
-  ])(
-    "migrates nothing when %s is %s, which a URL can read as something else",
-    async (key, value) => {
-      const staged = await stage();
-      const port = staged.postgres.port;
-      const generated = core.generateEnvironment({
-        randomBytes,
-        postgresHostPort: port,
-        redisHostPort: staged.redis.port,
-      });
-      const held = { ...Object.fromEntries(generated), [key]: value };
-      const url = core.startedDatabaseUrl({
-        user: held.POSTGRES_USER ?? "",
-        password: held.POSTGRES_PASSWORD ?? "",
-        database: held.POSTGRES_DB ?? "",
-        port,
-      });
-      writeFileSync(
-        staged.file,
-        core.renderEnvironmentFile(Object.entries({ ...held, DATABASE_URL: url }))
-      );
-
-      const result = await start(["--root", staged.root], staged.env);
-
-      expect(result.code).toBe(1);
-      expect(result.stderr).toBe(
-        `platform-start: ${key} of ${staged.file}: only values made of letters, digits, \`_\` and \`-\` are migrated from here, because a database URL can read any other character as something else; nothing was migrated (\`pnpm db:migrate\` migrates the database the file names)\n`
-      );
-      expect(loggedCalls(staged.pnpmLog)).toEqual([]);
-    }
-  );
-
-  it("holds a migration URL the file itself gives to the same rule, and prints none of it", async () => {
-    const staged = await stage();
-    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
-    const text = writeEnvironment(staged.file, [], listening);
-    writeFileSync(
-      staged.file,
-      `${text}MIGRATE_DATABASE_URL=postgresql://owner:its-password@db.example.com:5432/omnipostdb\n`
-    );
-
-    const result = await start(["--root", staged.root], staged.env);
-
-    expect(result.code).toBe(1);
-    expect(result.stderr).toMatch(
-      /^platform-start: MIGRATE_DATABASE_URL of \S+ is not the URL of the database this run started/
-    );
-    expect(result.stderr).not.toContain("its-password");
-    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
-  });
-
-  it("takes an empty migration URL in the file as none, as the migration tool does", async () => {
-    const staged = await stage();
-    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
-    const text = writeEnvironment(staged.file, [], listening);
-    writeFileSync(staged.file, `${text}MIGRATE_DATABASE_URL=\n`);
-
-    const result = await start(["--root", staged.root], staged.env);
-
-    expect(result).toMatchObject({ code: 0, stderr: "" });
-    expect(loggedCalls(staged.pnpmLog)).toHaveLength(1);
   });
 
   it("shows what the migration tool prints, on the stream it printed it on", async () => {
