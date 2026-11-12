@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import {
+  BooleanQuerySchema,
   IdSchema,
   exportToCSV,
   generateCSVFilename,
@@ -95,7 +96,7 @@ const ROIQuerySchema = z.object({
     timeRange: z.enum(["7d", "30d", "90d", "1y", "custom"]).default("30d"),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
-    byChannel: z.coerce.boolean().optional(),
+    byChannel: BooleanQuerySchema.optional(),
   }),
 });
 
@@ -103,7 +104,7 @@ const CrossPlatformQuerySchema = z.object({
   query: z.object({
     projectId: IdSchema.optional(),
     timeRange: z.enum(["7d", "30d", "90d", "1y", "custom"]).default("30d"),
-    includeCompetitive: z.coerce.boolean().optional(),
+    includeCompetitive: BooleanQuerySchema.optional(),
   }),
 });
 
@@ -119,9 +120,9 @@ const ExportQuerySchema = z.object({
     projectId: IdSchema,
     timeRange: z.enum(["7d", "30d", "90d"]).default("30d"),
     format: z.enum(["json", "csv"]).default("json"),
-    includeThreads: z.coerce.boolean().default(true),
-    includePosts: z.coerce.boolean().default(true),
-    includeAnalytics: z.coerce.boolean().default(true),
+    includeThreads: BooleanQuerySchema.default(true),
+    includePosts: BooleanQuerySchema.default(true),
+    includeAnalytics: BooleanQuerySchema.default(true),
   }),
 });
 
@@ -162,6 +163,8 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
    * @description GET /analytics/roi — ROI for the authenticated account over a
    *   time range. accountId comes from the token (never the client query). If a
    *   projectId is supplied it is ownership-checked.
+   * @param request - Fastify request (customerUser set by requireClientAuth)
+   * @param reply - Fastify reply
    */
   async getROI(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -205,6 +208,8 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
    * @description GET /analytics/cross-platform — cross-platform (optionally
    *   competitive) analytics for the authenticated account. Same tenancy rules
    *   as getROI.
+   * @param request - Fastify request (customerUser set by requireClientAuth)
+   * @param reply - Fastify reply
    */
   async getCrossPlatform(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -866,8 +871,11 @@ class AnalyticsRouteHandler extends BaseRouteHandler {
   }
 
   /**
-   * Get analytics summary for a project
-   * GET /analytics/project/:projectId
+   * @method getProjectAnalytics
+   * @description GET /analytics/project/:projectId — analytics summary for a
+   *   project the authenticated account owns.
+   * @param request - Fastify request (customerUser set by requireClientAuth)
+   * @param reply - Fastify reply
    */
   async getProjectAnalytics(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };

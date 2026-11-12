@@ -12,6 +12,7 @@
 export {
   IdSchema,
   PaginationQuerySchema,
+  BooleanQuerySchema,
   IsoDateSchema,
   OptionalIsoDateSchema,
   EmailSchema,
