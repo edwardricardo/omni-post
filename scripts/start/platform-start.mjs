@@ -55,9 +55,11 @@
  *   limits, stated: the proof and the migration are two connections, resolved alike a moment
  *   apart; a `schema` parameter in the file's URL moves the migration to another schema of that
  *   database, and the run still ends by calling the database migrated; `--wait-seconds` bounds
- *   neither of the two calls; and Prisma hands its schema engine the URL, password included, on
- *   a command line, as it does for every migration of this repository, so `ps` on the host shows
- *   it during both calls.
+ *   the proof, which writes nothing and is stopped when it runs out, and not the migration, which
+ *   is left to finish because one stopped half-way leaves a database that no later run repairs by
+ *   itself; and Prisma hands its schema engine the URL, password included, on a command line, as
+ *   it does for every migration of this repository, so `ps` on the host shows it during both
+ *   calls.
  *
  *   THE SEQUENCE IS CUMULATIVE. A step that fails leaves what the steps before it did (the
  *   environment file, the running services, the migrations already applied), and a second run
@@ -97,7 +99,8 @@ Takes a checkout to a generated environment, to Postgres and Redis accepting con
 a migrated database.
 
   --root <dir>         the checkout to start (default: the one this script is in)
-  --wait-seconds <n>   how long each service may take to accept a connection (default: 60)
+  --wait-seconds <n>   how long each service may take to accept a connection, and Prisma's proof
+                       of the database to answer (default: 60)
   --help               print this text
 
 A checkout with no ${ENVIRONMENT_FILE} file receives one, its secrets random; an existing file is
@@ -168,7 +171,8 @@ const ANSWER_SHAPE = /^(\d+ \d+) (on|off)$/;
  * The variable of the environment file behind each one `psql` reads. Each is handed to the
  * container by name alone (`-e PGPASSWORD`): its value travels in the Docker client's environment,
  * never on a command line, and it is the file's, so the query proves the credentials the file's
- * URLs carry.
+ * URLs carry. The order of the entries is observable: it fixes the order of the `-e` flags, of the
+ * comparisons in `SAME_READING` and of the names its message prints.
  */
 const QUERY_AS = /** @type {const} */ ({
   PGUSER: "POSTGRES_USER",
@@ -194,10 +198,19 @@ const SAME_READING =
   `if [ -n "$d" ]; then echo "${READ_DIFFERENTLY}$d" >&2; exit 3; fi`;
 
 /**
+ * What the comparison's message is, and the only thing it is: the text, then one or more names of
+ * the variables `QUERY_AS` holds, each after a space. `psql` forwards the server's own messages to
+ * the same stream, so a line that merely starts like the verdict is not one.
+ */
+const VERDICT = new RegExp(`^${READ_DIFFERENTLY}(?: (?:${Object.values(QUERY_AS).join("|")}))+$`);
+
+/**
  * Run inside the Postgres container, against its own network address: the image trusts loopback and
  * the local socket without a password, so this is the route that checks one. `psql` reads the user,
  * the password and the database from the three variables `QUERY_AS` names, and prints which
- * database answered and whether it is the initial one.
+ * database answered and whether it is the initial one. The line is not a straight run to `psql`:
+ * `SAME_READING` comes first and can end it with exit 3 before `psql` is called, so an exit 3 from
+ * this line is the comparison's, never a query's.
  */
 const AUTHENTICATED_IDENTITY = `${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${DATABASE_IDENTITY} || ' ' || ${INITIAL_DATABASE}"`;
 
@@ -478,6 +491,8 @@ async function startServices(root, file, values, ports, waitSeconds) {
   const queryAs = Object.fromEntries(
     Object.entries(QUERY_AS).map(([name, key]) => [name, values[key]])
   );
+  // `waitFor` reports only whether an attempt succeeded, so the identity leaves the probe through
+  // this variable: every attempt sets it, and the one that succeeds is the last.
   let answered = "";
   await waitFor(
     `Postgres on ${LOOPBACK}:${ports.Postgres} did not answer a query within ${waitSeconds} s ` +
@@ -487,9 +502,10 @@ async function startServices(root, file, values, ports, waitSeconds) {
       const speaks = await answers(ports.Postgres, SSL_REQUEST, (reply) => /^[SN]/.test(reply));
       if (!speaks) return false;
       const select = docker(query, "pipe", { add: queryAs, timeout: msLeft() });
-      const said = (select.stderr ?? "")
-        .split("\n")
-        .find((line) => line.startsWith(READ_DIFFERENTLY));
+      const said =
+        select.status === 3
+          ? (select.stderr ?? "").split("\n").find((line) => VERDICT.test(line))
+          : undefined;
       if (said !== undefined) {
         const names = Object.values(QUERY_AS).filter((key) => said.split(" ").includes(key));
         throw new StartFailure([
@@ -531,9 +547,10 @@ async function startServices(root, file, values, ports, waitSeconds) {
  * @param {string} root - The checkout.
  * @param {string} file - The environment file's path, for the messages.
  * @param {string} answered - What the database said of itself inside the container.
+ * @param {number} waitSeconds - How long the proof may take; the migration has no limit.
  * @returns {void}
  */
-function migrateDatabase(root, file, answered) {
+function migrateDatabase(root, file, answered, waitSeconds) {
   const said = ANSWER_SHAPE.exec(answered);
   if (said === null) {
     throw new StartFailure([
@@ -547,7 +564,9 @@ function migrateDatabase(root, file, answered) {
       `POSTGRES_DB of ${file} names a database without the mark the Postgres image leaves on the ` +
         `one its data volume is initialised for: the volume was initialised for another ` +
         `database, or before that mark existed; nothing was migrated (\`docker compose down ` +
-        `--volumes\` removes the volume and its data, and the next run initialises a new one)`,
+        `--volumes\` removes the volume and its data, and the next run initialises a new one; ` +
+        `\`pnpm db:migrate\` migrates the database the file names, keeping its data, outside ` +
+        `this command's guard)`,
     ]);
   }
   // Both calls get the same environment, so Prisma's configuration resolves the same URL for the
@@ -555,12 +574,13 @@ function migrateDatabase(root, file, answered) {
   const env = shellEnvironment("MIGRATE_DATABASE_URL");
   /**
    * @param {string[]} args - pnpm's arguments.
-   * @param {import("node:child_process").SpawnSyncOptionsWithStringEncoding} how - Its input and
-   *   where its output goes.
+   * @param {import("node:child_process").SpawnSyncOptionsWithStringEncoding} how - Its input,
+   *   where its output goes and, for a call that may be stopped, how long it may run.
    */
   const pnpm = (args, how) => {
     const child = spawnSync("pnpm", args, { cwd: root, env, ...how });
-    if (child.error) {
+    // A call stopped for running out of time is the caller's to report: the program did run.
+    if (child.error && /** @type {NodeJS.ErrnoException} */ (child.error).code !== "ETIMEDOUT") {
       throw couldNotStart(
         "pnpm",
         child.error,
@@ -572,12 +592,19 @@ function migrateDatabase(root, file, answered) {
 
   const proof = pnpm(PROVE, {
     encoding: "utf8",
+    timeout: waitSeconds * 1000,
     input:
       `DO $$ BEGIN IF (${DATABASE_IDENTITY}) IS DISTINCT FROM '${started}' THEN ` +
       `RAISE EXCEPTION 'this connection is not the database this run started'; END IF; END $$;\n`,
   });
   if (proof.status !== 0) {
     process.stderr.write(`${proof.stdout}${proof.stderr}`);
+    if (proof.error) {
+      throw new StartFailure([
+        `\`pnpm ${PROVE.join(" ")}\` did not answer within ${waitSeconds} s and was stopped: ` +
+          `nothing was migrated`,
+      ]);
+    }
     throw new StartFailure([
       `MIGRATE_DATABASE_URL of ${file}, or else its DATABASE_URL, does not reach the database ` +
         `this run started, or could not be asked (\`pnpm ${PROVE.join(" ")}\` ${endOf(proof)}): ` +
@@ -638,7 +665,7 @@ async function main(argv) {
   try {
     const { values, ports } = prepareEnvironment(file);
     const answered = await startServices(options.root, file, values, ports, options.waitSeconds);
-    migrateDatabase(options.root, file, answered);
+    migrateDatabase(options.root, file, answered, options.waitSeconds);
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);

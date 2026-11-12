@@ -14,7 +14,7 @@
  *   containers is the sequence's own proof.
  * @layer infrastructure
  */
-import { execFile, execFileSync } from "node:child_process";
+import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   chmodSync,
@@ -112,9 +112,12 @@ const STARTED = "7707325603935821862 16384 on";
 
 /**
  * The stand-in for the Docker CLI. It logs one line per call (its arguments and its working
- * directory), saves the environment it was given on `up` and on `exec`, and gives the exit code,
- * the `psql` answer or the slow query a case asks for. A query that runs prints which database
- * answered: `STARTED`, or what `FAKE_IDENTITY` holds when a case sets it.
+ * directory), saves the environment it was given on `up` and on `exec`, saves the last argument of
+ * `exec` (the shell line the command has the container run), and gives the exit code, the `psql`
+ * answer or the slow query a case asks for. A query that runs prints which database answered:
+ * `STARTED`, or what `FAKE_IDENTITY` holds when a case sets it. A message of its own ends with
+ * exit 2, as `psql` does, unless it is the container's "read differently" verdict, which ends with
+ * the exit 3 the comparison gives it; `FAKE_PSQL_EXIT` says another code.
  */
 const DOCKER_DOUBLE = `#!/bin/sh
 printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_DOCKER_LOG"
@@ -126,8 +129,15 @@ case " $* " in
     exit "\${FAKE_UP_EXIT:-0}" ;;
   *" exec "*)
     /usr/bin/env > "$FAKE_DOCKER_LOG.exec"
+    for last; do :; done
+    printf '%s' "$last" > "$FAKE_DOCKER_LOG.exec.sh"
     if [ -n "$FAKE_QUERY_SECONDS" ]; then exec /bin/sleep "$FAKE_QUERY_SECONDS"; fi
-    if [ -n "$FAKE_PSQL_STDERR" ]; then printf '%s\\n' "$FAKE_PSQL_STDERR" >&2; exit 2; fi
+    if [ -n "$FAKE_PSQL_STDERR" ]; then
+      printf '%s\\n' "$FAKE_PSQL_STDERR" >&2
+      code=2
+      case "$FAKE_PSQL_STDERR" in *"read differently:"*) code=3 ;; esac
+      exit "\${FAKE_PSQL_EXIT:-$code}"
+    fi
     printf '%s\\n' "\${FAKE_IDENTITY-${STARTED}}" ;;
 esac
 exit 0
@@ -137,7 +147,8 @@ exit 0
  * The stand-in for pnpm: it logs its call and its working directory and saves the environment it
  * was given. Asked for the proof (`db execute`), it also saves the statement it reads on its
  * input; asked for the migration, it does not. For each of the two it says on both streams what a
- * case asks it to, and ends with the exit code or by the signal a case asks for.
+ * case asks it to, first spends the seconds a case asks for (the proof's are the call's end, as a
+ * process that never answers would be), and ends with the exit code or by the signal a case asks for.
  */
 const PNPM_DOUBLE = `#!/bin/sh
 printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG"
@@ -145,6 +156,7 @@ case " $* " in
   *" db execute "*)
     /usr/bin/env > "$FAKE_PNPM_LOG.proof.env"
     /bin/cat > "$FAKE_PNPM_LOG.proof.sql"
+    if [ -n "$FAKE_PROOF_SECONDS" ]; then exec /bin/sleep "$FAKE_PROOF_SECONDS"; fi
     if [ -n "$FAKE_PROOF_SAYS" ]; then
       printf 'out: %s\\n' "$FAKE_PROOF_SAYS"
       printf 'err: %s\\n' "$FAKE_PROOF_SAYS" >&2
@@ -153,6 +165,7 @@ case " $* " in
     exit "\${FAKE_PROOF_EXIT:-0}" ;;
 esac
 /usr/bin/env > "$FAKE_PNPM_LOG.env"
+if [ -n "$FAKE_MIGRATE_SECONDS" ]; then /bin/sleep "$FAKE_MIGRATE_SECONDS"; fi
 if [ -n "$FAKE_MIGRATE_SAYS" ]; then
   printf 'out: %s\\n' "$FAKE_MIGRATE_SAYS"
   printf 'err: %s\\n' "$FAKE_MIGRATE_SAYS" >&2
@@ -864,6 +877,160 @@ describe("the start sequence", () => {
     expect(loggedCalls(staged.pnpmLog)).toEqual([]);
   });
 
+  it("takes the verdict from the comparison's own line among what else the container printed", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PSQL_STDERR: "psql: NOTICE: something the server said\nread differently: POSTGRES_DB",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: POSTGRES_DB of ${staged.file}: Docker Compose read another value than this command did, so the Postgres container was not created with what the file's URLs name (between single quotes both read a value alike)\n`
+    );
+    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+  });
+
+  it.each<[string, string, string]>([
+    [
+      "a server message that quotes the verdict, with the exit code of a query that failed",
+      "psql: error: read differently: POSTGRES_USER",
+      "2",
+    ],
+    [
+      "the verdict's own text, with the exit code of a query that failed",
+      "read differently: POSTGRES_DB",
+      "2",
+    ],
+    [
+      "a line that names something else than the three variables",
+      "read differently: POSTGRES_USER and more",
+      "3",
+    ],
+    [
+      "a line that names a variable the table does not hold",
+      "read differently: SOMETHING_ELSE",
+      "3",
+    ],
+    ["a line that names nothing", "read differently:", "3"],
+  ])(
+    "does not take %s for the container's verdict, and keeps asking until the wait runs out",
+    async (_what, said, exit) => {
+      const staged = await stage();
+
+      const result = await start(["--root", staged.root, "--wait-seconds", "1"], {
+        ...staged.env,
+        ...staged.ports,
+        FAKE_PSQL_STDERR: said,
+        FAKE_PSQL_EXIT: exit,
+      });
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toBe(
+        `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} did not answer a query within 1 s (\`docker compose logs postgres\`)\n`
+      );
+      expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+    }
+  );
+
+  describe("the shell line the container runs", () => {
+    /** Runs the line the command sent the container, locally, with stand-ins for `psql` and `hostname`. */
+    async function runTheLine(
+      env: Record<string, string>
+    ): Promise<{ status: number | null; stdout: string; stderr: string; psqlCalls: string[] }> {
+      const staged = await stage();
+      await start(["--root", staged.root], { ...staged.env, ...staged.ports });
+      const line = readFileSync(`${staged.log}.exec.sh`, "utf8");
+      const bin = path.join(staged.root, "container-bin");
+      const psqlLog = path.join(staged.root, "psql.log");
+      mkdirSync(bin);
+      writeFileSync(
+        path.join(bin, "psql"),
+        `#!/bin/sh\nprintf '%s\\n' "$*" >> "$FAKE_PSQL_LOG"\nprintf '%s\\n' "$FAKE_PSQL_SAYS"\n`,
+        { mode: 0o755 }
+      );
+      writeFileSync(path.join(bin, "hostname"), "#!/bin/sh\nprintf '172.18.0.2\\n'\n", {
+        mode: 0o755,
+      });
+      const ran = spawnSync("/bin/sh", ["-c", line], {
+        encoding: "utf8",
+        env: { PATH: bin, FAKE_PSQL_LOG: psqlLog, FAKE_PSQL_SAYS: STARTED, ...env },
+      });
+      return {
+        status: ran.status,
+        stdout: ran.stdout,
+        stderr: ran.stderr,
+        psqlCalls: loggedCalls(psqlLog),
+      };
+    }
+
+    const handedIn = { PGUSER: "omni", PGPASSWORD: "s3cret", PGDATABASE: "omnidb" };
+    const created = { POSTGRES_USER: "omni", POSTGRES_PASSWORD: "s3cret", POSTGRES_DB: "omnidb" };
+
+    it("asks the database through its own network address once the container's values equal the command's", async () => {
+      const ran = await runTheLine({ ...handedIn, ...created });
+
+      expect(ran).toMatchObject({ status: 0, stdout: `${STARTED}\n`, stderr: "" });
+      expect(ran.psqlCalls).toEqual([
+        `-h 172.18.0.2 -tAc SELECT ${WHICH_DATABASE} || ' ' || ${INITIAL_DATABASE}`,
+      ]);
+    });
+
+    it.each<[string, Record<string, string>, string]>([
+      ["one", { POSTGRES_PASSWORD: "another" }, "POSTGRES_PASSWORD"],
+      ["two", { POSTGRES_USER: "other", POSTGRES_DB: "elsewhere" }, "POSTGRES_USER POSTGRES_DB"],
+    ])(
+      "ends with exit 3 before it asks anything when %s of the values differ, and prints their names only",
+      async (_count, differing, names) => {
+        const ran = await runTheLine({ ...handedIn, ...created, ...differing });
+
+        expect(ran).toMatchObject({
+          status: 3,
+          stdout: "",
+          stderr: `read differently: ${names}\n`,
+        });
+        expect(ran.psqlCalls).toEqual([]);
+      }
+    );
+  });
+
+  it("stops the proof when it outlives the wait, and migrates nothing", async () => {
+    const staged = await stage();
+    const began = Date.now();
+
+    const result = await start(["--root", staged.root, "--wait-seconds", "1"], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PROOF_SECONDS: "20",
+    });
+
+    expect(Date.now() - began).toBeLessThan(10_000);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      "platform-start: `pnpm --filter @infra/prisma exec prisma db execute --stdin` did not answer within 1 s and was stopped: nothing was migrated\n"
+    );
+    expect(loggedCalls(staged.pnpmLog)).toEqual([
+      `--filter @infra/prisma exec prisma db execute --stdin|${staged.root}`,
+    ]);
+    expect(result.stdout).not.toContain("the database is migrated");
+  });
+
+  it("lets the migration run past the wait, because a migration stopped half-way is not repaired by a later run", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root, "--wait-seconds", "1"], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_MIGRATE_SECONDS: "2",
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(result.stdout).toMatch(/platform-start: the database is migrated\n$/);
+    expect(loggedCalls(staged.pnpmLog)).toHaveLength(2);
+  });
+
   it("asks for no proof and migrates nothing when the database is not the one its data volume was initialised for", async () => {
     const staged = await stage();
 
@@ -875,7 +1042,7 @@ describe("the start sequence", () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toBe(
-      `platform-start: POSTGRES_DB of ${staged.file} names a database without the mark the Postgres image leaves on the one its data volume is initialised for: the volume was initialised for another database, or before that mark existed; nothing was migrated (\`docker compose down --volumes\` removes the volume and its data, and the next run initialises a new one)\n`
+      `platform-start: POSTGRES_DB of ${staged.file} names a database without the mark the Postgres image leaves on the one its data volume is initialised for: the volume was initialised for another database, or before that mark existed; nothing was migrated (\`docker compose down --volumes\` removes the volume and its data, and the next run initialises a new one; \`pnpm db:migrate\` migrates the database the file names, keeping its data, outside this command's guard)\n`
     );
     expect(result.stdout).toContain("accept connections");
     expect(loggedCalls(staged.pnpmLog)).toEqual([]);
