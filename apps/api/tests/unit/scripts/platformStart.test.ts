@@ -45,6 +45,12 @@ type Entries = Array<[string, string]>;
 
 interface EnvironmentModule {
   REQUIRED_KEYS: readonly string[];
+  startedDatabaseUrl(target: {
+    user: string;
+    password: string;
+    database: string;
+    port: number;
+  }): string;
   generateEnvironment(options: {
     randomBytes: (size: number) => Buffer;
     postgresHostPort?: number;
@@ -863,6 +869,44 @@ describe("the start sequence", () => {
     );
     expect(loggedCalls(staged.pnpmLog)).toEqual([]);
   });
+
+  it.each<[string, string]>([
+    ["POSTGRES_DB", "omnipostdb?host=localhost"],
+    ["POSTGRES_DB", "omni%70ostdb"],
+    ["POSTGRES_DB", ".."],
+    ["POSTGRES_USER", "omni@post"],
+    ["POSTGRES_PASSWORD", "pass/word"],
+  ])(
+    "migrates nothing when %s is %s, which a URL can read as something else",
+    async (key, value) => {
+      const staged = await stage();
+      const port = staged.postgres.port;
+      const generated = core.generateEnvironment({
+        randomBytes,
+        postgresHostPort: port,
+        redisHostPort: staged.redis.port,
+      });
+      const held = { ...Object.fromEntries(generated), [key]: value };
+      const url = core.startedDatabaseUrl({
+        user: held.POSTGRES_USER ?? "",
+        password: held.POSTGRES_PASSWORD ?? "",
+        database: held.POSTGRES_DB ?? "",
+        port,
+      });
+      writeFileSync(
+        staged.file,
+        core.renderEnvironmentFile(Object.entries({ ...held, DATABASE_URL: url }))
+      );
+
+      const result = await start(["--root", staged.root], staged.env);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toBe(
+        `platform-start: ${key} of ${staged.file}: only values made of letters, digits, \`_\` and \`-\` are migrated from here, because a database URL can read any other character as something else; nothing was migrated (\`pnpm db:migrate\` migrates the database the file names)\n`
+      );
+      expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+    }
+  );
 
   it("holds a migration URL the file itself gives to the same rule, and prints none of it", async () => {
     const staged = await stage();

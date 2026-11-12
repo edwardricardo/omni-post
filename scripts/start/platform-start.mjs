@@ -38,7 +38,10 @@
  *   port, the file's user, password and database, and nothing after them), and any other is
  *   refused before anything is applied, because a migration cannot be taken back. `localhost` is
  *   among the refused: it can resolve to an address the compose file does not publish on, where
- *   another server may listen. One thing this command cannot keep to itself: Prisma hands its
+ *   another server may listen. And the three values that URL is built from must be made of
+ *   letters, digits, `_` and `-`, characters no reader of a URL gives a meaning to or rewrites:
+ *   with any other (a `?`, a `%`, a `.`), the same text can name one database to Compose and
+ *   another to Prisma. One thing this command cannot keep to itself: Prisma hands its
  *   schema engine the URL, password included, on a command line, as it does for every migration
  *   of this repository, so `ps` on the host shows it while the migration runs.
  *
@@ -92,7 +95,8 @@ Postgres and Redis on.
 The database is migrated with \`pnpm --filter @infra/prisma run migrate\`, so pnpm must be on PATH,
 and only when the file's MIGRATE_DATABASE_URL, or else its DATABASE_URL, is the URL this command
 writes for the Postgres it starts: the file's POSTGRES_USER, POSTGRES_PASSWORD and POSTGRES_DB on
-${LOOPBACK} and the published port, with nothing after them.
+${LOOPBACK} and the published port, with nothing after them, those three values made of letters,
+digits, _ and - only.
 `;
 
 /** The variable that chooses the host port each service is published on. */
@@ -143,6 +147,14 @@ const QUERY_AS = /** @type {const} */ ({
   PGPASSWORD: "POSTGRES_PASSWORD",
   PGDATABASE: "POSTGRES_DB",
 });
+
+/**
+ * What the three values a database URL is built from must be made of for a migration to run:
+ * characters a URL gives no meaning to and does not rewrite. Without that, the URL the rule
+ * compares can equal the file's and still be read as another host (`name?host=other`), another
+ * database (`%70` is decoded) or no database at all (`..` is removed).
+ */
+const NO_URL_MEANING = /^[A-Za-z0-9_-]+$/;
 
 /** What pnpm is asked for: the migration script of the package that holds the schema. */
 const MIGRATE = ["--filter", "@infra/prisma", "run", "migrate"];
@@ -458,6 +470,14 @@ function migrateDatabase(root, file, values, port) {
   // An empty `MIGRATE_DATABASE_URL` counts as absent, as it does for Prisma's configuration, so
   // the URL judged here is the one the migration will use.
   const key = values.MIGRATE_DATABASE_URL ? "MIGRATE_DATABASE_URL" : "DATABASE_URL";
+  const readable = Object.values(QUERY_AS).filter((name) => !NO_URL_MEANING.test(values[name]));
+  if (readable.length > 0) {
+    throw new StartFailure([
+      `${readable.join(", ")} of ${file}: only values made of letters, digits, \`_\` and \`-\` are ` +
+        `migrated from here, because a database URL can read any other character as something ` +
+        `else; nothing was migrated (\`pnpm db:migrate\` migrates the database the file names)`,
+    ]);
+  }
   const started = startedDatabaseUrl({
     user: values.POSTGRES_USER,
     password: values.POSTGRES_PASSWORD,
