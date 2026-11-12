@@ -89,10 +89,32 @@ const SECRETS = [
   "DELETION_NAME_DIGEST_KEY_RING",
 ];
 
+/** Which database a connection reached, as the command asks a server for it. */
+const WHICH_DATABASE =
+  "(SELECT system_identifier FROM pg_control_system())::text || ' ' || (SELECT oid FROM pg_database WHERE datname = current_database())::text";
+
+/**
+ * What the command has the container compare before it asks anything: each value Compose gave the
+ * container against the one the command read from the file and hands in by name.
+ */
+const SAME_READING =
+  'd=; [ "$POSTGRES_USER" = "$PGUSER" ] || d="$d POSTGRES_USER"; [ "$POSTGRES_PASSWORD" = "$PGPASSWORD" ] || d="$d POSTGRES_PASSWORD"; [ "$POSTGRES_DB" = "$PGDATABASE" ] || d="$d POSTGRES_DB"; if [ -n "$d" ]; then echo "read differently:$d" >&2; exit 3; fi';
+
+/** Whether that database is the one its data volume was initialised for, as the command asks. */
+const INITIAL_DATABASE =
+  "CASE WHEN current_setting('omnipost.initial_database', true) = 'on' THEN 'on' ELSE 'off' END";
+
+/**
+ * What the stand-in's Postgres answers the readiness query, unless a case gives it another answer:
+ * a database's identity, and that it is the initial one.
+ */
+const STARTED = "7707325603935821862 16384 on";
+
 /**
  * The stand-in for the Docker CLI. It logs one line per call (its arguments and its working
  * directory), saves the environment it was given on `up` and on `exec`, and gives the exit code,
- * the `psql` answer or the slow query a case asks for.
+ * the `psql` answer or the slow query a case asks for. A query that runs prints which database
+ * answered: `STARTED`, or what `FAKE_IDENTITY` holds when a case sets it.
  */
 const DOCKER_DOUBLE = `#!/bin/sh
 printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_DOCKER_LOG"
@@ -100,13 +122,43 @@ case " $* " in
   *" version "*) exit "\${FAKE_COMPOSE_VERSION_EXIT:-0}" ;;
   *" up "*)
     /usr/bin/env > "$FAKE_DOCKER_LOG.up"
+    if [ -n "$FAKE_UP_SIGNAL" ]; then kill -s "$FAKE_UP_SIGNAL" $$; fi
     exit "\${FAKE_UP_EXIT:-0}" ;;
   *" exec "*)
     /usr/bin/env > "$FAKE_DOCKER_LOG.exec"
     if [ -n "$FAKE_QUERY_SECONDS" ]; then exec /bin/sleep "$FAKE_QUERY_SECONDS"; fi
-    if [ -n "$FAKE_PSQL_STDERR" ]; then printf '%s\\n' "$FAKE_PSQL_STDERR" >&2; exit 2; fi ;;
+    if [ -n "$FAKE_PSQL_STDERR" ]; then printf '%s\\n' "$FAKE_PSQL_STDERR" >&2; exit 2; fi
+    printf '%s\\n' "\${FAKE_IDENTITY-${STARTED}}" ;;
 esac
 exit 0
+`;
+
+/**
+ * The stand-in for pnpm: it logs its call and its working directory and saves the environment it
+ * was given. Asked for the proof (`db execute`), it also saves the statement it reads on its
+ * input; asked for the migration, it does not. For each of the two it says on both streams what a
+ * case asks it to, and ends with the exit code or by the signal a case asks for.
+ */
+const PNPM_DOUBLE = `#!/bin/sh
+printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG"
+case " $* " in
+  *" db execute "*)
+    /usr/bin/env > "$FAKE_PNPM_LOG.proof.env"
+    /bin/cat > "$FAKE_PNPM_LOG.proof.sql"
+    if [ -n "$FAKE_PROOF_SAYS" ]; then
+      printf 'out: %s\\n' "$FAKE_PROOF_SAYS"
+      printf 'err: %s\\n' "$FAKE_PROOF_SAYS" >&2
+    fi
+    if [ -n "$FAKE_PROOF_SIGNAL" ]; then kill -s "$FAKE_PROOF_SIGNAL" $$; fi
+    exit "\${FAKE_PROOF_EXIT:-0}" ;;
+esac
+/usr/bin/env > "$FAKE_PNPM_LOG.env"
+if [ -n "$FAKE_MIGRATE_SAYS" ]; then
+  printf 'out: %s\\n' "$FAKE_MIGRATE_SAYS"
+  printf 'err: %s\\n' "$FAKE_MIGRATE_SAYS" >&2
+fi
+if [ -n "$FAKE_MIGRATE_SIGNAL" ]; then kill -s "$FAKE_MIGRATE_SIGNAL" $$; fi
+exit "\${FAKE_MIGRATE_EXIT:-0}"
 `;
 
 /** How every call after the first names the checkout's two files to Compose. */
@@ -124,6 +176,8 @@ interface Stage {
   readonly file: string;
   /** Where the stand-in logs its calls. */
   readonly log: string;
+  /** Where the stand-in for pnpm logs its calls. */
+  readonly pnpmLog: string;
   readonly postgres: Listener;
   readonly redis: Listener;
   /** The command's environment: the stand-in on `PATH`, and where it logs. */
@@ -198,33 +252,46 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
   const bin = path.join(root, "bin");
   mkdirSync(bin);
   writeFileSync(path.join(bin, "docker"), DOCKER_DOUBLE, { mode: 0o755 });
+  writeFileSync(path.join(bin, "pnpm"), PNPM_DOUBLE, { mode: 0o755 });
   const log = path.join(root, "docker.log");
+  const pnpmLog = path.join(root, "pnpm.log");
   const postgres = services.postgres ?? (await listen("N"));
   const redis = services.redis ?? (await listen("+PONG\r\n"));
   return {
     root,
     file,
     log,
+    pnpmLog,
     postgres,
     redis,
-    env: { PATH: bin, FAKE_DOCKER_LOG: log },
+    env: { PATH: bin, FAKE_DOCKER_LOG: log, FAKE_PNPM_LOG: pnpmLog },
     ports: { POSTGRES_HOST_PORT: String(postgres.port), REDIS_HOST_PORT: String(redis.port) },
   };
 }
 
-/** The stand-in's calls so far, one line each; none when it was never run. */
-function dockerCalls(staged: Stage): string[] {
+/** The calls a stand-in logged, one line each; none when it was never run. */
+function loggedCalls(log: string): string[] {
   try {
-    return readFileSync(staged.log, "utf8").trim().split("\n");
+    return readFileSync(log, "utf8").trim().split("\n");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return [];
   }
 }
 
+/** The stand-in's calls so far, one line each; none when it was never run. */
+function dockerCalls(staged: Stage): string[] {
+  return loggedCalls(staged.log);
+}
+
 /** The environment the stand-in was given on its last `up` or its last `exec`. */
 function dockerEnvironment(staged: Stage, call: "up" | "exec"): Record<string, string> {
-  const lines = readFileSync(`${staged.log}.${call}`, "utf8").split("\n");
+  return savedEnvironment(`${staged.log}.${call}`);
+}
+
+/** The environment a stand-in saved to a file, one `NAME=value` line per variable. */
+function savedEnvironment(file: string): Record<string, string> {
+  const lines = readFileSync(file, "utf8").split("\n");
   return Object.fromEntries(
     lines
       .map((line) => [line, line.indexOf("=")] as const)
@@ -464,7 +531,7 @@ describe("the start sequence", () => {
     expect(dockerCalls(staged)).toEqual([
       `compose version|${staged.root}`,
       `${COMPOSE} up -d postgres redis|${staged.root}`,
-      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT 1"|${staged.root}`,
+      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c ${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${WHICH_DATABASE} || ' ' || ${INITIAL_DATABASE}"|${staged.root}`,
     ]);
     expect(Buffer.concat(staged.postgres.received).toString("hex")).toBe("0000000804d2162f");
     expect(Buffer.concat(staged.redis.received).toString()).toBe("PING\r\n");
@@ -682,6 +749,262 @@ describe("the start sequence", () => {
     expect(result.stdout).toBe("");
     expect(result.stderr.startsWith(`platform-start: cannot use ${file}: EISDIR`)).toBe(true);
     expect(result.stderr.trimEnd().split("\n")).toHaveLength(1);
+  });
+
+  it("says which signal ended Compose when one stopped it", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_UP_SIGNAL: "TERM",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      "platform-start: `docker compose up -d postgres redis` was ended by SIGTERM\n"
+    );
+  });
+
+  it("migrates the database with the repository's own script, in the checkout, once both services answer", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], { ...staged.env, ...staged.ports });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(loggedCalls(staged.pnpmLog)).toEqual([
+      `--filter @infra/prisma exec prisma db execute --stdin|${staged.root}`,
+      `--filter @infra/prisma run migrate|${staged.root}`,
+    ]);
+    expect(result.stdout).toMatch(
+      /accept connections\nplatform-start: the database is migrated\n$/
+    );
+  });
+
+  it("has the migration's connection prove, before it migrates, that it reached the database the container named", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_IDENTITY: "7000000000000000001 24601 on",
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(readFileSync(`${staged.pnpmLog}.proof.sql`, "utf8")).toBe(
+      `DO $$ BEGIN IF (${WHICH_DATABASE}) IS DISTINCT FROM '7000000000000000001 24601' THEN RAISE EXCEPTION 'this connection is not the database this run started'; END IF; END $$;\n`
+    );
+  });
+
+  it("migrates nothing when the migration's connection does not prove to be that database, and shows what the proof printed", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PROOF_SAYS: "this connection is not the database this run started",
+      FAKE_PROOF_EXIT: "1",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      "out: this connection is not the database this run started\n" +
+        "err: this connection is not the database this run started\n" +
+        `platform-start: MIGRATE_DATABASE_URL of ${staged.file}, or else its DATABASE_URL, does not reach the database this run started, or could not be asked (\`pnpm --filter @infra/prisma exec prisma db execute --stdin\` exited 1): nothing was migrated, because a migration cannot be taken back\n`
+    );
+    expect(loggedCalls(staged.pnpmLog)).toEqual([
+      `--filter @infra/prisma exec prisma db execute --stdin|${staged.root}`,
+    ]);
+    expect(result.stdout).not.toContain("the database is migrated");
+  });
+
+  it("says which signal ended the proof when one stopped it, and migrates nothing", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PROOF_SIGNAL: "TERM",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toContain(
+      "(`pnpm --filter @infra/prisma exec prisma db execute --stdin` was ended by SIGTERM): nothing was migrated"
+    );
+    expect(loggedCalls(staged.pnpmLog)).toHaveLength(1);
+  });
+
+  it("says nothing of a proof that passes", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PROOF_SAYS: "Script executed successfully.",
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(result.stdout).not.toContain("Script executed successfully.");
+  });
+
+  it("fails at once, naming each variable, when the container was created with another value than the command read", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PSQL_STDERR: "read differently: POSTGRES_USER POSTGRES_DB",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: POSTGRES_USER, POSTGRES_DB of ${staged.file}: Docker Compose read another value than this command did, so the Postgres container was not created with what the file's URLs name (between single quotes both read a value alike)\n`
+    );
+    expect(dockerCalls(staged)).toHaveLength(3);
+    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+  });
+
+  it("asks for no proof and migrates nothing when the database is not the one its data volume was initialised for", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_IDENTITY: "7707325603935821862 5 off",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: POSTGRES_DB of ${staged.file} names a database without the mark the Postgres image leaves on the one its data volume is initialised for: the volume was initialised for another database, or before that mark existed; nothing was migrated (\`docker compose down --volumes\` removes the volume and its data, and the next run initialises a new one)\n`
+    );
+    expect(result.stdout).toContain("accept connections");
+    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+  });
+
+  it.each<[string, string]>([
+    ["nothing", ""],
+    ["one number", "7707325603935821862 on"],
+    ["two numbers and no word about the mark", "7707325603935821862 16384"],
+    ["a word about the mark that is neither on nor off", "7707325603935821862 16384 maybe"],
+    ["text after the answer", "7707325603935821862 16384 on'; DROP TABLE x; --"],
+    ["text before the answer", "x'; SELECT 1; -- 7707325603935821862 16384 on"],
+  ])(
+    "asks for no proof and migrates nothing when Postgres answers %s for its identity",
+    async (_what, answer) => {
+      const staged = await stage();
+
+      const result = await start(["--root", staged.root], {
+        ...staged.env,
+        ...staged.ports,
+        FAKE_IDENTITY: answer,
+      });
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toBe(
+        "platform-start: Postgres did not say which database it is (a cluster identifier, a database oid and whether it is the initial one were expected): nothing was migrated\n"
+      );
+      expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+    }
+  );
+
+  it("hands the proof and the migration no variable the file owns and no migration URL of the calling shell", async () => {
+    const staged = await stage();
+    const refused = [
+      ...core.REQUIRED_KEYS,
+      "POSTGRES_HOST_PORT",
+      "REDIS_HOST_PORT",
+      "MIGRATE_DATABASE_URL",
+    ];
+    const fromTheShell = Object.fromEntries(
+      [...core.REQUIRED_KEYS, "MIGRATE_DATABASE_URL"].map((key) => [key, "from-the-shell"])
+    );
+
+    const result = await start(["--root", staged.root], {
+      ...fromTheShell,
+      ...staged.env,
+      ...staged.ports,
+      KEPT_BY_THE_SHELL: "yes",
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    for (const saved of [`${staged.pnpmLog}.proof.env`, `${staged.pnpmLog}.env`]) {
+      const given = savedEnvironment(saved);
+      expect(refused.filter((key) => key in given)).toEqual([]);
+      expect(given.KEPT_BY_THE_SHELL).toBe("yes");
+    }
+  });
+
+  it("names pnpm when it is not on PATH, after the services answered", async () => {
+    const staged = await stage();
+    rmSync(path.join(staged.root, "bin", "pnpm"));
+
+    const result = await start(["--root", staged.root], { ...staged.env, ...staged.ports });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      "platform-start: pnpm is not on PATH: the migration runs through it\n"
+    );
+    expect(result.stdout).toContain("accept connections");
+  });
+
+  it("fails with the migration's exit code in the message, and does not call the database migrated", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_MIGRATE_EXIT: "3",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      "platform-start: `pnpm --filter @infra/prisma run migrate` exited 3\n"
+    );
+    expect(result.stdout).not.toContain("the database is migrated");
+  });
+
+  it("says which signal ended the migration when one stopped it", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_MIGRATE_SIGNAL: "TERM",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      "platform-start: `pnpm --filter @infra/prisma run migrate` was ended by SIGTERM\n"
+    );
+  });
+
+  it("runs no migration when the services did not start", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_UP_EXIT: "17",
+    });
+
+    expect(result.code).toBe(1);
+    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+  });
+
+  it("shows what the migration tool prints, on the stream it printed it on", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_MIGRATE_SAYS: "83 migrations found",
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.stderr).toBe("err: 83 migrations found\n");
+    expect(result.stdout).toMatch(
+      /accept connections\nout: 83 migrations found\nplatform-start: the database is migrated\n$/
+    );
   });
 
   it("refuses a wait that is not a whole number of seconds, with its usage", async () => {

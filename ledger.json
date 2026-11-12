@@ -27,7 +27,7 @@
       "total": 1186
     },
     "blocks": {
-      "total": 14734,
+      "total": 14749,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14423
+        "BEHAVIOURAL": 14438
       }
     },
     "deleted": {
@@ -74119,228 +74119,333 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 32,
+      "blockCount": 47,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::holds every variable Compose and the API require, in values the API's schema accepts",
-          "line": 257,
+          "line": 324,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0182ea366396b4c173c00fe7db288de45b9b6cb334c8f8d94df3cd8156570a4"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::draws each secret separately from the random source",
-          "line": 269,
+          "line": 336,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e669b565b166579f6786d6e9799859899ea3f6d5512c4a10d687b8926809657b"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::gives the platform encryption key exactly 32 bytes, written in base64",
-          "line": 281,
+          "line": 348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f5114258af34b5c70d48c79dc39ec09c4bddbf45072399760239298a94a2eb27"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names one user, one password and one database to Compose and in the URLs",
-          "line": 289,
+          "line": 356,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f07a8dd20761b9721b2131f60645c511bb10fc0c0d2e1176ea7dcdafc07070d"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::carries the chosen host ports to Compose and to the URLs",
-          "line": 305,
+          "line": 372,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cfb1f7948f33d3f77a1b4085c5cf0cdf7bef3b463303b90dbd937b429f7fd349"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::reads the same through Node's loader and through a shell that sources it",
-          "line": 316,
+          "line": 383,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b44206515d44f86c0f6d2eece401e708ad6ebc20d24d2487e54163e3dbabe0a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret",
-          "line": 340,
+          "line": 407,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fef3097f4d47a53c4b376f7ac81996fde90c16a307db1687aec67ad030f4938a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names",
-          "line": 354,
+          "line": 421,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ef2c3f5dfe1498a54a12d32f9909e75d1f6859e79fc09785552138bc6eeb0f21"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming each variable an existing file lacks, and leaves the file as it was",
-          "line": 369,
+          "line": 436,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a0658966a72f5fa39669c6d6c01d1b9cea7cd8e93085d5be2fe3db3fa3f4c1e"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a host port that is not a port before it writes anything",
-          "line": 386,
+          "line": 453,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4e0f9c13f0638f9c610f7ec7f3ce1ada270f0dfcd58b8bc9497e1e29a7f4df61"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses, naming each one, the host ports that disagree with those an existing file publishes",
-          "line": 396,
+          "line": 463,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb60a21f4854f2dfe4345b32ee8ffd1f94a050814709ad44004a3152c57446d3"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses to publish both services on one host port, and writes nothing",
-          "line": 413,
+          "line": 480,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "53eb59fff7f2a913aa0be6722c2a4e0a724964783ca0e01228701315a9f4a504"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails in one line when the root is missing or is a file, not a directory",
-          "line": 428,
+          "line": 495,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f4e00c65e798b675f8069607295882743539b10a25bf483f87f5bfb55c88773"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes nothing through a link that leads nowhere",
-          "line": 443,
+          "line": 510,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "43634c7373dcb44c150f3927814995a2336624753442cdc23aed20af67ba779c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services from the compose file, the file its only source, and returns once each answers",
-          "line": 458,
+          "line": 525,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "fa6ef58c01527fcfe331e57693ff75efa7ecd6664478ac64b4ba2b1162da55e3"
+          "bodyHash": "ce94d0b5ebe600d08a550e548e6f953f31343f77160af1c338a81a3b1d8740bc"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names Docker when it is not on PATH",
-          "line": 476,
+          "line": 543,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "76c448a069c1d99c7d415cfe35c8683c6adac72cddbe3dd15baf5dba8a9bbd79"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names the Compose plugin when Docker has none, and starts nothing",
-          "line": 488,
+          "line": 555,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d27c58c4c14ab66cb22113ff4e5cf2b835d0260883bca9473971ac27927d5579"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names Docker when it is on PATH but cannot be run",
-          "line": 504,
+          "line": 571,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84ed725d40c01d8406a20b7ad9e571ac03d288b7c788abb7d6bac68a3e490b7c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails with Compose's exit code in the message when the services do not start",
-          "line": 515,
+          "line": 582,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a48a52ecb5e93f31c5f7e277b9dd5fe936bb441f1192886fb232a4ae76995e8"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Redis and its port when it never answers PING",
-          "line": 529,
+          "line": 596,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a0017e8e1c7c33f8a016725db14ca1fc59e78a6a9f6e343a2fd93612154c4775"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, naming the credentials, when Postgres refuses the file's password",
-          "line": 546,
+          "line": 613,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "12df1cf67aa532b3f6ff44cb829486213d789322658f5fea09f044db5e3da713"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Postgres and its port when it answers but never runs the query",
-          "line": 563,
+          "line": 630,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2580e0d2fd784ebc1f21b91204b566cd5aacb4bb18de6246a0053480ffcd35fc"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails naming Postgres when nothing answers the protocol on its port, and runs no query",
-          "line": 579,
+          "line": 646,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "395485e324aee2615f7e1d54c305e0654082eb76791fee93b2600cc3f825c822"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops a query that outlives the wait, and fails naming Postgres",
-          "line": 595,
+          "line": 662,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bb35676970289518920fb7cce536c08ad4f67ba2fddc22720a09f4b5cbee3475"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes a Postgres that offers TLS as one that answers the protocol",
-          "line": 611,
+          "line": 678,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c0de59185cd45d1572dbfa54355db23e3eaa0d3131f019a4820879afaa61dbb"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::keeps asking a service that is not ready until it answers",
-          "line": 620,
+          "line": 687,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14379fca9e739faad96b080093d2d67194cc595142c2930739e282a7667c008a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands Compose no variable the file owns, whatever the calling shell holds",
-          "line": 633,
+          "line": 700,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7bff0ce58852043b754c7878d0ebea6e155bd80b13da6fe2a59cc8d50eabf459"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::queries Postgres as the user, with the password and for the database of the file",
-          "line": 654,
+          "line": 721,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc70e642a43137c2d0543135e15be2f77364a8cf6c59326335718a04ee672919"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails in one line when the environment file cannot be read",
-          "line": 675,
+          "line": 742,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0027bf8a009c7588cbf2b132b946331eaf34ad6d13f29c56a4c8dc4300066cd2"
         },
         {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says which signal ended Compose when one stopped it",
+          "line": 754,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "73fe2681379abfe4b677cf9e0f2cf45e7aca51ae2ae61c4eabf22096381294f6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::migrates the database with the repository's own script, in the checkout, once both services answer",
+          "line": 769,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "45ddf04863defd3282838e4bec579da32aca2eff72b5f1b4ec12fcc449f02f2d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::has the migration's connection prove, before it migrates, that it reached the database the container named",
+          "line": 784,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5b42e431f39292617564e05acab562962d6fcd993eb86ea3f257a1ad5548fcde"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::migrates nothing when the migration's connection does not prove to be that database, and shows what the proof printed",
+          "line": 799,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "658c65c510ce68cab128a2e10434b705f7acfc47fcdfefd42e03c8b897c582b9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says which signal ended the proof when one stopped it, and migrates nothing",
+          "line": 821,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a0438dd6c1960eabd8ced5871e5cae222df31dc37df37e9a9a207ea17e809a8b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says nothing of a proof that passes",
+          "line": 837,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d9504f4f27235436908a7407681288151c6d990835d6692126b1b34804cc0371"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, naming each variable, when the container was created with another value than the command read",
+          "line": 850,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "03a4afae8e7b4ed53d34ff40ee5f4ba98cb0a11e9181d9eeabd494a0e4ab381f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::asks for no proof and migrates nothing when the database is not the one its data volume was initialised for",
+          "line": 867,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "289fe9800705c75df1be0fae77573e6578e0d8588b68e83220b950b5d94579c4"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::asks for no proof and migrates nothing when Postgres answers %s for its identity",
+          "line": 884,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cea023dd906761abce29bdf073c45c99ad40e79ff97971052ed86ef210779b3b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the proof and the migration no variable the file owns and no migration URL of the calling shell",
+          "line": 910,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9ec255b07737cbbf958f3b89df2f7f5892a8c024d35b322dff55ae97263dcf43"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names pnpm when it is not on PATH, after the services answered",
+          "line": 937,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "47f72cbe9baab15894a7885c7b7f0ae1328b4547b41516eea1020a76c750a2b8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails with the migration's exit code in the message, and does not call the database migrated",
+          "line": 950,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "97bdbc713870816e96e2b6ab436d732c5bce93b63a34e263446ee51c358f14df"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says which signal ended the migration when one stopped it",
+          "line": 966,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "beefc021ff905b23615d09919939079ea1663c8e493592e976527753511668be"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::runs no migration when the services did not start",
+          "line": 981,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "397870bcbe02c6d259e8bbf19dedff831fa576122bd81594a55544d4ed014ae9"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::shows what the migration tool prints, on the stream it printed it on",
+          "line": 994,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f542d230aebcad03362de3c4968df84dad77038380517ba1839b86a7370ebef3"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a wait that is not a whole number of seconds, with its usage",
-          "line": 687,
+          "line": 1010,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a632d9d54712d8b2eaea510a3501b078e841ad506ce63ba4db8ff2f44a5d0f35"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::prints its usage and writes nothing when asked for help",
-          "line": 698,
+          "line": 1021,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ea77212994578b72e13ff319e4949638a96d103712fb87e0b0374a9609938bbb"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses an argument it does not know, with its usage",
-          "line": 709,
+          "line": 1032,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc0bb4dbef8f43cf5d5930688e3f9a65f7667ae65068fb300ed471d6ffbc2798"

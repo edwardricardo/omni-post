@@ -1,0 +1,20 @@
+[
+  {
+    "id": "t2-01-readiness-query-names-the-database",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/scripts/platformStart.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services from the compose file, the file its only source, and returns once each answers",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::hands Compose no variable the file owns, whatever the calling shell holds",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::keeps asking a service that is not ready until it answers",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::queries Postgres as the user, with the password and for the database of the file",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::takes a Postgres that offers TLS as one that answers the protocol",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret"
+    ],
+    "subject": "scripts/start/platform-start.mjs",
+    "search": "  if (proof.status !== 0) {",
+    "replace": "  if (false) {",
+    "note": "The call that shows Postgres ready no longer selects a constant: inside the container it first compares what Compose gave the container with what the command read from the file, then asks the server which database answered (its cluster identifier and the database's oid) and whether it is the one its data volume was initialised for, and the run goes on to a migration that is allowed only on that database. One block is rewritten, the first listed: it pins the query's text in the list of Docker calls. The other six are byte for byte the same at the head; they are listed because the base file fails on them too, as it does on every run that reaches the end of the sequence: the base's stand-in for Docker answers the query with nothing, where the command now needs the database's identity before it migrates. At the head the stand-in answers it and all seven pass. That result of the clean runs alone gives the verdict. The suite runs the command as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case are never applied; the mutations of the command were run against a mutated clone with the suite pointed at it, and the pull request lists them."
+  }
+]
