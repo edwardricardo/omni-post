@@ -273,6 +273,30 @@ module.exports = {
       },
     },
     {
+      name: "adapters-no-apps",
+      severity: "error",
+      comment:
+        "An infrastructure adapter must NEVER import from any app: each executable's composition root wires adapters into it, never the reverse, so an adapter stays usable by every deployable. Hard-zero: there are no violations today.",
+      from: {
+        path: "^packages/adapters/",
+      },
+      to: {
+        path: "^apps/",
+      },
+    },
+    {
+      name: "providers-no-apps",
+      severity: "error",
+      comment:
+        "A social platform provider must NEVER import from any app, for the reason adapters-no-apps gives: providers are adapters the composition roots consume. Hard-zero: there are no violations today.",
+      from: {
+        path: "^packages/providers/",
+      },
+      to: {
+        path: "^apps/",
+      },
+    },
+    {
       name: "routes-no-prisma",
       severity: "error",
       comment:

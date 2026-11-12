@@ -102,6 +102,8 @@ const POLICY: Record<string, [string, object | null, object | null]> = {
       pathNot: ["^packages/shared/", "^packages/core/"],
     },
   ],
+  "adapters-no-apps": ["error", { path: "^packages/adapters/" }, { path: "^apps/" }],
+  "providers-no-apps": ["error", { path: "^packages/providers/" }, { path: "^apps/" }],
   "routes-no-prisma": [
     "error",
     ROUTE_MODULES,
