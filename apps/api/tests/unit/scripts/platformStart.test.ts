@@ -93,6 +93,13 @@ const SECRETS = [
 const WHICH_DATABASE =
   "(SELECT system_identifier FROM pg_control_system())::text || ' ' || (SELECT oid FROM pg_database WHERE datname = current_database())::text";
 
+/**
+ * What the command has the container compare before it asks anything: each value Compose gave the
+ * container against the one the command read from the file and hands in by name.
+ */
+const SAME_READING =
+  'd=; [ "$POSTGRES_USER" = "$PGUSER" ] || d="$d POSTGRES_USER"; [ "$POSTGRES_PASSWORD" = "$PGPASSWORD" ] || d="$d POSTGRES_PASSWORD"; [ "$POSTGRES_DB" = "$PGDATABASE" ] || d="$d POSTGRES_DB"; if [ -n "$d" ]; then echo "read differently:$d" >&2; exit 3; fi';
+
 /** What the stand-in's Postgres answers to that, unless a case gives it another answer. */
 const STARTED = "7707325603935821862 16384";
 
@@ -517,7 +524,7 @@ describe("the start sequence", () => {
     expect(dockerCalls(staged)).toEqual([
       `compose version|${staged.root}`,
       `${COMPOSE} up -d postgres redis|${staged.root}`,
-      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${WHICH_DATABASE}"|${staged.root}`,
+      `${COMPOSE} exec -T -e PGUSER -e PGPASSWORD -e PGDATABASE postgres sh -c ${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${WHICH_DATABASE}"|${staged.root}`,
     ]);
     expect(Buffer.concat(staged.postgres.received).toString("hex")).toBe("0000000804d2162f");
     expect(Buffer.concat(staged.redis.received).toString()).toBe("PING\r\n");
@@ -833,10 +840,28 @@ describe("the start sequence", () => {
     expect(result.stdout).not.toContain("Script executed successfully.");
   });
 
+  it("fails at once, naming each variable, when the container was created with another value than the command read", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PSQL_STDERR: "read differently: POSTGRES_USER POSTGRES_DB",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: POSTGRES_USER, POSTGRES_DB of ${staged.file}: Docker Compose read another value than this command did, so the Postgres container was not created with what the file's URLs name (between single quotes both read a value alike)\n`
+    );
+    expect(dockerCalls(staged)).toHaveLength(3);
+    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+  });
+
   it.each<[string, string]>([
     ["nothing", ""],
     ["one number", "7707325603935821862"],
-    ["text that is not two numbers", "7707325603935821862 16384'; DROP TABLE x; --"],
+    ["text after the two numbers", "7707325603935821862 16384'; DROP TABLE x; --"],
+    ["text before the two numbers", "x'; SELECT 1; -- 7707325603935821862 16384"],
   ])(
     "asks for no proof and migrates nothing when Postgres answers %s for its identity",
     async (_what, answer) => {

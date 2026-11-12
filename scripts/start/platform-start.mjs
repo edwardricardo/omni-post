@@ -22,8 +22,13 @@
  *   returns only when both accept a connection, and a bare TCP connect does not show that, because
  *   Docker's proxy accepts on the published port before the server behind it is up. Redis must
  *   answer `PING` on its published port. Postgres must answer the protocol's SSL request there, and
- *   then run a query for the user, the password and the database the file names, whatever the
- *   container was started with. `--wait-seconds` bounds each service: a query still running when
+ *   then run a query for the user, the password and the database the file names, whatever its
+ *   data volume was initialised with. Before that query, and inside the container, the three
+ *   values the container received from Compose are compared with the three this command read
+ *   from the file: Compose and Node do not read every line of an environment file alike (a `#`
+ *   or a backtick in a value is enough), and a container created with another value than the
+ *   one checked here ends the run in one line that names the variable. `--wait-seconds` bounds
+ *   each service: a query still running when
  *   it runs out is stopped, and an attempt on a port that says nothing ends at most two seconds
  *   after it.
  *
@@ -35,18 +40,21 @@
  *   role the file names. A database that is already migrated is left as it is. Only the database
  *   this run started is migrated, and that is proven against the server, never read off a URL's
  *   text, which Compose, Node and Prisma each read their own way. The query that shows Postgres
- *   ready, run inside the container, returns which database it reached: the identifier its
- *   cluster was given when it was initialised, and the database's oid. Before anything is
+ *   ready, run inside the container for the database the file names (the one the container was
+ *   created with, as the services step has just shown), returns which database it reached: the
+ *   identifier its cluster was given when it was initialised, and the database's oid. Before
+ *   anything is
  *   applied, Prisma runs through the connection the migration will use (`prisma db execute`, same
  *   checkout, same environment) a statement that fails unless it reached that same database.
  *   Another server, another database of the same server and a database that does not exist each
  *   end the run with nothing applied, because a migration cannot be taken back; a URL spelled
- *   another way that reaches the same database is accepted, since it is that database. Three
+ *   another way that reaches the same database is accepted, since it is that database. Four
  *   limits, stated: the proof and the migration are two connections, resolved alike a moment
  *   apart; a `schema` parameter in the file's URL moves the migration to another schema of that
- *   database; and Prisma hands its schema engine the URL, password included, on a command line,
- *   as it does for every migration of this repository, so `ps` on the host shows it during both
- *   calls.
+ *   database, and the run still ends by calling the database migrated; `--wait-seconds` bounds
+ *   neither of the two calls; and Prisma hands its schema engine the URL, password included, on
+ *   a command line, as it does for every migration of this repository, so `ps` on the host shows
+ *   it during both calls.
  *
  *   THE SEQUENCE IS CUMULATIVE. A step that fails leaves what the steps before it did (the
  *   environment file, the running services, the migrations already applied), and a second run
@@ -142,14 +150,6 @@ const DATABASE_IDENTITY =
 const IDENTITY_SHAPE = /^\d+ \d+$/;
 
 /**
- * Run inside the Postgres container, against its own network address: the image trusts loopback and
- * the local socket without a password, so this is the route that checks one. `psql` reads the user,
- * the password and the database from the three variables `QUERY_AS` names, and prints which
- * database answered.
- */
-const AUTHENTICATED_IDENTITY = `PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${DATABASE_IDENTITY}"`;
-
-/**
  * The variable of the environment file behind each one `psql` reads. Each is handed to the
  * container by name alone (`-e PGPASSWORD`): its value travels in the Docker client's environment,
  * never on a command line, and it is the file's, so the query proves the credentials the file's
@@ -160,6 +160,31 @@ const QUERY_AS = /** @type {const} */ ({
   PGPASSWORD: "POSTGRES_PASSWORD",
   PGDATABASE: "POSTGRES_DB",
 });
+
+/** How the container says that Compose gave it another value than this command read. */
+const READ_DIFFERENTLY = "read differently:";
+
+/**
+ * Run inside the Postgres container before the query: each value the container was created with
+ * (`$POSTGRES_DB`, Compose's reading of the file) against the one this command read and handed in
+ * by name (`$PGDATABASE`, Node's reading). The two readers do not take every line alike, and the
+ * database the query names must be the one the container was told to create. A value is compared
+ * where both readings are, and never printed: only the variable's name is.
+ */
+const SAME_READING =
+  "d=; " +
+  Object.entries(QUERY_AS)
+    .map(([asked, key]) => `[ "$${key}" = "$${asked}" ] || d="$d ${key}"; `)
+    .join("") +
+  `if [ -n "$d" ]; then echo "${READ_DIFFERENTLY}$d" >&2; exit 3; fi`;
+
+/**
+ * Run inside the Postgres container, against its own network address: the image trusts loopback and
+ * the local socket without a password, so this is the route that checks one. `psql` reads the user,
+ * the password and the database from the three variables `QUERY_AS` names, and prints which
+ * database answered.
+ */
+const AUTHENTICATED_IDENTITY = `${SAME_READING}; PGCONNECT_TIMEOUT=3 psql -h "$(hostname -i)" -tAc "SELECT ${DATABASE_IDENTITY}"`;
 
 /**
  * What pnpm is asked for first: Prisma, in the package that holds the schema, running the statement
@@ -447,6 +472,17 @@ async function startServices(root, file, values, ports, waitSeconds) {
       const speaks = await answers(ports.Postgres, SSL_REQUEST, (reply) => /^[SN]/.test(reply));
       if (!speaks) return false;
       const select = docker(query, "pipe", { add: queryAs, timeout: msLeft() });
+      const said = (select.stderr ?? "")
+        .split("\n")
+        .find((line) => line.startsWith(READ_DIFFERENTLY));
+      if (said !== undefined) {
+        const names = Object.values(QUERY_AS).filter((key) => said.split(" ").includes(key));
+        throw new StartFailure([
+          `${names.join(", ")} of ${file}: Docker Compose read another value than this command ` +
+            `did, so the Postgres container was not created with what the file's URLs name ` +
+            `(between single quotes both read a value alike)`,
+        ]);
+      }
       if (/password authentication failed/.test(select.stderr ?? "")) {
         throw new StartFailure([
           `Postgres refused the credentials of ${file}: its data volume was initialised with ` +

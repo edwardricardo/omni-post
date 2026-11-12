@@ -34,7 +34,7 @@
         {
           "bodyHash": {
             "base": "fa6ef58c01527fcfe331e57693ff75efa7ecd6664478ac64b4ba2b1162da55e3",
-            "head": "e9f6f191c5a8de495028926860767455a139b81aa4f82a102fd52dc12d553aca"
+            "head": "72d75945e37b7d467cf7f796fa4bbad3f720c00890d2a3f759b159b4656a671e"
           },
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services from the compose file, the file its only source, and returns once each answers"
         },
