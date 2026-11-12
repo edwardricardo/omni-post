@@ -1,0 +1,15 @@
+[
+  {
+    "id": "t3a-01-the-refusal-names-the-way-out",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/scripts/platformStart.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/platformStart.test.ts::asks for no proof and migrates nothing when the database is not the one its data volume was initialised for",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, naming each variable, when the container was created with another value than the command read"
+    ],
+    "subject": "scripts/start/platform-start.mjs",
+    "search": "  if (initial !== \"on\") {",
+    "replace": "  if (false) {",
+    "note": "The refusal of a database without the mark the Postgres image leaves on the one its data volume was initialised for now ends its message with a second way out: the repository's own migration script migrates the database the file names and keeps its data, outside this command's guard. One block is rewritten, the first listed: it pins that message, and only its expected text changed. The second block is byte for byte the same at the head; it is listed because the base file fails on it too. The base's stand-in for Docker ends the container's \"read differently\" answer with exit code 2, as a failed query does, and the command now takes that verdict only with the exit code 3 the comparison gives it, so at the base the command keeps asking until the wait runs out instead of reporting the differing variables. At the head the stand-in ends that answer with exit code 3 and the block passes. That result of the clean runs alone gives the verdict. The suite runs the command as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case are never applied; the mutations of the command were run against a mutated clone with the suite pointed at it, and the pull request lists them."
+  }
+]
