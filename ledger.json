@@ -2,10 +2,10 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1186,
+      "total": 1187,
       "byShape": {
         "test": 950,
-        "integration-test": 86,
+        "integration-test": 87,
         "live-test": 17,
         "spec": 9,
         "k6": 6,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1022,
+        "KEEP": 1023,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1176,
+      "machine": 1177,
       "confirmed": 10,
-      "total": 1186
+      "total": 1187
     },
     "blocks": {
-      "total": 14749,
+      "total": 14751,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14438
+        "BEHAVIOURAL": 14440
       }
     },
     "deleted": {
@@ -5529,7 +5529,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 82
+      "importers": 83
     },
     {
       "path": "apps/api/tests/integration/inboxRoutes.live.test.ts",
@@ -5882,6 +5882,37 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "39e96890aa7b7e2ea8aa2a7d633e677cc0f6d90f727f422dbf223791b3c475e1"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts",
+      "shape": "integration-test",
+      "framework": "node",
+      "collectors": ["node:apps/api/scripts/run-tests.sh#integration"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts::holds no row but Prisma's own record of the migrations it applied",
+          "line": 155,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d91b178a6892a36719a89204f3200d9f2dacb0af4c505a7c7d602ae7816d9d0a"
+        },
+        {
+          "id": "apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts::loses the rotation log's baseline rows and keeps every row recorded after them",
+          "line": 173,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fc75822a27de9c6387be00e2a1ab0c206a69bc1881fe5249f498aeeb2b1e6afb"
         }
       ],
       "verdict": "KEEP",

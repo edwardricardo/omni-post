@@ -25,6 +25,8 @@ Every item below answers the same five questions the Maintainer asked: **what it
 
 **One correction that changes how you read the rest of this section.** The adversarial pass overturned several claims from the first sweep, and the corrections are folded in below rather than kept as footnotes. Where a first-pass item was refuted, the refutation wins. Three of those refutations would have cost real work: `SecretRotationLog` ships populated (its writer is raw SQL inside its own migration), `OutboxInbox` was deleted on purpose with the Maintainer's sign-off, and the i18n CSV keys are live in a nav-reachable component. None of those three appears here as a delete candidate.
 
+**Correction of 2026-11-12 to the `SecretRotationLog` rows below** (the table rows are left as the audit wrote them, because editing a cell realigns the whole table): the 29 rows that the creating migration inserted were removed by migration `20261112000000_remove_secret_rotation_baseline`, so a migrated database holds no row of the application. Nothing writes the table, and the administration portal's secrets page answers `UNKNOWN` for every secret until a rotation is recorded. Where a row below says the table ships populated or that the dashboard renders real statuses, read it as true of the migrations before that date. The plan holds the finding as `SECRET-ROTATION-LOG-NO-WRITER` in `docs/product/plan/areas.md`.
+
 ---
 
 ## 2. DANGEROUS — act first
