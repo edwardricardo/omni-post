@@ -34,7 +34,10 @@ const MIGRATION_RECORD = "public._prisma_migrations";
 /** Long enough for every migration on a loaded runner; a hung migration still ends the suite. */
 const MIGRATION_TIMEOUT_MS = 120_000;
 
-/** The three values that together name a row of the rotation log's removed baseline. */
+/**
+ * The three values every row of the rotation log's removed baseline carries. The migration names
+ * a baseline row by these and by its secret, one of the 29 the baseline was written for.
+ */
 const BASELINE = {
   rotatedAt: new Date("2026-04-21T00:00:00Z"),
   rotatedBy: null,
@@ -51,8 +54,8 @@ interface RotationRow {
 }
 
 /**
- * Builds one rotation log row. It is a baseline row unless an override changes one of the
- * three values that name the baseline.
+ * Builds one rotation log row. It is a baseline row, of a secret the baseline was written for,
+ * unless an override changes one of the values that name the baseline.
  */
 const makeRotation = (id: string, overrides: Partial<RotationRow> = {}): RotationRow => ({
   id,
@@ -101,10 +104,18 @@ describe("A database migrated from empty", { concurrency: 1 }, () => {
    */
   function migratedDatabase(): PrismaClient {
     assert.ok(migration, `the migration of ${database} ran`);
+    // A child that never started, or that the timeout stopped, has no status: the reason is in
+    // its error or its signal, and its output may be missing.
+    const outcome = [
+      `status ${String(migration.status)}`,
+      ...(migration.signal ? [`signal ${migration.signal}`] : []),
+      ...(migration.error ? [migration.error.message] : []),
+    ].join(", ");
+    const output = [migration.stdout, migration.stderr].filter(Boolean).join("\n");
     assert.equal(
       migration.status,
       0,
-      `the migration of ${database} ended with status ${String(migration.status)}:\n${migration.stdout}\n${migration.stderr}`
+      `the migration of ${database} ended with ${outcome}:\n${output}`
     );
     assert.ok(scratch, `a client of ${database} was built`);
     return scratch;
@@ -118,7 +129,15 @@ describe("A database migrated from empty", { concurrency: 1 }, () => {
     const scratchUrl = urlOfDatabase(ownerUrl, database);
     migration = spawnSync("pnpm", ["--filter", "@infra/prisma", "run", "migrate"], {
       cwd: REPOSITORY_ROOT,
-      env: { ...process.env, MIGRATE_DATABASE_URL: scratchUrl },
+      env: {
+        ...process.env,
+        MIGRATE_DATABASE_URL: scratchUrl,
+        // Prisma refuses an empty shadow URL, and one that names the database it migrates,
+        // although applying migrations never opens the shadow database. A caller that exports
+        // none gets the name of a database nobody creates, and so a verdict on the rule.
+        SHADOW_DATABASE_URL:
+          process.env.SHADOW_DATABASE_URL || urlOfDatabase(ownerUrl, `${database}_shadow`),
+      },
       encoding: "utf8",
       timeout: MIGRATION_TIMEOUT_MS,
     });
@@ -161,23 +180,32 @@ describe("A database migrated from empty", { concurrency: 1 }, () => {
           secretName: "PLATFORM_ENCRYPTION_KEY",
         }),
         makeRotation("later-author", { rotatedBy: "administrator-1" }),
+        makeRotation("later-empty-author", { rotatedBy: "" }),
         makeRotation("later-instant", { rotatedAt: new Date("2026-04-21T00:00:01Z") }),
         makeRotation("later-note", { notes: "Rotated after an incident" }),
+        makeRotation("later-note-case", { notes: BASELINE.notes.toLowerCase() }),
+        makeRotation("later-note-space", { notes: `${BASELINE.notes} ` }),
+        makeRotation("later-note-suffix", { notes: `${BASELINE.notes}, corrected` }),
+        makeRotation("later-other-secret", { secretName: "A_SECRET_ADDED_LATER" }),
         makeRotation("later-without-note", { notes: null }),
       ],
     });
 
     try {
       await client.$executeRawUnsafe(readFileSync(BASELINE_REMOVAL, "utf8"));
-      const kept = await client.secretRotationLog.findMany({
-        select: { id: true },
-        orderBy: { id: "asc" },
-      });
+      const kept = await client.secretRotationLog.findMany({ select: { id: true } });
 
-      assert.deepEqual(
-        kept.map((row) => row.id),
-        ["later-author", "later-instant", "later-note", "later-without-note"]
-      );
+      assert.deepEqual(kept.map((row) => row.id).sort(), [
+        "later-author",
+        "later-empty-author",
+        "later-instant",
+        "later-note",
+        "later-note-case",
+        "later-note-space",
+        "later-note-suffix",
+        "later-other-secret",
+        "later-without-note",
+      ]);
     } finally {
       await client.secretRotationLog.deleteMany({});
     }
