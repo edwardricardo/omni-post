@@ -17,6 +17,7 @@
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
+  appendFileSync,
   chmodSync,
   existsSync,
   mkdirSync,
@@ -53,6 +54,7 @@ interface EnvironmentModule {
   renderEnvironmentFile(entries: Entries): string;
   readEnvironment(text: string): Record<string, string>;
   missingKeys(values: Record<string, string | undefined>): string[];
+  apiPort(fromShell: string | undefined, fromFile: string | undefined): number | null;
 }
 
 const core = (await import(CORE)) as EnvironmentModule;
@@ -1204,5 +1206,110 @@ describe("the start sequence", () => {
     expect(result.code).toBe(2);
     expect(result.stderr).toContain("usage: node scripts/start/platform-start.mjs");
     expect(existsSync(file)).toBe(false);
+  });
+});
+
+describe("the API's port", () => {
+  it("is the calling shell's PORT, else the file's, else 3000", () => {
+    expect(core.apiPort("4000", "5000")).toBe(4000);
+    expect(core.apiPort(undefined, "5000")).toBe(5000);
+    expect(core.apiPort("", "5000")).toBe(5000);
+    expect(core.apiPort(undefined, undefined)).toBe(3000);
+  });
+
+  it("is null when the value that wins is not a port", () => {
+    expect(core.apiPort("70000", "5000")).toBeNull();
+    expect(core.apiPort(undefined, "abc")).toBeNull();
+  });
+
+  it("is reported by the run: the calling shell's PORT first, then the file's, then 3000", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+
+    const generated = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      PORT: "4321",
+    });
+    expect(generated.stdout).toContain("platform-start: the API takes port 4321\n");
+    expect(readFileSync(staged.file, "utf8")).not.toContain("PORT=4321");
+
+    const text = writeEnvironment(staged.file, [], listening);
+    appendFileSync(staged.file, "PORT=5432\n");
+    const fromFile = await start(["--root", staged.root], staged.env);
+    expect(fromFile.stdout).toContain("platform-start: the API takes port 5432\n");
+
+    const overridden = await start(["--root", staged.root], { ...staged.env, PORT: "4321" });
+    expect(overridden.stdout).toContain("platform-start: the API takes port 4321\n");
+
+    writeFileSync(staged.file, text);
+    const byDefault = await start(["--root", staged.root], staged.env);
+    expect(byDefault.stdout).toContain("platform-start: the API takes port 3000\n");
+  });
+
+  it("is refused when it is not a port, before anything is written or started", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: "70000" });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe("platform-start: PORT=70000 is not a port\n");
+    expect(existsSync(staged.file)).toBe(false);
+    expect(dockerCalls(staged)).toEqual([]);
+  });
+
+  it("is refused, with the file's own value, when the file holds one that is not a port", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+    appendFileSync(staged.file, "PORT=abc\n");
+
+    const result = await start(["--root", staged.root], staged.env);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe("platform-start: PORT=abc is not a port\n");
+    expect(dockerCalls(staged)).toEqual([]);
+  });
+});
+
+describe("the proof and the container's verdict, held further", () => {
+  it("takes the proof's limit in seconds: a proof that takes one second passes with three allowed", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root, "--wait-seconds", "3"], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PROOF_SECONDS: "1",
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(loggedCalls(staged.pnpmLog)).toHaveLength(2);
+  });
+
+  it("does not take a server message that precedes the verdict's text for the verdict, even with the comparison's exit code", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root, "--wait-seconds", "1"], {
+      ...staged.env,
+      ...staged.ports,
+      FAKE_PSQL_STDERR: "psql: error: read differently: POSTGRES_USER",
+      FAKE_PSQL_EXIT: "3",
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: Postgres on 127.0.0.1:${staged.postgres.port} did not answer a query within 1 s (\`docker compose logs postgres\`)\n`
+    );
+    expect(loggedCalls(staged.pnpmLog)).toEqual([]);
+  });
+
+  it("says in the usage what --wait-seconds bounds", async () => {
+    const { root } = makeRoot();
+
+    const result = await start(["--root", root, "--help"]);
+
+    expect(result.stdout).toContain(
+      "  --wait-seconds <n>   how long each service may take to accept a connection, and Prisma's proof\n" +
+        "                       of the database to answer (default: 60)\n"
+    );
   });
 });

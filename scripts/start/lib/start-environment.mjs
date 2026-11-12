@@ -30,6 +30,9 @@ export const LOOPBACK = "127.0.0.1";
 export const DEFAULT_POSTGRES_HOST_PORT = 5432;
 export const DEFAULT_REDIS_HOST_PORT = 6379;
 
+/** The port the API takes when neither the calling shell nor the environment file names one. */
+const DEFAULT_API_PORT = 3000;
+
 /** The API's HMAC secrets: its schema asks each for 32 characters or more. */
 const HMAC_SECRETS = [
   "JWT_ACCESS_SECRET",
@@ -158,4 +161,18 @@ export function missingKeys(values) {
 export function parsePort(raw) {
   const port = /^[1-9]\d{0,4}$/.test(raw) ? Number(raw) : 0;
   return port >= 1 && port <= 65535 ? port : null;
+}
+
+/**
+ * @function apiPort
+ * @description The port the API alone would listen on: it loads the environment file without
+ *   overriding a variable its process already holds, so the calling shell's `PORT` wins over the
+ *   file's, and with neither it takes the default. An empty value counts as unset.
+ * @param {string | undefined} fromShell - `PORT` in the calling shell.
+ * @param {string | undefined} fromFile - `PORT` in the environment file.
+ * @returns {number | null} The port, or `null` when the value that wins is not a port.
+ */
+export function apiPort(fromShell, fromFile) {
+  const raw = fromShell || fromFile;
+  return raw ? parsePort(raw) : DEFAULT_API_PORT;
 }

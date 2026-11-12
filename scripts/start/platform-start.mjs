@@ -55,11 +55,15 @@
  *   limits, stated: the proof and the migration are two connections, resolved alike a moment
  *   apart; a `schema` parameter in the file's URL moves the migration to another schema of that
  *   database, and the run still ends by calling the database migrated; `--wait-seconds` bounds
- *   the proof, which writes nothing and is stopped when it runs out, and not the migration, which
- *   is left to finish because one stopped half-way leaves a database that no later run repairs by
- *   itself; and Prisma hands its schema engine the URL, password included, on a command line, as
- *   it does for every migration of this repository, so `ps` on the host shows it during both
- *   calls.
+ *   the proof, which writes nothing and is stopped when it runs out (with SIGTERM, so a proof that
+ *   ignores that signal is not cut), and not the migration, which is left to finish because one
+ *   stopped half-way leaves a database that no later run repairs by itself; and Prisma hands its
+ *   schema engine the URL, password included, on a command line, as it does for every migration of
+ *   this repository, so `ps` on the host shows it during both calls.
+ *
+ *   API PORT. The port the API alone would take: `PORT` of the calling shell, else of the file, else
+ *   3000 (no variable is generated for it). A value that is not a port is refused with the other
+ *   problems, before anything is written or started, and the run says which port it settled on.
  *
  *   THE SEQUENCE IS CUMULATIVE. A step that fails leaves what the steps before it did (the
  *   environment file, the running services, the migrations already applied), and a second run
@@ -84,6 +88,7 @@ import {
   ENVIRONMENT_FILE,
   LOOPBACK,
   REQUIRED_KEYS,
+  apiPort,
   generateEnvironment,
   missingKeys,
   parsePort,
@@ -366,10 +371,13 @@ function prepareEnvironment(file) {
       `Postgres and Redis are both published on host port ${ports.Postgres}: give each its own`
     );
   }
-  if (problems.length > 0) throw new StartFailure(problems);
+  const api = apiPort(process.env.PORT, values?.PORT);
+  if (api === null) problems.push(`PORT=${process.env.PORT || values?.PORT} is not a port`);
+  if (problems.length > 0 || api === null) throw new StartFailure(problems);
 
   if (values !== null) {
     process.stdout.write(`${NAME}: ${file} holds every required variable\n`);
+    process.stdout.write(`${NAME}: the API takes port ${api}\n`);
     return { values, ports };
   }
   const entries = generateEnvironment({
@@ -385,6 +393,7 @@ function prepareEnvironment(file) {
   process.stdout.write(
     `${NAME}: wrote ${file} with ${entries.length} variables, its secrets random\n`
   );
+  process.stdout.write(`${NAME}: the API takes port ${api}\n`);
   return { values: Object.fromEntries(entries), ports };
 }
 
