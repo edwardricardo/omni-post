@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1186  |
+| Files                   | 1187  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1022  |
+| KEEP                    | 1023  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1176  |
+| Machine rows            | 1177  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14749 |
+| Blocks                  | 14751 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -439,6 +439,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/integration/mfaBackupCodeSingleUse.integration.test.ts`                               | integration-test | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/mfaCustomer.live.test.ts`                                                 | live-test        | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/mfaTotpSingleUse.integration.test.ts`                                     | integration-test | 4      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/integration/migratedDatabaseIsEmpty.integration.test.ts`                              | integration-test | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/outbox/OutboxRelay.integration.test.ts`                                   | integration-test | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/post-trio-tenant-isolation.integration.test.ts`                           | integration-test | 32     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/integration/postDeleteOwnership.integration.test.ts`                                  | integration-test | 4      | 0          | KEEP       | machine                     | behavioural          |
