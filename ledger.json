@@ -27,7 +27,7 @@
       "total": 1197
     },
     "blocks": {
-      "total": 14851,
+      "total": 14853,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14540
+        "BEHAVIOURAL": 14542
       }
     },
     "deleted": {
@@ -68893,7 +68893,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 18,
+      "blockCount": 20,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints the names of the script's step declarations, in order, when --list is given alone",
@@ -69019,7 +69019,21 @@
           "line": 450,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "8fdc6de950c705786fdf9faa135a52885cfb9630562dcd2f6c4aa53412a40274"
+          "bodyHash": "f1f0f98d60d412b2beb5cae03925ba9800bbd3022b320c8c8b8622fc51f15074"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC RED and exits 1 when the static-result module prints nothing and exits 0",
+          "line": 463,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c6dfda07428bd62df52ad718c97901e89fc1fe528ff2cef85b18575563e3b1fc"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC RED and exits 1 when the static-result module does not parse",
+          "line": 478,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2948fa32efb5ac6ac17012642e4411803b7b913f8aa9cb815c4b5b1635560b93"
         }
       ],
       "verdict": "KEEP",
