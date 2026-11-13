@@ -188,6 +188,23 @@ After a deploy that touches the redaction paths:
 
 Don't ship redaction changes blind. Verify after each deploy.
 
+### Redacting sensitive query parameters in traces
+
+Traces carry URLs, and a URL's query can carry a credential: an OAuth callback receives `code` and `state`, and the Graph API clients send `access_token`. The values of those parameters never leave the process in a span. The list of their names is one exported constant, `SENSITIVE_QUERY_PARAMETERS` in `packages/observability/opentelemetry/src/queryRedaction.ts`, and three places read it:
+
+| Channel                                             | What applies the list                                                                                                                       |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Every span the OpenTelemetry SDK exports            | `QueryParameterRedactionSpanProcessor`, which `createTelemetrySpanProcessors()` registers ahead of every exporter's processor               |
+| Server and client spans of the HTTP instrumentation | The instrumentation's own `redactedQueryParams` and `redactedQueryParamsServer`, set in `createTelemetryInstrumentations()`: a second layer |
+| Spans Sentry sends                                  | `scrubSpanForSentry`, the `beforeSendSpan` hook of `apps/api/src/observability/sentryInit.ts`                                               |
+
+The value becomes `REDACTED` and the name stays, so a trace still shows which parameter a request carried. A parameter is a `name=value` pair after a `?`, an `&` or a `#`; every other parameter and the rest of the URL stay as written.
+
+To add a name, append it to `SENSITIVE_QUERY_PARAMETERS` with a comment naming where this product receives or sends it in a query string, or hands it out in a link; every channel above picks it up, and `tests/queryRedaction.test.ts` checks every name of the list. Two gotchas:
+
+1. **Exact name.** The match is on the whole name, letter case included, after the percent and `+` decoding a query parser applies: `code` does not match `Code`, `postal_code` or `code_challenge`.
+2. **Only through the set-up.** A span exporter registered without `createTelemetrySpanProcessors()` gets no redaction. Without an `otlpEndpoint`, `SocialMediaTelemetry` exports nothing: it still hands the NodeSDK its span processors, because given none the SDK would build exporters from `OTEL_TRACES_EXPORTER` behind no redaction. A span event's attributes are not rewritten either: no span method changes an event once it was added. Sentry's transaction events and breadcrumbs carry the query outside the spans, where `beforeSendSpan` does not reach (plan row SENTRY-EVENT-QUERY-SECRETS in `docs/product/plan/cross-cutting.md`).
+
 ---
 
 ## Why no `LoggerPort` in domain?
