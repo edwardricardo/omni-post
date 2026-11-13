@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1189  |
+| Files                   | 1190  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1025  |
+| KEEP                    | 1026  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1179  |
+| Machine rows            | 1180  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14787 |
+| Blocks                  | 14803 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -574,7 +574,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/analytics/analyticsRoutes.flags.test.ts`                                         | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analytics/dimensionRegistry.test.ts`                                             | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analytics/metricRegistry.test.ts`                                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/analyticsRoutes.test.ts`                                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/analyticsRoutes.test.ts`                                                         | test             | 21     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analyticsUtils.test.ts`                                                          | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/apiMetrics.monitoring.test.ts`                                                   | test             | 18     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/apiMetrics.operations.test.ts`                                                   | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
@@ -885,6 +885,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/outbox/OutboxRelay.test.ts`                                                      | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/outbox/PrismaOutboxWriter.test.ts`                                               | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/performanceMonitor.test-helpers.ts`                                              | helper           | 0      | 0          | KEEP       | machine                     | imported             |
+| `apps/api/tests/unit/postRoutes.listFlags.test.ts`                                                    | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/postRoutes.test.ts`                                                              | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/providerCapabilityManager.test-helpers.ts`                                       | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/providerName.guard.test.ts`                                                      | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
@@ -925,7 +926,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/sagaManager.persistence.test.ts`                                                 | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/sagaManager.test-helpers.ts`                                                     | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/sagaRetryRecovery.test.ts`                                                       | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/schedulingRoutes.test.ts`                                                        | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/schedulingRoutes.test.ts`                                                        | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/architectureBaseline.test.ts`                                            | test             | 6      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/artifactLanguageGate.test.ts`                                            | test             | 28     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/batteryState.test.ts`                                                    | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
