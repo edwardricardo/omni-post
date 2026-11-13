@@ -11,6 +11,9 @@
  *              SDK starts, the way a CommonJS provider client loads it, which is what lets the
  *              instrumentation patch it. The entry's `enabled: true` keeps the instrumentation when
  *              `OTEL_NODE_DISABLED_INSTRUMENTATIONS` names it, as the explicit instance it replaced did.
+ *              The entry also hands the instrumentation `SENSITIVE_QUERY_PARAMETERS` as its own
+ *              redaction list for client and server spans; this suite registers none of the set-up's
+ *              span processors, so the redaction it sees is the instrumentation's alone.
  * @layer infrastructure
  */
 import { createServer, type Server } from "node:http";
@@ -20,6 +23,7 @@ import { NodeSDK, tracing } from "@opentelemetry/sdk-node";
 import { SpanKind } from "@opentelemetry/api";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTelemetryInstrumentations } from "../src/index.js";
+import { SENSITIVE_QUERY_PARAMETERS } from "../src/queryRedaction.js";
 
 const LOOPBACK = "127.0.0.1";
 const PROVIDER_PATH = "/2/tweets";
@@ -149,6 +153,23 @@ describe("client spans of outgoing requests, by path", () => {
 
     expect(clientSpans()).toHaveLength(0);
     expect(serverSpans()).toHaveLength(1);
+  });
+});
+
+describe("query redaction by the HTTP instrumentation itself", () => {
+  it("writes REDACTED for every listed name on the client and the server span, and keeps the other parameters", async () => {
+    const sent = SENSITIVE_QUERY_PARAMETERS.map((name, index) => `${name}=FAKE_VALUE_${index}`);
+    const redacted = SENSITIVE_QUERY_PARAMETERS.map((name) => `${name}=REDACTED`);
+    await send(OTHER_HOST, `/oauth/callback?${[...sent, "page=2"].join("&")}`);
+
+    const expectedQuery = [...redacted, "page=2"].join("&");
+    const [client] = clientSpans();
+    const [server] = serverSpans();
+    expect(client?.attributes["url.full"]).toBe(
+      `http://${OTHER_HOST}:${port}/oauth/callback?${expectedQuery}`
+    );
+    expect(server?.attributes["url.query"]).toBe(expectedQuery);
+    expect(server?.attributes["url.path"]).toBe("/oauth/callback");
   });
 });
 

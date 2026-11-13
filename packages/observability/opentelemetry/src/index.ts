@@ -5,7 +5,7 @@
  *              and the file system.
  * @layer infrastructure
  */
-import { NodeSDK, type NodeSDKConfiguration } from "@opentelemetry/sdk-node";
+import { NodeSDK, tracing, type NodeSDKConfiguration } from "@opentelemetry/sdk-node";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { PrometheusExporter } from "@opentelemetry/exporter-prometheus";
@@ -14,11 +14,16 @@ import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { FastifyOtelInstrumentation } from "@fastify/otel";
 import pino from "pino";
 import { tagProviderSpan } from "./providerSpanAttributes.js";
+import {
+  QueryParameterRedactionSpanProcessor,
+  SENSITIVE_QUERY_PARAMETERS,
+} from "./queryRedaction.js";
 
 export interface TelemetryConfig {
   serviceName: string;
   serviceVersion: string;
   environment: string;
+  /** The OTLP/HTTP base URL traces are sent to. Without it the set-up exports no span. */
   otlpEndpoint?: string;
   enableConsoleExporter?: boolean;
   enableFileExporter?: boolean;
@@ -71,11 +76,14 @@ export class SocialMediaTelemetry {
     // Configure instrumentations
     const instrumentations = createTelemetryInstrumentations();
 
-    // Initialize SDK (use conditional spreading for exactOptionalPropertyTypes compliance)
+    // Initialize SDK (use conditional spreading for exactOptionalPropertyTypes compliance).
+    // The span processors are passed even when no trace exporter is configured: given none, the
+    // NodeSDK builds its own exporters from `OTEL_TRACES_EXPORTER` when it starts, and those would
+    // sit behind no query redaction. Without an `otlpEndpoint` the set-up therefore exports no span.
     this.sdk = new NodeSDK({
       resource,
       instrumentations,
-      ...(exporters.trace && { traceExporter: exporters.trace }),
+      spanProcessors: createTelemetrySpanProcessors(exporters.trace ? [exporters.trace] : []),
       ...(exporters.metrics && { metricReader: exporters.metrics }),
     });
 
@@ -155,7 +163,8 @@ export class SocialMediaTelemetry {
 /**
  * @description Builds the instrumentations the NodeSDK of `SocialMediaTelemetry` enables: the
  *              auto-instrumentations map, with its file-system instrumentation switched on and its
- *              HTTP instrumentation carrying two hooks, and `@fastify/otel`. The hooks are set in
+ *              HTTP instrumentation carrying two hooks and `SENSITIVE_QUERY_PARAMETERS` as its query
+ *              redaction list, and `@fastify/otel`. The hooks are set in
  *              the map's `@opentelemetry/instrumentation-http` entry, never on a second
  *              `HttpInstrumentation`: `InstrumentationBase._wrap` unwraps a target that is already
  *              wrapped, so a second instance of one instrumentation replaces the first one's
@@ -194,11 +203,36 @@ export function createTelemetryInstrumentations(): NodeSDKConfiguration["instrum
         // the host is read from the request itself, because the `path` of an outgoing request never
         // holds it. Incoming requests are never tagged: the client chooses their `Host` header.
         requestHook: tagProviderSpan,
+        // The instrumentation's own query redaction, on client and server spans, takes the same
+        // list as the span processor of `createTelemetrySpanProcessors()`: a second layer for an
+        // SDK built from these instrumentations alone, never the only one.
+        redactedQueryParams: [...SENSITIVE_QUERY_PARAMETERS],
+        redactedQueryParamsServer: [...SENSITIVE_QUERY_PARAMETERS],
       },
     }),
 
     // Fastify route spans: one `request` span per request and one child span per handler and hook
     new FastifyOtelInstrumentation({ registerOnInitialization: true }),
+  ];
+}
+
+/**
+ * @description Builds the span processors the NodeSDK of `SocialMediaTelemetry` registers: the
+ *              query redaction first, then one batch processor per exporter, which is what the
+ *              NodeSDK builds for a `traceExporter`. The redaction runs in `onEnding`, which the SDK
+ *              calls on every processor before any `onEnd`, so every exporter given here receives
+ *              each span with its sensitive query values already replaced, whichever instrumentation
+ *              made it. With no exporter, the redaction is the only processor: spans are recorded
+ *              and none is exported, and the NodeSDK, given processors, builds no exporter of its own.
+ * @param exporters - Every span exporter the telemetry set-up registers
+ * @returns The span processors, in the shape `NodeSDKConfiguration.spanProcessors` takes
+ */
+export function createTelemetrySpanProcessors(
+  exporters: readonly tracing.SpanExporter[]
+): tracing.SpanProcessor[] {
+  return [
+    new QueryParameterRedactionSpanProcessor(),
+    ...exporters.map((exporter) => new tracing.BatchSpanProcessor(exporter)),
   ];
 }
 
