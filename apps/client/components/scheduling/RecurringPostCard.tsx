@@ -8,8 +8,8 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import cronstrue from "cronstrue";
 import type { RecurringPost } from "@/hooks/api/useRecurringPosts";
+import { describeCron } from "@/lib/utils/cronDescription";
 
 interface RecurringPostCardProps {
   post: RecurringPost;
@@ -22,14 +22,6 @@ const CONTENT_VARIATION_KEYS = {
   ROTATED: "contentVariation.ROTATED",
   AI_GENERATED: "contentVariation.AI_GENERATED",
 } as const satisfies Record<RecurringPost["contentVariation"], string>;
-
-function humanCron(expression: string): string {
-  try {
-    return cronstrue.toString(expression, { use24HourTimeFormat: true });
-  } catch {
-    return expression;
-  }
-}
 
 function formatNextOccurrence(locale: string, isoDate?: string): string {
   if (!isoDate) return "—";
@@ -78,7 +70,9 @@ export function RecurringPostCard({ post, onDeactivate, isDeactivating }: Recurr
         </div>
 
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-          <span title={post.cronExpression}>{humanCron(post.cronExpression)}</span>
+          <span title={post.cronExpression}>
+            {describeCron(post.cronExpression, locale, { use24HourTimeFormat: true })}
+          </span>
           <span>·</span>
           <span>{t("channelCount", { count: post.channels.length })}</span>
           <span>·</span>
