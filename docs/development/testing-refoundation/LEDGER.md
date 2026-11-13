@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1180  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14803 |
+| Blocks                  | 14810 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -975,7 +975,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/security/httpRateLimitRuleCoverage.test.ts`                                      | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/inputValidation.mutations.test.ts`                                      | test             | 161    | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/ipAllowlistMiddleware.test.ts`                                          | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/security/nameDigest.test.ts`                                                     | test             | 22     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/security/nameDigest.test.ts`                                                     | test             | 29     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestCanonicalize.test.ts`                                         | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/nameDigestUnicodeTable.test.ts`                                         | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/security/resolveClientIp.parity.test.ts`                                         | test             | 10     | 0          | KEEP       | machine                     | behavioural          |

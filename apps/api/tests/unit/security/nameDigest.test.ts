@@ -15,6 +15,7 @@
  * @layer infrastructure
  */
 
+import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { describe, it, expect } from "vitest";
 import { canonicalizeName } from "../../../src/security/nameDigest/canonicalizeName.js";
@@ -24,7 +25,10 @@ import {
   verifyNameDigest,
   type NameDigestKeyRing,
 } from "../../../src/security/nameDigest/nameDigest.js";
-import { RING_PARAMETERS } from "../../../src/security/nameDigest/ringParameters.js";
+import {
+  RING_PARAMETERS,
+  ringParametersFor,
+} from "../../../src/security/nameDigest/ringParameters.js";
 
 /** A fixed, non-secret 32-byte test key. Never used outside this suite. */
 const TEST_KEY_HEX = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
@@ -215,5 +219,136 @@ describe("verifyNameDigest", () => {
     expect(
       verifyNameDigest(RING, "Ana D\u00EDaz", { ...row, nameDigest: row.nameDigest.slice(0, 32) })
     ).toBe(false);
+  });
+});
+
+describe("ring parameter inheritance", () => {
+  /** Generations the suite probes; a listed one is skipped, so adding an entry never hides the rest. */
+  const unlistedGenerations = [2, 3, 17, 1000].filter(
+    (generation) => !(generation in RING_PARAMETERS)
+  );
+
+  it("resolves a generation with no explicit entry to generation 1's parameters", () => {
+    expect(unlistedGenerations.length).toBeGreaterThan(0);
+    for (const generation of unlistedGenerations) {
+      expect(ringParametersFor(generation)).toEqual({
+        algorithm: "HMAC-SHA-256",
+        canonicalisationVersion: 1,
+        domainTag: "omnipost/deletion-record/name-digest/v1",
+      });
+    }
+  });
+
+  it("returns the explicit entry for a generation that has one", () => {
+    expect(ringParametersFor(1)).toBe(RING_PARAMETERS[1]);
+  });
+
+  it("MACs a key-only rotation under generation 1's domain tag, with the rotated key", () => {
+    const tag = Buffer.from("omnipost/deletion-record/name-digest/v1", "utf8");
+    const canonical = Buffer.from("anna", "utf8");
+    const expected = createHmac("sha256", Buffer.from(SECOND_KEY_HEX, "hex"))
+      .update(Buffer.concat([encodeString(tag), encodeString(canonical)]))
+      .digest("hex");
+
+    expect(digestOf("Anna", 2)).toBe(expected);
+  });
+
+  it("holds generation 1 as the only explicit entry until vectors exist for a new one", () => {
+    // An entry added here starts a generation whose pipeline may differ from
+    // version 1, so it needs its own golden vectors below. Add them, then widen
+    // this list; the inheritance cases above keep covering the unlisted ones.
+    assert.deepStrictEqual(
+      Object.keys(RING_PARAMETERS),
+      ["1"],
+      "RING_PARAMETERS gained a generation: add golden canonicalisation vectors for it"
+    );
+  });
+});
+
+/** One fixed input and the committed result of each frozen stage that decides it. */
+interface GoldenVector {
+  readonly label: string;
+  readonly input: string;
+  /** Hex of the canonical UTF-8 bytes the pipeline must produce. */
+  readonly canonicalHex: string;
+  /** HMAC-SHA-256 under generation 1 of the test ring, over the framed bytes. */
+  readonly digest: string;
+}
+
+const CHANGE_INSTRUCTION =
+  "canonicalisation changed for generation 1: add a RING_PARAMETERS entry for the generation " +
+  "the change starts at, keep these vectors for generation 1, and add new vectors for that entry";
+
+/**
+ * Literals committed from a run of the pipeline, never recomputed here. Each
+ * vector is decided by a different stage, so altering any stage of the frozen
+ * pipeline turns at least one of them red.
+ */
+const GOLDEN_VECTORS_V1: readonly GoldenVector[] = [
+  {
+    label: "a full case fold that is longer than one code point (ss)",
+    input: "Stra\u00DFE",
+    canonicalHex: "73747261737365",
+    digest: "59c12520b4a791b80f98cccf0d8c8949991daf193bd565d4d5240a324ffdfd99",
+  },
+  {
+    label: "a fold that differs from lower-casing (final sigma)",
+    input: "\u03A3\u03A3\u03C2",
+    canonicalHex: "cf83cf83cf83",
+    digest: "9360163c2ba3a7127f0f8d0a0185e7e619c65f91e56e3b05521bf0f29e6fc809",
+  },
+  {
+    label: "a fold that yields a base letter plus a combining mark",
+    input: "\u0130",
+    canonicalHex: "69cc87",
+    digest: "a30531709c21956043878d9560b59610f2d0d55ba423e4c8775d0bddce309988",
+  },
+  {
+    label: "a name that is recomposed to NFC after folding",
+    input: "\u00C9COLE",
+    canonicalHex: "c3a9636f6c65",
+    digest: "956833648d2e557b1e3260f7951414e8201b1fc0f726a0258bd1d428ec28906b",
+  },
+  {
+    label: "combining marks that only meet their fold once decomposed and reordered",
+    input: "a\u0345\u0323",
+    canonicalHex: "e1baa1ceb9",
+    digest: "ea43bf843a692a00c92866a8a09c123176217298585dc7e9f1040c5c515781aa",
+  },
+  {
+    label: "mixed White_Space runs collapsed to one space and trimmed",
+    input: "\u00A0\u2003Ana\u3000\u3000 D\u00EDaz\t\n ",
+    canonicalHex: "616e612064c3ad617a",
+    digest: "826a514493e98ae669191231a85d5255a46a2f0661632f802c2062fce76a67c3",
+  },
+  {
+    label: "a supplementary-plane letter folded and written as four UTF-8 bytes",
+    input: "\u{10400}",
+    canonicalHex: "f09090a8",
+    digest: "711b978bc50ac86baa1e07955429716f76bb91693d173f6d395096d8a9e52d22",
+  },
+];
+
+describe("canonicalisation version 1 golden vectors", () => {
+  it.each(GOLDEN_VECTORS_V1)("canonicalises $label to its committed bytes", (vector) => {
+    const canonical = canonicalizeName(vector.input);
+    expect(canonical.ok).toBe(true);
+    if (!canonical.ok) throw new Error(`expected bytes, got refusal "${canonical.reason}"`);
+
+    assert.strictEqual(canonical.bytes.toString("hex"), vector.canonicalHex, CHANGE_INSTRUCTION);
+  });
+
+  it.each(GOLDEN_VECTORS_V1)("digests $label to its committed value", (vector) => {
+    assert.strictEqual(digestOf(vector.input), vector.digest, CHANGE_INSTRUCTION);
+  });
+
+  it("refuses a basic-plane and a supplementary-plane unassigned codepoint", () => {
+    for (const input of ["Ana\u05FFDiaz", "Ana\u{2FFFE}"]) {
+      const canonical = canonicalizeName(input);
+      assert.strictEqual(canonical.ok, false, CHANGE_INSTRUCTION);
+      if (canonical.ok) throw new Error("unreachable — asserted not ok above");
+      expect(canonical.reason).toBe("unassigned_codepoint");
+      expect(canonical).not.toHaveProperty("bytes");
+    }
   });
 });
