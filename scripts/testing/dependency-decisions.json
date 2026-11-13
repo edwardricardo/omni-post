@@ -7,14 +7,6 @@
       "status": "pending",
       "note": "One real site since 2026-11-07, apps/api/tests/production.live.test.ts:13: the two seed scripts that held the other two were deleted under D17. Not removed here: row 4.3 of the testing refoundation tracker (https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md, removed from the tree on 2026-11-10) rewrites that suite and decides."
     },
-    "zod-to-json-schema": {
-      "status": "kept",
-      "grounds": "peer",
-      "utility": "Peer requirement (^3.x) of @langchain/langgraph, the repurpose agent's graph engine; no import of our own.",
-      "replacement": "None while langgraph stays; it leaves with langgraph if that engine is replaced.",
-      "decidedOn": "2026-10-25",
-      "note": "The only mention in our code is a comment saying fastify-type-provider-zod replaced it."
-    },
     "@langchain/core": {
       "status": "kept",
       "grounds": "peer",
@@ -357,7 +349,7 @@
       "utility": "StateGraph/Annotation/interrupt build the repurpose graph; MemorySaver/Command run it; resolved by the GENERATE_REPURPOSE consumer (index.ts:1142).",
       "replacement": "None: the Product Owner kept the repurpose agent on 2026-10-25; a hand-written state machine would re-implement the graph, its interrupts and its checkpoints.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies). Kept by the Product Owner's decision of 2026-10-25: the repurpose agent stays, so @langchain/core and zod-to-json-schema stay as its peers."
+      "note": "Declared in apps/api (dependencies). Kept by the Product Owner's decision of 2026-10-25: the repurpose agent stays, so @langchain/core stays as its peer."
     },
     "@marsidev/react-turnstile": {
       "status": "kept",
@@ -606,14 +598,6 @@
       "replacement": "None weighed: the template library's fuzzy search; a substring filter would lose the ranking.",
       "decidedOn": "2026-10-25",
       "note": "Declared in apps/client (dependencies)."
-    },
-    "geist": {
-      "status": "kept",
-      "grounds": "in-use",
-      "utility": "GeistSans/GeistMono font variables on the admin root layout.",
-      "replacement": "None weighed: the admin's font package; a @font-face copy would duplicate it.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/admin (dependencies)."
     },
     "handlebars": {
       "status": "kept",
