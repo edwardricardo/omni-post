@@ -7,10 +7,11 @@
  *
  *   The claim is that the omission is INEXPRESSIBLE: the compiler refuses the
  *   call before any code runs. `registerInstance` also refuses `undefined` at
- *   run time, but a cast (`as never`) defeats the compiler, which is how 22
- *   harnesses once composed a container without a collector. Both layers are
- *   pinned: the runtime refusal by `Container.test.ts` and `testContainer.test.ts`,
- *   the static one here.
+ *   run time, the layer that stops a call the compiler does not see, whether a
+ *   cast hides it or no typecheck opens the file: 22 harnesses once composed a
+ *   container without a collector from test files no project typecheck opened.
+ *   Both layers are pinned: the runtime refusal by `Container.test.ts` and
+ *   `testContainer.test.ts`, the static one here.
  *
  *   The assertion mechanism is `@ts-expect-error`, and it is self-red in both
  *   directions:

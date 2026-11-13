@@ -59,7 +59,8 @@ export class Container {
    * @param token - Service identifier token
    * @param instance - Existing service instance; never `undefined`
    * @returns The container, for chaining
-   * @throws Error if `instance` is `undefined`; nothing is registered for the token
+   * @throws Error if `instance` is `undefined`; the call registers nothing, and a
+   *   registration the token already holds stays as it was
    */
   registerInstance<T>(token: Token, instance: T & ({} | null)): this {
     if (instance === undefined) {
