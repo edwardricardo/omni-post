@@ -1693,11 +1693,13 @@ echo "$COUNT"   # expect 0
 # compiler — `tsconfig.json` includes `src` only, `tsconfig.type-tests.json` includes only
 # `*.type-test.ts` — so that requirement had an enforcement surface of ONE call site while
 # 22 harnesses omitted it and registered `TOKENS.ApiMetrics` as `undefined`. There was no
-# runtime signal either: `Container.ts:86` takes the cached-instance fast path only when
-# `instance !== undefined`, so a registration OF undefined falls through to the stored
-# `() => instance` factory and hands the undefined straight back — the "Service not
-# registered" throw at `:79` never fires. `RedisBruteForceAdapter` then dereferences it
-# unguarded (`:125,:141,:175,:201,:392,:421`) on the customer login path.
+# runtime signal either: `registerInstance` stored the `undefined` and `resolve` handed
+# it straight back instead of throwing "Service not registered", and
+# `RedisBruteForceAdapter` then dereferenced it unguarded
+# (`:125,:141,:175,:201,:392,:421`) on the customer login path.
+# The container has since closed that itself: `registerInstance` throws at registration
+# ("Cannot register undefined as an instance: <token>"), so a container built without
+# the collector no longer builds. The seam stays the one place a harness composes through.
 # ALLOWLIST, not denylist, for the #28 reason: the wrong shapes are open-ended (omit it,
 # pass an empty object cast to the type, hand-roll a seventh double) while the admissible
 # set is three named files that together OWN the seam — the seam, its suite, and its
@@ -1733,8 +1735,9 @@ TST_BAD=$(invocations | grep "^apps/api/tests/" | grep -vE "^($SEAM|$SEAMTEST|$P
 echo "${SRC_BAD:-0}"   # expect 0 — the production root still passes the bootstrap instance
 echo "${TST_BAD:-0}"   # expect 0 — every harness goes through the seam
 # FLOOR measured at 6 when the gate landed: `apps/api/src/index.ts:283` (1), the seam's own
-# internal call (1), the seam suite's characterization of the fail-open (1), and the pin's
-# three directions (3) — omission, explicit-undefined, and the positive control. The floor
+# internal call (1), the seam suite's case that a container without the collector is refused
+# (1), and the pin's three directions (3) — omission, explicit-undefined, and the positive
+# control. The floor
 # may RISE with a deliberate new allowlisted call and must never be lowered to absorb a
 # violation.
 # RESIDUAL LIMITS, stated rather than implied. (1) Textual, not a parser: a call reached
@@ -1742,13 +1745,14 @@ echo "${TST_BAD:-0}"   # expect 0 — every harness goes through the seam
 # rename red, not one deliberately obfuscated call. (2) The SRC arm proves the word
 # `apiMetrics` appears on the invocation line, NOT that the value is the scraped collector
 # — keeping the option required is the PIN's job, and only the pin can see a `?` appear on
-# the signature, which a grep never can. (3) A suite that deliberately wants a
-# metrics-free container to pin the `Container.ts:86` fail-open must call `setupContainer`
-# directly; that is exactly why $SEAMTEST is allowlisted rather than rewritten to hide its
-# own call from this gate. The allowlist may only SHRINK — a fourth name is a fourth file
-# that can drift, so add one only with a stated reason. (4) This gate does not close the
-# `Container.ts:86` fail-open itself for any OTHER token (SMELL-158); it closes the one
-# caller that was tripping it.
+# the signature, which a grep never can. (3) The seam suite calls `setupContainer`
+# directly, with no collector, to pin that the container refuses to build; that is exactly
+# why $SEAMTEST is allowlisted rather than rewritten to hide its own call from this gate.
+# The allowlist may only SHRINK — a fourth name is a fourth file that can drift, so add one
+# only with a stated reason. (4) The fail-open this gate was written around is closed in
+# the container itself, for every token: `registerInstance` refuses `undefined` at
+# registration (SMELL-158). A harness that omits the collector now fails when it builds its
+# container, so what this gate still adds is that every harness composes through the seam.
 
 # 44. The fitness inventory is contiguous, and its count is derived.
 # Threat: the one invariant in this suite that nothing measured was the suite ITSELF. A step

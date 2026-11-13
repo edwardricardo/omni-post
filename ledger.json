@@ -27,7 +27,7 @@
       "total": 1193
     },
     "blocks": {
-      "total": 14821,
+      "total": 14825,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14510
+        "BEHAVIOURAL": 14514
       }
     },
     "deleted": {
@@ -39104,7 +39104,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 26,
+      "blockCount": 30,
       "blocks": [
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should register and resolve a service",
@@ -39149,144 +39149,172 @@
           "bodyHash": "9875bb464282e540ab3e2461e24bbb37507452ea3593e079e069a98eda781b0f"
         },
         {
+          "id": "apps/api/tests/unit/domain/Container.test.ts::should refuse a by-value undefined at registration and register nothing",
+          "line": 98,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "76f1b95d9f416554f4e99265a816da9c8100981f4145f2769bc796da796faf3a"
+        },
+        {
+          "id": "apps/api/tests/unit/domain/Container.test.ts::should keep resolving a real object and null to the registered value",
+          "line": 111,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "42266bfa111124fa7e5e0bc6c05337f72bf6c70f96c9aa2915cd0bdbb7cb1d3c"
+        },
+        {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should return service if registered",
-          "line": 100,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc260674a45f591691122f6017bd28701bc5c11ed6c388238a85e204887c5762"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should return undefined if not registered",
-          "line": 108,
+          "line": 132,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0031b65f10b336349483f8a62a78ce31f94a75b01aa9d4f81e784fe98bfef160"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should return true for registered service",
-          "line": 115,
+          "line": 139,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f67f6d815b7c2cb5c30f2f1373a61f299d8b08acf3cee706862153a10f0495e1"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should return false for unregistered service",
-          "line": 121,
+          "line": 145,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f1dd88ebc2dfd9598e31cddbe41d7f3c88a111c2e9f8f8aa38dff7fe14f83b46"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should create child that inherits from parent",
-          "line": 127,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fc0113ba247ecd48142d86a0751f81b007aae84ae25c4191addfcbd2a6a185a5"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should allow child to override parent",
-          "line": 137,
+          "line": 161,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c93283a5189e2a6225600f8220b7a89179f7352ffe32de3c6a3bea65d3d4c79a"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should check parent for has()",
-          "line": 150,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c25eddf8e52dbc9f65e691a9734addc0faced39e96e86ff806fe889f1e92081"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should remove all registrations",
-          "line": 160,
+          "line": 184,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "624c2f4ad7bb0e0d977cad4471ab12167e6e6ba93dd6e3f9c3368ae88ca0efbb"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should return all registered tokens",
-          "line": 172,
+          "line": 196,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d2bb1d63e06e920b59bbe75e122837fbfef03e1a443be0b482b8e8a2606164ce"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should include parent tokens",
-          "line": 183,
+          "line": 207,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9c7828885950e78a7607ad733ce9934c7c2ecad725a187be49e3589b08983eaa"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::returns undefined for a singleton that has never been resolved (no construction)",
-          "line": 197,
+          "line": 221,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bba4b4bce2bbae8354db0ee2e3ae3cc5a54572d8abe985e8ffeb32fe62359763"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::returns the cached instance after the singleton has been resolved",
-          "line": 212,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c4986444b7ffa43ccce63661cd50dcd6853468812838a96754593c3020c44435"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::returns the registered instance for registerInstance even before resolve",
-          "line": 223,
+          "line": 247,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "453e49037baaf45d046b6329e315c51a7d749451f3114212cac07ff5018120d5"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::returns undefined for a transient registration (never cached)",
-          "line": 230,
+          "line": 254,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d2fed5522b519f0ee89e825fe613836fa339977430063c5caa6ee89558ae3376"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::returns undefined for an unregistered token",
-          "line": 238,
+          "line": 262,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "764817b4397ab6c39aa341909827435662874bca0e49ed578fb39e36a3baad7c"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should clear singleton instances",
-          "line": 244,
+          "line": 268,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cd2c406aef3d8b108b4824492d36afb182534ba2db5999ba8b225f5e33c53b47"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should return same container instance",
-          "line": 268,
+          "line": 292,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d910c24f69cedcc4863446344097fbe3aa796a1e6facff7bb05d844f302a229d"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should create new container after reset",
-          "line": 277,
+          "line": 301,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "70acd61ae0a6d6e91d7517ab098274b0e14927bb665cd1e61d10506f3560a178"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should create container with EventDispatcher by default",
-          "line": 290,
+          "line": 314,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f6d64b8f41057b469d116c05947fb698ea311a1d8e0b05bd115b1c25daed4372"
         },
         {
           "id": "apps/api/tests/unit/domain/Container.test.ts::should apply symbol overrides",
-          "line": 296,
+          "line": 320,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "be3e3b2f43a425ba9cc67bd7329d5a63ecabcf90ffc7985c221d11edfa7098e4"
+        },
+        {
+          "id": "apps/api/tests/unit/domain/Container.test.ts::should register a string-keyed override under its global symbol",
+          "line": 331,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "637d76c088ab4341340b82a10493ea02ab0ca71ffd661b0a505fef3a4c47dea0"
+        },
+        {
+          "id": "apps/api/tests/unit/domain/Container.test.ts::should skip a string-keyed override whose value is undefined",
+          "line": 341,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "241ae0f1b1f1f47152373af73b079d191bfee8f1a11d6e5e84132b3e55a307ab"
         }
       ],
       "verdict": "KEEP",
@@ -49155,29 +49183,29 @@
       "blockCount": 4,
       "blocks": [
         {
-          "id": "apps/api/tests/unit/helpers/testContainer.test.ts::characterizes the fail-open: a container built without apiMetrics resolves undefined",
-          "line": 39,
+          "id": "apps/api/tests/unit/helpers/testContainer.test.ts::refuses to build a container without apiMetrics, naming the token",
+          "line": 41,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "b53088469bcb4403434dee0476ba0badf0cb9d4042a67b31ac6ededfb0dfadec"
+          "bodyHash": "318e5813034de086e534734c53306d79f5114aa05dbc9353c9e1073c8d8f2683"
         },
         {
           "id": "apps/api/tests/unit/helpers/testContainer.test.ts::registers a live collector whose brute-force dereference chain executes",
-          "line": 51,
+          "line": 48,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "74fd529bce469556c3f624b4290d35eae0d1b71524c6f7bc408f112803bf64c3"
         },
         {
           "id": "apps/api/tests/unit/helpers/testContainer.test.ts::keeps its collectors off the process-wide registry production scrapes",
-          "line": 62,
+          "line": 59,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1aa98e1183a3e942bf842c7ddb47eb487820a9ad4f3ee40d437ca6e4b15bf109"
         },
         {
           "id": "apps/api/tests/unit/helpers/testContainer.test.ts::returns the caller's own collector when one is supplied",
-          "line": 70,
+          "line": 67,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "da7773c043c6bdf59f31dda4367f5c0d0fb75009727c4e0ba890946a0486095a"

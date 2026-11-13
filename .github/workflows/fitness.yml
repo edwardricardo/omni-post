@@ -1512,11 +1512,12 @@ jobs:
           # compiler — `tsconfig.json` includes `src` only, `tsconfig.type-tests.json` includes only
           # `*.type-test.ts` — so that requirement had an enforcement surface of ONE call site while
           # 22 harnesses omitted it and registered `TOKENS.ApiMetrics` as `undefined`. There was no
-          # runtime signal either: `Container.ts:86` takes the cached-instance fast path only when
-          # `instance !== undefined`, so a registration OF undefined falls through to the stored
-          # `() => instance` factory and hands the undefined straight back — the "Service not
-          # registered" throw at `:79` never fires. `RedisBruteForceAdapter` then dereferences it
-          # unguarded on the customer login path.
+          # runtime signal either: `registerInstance` stored the `undefined` and `resolve` handed
+          # it straight back instead of throwing "Service not registered", and
+          # `RedisBruteForceAdapter` then dereferenced it unguarded on the customer login path.
+          # The container has since closed that itself: `registerInstance` throws at registration
+          # ("Cannot register undefined as an instance: <token>"), so a container built without
+          # the collector no longer builds. The seam stays the one place a harness composes through.
           # ALLOWLIST, not denylist: the wrong shapes are open-ended while the admissible set is
           # three named files that together OWN the seam — the seam, its suite, and its
           # compile-time pin. FAIL-CLOSED on scope twice: the three files must exist, and the total
@@ -1549,7 +1550,7 @@ jobs:
           TST_BAD=${TST_BAD:-0}
           echo "Fitness #43: $FLOOR invocations, SRC_BAD=$SRC_BAD, TST_BAD=$TST_BAD (expect 0 and 0)"
           if [ "$SRC_BAD" -gt 0 ]; then
-            echo "::error title=Fitness #43 violation (production)::$SRC_BAD production setupContainer call(s) do not name apiMetrics on the invocation line. The composition root must pass the collector the bootstrap built; a container without it registers TOKENS.ApiMetrics as undefined and resolution hands that undefined back without throwing."
+            echo "::error title=Fitness #43 violation (production)::$SRC_BAD production setupContainer call(s) do not name apiMetrics on the invocation line. The composition root must pass the collector the bootstrap built; a container without it does not build: registerInstance refuses undefined and throws at registration."
             invocations | grep "^apps/api/src/" | grep -v "apiMetrics"
             exit 1
           fi

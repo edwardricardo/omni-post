@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1183  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14821 |
+| Blocks                  | 14825 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -712,7 +712,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/customerPasswordResetClaim.test.ts`                                              | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/customerPasswordResetRequest.test.ts`                                            | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/dashboardRoutes.test.ts`                                                         | test             | 34     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/domain/Container.test.ts`                                                        | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/domain/Container.test.ts`                                                        | test             | 30     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/aggregates.post.test.ts`                                                  | test             | 74     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/aggregates.social-message.test.ts`                                        | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/domain/approvalWorkflow.test.ts`                                                 | test             | 43     | 0          | ADJUDICATE | machine                     | opaque               |

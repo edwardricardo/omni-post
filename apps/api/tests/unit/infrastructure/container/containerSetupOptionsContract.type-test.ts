@@ -3,15 +3,15 @@
  * @description Compile-time pin for the container wiring contract: composing the
  *   container WITHOUT a metrics collector must not type-check.
  *
- *   ## Why this is a type test and not a runtime test
+ *   ## Why this is a type test and not only a runtime test
  *
- *   The claim is that the omission is INEXPRESSIBLE, not that it fails at
- *   runtime — and at runtime it conspicuously does not fail. `registerInstance`
- *   stores `undefined` as the singleton instance; resolution sees a registration,
- *   skips the cached-instance fast path because the instance IS `undefined`, runs
- *   the stored `() => instance` factory, and hands `undefined` back. The
- *   "Service not registered" throw never fires. So the only mechanism that can
- *   refuse the call nobody should be able to write is the compiler.
+ *   The claim is that the omission is INEXPRESSIBLE: the compiler refuses the
+ *   call before any code runs. `registerInstance` also refuses `undefined` at
+ *   run time, the layer that stops a call the compiler does not see, whether a
+ *   cast hides it or no typecheck opens the file: 22 harnesses once composed a
+ *   container without a collector from test files no project typecheck opened.
+ *   Both layers are pinned: the runtime refusal by `Container.test.ts` and
+ *   `testContainer.test.ts`, the static one here.
  *
  *   The assertion mechanism is `@ts-expect-error`, and it is self-red in both
  *   directions:
@@ -44,6 +44,7 @@
  */
 
 import type { PrismaClient } from "@infra/prisma";
+import { Container } from "../../../../src/infrastructure/container/Container.js";
 import { setupContainer } from "../../../../src/infrastructure/container/setup.js";
 import type { ApiMetrics } from "../../../../src/metrics/apiMetrics.js";
 
@@ -51,38 +52,59 @@ declare const prisma: PrismaClient;
 declare const apiMetrics: ApiMetrics;
 
 /**
- * The call below omits the metrics collector. It MUST be rejected by the
- * compiler; the directive above it is what proves the rejection happened.
+ * @description The call below omits the metrics collector. It MUST be rejected by the
+ *   compiler; the directive above it is what proves the rejection happened.
  */
 export function wiringWithoutMetricsMustNotCompile(): void {
-  // @ts-expect-error apiMetrics is REQUIRED. A container composed without it registers
-  // TOKENS.ApiMetrics as undefined, resolution hands that undefined straight back, and
-  // RedisBruteForceAdapter dereferences it unguarded on the customer login path.
+  // @ts-expect-error apiMetrics is REQUIRED. A container composed without it has nothing
+  // to register under TOKENS.ApiMetrics, and RedisBruteForceAdapter dereferences that
+  // collector unguarded on the customer login path.
   setupContainer({ prisma });
 }
 
 /**
- * The second loosening, which the omission pin above does NOT see — measured,
- * not assumed. Widening the property to `ApiMetrics | undefined` keeps the KEY
- * required, so `setupContainer({ prisma })` stays an error and the directive
- * above stays used: that pin reports green while `apiMetrics: undefined` has
- * become a legal argument and the fail-open is back. This case is what closes
- * that gap, and it is self-red in the same both-directions way: while the value
- * type excludes `undefined` the call below is an error and the suppression is
- * used; the moment `undefined` joins the type the call is legal and TS2578
- * fires here.
+ * @description The second loosening, which the omission pin above does NOT see — measured,
+ *   not assumed. Widening the property to `ApiMetrics | undefined` keeps the KEY
+ *   required, so `setupContainer({ prisma })` stays an error and the directive
+ *   above stays used: that pin reports green while `apiMetrics: undefined` has
+ *   become a legal argument and the fail-open is back. This case is what closes
+ *   that gap, and it is self-red in the same both-directions way: while the value
+ *   type excludes `undefined` the call below is an error and the suppression is
+ *   used; the moment `undefined` joins the type the call is legal and TS2578
+ *   fires here.
  */
 export function wiringWithUndefinedMetricsMustNotCompile(): void {
   // @ts-expect-error apiMetrics must be a collector, never undefined. A required key
   // whose value may be undefined reintroduces exactly the registration this contract
-  // exists to forbid — registerInstance stores it and resolution hands it straight back.
+  // exists to forbid — only the run-time refusal in registerInstance would stop it.
   setupContainer({ prisma, apiMetrics: undefined });
 }
 
 /**
- * The positive direction. If this ever stops compiling, the contract changed
- * shape rather than merely loosening, and the pins above are no longer measuring
- * what their comments claim.
+ * @description The container's own entry point refuses a statically `undefined` instance, so
+ *   the same registration cannot be written against a container directly either.
+ *   Self-red in both directions: while the parameter excludes `undefined` the call
+ *   is an error and the suppression is used; widening it to `T` makes the call
+ *   legal and TS2578 fires here.
+ */
+export function registeringUndefinedInstanceMustNotCompile(): void {
+  // @ts-expect-error registerInstance excludes undefined from its instance type.
+  new Container().registerInstance(Symbol.for("pin"), undefined);
+}
+
+/**
+ * @description The refusal is of `undefined` alone. `null` is a value a caller may register on
+ *   purpose, and `resolve` hands it back, so narrowing the parameter to
+ *   `NonNullable<T>` would refuse a registration the container supports.
+ */
+export function registeringNullInstanceMustCompile(): void {
+  new Container().registerInstance(Symbol.for("pin"), null);
+}
+
+/**
+ * @description The positive direction. If this ever stops compiling, the contract changed
+ *   shape rather than merely loosening, and the pins above are no longer measuring
+ *   what their comments claim.
  */
 export function wiringWithMetricsMustCompile(): void {
   setupContainer({ prisma, apiMetrics });
