@@ -17,7 +17,7 @@
  * @layer infrastructure
  */
 
-import { describe, it, beforeAll, afterAll, expect, vi } from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, afterEach, expect, vi } from "vitest";
 import { createMockPrismaModule, createStore, buildModelMock } from "./helpers/mockPrisma.js";
 
 // ---------------------------------------------------------------------------
@@ -409,6 +409,74 @@ describe("schedulingRoutes Unit Tests", () => {
     const body = JSON.parse(res.body);
     expect(body.ok).toBeTruthy();
     expect(Array.isArray(body.data.rules)).toBeTruthy();
+  });
+
+  describe("scheduling rules isActive flag", () => {
+    let activeRuleId: string;
+    let inactiveRuleId: string;
+
+    const listRuleIds = async (query: string): Promise<{ status: number; ids: string[] }> => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/scheduling/rules?projectId=${testProjectId}${query}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      const body = JSON.parse(res.body);
+      const rules: { id: string }[] = body.data?.rules ?? [];
+      return { status: res.statusCode, ids: rules.map((rule) => rule.id) };
+    };
+
+    beforeEach(async () => {
+      const schedulingRule = prisma.schedulingRule as { create: Function };
+      const active = await schedulingRule.create({
+        data: { projectId: testProjectId, name: "Active rule", isActive: true },
+      });
+      const inactive = await schedulingRule.create({
+        data: { projectId: testProjectId, name: "Inactive rule", isActive: false },
+      });
+      activeRuleId = active.id;
+      inactiveRuleId = inactive.id;
+    });
+
+    afterEach(async () => {
+      const schedulingRule = prisma.schedulingRule as { deleteMany: Function };
+      await schedulingRule.deleteMany({
+        where: { id: { in: [activeRuleId, inactiveRuleId] } },
+      });
+    });
+
+    it("returns only inactive rules when isActive is false", async () => {
+      const { status, ids } = await listRuleIds("&isActive=false");
+
+      expect(status).toBe(200);
+      expect(ids).toEqual([inactiveRuleId]);
+    });
+
+    it("returns only active rules when isActive is true", async () => {
+      const { status, ids } = await listRuleIds("&isActive=true");
+
+      expect(status).toBe(200);
+      expect(ids).toEqual([activeRuleId]);
+    });
+
+    it("returns active and inactive rules when isActive is absent", async () => {
+      const { status, ids } = await listRuleIds("");
+
+      expect(status).toBe(200);
+      expect(ids).toHaveLength(2);
+      expect(ids).toEqual(expect.arrayContaining([activeRuleId, inactiveRuleId]));
+    });
+
+    it.each(["yes", "1", ""])("answers 400 when isActive is %j", async (value) => {
+      const res = await app.inject({
+        method: "GET",
+        url: `/scheduling/rules?projectId=${testProjectId}&isActive=${value}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+
+      expect(res.statusCode).toBe(400);
+      expect(JSON.parse(res.body)).toMatchObject({ ok: false, error: "Invalid query parameters" });
+    });
   });
 
   // ── POST /api/scheduling/slots ─────────────────────────────────────────────

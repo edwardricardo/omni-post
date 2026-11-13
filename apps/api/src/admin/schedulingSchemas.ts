@@ -5,7 +5,7 @@
  * @layer infrastructure
  */
 import { z } from "zod";
-import { IdSchema } from "@packages/api-common";
+import { BooleanQuerySchema, IdSchema } from "@packages/api-common";
 
 /**
  * Query schema for fetching scheduled posts with filters
@@ -65,7 +65,7 @@ export const OptimalTimesQuerySchema = z.object({
 export const SchedulingRulesQuerySchema = z.object({
   projectId: IdSchema,
   provider: z.enum(["X", "INSTAGRAM", "FACEBOOK", "YOUTUBE", "TIKTOK"]).optional(),
-  isActive: z.coerce.boolean().optional(),
+  isActive: BooleanQuerySchema.optional(),
 });
 
 /**

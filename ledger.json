@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1189,
+      "total": 1190,
       "byShape": {
-        "test": 952,
+        "test": 953,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1025,
+        "KEEP": 1026,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1179,
+      "machine": 1180,
       "confirmed": 10,
-      "total": 1189
+      "total": 1190
     },
     "blocks": {
-      "total": 14787,
+      "total": 14803,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14476
+        "BEHAVIOURAL": 14492
       }
     },
     "deleted": {
@@ -22774,7 +22774,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 17,
+      "blockCount": 21,
       "blocks": [
         {
           "id": "apps/api/tests/unit/analyticsRoutes.test.ts::should return 401 without auth for analytics metrics",
@@ -22854,43 +22854,71 @@
           "bodyHash": "c5dddb6331505e0f93bee67bcb7ee6058a68247e1deff091d427860cc256b9f4"
         },
         {
+          "id": "apps/api/tests/unit/analyticsRoutes.test.ts::returns only failed rows when success is false",
+          "line": 329,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a0cb717014fc15e808303d1ec02803a0c6638bca8c50d09a35fa8cfe3f3a4edc"
+        },
+        {
+          "id": "apps/api/tests/unit/analyticsRoutes.test.ts::returns only succeeded rows when success is true",
+          "line": 336,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "27560773dc62c45995705cded18ad15c91601f709c4aa0322b0f77ec8d1b219e"
+        },
+        {
+          "id": "apps/api/tests/unit/analyticsRoutes.test.ts::returns succeeded and failed rows when success is absent",
+          "line": 343,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "66ebb02f15269807bc53946f126e90c7adac22a92b60316155153da0d2353349"
+        },
+        {
+          "id": "apps/api/tests/unit/analyticsRoutes.test.ts::answers 400 with no row when success is %j",
+          "line": 351,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bf73f469d087786442f5aa56bcdc4c7c32466a6c73388cb7be557943c3f5b036"
+        },
+        {
           "id": "apps/api/tests/unit/analyticsRoutes.test.ts::should filter audit logs by date range",
-          "line": 294,
+          "line": 360,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cbd0d12b4e169ea9c52444bc7d012a17ef6917174329163ff2b88aa3aa02df23"
         },
         {
           "id": "apps/api/tests/unit/analyticsRoutes.test.ts::should return 401 without auth for GDPR data",
-          "line": 310,
+          "line": 376,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "adebeaef88ca8acb1cf213eab8cf5f79d415afbf4c04b75cd693f17bfebb7004"
         },
         {
           "id": "apps/api/tests/unit/analyticsRoutes.test.ts::should return GDPR data with no query params",
-          "line": 318,
+          "line": 384,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ef0f6867f6055ce3cf53ecc61cfa896927a42b154e636a782836db3df113c13f"
         },
         {
           "id": "apps/api/tests/unit/analyticsRoutes.test.ts::should return GDPR data filtered by accountId",
-          "line": 335,
+          "line": 401,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9f0c3eca4a74b66019d033fe6cc1f828db1c70b0fc3b074d6689baf90094d443"
         },
         {
           "id": "apps/api/tests/unit/analyticsRoutes.test.ts::should return GDPR data with requestType filter",
-          "line": 348,
+          "line": 414,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2109c8d9b57cd4b86fc1efd9babc65e38cd4fa12465ed356b26f1a34323453a9"
         },
         {
           "id": "apps/api/tests/unit/analyticsRoutes.test.ts::should return GDPR data with status filter",
-          "line": 360,
+          "line": 426,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "48ba6ea585ddc110e0d69d1a51575031458a986bdde352709b3efa4d77317804"
@@ -48998,7 +49026,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 41
+      "importers": 42
     },
     {
       "path": "apps/api/tests/unit/helpers/prismaKnownRequestErrors.ts",
@@ -49177,7 +49205,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 27
+      "importers": 28
     },
     {
       "path": "apps/api/tests/unit/helpers/webhookPrismaFake.ts",
@@ -60843,6 +60871,83 @@
       "importers": 2
     },
     {
+      "path": "apps/api/tests/unit/postRoutes.listFlags.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 8,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/postRoutes.listFlags.test.ts::passes hasMedia false to the use case when the flag is false",
+          "line": 98,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "73548be295dfa8225b8ad823c73a78e3e6523b145df9f327e4955516a11cfeea"
+        },
+        {
+          "id": "apps/api/tests/unit/postRoutes.listFlags.test.ts::passes hasMedia true to the use case when the flag is true",
+          "line": 108,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7453252df7f014e371a38c3881b02a06cf0dba95973bc5587c302a461d5e34cd"
+        },
+        {
+          "id": "apps/api/tests/unit/postRoutes.listFlags.test.ts::leaves hasMedia out of the use case input when the flag is absent",
+          "line": 118,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8e4ccb5cc6906bbca43c82650658857c5e88346792e146afc75e107c0bb9f52c"
+        },
+        {
+          "id": "apps/api/tests/unit/postRoutes.listFlags.test.ts::answers 400 without running the use case when hasMedia is %j",
+          "line": 125,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1232fa3709ffd85fe84009439e8c09998350626a7338a5f08faec461e22bc1bd"
+        },
+        {
+          "id": "apps/api/tests/unit/postRoutes.listFlags.test.ts::leaves includeArchived out of the use case input when the flag is false",
+          "line": 144,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3c5730e5f0f1d69bcf3c7639ccb5026c0393cb3e49bd5acb87d9a4be884cc65a"
+        },
+        {
+          "id": "apps/api/tests/unit/postRoutes.listFlags.test.ts::passes includeArchived true to the use case when the flag is true",
+          "line": 154,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "160cf163e06fcb640669fb2388e6c74ffca68dd754d3007a4cb4c9a5833fc1c9"
+        },
+        {
+          "id": "apps/api/tests/unit/postRoutes.listFlags.test.ts::leaves includeArchived out of the use case input when the flag is absent",
+          "line": 166,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "156390efabcc825f32ff3783344b9e14844767da43f09d1fa347f808f7ccd65d"
+        },
+        {
+          "id": "apps/api/tests/unit/postRoutes.listFlags.test.ts::answers 400 without running the use case when includeArchived is %j",
+          "line": 173,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a1639b0373657da0a0fbd5fe7b048fefd00021950a8630039060f05d90fd5997"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "postRoutes",
+        "module": "apps/api/src/posts/postRoutes.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/postRoutes.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -68168,7 +68273,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 29,
+      "blockCount": 33,
       "blocks": [
         {
           "id": "apps/api/tests/unit/schedulingRoutes.test.ts::should return 401 without auth for scheduled posts list",
@@ -68318,57 +68423,85 @@
           "bodyHash": "5dcddf3298399945a54e657e0e77220c3130d9b816eca40a198b72e096d9b84b"
         },
         {
+          "id": "apps/api/tests/unit/schedulingRoutes.test.ts::returns only inactive rules when isActive is false",
+          "line": 448,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fafc5b495114a951c760d2868d8eac7303a4f8b34c89873e0bbde20beb9c5ac0"
+        },
+        {
+          "id": "apps/api/tests/unit/schedulingRoutes.test.ts::returns only active rules when isActive is true",
+          "line": 455,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "471fe77bb0a127aa65698e1cc6d56c2fc3b183abc85174b4a6ae735194570be4"
+        },
+        {
+          "id": "apps/api/tests/unit/schedulingRoutes.test.ts::returns active and inactive rules when isActive is absent",
+          "line": 462,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b1c7b3951718771354567c2dc55441904ba92106b345876799d440fd19a8a3ab"
+        },
+        {
+          "id": "apps/api/tests/unit/schedulingRoutes.test.ts::answers 400 when isActive is %j",
+          "line": 470,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5e55723f0180f36227e3284ca55d1b8997a118fa7921af2340fed7e2b33ccd4a"
+        },
+        {
           "id": "apps/api/tests/unit/schedulingRoutes.test.ts::should return 401 without auth for create slot",
-          "line": 416,
+          "line": 484,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a025a72084b9df04a27c4d7f2173622e82d0d9203503970acaa308ae12986429"
         },
         {
           "id": "apps/api/tests/unit/schedulingRoutes.test.ts::should return 404 when creating slot for non-existent project",
-          "line": 425,
+          "line": 493,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d0d26cd61be1db9e63ff3d0e55c251b4092d2e2213811a9c180e3bce4852d463"
         },
         {
           "id": "apps/api/tests/unit/schedulingRoutes.test.ts::should create a schedule slot successfully",
-          "line": 442,
+          "line": 510,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98a14f06b3add873720ea38c51797a2378284ba40eb1913acda680e913f4dba8"
         },
         {
           "id": "apps/api/tests/unit/schedulingRoutes.test.ts::should return 400 for missing required fields when creating slot",
-          "line": 470,
+          "line": 538,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3cd37cafa169348fcd277c8cd656748eb6c5811ce88c084ed8fff0d176e8d14f"
         },
         {
           "id": "apps/api/tests/unit/schedulingRoutes.test.ts::should return 401 without auth for bulk create slots",
-          "line": 484,
+          "line": 552,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65c4578eedaa8ae0f85a3891f0094b330cc11e46df29aa7aa87da432d6b21d89"
         },
         {
           "id": "apps/api/tests/unit/schedulingRoutes.test.ts::should return 404 when bulk creating slots for non-existent project",
-          "line": 496,
+          "line": 564,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "567a50b1834f20bba1628542e282df8fc24b857d6b4ac95a71ab43cfda890fea"
         },
         {
           "id": "apps/api/tests/unit/schedulingRoutes.test.ts::should bulk create schedule slots successfully",
-          "line": 511,
+          "line": 579,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "809d17a1400dbf604b79da4af8a6e18bb157240528817ff6295c1c8db530a873"
         },
         {
           "id": "apps/api/tests/unit/schedulingRoutes.test.ts::should return 400 for empty slots array in bulk create",
-          "line": 538,
+          "line": 606,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7621fe98668be1f96f279480dd9af31a9aa3f1a6b7b0f642c18ef9bd43d04490"

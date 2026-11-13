@@ -4,7 +4,7 @@
  * @layer infrastructure
  */
 import { z } from "zod";
-import { IdSchema } from "@packages/api-common";
+import { BooleanQuerySchema, IdSchema } from "@packages/api-common";
 
 /**
  * Query schema for compliance audit logs with pagination
@@ -15,7 +15,7 @@ export const ComplianceAuditLogsQuerySchema = z.object({
   action: z.string().optional(),
   resource: z.string().optional(),
   userId: IdSchema.optional(),
-  success: z.coerce.boolean().optional(),
+  success: BooleanQuerySchema.optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   sortBy: z.enum(["createdAt", "action", "resource"]).default("createdAt"),

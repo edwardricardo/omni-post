@@ -7,7 +7,7 @@
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from "fastify";
 import { z } from "zod";
 import { BaseRouteHandler, type RouteContext } from "../lib/route-handler/index.js";
-import { IdSchema } from "@packages/api-common";
+import { BooleanQuerySchema, IdSchema } from "@packages/api-common";
 import { TOKENS } from "../infrastructure/container/types.js";
 import { SecureSchemas } from "../security/inputValidation.js";
 import type { GetPostWithThreadQuery } from "@core/posts/GetPostWithThreadQuery.js";
@@ -102,7 +102,7 @@ const ListPostsQuerySchema = z.object({
       return arr.length === 1 ? arr[0] : arr;
     }),
   tags: z.string().optional().transform(csvTransform),
-  hasMedia: z.coerce.boolean().optional(),
+  hasMedia: BooleanQuerySchema.optional(),
   /** ISO 8601 datetime range bounds. */
   createdFrom: z.string().datetime().optional(),
   createdTo: z.string().datetime().optional(),
@@ -112,7 +112,7 @@ const ListPostsQuerySchema = z.object({
   sortBy: z.enum(["createdAt", "updatedAt", "scheduledAt", "publishedAt", "status"]).optional(),
   sortDirection: z.enum(["asc", "desc"]).optional(),
   /** Set to "true" to include archived posts in the result set. */
-  includeArchived: z.coerce.boolean().optional(),
+  includeArchived: BooleanQuerySchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -304,6 +304,7 @@ class PostRouteHandler extends BaseRouteHandler {
   /**
    * Update an existing post's content.
    *
+   * @method updatePost
    * @description Delegates to UpdatePostUseCase which validates that the post
    * exists and is in an editable status (DRAFT or FAILED). Only provided
    * fields are updated; omitted fields remain unchanged.
@@ -479,6 +480,13 @@ class PostRouteHandler extends BaseRouteHandler {
    *
    * Customers keep every reversible path: `DELETE /posts/:id` (soft) and
    * `PATCH /posts/batch/archive`.
+   *
+   * @method hardDeletePostsBatch
+   * @description Validates the batch body, then asks the hard-delete use case to
+   * destroy the named posts of the named account and answers with the outcome.
+   * @param request - Fastify request carrying the account id and post ids in the body
+   * @param reply - Fastify reply
+   * @returns Resolves once the reply is sent: the deletion result, or an error response
    */
   async hardDeletePostsBatch(request: FastifyRequest, reply: FastifyReply): Promise<void> {
     const ctx: RouteContext = { request, reply };
@@ -620,6 +628,11 @@ class PostRouteHandler extends BaseRouteHandler {
  * - POST   /posts/batch/duplicate — Bulk duplicate (DuplicatePostsBatchUseCase)
  *
  * Post creation, scheduling, and publish-now: see `POST /sagas/post-publishing/start`.
+ *
+ * @description Registers the post routes on a Fastify instance, wiring each one to
+ * its handler method and its authentication gate.
+ * @param fastify - Fastify instance whose `container` decoration holds the use cases
+ * @returns Resolves once every route is registered
  */
 export const postRoutes: FastifyPluginAsync = async (fastify) => {
   const container = fastify.container!;
