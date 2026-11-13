@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1187  |
+| Files                   | 1189  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1023  |
+| KEEP                    | 1025  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1177  |
+| Machine rows            | 1179  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14765 |
+| Blocks                  | 14787 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -570,7 +570,8 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/analytics/CostCalculator.test.ts`                                                | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analytics/RevenueCalculator.test.ts`                                             | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analytics/analyticsIngestConsumer.test.ts`                                       | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts`                              | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/analytics/analyticsRoutes.characterization.test.ts`                              | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/analytics/analyticsRoutes.flags.test.ts`                                         | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analytics/dimensionRegistry.test.ts`                                             | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analytics/metricRegistry.test.ts`                                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/analyticsRoutes.test.ts`                                                         | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
@@ -1179,6 +1180,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/adapters/storage-do-spaces/tests/index.test.ts`                                             | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/storage-gcs/tests/index.test.ts`                                                   | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/adapters/storage-s3/tests/s3-operations.test.ts`                                            | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
+| `packages/api-common/tests/booleanQuerySchema.test.ts`                                                | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/api-common/tests/webhookSignature.test.ts`                                                  | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/api-errors/tests/ApiError.test.ts`                                                          | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/core/accounts/tests/unit/DeleteAccountUseCase.test.ts`                                      | test             | 8      | 0          | KEEP       | machine                     | behavioural          |

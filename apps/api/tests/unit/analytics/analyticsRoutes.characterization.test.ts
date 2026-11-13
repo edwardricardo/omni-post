@@ -495,6 +495,18 @@ const PLATFORM_METRIC_KEYS = [
   "totalReach",
 ];
 
+const EXPORT_KEYS_ALL_SECTIONS = [
+  "analytics",
+  "channels",
+  "exportedAt",
+  "posts",
+  "projectId",
+  "projectName",
+  "summary",
+  "threads",
+  "timeRange",
+];
+
 const ANALYTICS_ROW_KEYS = [
   "capturedAt",
   "channelId",
@@ -523,11 +535,15 @@ describe("analyticsRoutes (customer) characterization", () => {
     // projectId+timeRange for the two requests that share a handler.
     fixtures.dashboard = seedProject(1);
     fixtures.exportJsonWithPosts = seedProject(2);
-    fixtures.exportJsonCoercedFalse = seedProject(3);
+    fixtures.exportJsonPostsFalse = seedProject(3);
     fixtures.exportJsonPostsOff = seedProject(4);
     fixtures.exportCsvWithPosts = seedProject(5);
     fixtures.exportCsvPostsOff = seedProject(6);
     fixtures.projectAnalytics = seedProject(7);
+    fixtures.exportThreadsOff = seedProject(9);
+    fixtures.exportAnalyticsOff = seedProject(10);
+    fixtures.exportAllFlagsTrue = seedProject(11);
+    fixtures.exportFlagsAbsent = seedProject(12);
 
     // A project that exists but is soft-deleted, for the export's absent-project path.
     const deletedProject = seedProject(8);
@@ -659,31 +675,26 @@ describe("analyticsRoutes (customer) characterization", () => {
     expect(res.body).not.toMatch(/ciphertext/i);
   });
 
-  it("still includes posts when the export is asked for includePosts=false", async () => {
-    // Not the intended behaviour, and pinned because it is the behaviour. The
-    // flag is parsed by a coercing boolean, and coercion runs `Boolean(value)`
-    // over the raw query string — so the literal "false" is a non-empty string
-    // and arrives as true. The section cannot be switched off by the value the
-    // API's own documentation implies.
-    const fixture = fixtures.exportJsonCoercedFalse!;
+  it("omits the posts section when the export is asked for includePosts=false", async () => {
+    const fixture = fixtures.exportJsonPostsFalse!;
     const res = await app.inject({
       method: "GET",
       url: `/export?projectId=${fixture.projectId}&timeRange=30d&format=json&includePosts=false`,
     });
 
     expect(res.statusCode).toBe(200);
-    const body = JSON.parse(res.body) as { data: Record<string, unknown> };
-    expect(sortedKeys(body.data)).toContain("posts");
-    expect(body.data.posts).toHaveLength(2);
+    const body = JSON.parse(res.body) as {
+      data: { summary: Record<string, unknown> } & Record<string, unknown>;
+    };
+    expect(sortedKeys(body.data)).not.toContain("posts");
+    expect(body.data.summary.totalPosts).toBe(0);
   });
 
   it("serves the JSON export with the post section off", async () => {
-    // An EMPTY value is the only one the coercing boolean reads as false, so it
-    // is the only way to reach the branch through the route.
     const fixture = fixtures.exportJsonPostsOff!;
     const res = await app.inject({
       method: "GET",
-      url: `/export?projectId=${fixture.projectId}&timeRange=30d&format=json&includePosts=`,
+      url: `/export?projectId=${fixture.projectId}&timeRange=30d&format=json&includePosts=false`,
     });
 
     expect(res.statusCode).toBe(200);
@@ -700,6 +711,94 @@ describe("analyticsRoutes (customer) characterization", () => {
       "timeRange",
     ]);
     expect(body.data.posts).toBeUndefined();
+  });
+
+  it("omits the threads section when the export is asked for includeThreads=false", async () => {
+    const fixture = fixtures.exportThreadsOff!;
+    const res = await app.inject({
+      method: "GET",
+      url: `/export?projectId=${fixture.projectId}&timeRange=30d&format=json&includeThreads=false`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as {
+      data: { summary: Record<string, unknown> } & Record<string, unknown>;
+    };
+    expect(sortedKeys(body.data)).toEqual([
+      "analytics",
+      "channels",
+      "exportedAt",
+      "posts",
+      "projectId",
+      "projectName",
+      "summary",
+      "timeRange",
+    ]);
+    expect(body.data.summary.totalThreads).toBe(0);
+  });
+
+  it("omits the analytics section when the export is asked for includeAnalytics=false", async () => {
+    const fixture = fixtures.exportAnalyticsOff!;
+    const res = await app.inject({
+      method: "GET",
+      url: `/export?projectId=${fixture.projectId}&timeRange=30d&format=json&includeAnalytics=false`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as {
+      data: { summary: Record<string, unknown> } & Record<string, unknown>;
+    };
+    expect(sortedKeys(body.data)).toEqual([
+      "channels",
+      "exportedAt",
+      "posts",
+      "projectId",
+      "projectName",
+      "summary",
+      "threads",
+      "timeRange",
+    ]);
+    expect(body.data.summary.totalAnalyticsRecords).toBe(0);
+  });
+
+  it("includes every section when the three include flags are true", async () => {
+    const fixture = fixtures.exportAllFlagsTrue!;
+    const res = await app.inject({
+      method: "GET",
+      url:
+        `/export?projectId=${fixture.projectId}&timeRange=30d&format=json` +
+        "&includeThreads=true&includePosts=true&includeAnalytics=true",
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as { data: Record<string, unknown> };
+    expect(sortedKeys(body.data)).toEqual(EXPORT_KEYS_ALL_SECTIONS);
+  });
+
+  it("includes every section when the include flags are absent", async () => {
+    const fixture = fixtures.exportFlagsAbsent!;
+    const res = await app.inject({
+      method: "GET",
+      url: `/export?projectId=${fixture.projectId}&timeRange=30d&format=json`,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body) as { data: Record<string, unknown> };
+    expect(sortedKeys(body.data)).toEqual(EXPORT_KEYS_ALL_SECTIONS);
+  });
+
+  it.each([
+    ["includeThreads", "yes"],
+    ["includePosts", "1"],
+    ["includeAnalytics", "TRUE"],
+    ["includePosts", ""],
+  ])("answers 400 when %s carries the value %j", async (flag, value) => {
+    const res = await app.inject({
+      method: "GET",
+      url: `/export?projectId=${fixtureId(9002)}&timeRange=30d&format=json&${flag}=${value}`,
+    });
+
+    expect(res.statusCode).toBe(400);
   });
 
   it("serves the CSV export with posts included", async () => {
@@ -719,7 +818,7 @@ describe("analyticsRoutes (customer) characterization", () => {
     const fixture = fixtures.exportCsvPostsOff!;
     const res = await app.inject({
       method: "GET",
-      url: `/export?projectId=${fixture.projectId}&timeRange=30d&format=csv&includePosts=`,
+      url: `/export?projectId=${fixture.projectId}&timeRange=30d&format=csv&includePosts=false`,
     });
 
     expect(res.statusCode).toBe(200);

@@ -1,7 +1,7 @@
 /**
  * @file schemas.ts
  * @description Common Zod schema helpers shared across route handlers — UUID,
- *              pagination, ISO date, email, URL, password, provider, post
+ *              pagination, boolean query flag, ISO date, email, URL, password, provider, post
  *              status, and user role validators. Pure validation primitives
  *              with no framework dependency.
  * @layer infrastructure
@@ -16,6 +16,17 @@ export const PaginationQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
+
+/**
+ * @description Boolean flag carried by a query string. Accepts exactly the
+ *              strings `"true"` and `"false"` and yields a boolean; any other
+ *              value (empty, other casing, `1`, `yes`, a repeated key) is
+ *              refused. `z.coerce.boolean()` is not usable here because it
+ *              reads every non-empty string, `"false"` included, as true.
+ *              Compose with `.optional()` or `.default(...)` to choose what an
+ *              absent parameter means.
+ */
+export const BooleanQuerySchema = z.enum(["true", "false"]).transform((value) => value === "true");
 
 /** ISO 8601 datetime schema */
 export const IsoDateSchema = z.string().datetime({ message: "Invalid ISO 8601 date format" });
