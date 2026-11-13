@@ -2,15 +2,15 @@
   "version": 1,
   "floor": 3,
   "summary": {
-    "names": 162,
-    "production": 99,
+    "names": 160,
+    "production": 97,
     "devOnly": 63,
     "types": 9,
     "aboveFloor": 46,
-    "underFloor": 116,
-    "atZero": 15,
-    "underFloorWithSites": 101,
-    "kept": 112,
+    "underFloor": 114,
+    "atZero": 14,
+    "underFloorWithSites": 100,
+    "kept": 110,
     "remove": 3,
     "pending": 1
   },
@@ -3073,27 +3073,6 @@
       }
     },
     {
-      "name": "geist",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/admin/package.json",
-          "block": "dependencies",
-          "specifier": "literal"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 1,
-      "decision": "kept",
-      "sites": {
-        "runtime-import": {
-          "production": ["apps/admin/app/[locale]/layout.tsx"]
-        }
-      }
-    },
-    {
       "name": "google-auth-library",
       "scope": "production",
       "typedTarget": null,
@@ -5553,23 +5532,6 @@
       "real": null,
       "decision": null,
       "sites": null
-    },
-    {
-      "name": "zod-to-json-schema",
-      "scope": "production",
-      "typedTarget": null,
-      "declarations": [
-        {
-          "manifest": "apps/api/package.json",
-          "block": "dependencies",
-          "specifier": "literal"
-        }
-      ],
-      "bins": [],
-      "verdict": "under-floor",
-      "real": 0,
-      "decision": "kept",
-      "sites": {}
     },
     {
       "name": "zustand",

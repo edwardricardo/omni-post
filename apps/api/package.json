@@ -135,8 +135,7 @@
     "validator": "catalog:",
     "ws": "catalog:",
     "xml2js": "0.6.2",
-    "zod": "catalog:",
-    "zod-to-json-schema": "3.25.2"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@core/engine": "workspace:*",

@@ -600,10 +600,6 @@
       "status": "library",
       "note": "Runs in the portals' browser code or their build; no third-party endpoint of its own."
     },
-    "geist": {
-      "status": "library",
-      "note": "Font files bundled with the Admin portal and served by it; no third-party endpoint of its own."
-    },
     "google-auth-library": {
       "status": "service",
       "vendor": "Google (OAuth)",
@@ -830,10 +826,6 @@
       "note": "Test tooling: the reach engine of packages/test-contracts parses the CI workflows with it, on developer machines and in CI, and the product sends no data through it."
     },
     "zod": {
-      "status": "library",
-      "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
-    },
-    "zod-to-json-schema": {
       "status": "library",
       "note": "Runs inside the API, the workers or a shared package; no third-party endpoint of its own."
     },
