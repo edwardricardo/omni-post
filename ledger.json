@@ -2,32 +2,32 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1193,
+      "total": 1195,
       "byShape": {
-        "test": 956,
+        "test": 957,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
         "k6": 6,
         "runner": 0,
-        "helper": 118,
+        "helper": 119,
         "disabled": 0
       },
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1029,
+        "KEEP": 1031,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1183,
+      "machine": 1185,
       "confirmed": 10,
-      "total": 1193
+      "total": 1195
     },
     "blocks": {
-      "total": 14825,
+      "total": 14830,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14514
+        "BEHAVIOURAL": 14519
       }
     },
     "deleted": {
@@ -3180,182 +3180,182 @@
       "blocks": [
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have cache config for provider endpoints",
-          "line": 134,
+          "line": 174,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6ebe39c4fc13ff36aca9e12f06d315d7982855e3ee3ddef3d0559b0f425a0099"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have cache config for analytics endpoints",
-          "line": 142,
+          "line": 182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b2a85645915f45328a91f013f51fcebca15eca088bf3696aa4745d632482a41"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should return undefined for unconfigured routes",
-          "line": 150,
+          "line": 190,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e03200b9d6d9054bd54a3ab30c1dd17627700d2655b313e3f3e2828ec595a6c"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should not cache POST/PUT/DELETE by default",
-          "line": 155,
+          "line": 195,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "51a9f437b720855375cb5b7083b48fd0370722574768542954823a04c18c1f1b"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have invalidation rules for post mutations",
-          "line": 162,
+          "line": 202,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "979e740e5b14baf4486029f60182177741028d59940934b9abdc102c85411078"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have invalidation rules for template mutations",
-          "line": 169,
+          "line": 209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "19389354d0eaf0b13852592d1f3e401b2a19c0c1a4311567c9f020fb4a2f241a"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have invalidation rules for project mutations",
-          "line": 174,
+          "line": 214,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1467eba78524792962fbfafb30dcc41bd3adfaa737bb0f733c447343d814242f"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should generate unique keys based on route",
-          "line": 187,
+          "line": 227,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8b54b4af79aa5ccaf304228840aa6222c4c592c37685cc0cd6b1f17e52bdb3f0"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should vary cache by query parameters",
-          "line": 196,
+          "line": 236,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a374f8aab3718ecf48b3ff24783db890072885108719114171de0073a55e0de"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should vary cache by path parameters",
-          "line": 203,
+          "line": 243,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c28a8d2639ea067c2b04129a9cbb6907c2d6ca9ac8abf264189313a7ba65bc08"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should vary cache by user ID",
-          "line": 210,
+          "line": 250,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f3e396791d9d9ea921d5aa54b4a2457a6887c73ff0f4b3dde00a5c588a74aad9"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should return cache MISS on first request",
-          "line": 221,
+          "line": 261,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a041863afb8998a19f183f5b88a0a2bbfa9b5bf38533d162d8fe2f92b1d7f7a6"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should return cache HIT on second request",
-          "line": 232,
+          "line": 272,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e7dc3fa1fe0392531ffd9d4daab30a462fe89651a729aa365a4865620c0f269b"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have different cache for different query parameters",
-          "line": 256,
+          "line": 296,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "de20b434f5525181da9e9cc399ef8114019cb2a4209b00ce5ce98268d72db890"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should invalidate cache after tag invalidation",
-          "line": 286,
+          "line": 326,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b0d79bfa158708230a579e211262c6270b32cd5e8c753d09326d8a4cd0b2f175"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should invalidate cache by provider tag",
-          "line": 320,
+          "line": 360,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "66a80afe9686ed3cf442c1092ce874540be8c2c12b99eeaad3f56c2f4af6d732"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should invalidate only the matching tag, not unrelated caches",
-          "line": 350,
+          "line": 390,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a1cf73adc03e1d424509eaed8ddc1bbe2141df1552164e97835bb4896ce9caf6"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should expire cache after TTL",
-          "line": 388,
+          "line": 428,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ce7f5163f1406d3ccc178c8a89b7c21acc056580ef0fec5481ad9873d2b7b49b"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should return cache HIT on repeated requests to the same endpoint",
-          "line": 423,
+          "line": 463,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a39e0036a016cc567656481c4ca08951e4783b0557b1cb3f4df95245cbd65e6b"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should track cache hits and misses",
-          "line": 443,
+          "line": 483,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "51192836580a3f64cc73da9f58db6b2ca6179fa74b709be4728c0c0dff098e55"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should track hot keys",
-          "line": 460,
+          "line": 500,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "763cb185fa498a3c151e67d5fd663eef3673a65071aad073512e585c7dade02b"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should handle cache failures gracefully",
-          "line": 476,
+          "line": 516,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6886140fb20940327d6c8fb2fe8cd16398f10d8fb3712dba20d66a0ae85e2245"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should not include cache headers for non-cacheable requests",
-          "line": 501,
+          "line": 541,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a64427b90d04e7a13bea18db59e82cafff09f5c4b7df2f492721fe6e02179c1"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should invalidate multiple tags at once",
-          "line": 517,
+          "line": 557,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5209d6a16cdb104a3ac3d4877a8c6f018ff14f42b19176307c9ab17925d6178"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have cache config for all critical endpoints",
-          "line": 560,
+          "line": 600,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "87ceef184476193623d50db884814ea7c713475e062827d58f1d5c19550b7fcf"
         },
         {
           "id": "apps/api/tests/cache.integration.test.ts::should have invalidation rules for all mutation endpoints",
-          "line": 581,
+          "line": 621,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8516bfeb34fd47eb951d3b052b2753aff4d8ae273864c1642c143d75a82baaf2"
@@ -5450,6 +5450,22 @@
       "subject": null,
       "duplicate": null,
       "importers": 4
+    },
+    {
+      "path": "apps/api/tests/integration/helpers/caseScope.ts",
+      "shape": "helper",
+      "framework": null,
+      "collectors": null,
+      "quarantined": null,
+      "blockCount": 0,
+      "blocks": [],
+      "verdict": "KEEP",
+      "basis": "imported",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": 2
     },
     {
       "path": "apps/api/tests/integration/helpers/postTrioFixtures.ts",
@@ -48991,6 +49007,58 @@
       "subject": null,
       "duplicate": null,
       "importers": 4
+    },
+    {
+      "path": "apps/api/tests/unit/helpers/caseScope.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 5,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/helpers/caseScope.test.ts::returns true from owns when the token comes from the latest enter",
+          "line": 14,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "beafabc470d236da23cdf43ee5d85b358ef2131453eaa548b332cfa87909ff42"
+        },
+        {
+          "id": "apps/api/tests/unit/helpers/caseScope.test.ts::returns false from owns when a later enter has started another case",
+          "line": 22,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b04ec9e4a873cec7c262789548cf8ade9837b330adeeac8d5a8dd54fcd690ede"
+        },
+        {
+          "id": "apps/api/tests/unit/helpers/caseScope.test.ts::returns false from owns when the token's case has left",
+          "line": 32,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1b3ad41cdf839d23eb9a32327cad01b60c6abc9b32a4762ed5a5c60d393f1b3c"
+        },
+        {
+          "id": "apps/api/tests/unit/helpers/caseScope.test.ts::returns false from owns for a stale token when a new case enters after a leave",
+          "line": 41,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c698dff7b8921f7819bc298e4b4d46ff06b894c7bc595ba5f2a4aa26cb10860c"
+        },
+        {
+          "id": "apps/api/tests/unit/helpers/caseScope.test.ts::returns an owned token from enter when leave ran before any case entered",
+          "line": 52,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ed4f605a43c0f781f3f9c25d83d27c149cb74051eaf32a93f7d330d7ebd20d90"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
     },
     {
       "path": "apps/api/tests/unit/helpers/factories.ts",
