@@ -27,7 +27,7 @@
       "total": 1190
     },
     "blocks": {
-      "total": 14803,
+      "total": 14810,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14492
+        "BEHAVIOURAL": 14499
       }
     },
     "deleted": {
@@ -79213,161 +79213,210 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 22,
+      "blockCount": 29,
       "blocks": [
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::resolves the complete parameter set from a pinned version alone",
-          "line": 48,
+          "line": 52,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6c901d2752b6fefc3447659041286dcab4c3a739b341d8e4beea9727df7766f5"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::encodes the empty string as left_encode(0) followed by nothing",
-          "line": 60,
+          "line": 64,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "af4dabe796ca59d30fe180346094a78f75610484e3944ba75d859e9ee1f947df"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::encodes a one-byte string as its BIT length then the byte",
-          "line": 65,
+          "line": 69,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5b44cf3f0213d0821cd0fbdb4cb6e9c22fd83f4e142b492569244cebaa055dbe"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::encodes the 39-byte domain tag with a two-byte length prefix",
-          "line": 70,
+          "line": 74,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ac7872363247bd851947e5cdaec07ad9a3db9957bbe81140ffd327a274d88f2a"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::removes the split ambiguity that bare concatenation leaves open",
-          "line": 79,
+          "line": 83,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff1e7700baf75c993df0a3ebdfa4aa3a1739117271f03085c5937eacafd73138"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::reproduces the committed digest for a canonical ASCII name",
-          "line": 96,
+          "line": 100,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "891257b3688ac3645121864d1f48784056752b53d3d5b7c33a11bc33bb2de348"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::reproduces the committed digest for a canonical accented name",
-          "line": 102,
+          "line": 106,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "361b0522e3bf1c7c99d7326124ef94ce8c1d3e9b2eea064810e7e3f5cb864000"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::reproduces the committed digest for the empty canonical form",
-          "line": 108,
+          "line": 112,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff8a1f9ee73a70335ec46248fa2d34d3ed4efec76db5e4ad89445e3bf3c2ef66"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::emits the FULL 32 bytes as 64 lowercase hex characters, never truncated",
-          "line": 114,
+          "line": 118,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ca489135aac99dd5df7c9b2a4762811490169a5559075f6e785b53e89e1a0f37"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::agrees with HMAC-SHA-256 over the framed input computed independently",
-          "line": 120,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8f6285b06ecf39512e7aa42b726bc9043f0aa681f447faf96bdcbb2c156554d8"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::keeps NUL-bearing names apart from the names a delimiter would conflate",
-          "line": 134,
+          "line": 138,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14d84bcf9933d7c734274c367bad3387ff70169241dfa4e198f3ee6ae757f976"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::keeps a name that repeats the domain tag apart from the tag's own framing",
-          "line": 145,
+          "line": 149,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "497addc0725eb09ce88a596ace1f8ff22447c21c0bc7421e3c2e7ad928395d18"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::produces a different digest under a different ring generation",
-          "line": 151,
+          "line": 155,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1b06a7d6e46055cc42b3d1596b5b0c8b5023028e6336dd4ae2e869d2c27d6e21"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::refuses a key version the ring does not hold, instead of guessing one",
-          "line": 155,
+          "line": 159,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "29acb14254895f7313eda8dac9cafa66399e55e97403b7a58059c535d0c4c7a2"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::refuses a name holding an unassigned codepoint, producing no digest",
-          "line": 162,
+          "line": 166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "619cbb76263247dd598f0b4cb7df096804c6fed29cc329156e85b52650159534"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::verifies the original name",
-          "line": 174,
+          "line": 178,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "79d39464b5c75bfb7b593d481dff95d6bd99a9f5f8f5356a24069331d716b384"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::verifies any canonically equivalent spelling of it",
-          "line": 178,
+          "line": 182,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "89e471c34bb254a6f20bfd044becc73c631e8e7bc3a4ee2c9d6c87a0c265d9db"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::does not verify a different name",
-          "line": 183,
+          "line": 187,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7dc2e3d528c8404a33a79a1bdf7acb5a3236afc005c142a053e5b287423b05fe"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::resolves the key from the ROW's pin, never from the active version",
-          "line": 188,
+          "line": 192,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "041eee7b0efbcd5195d28cdc47d4be819a6d5bcc21b45f5441b8d32bf9a62bfc"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::does not verify against a pin the ring no longer holds",
-          "line": 202,
+          "line": 206,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "65c1f72cda10b87375ab4264bb8d64f3b56d25036e113409a918840aa2904a10"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::does not verify a name that canonicalisation refuses",
-          "line": 208,
+          "line": 212,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7db1cd235176e0621037f83971d467c586420fcf3ad6eb5bb59b04ab417a103"
         },
         {
           "id": "apps/api/tests/unit/security/nameDigest.test.ts::does not verify against a malformed or short stored digest",
-          "line": 212,
+          "line": 216,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b4091c88455f35124532b4eb0f3507881b4a6f14aba162fe2a5d8c958d665721"
+        },
+        {
+          "id": "apps/api/tests/unit/security/nameDigest.test.ts::resolves a generation with no explicit entry to generation 1's parameters",
+          "line": 231,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1ff1a18d40bc62d6b1175f033f89f8f99451c60db29c64d30758044131d44fe8"
+        },
+        {
+          "id": "apps/api/tests/unit/security/nameDigest.test.ts::returns the explicit entry for a generation that has one",
+          "line": 242,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0bf8babe94266f398d6c16a028437d9782c973ec8a90d3f724e5308c730f977e"
+        },
+        {
+          "id": "apps/api/tests/unit/security/nameDigest.test.ts::MACs a key-only rotation under generation 1's domain tag, with the rotated key",
+          "line": 246,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b0d1f5cbf9236dc02222bd58b84390a6ba051f30575f3792c8d5335f279c2e6c"
+        },
+        {
+          "id": "apps/api/tests/unit/security/nameDigest.test.ts::holds generation 1 as the only explicit entry until vectors exist for a new one",
+          "line": 256,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "08fe352134ee3aee468a709c8b51ec5f2a37399fc3dcd3b9d7e2697b36eda8bf"
+        },
+        {
+          "id": "apps/api/tests/unit/security/nameDigest.test.ts::canonicalises $label to its committed bytes",
+          "line": 333,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "02c033bc3c58e96bb23f9504bf3a34f75bab2d2d170da876a8778b4bfcb89ff6"
+        },
+        {
+          "id": "apps/api/tests/unit/security/nameDigest.test.ts::digests $label to its committed value",
+          "line": 341,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "151adfcc5baa6438a7d5cb09b8cd992bfdeda10c72498bfcf68cb93aa444fb66"
+        },
+        {
+          "id": "apps/api/tests/unit/security/nameDigest.test.ts::refuses a basic-plane and a supplementary-plane unassigned codepoint",
+          "line": 345,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "747334131ef0133a72833f5abfa18088eb686947c176a67e25b07b79b90f4b52"
         }
       ],
       "verdict": "KEEP",
