@@ -256,6 +256,18 @@ overrides:
   "@opentelemetry/instrumentation-pg@<0.73.0": 0.73.0
   "@opentelemetry/instrumentation-tedious@<0.40.0": 0.40.0
   "@opentelemetry/propagator-jaeger@<2.9.0": 2.9.0
+  # CVE floor added 2026-11-13 for GHSA-3v2p-hm54-8qcq (moderate, CVE-2026-128080, CWE-200 and
+  # CWE-532): server spans write the raw inbound query string into `url.query`, and the
+  # `redactedQueryParams` option reaches client spans only. OSV `introduced 0.204.0, fixed
+  # 0.222.0`, GitHub's first_patched_version and upstream (open-telemetry/opentelemetry-js
+  # e086dec7, release experimental/v0.222.0) agree. Its one consumer,
+  # @opentelemetry/auto-instrumentations-node 0.77.0, declares `^0.219.0`, which on a 0.x line
+  # admits 0.219.x only, so the band forces 0.219.0 -> 0.222.0 and brings @opentelemetry/core
+  # 2.11.0, which 0.222.0 pins exactly. From 0.221.0 the package emits only stable HTTP semantic
+  # conventions (`url.query`, not `http.target`). The patch redacts four keys and leaves `code`
+  # and `state` raw. Measured, with the remove-when, in SECURITY_CANON §"CVE-floor pins", row
+  # `instrumentation-http` (OTel).
+  "@opentelemetry/instrumentation-http@<0.222.0": 0.222.0
   js-yaml: 4.3.2
   # CVE floor added 2026-10-31 for GHSA-3g3m-2fjr-6pw4 (moderate, CVE-2026-118773): an aborted
   # async walk rejects but keeps reading directories. OSV `introduced 9.0.0, fixed 14.0.2`,
@@ -282,9 +294,10 @@ overrides:
 # Audited audit-ignores: GHSAs accepted as non-exploitable in our context, each with
 # a documented remove-when (SECURITY_CANON §Audited-audit-ignores). pnpm audit still
 # fails on any NEW advisory — the gate stays real. Migrated from package.json (ADR-0019).
-# Empty since 2026-10-06: the last two entries, GHSA-848j-6mx2-7j84 (elliptic) and
-# GHSA-vfj7-8cjw-p6xm (braces), left with @storybook/nextjs, the only package whose
-# chains carried either, so neither suppressed anything any more.
+# Empty from 2026-10-06 to 2026-10-31: the last two entries of that time, GHSA-848j-6mx2-7j84
+# (elliptic) and GHSA-vfj7-8cjw-p6xm (braces), left with @storybook/nextjs, the only package
+# whose chains carried either, so neither suppressed anything any more. One entry since
+# 2026-10-31, below.
 auditConfig:
   # GHSA-g3hv-75wg-m249 (minimatch, moderate: denial of service via globparts amplification),
   # ignored since 2026-10-31 by the Maintainer's decision. Its only fixed line is 11.x, and the
