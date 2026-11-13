@@ -35,11 +35,12 @@ export class Container {
   }
 
   /**
-   * Register a service factory
-   *
+   * @method register
+   * @description Register a service factory under a token.
    * @param token - Service identifier token
    * @param factory - Factory function to create the service
    * @param singleton - Whether to create a singleton instance (default: true)
+   * @returns The container, for chaining
    */
   register<T>(token: Token, factory: ServiceFactory<T>, singleton?: boolean): this {
     this.services.set(token, {
@@ -50,12 +51,20 @@ export class Container {
   }
 
   /**
-   * Register a singleton service with an existing instance
-   *
+   * @method registerInstance
+   * @description Register a singleton service with an existing instance. `undefined`
+   *   is refused because `resolve` and `peekInstance` read an `undefined` instance
+   *   as "not built yet", so a registered `undefined` would resolve silently instead
+   *   of failing with `Service not registered`.
    * @param token - Service identifier token
-   * @param instance - Existing service instance
+   * @param instance - Existing service instance; never `undefined`
+   * @returns The container, for chaining
+   * @throws Error if `instance` is `undefined`; nothing is registered for the token
    */
-  registerInstance<T>(token: Token, instance: T): this {
+  registerInstance<T>(token: Token, instance: T & ({} | null)): this {
+    if (instance === undefined) {
+      throw new Error(`Cannot register undefined as an instance: ${token.toString()}`);
+    }
     this.services.set(token, {
       factory: () => instance,
       singleton: true,
@@ -65,8 +74,9 @@ export class Container {
   }
 
   /**
-   * Resolve a service by its token
-   *
+   * @method resolve
+   * @description Resolve a service by its token, consulting the parent container when
+   *   the token is not registered here.
    * @param token - Service identifier token
    * @returns The service instance
    * @throws Error if service is not registered
@@ -99,8 +109,8 @@ export class Container {
   }
 
   /**
-   * Try to resolve a service, returning undefined if not found
-   *
+   * @method tryResolve
+   * @description Try to resolve a service, returning undefined if not found.
    * @param token - Service identifier token
    * @returns The service instance or undefined
    */
@@ -113,7 +123,8 @@ export class Container {
   }
 
   /**
-   * Return a singleton's cached instance WITHOUT constructing it.
+   * @method peekInstance
+   * @description Return a singleton's cached instance WITHOUT constructing it.
    *
    * Unlike `resolve`, this never invokes the factory: it returns the instance
    * only if the singleton has already been resolved (or was registered eagerly
@@ -140,9 +151,10 @@ export class Container {
   }
 
   /**
-   * Check if a service is registered
-   *
+   * @method has
+   * @description Check if a service is registered here or in a parent container.
    * @param token - Service identifier token
+   * @returns True when the token is registered
    */
   has(token: Token): boolean {
     if (this.services.has(token)) {
@@ -152,9 +164,9 @@ export class Container {
   }
 
   /**
-   * Create a child container with its own registrations
-   * Child containers can override parent registrations
-   *
+   * @method createChild
+   * @description Create a child container with its own registrations. Child
+   *   containers can override parent registrations.
    * @returns A new child container
    */
   createChild(): Container {
@@ -162,14 +174,17 @@ export class Container {
   }
 
   /**
-   * Clear all registered services
+   * @method clear
+   * @description Clear all registered services of this container.
    */
   clear(): void {
     this.services.clear();
   }
 
   /**
-   * Get all registered tokens
+   * @method getRegisteredTokens
+   * @description Get all registered tokens, parent tokens included.
+   * @returns Every registered token, without duplicates
    */
   getRegisteredTokens(): symbol[] {
     const tokens = [...this.services.keys()];
@@ -185,7 +200,8 @@ export class Container {
   }
 
   /**
-   * Reset singleton instances (useful for testing)
+   * @method resetSingletons
+   * @description Reset singleton instances (useful for testing).
    */
   resetSingletons(): void {
     for (const registration of this.services.values()) {
@@ -202,7 +218,8 @@ export class Container {
 let globalContainer: Container | undefined;
 
 /**
- * Get or create the global container instance
+ * @description Get or create the global container instance.
+ * @returns The global container
  */
 export function getContainer(): Container {
   if (!globalContainer) {
@@ -212,14 +229,15 @@ export function getContainer(): Container {
 }
 
 /**
- * Set the global container instance (useful for testing)
+ * @description Set the global container instance (useful for testing).
+ * @param container - Container to install as the global instance
  */
 export function setContainer(container: Container): void {
   globalContainer = container;
 }
 
 /**
- * Reset the global container (useful for testing)
+ * @description Reset the global container (useful for testing).
  */
 export function resetContainer(): void {
   globalContainer?.clear();

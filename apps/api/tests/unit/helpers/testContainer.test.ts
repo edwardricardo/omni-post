@@ -3,13 +3,15 @@
  * @description Pins the route-test composition root and the defect it exists to
  *   close. `ContainerSetupOptions.apiMetrics` is REQUIRED, but nothing under
  *   `apps/api/tests` is opened by a compiler, so 22 harnesses omitted it and the
- *   container registered `TOKENS.ApiMetrics` as `undefined`. Resolution hands that
- *   `undefined` straight back instead of throwing, so there was no runtime signal
- *   either — until an injected consumer dereferenced it.
+ *   container registered `TOKENS.ApiMetrics` as `undefined`. Resolution used to hand
+ *   that `undefined` straight back instead of throwing, so there was no runtime
+ *   signal either — until an injected consumer dereferenced it.
  *
- *   The first case below is a CHARACTERIZATION of that fail-open: it asserts the
- *   broken behaviour, not the fix, and it must keep passing after the seam lands.
- *   Deleting it would remove the only executable statement of why the seam exists.
+ *   `Container.registerInstance` now refuses `undefined`, so the first case below
+ *   states the refusal: a container built without a collector fails while it is
+ *   composed, naming the token. It goes through `setupContainer` directly because
+ *   the seam always supplies a collector, which is why this file stays the one
+ *   test that calls it.
  *   The remaining cases pin what the seam guarantees: a live collector on the exact
  *   dereference chain the brute-force adapter uses, a registry that cannot disturb
  *   the process-wide one production scrapes, and an explicit override by identity.
@@ -36,16 +38,11 @@ describe("createRouteTestContainer", () => {
     prisma = createMockPrismaModule().prisma;
   });
 
-  it("characterizes the fail-open: a container built without apiMetrics resolves undefined", () => {
-    // canon-exception: test-fixture
-    const bare = setupContainer({ prisma } as never);
-
-    const resolved = bare.resolve<ApiMetrics | undefined>(TOKENS.ApiMetrics);
-
-    expect(resolved).toBeUndefined();
+  it("refuses to build a container without apiMetrics, naming the token", () => {
     expect(() => {
-      (resolved as ApiMetrics).metrics.securityThreats.inc(LOGIN_THREAT);
-    }).toThrow(TypeError);
+      // canon-exception: test-fixture
+      setupContainer({ prisma } as never);
+    }).toThrow(`Cannot register undefined as an instance: ${TOKENS.ApiMetrics.toString()}`);
   });
 
   it("registers a live collector whose brute-force dereference chain executes", () => {

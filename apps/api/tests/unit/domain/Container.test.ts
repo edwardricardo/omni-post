@@ -94,6 +94,30 @@ describe("Container", () => {
       expect(first).toBe(instance);
       expect(second).toBe(instance);
     });
+
+    it("should refuse a by-value undefined at registration and register nothing", () => {
+      const token = Symbol.for("UndefinedInstance");
+
+      expect(() => {
+        // canon-exception: test-fixture
+        container.registerInstance(token, undefined as never);
+      }).toThrow(`Cannot register undefined as an instance: ${token.toString()}`);
+
+      expect(container.has(token)).toBe(false);
+      expect(() => container.resolve(token)).toThrow(/Service not registered/);
+      expect(container.tryResolve(token)).toBeUndefined();
+    });
+
+    it("should keep resolving a real object and null to the registered value", () => {
+      const instance = { name: "test" };
+      const nullToken = Symbol.for("NullInstance");
+
+      container.registerInstance(TOKENS.PostRepository, instance);
+      container.registerInstance(nullToken, null);
+
+      expect(container.resolve(TOKENS.PostRepository)).toBe(instance);
+      expect(container.resolve(nullToken)).toBeNull();
+    });
   });
 
   describe("tryResolve", () => {
@@ -302,5 +326,24 @@ describe("createTestContainer", () => {
 
     const resolved = container.resolve(TOKENS.PostRepository);
     expect(resolved).toBe(mockRepo);
+  });
+
+  it("should register a string-keyed override under its global symbol", () => {
+    const mockRepo = { id: "mock" };
+    // canon-exception: test-fixture
+    const overrides = { StringKeyedOverride: mockRepo } as never;
+
+    const container = createTestContainer(overrides);
+
+    expect(container.resolve(Symbol.for("StringKeyedOverride"))).toBe(mockRepo);
+  });
+
+  it("should skip a string-keyed override whose value is undefined", () => {
+    // canon-exception: test-fixture
+    const overrides = { SkippedOverride: undefined } as never;
+
+    const container = createTestContainer(overrides);
+
+    expect(container.has(Symbol.for("SkippedOverride"))).toBe(false);
   });
 });

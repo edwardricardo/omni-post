@@ -51,8 +51,8 @@ interface SeededTenant {
 }
 
 /** Inert instance for a DI token the public SSO routes never invoke. */
-function inertToken<T>(): T {
-  return {} as unknown as T;
+function inertToken(): object {
+  return {};
 }
 
 describe("Public SSO (SAML + OIDC) — two-tenant isolation across all 5 param-seam routes (MERGE-BLOCKING)", () => {

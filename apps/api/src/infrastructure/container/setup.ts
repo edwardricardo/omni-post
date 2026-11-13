@@ -37,7 +37,7 @@ export interface ContainerSetupOptions {
 }
 
 /**
- * Configure the container with all services
+ * @description Configure the container with all services
  *
  * @param options - Setup options
  * @returns Configured container
@@ -115,7 +115,8 @@ export function setupContainer(options: ContainerSetupOptions): Container {
 }
 
 /**
- * Create a test container with mock services
+ * @description Create a test container with mock services. An override whose value
+ *   is `undefined` is skipped, never registered: the container refuses `undefined`.
  *
  * @param overrides - Service overrides for testing
  * @returns Test container
@@ -128,7 +129,9 @@ export function createTestContainer(overrides: Partial<Record<symbol, unknown>> 
 
   // Apply overrides
   for (const [token, instance] of Object.entries(overrides)) {
-    container.registerInstance(Symbol.for(token), instance);
+    if (instance !== undefined) {
+      container.registerInstance(Symbol.for(token), instance);
+    }
   }
 
   // Apply symbol overrides
