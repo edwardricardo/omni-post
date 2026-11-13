@@ -2698,14 +2698,12 @@
       ],
       "bins": ["cronstrue"],
       "verdict": "under-floor",
-      "real": 2,
+      "real": 1,
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "production": [
-            "apps/client/components/analytics/ScheduledReportsList.tsx",
-            "apps/client/components/scheduling/RecurringPostCard.tsx"
-          ]
+          "production": ["apps/client/lib/utils/cronDescription.ts"],
+          "test": ["apps/client/tests/unit/shared/cronDescription.test.ts"]
         }
       }
     },

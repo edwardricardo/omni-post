@@ -7,10 +7,10 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import cronstrue from "cronstrue";
 import { ConfirmDialog } from "@packages/ui";
 import { useLogger, extractErrorInfo } from "@observability/browser-logger";
 import { useReports, useDeleteReport, useGenerateReport } from "@/hooks/api/useReports";
+import { describeCron } from "@/lib/utils/cronDescription";
 
 interface ScheduledReportsListProps {
   projectId: string;
@@ -18,14 +18,6 @@ interface ScheduledReportsListProps {
 }
 
 type GenerateStatus = "idle" | "success" | "error";
-
-function humanizeCron(cron: string): string {
-  try {
-    return cronstrue.toString(cron, { use24HourTimeFormat: false });
-  } catch {
-    return cron;
-  }
-}
 
 function formatDate(iso: string | null, neverLabel: string, locale: string): string {
   if (!iso) return neverLabel;
@@ -204,7 +196,9 @@ export function ScheduledReportsList({ projectId, onCreateClick }: ScheduledRepo
                     {report.name}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600 max-w-xs">
-                    <span title={report.cronSchedule}>{humanizeCron(report.cronSchedule)}</span>
+                    <span title={report.cronSchedule}>
+                      {describeCron(report.cronSchedule, locale, { use24HourTimeFormat: false })}
+                    </span>
                     <span className="block text-xs text-gray-400 font-mono mt-0.5">
                       {report.cronSchedule}
                     </span>
