@@ -296,7 +296,9 @@ describe("analyticsRoutes Unit Tests", () => {
     let succeededLogId: string;
     let failedLogId: string;
 
-    const listLogIds = async (query: string): Promise<{ status: number; ids: string[] }> => {
+    const listLogIds = async (
+      query: string
+    ): Promise<{ status: number; ids: string[]; body: unknown }> => {
       const res = await app.inject({
         method: "GET",
         url: `/admin/compliance/audit-logs?action=${FLAG_ACTION}${query}`,
@@ -304,7 +306,7 @@ describe("analyticsRoutes Unit Tests", () => {
       });
       const body = JSON.parse(res.body);
       const logs: { id: string }[] = body.data?.data ?? [];
-      return { status: res.statusCode, ids: logs.map((log) => log.id) };
+      return { status: res.statusCode, ids: logs.map((log) => log.id), body };
     };
 
     beforeEach(async () => {
@@ -346,10 +348,12 @@ describe("analyticsRoutes Unit Tests", () => {
       expect(ids).toEqual(expect.arrayContaining([succeededLogId, failedLogId]));
     });
 
-    it.each(["yes", "1", ""])("answers 400 when success is %j", async (value) => {
-      const { status } = await listLogIds(`&success=${value}`);
+    it.each(["yes", "1", ""])("answers 400 with no row when success is %j", async (value) => {
+      const { status, ids, body } = await listLogIds(`&success=${value}`);
 
       expect(status).toBe(400);
+      expect(body).toMatchObject({ ok: false, error: "Invalid query parameters" });
+      expect(ids).toEqual([]);
     });
   });
 
