@@ -11,6 +11,10 @@
  *   It writes nothing. A static run certifies nothing, so no state file and no state directory
  *   are involved: the verdict a hook reads is `battery-state.mjs`'s alone to write.
  *
+ *   The work is in one exported function, `staticReport(verdict)`, which turns a verdict into the
+ *   lines to print and the exit code; the command line below only reads its two arguments, asks
+ *   for the verdict and prints what that function returns.
+ *
  *   Usage: `node scripts/testing/battery-static.mjs <log dir> <number of static steps>`.
  *   Exit codes: 0 GREEN; 1 RED, including a result that could not be computed, which still ends
  *   on a `STATIC RED` line; 2 a usage error.

@@ -67,7 +67,8 @@
 set -uo pipefail
 
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
-# added below without raising this number turns the battery RED, loudly.
+# added below without raising this number turns the battery RED, loudly. A full
+# run hands it to battery-state.mjs as --expected-steps, at the end of this file.
 PLANNED_STEPS=34
 
 USAGE="usage: scripts/testing/battery.sh [--static] [--list] [<worktree>]"
@@ -366,6 +367,8 @@ battery_steps
 if [ "$STATIC" -eq 1 ]; then
   date -u
   echo "static logs: $OUT"
+  # PLAN is the listing of THIS mode: the walk above ran with STATIC set, where
+  # `step` skips a suite step before it prints, so these are the static steps.
   STATIC_PLANNED=$(printf '%s\n' "$PLAN" | wc -l)
   # This script owns the promise of a STATIC last line: the module's output is
   # passed through, and it stands only when its last line agrees with its exit
