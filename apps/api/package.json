@@ -97,7 +97,7 @@
     "@observability/background-scheduler": "workspace:*",
     "@observability/opentelemetry": "workspace:*",
     "@packages/api-common": "workspace:*",
-    "@paddle/paddle-node-sdk": "3.6.1",
+    "@paddle/paddle-node-sdk": "3.10.0",
     "@ports/core": "workspace:*",
     "@providers/bluesky": "workspace:*",
     "@providers/facebook": "workspace:*",
