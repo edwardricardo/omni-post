@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1190  |
+| Files                   | 1193  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1026  |
+| KEEP                    | 1029  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1180  |
+| Machine rows            | 1183  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14810 |
+| Blocks                  | 14821 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1134,7 +1134,10 @@ Deleted: 0 files, 31 blocks.
 | `apps/client/tests/unit/posts/contentLocaleOptions.test.tsx`                                          | test             | 6      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/client/tests/unit/proxy.test.ts`                                                                | test             | 12     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/unit/scheduling/calendarLocaleFormatting.test.tsx`                                 | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/client/tests/unit/scheduling/recurringPostCronLocale.test.tsx`                                  | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/unit/shared/LanguageSwitcher.test.tsx`                                             | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/client/tests/unit/shared/cronDescription.test.ts`                                               | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/client/tests/unit/shared/scheduledReportsCronLocale.test.tsx`                                   | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/client/tests/unit/styles/tailwindSources.test.ts`                                               | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/workers/tests/ChannelAuthFailureRecorder.tenantScope.test.ts`                                   | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/workers/tests/ChannelAuthFailureRecorder.test.ts`                                               | test             | 5      | 0          | KEEP       | machine                     | behavioural          |

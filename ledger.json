@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1190,
+      "total": 1193,
       "byShape": {
-        "test": 953,
+        "test": 956,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1026,
+        "KEEP": 1029,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1180,
+      "machine": 1183,
       "confirmed": 10,
-      "total": 1190
+      "total": 1193
     },
     "blocks": {
-      "total": 14810,
+      "total": 14821,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14499
+        "BEHAVIOURAL": 14510
       }
     },
     "deleted": {
@@ -97457,7 +97457,7 @@
       "sliceId": null,
       "subject": null,
       "duplicate": null,
-      "importers": 13
+      "importers": 15
     },
     {
       "path": "apps/client/tests/mocks/handlers/index.ts",
@@ -98169,6 +98169,44 @@
       "importers": null
     },
     {
+      "path": "apps/client/tests/unit/scheduling/recurringPostCronLocale.test.tsx",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/client/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 3,
+      "blocks": [
+        {
+          "id": "apps/client/tests/unit/scheduling/recurringPostCronLocale.test.tsx::describes the cron in Spanish on the es interface",
+          "line": 40,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ec8fa0c781357c6055dc4ba6eaa35ae540453ea85a01cd15697000d4906ad6fe"
+        },
+        {
+          "id": "apps/client/tests/unit/scheduling/recurringPostCronLocale.test.tsx::describes the cron in English on a 24-hour clock on the en interface",
+          "line": 46,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b7d18f90d85e93b38424d58c85b1b48a7467da775feb9179de36c4e9c3f66588"
+        },
+        {
+          "id": "apps/client/tests/unit/scheduling/recurringPostCronLocale.test.tsx::shows an unreadable cron as typed on the %s interface",
+          "line": 52,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "01494423dc5a83bcbb884ad4e34aae48d82f1aec444b51222ecf3908529f128c"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/client/tests/unit/shared/LanguageSwitcher.test.tsx",
       "shape": "test",
       "framework": "vitest",
@@ -98214,6 +98252,100 @@
         "module": "apps/client/components/shared/LanguageSwitcher.tsx",
         "imported": true
       },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/client/tests/unit/shared/cronDescription.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/client/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 5,
+      "blocks": [
+        {
+          "id": "apps/client/tests/unit/shared/cronDescription.test.ts::maps the %s routing language to a loaded cronstrue locale",
+          "line": 16,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e20f29aa95b7201379d47cb2eed22c193aa1d14e2b7ca30f895b36d1bb2d0907"
+        },
+        {
+          "id": "apps/client/tests/unit/shared/cronDescription.test.ts::describes a cron in the %s routing language",
+          "line": 26,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "dc6522875e71c85b7857a8d041fe43b49988b24e35e22137a9716d992a5dde71"
+        },
+        {
+          "id": "apps/client/tests/unit/shared/cronDescription.test.ts::describes the same cron differently in Spanish and English",
+          "line": 38,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "005727ca60b5e4fbe541fffcb6f21a12097f4b4ded7d7c0ce45d7bbbd1726697"
+        },
+        {
+          "id": "apps/client/tests/unit/shared/cronDescription.test.ts::returns the raw expression for a locale outside the routing",
+          "line": 46,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "06aa7aedbd15a05499333a7f9c88d644957d68aee9a2bab918e02d5f61017273"
+        },
+        {
+          "id": "apps/client/tests/unit/shared/cronDescription.test.ts::returns the raw expression when the cron cannot be read",
+          "line": 52,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4dff5f98075b03c15303c9b0fb273ff3f2c30b439391c02677dedc5e0ecc22db"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "cronDescription",
+        "module": "apps/client/lib/utils/cronDescription.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/client/tests/unit/shared/scheduledReportsCronLocale.test.tsx",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/client/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 3,
+      "blocks": [
+        {
+          "id": "apps/client/tests/unit/shared/scheduledReportsCronLocale.test.tsx::describes the cron in Spanish on the es interface",
+          "line": 48,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "377fffa945a3e45c8d0799af472bb7833beb1f612e749004e13f2da62dc12ef6"
+        },
+        {
+          "id": "apps/client/tests/unit/shared/scheduledReportsCronLocale.test.tsx::describes the cron in English on a 12-hour clock on the en interface",
+          "line": 54,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8fa8320ecb14729ed413bb9d5cd3ea54a829ffc6c5ae4595d97a05d135358abe"
+        },
+        {
+          "id": "apps/client/tests/unit/shared/scheduledReportsCronLocale.test.tsx::shows an unreadable cron as typed on the %s interface",
+          "line": 60,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1853161673e384c8a5404b037770c236fda4ecac66cf34adb8154d0e09eee102"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
       "duplicate": null,
       "importers": null
     },
