@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1195,
+      "total": 1197,
       "byShape": {
-        "test": 957,
+        "test": 959,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1031,
+        "KEEP": 1033,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1185,
+      "machine": 1187,
       "confirmed": 10,
-      "total": 1195
+      "total": 1197
     },
     "blocks": {
-      "total": 14830,
+      "total": 14851,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14519
+        "BEHAVIOURAL": 14540
       }
     },
     "deleted": {
@@ -68888,6 +68888,149 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/scripts/batteryModes.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 18,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints the names of the script's step declarations, in order, when --list is given alone",
+          "line": 258,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0a7e12532a217aa0f0c2fea9ce801e97f7a49ddb1be6669cf72323a24f9578ce"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints as many names as PLANNED_STEPS, which is 34, when --list is given alone",
+          "line": 265,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b5afd180fd2a6a90f1180f387c0bee10c9e2c8b288448faa3cfe61ef579d3590"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints the static steps in the script's order when --static --list is given",
+          "line": 272,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "764906394e292bb591834cdbc2645f57c73872e397cb3b3312747f3ed612f48e"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns listings that differ by exactly the nine suite steps when both modes are listed",
+          "line": 283,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8c54473e44e97862833197607be7712a43f3912ae3a482a7066d996434b1be17"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints the listing with exit 0 when the tree is dirty and no environment file exists",
+          "line": 291,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d3db6b703dab8ed38522cdec34357b99370cddeda5fc664f251353f2eb03f9a5"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 naming the missing kind when a step declaration names no kind",
+          "line": 301,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "add8abbc6b89c5e35ce8dbf1f73ba1e57ab8a8cba5957b114516fc3675f8869f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the usage naming both flags when a flag is unknown",
+          "line": 319,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ca8cccfc00604c9121403803ec4cbf10d72ae655e2e11b2d100d6887e9134d4b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the usage when two worktrees are given",
+          "line": 327,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ecf965ec184314ea5e61be240bd613724228ef77674ec3b4d466f454ab13bf00"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the usage when a flag is repeated",
+          "line": 334,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "19835cbd65382a2865f8358589c9c41e7951e9bb30dc15cbfdb4281fe42d2464"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the environment refusal when the full battery has no environment file",
+          "line": 343,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cdab860f3cb2d254f947fc4d1b163aa14fce0e335b97ecfc3ad61766d30e0e54"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::returns exit 2 and the dirty-tree refusal when the full battery runs on a dirty tree",
+          "line": 353,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f37f671fca0f8596be0ff9c9f92eb0b755a7c0a61e1c357276979391ef267d39"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC GREEN with the step count and exits 0 when every static step exits 0 and no environment file exists",
+          "line": 369,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8adf9e8ac5c5a158373347be198a5faf99912fe00d511e94fc6b43de69b45b8a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC RED naming the failing step and exits 1 when one static step fails",
+          "line": 383,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a69a16147596de319fd8e95130073b477276d625d3a505c587deb8df0e1061d3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC RED naming the log and exits 1 when every step exits 0 but lint.log holds a warning line",
+          "line": 394,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bf8965b1bddaf14dcd06de4fa3714ecbf1f182a388d94e44179b5cc87197c449"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints STATIC GREEN when a static log holds only a path and a flag the verdict does not count as warnings",
+          "line": 409,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b29e830d100c5822474731d75007c279deb56e327a23697c91e75b7787acf54c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::records only the static steps in its own log directory and writes no verdict when --static runs",
+          "line": 423,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0dd6b72d26b9d56c0e0ba910b4efeb08b464fa251b4e96f67309e5fbd04b808c"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::leaves a full run's log directory untouched when --static runs with BATTERY_OUT naming it",
+          "line": 436,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "dab84d95d05a0859280b7adfc0c57903cdb1681247aa340dc581c76aa9718f32"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryModes.test.ts::prints the dirty-tree notice and still runs when --static runs on a dirty tree",
+          "line": 450,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8fdc6de950c705786fdf9faa135a52885cfb9630562dcd2f6c4aa53412a40274"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/scripts/batteryState.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -68957,6 +69100,44 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f0a5a1f1b843f622dbdc95d22fea36527e24c0dfb2a88d4fd60b9fbedb93f4b"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/scripts/batteryStatic.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 3,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/batteryStatic.test.ts::returns exit 1 and a last line naming the failing step and the warning log when both occur",
+          "line": 71,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bb9a3ae64cc047b415509578cb3ab3b8041fdc9d206526f2e3a0c7527cab6f15"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryStatic.test.ts::returns a last line counting the other reasons when the reasons go beyond the failing steps and the warnings",
+          "line": 95,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5710db45fd2c370c5a7d4bf8d25faa4343372ec8c0b098539267d353f04a6e1a"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/batteryStatic.test.ts::returns exit 0 and the STATIC GREEN line when the verdict is GREEN",
+          "line": 117,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a2fe86f221bc1292fce3cf5818ae54bac334453444726969323017fbcd25f2dd"
         }
       ],
       "verdict": "KEEP",
