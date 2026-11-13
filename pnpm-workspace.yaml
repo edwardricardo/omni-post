@@ -264,7 +264,7 @@ overrides:
   # @opentelemetry/auto-instrumentations-node 0.77.0, declares `^0.219.0`, which on a 0.x line
   # admits 0.219.x only, so the band forces 0.219.0 -> 0.222.0 and brings @opentelemetry/core
   # 2.11.0, which 0.222.0 pins exactly. From 0.221.0 the package emits only stable HTTP semantic
-  # conventions (`url.query`, not `http.target`). The patch redacts four keys and leaves `code`
+  # conventions (`url.query`, not `http.target`). The patch redacts seven keys and leaves `code`
   # and `state` raw. Measured, with the remove-when, in SECURITY_CANON §"CVE-floor pins", row
   # `instrumentation-http` (OTel).
   "@opentelemetry/instrumentation-http@<0.222.0": 0.222.0
