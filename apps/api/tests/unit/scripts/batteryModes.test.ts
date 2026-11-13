@@ -455,8 +455,38 @@ describe("battery.sh --static run", () => {
 
     expect(result.status).toBe(0);
     expect(result.stderr).toContain(
-      "battery: static run on a tree with 1 changed path(s); jsdoc, record-coverage and floors read commits and see only what is committed"
+      "battery: static run on a tree with 1 changed path(s); jsdoc checks only the files changed in commits, and ledger and artifact-language list files with git ls-files, so neither sees an untracked file"
     );
     expect(lastLine(result.stdout)).toMatch(/^STATIC GREEN: /);
+  });
+
+  it("prints STATIC RED and exits 1 when the static-result module prints nothing and exits 0", () => {
+    const repo = createRepository();
+    writeFileSync(
+      path.join(repo, "scripts", "testing", "battery-static.mjs"),
+      "// prints nothing\n"
+    );
+
+    const result = runStatic(repo);
+
+    expect(result.status).toBe(1);
+    expect(lastLine(result.stdout)).toBe(
+      "STATIC RED: battery-static.mjs exited 0 without a last line that matches its exit code, so no static result stands; a static run certifies nothing"
+    );
+  });
+
+  it("prints STATIC RED and exits 1 when the static-result module does not parse", () => {
+    const repo = createRepository();
+    writeFileSync(
+      path.join(repo, "scripts", "testing", "battery-static.mjs"),
+      "export const = ;\n"
+    );
+
+    const result = runStatic(repo);
+
+    expect(result.status).toBe(1);
+    expect(lastLine(result.stdout)).toBe(
+      "STATIC RED: battery-static.mjs exited 1 without a last line that matches its exit code, so no static result stands; a static run certifies nothing"
+    );
   });
 });

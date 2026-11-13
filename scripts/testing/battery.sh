@@ -33,8 +33,10 @@
 # full run's order, so that a red static gate costs minutes before a full
 # battery is spent on it. A static run certifies nothing:
 #   - it neither requires nor reads the environment file;
-#   - it accepts a dirty tree, and says how many paths differ, because jsdoc,
-#     record-coverage and floors read commits and see only what is committed;
+#   - it accepts a dirty tree, and then says how many paths differ and what
+#     such a run does not cover: jsdoc checks only the files changed in
+#     commits, and ledger and artifact-language list files with git ls-files,
+#     so neither sees an untracked file;
 #   - its logs go to .claude/state/battery-static-logs/<sha> in the main
 #     repository root, never to BATTERY_OUT or a full run's directory;
 #   - it writes no verdict: battery-state.mjs is never called;
@@ -307,7 +309,7 @@ STEP_TIMEOUT=$((10#$STEP_TIMEOUT))
 
 # A battery certifies a commit, so it refuses a tree that is not that commit. A
 # static run certifies nothing and also serves before a commit, so it only says
-# what the steps that read commits will not see.
+# what a dirty tree leaves uncovered.
 if ! START_STATUS=$(git status --porcelain); then
   echo "battery: git status failed in $WT" >&2
   exit 2
@@ -319,7 +321,7 @@ if [ -n "$START_STATUS" ]; then
     exit 2
   fi
   CHANGED_PATHS=$(printf '%s\n' "$START_STATUS" | wc -l)
-  echo "battery: static run on a tree with $CHANGED_PATHS changed path(s); jsdoc, record-coverage and floors read commits and see only what is committed" >&2
+  echo "battery: static run on a tree with $CHANGED_PATHS changed path(s); jsdoc checks only the files changed in commits, and ledger and artifact-language list files with git ls-files, so neither sees an untracked file" >&2
 fi
 SHA=$(git rev-parse HEAD) || exit 2
 TREE=$(git rev-parse 'HEAD^{tree}') || exit 2
@@ -365,13 +367,19 @@ if [ "$STATIC" -eq 1 ]; then
   date -u
   echo "static logs: $OUT"
   STATIC_PLANNED=$(printf '%s\n' "$PLAN" | wc -l)
-  node scripts/testing/battery-static.mjs "$OUT" "$STATIC_PLANNED"
+  # This script owns the promise of a STATIC last line: the module's output is
+  # passed through, and it stands only when its last line agrees with its exit
+  # code. A module that is missing, does not parse, prints nothing or disagrees
+  # with itself ends the run RED, never on an exit 0 a caller would read as a pass.
+  STATIC_REPORT=$(node scripts/testing/battery-static.mjs "$OUT" "$STATIC_PLANNED")
   STATIC_CODE=$?
-  if [ "$STATIC_CODE" -gt 1 ]; then
-    echo "STATIC RED: node exited $STATIC_CODE before it printed the static result; a static run certifies nothing"
-    exit 1
-  fi
-  exit "$STATIC_CODE"
+  [ -z "$STATIC_REPORT" ] || printf '%s\n' "$STATIC_REPORT"
+  case "$STATIC_CODE:${STATIC_REPORT##*$'\n'}" in
+    "0:STATIC GREEN"*) exit 0 ;;
+    "1:STATIC RED"*) exit 1 ;;
+  esac
+  echo "STATIC RED: battery-static.mjs exited $STATIC_CODE without a last line that matches its exit code, so no static result stands; a static run certifies nothing"
+  exit 1
 fi
 
 # The verdict certifies the commit only if no step changed the tree or moved
