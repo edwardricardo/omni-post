@@ -9,6 +9,8 @@
 - **Superseded by**: —
 - **Amended**: 2026-10-22, §"Amendment of 2026-10-22: Node 26.12.1" (the `engines.node` floor and
   both image stages move to 26.12.1, the security release of 2026-10-21)
+- **Amended**: 2026-11-14, §"Amendment of 2026-11-14: Node 26.13.1" (both image stages move to
+  26.13.1, the security release of 2026-11-11; `engines.node` stays at 26.12.1)
 - **Amends**: slice `0.16` of `openspec/changes/testing-refoundation/tasks.md` ("the runtime follows
   LTS, never Current") and its dating to 2026-10-28 by tracker decisions D46 and D51 (entries of the tracker's Decisions log, removed from the tree on 2026-11-10)
 - **Related**: [ADR-0017](ADR-0017-production-build-bundler.md) (the image build model);
@@ -289,6 +291,65 @@ advisory in the four images).
 carries a dated reference to this amendment: that review also confirms that 26.12.1 is mature,
 that no newer 26.x security release is out, and that CI and both image stages run it.
 
+## Amendment of 2026-11-14: Node 26.13.1
+
+Prepared on 2026-11-14 for the Maintainer's decision: take Node 26.13.1, the security release of
+2026-11-11 (`nodejs.org/dist/index.json` dates it 2026-11-10), in both stages of the four images. It is the case "A 26.x security release" of
+§"Revisit if", and a deviation inside the 7-day buffer, as ADR-0036 takes every security floor:
+26.13.1, published at 2026-11-11T16:44:25Z, matures from 2026-11-18T16:44Z, and the change is not published before the Maintainer says so. The
+sentences of this ADR that name 26.12.1 and `456bd22a` as the current pins, in §"Decision" item 3,
+§"Rationale", §"Consequences" and §"Revisit if", describe the state before this amendment. This amendment, prepared for the Maintainer's decision,
+inserts no pointer into those sections, which stay as accepted, and gives the reach in prose rather
+than in a per-CVE table, because no per-CVE reach assessment was made.
+
+**What 26.13.1 fixes on the 26.x line** (the [release notes](https://github.com/nodejs/node/releases/tag/v26.13.1),
+read on 2026-11-14): sixteen CVEs, seven High (nine fixes between them), six Medium and three Low.
+The High ones are in the `http2` stream and buffer lifecycle (CVE-2026-123863, CVE-2026-123865,
+CVE-2026-123866, CVE-2026-123874), the nested parser execution on empty `tls` and `http` writes
+(CVE-2026-123864), `tls` resumption and SNI changes (CVE-2026-123872) and a remotely reachable `tls`
+server crash (CVE-2026-126051). The release moves the bundled undici from 8.12.2 to 8.12.4 and also
+updates brotli (1.2.1), llhttp (9.4.4) and sqlite (3.54.1).
+
+**Reach in this repository**, read on 2026-11-14: no non-test source file of `apps/api`,
+`apps/workers`, `infra` or `packages` imports `node:http2`, `node:https` or `node:tls` or sets a
+`https` or `http2` server option, so no process of the four images terminates TLS or serves HTTP/2
+itself; the portals run Next's plain-HTTP standalone server. The reach through dependencies was not
+measured, and the outbound `fetch` path takes the undici update. The floor is taken without a
+per-CVE reach assessment, as ADR-0036 asks of a security floor.
+
+**What moved.**
+
+| Site                                | Before                                                                                                                   | After                                                                                                                                                                       |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build stage of the four Dockerfiles | `node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe`                     | `node:26.13.1-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1`                                                                        |
+| Production stage                    | `gcr.io/distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7` (v26.12.1) | `gcr.io/distroless/nodejs26-debian13@sha256:80631bd2f0e7ef192138a7409013b47d92fd11b8ff3bb35f5c0a65be3ecaea4c` (v26.13.1; the `latest` index, uploaded 2026-11-12T21:17:21Z) |
+| `zlib-patched` stage                | present in all four Dockerfiles                                                                                          | removed: the new runtime digest holds `zlib1g` `1:1.3.dfsg+really1.3.1-1+deb13u1` itself                                                                                    |
+
+`engines.node` stays `>=26.12.1 <27`, and `.nvmrc` stays `26`. The reason is measured: the floor
+exists for CI not to resolve below the release taken, and CI does not: the `setup-node` step of the
+`CI` run of `main` that began on 2026-11-14T01:27Z read `.nvmrc` and acquired 26.13.1 from
+`actions/node-versions`. Raising the floor would edit 101 manifests and the local toolchain for no
+change in what CI installs. The lockfile does not move.
+
+**Measured on 2026-11-14.**
+
+- The `latest` index of `gcr.io/distroless/nodejs26-debian13` (`80631bd2`) and the tag
+  `node:26.13.1-bookworm-slim` (`5df79989`) were read with `podman image mount`: both run v26.13.1,
+  and the distroless image's `var/lib/dpkg/status.d/zlib1g` reads `1:1.3.dfsg+really1.3.1-1+deb13u1`
+  (DSA-6613-1).
+- Trivy 0.74.0 (database of 2026-11-14T01:05:40Z) with the gate's flags finds two HIGH `zlib1g`
+  vulnerabilities (CVE-2026-76844, CVE-2026-85091) in `456bd22a` and none in `80631bd2`
+  (debian 13.7).
+- The four images build with `podman` from this change; each runs `/nodejs/bin/node` v26.13.1 as
+  `nonroot`; argon2 round-trips in the API image; the API and workers `CMD` entries resolve their
+  module graph and stop at the environment validation; both portal images answer 200 on
+  `/api/health` and `/` and pass `podman healthcheck run`; and the same Trivy finds no HIGH or
+  CRITICAL vulnerability in any of the four.
+- Build and runtime both run 26.13.1.
+
+**The re-check.** The watchlist's date entry `contract-0.16-node-26` carries a dated line for this
+amendment; the entry `zlib-stage-remove` left with the stage it watched.
+
 ## Legal impact
 
 None: the runtime version changes. No personal data, cookie or storage key, OAuth scope, recipient,
@@ -313,6 +374,11 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
   v26.12.1 or a later 26.x; `engines.node` `>=26.12.1 <27`); both stages of the four Dockerfiles,
   recorded in `docs/deployment/base-images.md` (§"Moved to Node 26.12.1 on 2026-10-22"). No
   repository variable or secret, runtime variable or external account changes.
+- The amendment of 2026-11-14: both stages of the four Dockerfiles move to 26.13.1 and the
+  `zlib-patched` stage leaves, recorded in `docs/deployment/base-images.md` (§"Moved to Node
+  26.13.1 on 2026-11-14"). `docs/deployment/DEPLOYMENT_CHECKLIST.md` is unchanged: `engines.node`
+  stays `>=26.12.1 <27`. No repository variable or secret, runtime variable or external account
+  changes.
 
 ## Revisit if
 
@@ -354,7 +420,10 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
 - Images: `docker.io/library/node:26.11.1-bookworm-slim@sha256:86f07bc9c5dce4578cf37e5a418b7bfc7f817cda25cde66e2b66e95ed86c4567`;
   `gcr.io/distroless/nodejs26-debian13@sha256:746f728c8b61c9beb5d0350f054b4049c4cef0ae71d5b3f8f33bc57904bbc37e`;
   since 2026-10-22, `docker.io/library/node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe`
-  and `gcr.io/distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7`
+  and `gcr.io/distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7`;
+  since 2026-11-14, `docker.io/library/node:26.13.1-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1`
+  and `gcr.io/distroless/nodejs26-debian13@sha256:80631bd2f0e7ef192138a7409013b47d92fd11b8ff3bb35f5c0a65be3ecaea4c`
+- Node.js 26.13.1: [release notes](https://github.com/nodejs/node/releases/tag/v26.13.1)
 - Node.js 26.12.1: [release notes](https://nodejs.org/en/blog/release/v26.12.1);
   [security releases of 2026-10-21](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases);
   nodejs/node#66767 and its revert, nodejs/node#66786
@@ -368,4 +437,5 @@ decision touches (.nvmrc, the workspace manifests, pnpm-workspace.yaml, the four
 - Upstream: Tailwind CSS 4.3.1 changelog, "Remove deprecation warnings by using
   `Module#registerHooks` instead of `Module#register` on Node 26+"; Node.js CLI,
   [`--no-experimental-webstorage`](https://nodejs.org/docs/latest-v26.x/api/cli.html)
-- Branch: `workstream/node-26`; the amendment of 2026-10-22, `workstream/runtime-node-26-12-1`
+- Branch: `workstream/node-26`; the amendment of 2026-10-22, `workstream/runtime-node-26-12-1`; the
+  amendment of 2026-11-14, `workstream/node-26-13-1`
