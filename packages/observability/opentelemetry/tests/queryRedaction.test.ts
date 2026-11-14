@@ -45,6 +45,16 @@ describe("redactSensitiveQueryParameters", () => {
     expect(redactSensitiveQueryParameters(url)).toBe(url);
   });
 
+  it("redacts the API key of a Gemini request and leaves the names that only contain key", () => {
+    expect(
+      redactSensitiveQueryParameters(
+        "https://generativelanguage.googleapis.com/v1/models?key=FAKE_KEY_18&pageSize=5"
+      )
+    ).toBe("https://generativelanguage.googleapis.com/v1/models?key=REDACTED&pageSize=5");
+    const url = "/search?api_key=x&keyword=y&monkey=z&key_id=7";
+    expect(redactSensitiveQueryParameters(url)).toBe(url);
+  });
+
   it("matches a name exactly, letter case included", () => {
     const url = "/auth?Code=FAKE_CODE_2&STATE=FAKE_STATE_2&Access_Token=FAKE_TOKEN_2";
 
@@ -109,6 +119,20 @@ describe("redactSensitiveQueryParameters", () => {
         "redirect from /a?page=1 to /b?code=FAKE_CODE_12 failed: GET /c?access_token=FAKE_TOKEN_12"
       )
     ).toBe("redirect from /a?page=1 to /b?code=REDACTED failed: GET /c?access_token=REDACTED");
+  });
+
+  it("swallows the punctuation attached after a value, which over-redacts and never leaks", () => {
+    expect(
+      redactSensitiveQueryParameters(
+        "see (https://h.test/me?access_token=FAKE_TOKEN_19) for details"
+      )
+    ).toBe("see (https://h.test/me?access_token=REDACTED for details");
+    expect(redactSensitiveQueryParameters('GET "https://h.test/cb?code=FAKE_CODE_20" failed')).toBe(
+      'GET "https://h.test/cb?code=REDACTED failed'
+    );
+    expect(
+      redactSensitiveQueryParameters('{"url":"https://h.test/cb?state=FAKE_STATE_21","ok":true}')
+    ).toBe('{"url":"https://h.test/cb?state=REDACTED');
   });
 });
 

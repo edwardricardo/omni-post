@@ -15,7 +15,9 @@ import { FastifyOtelInstrumentation } from "@fastify/otel";
 import pino from "pino";
 import { tagProviderSpan } from "./providerSpanAttributes.js";
 import {
+  createDroppedSpanReporter,
   QueryParameterRedactionSpanProcessor,
+  RedactionGuardedSpanExporter,
   SENSITIVE_QUERY_PARAMETERS,
 } from "./queryRedaction.js";
 
@@ -83,7 +85,10 @@ export class SocialMediaTelemetry {
     this.sdk = new NodeSDK({
       resource,
       instrumentations,
-      spanProcessors: createTelemetrySpanProcessors(exporters.trace ? [exporters.trace] : []),
+      spanProcessors: createTelemetrySpanProcessors(
+        exporters.trace ? [exporters.trace] : [],
+        (message) => this.logger.error(message)
+      ),
       ...(exporters.metrics && { metricReader: exporters.metrics }),
     });
 
@@ -222,19 +227,46 @@ export function createTelemetryInstrumentations(): NodeSDKConfiguration["instrum
  *              NodeSDK builds for a `traceExporter`. The redaction runs in `onEnding`, which the SDK
  *              calls on every processor before any `onEnd`, so every exporter given here receives
  *              each span with its sensitive query values already replaced, whichever instrumentation
- *              made it. With no exporter, the redaction is the only processor: spans are recorded
- *              and none is exported, and the NodeSDK, given processors, builds no exporter of its own.
+ *              made it. Each exporter sits behind a `RedactionGuardedSpanExporter`, which forwards
+ *              only the spans the redaction processed: `onEnding` is marked experimental upstream,
+ *              and an SDK that stopped calling it gets spans that are not exported, never spans that
+ *              are not redacted. With no exporter, the redaction is the only processor: spans are
+ *              recorded and none is exported, and the NodeSDK, given processors, builds no exporter
+ *              of its own. All the guards share one reporter: when the SDK does not call
+ *              `onEnding`, the drop is reported once for the whole set-up, not once per exporter,
+ *              through OpenTelemetry's diagnostics logger and as one error-level line written by
+ *              `reportDropped`. The diagnostics logger prints nothing unless one is registered, so
+ *              the line is what an operator sees with default settings. The line holds fixed wording
+ *              and a count, never span data. In normal operation nothing is reported.
  * @param exporters - Every span exporter the telemetry set-up registers
+ * @param reportDropped - Receives that one line. It defaults to an error-level line of a `pino`
+ *                        logger named `telemetry-redaction-guard`, the logger library this package
+ *                        already uses; `SocialMediaTelemetry` passes its own logger's error method
+ *                        so the line carries the service's name, and a test injects a recorder.
  * @returns The span processors, in the shape `NodeSDKConfiguration.spanProcessors` takes
  */
 export function createTelemetrySpanProcessors(
-  exporters: readonly tracing.SpanExporter[]
+  exporters: readonly tracing.SpanExporter[],
+  reportDropped: (message: string) => void = defaultDropLogger()
 ): tracing.SpanProcessor[] {
+  const redaction = new QueryParameterRedactionSpanProcessor();
+  const report = createDroppedSpanReporter(reportDropped);
   return [
-    new QueryParameterRedactionSpanProcessor(),
-    ...exporters.map((exporter) => new tracing.BatchSpanProcessor(exporter)),
+    redaction,
+    ...exporters.map(
+      (exporter) =>
+        new tracing.BatchSpanProcessor(
+          new RedactionGuardedSpanExporter(exporter, redaction, report)
+        )
+    ),
   ];
 }
+
+/** The error writer used when the caller supplies none: a `pino` logger, as the rest of this file uses. */
+const defaultDropLogger = (): ((message: string) => void) => {
+  const logger = pino({ name: "telemetry-redaction-guard" });
+  return (message) => logger.error(message);
+};
 
 /**
  * @description Builds the telemetry for one service and registers SIGINT and SIGTERM handlers that
