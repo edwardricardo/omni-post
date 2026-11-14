@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1197,
+      "total": 1202,
       "byShape": {
-        "test": 959,
+        "test": 964,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1033,
+        "KEEP": 1038,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1187,
+      "machine": 1192,
       "confirmed": 10,
-      "total": 1197
+      "total": 1202
     },
     "blocks": {
-      "total": 14853,
+      "total": 14898,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14542
+        "BEHAVIOURAL": 14587
       }
     },
     "deleted": {
@@ -9217,14 +9217,14 @@
       "blocks": [
         {
           "id": "apps/api/tests/integration/sentryPayload.integration.test.ts::delivers the pg driver's spans to the transport, so the gate reads the instrumented path",
-          "line": 126,
+          "line": 127,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "341118adfc08e15009e80fe39112efd9bae9e09a7d2df49f45e029497d9c6246"
         },
         {
           "id": "apps/api/tests/integration/sentryPayload.integration.test.ts::delivers no span, root or child, that carries db.user",
-          "line": 140,
+          "line": 141,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "638375b158abda4b78997b6bb1621e7729015a67ddea4dcff0ac30a6e621c365"
@@ -59987,67 +59987,116 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 9,
+      "blockCount": 16,
       "blocks": [
         {
           "id": "apps/api/tests/unit/observability/sentryInit.test.ts::returns the span without db.user and with every other attribute when db.user is present",
-          "line": 43,
+          "line": 47,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2ac58a29472c3e228d502b96f19fbb4797431d165251371035acf92502f3bdc5"
         },
         {
           "id": "apps/api/tests/unit/observability/sentryInit.test.ts::leaves the caller's span untouched when it strips db.user",
-          "line": 66,
+          "line": 70,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13ba146d23446eb3e0dc66a2c170cd42503299229edfff7c1cd1ed71e330a9a3"
         },
         {
           "id": "apps/api/tests/unit/observability/sentryInit.test.ts::returns the very span it was given when the span carries no db.user",
-          "line": 74,
+          "line": 78,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "345c311d2183a4ce60a38cdb4be89e0d3288cc99248cb16ca33353a49d0065b0"
         },
         {
           "id": "apps/api/tests/unit/observability/sentryInit.test.ts::removes an own db.user key that holds undefined instead of keeping it",
-          "line": 83,
+          "line": 87,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bea2ddfc8020787b0175092fc8348651fd94630b7027e18fb55f6813d114b243"
         },
         {
           "id": "apps/api/tests/unit/observability/sentryInit.test.ts::never drops a span, whatever its attributes",
-          "line": 93,
+          "line": 97,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fd5ec583bbda835598c9a5868a46ccf60053c2ac65637344f3b2fa75a1c8cb83"
         },
         {
-          "id": "apps/api/tests/unit/observability/sentryInit.test.ts::calls Sentry.init exactly once, with stripDatabaseUser as beforeSendSpan, when a DSN is configured",
-          "line": 122,
+          "id": "apps/api/tests/unit/observability/sentryInit.test.ts::redacts code and state in every URL attribute of an inbound span and keeps every other field",
+          "line": 138,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "8c101038d8a0babe642edacf5096bce5bb3081344a40791903586f5df158e8d5"
+          "bodyHash": "f32a2d945ec327d5a5bf393f02651f20ee46ba120e73c0dbb99cc172bf8868c0"
+        },
+        {
+          "id": "apps/api/tests/unit/observability/sentryInit.test.ts::redacts the url.query of an outbound fetch span, which keeps its leading question mark",
+          "line": 159,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1f8a27177c23f68cb4052205dd505a911ce9da1aa01ffe3628d195cd23d05b82"
+        },
+        {
+          "id": "apps/api/tests/unit/observability/sentryInit.test.ts::redacts a sensitive query value the span's description carries",
+          "line": 173,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "febc71e158e4ef46c681650ee1183b8a6fca867b2287645d927e6f0e95f5411f"
+        },
+        {
+          "id": "apps/api/tests/unit/observability/sentryInit.test.ts::removes db.user as stripDatabaseUser does, together with the query redaction",
+          "line": 185,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5a52d526eca7d6e52d978bf89ebc3a2f4b3dc1a0752f8f2f459123ca6bd9ce86"
+        },
+        {
+          "id": "apps/api/tests/unit/observability/sentryInit.test.ts::leaves the caller's span untouched when it redacts",
+          "line": 200,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "916825d14737f156a7a92d6ec061c2966fa91728bd9b9688127d128bbcdc4748"
+        },
+        {
+          "id": "apps/api/tests/unit/observability/sentryInit.test.ts::returns the very span it was given when it carries neither db.user nor a sensitive query value",
+          "line": 209,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9f9448ea4e9375a181d5cf1953dd2c249082bd650b359eda9f2748ac0161ec53"
+        },
+        {
+          "id": "apps/api/tests/unit/observability/sentryInit.test.ts::calls Sentry.init exactly once, with scrubSpanForSentry as beforeSendSpan, when a DSN is configured",
+          "line": 232,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1a3f2de449bda505999215c69c411955cb15deb1999737d57baf6897ed3c97f7"
+        },
+        {
+          "id": "apps/api/tests/unit/observability/sentryInit.test.ts::hands Sentry.init a beforeSendSpan that removes db.user and redacts sensitive query values",
+          "line": 242,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "de064deb25f4cec9a33dbab796c87be3dd0c4320e201e93acf8a37936f400db4"
         },
         {
           "id": "apps/api/tests/unit/observability/sentryInit.test.ts::does not call Sentry.init again when it is called a second time after initializing",
-          "line": 132,
+          "line": 256,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "25452db3f042b7e6777432ebf67a68533ee05f6691a7f402de8c1cde94c0d55c"
         },
         {
           "id": "apps/api/tests/unit/observability/sentryInit.test.ts::does not call Sentry.init when no DSN is configured, null or empty",
-          "line": 141,
+          "line": 265,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "967d25b5b1aca6e24b9576199ba7ed3a1b59d8152aa72898e5b0479ca784fdc8"
         },
         {
           "id": "apps/api/tests/unit/observability/sentryInit.test.ts::does not call Sentry.init in the test environment, named or taken from NODE_ENV",
-          "line": 150,
+          "line": 274,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c09d188d593d18c39e193f89a0bca39cbd8864de5ce6242289dab4940c98ac39"
@@ -112575,53 +112624,60 @@
       "framework": "vitest",
       "collectors": ["vitest:packages/observability/opentelemetry/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 7,
+      "blockCount": 8,
       "blocks": [
         {
           "id": "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts::sets the provider attributes on the client span of a request to a provider host",
-          "line": 100,
+          "line": 104,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1f7e7dcc3a16e720e18d1635a4eebe6363cd9e49672fd0c1e0d64eaca1b44d44"
         },
         {
           "id": "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts::sets no provider attribute on the client span of a host that only starts with a provider host",
-          "line": 110,
+          "line": 114,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "452a3e52f2069fa9cc44c88d7129a740ae18215f623ca7c2be77677c2cc0803c"
         },
         {
           "id": "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts::sets no provider attribute on the server span of a request whose Host header names a provider host",
-          "line": 120,
+          "line": 124,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "021a71418fee6df043232eb9e43849499d095cd673d6ef4aef709e819994b3e1"
         },
         {
           "id": "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts::starts exactly one client span for an outgoing request to a path other than /health and /metrics",
-          "line": 133,
+          "line": 137,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f3b142b1f290e219768a180a86bad44a9f9bdc7495f8545a4704fab7069445ba"
         },
         {
           "id": "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts::suppresses the client span of an outgoing /health request",
-          "line": 140,
+          "line": 144,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "873ab0c6b86d41bb727941d37428dfbdecd60ddab0d7baebf6f08b50cd6343b6"
         },
         {
           "id": "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts::suppresses the client span of an outgoing /metrics request",
-          "line": 147,
+          "line": 151,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "26beb4d95f6577ee2af8c3e701e991226fc63d923056232bf8a6364ff7dfb2f3"
         },
         {
+          "id": "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts::writes REDACTED for every listed name on the client and the server span, and keeps the other parameters",
+          "line": 160,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8ddd4d75e9dafa9e39eb28f521d7c332471e994b3306cda163c02182cdd56bdb"
+        },
+        {
           "id": "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts::keeps the HTTP instrumentation when OTEL_NODE_DISABLED_INSTRUMENTATIONS names it",
-          "line": 156,
+          "line": 177,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c862576e757f9f905b7e34794dc012a1cae82e24d1f60213605beb8a8436cd8c"
@@ -112748,6 +112804,330 @@
       "importers": null
     },
     {
+      "path": "packages/observability/opentelemetry/tests/queryRedaction.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/observability/opentelemetry/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 19,
+      "blocks": [
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::replaces the value of every listed name with REDACTED and keeps the name",
+          "line": 24,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ca578430e801be49a130de77c32007d3faf000686c5121f39ae1530f2ed5da89"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::redacts code, state and access_token in one query and keeps every other parameter as written",
+          "line": 32,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8acb71f2502f37c29d808383eb58e093693168a95601f0a36f0cb1653530ed59"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::matches a name only as a whole name",
+          "line": 41,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "963f34d8ccd4cd9aa8927d7fbf7a45791bd8b156aee71456b696bd40793fb293"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::redacts the API key of a Gemini request and leaves the names that only contain key",
+          "line": 48,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c1d1d6ff11a3aafc54f47e8db404d7466ff0019250b3727ec3e0f50a32c901ff"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::matches a name exactly, letter case included",
+          "line": 58,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "233c340b63598ffc1f725f22d22e489ed5ad3c9bd7c09e3d879d5dc9e377d131"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::matches a percent-encoded or form-encoded name as a query parser decodes it",
+          "line": 64,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "18b4c3f53804f9f491a1da466e216383e8ffc6e70ad952864a31b224fdd39781"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::returns a string with no query unchanged",
+          "line": 73,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6cb401ca89d8276aa4a7c55434151b32da50626a139d767dd72764bcf941fbdb"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::handles a malformed string without throwing and still redacts the parameters it can read",
+          "line": 79,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "680c123666a41a225dae040758e4b20821876291ea48dffedf28be04636fe91d"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::replaces an empty value and leaves a name that carries no value",
+          "line": 88,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "871380f80dff5c2bd056665f3cfa4df089078c5aaf41c3951826a4de9080bd16"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::redacts every occurrence of a repeated parameter",
+          "line": 94,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "90a883c7ee04470cff4c013a8adf8771b4b7a6f61b39f22de570aaf99d4e9d78"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::keeps a fragment after the query as written",
+          "line": 102,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b4f1df0bbb32275e78399cd92b2bc2e6ed35df885579f2570db826f7b7ee7563"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::redacts a sensitive parameter a fragment carries, the form of an OAuth implicit-grant redirect",
+          "line": 108,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9bde52d999e95308d3522475b2f8644f9165c40b9e05d4f466556eeeb8a0bb72"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::redacts the parameters of every URL a free-text string holds",
+          "line": 116,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "53ea093ba05612bed115e356fe5c118f8b09a045d5a4a93938b75d649c7a0f30"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::swallows the punctuation attached after a value, which over-redacts and never leaks",
+          "line": 124,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1003fc0b30d0422f94217703cf9208675a52571720cab09b3ee35a4f9a0aed59"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::reads url.query and http.query as a query even without their leading question mark",
+          "line": 140,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "32af0627db863ab3cd8c4b806bd1820fc868980c0bafefb70c1af1d3ec6b9ef8"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::keeps the leading question mark url.query carries when the fetch instrumentation writes it",
+          "line": 148,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "be277c4740c9ab2873a10739cb1963dda9b069e83c3f6a5da465708c0da332e4"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::reads any other attribute as a string that may hold URLs",
+          "line": 154,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "afebcce83bc9c63e9280640322bbe1a69403c359c5a977b3fa15dc1470c7bef3"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::redacts each string of a string array and keeps its other items",
+          "line": 163,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f1a54c52aa4ae59a3796b9e564edf79a1e94c895fa6c543dcbb4328d5a7c69c1"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedaction.test.ts::returns the very value it was given when there is nothing to redact",
+          "line": 173,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e511cee187c04b6f6135f7a2ba580264f7bbf8d300563fbb2bdf70558121cd6f"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "queryRedaction",
+        "module": "packages/observability/opentelemetry/src/queryRedaction.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "packages/observability/opentelemetry/tests/querySecretExport.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/observability/opentelemetry/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretExport.test.ts::sends the span with its sensitive query values redacted and its other values as they were set",
+          "line": 54,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "19346be961a2d37a92f416a78b0d0705841ce8db81803e5df5f71f68c481958d"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/observability/opentelemetry/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 9,
+      "blocks": [
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts::exports the HTTP server span with code, state and access_token redacted in url.query",
+          "line": 157,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "aaf92422679093c264da0d505db5fe563a383ae8cdfeeace3c9918a13f2c6ad4"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts::exports the Fastify request span with code, state and access_token redacted in url.path",
+          "line": 171,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "169af3fcbbcd94816db85a246fb8bf20ce348e1a5ce6e8e2c2efb3c04b10b577"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts::exports the exception event of a Fastify handler error with access_token redacted in its message and stack trace",
+          "line": 191,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a6c72bccbc0dafab63797170e842989b7b5b15539b18be51808348080d03a4f0"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts::exports the HTTP client span with access_token redacted in url.full",
+          "line": 222,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5d5a594d34def08a29608eb6bd448fb609d916f706b704aff1454644c0060937"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts::exports the fetch client span with access_token redacted in url.full and url.query",
+          "line": 236,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f6d55bd42698de96cc941964d90222a0139baed06ca490c349cef35aa4c8c0be"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts::exports the fetch client span with key redacted, the form of the Gemini connection test",
+          "line": 253,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4181b1c56ef4b90917a35913d2c42faa5958fb3ace9fb83d364cb80bc28ebf26"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts::exports the error spans of a refused request and a refused fetch with access_token redacted",
+          "line": 267,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a04a54c1c94567ac3b674f41bb904aa4a031a7dcd0f0bfa9f3aa1236b34f5326"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts::exports the span with every sensitive value redacted and every other value as it was set",
+          "line": 289,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8b7e41104f8b5db3a243c0ea2125be0d5b6695090dbbd06ee2ba206a77e88e01"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/querySecretSpans.test.ts::exports an event with its name and its string attributes redacted and its other attributes as set",
+          "line": 331,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "f2f51e0853edc9d62a85bc3fd591cb8aedf433d4ceade8adc13ec1cd65a692f0"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "packages/observability/opentelemetry/tests/redactionGuard.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/observability/opentelemetry/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 7,
+      "blocks": [
+        {
+          "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::forwards no span the redaction did not process and reports that once, at error level",
+          "line": 78,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2a7200fea4a2d336c40146db42d1ae8cf9c0be01d96814dd465e9732d995f539"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::reports the drop once for the whole set-up, across exporters and flushes, with no span data",
+          "line": 111,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d7becddbeeaa1121acde9e5fc308e8befbfd84748595315446cc7bba977a767d"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::never calls the reporter when the SDK calls the hook",
+          "line": 145,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7efc4ccf738cbf3fe710ac83279843a4dff04aef6cf8decda54bd5106394f2bc"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::ends and exports a span whose event has no string name, and still redacts its other events",
+          "line": 158,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c6a514d7df80b4c0abf66db3edec59f2f0be0e70f1f1bca5678684e97cf6d195"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::forwards every span to every exporter, redacted, when the SDK calls the hook",
+          "line": 178,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d66e8ba5645dfc021cd7192ef6966f5f00616130e2bbdde1141c9850353fa9d6"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::shuts every exporter down when the tracer provider shuts down",
+          "line": 199,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "aadf3f996bae895d084b48d83ecef3a6375b7b0d7bb4ac4885730ed95ecdc982"
+        },
+        {
+          "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::passes forceFlush and shutdown through to the exporter it wraps",
+          "line": 210,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "23d1031d2a8759cec03d73cf432173b6dfe7235e41220b02d1ee3389bf8fb56f"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "packages/observability/opentelemetry/tests/telemetryResource.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -112761,6 +113141,30 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "417403bee3d0bc90ae8edf4c7a683dd6fe7b79ab385b182a52c18e9d47cb442a"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "packages/observability/opentelemetry/tests/telemetryWithoutEndpoint.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/observability/opentelemetry/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "packages/observability/opentelemetry/tests/telemetryWithoutEndpoint.test.ts::exports no span through the exporter OTEL_TRACES_EXPORTER names, while spans are still recorded",
+          "line": 59,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0cad4cecfcbe33061b8ac67a1320774d5f4b4c616e16426694e5d280634da16b"
         }
       ],
       "verdict": "KEEP",
