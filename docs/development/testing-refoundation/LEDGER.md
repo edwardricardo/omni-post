@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1195  |
+| Files                   | 1197  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1031  |
+| KEEP                    | 1033  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1185  |
+| Machine rows            | 1187  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14830 |
+| Blocks                  | 14853 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -931,7 +931,9 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/schedulingRoutes.test.ts`                                                        | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/architectureBaseline.test.ts`                                            | test             | 6      | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/artifactLanguageGate.test.ts`                                            | test             | 28     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/batteryModes.test.ts`                                                    | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/batteryState.test.ts`                                                    | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/batteryStatic.test.ts`                                                   | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/batteryVerdict.test.ts`                                                  | test             | 25     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/cookiesAndStorageInventory.test.ts`                                      | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/coverageFloorGate.test.ts`                                               | test             | 31     | 0          | KEEP       | machine                     | behavioural          |
