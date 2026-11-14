@@ -6,7 +6,7 @@
 # ==============================================================================
 # Shared Base Stage - Node.js with pnpm
 # ==============================================================================
-FROM node:26.12.1-bookworm-slim@sha256:28147155d47dc31abe0a46e0d12b59b2fb3d0a2dcc5dc65fce76a074180b16fe AS base
+FROM node:26.13.1-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1 AS base
 # Node 26 ships no corepack, so pnpm comes from its immutable v12.6.0 GitHub
 # release, checked against the sha256 GitHub records for the asset; the slim
 # image has no curl, so node's own fetch downloads it, three attempts 5 s then
@@ -97,25 +97,6 @@ ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
 ARG NEXT_BUILD_FLAGS=""
 RUN pnpm --filter @apps/client exec next build ${NEXT_BUILD_FLAGS}
 
-# ---- zlib1g: Debian's fix, ahead of the distroless rebuild ---------------------
-# DSA-6613-1 fixes CVE-2026-85091, CVE-2026-76844 and CVE-2026-27171 in zlib1g
-# 1:1.3.dfsg+really1.3.1-1+deb13u1, and no digest of the distroless image holds
-# that version yet. This stage takes the package from Debian's archive, which apt
-# verifies, and refuses anything older. The production stage copies its files
-# over the image's, with the status entry a scanner reads.
-# Remove-when: a digest of the distroless image holds that version or a later one.
-# The record and the measurements: docs/deployment/base-images.md
-FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS zlib-patched
-RUN apt-get update -qq \
-  && cd /tmp \
-  && apt-get download zlib1g \
-  && dpkg --compare-versions "$(dpkg-deb -f zlib1g_*.deb Version)" ge "1:1.3.dfsg+really1.3.1-1+deb13u1" \
-  && dpkg-deb -x zlib1g_*.deb /out \
-  && dpkg-deb -e zlib1g_*.deb /tmp/control \
-  && mkdir -p /out/var/lib/dpkg/status.d \
-  && cp /tmp/control/control /out/var/lib/dpkg/status.d/zlib1g \
-  && cp /tmp/control/md5sums /out/var/lib/dpkg/status.d/zlib1g.md5sums
-
 # ==============================================================================
 # Production Runtime
 # ==============================================================================
@@ -126,8 +107,7 @@ RUN apt-get update -qq \
 # updates an ALREADY-pinned digest and does not add one to a bare reference.
 # The measurements, the glibc-direction reading and what the CI smoke proves:
 # docs/deployment/base-images.md
-FROM gcr.io/distroless/nodejs26-debian13@sha256:456bd22a48bc4b8b82b19041d7d9ff9c14e4ff0b80ea32c0b912be2f8288dbf7 AS production
-COPY --from=zlib-patched /out/ /
+FROM gcr.io/distroless/nodejs26-debian13@sha256:80631bd2f0e7ef192138a7409013b47d92fd11b8ff3bb35f5c0a65be3ecaea4c AS production
 
 WORKDIR /app
 
