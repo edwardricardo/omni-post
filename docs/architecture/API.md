@@ -23,7 +23,15 @@ The API is built with **Fastify** and **TypeScript**, featuring a comprehensive 
 
 ### Response Patterns
 
-The API answers in three shapes, depending on who sends the response. A handler built on `BaseRouteHandler` (`apps/api/src/lib/route-handler/BaseRouteHandler.ts`) wraps its result in `ok` and `data`, and its refusals in `ok` and `error`, a message. A `details` object is added next to `error` only when the handler passes one.
+The API answers in three shapes, depending on who sends the response.
+
+| Sent by                                                                         | Success body                 | Error body                                                      | `details`                                               |
+| ------------------------------------------------------------------------------- | ---------------------------- | --------------------------------------------------------------- | ------------------------------------------------------- |
+| A handler built on `BaseRouteHandler` (`lib/route-handler/BaseRouteHandler.ts`) | `{ ok: true, data }`         | `{ ok: false, error: "<message>" }`                             | next to `error`, only when the handler passes an object |
+| Fastify's error handler (`lib/errors/errorHandler.ts`)                          | none, it answers errors only | `{ ok: false, error: { code, message, requestId, timestamp } }` | inside `error`, only when `NODE_ENV` is `development`   |
+| The saga routes (`/sagas/...`, `saga/SagaIntegration.ts`)                       | `{ success: true, data }`    | the error handler's body, as its refusals go through it         | as for the error handler                                |
+
+An error reaches Fastify's error handler when it is a schema or framework error, an `AppError` thrown by a service, or an unexpected failure.
 
 ```json
 { "ok": true, "data": { "message": "Logged out successfully" } }
@@ -37,8 +45,6 @@ The API answers in three shapes, depending on who sends the response. A handler 
 
 `POST /auth/login` with a wrong password, 401.
 
-An error that reaches Fastify's error handler (`apps/api/src/lib/errors/errorHandler.ts`) answers with an error object instead: a schema or framework error, an `AppError` thrown by a service, or an unexpected failure. `details` appears only when `NODE_ENV` is `development`.
-
 ```json
 {
   "ok": false,
@@ -51,7 +57,9 @@ An error that reaches Fastify's error handler (`apps/api/src/lib/errors/errorHan
 }
 ```
 
-The saga routes (`/sagas/...`) wrap a success in `success` and `data`, and their refusals go through the error handler above. A few routes send a body of their own: `GET /health` and its siblings, `GET /metrics` and the 429 of the rate limiter. Each is described with its route.
+An error that reaches Fastify's error handler, here a not-found.
+
+A few routes send a body of their own: `GET /health` and its siblings, `GET /metrics` and the 429 of the rate limiter. Each is described with its route.
 
 ## Core API Endpoints
 
@@ -134,7 +142,7 @@ Content-Type: application/json
 
 `mfaToken` (6 to 8 characters of `0-9A-F`, a TOTP code or a backup code) is optional.
 
-**Response**: the refresh token is not in the body; it is set as the HTTP-only cookie `refreshToken` (path `/auth`, `SameSite=Strict`, 7 days).
+**Response**: the refresh token is not in the body; it is set as the HTTP-only cookie `refreshToken` (path `/auth`, `SameSite=Strict`, 7 days). The access token lives 15 minutes. `expiresAt` is not its expiry: it is when the refresh token and its session expire, 7 days after they are issued.
 
 ```json
 {
@@ -151,7 +159,7 @@ Content-Type: application/json
       "mfaEnabled": false
     },
     "accessToken": "<jwt-access-token>",
-    "expiresAt": "2026-11-14T10:15:00.000Z"
+    "expiresAt": "2026-11-21T10:00:00.000Z"
   }
 }
 ```
@@ -173,12 +181,12 @@ The refresh token is read from the `refreshToken` cookie, and from the body (`{ 
   "ok": true,
   "data": {
     "accessToken": "<jwt-access-token>",
-    "expiresAt": "2026-11-14T10:15:00.000Z"
+    "expiresAt": "2026-11-21T10:05:00.000Z"
   }
 }
 ```
 
-A missing token answers 401, an invalid, expired or revoked one 401 and clears the cookie, and an inactive account 403.
+`expiresAt` is the expiry of the rotated refresh token, as in the login response. A missing token answers 401, an invalid, expired or revoked one 401 and clears the cookie, and an inactive account 403.
 
 #### Logout
 
@@ -302,7 +310,34 @@ Authorization: Bearer <jwt-token>
 }
 ```
 
-`title` is absent when the post has none, and `thread` is present once the post has one. An unknown post answers 404 with `"Post not found"`, and an invalid id answers 400.
+`title` is absent when the post has none. `thread` is absent until the post has a thread; once it has one, the response carries it next to `createdAt`:
+
+```json
+"thread": {
+  "id": "uuid",
+  "postId": "uuid",
+  "strategy": "<strategy>",
+  "createdAt": "2025-01-23T10:00:00Z",
+  "updatedAt": "2025-01-23T10:00:00Z",
+  "tweets": [
+    {
+      "id": "uuid",
+      "threadId": "uuid",
+      "sequenceNumber": 1,
+      "content": "First post of the thread",
+      "media": null,
+      "tweetId": null,
+      "parentTweetId": null,
+      "status": "<status>",
+      "publishedAt": null,
+      "createdAt": "2025-01-23T10:00:00Z",
+      "updatedAt": "2025-01-23T10:00:00Z"
+    }
+  ]
+}
+```
+
+`tweets` are ordered by `sequenceNumber`. An unknown post answers 404 with `"Post not found"`, and an invalid id answers 400.
 
 #### List Posts
 
@@ -311,7 +346,20 @@ GET /posts?projectId={uuid}&limit=20&offset=0
 Authorization: Bearer <jwt-token>
 ```
 
-**Query**: `limit` (1 to 100, default 20) and `offset` (default 0) always apply. Without `projectId` the route lists the posts of the caller's account, and `status` takes one value. These filters apply only with `projectId`: `status` as one value or a comma-separated list of `DRAFT`, `PENDING_REVIEW`, `SCHEDULED`, `PUBLISHING`, `PUBLISHED`, `FAILED` and `CANCELLED`, `tags` (comma-separated), `hasMedia`, `createdFrom`, `createdTo`, `scheduledFrom`, `scheduledTo` (ISO 8601 date-times), `searchText`, `sortBy` (`createdAt`, `updatedAt`, `scheduledAt`, `publishedAt` or `status`), `sortDirection` (`asc` or `desc`) and `includeArchived`.
+**Query**:
+
+| Parameter                                                  | Values                                                                                                                                                 | Default | Applies                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------- |
+| `limit`                                                    | integer, 1 to 100                                                                                                                                      | 20      | always                                                               |
+| `offset`                                                   | integer, 0 or more                                                                                                                                     | 0       | always                                                               |
+| `projectId`                                                | a UUID                                                                                                                                                 | none    | always; without it the route lists the posts of the caller's account |
+| `status`                                                   | one of `DRAFT`, `PENDING_REVIEW`, `SCHEDULED`, `PUBLISHING`, `PUBLISHED`, `FAILED`, `CANCELLED`; with `projectId`, also a comma-separated list of them | none    | always; a list only with `projectId`                                 |
+| `tags`                                                     | comma-separated strings                                                                                                                                | none    | only with `projectId`                                                |
+| `hasMedia`, `includeArchived`                              | `true` or `false`                                                                                                                                      | none    | only with `projectId`                                                |
+| `createdFrom`, `createdTo`, `scheduledFrom`, `scheduledTo` | ISO 8601 date-times                                                                                                                                    | none    | only with `projectId`                                                |
+| `searchText`                                               | string, 1 to 200 characters                                                                                                                            | none    | only with `projectId`                                                |
+| `sortBy`                                                   | `createdAt`, `updatedAt`, `scheduledAt`, `publishedAt` or `status`                                                                                     | none    | only with `projectId`                                                |
+| `sortDirection`                                            | `asc` or `desc`                                                                                                                                        | none    | only with `projectId`                                                |
 
 **Response**: `{ ok: true, data: { data: [...], total, limit, offset } }`.
 
@@ -790,7 +838,7 @@ X-RateLimit-Remaining: 45
 X-RateLimit-Reset: 1643723400000
 ```
 
-`X-RateLimit-Reset` is the time at which the bucket is full again, in milliseconds since the Unix epoch. A denied request also carries `Retry-After`, in seconds.
+`X-RateLimit-Reset` is the time at which the bucket is full again, in milliseconds since the Unix epoch. A denied request also carries `Retry-After`, in seconds. The limiter does not emit `X-RateLimit-Limit`; the design of the rate-limit integrity work, `docs/features/auth-rate-limit-integrity/design.md`, section "The header contract", says it is to be added.
 
 ### Rate Limit Response (429)
 
