@@ -10,8 +10,8 @@
     "underFloor": 114,
     "atZero": 14,
     "underFloorWithSites": 100,
-    "kept": 110,
-    "remove": 3,
+    "kept": 108,
+    "remove": 6,
     "pending": 1
   },
   "names": [
@@ -2317,7 +2317,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 1,
-      "decision": "kept",
+      "decision": "remove",
       "sites": {
         "type-only": {
           "production": ["apps/api/src/webhooks/realtimeWebhookBroadcaster.ts"]
@@ -2553,7 +2553,7 @@
       "bins": ["autocannon"],
       "verdict": "above-floor",
       "real": null,
-      "decision": null,
+      "decision": "remove",
       "sites": null
     },
     {
@@ -5436,7 +5436,7 @@
       "bins": [],
       "verdict": "under-floor",
       "real": 1,
-      "decision": "kept",
+      "decision": "remove",
       "sites": {
         "runtime-import": {
           "production": ["apps/api/src/webhooks/realtimeWebhookBroadcaster.ts"]

@@ -9,11 +9,11 @@
     },
     "@langchain/core": {
       "status": "kept",
-      "grounds": "peer",
-      "utility": "Peer requirement (^1.1.48) of @langchain/langgraph.",
-      "replacement": "None while langgraph stays; it leaves with langgraph.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api."
+      "grounds": "planned",
+      "utility": "No file imports it: it is the required peer of @langchain/langgraph and loads with the repurpose adapter at API boot, so it follows that graph, which never runs today.",
+      "replacement": "None while @langchain/langgraph stays; it leaves with langgraph.",
+      "decidedOn": "2026-11-13",
+      "note": "Follows @langchain/langgraph: plan rows AI-07 and AI-08 (docs/product/plan/areas.md) describe the feature and no open row connects a caller. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in apps/api (dependencies)."
     },
     "@prisma/client": {
       "status": "kept",
@@ -25,11 +25,11 @@
     },
     "@opentelemetry/core": {
       "status": "kept",
-      "grounds": "cve-floor",
-      "utility": "Direct catalog pin that holds the GHSA-8988-4f7v-96qf floor for every transitive copy (SECURITY_CANON CVE-floor row).",
-      "replacement": "A dual-role override is the canon's shape for this floor; the floor only rises.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in packages/observability/opentelemetry through the otel catalog."
+      "grounds": "planned",
+      "utility": "No file imports it: the declaration satisfies the @opentelemetry/core peer of auto-instrumentations-node and is the catalog pin that holds the GHSA-8988-4f7v-96qf floor (SECURITY_CANON CVE-floor row). The stack that loads it starts only when TRACING_ENABLED is on, which defaults to false.",
+      "replacement": "Dropping the declaration was weighed, since sdk-node, both exporters and resources depend on core 2.8.0 exactly; the floor it holds only rises.",
+      "decidedOn": "2026-11-13",
+      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884), which depends on DEF-148, DEF-149 and DEF-150, describes the stack it serves. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry through the otel catalog."
     },
     "@tiptap/core": {
       "status": "kept",
@@ -168,12 +168,12 @@
       "slice": "DC-3"
     },
     "ws": {
-      "status": "kept",
-      "grounds": "planned",
-      "utility": "WebSocket.WebSocket.OPEN and its types in RealtimeWebhookBroadcaster's WebSocket half; addConnection, the only way a socket enters the map, has no production caller today, so the half never receives a socket (the SSE half is the live one).",
-      "replacement": "None: a WebSocket server is the feature F2-CLI-5 brings back.",
-      "decidedOn": "2026-10-25",
-      "note": "Plan row F2-CLI-5 (presence WebSocket, dep F2-API-5) returns a WebSocket server to the API; the plan says @fastify/websocket comes back with it. Whether that server reuses the broadcaster's half is F2-CLI-5's design; until it lands, the half receives no socket. Declared in apps/api (dependencies)."
+      "status": "remove",
+      "utility": "WebSocket.WebSocket.OPEN and its types in the WebSocket half of RealtimeWebhookBroadcaster, which the API loads at boot; addConnection, the only way a socket enters it, has no caller outside its tests, so that half never holds a socket.",
+      "replacement": "None: the WebSocket half has no caller. Taking it out means deciding what broadcastWebhookEvent does without it, which the unit that rebuilds the broadcaster's delivery decides.",
+      "decidedOn": "2026-11-13",
+      "note": "Removal approved on 2026-11-13: it leaves with the unit that rebuilds the broadcaster's delivery, plan rows BROADCAST-GATED-ON-WEBSOCKETS and DEF-21 (docs/product/plan/areas.md), not before, because the API imports it at boot. Declared in apps/api (dependencies).",
+      "slice": "BROADCAST-GATED-ON-WEBSOCKETS"
     },
     "xml2js": {
       "status": "kept",
@@ -200,12 +200,20 @@
       "slice": "DC-3"
     },
     "@types/ws": {
-      "status": "kept",
-      "grounds": "planned",
+      "status": "remove",
       "utility": "Types of ws at its one site, realtimeWebhookBroadcaster.ts.",
       "replacement": "None: it follows ws.",
-      "decidedOn": "2026-10-25",
-      "note": "Follows ws: planned through F2-CLI-5. Declared in apps/api (devDependencies)."
+      "decidedOn": "2026-11-13",
+      "note": "Follows ws into BROADCAST-GATED-ON-WEBSOCKETS, with DEF-21. Declared in apps/api (devDependencies).",
+      "slice": "BROADCAST-GATED-ON-WEBSOCKETS"
+    },
+    "autocannon": {
+      "status": "remove",
+      "utility": "The HTTP load generator performance/scripts/baseline-capture.ts imports (pnpm perf:baseline), and quality/scripts/run-quality-checks.sh runs it from PATH when present; both are manual commands that no workflow, hook or battery step runs.",
+      "replacement": "k6, which the performance workflow already runs, is the load tool; the package leaves with baseline-capture.ts.",
+      "decidedOn": "2026-11-13",
+      "note": "Plan row 6.P2 (docs/product/plan/cross-cutting.md) retires perf:baseline, perf:regression and perf:test with their files, or keeps them by a recorded decision; removal approved on 2026-11-13, with that row, not before. Declared in the root manifest (devDependencies).",
+      "slice": "6.P2"
     },
     "@types/xml2js": {
       "status": "kept",
@@ -281,11 +289,11 @@
     },
     "@fastify/cookie": {
       "status": "kept",
-      "grounds": "in-use",
-      "utility": "Registered once in createApp; cookie parsing for admin/customer sessions.",
-      "replacement": "None: Fastify's own cookie plugin; parsing Cookie headers by hand would duplicate it.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies)."
+      "grounds": "planned",
+      "utility": "Registered at every API boot (apps/api/src/index.ts:318) for the refreshToken cookie of the API's own /auth/login, /auth/refresh and /auth/logout and of the SAML and OIDC callbacks. No working portal path calls those routes today: the portals sign in through /admin/auth/login and /auth/customer/login, and single sign-on cannot sign a Member in as the code is written.",
+      "replacement": "An onRequest hook over the cookie package (about 30 lines; no signed cookie is used) was weighed; the plugin stays with the feature it serves.",
+      "decidedOn": "2026-11-13",
+      "note": "Plan rows A-TEAM-08 and A-TEAM-09 (single sign-on, docs/product/plan/areas.md) describe its feature and DEF-52 (chain.md) records a defect of its cookie; no open row connects a caller. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in apps/api (dependencies)."
     },
     "@fastify/cors": {
       "status": "kept",
@@ -305,11 +313,11 @@
     },
     "@fastify/otel": {
       "status": "kept",
-      "grounds": "single-adapter",
-      "utility": "FastifyOtelInstrumentation in createTelemetryInstrumentations; runs only when TRACING_ENABLED.",
-      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+      "grounds": "planned",
+      "utility": "FastifyOtelInstrumentation emits the API's request, handler and hook spans from createTelemetryInstrumentations. It runs only when an operator sets TRACING_ENABLED, which defaults to false (apps/api/src/config/env.ts:168) and which no workflow, compose file or Dockerfile sets.",
+      "replacement": "None: the API imports fastify before the SDK starts, so a module-patching Fastify instrumentation would never see it; tracing through Sentry's SDK alone is a product decision not taken here.",
+      "decidedOn": "2026-11-13",
+      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@fastify/swagger": {
       "status": "kept",
@@ -345,11 +353,11 @@
     },
     "@langchain/langgraph": {
       "status": "kept",
-      "grounds": "in-use",
-      "utility": "StateGraph/Annotation/interrupt build the repurpose graph; MemorySaver/Command run it; resolved by the GENERATE_REPURPOSE consumer (index.ts:1142).",
-      "replacement": "None: the Product Owner kept the repurpose agent on 2026-10-25; a hand-written state machine would re-implement the graph, its interrupts and its checkpoints.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies). Kept by the Product Owner's decision of 2026-10-25: the repurpose agent stays, so @langchain/core stays as its peer."
+      "grounds": "planned",
+      "utility": "Runs the repurpose agent as a StateGraph with a human-approval interrupt and an in-memory checkpointer behind AgentOrchestrationPort, resolved at API boot. No graph runs today: detection returns no candidate while an account's average engagement is zero or less (DetectRepurposeCandidatesUseCase.ts:69-70), that average is read from the daily summary table no Platform fills, and the approve and reject half has no caller.",
+      "replacement": "A plain async loop over the node functions (about 100 lines) was weighed; it loses the checkpointer and the interrupt that ADR-0001 and AI-08 rely on.",
+      "decidedOn": "2026-11-13",
+      "note": "Plan rows AI-07 and AI-08 (docs/product/plan/areas.md) describe its feature and SMELL-3 (areas.md) records that approve and reject are not wired; no open row connects a caller. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in apps/api (dependencies)."
     },
     "@marsidev/react-turnstile": {
       "status": "kept",
@@ -361,51 +369,51 @@
     },
     "@node-saml/node-saml": {
       "status": "kept",
-      "grounds": "in-use",
-      "utility": "new SAML(...) per SSO request in samlRoutes.",
-      "replacement": "None: the SAML implementation of the SSO route; hand-rolled SAML is not an option.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies)."
+      "grounds": "planned",
+      "utility": "samlRoutes.ts builds one SAML client per request from the stored identity-provider configuration, for the metadata, the redirect URL and the validation of the posted response. Nothing reaches it today: the only portal surface is the client's SSO settings, a dashboard body the F-12 gate keeps from rendering, and a validated response still signs nobody in, since the callback logs in with a fixed password (samlRoutes.ts:358).",
+      "replacement": "None: SAML signature validation is security-critical and is not written by hand.",
+      "decidedOn": "2026-11-13",
+      "note": "Plan rows A-TEAM-08 and A-TEAM-09 (docs/product/plan/areas.md) describe its feature; ARCH-17 (areas.md) and 6.S1 (cross-cutting.md) touch its routes without making a Member's SAML sign-in work, so no open row connects a caller. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in apps/api (dependencies)."
     },
     "@opentelemetry/auto-instrumentations-node": {
       "status": "kept",
-      "grounds": "single-adapter",
-      "utility": "getNodeAutoInstrumentations() registers the bundled instrumentations (http, ioredis, redis, fs enabled, pg, ...); TRACING_ENABLED only.",
-      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+      "grounds": "planned",
+      "utility": "getNodeAutoInstrumentations() returns the bundle of library instrumentations the NodeSDK enables (http, fs, ioredis, pg and others). It runs only when TRACING_ENABLED is on, which defaults to false.",
+      "replacement": "Eight to eleven explicit instrumentations as direct declarations were weighed (67 packages would leave the lockfile); that change needs its own decision and a span test for ioredis, pg, pino and openai first.",
+      "decidedOn": "2026-11-13",
+      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-148, DEF-149 and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@opentelemetry/exporter-prometheus": {
       "status": "kept",
-      "grounds": "single-adapter",
-      "utility": "Metric reader when enablePrometheusExporter; TRACING_ENABLED only.",
-      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+      "grounds": "planned",
+      "utility": "The NodeSDK's metric reader: an HTTP server on port 9464 (PROMETHEUS_PORT) that serves the OpenTelemetry instruments. It runs only when TRACING_ENABLED is on, which defaults to false, and prometheus/prometheus.yml does not scrape that port.",
+      "replacement": "prom-client already serves the API's /metrics; whether the OpenTelemetry series are fed or deleted is DEF-35's decision.",
+      "decidedOn": "2026-11-13",
+      "note": "Plan row DEF-35 (docs/product/plan/cross-cutting.md) touches its lines as a feed-or-delete decision; no open row connects a reader. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@opentelemetry/exporter-trace-otlp-http": {
       "status": "kept",
-      "grounds": "single-adapter",
-      "utility": "Trace exporter when otlpEndpoint is set; TRACING_ENABLED only.",
-      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+      "grounds": "planned",
+      "utility": "The NodeSDK's trace exporter, which posts spans as OTLP to the configured endpoint (http://localhost:4318 by default). It runs only when TRACING_ENABLED is on, which defaults to false and which no workflow, compose file or Dockerfile sets.",
+      "replacement": "Dropping the declaration was weighed: sdk-node depends on the same exporter itself, so no package would leave, and the export would need its own endpoint mapping.",
+      "decidedOn": "2026-11-13",
+      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-148 and DEF-149, the trace backend's gaps on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@opentelemetry/resources": {
       "status": "kept",
-      "grounds": "single-adapter",
-      "utility": "resourceFromAttributes builds the service resource the SDK tags every span with.",
-      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+      "grounds": "planned",
+      "utility": "resourceFromAttributes builds, once, the NodeSDK resource (service name, version, environment and the caller's attributes). It runs only when TRACING_ENABLED is on, which defaults to false.",
+      "replacement": "The resources namespace sdk-node re-exports was weighed: it keeps the same Resource type and no package would leave the lockfile.",
+      "decidedOn": "2026-11-13",
+      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@opentelemetry/sdk-node": {
       "status": "kept",
-      "grounds": "single-adapter",
-      "utility": "NodeSDK constructed and started; type of instrumentations.",
-      "replacement": "None: an OpenTelemetry SDK package behind the observability adapter; the alternative, tracing through Sentry's SDK alone, is a product decision not taken here.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in packages/observability/opentelemetry (dependencies). Runs only with TRACING_ENABLED (default false), loaded by await import() in apps/api/src/index.ts after the module's static imports: whether load-time patching still reaches fastify, pg and ioredis is a booked finding with its own runtime-probe unit."
+      "grounds": "planned",
+      "utility": "NodeSDK, which SocialMediaTelemetry builds with the resource, the instrumentations, the OTLP trace exporter and the Prometheus metric reader, then starts and shuts down. The API and the workers start it only when TRACING_ENABLED is on, which defaults to false.",
+      "replacement": "None: a hand-wired SDK (sdk-trace-node, sdk-metrics, propagators) is more code and more declared packages; tracing through Sentry's SDK alone is a product decision not taken here.",
+      "decidedOn": "2026-11-13",
+      "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884) and DEF-150, on which it depends, describe its feature. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry (dependencies)."
     },
     "@paddle/paddle-node-sdk": {
       "status": "kept",
@@ -553,11 +561,11 @@
     },
     "cronstrue": {
       "status": "kept",
-      "grounds": "in-use",
-      "utility": "Renders cron expressions as text in two client components.",
-      "replacement": "None weighed: a hand-written cron-to-text would re-implement its grammar.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/client (dependencies)."
+      "grounds": "planned",
+      "utility": "describeCron (apps/client/lib/utils/cronDescription.ts) renders a cron expression as text in RecurringPostCard and ScheduledReportsList. Neither renders today: the recurring list is a dashboard body behind the F-12 gate, and no link or navigation entry leads to the scheduled-reports page.",
+      "replacement": "None weighed: a hand-written replacement needs a five-field parser and a phrase table per language (about 300 lines).",
+      "decidedOn": "2026-11-13",
+      "note": "Plan rows F-12 (docs/product/plan/chain.md), the A-SCHEDULING rows 'A Member creates a recurring post' and 'A Member sees the recurring posts of a Workspace and stops one' (areas.md, no id) and A-ANALYTICS-08 (areas.md, BACKEND-ONLY) describe its features; no open row repairs the creation of a recurring post, so none gives describeCron a caller. DEF-124 (cross-cutting.md, closed) gave it one locale per routing language. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in apps/client (dependencies)."
     },
     "csv-parse": {
       "status": "kept",
@@ -617,11 +625,11 @@
     },
     "isomorphic-dompurify": {
       "status": "kept",
-      "grounds": "in-use",
-      "utility": "DOMPurify.sanitize via compileForPlatform, reached from TemplateService.compileTemplate(WithComponents).",
-      "replacement": "None: the sanitizer of compiled templates (CVE floor through dompurify).",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies). apps/api/src/types/isomorphic-dompurify.d.ts declares types the package ships (dist/index.d.ts); the .d.ts left on 2026-10-25 (deps-remove-2)."
+      "grounds": "planned",
+      "utility": "ServerTemplateEngine.sanitize runs DOMPurify over the platform-adapted output of a server-side template compile. Its only route, POST /projects/:projectId/templates/:templateId/compile, has no portal, worker or scheduled caller today.",
+      "replacement": "None: Node has no built-in HTML sanitizer; whether compiled post text needs HTML sanitizing at all is an open product question.",
+      "decidedOn": "2026-11-13",
+      "note": "Plan row C-03 (docs/product/plan/areas.md, BACKEND-ONLY) describes its feature; no open row gives the compile route a caller. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in apps/api (dependencies)."
     },
     "openai": {
       "status": "kept",
@@ -633,11 +641,11 @@
     },
     "openid-client": {
       "status": "kept",
-      "grounds": "in-use",
-      "utility": "OIDC discovery, PKCE and code grant in oidcRoutes; client-credentials probe in setupSamlUseCases.",
-      "replacement": "None: the certified OIDC client of oidcRoutes and the handshake probe.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies)."
+      "grounds": "planned",
+      "utility": "Runs the OIDC single sign-on flow of oidcRoutes.ts (discovery, PKCE, code exchange with ID-token validation) and the client-credentials handshake OpenidClientHandshakeProbe.ts makes when an administrator replaces an OIDC client secret. None of its entry points is reached today: no portal links to the OIDC login, the client's SSO settings are a dashboard body behind the F-12 gate, and no page links to the Admin /security/oidc page.",
+      "replacement": "None: discovery, PKCE and ID-token validation are not written by hand.",
+      "decidedOn": "2026-11-13",
+      "note": "Plan rows A-TEAM-08, A-TEAM-09 and A-TEAM-10 (docs/product/plan/areas.md) describe its feature; no open row connects a caller. Kept as planned with no date by the Maintainer's decision of 2026-11-13: its exit is decided with its feature (a row that connects a caller, or the feature retired with its code), not by the package. Declared in apps/api (dependencies)."
     },
     "otplib": {
       "status": "kept",
@@ -665,11 +673,11 @@
     },
     "stripe": {
       "status": "kept",
-      "grounds": "single-adapter",
-      "utility": "Stripe client used 12x in StripePaymentAdapter; chosen by paymentAdapterFactory.",
+      "grounds": "planned",
+      "utility": "The SDK behind StripePaymentAdapter (customers, subscriptions, Checkout and billing-portal sessions, webhook signature checks). The adapter exists only when an operator sets STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET, both optional with no default (apps/api/src/config/env.ts:203-204) and set by no workflow, compose file or Dockerfile; unset, GatewayAdapterRegistry refuses the Stripe adapter.",
       "replacement": "None: the service's own SDK, held in one adapter file; replacing it means replacing the integration.",
-      "decidedOn": "2026-10-25",
-      "note": "Declared in apps/api (dependencies)."
+      "decidedOn": "2026-11-13",
+      "note": "Features 2, 3 and 12 of A-BILLING (docs/product/plan/areas.md) describe what it serves; BILL-5 under F-06 (chain.md: billing reads the configuration saved in Admin) and BILL-8 and BILL-22 (areas.md), which finish checkout, are the open rows that make it run. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in apps/api (dependencies)."
     },
     "tailwind-merge": {
       "status": "kept",
