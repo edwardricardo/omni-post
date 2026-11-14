@@ -14,12 +14,12 @@ import { diag, DiagConsoleLogger, DiagLogLevel } from "@opentelemetry/api";
 import { FastifyOtelInstrumentation } from "@fastify/otel";
 import pino from "pino";
 import { tagProviderSpan } from "./providerSpanAttributes.js";
+import { SENSITIVE_QUERY_PARAMETERS } from "./queryRedaction.js";
 import {
   createDroppedSpanReporter,
   QueryParameterRedactionSpanProcessor,
   RedactionGuardedSpanExporter,
-  SENSITIVE_QUERY_PARAMETERS,
-} from "./queryRedaction.js";
+} from "./spanQueryRedaction.js";
 
 export interface TelemetryConfig {
   serviceName: string;

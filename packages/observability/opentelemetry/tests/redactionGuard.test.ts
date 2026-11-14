@@ -15,14 +15,13 @@
  * @layer infrastructure
  */
 import { diag, DiagLogLevel, type DiagLogger } from "@opentelemetry/api";
-import { ExportResultCode, type ExportResult } from "@opentelemetry/core";
-import { tracing } from "@opentelemetry/sdk-node";
+import { core, tracing } from "@opentelemetry/sdk-node";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTelemetrySpanProcessors } from "../src/index.js";
 import {
   QueryParameterRedactionSpanProcessor,
   RedactionGuardedSpanExporter,
-} from "../src/queryRedaction.js";
+} from "../src/spanQueryRedaction.js";
 
 const FAKE_TOKEN = "FAKE_TOKEN_93bb";
 const SENSITIVE_URL = `https://graph.provider.test/v23.0/me?access_token=${FAKE_TOKEN}`;
@@ -33,9 +32,9 @@ class RecordingExporter implements tracing.SpanExporter {
   flushes = 0;
   shutdowns = 0;
 
-  export(spans: tracing.ReadableSpan[], resultCallback: (result: ExportResult) => void): void {
+  export(spans: tracing.ReadableSpan[], resultCallback: (result: core.ExportResult) => void): void {
     this.exported.push(...spans);
-    resultCallback({ code: ExportResultCode.SUCCESS });
+    resultCallback({ code: core.ExportResultCode.SUCCESS });
   }
 
   forceFlush(): Promise<void> {
