@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1193  |
+| Files                   | 1195  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1029  |
+| KEEP                    | 1031  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1183  |
+| Machine rows            | 1185  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14825 |
+| Blocks                  | 14830 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -428,6 +428,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/integration/hardDeleteSerializableRace.integration.test.ts`                           | integration-test | 2      | 1          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/integration/helpers/appRoleClient.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/helpers/bulkScheduleHarness.ts`                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
+| `apps/api/tests/integration/helpers/caseScope.ts`                                                     | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/helpers/postTrioFixtures.ts`                                              | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/helpers/publishNowPromotionDoubles.ts`                                    | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/integration/helpers/publishNowPromotionHarness.ts`                                    | helper           | 0      | 0          | KEEP       | machine                     | imported             |
@@ -763,6 +764,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/helpers/InMemoryAuditEmitter.ts`                                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/InMemoryAuditLogRepository.ts`                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/InMemoryMfaUserRepository.ts`                                            | helper           | 0      | 0          | KEEP       | machine                     | imported             |
+| `apps/api/tests/unit/helpers/caseScope.test.ts`                                                       | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/helpers/factories.ts`                                                            | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/fakeLoggerPort.ts`                                                       | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/helpers/mockAuthMiddleware.ts`                                                   | helper           | 0      | 0          | KEEP       | machine                     | imported             |

@@ -17,6 +17,7 @@ import { createApp } from "../src/index.js";
 import { createCacheManager, resetCacheManager, RedisCacheManager } from "@adapters/cache-redis";
 import { TOKENS } from "../src/infrastructure/container/types.js";
 import { signCustomerAccessToken } from "../src/auth/customerJwt.js";
+import { createCaseScope } from "./integration/helpers/caseScope.js";
 import {
   getCacheConfig,
   getInvalidationTags,
@@ -81,17 +82,52 @@ function recordCacheWrites(cachePort: CachePort, pending: Promise<void>[]): void
   };
 }
 
+/**
+ * @method closeApp
+ * @description Closes an app the suite built. A failed close is written to stderr instead of
+ *   failing the hook, so a cleanup error neither fails the case that is running nor hides that
+ *   case's own result.
+ * @param target - The app to close
+ * @param which - Names the app in the stderr line
+ * @returns Nothing; resolves once the close has finished or failed
+ */
+async function closeApp(target: FastifyInstance, which: string): Promise<void> {
+  try {
+    await target.close();
+  } catch (error: unknown) {
+    console.error(
+      `cache.integration.test.ts: closing ${which} failed: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
 describe("API Response Caching", { concurrency: 1 }, () => {
   let app: FastifyInstance;
   let cacheManager: RedisCacheManager;
   /** The background cache writes started since the case last waited for them. */
   const pendingCacheWrites: Promise<void>[] = [];
+  /** The app the running case's own beforeEach assigned; undefined until it does. */
+  let ownedApp: FastifyInstance | undefined;
+  /**
+   * node:test stops waiting for a hook at its timeout but lets the hook run on, so a beforeEach
+   * whose createApp() returns after the timeout would otherwise assign the shared app and empty
+   * Redis in the middle of a later case.
+   */
+  const caseScope = createCaseScope();
 
   beforeEach(async () => {
+    const caseToken = caseScope.enter();
     assertDisposableRedis(process.env.REDIS_URL);
     // Reset singleton so each app gets a fresh cache manager
     resetCacheManager();
-    app = await createApp();
+    const built = await createApp();
+    if (!caseScope.owns(caseToken)) {
+      // This case already ended: the app it built belongs to no case, so it is closed untouched.
+      await closeApp(built, "an app built for a case that had already ended");
+      return;
+    }
+    app = built;
+    ownedApp = built;
     // Resolve the concrete RedisCacheManager from the DI container — the app
     // decorates only `cache` (the CachePort); the concrete manager (with
     // `flush`/`getStats`/`invalidateByTag`) is resolved from the container,
@@ -107,12 +143,16 @@ describe("API Response Caching", { concurrency: 1 }, () => {
   });
 
   afterEach(async () => {
+    // Ended first, so a beforeEach of this case that timed out sees the case is over when it returns.
+    caseScope.leave();
     // A write still in flight would land in Redis after the next case's flush.
     await Promise.all(pendingCacheWrites.splice(0));
-    try {
-      await app.close();
-    } catch {
-      // Ignore close errors during cleanup
+    // When this case's beforeEach never assigned an app, `app` still holds the previous case's,
+    // which that case's afterEach already closed.
+    const caseApp = ownedApp;
+    ownedApp = undefined;
+    if (caseApp) {
+      await closeApp(caseApp, "the case's app");
     }
     // Reset singleton so next beforeEach creates a fresh one
     resetCacheManager();
