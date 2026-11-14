@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1197  |
+| Files                   | 1203  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1033  |
+| KEEP                    | 1039  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1187  |
+| Machine rows            | 1193  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14853 |
+| Blocks                  | 14899 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -879,7 +879,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/mfaTotpSingleUse.test.ts`                                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/notifications/NotificationEventHandlers.test.ts`                                 | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/notifications/notificationRoutes.test.ts`                                        | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/observability/sentryInit.test.ts`                                                | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/observability/sentryInit.test.ts`                                                | test             | 16     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/onboarding/onboarding.test.ts`                                                   | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/outbox/OutboxBackoff.test.ts`                                                    | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/outbox/OutboxClaimService.test.ts`                                               | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
@@ -1276,9 +1276,15 @@ Deleted: 0 files, 31 blocks.
 | `packages/observability/browser-logger/tests/port.test.ts`                                            | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts`                                | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fsSpans.test.ts`                                          | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
-| `packages/observability/opentelemetry/tests/httpProviderSpans.test.ts`                                | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/opentelemetry/tests/httpProviderSpans.test.ts`                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/providerSpanAttributes.test.ts`                           | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/opentelemetry/tests/queryRedaction.test.ts`                                   | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/opentelemetry/tests/queryRedactionPure.test.ts`                               | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/opentelemetry/tests/querySecretExport.test.ts`                                | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/opentelemetry/tests/querySecretSpans.test.ts`                                 | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/opentelemetry/tests/redactionGuard.test.ts`                                   | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/telemetryResource.test.ts`                                | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/opentelemetry/tests/telemetryWithoutEndpoint.test.ts`                         | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/sentry-next/tests/GlobalErrorDocument.test.tsx`                               | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/sentry-next/tests/client.test.ts`                                             | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/sentry-next/tests/server.test.ts`                                             | test             | 7      | 0          | KEEP       | machine                     | behavioural          |

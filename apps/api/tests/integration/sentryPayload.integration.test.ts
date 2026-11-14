@@ -3,9 +3,10 @@
  * @description The payload gate of the API's Sentry init: no span the SDK hands its transport
  *   carries `db.user`. Sentry's own pg instrumentation writes the database user name on every pg
  *   connect and query span, and the override bands that hold the OpenTelemetry instrumentations
- *   at their fixed releases never reach the copy Sentry vendors; `stripDatabaseUser`, the
- *   `beforeSendSpan` hook `initSentry` passes, is the only thing that keeps the name out
- *   (docs/security/SECURITY_CANON.md, row `@sentry/node` + `@sentry/nextjs`).
+ *   at their fixed releases never reach the copy Sentry vendors; `stripDatabaseUser`, which
+ *   `scrubSpanForSentry`, the `beforeSendSpan` hook `initSentry` passes, calls first, is the only
+ *   thing that keeps the name out (docs/security/SECURITY_CANON.md, row `@sentry/node` +
+ *   `@sentry/nextjs`).
  *
  *   The suite runs the order that activates Sentry's pg instrumentation, and so the order that
  *   leaks without the hook: the real `initSentry` first, then `@infra/prisma`, which loads

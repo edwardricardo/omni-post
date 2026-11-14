@@ -8,6 +8,10 @@
  */
 
 import * as Sentry from "@sentry/node";
+import {
+  redactSensitiveQueryAttribute,
+  redactSensitiveQueryParameters,
+} from "@observability/opentelemetry/queryRedaction.js";
 import { createLogger } from "../lib/logger.js";
 import { env } from "../config/env.js";
 
@@ -23,9 +27,10 @@ type SentrySpanJson = Parameters<NonNullable<Sentry.NodeOptions["beforeSendSpan"
 
 /**
  * @function stripDatabaseUser
- * @description The `beforeSendSpan` hook: removes the `db.user` attribute from a span before
- *   Sentry sends it, and changes nothing else. Sentry's own database instrumentations write the
- *   connection's user name there on every pg connect and query span: `@sentry/node` 10.76.2
+ * @description The first step of the `beforeSendSpan` hook, `scrubSpanForSentry`: removes the
+ *   `db.user` attribute from a span before Sentry sends it, and changes nothing else. Sentry's own
+ *   database instrumentations write the connection's user name there on every pg connect and
+ *   query span: `@sentry/node` 10.76.2
  *   vendors the pg instrumentation that sets it (`build/esm/integrations/tracing/postgres/
  *   vendored/utils.js`, lines 50 and 71), and its channel-based pg integration in
  *   `@sentry/server-utils` 10.76.2 does too. The overrides that hold
@@ -47,6 +52,47 @@ export function stripDatabaseUser(span: SentrySpanJson): SentrySpanJson {
   if (!Object.hasOwn(span.data, DB_USER_ATTRIBUTE)) return span;
   const { [DB_USER_ATTRIBUTE]: _dbUser, ...data } = span.data;
   return { ...span, data };
+}
+
+/**
+ * Replaces the value of every sensitive query parameter in a span's attributes and description
+ * with the telemetry package's redaction, the one its span processor applies to the OpenTelemetry
+ * export. Returns the span itself when nothing changes, otherwise a copy.
+ */
+const redactSpanQueryParameters = (span: SentrySpanJson): SentrySpanJson => {
+  let data: SentrySpanJson["data"] | undefined;
+  for (const [key, value] of Object.entries(span.data)) {
+    if (value === undefined) continue;
+    const redacted = redactSensitiveQueryAttribute(key, value);
+    if (redacted === value) continue;
+    data ??= { ...span.data };
+    data[key] = redacted;
+  }
+  const description =
+    span.description === undefined ? undefined : redactSensitiveQueryParameters(span.description);
+  if (data === undefined && description === span.description) return span;
+  return {
+    ...span,
+    ...(data !== undefined && { data }),
+    ...(description !== undefined && { description }),
+  };
+};
+
+/**
+ * @function scrubSpanForSentry
+ * @description The `beforeSendSpan` hook: removes `db.user` through `stripDatabaseUser`, then
+ *   replaces the value of every sensitive query parameter in the span's attributes and description
+ *   with `REDACTED`, keeping its name. Sentry filters some names itself (`access_token` became
+ *   `[Filtered]`) but sends `code` and `state` as written: an inbound request's span carries the
+ *   whole query in `url.full`, `http.url`, `http.target` and `http.query` (measured with
+ *   `@sentry/node` 10.76.2 on loopback with fake values). The names are
+ *   `SENSITIVE_QUERY_PARAMETERS` of `@observability/opentelemetry`, the list the OpenTelemetry
+ *   export uses, so the two channels redact the same parameters. The hook never drops a span.
+ * @param span - A root or child span, as Sentry serializes it immediately before sending.
+ * @returns The span itself when there is nothing to remove or redact; otherwise a copy.
+ */
+export function scrubSpanForSentry(span: SentrySpanJson): SentrySpanJson {
+  return redactSpanQueryParameters(stripDatabaseUser(span));
 }
 
 /**
@@ -83,7 +129,7 @@ export function initSentry(
       }
       return event;
     },
-    beforeSendSpan: stripDatabaseUser,
+    beforeSendSpan: scrubSpanForSentry,
   });
 
   initialized = true;
