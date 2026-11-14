@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1202  |
+| Files                   | 1203  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1038  |
+| KEEP                    | 1039  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1192  |
+| Machine rows            | 1193  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14898 |
+| Blocks                  | 14899 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -1279,6 +1279,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/observability/opentelemetry/tests/httpProviderSpans.test.ts`                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/providerSpanAttributes.test.ts`                           | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/queryRedaction.test.ts`                                   | test             | 19     | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/opentelemetry/tests/queryRedactionPure.test.ts`                               | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/querySecretExport.test.ts`                                | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/querySecretSpans.test.ts`                                 | test             | 9      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/redactionGuard.test.ts`                                   | test             | 7      | 0          | KEEP       | machine                     | behavioural          |

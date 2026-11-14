@@ -361,7 +361,10 @@
           "production": ["packages/observability/opentelemetry/src/index.ts"]
         },
         "config-string": {
-          "test": ["packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts"]
+          "test": [
+            "packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts",
+            "packages/observability/opentelemetry/tests/querySecretSpans.test.ts"
+          ]
         }
       }
     },
@@ -706,7 +709,11 @@
       "verdict": "under-floor",
       "real": 0,
       "decision": "kept",
-      "sites": {}
+      "sites": {
+        "test-mock": {
+          "test": ["packages/observability/opentelemetry/tests/queryRedactionPure.test.ts"]
+        }
+      }
     },
     {
       "name": "@opentelemetry/exporter-prometheus",
@@ -784,16 +791,24 @@
       ],
       "bins": [],
       "verdict": "under-floor",
-      "real": 1,
+      "real": 2,
       "decision": "kept",
       "sites": {
         "runtime-import": {
-          "production": ["packages/observability/opentelemetry/src/index.ts"],
+          "production": [
+            "packages/observability/opentelemetry/src/index.ts",
+            "packages/observability/opentelemetry/src/spanQueryRedaction.ts"
+          ],
           "test": [
             "packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts",
             "packages/observability/opentelemetry/tests/fsSpans.test.ts",
-            "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts"
+            "packages/observability/opentelemetry/tests/httpProviderSpans.test.ts",
+            "packages/observability/opentelemetry/tests/querySecretSpans.test.ts",
+            "packages/observability/opentelemetry/tests/redactionGuard.test.ts"
           ]
+        },
+        "test-mock": {
+          "test": ["packages/observability/opentelemetry/tests/queryRedactionPure.test.ts"]
         }
       }
     },

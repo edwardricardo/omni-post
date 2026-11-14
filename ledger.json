@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1202,
+      "total": 1203,
       "byShape": {
-        "test": 964,
+        "test": 965,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1038,
+        "KEEP": 1039,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1192,
+      "machine": 1193,
       "confirmed": 10,
-      "total": 1202
+      "total": 1203
     },
     "blocks": {
-      "total": 14898,
+      "total": 14899,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14587
+        "BEHAVIOURAL": 14588
       }
     },
     "deleted": {
@@ -112958,6 +112958,30 @@
       "importers": null
     },
     {
+      "path": "packages/observability/opentelemetry/tests/queryRedactionPure.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/observability/opentelemetry/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "packages/observability/opentelemetry/tests/queryRedactionPure.test.ts::loads without the OpenTelemetry packages and redacts a string and an attribute",
+          "line": 24,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5d5b1bd405308ee1f655b723b9bb3a2eba69185ae381cd54d2c608da514060a2"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "packages/observability/opentelemetry/tests/querySecretExport.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -113071,49 +113095,49 @@
       "blocks": [
         {
           "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::forwards no span the redaction did not process and reports that once, at error level",
-          "line": 78,
+          "line": 77,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2a7200fea4a2d336c40146db42d1ae8cf9c0be01d96814dd465e9732d995f539"
         },
         {
           "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::reports the drop once for the whole set-up, across exporters and flushes, with no span data",
-          "line": 111,
+          "line": 110,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7becddbeeaa1121acde9e5fc308e8befbfd84748595315446cc7bba977a767d"
         },
         {
           "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::never calls the reporter when the SDK calls the hook",
-          "line": 145,
+          "line": 144,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7efc4ccf738cbf3fe710ac83279843a4dff04aef6cf8decda54bd5106394f2bc"
         },
         {
           "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::ends and exports a span whose event has no string name, and still redacts its other events",
-          "line": 158,
+          "line": 157,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c6a514d7df80b4c0abf66db3edec59f2f0be0e70f1f1bca5678684e97cf6d195"
         },
         {
           "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::forwards every span to every exporter, redacted, when the SDK calls the hook",
-          "line": 178,
+          "line": 177,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d66e8ba5645dfc021cd7192ef6966f5f00616130e2bbdde1141c9850353fa9d6"
         },
         {
           "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::shuts every exporter down when the tracer provider shuts down",
-          "line": 199,
+          "line": 198,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aadf3f996bae895d084b48d83ecef3a6375b7b0d7bb4ac4885730ed95ecdc982"
         },
         {
           "id": "packages/observability/opentelemetry/tests/redactionGuard.test.ts::passes forceFlush and shutdown through to the exporter it wraps",
-          "line": 210,
+          "line": 209,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "23d1031d2a8759cec03d73cf432173b6dfe7235e41220b02d1ee3389bf8fb56f"
