@@ -82,14 +82,15 @@
       "kind": "date",
       "id": "contract-0.16-node-26",
       "title": "Re-check the Node 26 move once its 2026-10-28 LTS promotion is published: LTS status, distroless digest, pins",
-      "due": "2026-11-10",
+      "due": "2026-11-17",
       "refs": [
         "docs/technical/ADR-0038-node-26-ahead-of-lts.md, Revisit if: the 2026-10-28 re-check of the move made on 2026-10-15 (LTS promotion, distroless digest, build stage, setup-node resolution, engines floor and @types/node, Prisma's statement)",
         "branch workstream/node-26, the change that made the move; https://github.com/edwardricardo/omni-post/blob/a72e052577f4c74903de2e7b48487daa85658c7f/docs/development/TESTING_REFOUNDATION.md, decision D52 (left the tree on 2026-11-10)",
         "openspec/changes/testing-refoundation/tasks.md, task 0.16",
         "2026-10-22, branch workstream/runtime-node-26-12-1 (ADR-0038, Amendment of 2026-10-22): Node 26.12.1, the security release of 2026-10-21, was taken inside the 7-day buffer as the engines floor and in both image stages; this review also confirms that 26.12.1 is mature (it matures 2026-10-28), that nodejs.org/dist/index.json lists no newer 26.x release with security: true (one would be taken at once, ADR-0036), and that CI's setup-node and both FROM lines of the four Dockerfiles still run 26.12.1 or a later 26.x",
         "Read 2026-10-27, a day before the 2026-10-28 due date, by the change that records the watchlist reviews due 2026-10-28 and 2026-10-29: nodejs.org/dist/index.json at 22:13Z lists v26.12.1 (2026-10-21, security: true) as the newest release, with lts: false, so Node 26's promotion to Active LTS, scheduled for 2026-10-28, has not happened, and no 26.x security release follows 26.12.1, which matures on 2026-10-28. gcr.io/distroless/nodejs26-debian13 `latest` is sha256:e6ffd0e0ddbbcad0231684befb2c421591c2be46baa71da7d9065294c17efc0d at 22:13Z, not the pinned 456bd22a; run with podman, both images report Node v26.12.1 with OpenSSL 3.5.9, and their var/lib/dpkg/status.d differs only in tzdata and tzdata-legacy (2026c-0+deb13u1 in the pin, 2026e-0+deb13u1 in latest), no security fix. `due` moved from 2026-10-28 to 2026-11-03, the next Tuesday window, when the promotion can be confirmed. Recorded here and not under `reviews.due`, because the fact the review waits for has not happened",
-        "Read 2026-11-05, two days after the 2026-11-03 due date (reminder #818): nodejs.org/dist/index.json lists v26.13.0 (2026-10-28, lts: Lithium, security: false), so the promotion to Active LTS happened on its scheduled day. The four Dockerfiles still pin 26.12.1, and Dependabot holds their move to 26.13.0 and the distroless digest `c952ca0` in #826 to #833. The rest of this re-check (distroless digest, build stage, setup-node, engines floor and @types/node, Prisma's statement) is measured by the change that takes 26.13.0; `due` moved from 2026-11-03 to 2026-11-10, the next Tuesday window."
+        "Read 2026-11-05, two days after the 2026-11-03 due date (reminder #818): nodejs.org/dist/index.json lists v26.13.0 (2026-10-28, lts: Lithium, security: false), so the promotion to Active LTS happened on its scheduled day. The four Dockerfiles still pin 26.12.1, and Dependabot holds their move to 26.13.0 and the distroless digest `c952ca0` in #826 to #833. The rest of this re-check (distroless digest, build stage, setup-node, engines floor and @types/node, Prisma's statement) is measured by the change that takes 26.13.0; `due` moved from 2026-11-03 to 2026-11-10, the next Tuesday window.",
+        "Read 2026-11-14, four days after the 2026-11-10 due date (reminder #860): nodejs.org/dist/index.json at 00:24Z lists v26.13.1 (2026-11-10, lts: Lithium, security: true) as the newest release; its release notes (GitHub, 2026-11-11T16:44Z) list nine High fixes for seven CVEs, among them a remotely reachable TLS server crash (CVE-2026-126051), and nine Medium or Low CVEs. ADR-0038's Revisit if makes a 26.x security release a floor taken immediately (ADR-0036). The four Dockerfiles still pin node:26.12.1-bookworm-slim (sha256:28147155) and distroless 456bd22a; node:26.13.1-bookworm-slim is published (index sha256:5df79989), the newest distroless latest, 80631bd2 (uploaded 2026-11-12T21:17Z), runs v26.13.1 with OpenSSL 3.5.9, and CI's setup-node already resolves 26.13.1 from .nvmrc (main af93f0fa, Dependency Consistency, 2026-11-13T23:18:54Z). Dependabot's #826 and #829 to #831 move only the digest of node:26.12.1-bookworm-slim. The move to 26.13.1 is owed at once in its own change, which also measures the rest of this re-check; `due` moved from 2026-11-10 to 2026-11-17, the next Tuesday window."
       ],
       "reviews": {}
     },
@@ -97,13 +98,14 @@
       "kind": "date",
       "id": "storybook-11-dep0205",
       "title": "Storybook 11 stable? Move the family and drop --disable-warning=DEP0205 from apps/client test:stories (ADR-0038)",
-      "due": "2026-11-10",
+      "due": "2026-11-17",
       "refs": [
         "docs/technical/ADR-0038-node-26-ahead-of-lts.md, Consequences (the story run's DEP0205) and Revisit if: read npm for a stable storybook 11.x (`pnpm view storybook dist-tags`); if published and mature, move the Storybook family to it, remove the flag, and measure the story run free of DEP0205 without it; if not, move `due` to the next Tuesday window",
         "apps/client/package.json, script test:stories",
         "Read 2026-10-21, a day after the 2026-10-20 due date (reminder #665): npm dist-tags at 18:31Z are latest 10.6.3 and next 11.0.0-alpha.7, so no stable 11.x is published; the family moved to 10.6.3 the same day, and its `storybook build` still prints `[DEP0205] DeprecationWarning: module.register() is deprecated`, so the flag stays; `due` moved from 2026-10-20 to 2026-10-27, the next Tuesday window. Recorded here and not under `reviews.due`, because a `due` review dated 2026-10-21 against the moved date would be 6 days early and the check refuses more than 2",
         "Read 2026-10-27, the due date (reminder #745): npm dist-tags at 00:55Z are latest 10.6.4 (2026-10-26T10:38Z) and next 11.0.0-alpha.8 (2026-10-23T09:07Z), and the nine 11.x versions published are all alphas, so no stable 11.x is published; 10.6.4's one change (#36790) skips the TypeScript loader hook registration under Jest, the tree still runs 10.6.3, and apps/client test:stories still passes --disable-warning=DEP0205, so the flag stays; `due` moved from 2026-10-27 to 2026-11-03, the next Tuesday window. Recorded here and not under `reviews.due`, because a `due` review dated 2026-10-27 against the moved date would be 7 days early and the check refuses more than 2",
-        "Read 2026-11-05, two days after the 2026-11-03 due date (reminder #819): npm dist-tags at 19:20Z are latest 10.6.6 (2026-11-05T16:19Z) and next 11.0.0-beta.0, so no stable 11.x is published and the flag stays; `due` moved from 2026-11-03 to 2026-11-10, the next Tuesday window."
+        "Read 2026-11-05, two days after the 2026-11-03 due date (reminder #819): npm dist-tags at 19:20Z are latest 10.6.6 (2026-11-05T16:19Z) and next 11.0.0-beta.0, so no stable 11.x is published and the flag stays; `due` moved from 2026-11-03 to 2026-11-10, the next Tuesday window.",
+        "Read 2026-11-14, four days after the 2026-11-10 due date (reminder #861): npm dist-tags at 00:25Z are latest 10.6.7 (2026-11-10T11:36Z) and next 11.0.0-beta.3 (2026-11-13T15:44Z), and the fourteen 11.x versions published are ten alphas and four betas, so no stable 11.x is published; apps/client test:stories still passes --disable-warning=DEP0205, so the flag stays; `due` moved from 2026-11-10 to 2026-11-17, the next Tuesday window."
       ],
       "reviews": {}
     },
@@ -119,7 +121,13 @@
         "The review, on the due date: read the npm registry for a jscpd release after 5.4.2 and, for each one, OSV-batch its rust/Cargo.lock at the release tag for the seven ids above; record which it clears, whether it is mature (7 days after publication), and what check:duplicates and a planted clone measure on it. A release that clears an advisory is a security-tied move, taken once mature with this entry's evidence; while none exists, `due` moves to the next Tuesday window with a dated line here. The entry stays until the tree's jscpd carries none of the seven, or until an advisory becomes reachable here, which is a move at once",
         "Read 2026-11-05, two days after the 2026-11-03 due date (reminder #820): npm latest is still 5.4.2 (2026-10-20), so no release clears the seven advisories read on 2026-10-27, and no script or manifest passes `--semantic`; `due` moved from 2026-11-03 to 2026-11-10, the next Tuesday window."
       ],
-      "reviews": {}
+      "reviews": {
+        "due": {
+          "date": "2026-11-14",
+          "outcome": "flagged",
+          "note": "Reviewed 2026-11-14, four days after the 2026-11-10 due date (reminder #862). Registry, read 2026-11-14T00:25Z: jscpd 5.4.3 is latest (2026-11-08T06:53:40Z, mature from 2026-11-15T06:53:40Z). One OSV batch over v5.4.3's rust/Cargo.lock (394 crates.io packages, read 00:26Z) returns none of the seven ids this entry watches: zip 9.3.0 clears RUSTSEC-2026-0367, 0368 and 0369, basic-toml has left the build (0374), and webpki-roots and webpki-root-certs 1.0.10 and rustls-webpki 0.103.16 clear 0381, 0383 and 0382; its release notes name the same moves, and the strings of its jscpd-linux-x64-gnu binary name rustls-webpki-0.103.16 where the installed 5.4.2 binary names 0.103.15. The same batch over v5.4.2's lock (396 packages) now returns 14 hits: the seven, RUSTSEC-2026-0429 and five zip GHSAs of 2026-10-28 and 2026-10-29, all fixed by zip 9.x, and RUSTSEC-2026-0486 (rustix 1.1.5, fixed in 1.1.6), which 5.4.3 still carries. check:duplicates and a planted clone were not measured on 5.4.3, which needs it installed. Flagged: the move to 5.4.3 is a security-tied move, owed once mature on 2026-11-15T06:53Z with this evidence, in its own change, which deletes this entry and reads RUSTSEC-2026-0486."
+        }
+      }
     },
     {
       "kind": "date",
@@ -130,33 +138,11 @@
         "docs/deployment/base-images.md, \"zlib1g from Debian's archive on 2026-11-07\": DSA-6613-1 fixes CVE-2026-85091, CVE-2026-76844 and CVE-2026-27171, and the images take that package from Debian's archive because no digest of the image held it. Container Security stays green while the stage stands, whether or not a digest has caught up, so this entry is what says when the stage can leave.",
         "The read, each Tuesday: the `Version:` of `var/lib/dpkg/status.d/zlib1g` in the newest digest of `gcr.io/distroless/nodejs26-debian13` (`podman image mount`). A new digest alone proves nothing: `c952ca0a`, read 2026-11-07, carries Node 26.13.0 and the same `1:1.3.dfsg+really1.3.1-1+b1`. If a digest holds the fixed version or a later one, take that digest, delete the stage and its `COPY` from all four Dockerfiles, confirm Container Security stays green on the pull request, and delete this entry; if not, move `due` to the next Tuesday window."
       ],
-      "reviews": {}
-    },
-    {
-      "kind": "package",
-      "name": "follow-redirects",
-      "version": "1.16.2",
-      "published": "2026-10-25T21:32:25.963Z",
-      "entered": {
-        "date": "2026-10-31",
-        "commit": "d2a55f40",
-        "pr": 808,
-        "via": "the CVE floor for GHSA-mrwp-f3q8-3g9p (high: cross-realm sensitiveHeaders arrays discarded, custom credentials follow a cross-origin redirect; >=1.16.0 <=1.16.1), natural resolution under axios ^1.16.0, a security-tied deviation approved by the Maintainer on 2026-10-31, 5.8 days after publication; production (packages/providers/tiktok > axios), not reachable (axios builds the array in its own realm)"
-      },
-      "milestones": {
-        "maturity": "2026-11-01",
-        "final": "2026-11-08"
-      },
       "reviews": {
-        "maturity": {
-          "date": "2026-11-05",
-          "outcome": "clean",
-          "note": "Reviewed 2026-11-05, four days after the 2026-11-01 milestone: reminder #812 went unanswered until `Dependency Consistency` went red on #835. Registry, read 2026-11-05T19:20Z: 1.16.2 is latest and not deprecated. OSV lists nothing for it, and upstream has no issue opened since its publication. The lockfile holds one copy, under axios 1.20.0. The battery is GREEN with it on `617c01da`."
-        },
-        "final": {
-          "date": "2026-11-09",
-          "outcome": "clean",
-          "note": "Reviewed 2026-11-09, one day after the 2026-11-08 milestone. Registry, read 2026-11-09T03:07Z: 1.16.3 is latest (published 2026-11-08T16:53Z, inside the 7-day buffer until 2026-11-15T16:53Z), and neither 1.16.2 nor 1.16.3 is deprecated. 1.16.3 is one commit over 1.16.2, `5f624225` (\"Escape braces.\"): `escapeRegex` now escapes `{` and `}` too, the RegExp syntax characters the GHSA-8r9p-f939-6h3c fix left out, with no advisory of its own. OSV lists nothing for 1.16.2, and neither GitHub's global database nor the repository's advisories list one affecting it. Upstream, the one item opened since its publication is pull request #296 (open: maxBodyLength counts UTF-16 code units rather than bytes for string bodies), not a security issue. Not reachable here: no file of apps, packages, infra or scripts sets `sensitiveHeaders`, and axios 1.20.0 builds its own array. The lockfile holds one copy, under axios 1.20.0, and the battery is GREEN with it on `dad37fbf` (2026-11-09T04:07Z). 1.16.3 is taken in the weekly window once mature."
+        "due": {
+          "date": "2026-11-14",
+          "outcome": "flagged",
+          "note": "Reviewed 2026-11-14, four days after the 2026-11-10 due date (reminder #863). The newest digest of gcr.io/distroless/nodejs26-debian13, the `latest` index sha256:80631bd2f0e7ef192138a7409013b47d92fd11b8ff3bb35f5c0a65be3ecaea4c (uploaded 2026-11-12T21:17:21Z, read 2026-11-14T00:24Z), mounted for linux/amd64 with podman image mount: var/lib/dpkg/status.d/zlib1g reads Version 1:1.3.dfsg+really1.3.1-1+deb13u1, the fixed version, beside libssl3t64 3.5.7-1~deb13u3, tzdata 2026f-0+deb13u1 and Node v26.13.1 with OpenSSL 3.5.9. The digest Dependabot proposes in #868 to #871, e2a8b92e (uploaded 2026-11-08T21:54:58Z), holds the same zlib1g with Node v26.13.0. The condition holds: taking a digest that holds the fix, deleting the zlib-patched stage and its COPY from the four Dockerfiles and confirming Container Security on the pull request is owed in its own change, which deletes this entry."
         }
       }
     },
@@ -180,6 +166,11 @@
           "date": "2026-11-05",
           "outcome": "clean",
           "note": "Reviewed 2026-11-05, two days after the 2026-11-03 milestone (reminder #822). Registry, read 2026-11-05T19:20Z: latest is 14.0.3 (2026-10-28T04:08Z, mature since 2026-11-04T04:08Z), whose compare against 14.0.2 holds CI, a Windows test fix and dependency updates and no security change; 14.0.2 is not deprecated. OSV lists nothing for 14.0.2 or 14.0.3. Upstream has one issue opened since, node-glob#664, about a 13.x cancellation backport, which does not touch this version. The override `glob@<14.0.2` holds one copy at 14.0.2. The battery is GREEN with it on `617c01da`."
+        },
+        "final": {
+          "date": "2026-11-14",
+          "outcome": "flagged",
+          "note": "Reviewed 2026-11-14, four days after the 2026-11-10 milestone (reminder #864). Registry, read 2026-11-14T00:21Z: latest is 14.0.6 (2026-11-12T12:02:26Z, mature from 2026-11-19T12:02Z); 14.0.3 (2026-10-28T04:08Z) and 14.0.4 (2026-11-06T03:47Z) are mature, 14.0.5 (2026-11-11T18:20Z) is not; none of 14.0.2 to 14.0.6 is deprecated. Advisories: isaacs/node-glob published the repository advisory GHSA-qxr8-q827-836c on 2026-11-12T12:04:05Z (low; CWE-400, CWE-405, CWE-770; glob >=13.0.5 <=14.0.5, patched 14.0.6): the Ignore class builds its minimatch options without braceExpandMax, so an ignore pattern may expand to minimatch's default of 100,000 rows where a pattern is held to 10,000; 14.0.6's one code commit, 17cb2074, passes the limit to it. GitHub's global database (affects=glob@14.0.2) and OSV, read 00:21Z, list nothing for 14.0.2 to 14.0.6, so pnpm audit cannot see it, and main's Security Audit passed at 2026-11-13T23:19Z. Upstream, opened since 2026-10-27: node-glob#664 (closed, a 13.x cancellation backport) and pull request #665 (closed, a trailing **), neither a security report. Lockfile: one copy, 14.0.2, under rimraf 5.0.10, @sentry/bundler-plugins 10.76.2 and @joshwooding/vite-plugin-react-docgen-typescript 0.7.0; no manifest or source module of apps, packages, infra or scripts declares or imports glob. Reachability, as SECURITY_CANON.md row `glob` reads: gaxios never calls rimraf, and Sentry's globFiles and the Storybook docgen plugin pass ignore patterns from build configuration, never request input. Works here: on main af93f0fa, CI run 43526148952 (push, 2026-11-13T23:18Z, success) passed Build Check, Storybook Stories, Lint and Format Check, Frontend Tests, Package Tests, both Test Suite shards and Integration Tests; Production CI/CD 43526148953 passed Test and Build and the four Container Security jobs; Architectural Fitness Functions 43526149011 passed. Flagged, not clean: 14.0.2 carries an advisory that 14.0.6 fixes, so raising the floor (the override `glob@<14.0.2` in pnpm-workspace.yaml and its canon row) is owed in its own change, once 14.0.6 is mature on 2026-11-19T12:02Z or earlier as a security-tied deviation the Maintainer decides; the entry stays until that change takes 14.0.2 out of the tree."
         }
       }
     },
@@ -203,52 +194,11 @@
           "date": "2026-11-05",
           "outcome": "clean",
           "note": "Reviewed 2026-11-05, two days after the 2026-11-03 milestone (reminder #823). Registry, read 2026-11-05T19:20Z: latest is 11.0.4 (2026-11-02T04:50Z, mature from 2026-11-09T04:50Z); 11.0.2 (2026-10-28T01:08Z) takes the character-class fix of @isaacs/nonrecursive-glob-match 1.0.2 and 11.0.3 (2026-10-28T20:00Z) caches matchers, neither a security change; 11.0.1 is not deprecated. OSV lists nothing for 11.0.1, 11.0.2 or 11.0.3. Upstream, minimatch#333 closed 2026-11-01 as completed, and GitHub narrowed GHSA-g3hv-75wg-m249 on 2026-11-04T16:50Z to `>=7.0.0 <11.0.1`, so the 3.1.5 copy of the Blocked floor is outside it: that floor and its `ignoreGhsas` entry are re-measured by their own change. The band keeps one 11.0.1 copy. The battery is GREEN with it on `617c01da`."
-        }
-      }
-    },
-    {
-      "kind": "package",
-      "name": "path-scurry",
-      "version": "3.0.0",
-      "published": "2026-10-27T21:14:48.842Z",
-      "entered": {
-        "date": "2026-10-31",
-        "commit": "d2a55f40",
-        "pr": 808,
-        "via": "brought by glob 14.0.2 (its path-scurry ^3.0.0), under the same deviation; installed in production chains under glob 14 (gaxios > rimraf under @observability/opentelemetry, @sentry/bundler-plugins under @sentry/nextjs), never loaded at runtime"
-      },
-      "milestones": {
-        "maturity": "2026-11-03",
-        "final": "2026-11-10"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-11-05",
-          "outcome": "clean",
-          "note": "Reviewed 2026-11-05, after its 2026-11-03 milestone (reminder #824). Registry, read 2026-11-05T19:20Z: 3.0.0 is latest and not deprecated. OSV lists nothing for it, and upstream has no issue opened since 2026-10-20. The lockfile holds one copy. The battery is GREEN with it on `617c01da`."
-        }
-      }
-    },
-    {
-      "kind": "package",
-      "name": "@isaacs/nonrecursive-glob-match",
-      "version": "1.0.1",
-      "published": "2026-10-27T04:24:52.559Z",
-      "entered": {
-        "date": "2026-10-31",
-        "commit": "d2a55f40",
-        "pr": 808,
-        "via": "brought by minimatch 11.0.1 (its dependency), which glob 14.0.2 and the minimatch band both bring, under the same deviation; installed in production chains (@fastify/otel > minimatch, and glob 14 under gaxios and @sentry/bundler-plugins), never loaded at runtime"
-      },
-      "milestones": {
-        "maturity": "2026-11-03",
-        "final": "2026-11-10"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-11-05",
-          "outcome": "clean",
-          "note": "Reviewed 2026-11-05, after its 2026-11-03 milestone (reminder #825). Registry, read 2026-11-05T19:20Z: latest is 1.0.3 (2026-10-28T19:50Z, mature since 2026-11-04T19:50Z); 1.0.2 (2026-10-28T01:01Z) corrects the `:print:` and `:punct:` classes and 1.0.3 caches its character-folding RegExps, neither a security change; 1.0.1 is not deprecated. OSV lists nothing for 1.0.1, and upstream has no issue opened since 2026-10-20. The lockfile holds one copy. The battery is GREEN with it on `617c01da`."
+        },
+        "final": {
+          "date": "2026-11-14",
+          "outcome": "flagged",
+          "note": "Reviewed 2026-11-14, four days after the 2026-11-10 milestone (reminder #865). Registry, read 2026-11-14T00:21Z: latest is 11.0.8 (2026-11-11T09:50:19Z, mature from 2026-11-18T09:50Z); after 11.0.4 came 11.0.5 (2026-11-05T23:30Z, mature since 2026-11-12T23:30Z), 11.0.6 (2026-11-10T16:35Z) and 11.0.7 (2026-11-10T23:03Z); none of 11.0.1 to 11.0.8 is deprecated. Advisories: isaacs/minimatch published three repository advisories after the 7-day review. GHSA-cf2h-pxjq-68xw (2026-11-10T23:05:21Z, medium, CWE-407, >=11.0.0 <=11.0.6, patched 11.0.7): mergeRows compiles a pattern of many wildcard-only parts in quadratic time. GHSA-c859-jr93-m5j4 (2026-11-11T09:51:30Z, medium, CWE-116, >=7.4.0 <=11.0.7, patched 11.0.8): escape() leaves a leading ! or #, its escaped backslash collapses under brace expansion, and with windowsPathsNoEscape and magicalBraces its brace classes expand, so its output matches more or less than the literal. GHSA-hqmv-qgp3-jx75 (2026-11-11T09:50:24Z, medium, >=11.0.3 <=11.0.7) names 11.0.1 a negative control. The first two cover 11.0.1, and neither covers the 3.1.5 copy of the Blocked floor. GitHub's global database (affects=minimatch@11.0.1) and OSV, read 00:21Z, list nothing for 11.0.1 to 11.0.8, so pnpm audit cannot see them, and main's Security Audit passed at 2026-11-13T23:19Z. 11.0.5 also bounds the cells of the glob split pass and throws when a **/.. expansion goes over the limit (73f0e1b1, 2d5578ba), with no advisory of its own. Upstream issues opened since 2026-10-27, beside the advisories: #333 (closed, the CVE of GHSA-g3hv-75wg-m249), #338 (closed, the cost of the cache key), #340 (open, unescape skips adjacent bracket escapes) and #342 (closed, a CVE request for GHSA-hqmv-qgp3-jx75). Lockfile: one 11.0.1 copy, under @fastify/otel 0.21.2, @typescript-eslint/typescript-estree 8.72.0 and glob 14.0.2; no manifest or source module of apps, packages, infra or scripts declares or imports minimatch. Reachability, as SECURITY_CANON.md row `minimatch` reads: @fastify/otel loads it only for a string ignorePaths, which no file of apps or packages sets, typescript-estree matches the globs of eslint.config.ts, and glob matches build-configuration patterns, so no request input reaches a pattern or escape(). Works here: on main af93f0fa, CI run 43526148952 (push, 2026-11-13T23:18Z, success) passed Lint and Format Check, Build Check, Storybook Stories, Package Tests and both Test Suite shards; Architectural Fitness Functions 43526149011 and Production CI/CD 43526148953 passed. Flagged, not clean: 11.0.1 carries two advisories that 11.0.8 fixes (11.0.8 declares @isaacs/nonrecursive-glob-match ^1.1.0 and brace-expansion ^5.0.12), so raising the floor (the band `minimatch@>=9.0.0 <11.0.1` in pnpm-workspace.yaml and its canon rows) is owed in its own change, once 11.0.8 is mature on 2026-11-18T09:50Z or earlier as a security-tied deviation the Maintainer decides; the entry stays until that change takes 11.0.1 out of the tree."
         }
       }
     }
