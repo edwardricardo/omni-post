@@ -155,6 +155,26 @@ describe("the export guard of the telemetry set-up", () => {
     await provider.shutdown();
   });
 
+  it("ends and exports a span whose event has no string name, and still redacts its other events", async () => {
+    const recorder = new RecordingExporter();
+    const provider = new tracing.BasicTracerProvider({
+      spanProcessors: createTelemetrySpanProcessors([recorder], vi.fn()),
+    });
+    const span = provider.getTracer("redaction-guard-test").startSpan("untyped-event-span");
+    // canon-exception: test-fixture
+    span.addEvent(undefined as unknown as string);
+    span.addEvent(`redirect to /cb?access_token=${FAKE_TOKEN}`);
+
+    expect(() => span.end()).not.toThrow();
+    await provider.forceFlush();
+
+    expect(recorder.exported.map((exported) => exported.name)).toEqual(["untyped-event-span"]);
+    expect(recorder.exported[0]?.events.map((event) => event.name)).toContain(
+      "redirect to /cb?access_token=REDACTED"
+    );
+    await provider.shutdown();
+  });
+
   it("forwards every span to every exporter, redacted, when the SDK calls the hook", async () => {
     const recorders = [new RecordingExporter(), new RecordingExporter()];
     const provider = new tracing.BasicTracerProvider({

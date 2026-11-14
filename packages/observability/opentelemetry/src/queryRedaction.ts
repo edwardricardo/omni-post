@@ -160,8 +160,9 @@ const redactAttributesInPlace = (attributes: Attributes): void => {
  * message, and the name and attributes of each of its events. Registered with the other span
  * processors of a tracer provider, it covers every exporter of that provider and every
  * instrumentation, including one added later. It remembers each span it processed, so that
- * `RedactionGuardedSpanExporter` can refuse a span it never saw. Span links are not rewritten: no
- * instrumentation of the set-up sets link attributes.
+ * `RedactionGuardedSpanExporter` can refuse a span it never saw. Span links are not rewritten: the one
+ * instrumentation of the set-up that sets a link attribute, `@opentelemetry/instrumentation-aws-lambda`,
+ * does so only inside a Lambda runtime, and the value is a message id, not a URL.
  */
 export class QueryParameterRedactionSpanProcessor implements tracing.SpanProcessor {
   private readonly redactedSpans = new WeakSet<tracing.ReadableSpan>();
@@ -180,6 +181,9 @@ export class QueryParameterRedactionSpanProcessor implements tracing.SpanProcess
    * @method onEnding
    * @description Replaces every sensitive query value of the ending span's attributes, name, status
    *              message, and each event's name and attributes, then marks the span as processed.
+   *              Only strings and arrays of strings are rewritten; a value of any other type, such as
+   *              the missing name of an event an untyped caller added, is left as it is and never
+   *              makes the span fail to end.
    *              The SDK calls it on every processor before it marks the span ended, so the span's
    *              own setters still apply, and before any processor's `onEnd`. An event is the plain
    *              object `Span.addEvent` stored, whose `name` and `attributes` the SDK's `TimedEvent`
@@ -200,7 +204,9 @@ export class QueryParameterRedactionSpanProcessor implements tracing.SpanProcess
       if (redactedMessage !== message) span.setStatus({ code, message: redactedMessage });
     }
     for (const event of span.events) {
-      event.name = redactSensitiveQueryParameters(event.name);
+      // An untyped caller can add an event with no string name; only strings are rewritten, and a
+      // value of any other type must not make `span.end()` throw.
+      if (typeof event.name === "string") event.name = redactSensitiveQueryParameters(event.name);
       if (event.attributes !== undefined) redactAttributesInPlace(event.attributes);
     }
     this.redactedSpans.add(span);
@@ -270,8 +276,9 @@ export function createDroppedSpanReporter(write: (message: string) => void): Dro
     reported = true;
     const message =
       `Telemetry export guard: ${count} span(s) not processed by the query redaction were dropped ` +
-      "and not exported, because the SDK did not call the span processor hook onEnding. Later " +
-      "drops are not reported.";
+      "and not exported, because the SDK did not call the span processor hook onEnding or the " +
+      "query redaction processor is not registered on the tracer provider. Later drops are not " +
+      "reported.";
     diag.error(message);
     write(message);
   };
