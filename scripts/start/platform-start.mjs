@@ -3,7 +3,7 @@
  * @file platform-start.mjs
  * @description The start sequence of a clean checkout, as far as it goes today: its environment,
  *   then Postgres and Redis from the repository's `docker-compose.yml`, then the database's
- *   migration.
+ *   migration, then the API.
  *
  *   ENVIRONMENT. A checkout with no root environment file receives one, its secrets random
  *   (`lib/start-environment.mjs` says which variables and why). An existing file is never written:
@@ -61,23 +61,61 @@
  *   schema engine the URL, password included, on a command line, as it does for every migration of
  *   this repository, so `ps` on the host shows it during both calls.
  *
- *   API PORT. The port the API alone would take: `PORT` of the calling shell, else of the file, else
- *   3000 (no variable is generated for it). A value that is not a port is refused with the other
- *   problems, before anything is written or started, and the run says which port it settled on.
+ *   API. `pnpm --filter @apps/api dev`, the script that starts the API from source, run in the
+ *   checkout detached: the run returns once `/health` answers 200 on loopback and leaves the API
+ *   running. The API loads the environment file itself and lets a variable its process holds win,
+ *   so it receives the calling shell's environment without the variables the file owns, and its
+ *   port is the one it would take alone: `PORT` of the calling shell if the shell sets it, else of
+ *   the file, else 3000 (no variable is generated for it). An empty `PORT` in the calling shell is
+ *   a value that is set: the API's schema reads an empty value as absent, so the port is the
+ *   default 3000 and the file's value is not consulted (an empty value in the file gives 3000
+ *   too). A value that is not a port is refused with the other problems, before anything is written
+ *   or started, and the run says which port it settled on.
+ *
+ *   WHAT THE RUN STARTS, AND WHAT IT LEAVES. It starts pnpm, detached, so pnpm leads a process
+ *   group and a session of its own; its shell and the API's node run in another process group of
+ *   that session (measured on the real pnpm). What the run records in `api.pid`, and names in its
+ *   lines, is that pnpm process: the one this run started to run the API, whose session holds the
+ *   API. It is not the API, and it can end while the API lives on. The output goes to `api.log`,
+ *   both under `.tmp/` in the checkout, which git ignores. The run prints both and how to stop the
+ *   API: `kill -s TERM -- -<id>`, a normal termination signal sent to pnpm's process group, which
+ *   passes it on. That ends the API only if the API attends the signal, and the text says so, how
+ *   to see whether it still runs (the port, or the recorded pnpm, which settles less) and that its
+ *   session is then ended by hand. This command sends no signal to the API it starts nor to the
+ *   recorded process (its one call of `kill` there asks, with signal 0, whether the recorded
+ *   process exists); the SIGTERM it sends to the Docker query and to Prisma's proof when
+ *   `--wait-seconds` runs out belongs to the steps before. It does not stop the API it started. A
+ *   wait that runs out fails the run and says, by name, that the pnpm process is still running and
+ *   has not been stopped; a pnpm that ended first fails it at once, says that pnpm ended and that
+ *   the other processes of its session, the API among them, were not checked.
+ *   The process an earlier run recorded is consulted before the port. While it exists no second API
+ *   is started and the record and the log are left alone: if the port accepts connections and
+ *   `/health` answers 200, the run says so and goes on, as a second run; if nothing accepts
+ *   connections yet (the real API binds only at the end of its boot) the run waits within
+ *   `--wait-seconds` for `/health` and, if the wait runs out, says only what it knows: the
+ *   recorded process exists, it may be the pnpm of an API an earlier run started that is still
+ *   starting or failed to start, and nothing was started or stopped. With nothing recorded, and
+ *   something accepting connections on the port, the run refuses and claims only that the port is
+ *   in use and that it holds no record of a running API it started. A recorded id that the system
+ *   has given to another process cannot be told from the pnpm of the API, a limit. Both failures
+ *   of a start end with the last lines of the log. Polling `/health` is a request like any other:
+ *   the API's memory alert may log once at error level a few seconds after it boots, which says
+ *   nothing about memory left.
  *
  *   THE SEQUENCE IS CUMULATIVE. A step that fails leaves what the steps before it did (the
  *   environment file, the running services, the migrations already applied), and a second run
  *   goes on from there.
  *
- *   Exit codes: 0 both services accept connections and the database is migrated; 1 a step failed,
- *   each cause on its own line; 2 a usage error.
+ *   Exit codes: 0 both services accept connections, the database is migrated and the API answers
+ *   `/health` with 200; 1 a step failed, each cause on its own line; 2 a usage error.
  *
  *   Usage: `node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]`
  * @layer infrastructure
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { get } from "node:http";
 import { connect } from "node:net";
 import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -100,12 +138,12 @@ const NAME = "platform-start";
 
 const USAGE = `usage: node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]
 
-Takes a checkout to a generated environment, to Postgres and Redis accepting connections and to
-a migrated database.
+Takes a checkout to a generated environment, to Postgres and Redis accepting connections, to a
+migrated database and to an API running from source that answers /health with 200.
 
   --root <dir>         the checkout to start (default: the one this script is in)
-  --wait-seconds <n>   how long each service may take to accept a connection, and Prisma's proof
-                       of the database to answer (default: 60)
+  --wait-seconds <n>   how long each service may take to accept a connection, Prisma's proof
+                       of the database to answer and the API to answer /health (default: 60)
   --help               print this text
 
 A checkout with no ${ENVIRONMENT_FILE} file receives one, its secrets random; an existing file is
@@ -117,6 +155,13 @@ The database is migrated with \`pnpm --filter @infra/prisma run migrate\`, so pn
 and only after Prisma proves, through the connection the migration will use, that it reaches the
 database this run started, the one its data volume was initialised for: another server or another
 database ends the run with nothing applied.
+
+The API is started detached with \`pnpm --filter @apps/api dev\` and left running; its port is PORT,
+of the calling shell or else of the file, else 3000, and a port something else holds refuses the run.
+Its pnpm process's id and its log are under .tmp/ in the checkout, and the run prints how to stop
+it. A run whose wait for the API runs out leaves the API it started running, says so, and sends
+no signal to it. An empty PORT in the calling shell counts as set and gives 3000, as it does for
+the API.
 `;
 
 /** The variable that chooses the host port each service is published on. */
@@ -227,6 +272,15 @@ const PROVE = ["--filter", "@infra/prisma", "exec", "prisma", "db", "execute", "
 
 /** What pnpm is asked for then: the migration script of that package. */
 const MIGRATE = ["--filter", "@infra/prisma", "run", "migrate"];
+
+/** What pnpm is asked for last: the script that starts the API from source. */
+const API = ["--filter", "@apps/api", "dev"];
+
+/** Where the API's process group id and output go, in a directory git ignores. */
+const API_DIRECTORY = ".tmp";
+
+/** How many of the log's last lines a failure shows. */
+const LOG_LINES = 10;
 
 /** A run that failed, with one line per cause. */
 class StartFailure extends Error {
@@ -343,8 +397,9 @@ function readIfPresent(file) {
  *   missing one reads as absent, and the write creates it only if nothing is there, so it never
  *   replaces a file that appeared meanwhile and never writes through a link.
  * @param {string} file - The environment file's path.
- * @returns {{ values: Record<string, string>, ports: { Postgres: number, Redis: number } }} What
- *   the file holds, and the host port each service is published on.
+ * @returns {{ values: Record<string, string>, ports: { Postgres: number, Redis: number },
+ *   api: number }} What the file holds, the host port each service is published on and the port the
+ *   API takes.
  */
 function prepareEnvironment(file) {
   const text = readIfPresent(file);
@@ -372,13 +427,13 @@ function prepareEnvironment(file) {
     );
   }
   const api = apiPort(process.env.PORT, values?.PORT);
-  if (api === null) problems.push(`PORT=${process.env.PORT || values?.PORT} is not a port`);
-  if (problems.length > 0 || api === null) throw new StartFailure(problems);
+  if (api === null) problems.push(`PORT=${process.env.PORT ?? values?.PORT} is not a port`);
+  if (problems.length > 0) throw new StartFailure(problems);
 
   if (values !== null) {
     process.stdout.write(`${NAME}: ${file} holds every required variable\n`);
     process.stdout.write(`${NAME}: the API takes port ${api}\n`);
-    return { values, ports };
+    return { values, ports, api };
   }
   const entries = generateEnvironment({
     randomBytes,
@@ -394,7 +449,7 @@ function prepareEnvironment(file) {
     `${NAME}: wrote ${file} with ${entries.length} variables, its secrets random\n`
   );
   process.stdout.write(`${NAME}: the API takes port ${api}\n`);
-  return { values: Object.fromEntries(entries), ports };
+  return { values: Object.fromEntries(entries), ports, api };
 }
 
 /**
@@ -628,6 +683,262 @@ function migrateDatabase(root, file, answered, waitSeconds) {
 }
 
 /**
+ * @function accepts
+ * @description Whether something accepts connections on a loopback port.
+ * @param {number} port - The port.
+ * @returns {Promise<boolean>} `true` when a connection is made, and also when the attempt neither
+ *   succeeds nor fails in time, because a port that cannot be told apart from a held one is not
+ *   free; `false` when the connection is refused.
+ */
+function accepts(port) {
+  return new Promise((resolve) => {
+    const socket = connect({ host: LOOPBACK, port });
+    socket.setTimeout(PROBE_TIMEOUT_MS, () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("error", () => resolve(false));
+  });
+}
+
+/**
+ * @function healthy
+ * @description Whether `/health` answers 200 on a loopback port.
+ * @param {number} port - The port.
+ * @param {number} msLeft - How long the whole wait has left, to bound the attempt by.
+ * @returns {Promise<boolean>} `false` on a refused connection, a silent peer or another status.
+ */
+function healthy(port, msLeft) {
+  return new Promise((resolve) => {
+    const request = get(
+      { host: LOOPBACK, port, path: "/health", timeout: Math.min(PROBE_TIMEOUT_MS, msLeft) },
+      (response) => {
+        response.resume();
+        resolve(response.statusCode === 200);
+      }
+    );
+    request.once("timeout", () => {
+      request.destroy();
+      resolve(false);
+    });
+    request.once("error", () => resolve(false));
+  });
+}
+
+/**
+ * @function recordedProcess
+ * @description The process the run before this one recorded for its API, when it still exists. What
+ *   is recorded is the pnpm process that run started to run the API, which leads the session that
+ *   holds the API. It is only looked at: nothing here ever signals it.
+ * @param {string} pidFile - The file the process id is kept in.
+ * @returns {number | null} The id, or `null` when none is recorded or no such process exists.
+ */
+function recordedProcess(pidFile) {
+  let recorded;
+  try {
+    recorded = readFileSync(pidFile, "utf8").trim();
+  } catch {
+    return null;
+  }
+  if (!/^[1-9]\d*$/.test(recorded)) return null;
+  try {
+    process.kill(Number(recorded), 0);
+  } catch (error) {
+    // Another user's process exists but may not be signalled, and that is "it exists".
+    if (/** @type {NodeJS.ErrnoException} */ (error).code !== "EPERM") return null;
+  }
+  return Number(recorded);
+}
+
+/**
+ * @function reportApi
+ * @description Says where the API answers, where its output goes and how to stop it.
+ * @param {boolean} earlier - Whether the API is one this command started in an earlier run.
+ * @param {number} port - The port.
+ * @param {number} pid - The pnpm process that runs the API: it leads the process group the stop
+ *   signal is sent to and the session that holds the API, and it is what `api.pid` records.
+ * @param {string} logFile - The log's path.
+ * @param {string} pidFile - The path of the file that records the process.
+ * @returns {void}
+ */
+function reportApi(earlier, port, pid, logFile, pidFile) {
+  const where = `on ${LOOPBACK}:${port} (run by the pnpm process ${pid}, log ${logFile})`;
+  process.stdout.write(
+    earlier
+      ? `${NAME}: the API this command started earlier already answers /health with 200 ${where}: no second API was started\n`
+      : `${NAME}: the API answers /health with 200 ${where}\n`
+  );
+  // The signal reaches pnpm alone, and pnpm passes it on: whether the API ends depends on the API.
+  process.stdout.write(
+    `${NAME}: stop it with \`kill -s TERM -- -${pid}\`: a normal termination signal, sent to the ` +
+      `process group of pnpm (process ${pid}, which runs the API and leads the session that holds ` +
+      `it), which passes it on; it ends the API only if the API attends it, and one that ignores ` +
+      `it keeps running. To see whether the API still runs, check whether ${LOOPBACK}:${port} ` +
+      `accepts connections, or whether the pnpm process ${pid}, recorded in ${pidFile}, still ` +
+      `exists (it can end while the API lives on, so only the port settles it); if the API still ` +
+      `runs, end the processes of the session by hand (\`ps -s ${pid}\` lists them). pnpm writes a ` +
+      `failed-command line in the log when the API ends, which is expected\n`
+  );
+}
+
+/**
+ * @function recordedNote
+ * @description What the run says of a recorded process that still exists and that it starts no
+ *   second API for: only what it knows. The id could also have been given to another process.
+ * @param {string} pidFile - The file the process is recorded in.
+ * @param {string} logFile - The log's path.
+ * @param {number} recorded - The recorded process.
+ * @returns {string} One failure line.
+ */
+function recordedNote(pidFile, logFile, recorded) {
+  return (
+    `the process recorded in ${pidFile} (${recorded}) still exists and may be the pnpm of an API ` +
+    `an earlier run started, which is still starting or failed to start: nothing was started and ` +
+    `nothing was stopped (\`ps -s ${recorded}\` lists its session, ${logFile} its output)`
+  );
+}
+
+/**
+ * @function startApi
+ * @description Starts the API from source, detached, and waits until `/health` answers 200. The
+ *   process an earlier run recorded is consulted first: while it exists no second API is started,
+ *   and the run goes on as a second run once `/health` answers, whether or not the port is bound
+ *   yet (the real API binds it only at the end of its boot). With nothing recorded, nothing is
+ *   started when something accepts connections on the port. While it waits the run watches its
+ *   child: a child that exits fails the run at once, and a wait that runs out fails it with the API
+ *   still running. No signal reaches the API or the recorded process.
+ * @param {string} root - The checkout.
+ * @param {number} port - The port the API takes.
+ * @param {number} waitSeconds - How long `/health` may take to answer 200.
+ * @returns {Promise<void>} Resolves once the API answers, or once the earlier one is found to.
+ */
+async function startApi(root, port, waitSeconds) {
+  const directory = path.join(root, API_DIRECTORY);
+  const pidFile = path.join(directory, "api.pid");
+  const logFile = path.join(directory, "api.log");
+
+  const recorded = recordedProcess(pidFile);
+  const bound = await accepts(port);
+  if (recorded !== null) {
+    if (bound) {
+      if (await healthy(port, PROBE_TIMEOUT_MS)) {
+        reportApi(true, port, recorded, logFile, pidFile);
+        return;
+      }
+      throw new StartFailure([
+        `${LOOPBACK}:${port} is already in use, and /health does not answer 200 there`,
+        recordedNote(pidFile, logFile, recorded),
+      ]);
+    }
+    process.stdout.write(
+      `${NAME}: the process recorded in ${pidFile} (${recorded}) still exists and nothing ` +
+        `accepts connections on ${LOOPBACK}:${port} yet: no second API is started, and /health ` +
+        `is awaited for up to ${waitSeconds} s\n`
+    );
+    try {
+      await waitFor(
+        `/health on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
+        waitSeconds,
+        (msLeft) => healthy(port, msLeft())
+      );
+    } catch (error) {
+      if (!(error instanceof StartFailure)) throw error;
+      throw new StartFailure([...error.lines, recordedNote(pidFile, logFile, recorded)]);
+    }
+    reportApi(true, port, recorded, logFile, pidFile);
+    return;
+  }
+  if (bound) {
+    throw new StartFailure([
+      `${LOOPBACK}:${port} is already in use, and this command holds no record of a running API ` +
+        `it started: the port may be held by anything, an API whose record was removed when its ` +
+        `pnpm ended included; no API was started`,
+    ]);
+  }
+
+  mkdirSync(directory, { recursive: true });
+  const log = openSync(logFile, "w");
+  const child = spawn("pnpm", API, {
+    cwd: root,
+    env: shellEnvironment(),
+    detached: true,
+    stdio: ["ignore", log, log],
+  });
+  closeSync(log);
+  const state =
+    /** @type {{ ended: { status: number | null, signal: NodeJS.Signals | null } | null }} */ ({
+      ended: null,
+    });
+  child.once("exit", (status, signal) => {
+    state.ended = { status, signal };
+  });
+  const notRun = await new Promise((resolve) => {
+    child.once("spawn", () => resolve(null));
+    child.once("error", resolve);
+  });
+  if (notRun !== null) {
+    throw couldNotStart(
+      "pnpm",
+      /** @type {Error} */ (notRun),
+      "pnpm is not on PATH: the API starts through it"
+    );
+  }
+  const pid = /** @type {number} */ (child.pid);
+  writeFileSync(pidFile, `${pid}\n`);
+
+  try {
+    await waitFor(
+      `/health on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
+      waitSeconds,
+      async (msLeft) => {
+        if (state.ended !== null) {
+          throw new StartFailure([
+            `the pnpm process this run started to run the API (process ${pid}) ` +
+              `${endOf(state.ended)} before /health answered 200`,
+          ]);
+        }
+        return healthy(port, msLeft());
+      }
+    );
+  } catch (error) {
+    if (!(error instanceof StartFailure)) throw error;
+    // So the run can end while the API it started still runs: nothing here signals it.
+    child.unref();
+    const lines = [...error.lines];
+    if (state.ended === null) {
+      lines.push(
+        `the pnpm process this run started to run the API (process ${pid}, recorded in ` +
+          `${pidFile}) was still running when the wait ended and has not been stopped; its ` +
+          `session holds the API: \`ps -s ${pid}\` lists the processes of that session, to end by hand`
+      );
+    } else {
+      // What pnpm ran may outlive it, and nothing here looked.
+      lines.push(
+        `the other processes of its session, the API among them, were not checked: ` +
+          `\`ps -s ${pid}\` lists any still running`
+      );
+      rmSync(pidFile, { force: true });
+    }
+    let written = "";
+    try {
+      written = readFileSync(logFile, "utf8");
+    } catch {
+      // No log to show: the failure stands without it.
+    }
+    const tail = written.trimEnd().split("\n").slice(-LOG_LINES).filter(Boolean);
+    if (tail.length > 0)
+      lines.push(`the last lines of ${logFile}:`, ...tail.map((line) => `  ${line}`));
+    throw new StartFailure(lines);
+  }
+  child.unref();
+  reportApi(false, port, pid, logFile, pidFile);
+}
+
+/**
  * @param {string[]} argv - The command's arguments.
  * @returns {{ root: string, waitSeconds: number, help: boolean } | null} `null` on a usage error.
  */
@@ -672,9 +983,10 @@ async function main(argv) {
 
   const file = path.join(options.root, ENVIRONMENT_FILE);
   try {
-    const { values, ports } = prepareEnvironment(file);
+    const { values, ports, api } = prepareEnvironment(file);
     const answered = await startServices(options.root, file, values, ports, options.waitSeconds);
     migrateDatabase(options.root, file, answered, options.waitSeconds);
+    await startApi(options.root, api, options.waitSeconds);
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);
