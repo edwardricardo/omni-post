@@ -59,5 +59,6 @@
 # D37), and the lockfile holds no 2.0.2 copy.
 #
 # CVE-2026-76844 (zlib1g) left on 2026-11-07: Debian fixed it in DSA-6613-1, and
-# the images take that package ahead of a distroless rebuild
-# (docs/deployment/base-images.md).
+# the images took that package from Debian's archive until 2026-11-14, the day
+# they moved to a distroless digest that holds the fixed version; the first such
+# digest was uploaded on 2026-11-08 (docs/deployment/base-images.md).

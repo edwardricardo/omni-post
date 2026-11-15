@@ -18,13 +18,14 @@ stage:
 FROM gcr.io/distroless/nodejs26-debian13@sha256:<digest> AS production
 ```
 
-The build chain stays on Debian bookworm, `node:26.12.1-bookworm-slim`, pinned by
+The build chain stays on Debian bookworm, `node:26.13.1-bookworm-slim`, pinned by
 digest as well. That asymmetry is deliberate and is explained under §"The glibc
 direction" below. The Node 26 line arrived on 2026-10-15, ahead of its LTS date
 ([ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md)); §"Moved to Node 26
 on 2026-10-15" below holds the measurements. Both stages moved to 26.12.1, the
 security release of 2026-10-21, on 2026-10-22 (§"Moved to Node 26.12.1 on
-2026-10-22").
+2026-10-22"), and to 26.13.1, the security release of 2026-11-11, on 2026-11-14
+(§"Moved to Node 26.13.1 on 2026-11-14").
 
 ---
 
@@ -45,8 +46,10 @@ old version while the library on disk was new — trading an honest red for an
 image whose own inventory lies. The third option is the whole Debian package:
 its files and the `status.d` entry written from its own `control` and
 `md5sums`, so the inventory names the version on disk. The images took that
-option for `zlib1g` on 2026-11-07, while no digest held Debian's fix (§"zlib1g
-from Debian's archive on 2026-11-07").
+option for `zlib1g` from 2026-11-07, while no digest held Debian's fix, to
+2026-11-14, the day they moved to a digest that holds it: the first such digest,
+`e2a8b92e` (Node 26.13.0), was uploaded on 2026-11-08T21:54:58Z
+(§"zlib1g from Debian's archive on 2026-11-07").
 
 ---
 
@@ -186,22 +189,22 @@ database by 2026-11-07, when it turned all four Container Security jobs red with
 no change of ours. Debian fixes it, with CVE-2026-76844 and CVE-2026-27171, in
 `zlib1g` `1:1.3.dfsg+really1.3.1-1+deb13u1`
 ([DSA-6613-1](https://security-tracker.debian.org/tracker/DSA-6613-1)). No digest
-of the distroless image holds that version: read on `linux/amd64`, both the pinned
+of the distroless image held that version: read on `linux/amd64`, both the pinned
 `456bd22a` and the `latest` index of 21:03Z that day, `c952ca0a`, hold
 `1:1.3.dfsg+really1.3.1-1+b1`. The Maintainer chose the fix on 2026-11-07 over a
 second `.trivyignore` entry and over waiting for the rebuild.
 
-A distroless image has no package manager, so all four Dockerfiles gain a stage,
-`zlib-patched`, on `debian:trixie-slim@sha256:a72b4433…`. It downloads the package
-apt verifies from Debian's archive, refuses a version below the fix, unpacks it to
-`/out` and writes the `status.d` entry from the package's own `control` and
-`md5sums`, the format the image already holds. The production stage runs
+A distroless image has no package manager, so all four Dockerfiles gained a stage,
+`zlib-patched`, on `debian:trixie-slim@sha256:a72b4433…`. It downloaded the package
+apt verifies from Debian's archive, refused a version below the fix, unpacked it to
+`/out` and wrote the `status.d` entry from the package's own `control` and
+`md5sums`, the format the image already holds. The production stage ran
 `COPY --from=zlib-patched /out/ /` right after its `FROM`, before any `USER`.
 
-The version is a floor rather than a pin on purpose. Debian's archive drops a
-superseded security upload, so `zlib1g=<version>` would stop every image build the
-day Debian publishes the next one, while the floor takes that upload and still
-refuses anything older.
+The version was a floor rather than a pin on purpose. Debian's archive drops a
+superseded security upload, so `zlib1g=<version>` would have stopped every image
+build the day Debian published the next one, while the floor took that upload and
+still refused anything older.
 
 Measured on 2026-11-07 on a scratch build of the stage over `456bd22a`: the status
 entry reads `1:1.3.dfsg+really1.3.1-1+deb13u1`; a recursive `diff` against the base
@@ -211,16 +214,84 @@ hashing normally. No program in the image loads the replaced `libz`: `node` link
 neither it nor `libcrypto`, the one library that does. Trivy runs in the Container
 Security jobs of the pull request, which hold the verdict.
 
-**Remove-when:** a digest of the distroless image holds that version or a later
-one. Dependabot's weekly digest pull request is the trigger: read
-`/var/lib/dpkg/status.d/zlib1g` of the new digest, and when it qualifies delete the
-stage and its `COPY` from all four Dockerfiles. The entry `zlib-stage-remove` of
-`scripts/testing/maturity-watchlist.json` makes that read every Tuesday.
+**Removed on 2026-11-14.** The stage's remove-when was a digest of the distroless
+image holding that version or a later one, and the entry `zlib-stage-remove` of
+`scripts/testing/maturity-watchlist.json` read the newest digest every Tuesday.
+Read on 2026-11-14, the `latest` index `80631bd2`, uploaded on 2026-11-12T21:17:21Z,
+holds `zlib1g` `1:1.3.dfsg+really1.3.1-1+deb13u1` in its own
+`var/lib/dpkg/status.d/zlib1g`; the first digest that held it, `e2a8b92e`
+(Node 26.13.0), had been uploaded on 2026-11-08T21:54:58Z, and 2026-11-14 is
+the day the images moved to a digest that holds it. The stage and its `COPY` left all four Dockerfiles
+with the move to that digest (§"Moved to Node 26.13.1 on 2026-11-14"), and the
+watchlist entry left with them.
+
+### Moved to Node 26.13.1 on 2026-11-14
+
+Node 26.13.1, released on 2026-11-11 (`nodejs.org/dist/index.json` dates it
+2026-11-10; the GitHub release was published at 2026-11-11T16:44:25Z), fixes
+sixteen CVEs on the 26.x line
+([release notes](https://github.com/nodejs/node/releases/tag/v26.13.1)): seven
+High, with nine fixes between them, one a remotely reachable TLS server crash
+(CVE-2026-126051); six Medium; and three Low.
+[ADR-0038](../technical/ADR-0038-node-26-ahead-of-lts.md) §"Revisit if" makes a
+26.x security release a floor taken at once
+([ADR-0036](../technical/ADR-0036-dependency-update-cadence.md)), so both stages
+of all four Dockerfiles moved on 2026-11-14, inside the 7-day buffer (it matures
+from 2026-11-18T16:44Z), by the Maintainer's decision of 2026-11-15:
+
+| Stage      | Before                                          | After                                                                                                            |
+| ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| build      | `node:26.12.1-bookworm-slim@sha256:28147155…`   | `node:26.13.1-bookworm-slim@sha256:5df79989ed685e09f0a98019db4cebfb22fb9df1a53c0161664a011f7ff6b0f1`             |
+| production | `distroless/nodejs26-debian13@sha256:456bd22a…` | `distroless/nodejs26-debian13@sha256:80631bd2f0e7ef192138a7409013b47d92fd11b8ff3bb35f5c0a65be3ecaea4c`, `latest` |
+
+Both are multi-arch indexes, read on 2026-11-14 at 00:46Z. The `latest` tag of
+`gcr.io/distroless/nodejs26-debian13` resolved to `80631bd2`, the newest index in
+the repository's tag list, uploaded on 2026-11-12T21:17:21Z; the tag
+`node:26.13.1-bookworm-slim` resolved to `5df79989`, pushed on
+2026-11-11T19:26:58Z. The digests Dependabot proposed do not qualify: `e2a8b92e`
+(#868 to #871, uploaded on 2026-11-08T21:54:58Z, holding the same `zlib1g`) runs
+v26.13.0, and `88e48077` (#826, #829 to #831), a newer digest
+of the `node:26.12.1-bookworm-slim` tag, runs v26.12.1.
+
+Measured on 2026-11-14 from the `linux/amd64` image of each digest (production
+manifest `7501d647…`, build manifest `18a166e2…`), by reading the image's own
+`var/lib/dpkg/status.d` with `podman image mount` and running its `node`:
+
+|                       | `456bd22a` (2026-10-22)                                                                                             | `80631bd2` (2026-11-14)                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| openssl               | `libssl3t64` 3.5.7-1~deb13u3                                                                                        | `libssl3t64` 3.5.7-1~deb13u3                               |
+| glibc                 | `libc6` 2.41-12+deb13u4                                                                                             | `libc6` 2.41-12+deb13u4                                    |
+| zlib                  | `zlib1g` 1:1.3.dfsg+really1.3.1-1+b1                                                                                | **`zlib1g` 1:1.3.dfsg+really1.3.1-1+deb13u1** (DSA-6613-1) |
+| tzdata                | `tzdata` 2026c-0+deb13u1                                                                                            | `tzdata` **2026f-0+deb13u1**                               |
+| node                  | v26.12.1 (undici 8.12.2)                                                                                            | **v26.13.1** (undici 8.12.4)                               |
+| Trivy `HIGH,CRITICAL` | 2 (debian 13.7): `zlib1g` CVE-2026-76844 and CVE-2026-85091, both HIGH, fixed in `1:1.3.dfsg+really1.3.1-1+deb13u1` | 0 (debian 13.7)                                            |
+
+The two `status.d` inventories differ in `zlib1g`, `tzdata` and `tzdata-legacy`
+only, and the `node` of both reports OpenSSL 3.5.9. The build stage moved from
+v26.12.1 to v26.13.1, kept glibc 2.36-9+deb12u14 and npm 11.20.0, and still ships
+no corepack. Build and runtime run the same release, v26.13.1.
+
+Trivy 0.74.0, with the gate's flags (`CRITICAL,HIGH`, exit code 1, table format,
+the repository's `.trivyignore`) and its database of 2026-11-14T01:05:40Z,
+produced the last row, over the `linux/amd64` image of each digest saved from
+podman storage: exit 1 for `456bd22a`, exit 0 for `80631bd2`. The four images
+built with `podman` from this change on 2026-11-14 each run `/nodejs/bin/node`
+v26.13.1 as `nonroot` (uid 65532) and report `zlib1g`
+`1:1.3.dfsg+really1.3.1-1+deb13u1` in their own `var/lib/dpkg/status.d/zlib1g`;
+argon2 round-trips in the API image; the API and workers `CMD` entries resolve
+their whole module graph and stop at the environment validation, which this
+smoke does not satisfy; both portal images answer 200 on `/api/health` and `/`
+(73096 bytes for `admin`, 112019 for `client`) and pass `podman healthcheck run`;
+and the same Trivy, saved from each built image, exits 0 with no HIGH or
+CRITICAL vulnerability in any of the four (`debian 13.7` and 767, 529, 25 and 25
+`node-pkg` targets for `api`, `workers`, `admin` and `client`). The gate itself
+is the `Container Security` job of the pull request, whose scanner is
+`aquasecurity/trivy-action@master`; this section records the local read.
 
 ### pnpm in the build stage
 
 Node 26 ships no corepack: it is "no longer distributed as of Node.js v25.0.0"
-(nodejs/node#61207), and `node:26.12.1-bookworm-slim` carries `node`, `npm` and
+(nodejs/node#61207), and `node:26.13.1-bookworm-slim` carries `node`, `npm` and
 `npx` only. Each build stage therefore installs pnpm 12.6.0 itself:
 
 1. **The source** is pnpm's own GitHub release `v12.6.0`, an immutable release,
@@ -243,7 +314,7 @@ Node 26 ships no corepack: it is "no longer distributed as of Node.js v25.0.0"
    the image builds with the release it verified.
 
 The asset is pnpm's single executable, which embeds its own Node runtime. pnpm
-runs lifecycle scripts with the `node` on `PATH`, the image's 26.12.1, and
+runs lifecycle scripts with the `node` on `PATH`, the image's 26.13.1, and
 compares `engines` against that same `node` when `engineStrict` asks it to
 (measured on 2026-10-15: under Node 24.15.0 it reports `current:
 {"node":"24.15.0"}`).
@@ -269,7 +340,7 @@ that day, with no record of what changed or when.
 
 The build stage read `node:24-bookworm-slim`, a floating tag, until 2026-10-15.
 Since then it names an exact release and its index digest,
-`node:26.12.1-bookworm-slim@sha256:…`, so Dependabot tracks both `FROM` lines of
+`node:26.13.1-bookworm-slim@sha256:…`, so Dependabot tracks both `FROM` lines of
 every Dockerfile.
 
 ---
@@ -277,7 +348,7 @@ every Dockerfile.
 ## The glibc direction
 
 `argon2` ships a prebuilt native binary that must match the runtime ABI. The
-build chain stays on `node:26.12.1-bookworm-slim` (glibc 2.36) while the runtime
+build chain stays on `node:26.13.1-bookworm-slim` (glibc 2.36) while the runtime
 is trixie (glibc 2.41).
 
 That is the **safe** direction: glibc is forward-compatible, so a binary built
