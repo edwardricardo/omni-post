@@ -64,10 +64,10 @@ The four canon documents are loaded into every agent session by `CLAUDE.md`.
 
 The route reference is generated: [`packages/shared/src/api-generated/types.gen.ts`](../packages/shared/src/api-generated/types.gen.ts) holds every registered method and path, and the running API serves the same OpenAPI document through Swagger. `docs/api/` keeps one hand-written page, the saga page below.
 
-| Document                             | What it covers                                                                                                                                           |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [API Reference](architecture/API.md) | Hand-written endpoint guide; the plan row DEF-80 (`product/plan/cross-cutting.md`) tracks the routes it describes that the generated table does not have |
-| [Saga Orchestration](api/saga.md)    | Saga API and step classes                                                                                                                                |
+| Document                             | What it covers                                                                                                                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [API Reference](architecture/API.md) | Hand-written guide to a subset of the generated table's routes; it says so at its top, and the plan row API-REFERENCE-COVERAGE (`product/plan/cross-cutting.md`) holds what it should cover |
+| [Saga Orchestration](api/saga.md)    | Saga API and step classes                                                                                                                                                                   |
 
 ## Development
 

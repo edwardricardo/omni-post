@@ -2,34 +2,64 @@
 
 ## Overview
 
-The API is built with **Fastify 5.8.4** and **TypeScript 6.0.2**, featuring a comprehensive multi-tenant social media management platform with production-ready monitoring, authentication, and provider integrations.
+The API is built with **Fastify** and **TypeScript**, featuring a comprehensive multi-tenant social media management platform with production-ready monitoring, authentication, and provider integrations.
 
 **Base URL**: `http://localhost:3000` (configurable via `PORT` environment variable)
+
+**Route list**: this page documents some of the routes. The complete list is the generated route table, `packages/shared/src/api-generated/types.gen.ts`, which a CI gate keeps equal to the routes the API registers.
 
 ## Architecture
 
 ### Technology Stack
 
-- **Framework**: Fastify 5.8.4 with ZodTypeProvider for type safety
+- **Framework**: Fastify 5.12.6 with ZodTypeProvider for type safety, in TypeScript 6.0.3
 - **Authentication**: JWT with refresh tokens, MFA (TOTP), RBAC
-- **Database**: PostgreSQL with Prisma 7.5.0 ORM (centralized via `@infra/prisma` with `prisma.config.ts`)
-- **Queue System**: BullMQ 5.71.1 with Redis (ioredis 5.7.0)
+- **Database**: PostgreSQL with Prisma 7.10.1 ORM (centralized via `@infra/prisma` with `prisma.config.ts`)
+- **Queue System**: BullMQ 5.58.9 with Redis (ioredis 5.11.1)
 - **Monitoring**: Prometheus metrics, Pino 10.3.1 structured logging
-- **Circuit Breakers**: Opossum with fallback strategies
-- **Rate Limiting**: Sliding window with tenant isolation
+- **Circuit Breakers**: Opossum, failing fast on writes
+- **Rate Limiting**: Token bucket per client IP and route
 - **Caching**: Redis-based response caching with TTL management
 
 ### Response Patterns
 
-All endpoints follow consistent `Result<T, E>` patterns:
+The API answers in three shapes, depending on who sends the response.
 
-```typescript
-// Success
-{ ok: true, value: T }
+| Sent by                                                                         | Success body                 | Error body                                                      | `details`                                               |
+| ------------------------------------------------------------------------------- | ---------------------------- | --------------------------------------------------------------- | ------------------------------------------------------- |
+| A handler built on `BaseRouteHandler` (`lib/route-handler/BaseRouteHandler.ts`) | `{ ok: true, data }`         | `{ ok: false, error: "<message>" }`                             | next to `error`, only when the handler passes an object |
+| Fastify's error handler (`lib/errors/errorHandler.ts`)                          | none, it answers errors only | `{ ok: false, error: { code, message, requestId, timestamp } }` | inside `error`, only when `NODE_ENV` is `development`   |
+| The saga routes (`/sagas/...`, `saga/SagaIntegration.ts`)                       | `{ success: true, data }`    | the error handler's body, as its refusals go through it         | as for the error handler                                |
 
-// Error
-{ ok: false, error: string, message?: string, code?: string }
+An error reaches Fastify's error handler when it is a schema or framework error, an `AppError` thrown by a service, or an unexpected failure.
+
+```json
+{ "ok": true, "data": { "message": "Logged out successfully" } }
 ```
+
+`POST /auth/logout`, 200.
+
+```json
+{ "ok": false, "error": "Invalid email or password" }
+```
+
+`POST /auth/login` with a wrong password, 401.
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "Resource not found",
+    "requestId": "<request-id>",
+    "timestamp": "2026-11-14T10:30:00.000Z"
+  }
+}
+```
+
+An error that reaches Fastify's error handler, here a not-found.
+
+A few routes send a body of their own: `GET /health` and its siblings, `GET /metrics` and the 429 of the rate limiter. Each is described with its route.
 
 ## Core API Endpoints
 
@@ -41,27 +71,52 @@ All endpoints follow consistent `Result<T, E>` patterns:
 GET /health
 ```
 
-**Response**: `{ ok: true, timestamp: string }`
+**Response**: `{ status: "healthy" | "degraded" | "unhealthy", timestamp: string, uptime?: number }`, with 200 when `status` is `healthy` and 503 otherwise, `degraded` included. `uptime` is absent until the health checks have run once.
 
-#### Comprehensive Health Check
+#### Detailed Health Check
 
 ```http
-GET /health/full
+GET /health/detailed
 ```
 
-**Response**:
+**Response**: 200 when the overall status is `healthy` or `degraded`, 503 when it is `unhealthy`. `ok` is `false` only when the overall status is `unhealthy`.
 
 ```json
 {
   "ok": true,
-  "dependencies": {
-    "database": { "ok": true, "latency": 12 },
-    "redis": { "ok": true, "latency": 3 },
-    "queue": { "ok": true, "waiting": 0, "active": 2 }
+  "status": "healthy",
+  "score": 100,
+  "timestamp": "2026-11-14T10:30:00.000Z",
+  "uptime": 3600,
+  "dependencies": [
+    {
+      "name": "<dependency-name>",
+      "type": "<dependency-type>",
+      "status": "healthy",
+      "latency": 12,
+      "message": "<message>",
+      "critical": true,
+      "lastChecked": "2026-11-14T10:29:55.000Z"
+    }
+  ],
+  "metrics": {
+    "memory": { "heapUsed": 0, "heapTotal": 0, "external": 0, "rss": 0 },
+    "cpu": {}
   },
-  "timestamp": "2025-01-23T10:30:00Z"
+  "alerts": [
+    {
+      "id": "<alert-id>",
+      "level": "<level>",
+      "message": "<message>",
+      "dependency": "<dependency-name>",
+      "timestamp": "2026-11-14T10:29:55.000Z",
+      "acknowledged": false
+    }
+  ]
 }
 ```
+
+A dependency entry also carries `details` when its check returns some.
 
 #### Metrics Endpoint
 
@@ -85,59 +140,69 @@ Content-Type: application/json
 }
 ```
 
-**Response**:
+`mfaToken` (6 to 8 characters of `0-9A-F`, a TOTP code or a backup code) is optional.
+
+**Response**: the refresh token is not in the body; it is set as the HTTP-only cookie `refreshToken` (path `/auth`, `SameSite=Strict`, 7 days). The access token lives 15 minutes. `expiresAt` is not its expiry: it is when the refresh token and its session expire, 7 days after they are issued.
 
 ```json
 {
   "ok": true,
-  "token": "<jwt-access-token>",
-  "refreshToken": "uuid-refresh-token",
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "name": "User Name",
-    "role": "USER"
+  "data": {
+    "user": {
+      "id": "uuid",
+      "email": "user@example.com",
+      "name": "User Name",
+      "role": "<role>",
+      "isActive": true,
+      "emailVerified": true,
+      "lastLoginAt": "2026-11-14T10:00:00.000Z",
+      "mfaEnabled": false
+    },
+    "accessToken": "<jwt-access-token>",
+    "expiresAt": "2026-11-21T10:00:00.000Z"
   }
 }
 ```
+
+An account that has MFA enabled and sent no `mfaToken` gets `{ "ok": true, "data": { "mfaRequired": true, "userId": "uuid", "message": "MFA token required to complete login" } }` and no cookie. Refusals: 400 for an invalid body, 401 for a wrong e-mail, password or MFA token, 403 when the account is inactive.
 
 #### Token Refresh
 
 ```http
 POST /auth/refresh
-Content-Type: application/json
-
-{
-  "refreshToken": "uuid-refresh-token"
-}
 ```
 
-**Response**:
+The refresh token is read from the `refreshToken` cookie, and from the body (`{ "refreshToken": "<token>" }`) only when the cookie is absent.
+
+**Response**: the cookie is rotated, and the body carries the new access token.
 
 ```json
 {
   "ok": true,
-  "token": "<jwt-access-token>",
-  "refreshToken": "new-uuid-refresh-token"
+  "data": {
+    "accessToken": "<jwt-access-token>",
+    "expiresAt": "2026-11-21T10:05:00.000Z"
+  }
 }
 ```
+
+`expiresAt` is the expiry of the rotated refresh token, as in the login response. A missing token answers 401, an invalid, expired or revoked one 401 and clears the cookie, and an inactive account 403.
 
 #### Logout
 
 ```http
 POST /auth/logout
-Content-Type: application/json
-
-{
-  "refreshToken": "uuid-refresh-token"
-}
 ```
 
-**Response**: `{ ok: true }`
+The refresh token is read the same way as in `POST /auth/refresh`; without one the route answers 400.
+
+**Response**: `{ ok: true, data: { message: "Logged out successfully" } }`. The cookie is cleared, and a session that no longer exists still logs out successfully.
 
 ### Multi-Factor Authentication
 
 #### Setup MFA
+
+This route and `POST /auth/mfa/disable` act on the customer user of the access token.
 
 ```http
 POST /auth/mfa/setup
@@ -149,11 +214,23 @@ Authorization: Bearer <jwt-token>
 ```json
 {
   "ok": true,
-  "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
-  "secret": "JBSWY3DPEHPK3PXP",
-  "backupCodes": ["123456", "789012", "345678"]
+  "data": {
+    "setup": {
+      "qrCodeUrl": "<qr-code-url>",
+      "manualEntryKey": "JBSWY3DPEHPK3PXP",
+      "backupCodes": ["<backup-code>"]
+    },
+    "instructions": {
+      "step1": "Scan the QR code with your authenticator app (Google Authenticator, Authy, etc.)",
+      "step2": "Or manually enter the key into your authenticator app",
+      "step3": "Save the backup codes in a secure location",
+      "step4": "Enter a code from your authenticator app to verify setup"
+    }
+  }
 }
 ```
+
+A user who already has MFA enabled gets 409.
 
 #### Complete Customer Login MFA Challenge
 
@@ -167,44 +244,23 @@ Content-Type: application/json
 }
 ```
 
-**Response**: `{ ok: true, data: { accessToken, refreshToken, user, account } }`
+**Response**: `{ ok: true, data: { accessToken, refreshToken, user, account } }`. A wrong code answers 401 with `{ ok: false, error: "Invalid MFA code.", code: "INVALID_MFA_CODE" }`, and an expired, consumed or foreign challenge answers 401 with `code: "INVALID_CHALLENGE"`.
 
 #### Disable MFA
 
 ```http
 POST /auth/mfa/disable
 Authorization: Bearer <jwt-token>
-```
-
-**Response**: `{ ok: true }`
-
-### Role-Based Access Control (RBAC)
-
-#### Create Role
-
-```http
-POST /auth/rbac/roles
-Authorization: Bearer <admin-token>
 Content-Type: application/json
 
 {
-  "name": "content-manager",
-  "permissions": ["posts:read", "posts:write", "analytics:read"]
+  "token": "123456"
 }
 ```
 
-#### Assign Role to User
+`token` is a TOTP code or a backup code, 6 to 8 characters.
 
-```http
-POST /auth/rbac/assign
-Authorization: Bearer <admin-token>
-Content-Type: application/json
-
-{
-  "userId": "uuid",
-  "roleId": "role-uuid"
-}
-```
+**Response**: `{ ok: true, data: { message: "MFA has been disabled for your account", warning: "Your account is now less secure. Consider re-enabling MFA." } }`. It answers 400 when MFA is not enabled or the token is invalid.
 
 ### Content Management
 
@@ -232,7 +288,7 @@ Content-Type: application/json
 #### Get Post
 
 ```http
-GET /posts/{postId}
+GET /posts/{id}
 Authorization: Bearer <jwt-token>
 ```
 
@@ -241,23 +297,47 @@ Authorization: Bearer <jwt-token>
 ```json
 {
   "ok": true,
-  "value": {
+  "data": {
     "id": "uuid",
     "projectId": "uuid",
+    "locale": "en",
+    "body": "Content...",
+    "title": "Post Title",
+    "tags": ["tag1", "tag2"],
     "status": "DRAFT",
-    "content": [
-      {
-        "locale": "en",
-        "title": "Post Title",
-        "body": "Content...",
-        "tags": ["tag1", "tag2"]
-      }
-    ],
-    "media": [],
     "createdAt": "2025-01-23T10:00:00Z"
   }
 }
 ```
+
+`title` is absent when the post has none. `thread` is absent until the post has a thread; once it has one, the response carries it next to `createdAt`:
+
+```json
+"thread": {
+  "id": "uuid",
+  "postId": "uuid",
+  "strategy": "<strategy>",
+  "createdAt": "2025-01-23T10:00:00Z",
+  "updatedAt": "2025-01-23T10:00:00Z",
+  "tweets": [
+    {
+      "id": "uuid",
+      "threadId": "uuid",
+      "sequenceNumber": 1,
+      "content": "First post of the thread",
+      "media": null,
+      "tweetId": null,
+      "parentTweetId": null,
+      "status": "<status>",
+      "publishedAt": null,
+      "createdAt": "2025-01-23T10:00:00Z",
+      "updatedAt": "2025-01-23T10:00:00Z"
+    }
+  ]
+}
+```
+
+`tweets` are ordered by `sequenceNumber`. An unknown post answers 404 with `"Post not found"`, and an invalid id answers 400.
 
 #### List Posts
 
@@ -266,10 +346,27 @@ GET /posts?projectId={uuid}&limit=20&offset=0
 Authorization: Bearer <jwt-token>
 ```
 
+**Query**:
+
+| Parameter                                                  | Values                                                                                                                                                 | Default | Applies                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- | -------------------------------------------------------------------- |
+| `limit`                                                    | integer, 1 to 100                                                                                                                                      | 20      | always                                                               |
+| `offset`                                                   | integer, 0 or more                                                                                                                                     | 0       | always                                                               |
+| `projectId`                                                | a UUID                                                                                                                                                 | none    | always; without it the route lists the posts of the caller's account |
+| `status`                                                   | one of `DRAFT`, `PENDING_REVIEW`, `SCHEDULED`, `PUBLISHING`, `PUBLISHED`, `FAILED`, `CANCELLED`; with `projectId`, also a comma-separated list of them | none    | always; a list only with `projectId`                                 |
+| `tags`                                                     | comma-separated strings                                                                                                                                | none    | only with `projectId`                                                |
+| `hasMedia`, `includeArchived`                              | `true` or `false`                                                                                                                                      | none    | only with `projectId`                                                |
+| `createdFrom`, `createdTo`, `scheduledFrom`, `scheduledTo` | ISO 8601 date-times                                                                                                                                    | none    | only with `projectId`                                                |
+| `searchText`                                               | string, 1 to 200 characters                                                                                                                            | none    | only with `projectId`                                                |
+| `sortBy`                                                   | `createdAt`, `updatedAt`, `scheduledAt`, `publishedAt` or `status`                                                                                     | none    | only with `projectId`                                                |
+| `sortDirection`                                            | `asc` or `desc`                                                                                                                                        | none    | only with `projectId`                                                |
+
+**Response**: `{ ok: true, data: { data: [...], total, limit, offset } }`.
+
 #### Update Post
 
 ```http
-PUT /posts/{postId}
+PATCH /posts/{id}
 Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
@@ -279,37 +376,9 @@ Content-Type: application/json
 }
 ```
 
-### Media Management
+The body takes `body`, `title`, `summary` and `tags`, and an optional `expectedVersion` (a non-negative integer): when the post's version has moved past it, the route answers 409. At least one of the four content fields is required, or the route answers 400.
 
-#### Upload Media
-
-```http
-POST /posts/{postId}/media
-Authorization: Bearer <jwt-token>
-Content-Type: application/json
-
-{
-  "type": "image",
-  "url": "https://storage.example.com/image.jpg",
-  "width": 1920,
-  "height": 1080,
-  "alt": "Description of image"
-}
-```
-
-#### Get Signed Upload URL
-
-```http
-POST /media/sign
-Authorization: Bearer <jwt-token>
-Content-Type: application/json
-
-{
-  "path": "uploads/image.jpg",
-  "contentType": "image/jpeg",
-  "sizeBytes": 1048576
-}
-```
+**Response**: `{ ok: true, data: { id, projectId, locale, body, title?, summary?, tags, status, mediaCount, createdAt, updatedAt } }`.
 
 ### Publishing & Scheduling
 
@@ -450,67 +519,31 @@ Cancel moves a `SCHEDULED` post back to `DRAFT`, clears its `scheduledAt` and ma
 
 ### Analytics & Insights
 
-#### Get Analytics
+#### Real-time Analytics (Server-Sent Events)
 
 ```http
-GET /analytics?postId={uuid}&channelId={uuid}&provider=x&since=2025-01-01&until=2025-01-31
+GET /analytics/stream?projectId={uuid}&postIds={uuid},{uuid}
 Authorization: Bearer <jwt-token>
 ```
 
-**Response**:
+The route answers `text/event-stream`. `projectId` is optional: without it the stream covers the posts of every project of the caller's account. `postIds` is a comma-separated list, read only with `projectId`, and it is intersected with that project's posts. The stream is one-way, so a connection cannot change its scope.
 
-```json
-{
-  "ok": true,
-  "value": [
-    {
-      "postId": "uuid",
-      "channelId": "uuid",
-      "provider": "X",
-      "views": 1250,
-      "likes": 89,
-      "comments": 12,
-      "shares": 5,
-      "capturedAt": "2025-01-23T10:00:00Z"
-    }
-  ]
-}
-```
+The first event is `data: {"type":"connected"}`, followed by one `data:` event with the current metrics of each post in scope and then by each live update; a `: heartbeat` comment line keeps the connection open. A missing token answers 401, a project outside the caller's account 403 with `"Access denied to project"`, and an account that already holds its maximum of concurrent streams 429 with `{ ok: false, error: "Too many concurrent streams for account", maxConcurrent }`.
 
-#### Fetch Live Analytics
-
-```http
-POST /analytics/fetch
-Authorization: Bearer <jwt-token>
-Content-Type: application/json
-
-{
-  "channelId": "x-channel-uuid",
-  "provider": "x",
-  "since": "2025-01-20T00:00:00Z"
-}
-```
-
-#### Real-time Analytics (WebSocket)
-
-```javascript
-const ws = new WebSocket("ws://localhost:3000/analytics/realtime");
-ws.send(
-  JSON.stringify({
-    type: "subscribe",
-    channels: ["x-channel-uuid"],
-  })
-);
-```
+The routes that read stored analytics are the `/analytics/...` entries of the generated route table.
 
 ### Audit & Logging
 
 #### Get Audit Logs
 
 ```http
-GET /audit/logs?userId={uuid}&action=LOGIN&limit=50
+GET /admin/audit/logs?userId={uuid}&action=LOGIN&limit=50
 Authorization: Bearer <admin-token>
 ```
+
+Requires the `AUDIT_READ` permission. **Query** (all optional): `userId`, `action`, `resource`, `resourceId`, `success`, `startDate` and `endDate` (ISO 8601 date-times), `limit` (1 to 1000, default 50) and `offset` (default 0).
+
+**Response**: `{ ok: true, data: { logs: [...], filters } }`, where `filters` echoes the filters the route applied.
 
 #### Get Publish Logs
 
@@ -530,34 +563,31 @@ GET /admin/dashboard/stats
 Authorization: Bearer <admin-token>
 ```
 
-**Response**:
+Requires the `DASHBOARD_VIEW` permission.
+
+**Response**: `subscriptions` counts the account subscriptions by status.
 
 ```json
 {
   "ok": true,
-  "value": {
-    "accounts": {
-      "total": 1247,
-      "active": 1134,
-      "trialsActive": 89,
-      "trialsExpiring": 12
-    },
-    "subscriptions": {
-      "basic": 456,
-      "pro": 234,
-      "enterprise": 45
-    },
-    "revenue": {
-      "monthly": 45600,
-      "yearly": 547200,
-      "total": 1234567
-    },
-    "activity": {
-      "loginsToday": 234,
-      "newAccountsToday": 12,
-      "subscriptionChangesToday": 3
-    },
-    "lastUpdated": "2025-01-23T10:30:00Z"
+  "data": {
+    "stats": {
+      "accounts": {
+        "total": 1247,
+        "active": 1134,
+        "trialsActive": 89,
+        "trialsExpiring": 12
+      },
+      "subscriptions": {
+        "ACTIVE": 456,
+        "GRANDFATHERED": 12
+      },
+      "projects": 2310,
+      "activity": {
+        "newAccountsToday": 12
+      },
+      "lastUpdated": "2025-01-23T10:30:00Z"
+    }
   }
 }
 ```
@@ -567,29 +597,76 @@ Authorization: Bearer <admin-token>
 #### List Accounts
 
 ```http
-GET /admin/accounts/summary?limit=50&offset=0&status=active
+GET /admin/accounts/summary
 Authorization: Bearer <admin-token>
 ```
 
-#### Create Account
+Requires the `DASHBOARD_VIEW` permission. The route takes no query parameters and returns the 100 most recently created accounts that are not deleted.
+
+**Response**:
+
+```json
+{
+  "ok": true,
+  "data": {
+    "accounts": [
+      {
+        "id": "uuid",
+        "email": "user@example.com",
+        "name": "User Name",
+        "isActive": true,
+        "createdAt": "2025-01-23T10:00:00.000Z",
+        "plan": {
+          "type": "bundle",
+          "name": "Pro",
+          "status": "ACTIVE",
+          "providers": ["X"],
+          "pricePerMonth": 49
+        },
+        "trial": {
+          "isOnTrial": false,
+          "trialDaysRemaining": 0,
+          "trialExpired": false,
+          "autoRenewal": true
+        },
+        "usage": {
+          "projectsUsed": 2,
+          "projectsRemaining": 8,
+          "utilizationPercent": 20
+        }
+      }
+    ],
+    "total": 1
+  }
+}
+```
+
+`phone` is present when the account has one, `trial.trialEndDate` when it has a trial end date, and `plan.type` is `bundle`, `custom` or `none`.
+
+#### Create Admin Account
 
 ```http
 POST /admin/accounts
-Authorization: Bearer <super-admin-token>
+Authorization: Bearer <admin-token>
 Content-Type: application/json
 
 {
   "email": "new@example.com",
+  "password": "at-least-8-characters",
   "name": "New User",
-  "subscription": "PRO",
-  "trialDays": 7
+  "role": "<role>",
+  "sendWelcomeEmail": true
 }
 ```
+
+Requires the `ACCOUNT_MANAGE` permission. `role` and `sendWelcomeEmail` are optional, and `password` takes at least 8 characters.
+
+**Response**: 201 with `{ ok: true, data: { account } }`. An e-mail that is already registered answers 409 with `"Email already exists"`.
 
 #### Suspend Account
 
 ```http
-PUT /admin/accounts/{accountId}/suspend
+POST /admin/accounts/{accountId}/suspend
 Authorization: Bearer <admin-token>
 Content-Type: application/json
 
@@ -598,18 +675,20 @@ Content-Type: application/json
 }
 ```
 
+Requires the `ACCOUNT_MANAGE` permission.
+
+**Response**: `{ ok: true, data: { message: "Account suspended successfully" } }`. An unknown account answers 404, and an account that is already suspended 409.
+
 #### Delete Account
 
 ```http
 DELETE /admin/accounts/{accountId}
-Authorization: Bearer <super-admin-token>
-Content-Type: application/json
-
-{
-  "reason": "User request",
-  "confirmDelete": true
-}
+Authorization: Bearer <admin-token>
 ```
+
+Requires the `ACCOUNT_MANAGE` permission. The route takes no body.
+
+**Response**: `{ ok: true, data: { message: "Account deleted successfully" } }`. An unknown account answers 404, and the caller's own account 409 with `"Cannot delete your own account"`.
 
 ### Subscription Management
 
@@ -620,62 +699,67 @@ GET /admin/subscriptions/summary
 Authorization: Bearer <admin-token>
 ```
 
+Requires the `DASHBOARD_VIEW` permission.
+
+**Response**: `{ ok: true, data: { subscriptions, trials, stats } }`. `subscriptions` lists up to 50 accounts that are not on a trial, and `trials` up to 50 accounts that are, each trial with a `status` of `ACTIVE`, `EXPIRING` or `EXPIRED`. `stats` holds `activeSubscriptions`, `activeTrials`, `expiringTrials`, `expiredTrials`, `totalRevenue`, `monthlyRevenue` and `conversionRate`.
+
 #### Start Trial
 
 ```http
-POST /billing/trial/start
+POST /admin/billing/accounts/{accountId}/trial/start
 Authorization: Bearer <admin-token>
 Content-Type: application/json
 
 {
-  "accountId": "uuid",
-  "subscription": "PRO",
   "trialDays": 14
 }
 ```
 
+Requires the `BILLING_MANAGE` permission. The body takes `trialDays` (1 to 90, default 14) and the optional `bundleId` and `providers`.
+
+**Response**: `{ ok: true, data: { subscription, message, timestamp } }`, where `message` reads `"14-day trial started successfully"` for a 14-day trial. An unknown account answers 404, and an account that is already on a trial, or that cannot start one, 409.
+
 #### Convert Trial to Paid
 
 ```http
-POST /billing/subscription/convert
+POST /admin/billing/accounts/{accountId}/trial/convert
 Authorization: Bearer <admin-token>
 Content-Type: application/json
 
 {
-  "accountId": "uuid",
   "billingCycle": "yearly"
 }
 ```
+
+Requires the `BILLING_MANAGE` permission. `billingCycle` is `monthly` (the default) or `yearly`.
+
+**Response**: `{ ok: true, data: { subscription, message: "Trial converted to paid subscription successfully", timestamp } }`. An unknown account answers 404, and an account that is not on a trial 409.
 
 ## Provider System
 
 ### Provider Health Check
 
 ```http
-GET /providers/health
+GET /providers/health/all
 Authorization: Bearer <jwt-token>
 ```
 
-### X/Twitter Provider
+**Response**:
 
-```http
-GET /providers/x/capabilities
-Authorization: Bearer <jwt-token>
-```
-
-#### Validate X Credentials
-
-```http
-POST /providers/x/validate
-Authorization: Bearer <jwt-token>
-Content-Type: application/json
-
+```json
 {
-  "apiKey": "your-api-key",
-  "apiSecret": "your-api-secret",
-  "bearerToken": "your-bearer-token"
+  "ok": true,
+  "data": {
+    "summary": { "total": 1, "healthy": 1, "unhealthy": 0, "avgLatency": 120 },
+    "providers": [
+      { "id": "x", "name": "X", "status": "<status>", "healthy": true, "latency": 120 }
+    ],
+    "timestamp": "2026-11-14T10:30:00.000Z"
+  }
 }
 ```
+
+Each entry of `providers` is the provider's `id`, `name` and `status` followed by the fields its health check returns.
 
 ## AI & Content Generation
 
@@ -687,12 +771,14 @@ Authorization: Bearer <jwt-token>
 Content-Type: application/json
 
 {
-  "provider": "openai",
-  "prompt": "Write a social media post about AI",
-  "targetProvider": "x",
-  "maxLength": 280
+  "messages": [{ "role": "user", "content": "Write a social media post about AI" }],
+  "options": { "maxTokens": 280 }
 }
 ```
+
+`messages` holds at least one entry, each with a `role` of `system`, `user` or `assistant`. `options` (`model`, `maxTokens`, `temperature`, `topP`), `provider` and `accountId` (a UUID) are optional.
+
+**Response**: `{ ok: true, data: { success: true, content, metadata } }`. A body with no message answers 400 with `"Messages array is required"`.
 
 ### Content Optimization
 
@@ -703,95 +789,98 @@ Content-Type: application/json
 
 {
   "content": "Original post content",
-  "targetProvider": "x",
-  "goal": "engagement"
+  "platform": "x"
 }
 ```
+
+`brandVoice`, `provider` and `accountId` (a UUID) are optional.
+
+**Response**: `{ ok: true, data: { success: true, optimization, metadata } }`. A body without `content` or `platform` answers 400 with `"Content and platform are required"`.
 
 ## Error Handling
 
 ### Standard Error Response
 
+The shape depends on who answers; see [Response Patterns](#response-patterns). An error that reaches Fastify's error handler answers:
+
 ```json
 {
   "ok": false,
-  "error": "VALIDATION_ERROR",
-  "message": "Invalid email format",
-  "code": "AUTH_001"
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "requestId": "<request-id>",
+    "timestamp": "2026-11-14T10:30:00.000Z"
+  }
 }
 ```
 
 ### Common Error Codes
 
-- `AUTH_INVALID`: Invalid credentials
-- `AUTH_EXPIRED`: Token expired
-- `RATE_LIMITED`: Rate limit exceeded
-- `VALIDATION_ERROR`: Request validation failed
-- `NOT_FOUND`: Resource not found
-- `UNAUTHORIZED`: Insufficient permissions
-- `UNAVAILABLE`: Service temporarily unavailable
+The `code` of that error is a value of `ErrorCode` (`packages/shared/src/errors.ts`):
+
+- Authentication: `AUTH_INVALID_CREDENTIALS`, `AUTH_USER_NOT_FOUND`, `AUTH_TOKEN_EXPIRED`, `AUTH_TOKEN_INVALID`, `AUTH_INSUFFICIENT_PERMISSIONS`, `AUTH_MFA_REQUIRED`, `AUTH_MFA_INVALID`
+- Validation: `VALIDATION_ERROR`, `VALIDATION_MISSING_FIELD`, `VALIDATION_INVALID_FORMAT`
+- Resources: `RESOURCE_NOT_FOUND`, `RESOURCE_ALREADY_EXISTS`, `RESOURCE_CONFLICT`
+- Rate limiting: `RATE_LIMIT_EXCEEDED`
+- Database: `DATABASE_ERROR`, `DATABASE_CONNECTION_FAILED`
+- External services: `EXTERNAL_SERVICE_ERROR`, `PROVIDER_ERROR`
+- Other: `CONFIGURATION_ERROR`, `INTERNAL_SERVER_ERROR`, `BAD_REQUEST`, `FORBIDDEN`, `NOT_IMPLEMENTED`
 
 ## Rate Limiting
+
+Rate limiting is on by default and is switched off with `ENABLE_RATE_LIMITING=false`. Each request takes one permit from a bucket keyed by client IP and route.
 
 ### Rate Limit Headers
 
 ```http
-X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 45
-X-RateLimit-Reset: 1643723400
-X-RateLimit-Window: 3600
+X-RateLimit-Reset: 1643723400000
 ```
+
+`X-RateLimit-Reset` is the time at which the bucket is full again, in milliseconds since the Unix epoch. A denied request also carries `Retry-After`, in seconds. The limiter does not emit `X-RateLimit-Limit`; the design of the rate-limit integrity work, `docs/features/auth-rate-limit-integrity/design.md`, section "The header contract", says it is to be added.
 
 ### Rate Limit Response (429)
 
 ```json
 {
   "ok": false,
-  "error": "RATE_LIMITED",
-  "message": "Too many requests",
-  "retryAfter": 3600
+  "error": "RATE_LIMIT_EXCEEDED",
+  "message": "Too many requests. Please try again later.",
+  "retryAfter": "2026-11-14T10:35:00.000Z"
 }
 ```
 
-## WebSocket Endpoints
+## Streaming Endpoints
 
-### Real-time Analytics
-
-```
-ws://localhost:3000/analytics/realtime
-```
-
-### Live Dashboard Updates
-
-```
-ws://localhost:3000/admin/dashboard/live
-```
+The API registers no WebSocket route. Real-time delivery uses Server-Sent Events: `GET /analytics/stream` is described under [Real-time Analytics](#real-time-analytics-server-sent-events), and `GET /notifications/stream` and `GET /webhooks/dashboard/stream` are in the generated route table.
 
 ## Security Features
 
 ### Request Validation
 
-- All inputs validated with Zod schemas
-- SQL injection protection via Prisma
-- XSS protection with DOMPurify
-- CSRF protection with tokens
+- A handler built on `BaseRouteHandler` validates the body, the path parameters and the query string with Zod schemas, and answers 400 when they fail (`apps/api/src/lib/route-handler/BaseRouteHandler.ts`)
+- Database access goes through Prisma
+- The server template engine's `sanitize` method runs DOMPurify over HTML content (`apps/api/src/lib/templates/ServerTemplateEngine.ts:190`)
+- A state-changing request (any method but `GET`, `HEAD` or `OPTIONS`) to a path under `/admin/` must carry an `X-CSRF-Token` header equal to the CSRF token of the caller's most recent active admin session: a missing token answers 403 with code `CSRF_MISSING`, and a wrong one 403 with `CSRF_INVALID`. The admin login, refresh and password-reset paths are exempt, and no path outside `/admin/` is checked (`apps/api/src/security/csrfMiddleware.ts`, registered at `apps/api/src/index.ts:540-542`)
 
 ### Security Headers
 
-- CORS configured per environment
-- Content Security Policy (CSP)
-- X-Frame-Options: DENY
-- X-Content-Type-Options: nosniff
+- CORS allows the origins `http://localhost` and `https://localhost` on ports 3000, 3100 and 3200, the methods `GET`, `POST`, `PUT`, `DELETE`, `PATCH` and `OPTIONS`, the request headers `Content-Type`, `Authorization` and `X-Requested-With`, and credentials, with a preflight cache of 86,400 seconds (`apps/api/src/index.ts:414-424`)
+- Content-Security-Policy on every response: `default-src 'self'`, `script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'` and the other directives of `apps/api/src/index.ts:398-413`
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and `Strict-Transport-Security` (one year, subdomains, preload)
+- `Cache-Control: no-store` on every response whose route has not set its own policy
+- `X-API-Version: 1.0`
+
+(`apps/api/src/security/securityHeaders.ts`)
 
 ### Circuit Breakers
 
-- Automatic fallback for external API failures
-- Configurable retry policies with exponential backoff
-- Dead letter queue for failed operations
+- Calls to external APIs go through an Opossum circuit breaker with a 10-second timeout that opens at a 50% error rate and resets after 30 seconds (`packages/adapters/external-apis/src/circuitBreaker.ts`)
+- A retryable failure is retried up to 3 times with exponential backoff (1 second base, factor 2, 30-second cap) and jitter; an open circuit or a non-retryable error ends the retries at once
+- A call falls back to a cached or static value only when its caller opts in; writes fail fast by default
+- After the retries, a failed operation goes to the dead-letter queue when one is available, and the loss is logged when none is
 
 ---
 
 **API Version**: 1.0
-**Last Updated**: March 8, 2026
-**Fastify Version**: 5.8.4
-**Total Endpoints**: 85+
