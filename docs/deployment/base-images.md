@@ -237,7 +237,7 @@ High, with nine fixes between them, one a remotely reachable TLS server crash
 26.x security release a floor taken at once
 ([ADR-0036](../technical/ADR-0036-dependency-update-cadence.md)), so both stages
 of all four Dockerfiles moved on 2026-11-14, inside the 7-day buffer (it matures
-from 2026-11-18T16:44Z):
+from 2026-11-18T16:44Z), by the Maintainer's decision of 2026-11-15:
 
 | Stage      | Before                                          | After                                                                                                            |
 | ---------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |

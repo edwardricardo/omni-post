@@ -293,12 +293,12 @@ that no newer 26.x security release is out, and that CI and both image stages ru
 
 ## Amendment of 2026-11-14: Node 26.13.1
 
-Prepared on 2026-11-14 for the Maintainer's decision: take Node 26.13.1, the security release of
+Prepared on 2026-11-14 and taken on 2026-11-15 by the Maintainer's decision: Node 26.13.1, the security release of
 2026-11-11 (`nodejs.org/dist/index.json` dates it 2026-11-10), in both stages of the four images. It is the case "A 26.x security release" of
 §"Revisit if", and a deviation inside the 7-day buffer, as ADR-0036 takes every security floor:
-26.13.1, published at 2026-11-11T16:44:25Z, matures from 2026-11-18T16:44Z, and the change is not published before the Maintainer says so. The
+26.13.1, published at 2026-11-11T16:44:25Z, matures from 2026-11-18T16:44Z, and the Maintainer decided on 2026-11-15 to publish the change inside the buffer, with its maturity reviewed on 2026-11-18. The
 sentences of this ADR that name 26.12.1 and `456bd22a` as the current pins, in §"Decision" item 3,
-§"Rationale", §"Consequences" and §"Revisit if", describe the state before this amendment. This amendment, prepared for the Maintainer's decision,
+§"Rationale", §"Consequences" and §"Revisit if", describe the state before this amendment. This amendment
 inserts no pointer into those sections, which stay as accepted, and gives the reach in prose rather
 than in a per-CVE table, because no per-CVE reach assessment was made.
 
