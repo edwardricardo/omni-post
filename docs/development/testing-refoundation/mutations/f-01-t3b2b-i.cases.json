@@ -1,0 +1,18 @@
+[
+  {
+    "id": "t3b2b-i-01-a-failed-wait-stops-its-session",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/scripts/platformStart.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/platformStart.test.ts::fails, says by name that the API it started is still running and does not claim to have stopped it, when /health does not answer 200 within the wait (%s)",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::goes on after a failed wait as a second run that starts no other API, and says the recorded process may be the one left running",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal to the API it started when the wait runs out: one that ignores SIGTERM is never asked to end",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API and says what it knows and no more when the wait runs out too",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API, leaves the record and the log alone, and goes on as a second run when /health arrives"
+    ],
+    "subject": "scripts/start/platform-start.mjs",
+    "search": "still running ${timing.graceMs / 1000} s later",
+    "replace": "still running ${timing.killWaitMs / 1000} s later",
+    "note": "When /health does not answer 200 within the wait, the command now stops the session of the pnpm process it started: SIGTERM to each process of that session, SIGKILL 10 s later to any still running, and the pid file is removed once none is left. Before, it sent no signal, left the API running and said by name that it was still running. Five blocks of main leave the suite. The first three tested the old outcome of a failed wait: that the run named the API it started as still running (two rows, a 503 and a silent API), that a second run after a failed wait started no other API, and that no signal reached an API that ignores SIGTERM. The head replaces them with blocks that test the stop. The last two set up their rerun with a first run whose wait ran out and left a late-binding API behind; a failed wait no longer leaves one, so at the head that first run is ended while it waits, as an operator who stops the command would end it, and the two blocks carry new titles that name that setup. The base file fails on all five, six results, and on nothing else: the first three expect the API alive and unsignalled after the wait, and the two reruns rest on a first run whose wait ran out, which now stops the API that run started. At the head the suite passes. That result of the clean runs alone gives the verdict. The suite runs the command as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case are never applied to the runs that decide it."
+  }
+]

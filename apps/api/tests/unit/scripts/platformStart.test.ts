@@ -1980,7 +1980,7 @@ describe("the API stage", () => {
       return { staged, late, pid };
     }
 
-    it("starts no second API, leaves the record and the log alone, and goes on as a second run when /health arrives", async () => {
+    it("starts no second API after a first run interrupted before its API bound its port, leaves the record and the log alone, and goes on as a second run when /health arrives", async () => {
       const { staged, late, pid } = await firstRunInterrupted(3000);
       expect(await healthStatus(staged.apiPort)).toBeNull();
 
@@ -2004,7 +2004,7 @@ describe("the API stage", () => {
       expect(await healthStatus(staged.apiPort)).toBe(200);
     });
 
-    it("starts no second API and says what it knows and no more when the wait runs out too", async () => {
+    it("starts no second API after a first run interrupted before its API bound its port, and says what it knows and no more when its own wait runs out", async () => {
       const { staged, late, pid } = await firstRunInterrupted(60_000);
 
       const second = await start(
@@ -2201,6 +2201,22 @@ describe("the stop of a failed start, driven in this process", () => {
 
   it("sends no signal, and lists no session, for a target that names no separate process: 0, 1, -1, a fraction, its own process, group or session", async () => {
     const separate = await sleeper();
+    // The command reads its own group and session from /proc/self/stat. They are stubbed, so the
+    // case does not depend on how its runner was started: a runner that leads its own session
+    // gives a session equal to its pid or its group, and only the own-session clause of the guard
+    // would then go untested. These two ids are apart from this process and from the sleeper.
+    const own = {
+      group: Math.max(process.pid, separate) + 1,
+      session: Math.max(process.pid, separate) + 2,
+    };
+    const real = command.proc.read;
+    const read = vi
+      .spyOn(command.proc, "read")
+      .mockImplementation((file: string) =>
+        file === "/proc/self/stat"
+          ? `${process.pid} (node) S 1 ${own.group} ${own.session} 0 -1 4194304 0 0 0 0 0 0 0 0 20 0 1 0`
+          : real(file)
+      );
     const refused = [
       0,
       1,
@@ -2208,10 +2224,10 @@ describe("the stop of a failed start, driven in this process", () => {
       2.5,
       process.pid,
       -process.pid,
-      OWN.group,
-      -OWN.group,
-      OWN.session,
-      -OWN.session,
+      own.group,
+      -own.group,
+      own.session,
+      -own.session,
     ];
     // A spy that sends nothing, so even a guard that let -1 or the suite's own session through
     // would reach no process.
@@ -2220,28 +2236,31 @@ describe("the stop of a failed start, driven in this process", () => {
     try {
       const sent = refused.map((target) => command.signal(target, "SIGKILL"));
       const swept: Swept[] = [];
-      for (const session of [0, 1, process.pid, OWN.group, OWN.session]) {
+      for (const session of [0, 1, process.pid, own.group, own.session]) {
         swept.push(await command.endSession(session, FAST));
       }
       const refusedCalls = [...kill.mock.calls];
       const control = command.signal(separate, "SIGTERM");
-      observed = { sent, swept, refusedCalls, control, calls: [...kill.mock.calls] };
+      observed = {
+        sent,
+        swept,
+        refusedCalls,
+        control,
+        calls: [...kill.mock.calls],
+        readOwnIds: read.mock.calls.some(([file]) => file === "/proc/self/stat"),
+      };
     } finally {
       kill.mockRestore();
+      read.mockRestore();
     }
 
-    // The suite runs in a session of its own, apart from its process and its group, so only the
-    // guard's own-session clause refuses OWN.session: a session read as 0 would leave it untested.
-    expect({
-      session: OWN.session > 1,
-      apart: OWN.session !== process.pid && OWN.session !== OWN.group,
-    }).toEqual({ session: true, apart: true });
     expect(observed).toEqual({
       sent: refused.map(() => false),
       swept: [UNTOUCHED, UNTOUCHED, UNTOUCHED, UNTOUCHED, UNTOUCHED],
       refusedCalls: [],
       control: true,
       calls: [[separate, "SIGTERM"]],
+      readOwnIds: true,
     });
   });
 
