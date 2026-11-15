@@ -88,19 +88,20 @@
  *   wait that runs out fails the run and says, by name, that the pnpm process is still running and
  *   has not been stopped; a pnpm that ended first fails it at once, says that pnpm ended and that
  *   the other processes of its session, the API among them, were not checked.
- *   The process an earlier run recorded is consulted before the port. While it exists no second API
- *   is started and the record and the log are left alone: if the port accepts connections and
- *   `/health` answers 200, the run says so and goes on, as a second run; if nothing accepts
- *   connections yet (the real API binds only at the end of its boot) the run waits within
- *   `--wait-seconds` for `/health` and, if the wait runs out, says only what it knows: the
- *   recorded process exists, it may be the pnpm of an API an earlier run started that is still
- *   starting or failed to start, and nothing was started or stopped. With nothing recorded, and
- *   something accepting connections on the port, the run refuses and claims only that the port is
- *   in use and that it holds no record of a running API it started. A recorded id that the system
- *   has given to another process cannot be told from the pnpm of the API, a limit. Both failures
- *   of a start end with the last lines of the log. Polling `/health` is a request like any other:
- *   the API's memory alert may log once at error level a few seconds after it boots, which says
- *   nothing about memory left.
+ *   The process an earlier run recorded is consulted before the port (a record that is not an
+ *   integer greater than 1 is read as no record: 1 is init, which always exists). While that
+ *   process exists no second API is started and the record and the log are left alone: if the
+ *   port accepts connections and `/health` answers 200, the run says so and goes on, as a second
+ *   run; if nothing accepts connections yet (the real API binds only at the end of its boot) the
+ *   run waits within `--wait-seconds` for `/health` and, if the wait runs out, says only what it
+ *   knows: the recorded process exists, it may be the pnpm of an API an earlier run started that
+ *   is still starting or failed to start, and nothing was started or stopped. With nothing
+ *   recorded, and something accepting connections on the port, the run refuses and claims only
+ *   that the port is in use and that it holds no record of a running API it started. A recorded id
+ *   that the system has given to another process cannot be told from the pnpm of the API, a
+ *   limit. Both failures of a start end with the last lines of the log. Polling `/health` is a
+ *   request like any other: the API's memory alert may log once at error level a few seconds
+ *   after it boots, which says nothing about memory left.
  *
  *   THE SEQUENCE IS CUMULATIVE. A step that fails leaves what the steps before it did (the
  *   environment file, the running services, the migrations already applied), and a second run
@@ -733,9 +734,12 @@ function healthy(port, msLeft) {
  * @function recordedProcess
  * @description The process the run before this one recorded for its API, when it still exists. What
  *   is recorded is the pnpm process that run started to run the API, which leads the session that
- *   holds the API. It is only looked at: nothing here ever signals it.
+ *   holds the API. It is only looked at: nothing here ever signals it. Only a decimal integer
+ *   greater than 1 is a record: 1 is init, which always exists and is never a pnpm this command
+ *   started, so a record holding it reads as no record, as one of a process that is gone does.
  * @param {string} pidFile - The file the process id is kept in.
- * @returns {number | null} The id, or `null` when none is recorded or no such process exists.
+ * @returns {number | null} The id, or `null` when none is recorded, the record is not an integer
+ *   greater than 1 or no such process exists.
  */
 function recordedProcess(pidFile) {
   let recorded;
@@ -744,7 +748,7 @@ function recordedProcess(pidFile) {
   } catch {
     return null;
   }
-  if (!/^[1-9]\d*$/.test(recorded)) return null;
+  if (!/^[1-9]\d*$/.test(recorded) || Number(recorded) < 2) return null;
   try {
     process.kill(Number(recorded), 0);
   } catch (error) {

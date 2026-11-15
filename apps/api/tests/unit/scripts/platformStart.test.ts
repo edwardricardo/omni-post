@@ -14,7 +14,10 @@
  *   two services are sockets this suite opens, so no container starts here: the run against real
  *   containers is the sequence's own proof. The API is a small Node script that the pnpm stand-in
  *   runs in its place, and the case says whether it answers 200, answers 503, never answers or
- *   exits; every API a case leaves running is stopped by the suite's `afterEach`.
+ *   exits; every API a case leaves running is stopped by the suite's `afterEach`. Every signal the
+ *   suite sends goes through one guard, `signal`, which sends nothing to a target that does not name
+ *   a real, separate process: 0, 1 and -1 (as root, -1 reaches every process of the host but init),
+ *   text read as a number, and the suite's own process, group and session.
  * @layer infrastructure
  */
 import { execFile, execFileSync, spawn, spawnSync } from "node:child_process";
@@ -38,7 +41,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { until } from "@packages/vitest-shared/determinism";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseApiEnv } from "../../../src/config/env.js";
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
@@ -280,16 +283,21 @@ afterEach(async () => {
   await Promise.all(
     servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve)))
   );
-  // An API a case left running is ended with its whole session, which is what the command made.
-  for (const root of roots) {
-    const pid = recordedApi(root);
-    if (pid !== null) endGroup(pid);
-  }
+  for (const root of roots) endRecordedApi(root);
   for (const pid of strays.splice(0)) endGroup(pid);
   // A command under mutation may record no process, or another one, and still start a stand-in.
   for (const root of roots) endStandIns(root);
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
+
+/**
+ * Ends the API a case left running in a checkout with its whole session, which is what the command
+ * made: the teardown's path for every checkout a case used.
+ */
+function endRecordedApi(root: string): void {
+  const pid = recordedApi(root);
+  if (pid !== null) endGroup(pid);
+}
 
 /**
  * Ends every process whose command line names a path inside a case's checkout: the stand-ins the
@@ -300,7 +308,7 @@ function endStandIns(root: string): void {
     if (!/^\d+$/.test(entry)) continue;
     try {
       if (readFileSync(`/proc/${entry}/cmdline`, "utf8").includes(`${root}/`)) {
-        process.kill(Number(entry), "SIGKILL");
+        signal(Number(entry), "SIGKILL");
       }
     } catch {
       // It ended between the listing and the read: nothing is left to end.
@@ -311,14 +319,52 @@ function endStandIns(root: string): void {
 /** Processes a case started itself, to be ended with it. */
 const strays: number[] = [];
 
-/** The process id the command recorded for its API in a checkout, or `null` when it recorded none. */
+/**
+ * The process id the command recorded for its API in a checkout, or `null` when it recorded none or
+ * the record is not a decimal integer greater than 1: `Number` reads an empty text as 0, and a record
+ * a case or a mutation of the command leaves can hold 0, 1, a negative number or text, none of which
+ * names a process of its own.
+ */
 function recordedApi(root: string): number | null {
+  let text: string;
   try {
-    return Number(readFileSync(path.join(root, ".tmp", "api.pid"), "utf8").trim());
+    text = readFileSync(path.join(root, ".tmp", "api.pid"), "utf8").trim();
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return null;
   }
+  return /^[1-9]\d*$/.test(text) && Number(text) > 1 ? Number(text) : null;
+}
+
+/** This process's own process group and session, read once from what the kernel reports. */
+const OWN = (() => {
+  const stat = readFileSync("/proc/self/stat", "utf8");
+  const [, , group, session] = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+  return { group: Number(group), session: Number(session) };
+})();
+
+/**
+ * Whether a signal target names a real, separate process, or the group such a process leads: its
+ * absolute value an integer greater than 1, and neither this suite's process nor its process group
+ * nor its session. `0` is the sender's own process group, `-1` every process the sender may signal
+ * (as root, every process of the host but init) and `1` is init.
+ */
+function separate(target: number): boolean {
+  const id = Math.abs(target);
+  return (
+    Number.isInteger(id) && id > 1 && id !== process.pid && id !== OWN.group && id !== OWN.session
+  );
+}
+
+/**
+ * Every signal this suite sends goes through here: it is sent only to a target `separate` accepts,
+ * and for any other nothing is sent. Returns whether it was sent; a process that is already gone
+ * throws, as `process.kill` does.
+ */
+function signal(target: number, name: NodeJS.Signals): boolean {
+  if (!separate(target)) return false;
+  process.kill(target, name);
+  return true;
 }
 
 /**
@@ -356,11 +402,15 @@ function sessionMembers(session: number): number[] {
   return members;
 }
 
-/** Ends a session and its leader's group; a process already gone is fine. */
+/**
+ * Ends a session and its leader's group; a process already gone is fine. A pid that names no
+ * process of its own ends nothing, and its session is not even listed.
+ */
 function endGroup(pid: number): void {
+  if (!separate(pid)) return;
   for (const target of [-pid, pid, ...sessionMembers(pid)]) {
     try {
-      process.kill(target, "SIGKILL");
+      signal(target, "SIGKILL");
     } catch {
       // Already gone, or never a group leader: nothing is left to end through this target.
     }
@@ -1528,7 +1578,7 @@ describe("the API stage", () => {
     await start(["--root", staged.root], asked(staged));
     const pid = apiOf(staged);
 
-    process.kill(-pid, "SIGTERM");
+    expect(signal(-pid, "SIGTERM")).toBe(true);
 
     await until(() => !alive(pid), { description: "the API to end after SIGTERM" });
     expect(readFileSync(apiLog(staged), "utf8")).toContain("drained\n");
@@ -1593,7 +1643,7 @@ describe("the API stage", () => {
     expect(overShell.stdout).toContain(`on 127.0.0.1:${staged.apiPort} (run by the pnpm process`);
     expect(await healthStatus(staged.apiPort)).toBe(200);
     const first = apiOf(staged);
-    process.kill(-first, "SIGTERM");
+    expect(signal(-first, "SIGTERM")).toBe(true);
     await until(() => !alive(first), { description: "the first API to end after SIGTERM" });
     writeEnvironment(staged.file, [], {
       postgres: staged.postgres.port,
@@ -1669,6 +1719,21 @@ describe("the API stage", () => {
     expect(alive(pid)).toBe(true);
     expect(recordedApi(staged.root)).toBe(pid);
     expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([]);
+  });
+
+  it("reads a record holding 1 as no record: init is not an API it started, so it starts the API as it does with none", async () => {
+    const staged = await stage();
+    mkdirSync(path.join(staged.root, ".tmp"));
+    writeFileSync(pidFile(staged), "1\n");
+
+    const result = await start(["--root", staged.root, "--wait-seconds", "2"], asked(staged));
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    const pid = apiOf(staged);
+    expect(pid).not.toBe(1);
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([`--filter @apps/api dev|${staged.root}`]);
+    expect(result.stdout).toContain(answersLine(staged, pid, false) + stopLine(staged, pid));
+    expect(await healthStatus(staged.apiPort)).toBe(200);
   });
 
   it("goes on as a second run when the API it started earlier still answers: it starts no other", async () => {
@@ -1865,5 +1930,29 @@ describe("the API stage", () => {
       );
       expect(alive(pid)).toBe(true);
     });
+  });
+});
+
+describe("the suite's teardown", () => {
+  it("sends no signal for a record that names no process of its own: 1, 0, an empty text, -1 or text", () => {
+    const { root } = makeRoot();
+    const record = path.join(root, ".tmp", "api.pid");
+    mkdirSync(path.dirname(record));
+    const sent: Record<string, unknown[][]> = {};
+    // A spy that sends nothing, so even a teardown that would signal -1 or 0 reaches no process.
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    try {
+      for (const text of ["1", "0", "", "-1", "abc"]) {
+        writeFileSync(record, `${text}\n`);
+        endRecordedApi(root);
+        sent[text] = [...kill.mock.calls];
+        kill.mockClear();
+      }
+    } finally {
+      kill.mockRestore();
+      rmSync(record, { force: true });
+    }
+
+    expect(sent).toEqual({ "1": [], "0": [], "": [], "-1": [], abc: [] });
   });
 });
