@@ -1864,8 +1864,8 @@ describe("the API stage", () => {
       const said = new RegExp(
         `^platform-start: /health on 127\\.0\\.0\\.1:${staged.apiPort} did not answer 200 within 1 s\\n` +
           `platform-start: the pnpm process this run started to run the API \\(process (\\d+)\\) was still running when the wait ended\\n` +
-          `platform-start: the session of process \\1 was swept: SIGTERM was sent to \\1 \\(${parentCommand(staged)}\\), \\d+ \\(${apiCommand(staged)}\\); then no process was found in it, and ${pidFile(staged).replace(/[.]/g, "\\.")} was removed\\n` +
-          `platform-start: the last lines of ${apiLog(staged).replace(/[.]/g, "\\.")}:\\n` +
+          `platform-start: the session of process \\1 was swept: SIGTERM was sent to \\1 \\(${parentCommand(staged)}\\), \\d+ \\(${apiCommand(staged)}\\); then no process was found in it, and ${literal(pidFile(staged))} was removed\\n` +
+          `platform-start: the last lines of ${literal(apiLog(staged))}:\\n` +
           `platform-start:   api double starting in mode ${mode}\\n` +
           `platform-start:   drained\\n$`
       );
@@ -1890,7 +1890,7 @@ describe("the API stage", () => {
       );
 
       const swept = new RegExp(
-        `^platform-start: the session of process (\\d+) was swept: SIGTERM was sent to \\1 \\(${parentCommand(staged)}\\), (\\d+) \\(${apiCommand(staged)}\\), and SIGKILL to \\1 \\(${parentCommand(staged)}\\), \\2 \\(${apiCommand(staged)}\\), still running 10 s later; then no process was found in it, and ${pidFile(staged).replace(/[.]/g, "\\.")} was removed$`,
+        `^platform-start: the session of process (\\d+) was swept: SIGTERM was sent to \\1 \\(${parentCommand(staged)}\\), (\\d+) \\(${apiCommand(staged)}\\), and SIGKILL to \\1 \\(${parentCommand(staged)}\\), \\2 \\(${apiCommand(staged)}\\), still running 10 s later; then no process was found in it, and ${literal(pidFile(staged))} was removed$`,
         "m"
       );
       expect(result.code).toBe(1);
