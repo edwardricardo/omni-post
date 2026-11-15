@@ -1081,7 +1081,8 @@ function named(members) {
  * @param {number} pid - The pnpm process this run started; its id is its session's.
  * @param {string} pidFile - The file that records it.
  * @param {{ graceMs: number, killWaitMs: number }} [timing] - How long each signal waits.
- * @returns {Promise<string>} One failure line.
+ * @returns {Promise<string>} The one line the run prints about the sweep, whether it found the
+ *   session empty and removed the record, or names what is left and keeps it.
  */
 export async function sweepSession(pid, pidFile, timing = STOP_TIMING) {
   let swept;
@@ -1336,4 +1337,6 @@ async function main(argv) {
 
 // Only a run of this file as the program starts the sequence: the suite imports the stop of a
 // failed start, to drive it with spies in place of `process.kill` and of the reads of `/proc`.
+// `import.meta.main` is a boolean on the Node.js line the repository requires (`engines.node`
+// `>=26.12.1 <27`, `.nvmrc` 26); on a runtime without it the gate is false and nothing runs.
 if (import.meta.main) process.exitCode = await main(process.argv.slice(2));
