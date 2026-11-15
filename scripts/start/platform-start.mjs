@@ -118,7 +118,16 @@
  */
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { closeSync, mkdirSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { get } from "node:http";
 import { connect } from "node:net";
 import path from "node:path";
@@ -820,6 +829,28 @@ function recordedNote(pidFile, logFile, recorded) {
 }
 
 /**
+ * @function readFromStart
+ * @description Reads what the file behind an open descriptor holds, from its first byte up to the
+ *   size it has when asked, as `readFileSync` does with a path. No path is resolved again, so the
+ *   bytes are those of the file the descriptor was opened on even if the path has since been
+ *   removed or replaced; and the reads are positional, so they leave alone the descriptor's offset,
+ *   which a child given the descriptor shares and writes at.
+ * @param {number} descriptor - The file's descriptor, opened for reading.
+ * @returns {string} Its text, decoded as UTF-8.
+ */
+function readFromStart(descriptor) {
+  const { size } = fstatSync(descriptor);
+  const buffer = Buffer.alloc(size);
+  let read = 0;
+  while (read < size) {
+    const count = readSync(descriptor, buffer, read, size - read, read);
+    if (count === 0) break;
+    read += count;
+  }
+  return buffer.toString("utf8", 0, read);
+}
+
+/**
  * @function startApi
  * @description Starts the API from source, detached, and waits until `/health` answers 200. The
  *   process an earlier run recorded is consulted first: while it exists no second API is started,
@@ -895,81 +926,87 @@ async function startApi(root, port, waitSeconds) {
   }
 
   mkdirSync(directory, { recursive: true });
-  const log = openSync(logFile, "w");
-  const child = spawn("pnpm", API, {
-    cwd: root,
-    env: shellEnvironment(),
-    detached: true,
-    stdio: ["ignore", log, log],
-  });
-  closeSync(log);
-  const state =
-    /** @type {{ ended: { status: number | null, signal: NodeJS.Signals | null } | null }} */ ({
-      ended: null,
-    });
-  child.once("exit", (status, signal) => {
-    state.ended = { status, signal };
-  });
-  const notRun = await new Promise((resolve) => {
-    child.once("spawn", () => resolve(null));
-    child.once("error", resolve);
-  });
-  if (notRun !== null) {
-    throw couldNotStart(
-      "pnpm",
-      /** @type {Error} */ (notRun),
-      "pnpm is not on PATH: the API starts through it"
-    );
-  }
-  const pid = /** @type {number} */ (child.pid);
-  writeFileSync(pidFile, `${pid}\n`);
-
+  // Opened for reading as well and held until this stage returns: the tail a failure shows is
+  // read through this descriptor, from the file the child writes, never from whatever the path
+  // names by then.
+  const log = openSync(logFile, "w+");
   try {
-    await waitFor(
-      `/health on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
-      waitSeconds,
-      async (msLeft) => {
-        if (state.ended !== null) {
-          throw new StartFailure([
-            `the pnpm process this run started to run the API (process ${pid}) ` +
-              `${endOf(state.ended)} before /health answered 200`,
-          ]);
-        }
-        return healthy(port, msLeft());
-      }
-    );
-  } catch (error) {
-    if (!(error instanceof StartFailure)) throw error;
-    // So the run can end while the API it started still runs: nothing here signals it.
-    child.unref();
-    const lines = [...error.lines];
-    if (state.ended === null) {
-      lines.push(
-        `the pnpm process this run started to run the API (process ${pid}, recorded in ` +
-          `${pidFile}) was still running when the wait ended and has not been stopped; its ` +
-          `session holds the API: \`ps -s ${pid}\` lists the processes of that session, to end by hand`
+    const child = spawn("pnpm", API, {
+      cwd: root,
+      env: shellEnvironment(),
+      detached: true,
+      stdio: ["ignore", log, log],
+    });
+    const state =
+      /** @type {{ ended: { status: number | null, signal: NodeJS.Signals | null } | null }} */ ({
+        ended: null,
+      });
+    child.once("exit", (status, signal) => {
+      state.ended = { status, signal };
+    });
+    const notRun = await new Promise((resolve) => {
+      child.once("spawn", () => resolve(null));
+      child.once("error", resolve);
+    });
+    if (notRun !== null) {
+      throw couldNotStart(
+        "pnpm",
+        /** @type {Error} */ (notRun),
+        "pnpm is not on PATH: the API starts through it"
       );
-    } else {
-      // What pnpm ran may outlive it, and nothing here looked.
-      lines.push(
-        `the other processes of its session, the API among them, were not checked: ` +
-          `\`ps -s ${pid}\` lists any still running`
-      );
-      rmSync(pidFile, { force: true });
     }
-    let written = "";
+    const pid = /** @type {number} */ (child.pid);
+    writeFileSync(pidFile, `${pid}\n`);
+
     try {
-      written = readFileSync(logFile, "utf8");
-    } catch {
-      // No log to show: the failure stands without it.
+      await waitFor(
+        `/health on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
+        waitSeconds,
+        async (msLeft) => {
+          if (state.ended !== null) {
+            throw new StartFailure([
+              `the pnpm process this run started to run the API (process ${pid}) ` +
+                `${endOf(state.ended)} before /health answered 200`,
+            ]);
+          }
+          return healthy(port, msLeft());
+        }
+      );
+    } catch (error) {
+      if (!(error instanceof StartFailure)) throw error;
+      // So the run can end while the API it started still runs: nothing here signals it.
+      child.unref();
+      const lines = [...error.lines];
+      if (state.ended === null) {
+        lines.push(
+          `the pnpm process this run started to run the API (process ${pid}, recorded in ` +
+            `${pidFile}) was still running when the wait ended and has not been stopped; its ` +
+            `session holds the API: \`ps -s ${pid}\` lists the processes of that session, to end by hand`
+        );
+      } else {
+        // What pnpm ran may outlive it, and nothing here looked.
+        lines.push(
+          `the other processes of its session, the API among them, were not checked: ` +
+            `\`ps -s ${pid}\` lists any still running`
+        );
+        rmSync(pidFile, { force: true });
+      }
+      let written = "";
+      try {
+        written = readFromStart(log);
+      } catch {
+        // No log to show: the failure stands without it.
+      }
+      const tail = written.trimEnd().split("\n").slice(-LOG_LINES).filter(Boolean);
+      if (tail.length > 0)
+        lines.push(`the last lines of ${logFile}:`, ...tail.map((line) => `  ${line}`));
+      throw new StartFailure(lines);
     }
-    const tail = written.trimEnd().split("\n").slice(-LOG_LINES).filter(Boolean);
-    if (tail.length > 0)
-      lines.push(`the last lines of ${logFile}:`, ...tail.map((line) => `  ${line}`));
-    throw new StartFailure(lines);
+    child.unref();
+    reportApi(false, port, pid, logFile, pidFile);
+  } finally {
+    closeSync(log);
   }
-  child.unref();
-  reportApi(false, port, pid, logFile, pidFile);
 }
 
 /**

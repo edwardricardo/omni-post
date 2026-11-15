@@ -520,6 +520,14 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
   };
 }
 
+/**
+ * Text to match literally inside a regular expression: every metacharacter is escaped, so a path
+ * holding a backslash, a bracket or a dot matches itself and nothing else.
+ */
+function literal(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** The calls a stand-in logged, one line each; none when it was never run. */
 function loggedCalls(log: string): string[] {
   try {
@@ -1787,7 +1795,7 @@ describe("the API stage", () => {
       new RegExp(
         `^platform-start: the pnpm process this run started to run the API \\(process \\d+\\) exited 1 before /health answered 200\\n` +
           `platform-start: the other processes of its session, the API among them, were not checked: \`ps -s \\d+\` lists any still running\\n` +
-          `platform-start: the last lines of ${apiLog(staged).replace(/[.]/g, "\\.")}:\\n` +
+          `platform-start: the last lines of ${literal(apiLog(staged))}:\\n` +
           `platform-start:   api double starting in mode exit\\n` +
           `platform-start:   Error starting server: the port is taken\\n$`
       )
