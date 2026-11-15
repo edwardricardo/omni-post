@@ -1762,7 +1762,7 @@ describe("the API stage", () => {
 
     expect(result.code).toBe(1);
     expect(result.stderr).toBe(
-      `platform-start: 127.0.0.1:${staged.apiPort} is already in use, and this command holds no record of a running API it started: the port may be held by anything, an API whose record was removed when its pnpm ended included; no API was started\n`
+      `platform-start: 127.0.0.1:${staged.apiPort} is already in use, and this command holds no record of a running API it started: the port may be held by anything; no API was started\n`
     );
     expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([]);
     expect(recordedApi(staged.root)).toBeNull();
@@ -1833,8 +1833,8 @@ describe("the API stage", () => {
     expect(failed.code).toBe(1);
     expect(failed.stderr).toMatch(
       new RegExp(
-        `^platform-start: the pnpm process this run started to run the API \\(process \\d+\\) exited 1 before /health answered 200\\n` +
-          `platform-start: the other processes of its session, the API among them, were not checked: \`ps -s \\d+\` lists any still running\\n` +
+        `^platform-start: the pnpm process this run started to run the API \\(process (\\d+)\\) exited 1 before /health answered 200\\n` +
+          `platform-start: the session of process \\1 was swept: no process was found in it, and ${literal(pidFile(staged))} was removed\\n` +
           `platform-start: the last lines of ${literal(apiLog(staged))}:\\n` +
           `platform-start:   api double starting in mode exit\\n` +
           `platform-start:   Error starting server: the port is taken\\n$`
@@ -1921,38 +1921,24 @@ describe("the API stage", () => {
     expect(await healthStatus(staged.apiPort)).toBe(200);
   });
 
-  it("does not claim anything about the processes it did not check when pnpm ended first and left the API running, and sends them no signal", async () => {
+  it("sweeps the session of a pnpm that ended first: it stops what pnpm left running, names it, and removes the record once none is left", async () => {
     const staged = await stage();
 
     const result = await start(
       ["--root", staged.root, "--wait-seconds", "30"],
-      asked(staged, { FAKE_API_MODE: "stubborn", FAKE_API_ORPHAN: "1" })
+      asked(staged, { FAKE_API_MODE: "silent", FAKE_API_ORPHAN: "1" })
     );
 
-    const pid = Number(/\(process (\d+)\)/.exec(result.stderr)?.[1]);
-    strays.push(pid);
+    const said = new RegExp(
+      `^platform-start: the pnpm process this run started to run the API \\(process (\\d+)\\) exited 1 before /health answered 200\\n` +
+        `platform-start: the session of process \\1 was swept: SIGTERM was sent to \\d+ \\(${apiCommand(staged)}\\); then no process was found in it, and ${literal(pidFile(staged))} was removed\\n`
+    );
     expect(result.code).toBe(1);
-    expect(result.stderr).toBe(
-      `platform-start: the pnpm process this run started to run the API (process ${pid}) exited 1 before /health answered 200\n` +
-        `platform-start: the other processes of its session, the API among them, were not checked: \`ps -s ${pid}\` lists any still running\n` +
-        `platform-start: the last lines of ${apiLog(staged)}:\n` +
-        `platform-start:   api double starting in mode stubborn\n`
-    );
+    expect(result.stderr).toMatch(said);
+    const pid = Number(said.exec(result.stderr)?.[1]);
+    expect(sessionMembers(pid)).toEqual([]);
     expect(recordedApi(staged.root)).toBeNull();
-    expect(await healthStatus(staged.apiPort)).toBe(503);
-    expect(readFileSync(apiLog(staged), "utf8")).not.toContain("received SIGTERM");
-    expect(sessionMembers(pid).length).toBeGreaterThan(0);
-
-    const second = await start(
-      ["--root", staged.root],
-      asked(staged, { FAKE_API_MODE: "stubborn" })
-    );
-
-    expect(second.code).toBe(1);
-    expect(second.stderr).toBe(
-      `platform-start: 127.0.0.1:${staged.apiPort} is already in use, and this command holds no record of a running API it started: the port may be held by anything, an API whose record was removed when its pnpm ended included; no API was started\n`
-    );
-    expect(loggedCalls(`${staged.pnpmLog}.api`)).toHaveLength(1);
+    expect(await healthStatus(staged.apiPort)).toBeNull();
   });
 
   describe("a rerun while the API of an earlier run has not bound its port yet", () => {

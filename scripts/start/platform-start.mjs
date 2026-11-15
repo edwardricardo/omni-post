@@ -83,12 +83,12 @@
  *   to see whether it still runs (the port, or the recorded pnpm, which settles less) and that its
  *   session is then ended by hand. The run never signals the process an earlier run recorded (its
  *   calls of `kill` on it only ask, with signal 0, whether it exists). It signals only the session
- *   of the pnpm it started itself, and only when the wait for `/health` runs out with that pnpm
- *   still running. It then lists that session's processes from `/proc` (Linux only), whatever
- *   process group each is in, sends SIGTERM to each and SIGKILL to those still running 10 s
- *   later, and says which it signalled, each with its command, and whether any is left: the
- *   record is removed only when none is, and otherwise kept, with each survivor named. A process
- *   that ends while it is listed is not counted (its entry is gone, or reading it
+ *   of the pnpm it started itself, and only when that start fails: a wait that runs out, or a pnpm
+ *   that ends before `/health` answers 200. It then lists that session's processes from `/proc`
+ *   (Linux only), whatever process group each is in, sends SIGTERM to each and SIGKILL to those
+ *   still running 10 s later, and says which it signalled, each with its command, and whether any
+ *   is left: the record is removed only when none is, and otherwise kept, with each survivor
+ *   named. A process that ends while it is listed is not counted (its entry is gone, or reading it
  *   fails with ESRCH); any other failure to read `/proc` ends the sweep and keeps the record, and so
  *   does a host where this command cannot read its own ids there (`/proc/self/stat`, which macOS
  *   does not have) or a session id the guard refuses: an empty listing then says nothing of the
@@ -97,11 +97,8 @@
  *   1, and this command's own process, group and session. While a process of the session lives,
  *   the system gives its id to no other process; once the session is empty and pnpm is reaped the
  *   id is free again, and a new session leader given it before the sweep reads `/proc` would be
- *   swept, a limit. A pnpm that ends before `/health` answers 200 fails the run at once, which says
- *   how pnpm ended and that the other processes of its session, the API among them, were not
- *   checked: nothing is signalled then, and the record is removed. The SIGTERM that Node's own
- *   timeout sends to the Docker query and to Prisma's proof when `--wait-seconds` runs out belongs
- *   to the steps before.
+ *   swept, a limit. The SIGTERM that Node's own timeout sends to the Docker query and to Prisma's
+ *   proof when `--wait-seconds` runs out belongs to the steps before.
  *   The process an earlier run recorded is consulted before the port (a record that is not an
  *   integer greater than 1 is read as no record: 1 is init, which always exists). While that
  *   process exists no second API is started and the record and the log are left alone: if the
@@ -187,11 +184,10 @@ database ends the run with nothing applied.
 The API is started detached with \`pnpm --filter @apps/api dev\` and left running; its port is PORT,
 of the calling shell or else of the file, else 3000, and a port something else holds refuses the run.
 Its pnpm process's id and its log are under .tmp/ in the checkout, and the run prints how to stop
-it. A run whose wait for the API runs out ends the processes of the session it started: SIGTERM,
-then SIGKILL to those still running 10 s later. It names each, removes the pid file only when none
-is left, and names any that is. It lists them from /proc, so on a host without one it ends none,
-says so and keeps the pid file. A run whose pnpm ends first signals nothing, says the other
-processes of its session were not checked, and removes the pid file.
+it. A run whose start of the API fails (the wait runs out, or pnpm ends first) ends the processes
+of the session it started: SIGTERM, then SIGKILL to those still running 10 s later. It names each,
+removes the pid file only when none is left, and names any that is. It lists them from /proc, so on
+a host without one it ends none, says so and keeps the pid file.
 An empty PORT in the calling shell counts as set and gives 3000, as it does for
 the API.
 `;
@@ -315,7 +311,7 @@ const API_DIRECTORY = ".tmp";
 const LOG_LINES = 10;
 
 /**
- * How long the processes of a swept session have, after SIGTERM, to end before SIGKILL,
+ * How long the processes of a failed start's session have, after SIGTERM, to end before SIGKILL,
  * and then how long the system has, after SIGKILL, to take them away.
  */
 const STOP_TIMING = /** @type {const} */ ({ graceMs: 10_000, killWaitMs: 5_000 });
@@ -1071,13 +1067,12 @@ function named(members) {
 
 /**
  * @function sweepSession
- * @description Ends the session of the pnpm process this run started, once the wait for
- *   `/health` has run out with that pnpm still running, and says only what the sweep saw: what
- *   was sent SIGTERM, what SIGKILL, and whether anything is left. The record is removed only when
- *   nothing is; what is left is named with its command and the record kept. A read of `/proc`
- *   that fails in any other way ends the sweep and keeps the record, and so does a sweep that
- *   cannot read this command's own ids or whose session id the guard refuses: either lists the
- *   session as empty whatever it holds.
+ * @description Ends the session of the pnpm process this run started, once its start has failed,
+ *   and says only what the sweep saw: what was sent SIGTERM, what SIGKILL, and whether anything is
+ *   left. The record is removed only when nothing is; what is left is named with its command and
+ *   the record kept. A read of `/proc` that fails in any other way ends the sweep and keeps the
+ *   record, and so does a sweep that cannot read this command's own ids or whose session id the
+ *   guard refuses: either lists the session as empty whatever it holds.
  * @param {number} pid - The pnpm process this run started; its id is its session's.
  * @param {string} pidFile - The file that records it.
  * @param {{ graceMs: number, killWaitMs: number }} [timing] - How long each signal waits.
@@ -1127,9 +1122,9 @@ export async function sweepSession(pid, pidFile, timing = STOP_TIMING) {
  *   left as it is, and a wait that runs out with the process still there fails it with a note that
  *   says only what is known. With nothing recorded, nothing is started when something accepts
  *   connections on the port. While it waits the run watches its child: a child that exits fails
- *   the run at once, with no signal sent and the other processes of its session not checked, and
- *   a wait that runs out fails it once the run has swept the session of that child
- *   (`sweepSession`). The process an earlier run recorded is never signalled.
+ *   the run at once, a wait that runs out fails it too, and either way the run sweeps the session
+ *   of that child before it ends (`sweepSession`). The process an earlier run recorded is never
+ *   signalled.
  * @param {string} root - The checkout.
  * @param {number} port - The port the API takes.
  * @param {number} waitSeconds - How long `/health` may take to answer 200.
@@ -1188,8 +1183,7 @@ async function startApi(root, port, waitSeconds) {
   if (bound) {
     throw new StartFailure([
       `${LOOPBACK}:${port} is already in use, and this command holds no record of a running API ` +
-        `it started: the port may be held by anything, an API whose record was removed when its ` +
-        `pnpm ended included; no API was started`,
+        `it started: the port may be held by anything; no API was started`,
     ]);
   }
 
@@ -1251,15 +1245,8 @@ async function startApi(root, port, waitSeconds) {
           `the pnpm process this run started to run the API (process ${pid}) was still running ` +
             `when the wait ended`
         );
-        lines.push(await sweepSession(pid, pidFile));
-      } else {
-        // What pnpm ran may outlive it, and nothing here looked.
-        lines.push(
-          `the other processes of its session, the API among them, were not checked: ` +
-            `\`ps -s ${pid}\` lists any still running`
-        );
-        rmSync(pidFile, { force: true });
       }
+      lines.push(await sweepSession(pid, pidFile));
       let written = "";
       try {
         written = readFromStart(log);
