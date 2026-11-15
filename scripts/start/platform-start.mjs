@@ -81,13 +81,27 @@
  *   API: `kill -s TERM -- -<id>`, a normal termination signal sent to pnpm's process group, which
  *   passes it on. That ends the API only if the API attends the signal, and the text says so, how
  *   to see whether it still runs (the port, or the recorded pnpm, which settles less) and that its
- *   session is then ended by hand. This command sends no signal to the API it starts nor to the
- *   recorded process (its calls of `kill` there only ask, with signal 0, whether the recorded
- *   process exists); the SIGTERM it sends to the Docker query and to Prisma's proof when
- *   `--wait-seconds` runs out belongs to the steps before. It does not stop the API it started. A
- *   wait that runs out fails the run and says, by name, that the pnpm process is still running and
- *   has not been stopped; a pnpm that ended first fails it at once, says that pnpm ended and that
- *   the other processes of its session, the API among them, were not checked.
+ *   session is then ended by hand. The run never signals the process an earlier run recorded (its
+ *   calls of `kill` on it only ask, with signal 0, whether it exists). It signals only the session
+ *   of the pnpm it started itself, and only when the wait for `/health` runs out with that pnpm
+ *   still running. It then lists that session's processes from `/proc` (Linux only), whatever
+ *   process group each is in, sends SIGTERM to each and SIGKILL to those still running 10 s
+ *   later, and says which it signalled, each with its command, and whether any is left: the
+ *   record is removed only when none is, and otherwise kept, with each survivor named. A process
+ *   that ends while it is listed is not counted (its entry is gone, or reading it
+ *   fails with ESRCH); any other failure to read `/proc` ends the sweep and keeps the record, and so
+ *   does a host where this command cannot read its own ids there (`/proc/self/stat`, which macOS
+ *   does not have) or a session id the guard refuses: an empty listing then says nothing of the
+ *   session, so it is never reported as an empty session. Every signal it sends a process goes
+ *   through one guard, which refuses a target whose absolute value is not an integer greater than
+ *   1, and this command's own process, group and session. While a process of the session lives,
+ *   the system gives its id to no other process; once the session is empty and pnpm is reaped the
+ *   id is free again, and a new session leader given it before the sweep reads `/proc` would be
+ *   swept, a limit. A pnpm that ends before `/health` answers 200 fails the run at once, which says
+ *   how pnpm ended and that the other processes of its session, the API among them, were not
+ *   checked: nothing is signalled then, and the record is removed. The SIGTERM that Node's own
+ *   timeout sends to the Docker query and to Prisma's proof when `--wait-seconds` runs out belongs
+ *   to the steps before.
  *   The process an earlier run recorded is consulted before the port (a record that is not an
  *   integer greater than 1 is read as no record: 1 is init, which always exists). While that
  *   process exists no second API is started and the record and the log are left alone: if the
@@ -123,6 +137,7 @@ import {
   fstatSync,
   mkdirSync,
   openSync,
+  readdirSync,
   readFileSync,
   readSync,
   rmSync,
@@ -172,8 +187,12 @@ database ends the run with nothing applied.
 The API is started detached with \`pnpm --filter @apps/api dev\` and left running; its port is PORT,
 of the calling shell or else of the file, else 3000, and a port something else holds refuses the run.
 Its pnpm process's id and its log are under .tmp/ in the checkout, and the run prints how to stop
-it. A run whose wait for the API runs out leaves the API it started running, says so, and sends
-no signal to it. An empty PORT in the calling shell counts as set and gives 3000, as it does for
+it. A run whose wait for the API runs out ends the processes of the session it started: SIGTERM,
+then SIGKILL to those still running 10 s later. It names each, removes the pid file only when none
+is left, and names any that is. It lists them from /proc, so on a host without one it ends none,
+says so and keeps the pid file. A run whose pnpm ends first signals nothing, says the other
+processes of its session were not checked, and removes the pid file.
+An empty PORT in the calling shell counts as set and gives 3000, as it does for
 the API.
 `;
 
@@ -294,6 +313,15 @@ const API_DIRECTORY = ".tmp";
 
 /** How many of the log's last lines a failure shows. */
 const LOG_LINES = 10;
+
+/**
+ * How long the processes of a swept session have, after SIGTERM, to end before SIGKILL,
+ * and then how long the system has, after SIGKILL, to take them away.
+ */
+const STOP_TIMING = /** @type {const} */ ({ graceMs: 10_000, killWaitMs: 5_000 });
+
+/** How often the stop looks at the session it is ending. */
+const SESSION_POLL_MS = 100;
 
 /** A run that failed, with one line per cause. */
 class StartFailure extends Error {
@@ -851,6 +879,244 @@ function readFromStart(descriptor) {
 }
 
 /**
+ * How the stop reads `/proc`, on one object of its own: the suite replaces a read with one that
+ * fails as the read of a process that ends in the middle of it does, or as every read does on a host
+ * without `/proc`: neither failure can be had here on demand.
+ */
+export const proc = {
+  /** @returns {string[]} The entries of `/proc`. */
+  list: () => readdirSync("/proc"),
+  /**
+   * @param {string} file - A file under `/proc`.
+   * @returns {string} Its text.
+   */
+  read: (file) => readFileSync(file, "utf8"),
+};
+
+/**
+ * @typedef {{ pid: number, name: string }} Member A process of a session: its id and its command.
+ */
+
+/**
+ * @function ownIds
+ * @description This command's own process group and session, as the kernel reports them.
+ * @returns {{ group: number, session: number }} The two ids.
+ * @throws {Error} The read's own error when `/proc/self/stat` cannot be read.
+ */
+function ownIds() {
+  const stat = proc.read("/proc/self/stat");
+  const [, , group, session] = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+  return { group: Number(group), session: Number(session) };
+}
+
+/**
+ * @function separate
+ * @description Whether a signal target names a process of its own, or the group one leads: its
+ *   absolute value an integer greater than 1, and neither this command's process nor its process
+ *   group nor its session. `0` is the sender's own group, `-1` every process the sender may signal
+ *   (as root, every process of the host but init) and `1` is init.
+ * @param {number} target - A process id, or the negative id of a process group.
+ * @returns {boolean} Whether a signal may be sent to it: never when this command cannot read its own
+ *   ids, since then no target can be told apart from it.
+ */
+export function separate(target) {
+  const id = Math.abs(target);
+  let own;
+  try {
+    own = ownIds();
+  } catch {
+    // No target can be told apart from this command: none is signalled.
+    return false;
+  }
+  return (
+    Number.isInteger(id) && id > 1 && id !== process.pid && id !== own.group && id !== own.session
+  );
+}
+
+/**
+ * @function signal
+ * @description Every signal this command sends to a process goes through here, and reaches only a
+ *   target `separate` accepts.
+ * @param {number} target - A process id, or the negative id of a process group.
+ * @param {NodeJS.Signals} name - The signal.
+ * @returns {boolean} Whether it was sent: `false` for a target the guard refuses, and for one that
+ *   ended between the listing and the signal or may not be signalled.
+ */
+export function signal(target, name) {
+  if (!separate(target)) return false;
+  try {
+    process.kill(target, name);
+    return true;
+  } catch {
+    // It ended after it was listed, or it may not be signalled: nothing was sent.
+    return false;
+  }
+}
+
+/**
+ * @function commandOf
+ * @description The command a process runs, as `ps` shows it: its command line, or, when that is
+ *   empty or cannot be read, the name its `stat` entry carries.
+ * @param {string} entry - The process's id, as `/proc` lists it.
+ * @param {string} stat - What its `stat` entry held.
+ * @returns {string} The command.
+ */
+function commandOf(entry, stat) {
+  try {
+    const line = proc.read(`/proc/${entry}/cmdline`).split("\0").filter(Boolean);
+    if (line.length > 0) return line.join(" ");
+  } catch {
+    // It ended after its `stat` was read: the name read with it stands.
+  }
+  return stat.slice(stat.indexOf("(") + 1, stat.lastIndexOf(")"));
+}
+
+/**
+ * @function sessionMembers
+ * @description The live processes of a session, whatever process group each is in, read from
+ *   `/proc` (Linux only). The pnpm this command starts leads a session of its own and every
+ *   process it runs stays in it unless it leaves on purpose, so these are the processes of that
+ *   start. A session whose id the guard refuses is not listed.
+ * @param {number} session - The session's id, which is its leader's.
+ * @returns {Member[]} Its members; a process that has ended and waits to be reaped is not one.
+ */
+export function sessionMembers(session) {
+  /** @type {Member[]} */
+  const members = [];
+  if (!separate(session)) return members;
+  for (const entry of proc.list()) {
+    if (!/^\d+$/.test(entry)) continue;
+    let stat;
+    try {
+      stat = proc.read(`/proc/${entry}/stat`);
+    } catch (error) {
+      // A process that ends between the listing and the read is not a member: its entry is gone
+      // (ENOENT), or the read finds the process gone (ESRCH).
+      const { code } = /** @type {NodeJS.ErrnoException} */ (error);
+      if (code !== "ENOENT" && code !== "ESRCH") throw error;
+      continue;
+    }
+    // After the command's name, which may hold spaces and brackets: state, parent, group, session.
+    const [state, , , sid] = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+    if (Number(sid) === session && state !== "Z") {
+      members.push({ pid: Number(entry), name: commandOf(entry, stat) });
+    }
+  }
+  return members;
+}
+
+/**
+ * @function sessionEnds
+ * @description Waits until no process is left in a session, or the time is up.
+ * @param {number} session - The session's id.
+ * @param {number} ms - How long to wait.
+ * @returns {Promise<Member[]>} The processes still there: none when the session has ended.
+ */
+async function sessionEnds(session, ms) {
+  const deadline = Date.now() + ms;
+  let left = sessionMembers(session);
+  while (left.length > 0 && Date.now() < deadline) {
+    await sleep(Math.min(SESSION_POLL_MS, Math.max(deadline - Date.now(), 1)));
+    left = sessionMembers(session);
+  }
+  return left;
+}
+
+/**
+ * @function endSession
+ * @description Ends every process of a session: SIGTERM to each, the grace period for them all to
+ *   end, then SIGKILL to what remains, and a short wait for the system to take it away.
+ * @param {number} session - The session's id.
+ * @param {{ graceMs: number, killWaitMs: number }} [timing] - How long each signal waits.
+ * @returns {Promise<{ found: Member[], termed: Member[], killed: Member[], left: Member[] }>} What
+ *   the session held, what was sent SIGTERM and SIGKILL, and what is still running at the end.
+ */
+export async function endSession(session, timing = STOP_TIMING) {
+  const found = sessionMembers(session);
+  const termed = found.filter((member) => signal(member.pid, "SIGTERM"));
+  let left = await sessionEnds(session, timing.graceMs);
+  /** @type {Member[]} */
+  let killed = [];
+  if (left.length > 0) {
+    killed = left.filter((member) => signal(member.pid, "SIGKILL"));
+    left = await sessionEnds(session, timing.killWaitMs);
+  }
+  return { found, termed, killed, left };
+}
+
+/**
+ * @function unswept
+ * @description The line of a sweep that could not tell what its session holds.
+ * @param {number} pid - The pnpm process this run started.
+ * @param {string} pidFile - The file that records it, which is kept.
+ * @param {string} reason - Why: the code of the read that failed, or the guard's refusal.
+ * @returns {string} One failure line.
+ */
+function unswept(pid, pidFile, reason) {
+  return (
+    `the session of process ${pid} could not be swept to the end (${reason}): ` +
+    `${pidFile} is kept, and \`ps -s ${pid}\` lists any process still running`
+  );
+}
+
+/**
+ * @function named
+ * @description Processes as a failure line names them.
+ * @param {Member[]} members - The processes.
+ * @returns {string} `<id> (<command>)` for each, or `none`.
+ */
+function named(members) {
+  return members.map((member) => `${member.pid} (${member.name})`).join(", ") || "none";
+}
+
+/**
+ * @function sweepSession
+ * @description Ends the session of the pnpm process this run started, once the wait for
+ *   `/health` has run out with that pnpm still running, and says only what the sweep saw: what
+ *   was sent SIGTERM, what SIGKILL, and whether anything is left. The record is removed only when
+ *   nothing is; what is left is named with its command and the record kept. A read of `/proc`
+ *   that fails in any other way ends the sweep and keeps the record, and so does a sweep that
+ *   cannot read this command's own ids or whose session id the guard refuses: either lists the
+ *   session as empty whatever it holds.
+ * @param {number} pid - The pnpm process this run started; its id is its session's.
+ * @param {string} pidFile - The file that records it.
+ * @param {{ graceMs: number, killWaitMs: number }} [timing] - How long each signal waits.
+ * @returns {Promise<string>} One failure line.
+ */
+export async function sweepSession(pid, pidFile, timing = STOP_TIMING) {
+  let swept;
+  try {
+    // A session the guard refuses lists as empty, and so does every session once this command's
+    // own ids cannot be read: ownIds throws the read's error here, before anything is listed.
+    ownIds();
+    if (!separate(pid)) return unswept(pid, pidFile, "the guard refuses its id");
+    swept = await endSession(pid, timing);
+  } catch (error) {
+    const { code } = /** @type {NodeJS.ErrnoException} */ (error);
+    return unswept(pid, pidFile, code ?? String(error));
+  }
+  const { found, termed, killed, left } = swept;
+  const head = `the session of process ${pid} was swept: `;
+  if (found.length === 0 && left.length === 0) {
+    rmSync(pidFile, { force: true });
+    return `${head}no process was found in it, and ${pidFile} was removed`;
+  }
+  const signalled =
+    `SIGTERM was sent to ${named(termed)}` +
+    (killed.length > 0
+      ? `, and SIGKILL to ${named(killed)}, still running ${timing.graceMs / 1000} s later`
+      : "");
+  if (left.length > 0) {
+    return (
+      `${head}${signalled}; still running: ${named(left)}, so ${pidFile} is kept: ` +
+      `\`ps -s ${pid}\` lists what is left, to end by hand`
+    );
+  }
+  rmSync(pidFile, { force: true });
+  return `${head}${signalled}; then no process was found in it, and ${pidFile} was removed`;
+}
+
+/**
  * @function startApi
  * @description Starts the API from source, detached, and waits until `/health` answers 200. The
  *   process an earlier run recorded is consulted first: while it exists no second API is started,
@@ -860,8 +1126,9 @@ function readFromStart(descriptor) {
  *   left as it is, and a wait that runs out with the process still there fails it with a note that
  *   says only what is known. With nothing recorded, nothing is started when something accepts
  *   connections on the port. While it waits the run watches its child: a child that exits fails
- *   the run at once, and a wait that runs out fails it with the API still running. No signal
- *   reaches the API or the recorded process.
+ *   the run at once, with no signal sent and the other processes of its session not checked, and
+ *   a wait that runs out fails it once the run has swept the session of that child
+ *   (`sweepSession`). The process an earlier run recorded is never signalled.
  * @param {string} root - The checkout.
  * @param {number} port - The port the API takes.
  * @param {number} waitSeconds - How long `/health` may take to answer 200.
@@ -974,15 +1241,16 @@ async function startApi(root, port, waitSeconds) {
       );
     } catch (error) {
       if (!(error instanceof StartFailure)) throw error;
-      // So the run can end while the API it started still runs: nothing here signals it.
+      // So the run can end even when a process of the session outlives the sweep below.
       child.unref();
       const lines = [...error.lines];
+      // Read before the sweep: ending the session ends the child too.
       if (state.ended === null) {
         lines.push(
-          `the pnpm process this run started to run the API (process ${pid}, recorded in ` +
-            `${pidFile}) was still running when the wait ended and has not been stopped; its ` +
-            `session holds the API: \`ps -s ${pid}\` lists the processes of that session, to end by hand`
+          `the pnpm process this run started to run the API (process ${pid}) was still running ` +
+            `when the wait ended`
         );
+        lines.push(await sweepSession(pid, pidFile));
       } else {
         // What pnpm ran may outlive it, and nothing here looked.
         lines.push(
@@ -1066,4 +1334,6 @@ async function main(argv) {
   return 0;
 }
 
-process.exitCode = await main(process.argv.slice(2));
+// Only a run of this file as the program starts the sequence: the suite imports the stop of a
+// failed start, to drive it with spies in place of `process.kill` and of the reads of `/proc`.
+if (import.meta.main) process.exitCode = await main(process.argv.slice(2));
