@@ -82,7 +82,7 @@
  *   passes it on. That ends the API only if the API attends the signal, and the text says so, how
  *   to see whether it still runs (the port, or the recorded pnpm, which settles less) and that its
  *   session is then ended by hand. This command sends no signal to the API it starts nor to the
- *   recorded process (its one call of `kill` there asks, with signal 0, whether the recorded
+ *   recorded process (its calls of `kill` there only ask, with signal 0, whether the recorded
  *   process exists); the SIGTERM it sends to the Docker query and to Prisma's proof when
  *   `--wait-seconds` runs out belongs to the steps before. It does not stop the API it started. A
  *   wait that runs out fails the run and says, by name, that the pnpm process is still running and
@@ -93,15 +93,18 @@
  *   process exists no second API is started and the record and the log are left alone: if the
  *   port accepts connections and `/health` answers 200, the run says so and goes on, as a second
  *   run; if nothing accepts connections yet (the real API binds only at the end of its boot) the
- *   run waits within `--wait-seconds` for `/health` and, if the wait runs out, says only what it
- *   knows: the recorded process exists, it may be the pnpm of an API an earlier run started that
- *   is still starting or failed to start, and nothing was started or stopped. With nothing
- *   recorded, and something accepting connections on the port, the run refuses and claims only
- *   that the port is in use and that it holds no record of a running API it started. A recorded id
- *   that the system has given to another process cannot be told from the pnpm of the API, a
- *   limit. Both failures of a start end with the last lines of the log. Polling `/health` is a
- *   request like any other: the API's memory alert may log once at error level a few seconds
- *   after it boots, which says nothing about memory left.
+ *   run waits within `--wait-seconds` for `/health`, looking at the recorded process again after
+ *   each attempt. One that ends during the wait fails the run at once, which says that it ended
+ *   without `/health` answering 200 and that no API was started, and leaves the record as it is
+ *   (a next run reads a record of a process that is gone as no record). If the wait runs out with
+ *   the process still there, the run says only what it knows: the recorded process exists, it may
+ *   be the pnpm of an API an earlier run started that is still starting or failed to start, and
+ *   nothing was started or stopped. With nothing recorded, and something accepting connections on
+ *   the port, the run refuses and claims only that the port is in use and that it holds no record
+ *   of a running API it started. A recorded id that the system has given to another process cannot
+ *   be told from the pnpm of the API, a limit. Both failures of a start end with the last lines of
+ *   the log. Polling `/health` is a request like any other: the API's memory alert may log once at
+ *   error level a few seconds after it boots, which says nothing about memory left.
  *
  *   THE SEQUENCE IS CUMULATIVE. A step that fails leaves what the steps before it did (the
  *   environment file, the running services, the migrations already applied), and a second run
@@ -749,13 +752,23 @@ function recordedProcess(pidFile) {
     return null;
   }
   if (!/^[1-9]\d*$/.test(recorded) || Number(recorded) < 2) return null;
+  return exists(Number(recorded)) ? Number(recorded) : null;
+}
+
+/**
+ * @function exists
+ * @description Whether a process with this id exists, asked with signal 0, which delivers nothing:
+ *   the only way this command calls `kill` on the recorded process.
+ * @param {number} pid - The process id, an integer greater than 1.
+ * @returns {boolean} `true` also for another user's process, which exists but may not be signalled.
+ */
+function exists(pid) {
   try {
-    process.kill(Number(recorded), 0);
+    process.kill(pid, 0);
   } catch (error) {
-    // Another user's process exists but may not be signalled, and that is "it exists".
-    if (/** @type {NodeJS.ErrnoException} */ (error).code !== "EPERM") return null;
+    return /** @type {NodeJS.ErrnoException} */ (error).code === "EPERM";
   }
-  return Number(recorded);
+  return true;
 }
 
 /**
@@ -811,10 +824,13 @@ function recordedNote(pidFile, logFile, recorded) {
  * @description Starts the API from source, detached, and waits until `/health` answers 200. The
  *   process an earlier run recorded is consulted first: while it exists no second API is started,
  *   and the run goes on as a second run once `/health` answers, whether or not the port is bound
- *   yet (the real API binds it only at the end of its boot). With nothing recorded, nothing is
- *   started when something accepts connections on the port. While it waits the run watches its
- *   child: a child that exits fails the run at once, and a wait that runs out fails it with the API
- *   still running. No signal reaches the API or the recorded process.
+ *   yet (the real API binds it only at the end of its boot). While it waits on that process it
+ *   looks at it again after each attempt: one that has ended fails the run at once, the record
+ *   left as it is, and a wait that runs out with the process still there fails it with a note that
+ *   says only what is known. With nothing recorded, nothing is started when something accepts
+ *   connections on the port. While it waits the run watches its child: a child that exits fails
+ *   the run at once, and a wait that runs out fails it with the API still running. No signal
+ *   reaches the API or the recorded process.
  * @param {string} root - The checkout.
  * @param {number} port - The port the API takes.
  * @param {number} waitSeconds - How long `/health` may take to answer 200.
@@ -843,15 +859,29 @@ async function startApi(root, port, waitSeconds) {
         `accepts connections on ${LOOPBACK}:${port} yet: no second API is started, and /health ` +
         `is awaited for up to ${waitSeconds} s\n`
     );
+    // The process was found to exist before the wait, and it can end during it: looked at only
+    // then, an ended one would be waited on to the end and said to still exist. The id itself is
+    // asked, not the record, which a removed or rewritten file would make read as an ended process.
+    const ended =
+      `the process recorded in ${pidFile} (${recorded}) ended during the wait without /health ` +
+      `on ${LOOPBACK}:${port} answering 200, and no API was started`;
+    let gone = false;
     try {
       await waitFor(
         `/health on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
         waitSeconds,
-        (msLeft) => healthy(port, msLeft())
+        async (msLeft) => {
+          if (await healthy(port, msLeft())) return true;
+          gone = !exists(recorded);
+          if (gone) throw new StartFailure([ended]);
+          return false;
+        }
       );
     } catch (error) {
-      if (!(error instanceof StartFailure)) throw error;
-      throw new StartFailure([...error.lines, recordedNote(pidFile, logFile, recorded)]);
+      if (!(error instanceof StartFailure) || gone) throw error;
+      // It can end between the last attempt and the end of the wait.
+      const note = exists(recorded) ? recordedNote(pidFile, logFile, recorded) : ended;
+      throw new StartFailure([...error.lines, note]);
     }
     reportApi(true, port, recorded, logFile, pidFile);
     return;

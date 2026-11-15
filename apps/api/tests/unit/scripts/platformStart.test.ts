@@ -1930,6 +1930,57 @@ describe("the API stage", () => {
       );
       expect(alive(pid)).toBe(true);
     });
+
+    // Its own time limit outlasts the run's whole wait, so a run that misses the end fails here on
+    // what it prints, not on the limit.
+    it("fails as soon as the recorded process ends during the wait, says that it ended, and leaves the record as it is", async () => {
+      const staged = await stage();
+      const earlier = spawn("/bin/sleep", ["60"], { detached: true, stdio: "ignore" });
+      earlier.unref();
+      const pid = Number(earlier.pid);
+      strays.push(pid);
+      mkdirSync(path.join(staged.root, ".tmp"));
+      writeFileSync(pidFile(staged), `${pid}\n`);
+      const waiting = `platform-start: the process recorded in ${pidFile(staged)} (${pid}) still exists and nothing accepts connections on 127.0.0.1:${staged.apiPort} yet: no second API is started, and /health is awaited for up to 10 s\n`;
+      const run = spawn(
+        process.execPath,
+        [COMMAND, "--root", staged.root, "--wait-seconds", "10"],
+        { env: asked(staged) }
+      );
+      strays.push(Number(run.pid));
+      let stdout = "";
+      let stderr = "";
+      run.stdout.on("data", (chunk) => {
+        stdout += String(chunk);
+      });
+      run.stderr.on("data", (chunk) => {
+        stderr += String(chunk);
+      });
+      let closed = false;
+      const code = new Promise<number | null>((resolve) =>
+        run.once("close", (exitCode) => {
+          closed = true;
+          resolve(exitCode);
+        })
+      );
+      await until(() => closed || stdout.includes(waiting), {
+        description: "the run to wait on the recorded process",
+        timeoutMs: 15_000,
+      });
+      expect(stdout).toContain(waiting);
+
+      expect(signal(pid, "SIGTERM")).toBe(true);
+      const signalledAt = Date.now();
+
+      expect(await code).toBe(1);
+      expect(stderr).toBe(
+        `platform-start: the process recorded in ${pidFile(staged)} (${pid}) ended during the wait without /health on 127.0.0.1:${staged.apiPort} answering 200, and no API was started\n`
+      );
+      expect(Date.now() - signalledAt).toBeLessThan(5_000);
+      expect(alive(pid)).toBe(false);
+      expect(readFileSync(pidFile(staged), "utf8")).toBe(`${pid}\n`);
+      expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([]);
+    }, 30_000);
   });
 });
 
