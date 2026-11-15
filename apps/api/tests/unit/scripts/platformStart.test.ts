@@ -270,9 +270,13 @@ interface Stage {
   readonly redis: Listener;
   /** The command's environment: the stand-in on `PATH`, and where it logs. */
   readonly env: Record<string, string>;
-  /** The listeners' ports, as the variables a first run takes them from. */
-  readonly ports: { readonly POSTGRES_HOST_PORT: string; readonly REDIS_HOST_PORT: string };
-  /** The port the API stand-in is told to answer on, in `env` as `PORT`. */
+  /** The listeners' ports, as the variables a first run takes them from, and the API's as `PORT`. */
+  readonly ports: {
+    readonly POSTGRES_HOST_PORT: string;
+    readonly REDIS_HOST_PORT: string;
+    readonly PORT: string;
+  };
+  /** The port the API stand-in is told to answer on, in `ports` as `PORT`. */
   readonly apiPort: number;
 }
 
@@ -506,9 +510,12 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
       FAKE_API_SCRIPT: path.join(bin, "api-double.mjs"),
       FAKE_API_PARENT: path.join(bin, "api-parent.sh"),
       FAKE_API_PORT: String(apiPort),
+    },
+    ports: {
+      POSTGRES_HOST_PORT: String(postgres.port),
+      REDIS_HOST_PORT: String(redis.port),
       PORT: String(apiPort),
     },
-    ports: { POSTGRES_HOST_PORT: String(postgres.port), REDIS_HOST_PORT: String(redis.port) },
     apiPort,
   };
 }
@@ -667,7 +674,7 @@ describe("the start sequence", () => {
     const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
     const before = writeEnvironment(staged.file, [], listening);
 
-    const result = await start(["--root", staged.root], staged.env);
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
 
     expect(result).toMatchObject({ code: 0, stderr: "" });
     expect(readFileSync(staged.file, "utf8")).toBe(before);
@@ -969,6 +976,7 @@ describe("the start sequence", () => {
 
     const result = await start(["--root", staged.root], {
       ...staged.env,
+      PORT: staged.ports.PORT,
       PGUSER: "from-the-shell",
       PGPASSWORD: "from-the-shell",
       PGDATABASE: "from-the-shell",
@@ -1606,7 +1614,6 @@ describe("the API stage", () => {
   it("is reported by the run: the calling shell's PORT first, then the file's, then 3000", async () => {
     const staged = await stage();
     const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
-    const { PORT: _shellPort, ...withoutPort } = staged.env;
 
     const generated = await start(["--root", staged.root], {
       ...staged.env,
@@ -1618,14 +1625,14 @@ describe("the API stage", () => {
 
     const text = writeEnvironment(staged.file, [], listening);
     appendFileSync(staged.file, "PORT=5432\n");
-    const fromFile = await start(["--root", staged.root], withoutPort);
+    const fromFile = await start(["--root", staged.root], staged.env);
     expect(fromFile.stdout).toContain("platform-start: the API takes port 5432\n");
 
     const overridden = await start(["--root", staged.root], { ...staged.env, PORT: "4321" });
     expect(overridden.stdout).toContain("platform-start: the API takes port 4321\n");
 
     writeFileSync(staged.file, text);
-    const byDefault = await start(["--root", staged.root], withoutPort);
+    const byDefault = await start(["--root", staged.root], staged.env);
     expect(byDefault.stdout).toContain("platform-start: the API takes port 3000\n");
   });
 
@@ -1650,9 +1657,9 @@ describe("the API stage", () => {
       redis: staged.redis.port,
     });
     appendFileSync(staged.file, `PORT=${staged.apiPort}\n`);
-    const { PORT: _shellPort, ...withoutPort } = staged.env;
+    const { PORT: _shellPort, ...hostPorts } = staged.ports;
 
-    const overFile = await start(["--root", staged.root], { ...withoutPort, ...staged.ports });
+    const overFile = await start(["--root", staged.root], { ...staged.env, ...hostPorts });
 
     expect(overFile).toMatchObject({ code: 0, stderr: "" });
     expect(overFile.stdout).toContain(`on 127.0.0.1:${staged.apiPort} (run by the pnpm process`);
@@ -1674,9 +1681,24 @@ describe("the API stage", () => {
     const staged = await stage();
     writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
     appendFileSync(staged.file, "PORT=abc\n");
-    const { PORT: _shellPort, ...withoutPort } = staged.env;
 
-    const result = await start(["--root", staged.root], { ...withoutPort, ...staged.ports });
+    const result = await start(["--root", staged.root], staged.env);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe("platform-start: PORT=abc is not a port\n");
+    expect(dockerCalls(staged)).toEqual([]);
+  });
+
+  it("starts no service and no API when the file's PORT is not a port", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+    appendFileSync(staged.file, "PORT=abc\n");
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      POSTGRES_HOST_PORT: staged.ports.POSTGRES_HOST_PORT,
+      REDIS_HOST_PORT: staged.ports.REDIS_HOST_PORT,
+    });
 
     expect(result.code).toBe(1);
     expect(result.stderr).toBe("platform-start: PORT=abc is not a port\n");

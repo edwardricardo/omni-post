@@ -1,0 +1,151 @@
+{
+  "base": "c8cfb3c187c0ef0b1b655ab5ae2e3754dff53435",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "7bff0ce58852043b754c7878d0ebea6e155bd80b13da6fe2a59cc8d50eabf459",
+            "head": "7bff0ce58852043b754c7878d0ebea6e155bd80b13da6fe2a59cc8d50eabf459"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands Compose no variable the file owns, whatever the calling shell holds"
+        },
+        {
+          "bodyHash": {
+            "base": "9ec255b07737cbbf958f3b89df2f7f5892a8c024d35b322dff55ae97263dcf43",
+            "head": "9ec255b07737cbbf958f3b89df2f7f5892a8c024d35b322dff55ae97263dcf43"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the proof and the migration no variable the file owns and no migration URL of the calling shell"
+        },
+        {
+          "bodyHash": {
+            "base": "5b42e431f39292617564e05acab562962d6fcd993eb86ea3f257a1ad5548fcde",
+            "head": "5b42e431f39292617564e05acab562962d6fcd993eb86ea3f257a1ad5548fcde"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::has the migration's connection prove, before it migrates, that it reached the database the container named"
+        },
+        {
+          "bodyHash": {
+            "base": "db69c0f409319e3db5a88631384146717f8aa5189c63ec1122f7a9bdc65ab0f9",
+            "head": "6cc6aaf63b3f22b0b7d89d0e08d811d58b3f6cf327219945b7245aef1d4a2e22"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::is the calling shell's PORT, else the file's, else 3000"
+        },
+        {
+          "bodyHash": {
+            "base": "14379fca9e739faad96b080093d2d67194cc595142c2930739e282a7667c008a",
+            "head": "14379fca9e739faad96b080093d2d67194cc595142c2930739e282a7667c008a"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::keeps asking a service that is not ready until it answers"
+        },
+        {
+          "bodyHash": {
+            "base": "ef2c3f5dfe1498a54a12d32f9909e75d1f6859e79fc09785552138bc6eeb0f21",
+            "head": "a8482de67c5eced12580b5595052020473595370f50d8f56cd4cce7de735bca2"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names"
+        },
+        {
+          "bodyHash": {
+            "base": "29dbd93835fd8b39a8599acb100cc5e0a1871ec0ea6d384127d594f36040e345",
+            "head": "034021165989fc4dd248b74183a8b6a58010bcf501ba234f2b4b392fe046239f"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::lets the migration run past the wait, because a migration stopped half-way is not repaired by a later run"
+        },
+        {
+          "bodyHash": {
+            "base": "45ddf04863defd3282838e4bec579da32aca2eff72b5f1b4ec12fcc449f02f2d",
+            "head": "ebb3ab8f0caa131c0f67398aada6bf805f6012670ff05238ffa452fd49349956"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::migrates the database with the repository's own script, in the checkout, once both services answer"
+        },
+        {
+          "bodyHash": {
+            "base": "fc70e642a43137c2d0543135e15be2f77364a8cf6c59326335718a04ee672919",
+            "head": "3cab1831918d48207391b5b3c8d8f60b9c5d65c3bbc3ebaea7505ddecd3c7211"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::queries Postgres as the user, with the password and for the database of the file"
+        },
+        {
+          "bodyHash": {
+            "base": "91ecd82432f69d4fe1b1d4c78bda0268a3649f22be94f4f49c6787dff358564b",
+            "head": "bc239cdfcdc1a97ef8df6e6a8b82ae3a858ae9d67b1d57a8f7c209f46fe1fd1d"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage what --wait-seconds bounds"
+        },
+        {
+          "bodyHash": {
+            "base": "d9504f4f27235436908a7407681288151c6d990835d6692126b1b34804cc0371",
+            "head": "d9504f4f27235436908a7407681288151c6d990835d6692126b1b34804cc0371"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says nothing of a proof that passes"
+        },
+        {
+          "bodyHash": {
+            "base": "f542d230aebcad03362de3c4968df84dad77038380517ba1839b86a7370ebef3",
+            "head": "943dd5a251ae5470059725bcdb2366d614fd237a9128015112a73e0535dbd579"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::shows what the migration tool prints, on the stream it printed it on"
+        },
+        {
+          "bodyHash": {
+            "base": "ce94d0b5ebe600d08a550e548e6f953f31343f77160af1c338a81a3b1d8740bc",
+            "head": "ce94d0b5ebe600d08a550e548e6f953f31343f77160af1c338a81a3b1d8740bc"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services from the compose file, the file its only source, and returns once each answers"
+        },
+        {
+          "bodyHash": {
+            "base": "5c0de59185cd45d1572dbfa54355db23e3eaa0d3131f019a4820879afaa61dbb",
+            "head": "5c0de59185cd45d1572dbfa54355db23e3eaa0d3131f019a4820879afaa61dbb"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes a Postgres that offers TLS as one that answers the protocol"
+        },
+        {
+          "bodyHash": {
+            "base": "878579396ff5d6361f865a270f25784a4fa2deed50572d0ec291dc9e3795554e",
+            "head": "878579396ff5d6361f865a270f25784a4fa2deed50572d0ec291dc9e3795554e"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes the proof's limit in seconds: a proof that takes one second passes with three allowed"
+        },
+        {
+          "bodyHash": {
+            "base": "fef3097f4d47a53c4b376f7ac81996fde90c16a307db1687aec67ad030f4938a",
+            "head": "fef3097f4d47a53c4b376f7ac81996fde90c16a307db1687aec67ad030f4938a"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret"
+        }
+      ],
+      "id": "t3b2a-01-the-api-stage-and-its-port",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API's port > is the calling shell's PORT, else the file's, else 3000",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the proof and the container's verdict, held further > says in the usage what --wait-seconds bounds",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the proof and the container's verdict, held further > takes the proof's limit in seconds: a proof that takes one second passes with three allowed",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > hands Compose no variable the file owns, whatever the calling shell holds",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > hands the proof and the migration no variable the file owns and no migration URL of the calling shell",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > has the migration's connection prove, before it migrates, that it reached the database the container named",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > keeps asking a service that is not ready until it answers",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > leaves a complete environment file untouched and reports the ports it names",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > lets the migration run past the wait, because a migration stopped half-way is not repaired by a later run",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > migrates the database with the repository's own script, in the checkout, once both services answer",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > queries Postgres as the user, with the password and for the database of the file",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > says nothing of a proof that passes",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > shows what the migration tool prints, on the stream it printed it on",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > starts both services from the compose file, the file its only source, and returns once each answers",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > takes a Postgres that offers TLS as one that answers the protocol",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > writes the environment a checkout lacks, for its owner only, and shows no secret"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/platformStart.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/platformStart.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}
