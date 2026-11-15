@@ -166,13 +166,15 @@ export function parsePort(raw) {
 /**
  * @function apiPort
  * @description The port the API alone would listen on: it loads the environment file without
- *   overriding a variable its process already holds, so the calling shell's `PORT` wins over the
- *   file's, and with neither it takes the default. An empty value counts as unset.
+ *   overriding a variable its process already holds, so a `PORT` the calling shell sets wins over
+ *   the file's, and with neither it takes the default. An empty value, in either place, is a value
+ *   that the API's schema reads as absent, so it ends in the default and the file is not consulted
+ *   behind an empty one in the shell.
  * @param {string | undefined} fromShell - `PORT` in the calling shell.
  * @param {string | undefined} fromFile - `PORT` in the environment file.
  * @returns {number | null} The port, or `null` when the value that wins is not a port.
  */
 export function apiPort(fromShell, fromFile) {
-  const raw = fromShell || fromFile;
+  const raw = fromShell ?? fromFile;
   return raw ? parsePort(raw) : DEFAULT_API_PORT;
 }

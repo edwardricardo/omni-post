@@ -1,0 +1,29 @@
+[
+  {
+    "id": "t3b2a-01-the-api-stage-and-its-port",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/scripts/platformStart.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/platformStart.test.ts::is the calling shell's PORT, else the file's, else 3000",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage what --wait-seconds bounds",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::lets the migration run past the wait, because a migration stopped half-way is not repaired by a later run",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::migrates the database with the repository's own script, in the checkout, once both services answer",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::shows what the migration tool prints, on the stream it printed it on",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::queries Postgres as the user, with the password and for the database of the file",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::takes the proof's limit in seconds: a proof that takes one second passes with three allowed",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::hands Compose no variable the file owns, whatever the calling shell holds",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::hands the proof and the migration no variable the file owns and no migration URL of the calling shell",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::has the migration's connection prove, before it migrates, that it reached the database the container named",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::keeps asking a service that is not ready until it answers",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::says nothing of a proof that passes",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services from the compose file, the file its only source, and returns once each answers",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::takes a Postgres that offers TLS as one that answers the protocol",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret"
+    ],
+    "subject": "scripts/start/platform-start.mjs",
+    "search": "  const api = apiPort(process.env.PORT, values?.PORT);",
+    "replace": "  const api = apiPort(process.env.PORT || undefined, values?.PORT);",
+    "note": "After the migration the command now starts the API from source with `pnpm --filter @apps/api dev` and returns only once /health answers 200, and it reads an empty PORT in the calling shell as the API's schema does, as absent, so the default 3000 wins and the file is not consulted behind it. Seven blocks are rewritten, the first seven listed. The first drops the case in which an empty PORT in the shell gave the file's port, which the head's port rule answers with 3000. The second pins the usage, which now names the API's /health within the same wait and says how PORT is chosen. The next three no longer anchor the migration's line at the end of the output, because the run goes on to start the API. The sixth and seventh now hand the command, in PORT, the port the stand-in API answers on: the suite's environment no longer holds PORT, and without it the command starts the API on 3000, where no stand-in answers. The other nine are byte for byte the same at the head. The base file fails on all sixteen, as it does on every run that reaches the end of the sequence: the base's stand-in for pnpm answers `--filter @apps/api dev` as it answers a migration and exits at once, so the API the command started ends without answering /health and the run fails. At the head the stand-in answers that call with a stand-in API that serves /health, and all sixteen pass. That result of the clean runs alone gives the verdict. The suite runs the command as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case are never applied."
+  }
+]

@@ -3,7 +3,8 @@
  * @description Pins `scripts/start/platform-start.mjs`, the start sequence of a clean checkout, and
  *   its pure core `scripts/start/lib/start-environment.mjs`: the environment a checkout with no
  *   environment file receives, what the command does with a file that is already there, and the
- *   start of Postgres and Redis from the repository's compose file.
+ *   start of Postgres and Redis from the repository's compose file, the database's migration and the
+ *   API's start.
  *
  *   The generated environment is held to the API's own schema through `parseApiEnv` and to the
  *   variables `docker-compose.yml` refuses to start without, so a variable either of them starts to
@@ -11,10 +12,15 @@
  *   root of its own (`--root`), never the repository's, because it reads and writes the root
  *   environment file. Docker is a stand-in script on `PATH` that records how it was called, and the
  *   two services are sockets this suite opens, so no container starts here: the run against real
- *   containers is the sequence's own proof.
+ *   containers is the sequence's own proof. The API is a small Node script that the pnpm stand-in
+ *   runs in its place, and the case says whether it answers 200, answers 503, never answers or
+ *   exits; every API a case leaves running is stopped by the suite's `afterEach`. Every signal the
+ *   suite sends goes through one guard, `signal`, which sends nothing to a target that does not name
+ *   a real, separate process: 0, 1 and -1 (as root, -1 reaches every process of the host but init),
+ *   text read as a number, and the suite's own process, group and session.
  * @layer infrastructure
  */
-import { execFile, execFileSync, spawnSync } from "node:child_process";
+import { execFile, execFileSync, spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   appendFileSync,
@@ -22,6 +28,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -33,7 +40,8 @@ import { createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { afterEach, describe, expect, it } from "vitest";
+import { until } from "@packages/vitest-shared/determinism";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseApiEnv } from "../../../src/config/env.js";
 
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
@@ -151,8 +159,17 @@ exit 0
  * input; asked for the migration, it does not. For each of the two it says on both streams what a
  * case asks it to, first spends the seconds a case asks for (the proof's are the call's end, as a
  * process that never answers would be), and ends with the exit code or by the signal a case asks for.
+ * Asked for the API (`@apps/api dev`), it logs the call and its environment apart from the other two
+ * calls and becomes `API_PARENT`, which has the shape the measured pnpm has: it leads its own
+ * process group and session, and the API is its child in another group of that session.
  */
 const PNPM_DOUBLE = `#!/bin/sh
+case " $* " in
+  *" @apps/api dev "*)
+    printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG.api"
+    /usr/bin/env > "$FAKE_PNPM_LOG.api.env"
+    exec /bin/bash "$FAKE_API_PARENT" ;;
+esac
 printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG"
 case " $* " in
   *" db execute "*)
@@ -176,6 +193,62 @@ if [ -n "$FAKE_MIGRATE_SIGNAL" ]; then kill -s "$FAKE_MIGRATE_SIGNAL" $$; fi
 exit "\${FAKE_MIGRATE_EXIT:-0}"
 `;
 
+/**
+ * What runs in place of pnpm for the API: bash, so that job control puts the API in a process group
+ * of its own, as measured on the real pnpm (it leads the group and the session, and its shell and
+ * node are in another group of that session). On SIGTERM it passes the signal on to the API and
+ * ends when the API has; it does not end it itself, which is the part of the real pnpm that cannot
+ * be relied on once pnpm is killed. With `FAKE_API_ORPHAN` it ends at once and leaves the API
+ * running, as a pnpm killed first would.
+ */
+const API_PARENT = `#!/bin/bash
+set -m
+"$FAKE_NODE" "$FAKE_API_SCRIPT" &
+child=$!
+if [ -n "$FAKE_API_ORPHAN" ]; then exit 1; fi
+trap 'kill -s TERM "$child" 2>/dev/null' TERM
+while kill -0 "$child" 2>/dev/null; do wait "$child"; done
+`;
+
+/**
+ * The API as a case wants it, chosen by `FAKE_API_MODE`: `ok` answers every request with 200, `503`
+ * with 503, `silent` takes the connection and never answers, `stubborn` answers 503 and ignores
+ * SIGTERM, writing a line to its log each time it receives one, and `exit` ends at once with a line
+ * on stderr. Like the real API, it takes `PORT` from its environment or else from the checkout's
+ * environment file (a variable the process holds wins), and on SIGTERM it says it drained and ends
+ * with 0. It binds only the port the case made (`FAKE_API_PORT`) and ends at once on any other, so
+ * a case that names a port of its own, or none, never takes a real one. With
+ * `FAKE_API_BIND_DELAY_MS` it binds that many milliseconds after it starts, as the real API binds
+ * only at the end of its boot.
+ */
+const API_DOUBLE = `import { createServer } from "node:http";
+try { process.loadEnvFile(".env"); } catch {}
+const mode = process.env.FAKE_API_MODE ?? "ok";
+console.log("api double starting in mode " + mode);
+const port = Number(process.env.PORT ?? 3000);
+if (mode === "exit" || port !== Number(process.env.FAKE_API_PORT)) {
+  console.error("Error starting server: the port is taken");
+  process.exit(1);
+}
+const server = createServer((request, response) => {
+  if (mode === "silent") return;
+  response.statusCode = mode === "503" || mode === "stubborn" ? 503 : 200;
+  response.end("{}");
+});
+setTimeout(
+  () => server.listen(port, "127.0.0.1"),
+  Number(process.env.FAKE_API_BIND_DELAY_MS ?? 0)
+);
+process.on("SIGTERM", () => {
+  if (mode === "stubborn") {
+    console.log("received SIGTERM and ignored it");
+    return;
+  }
+  console.log("drained");
+  process.exit(0);
+});
+`;
+
 /** How every call after the first names the checkout's two files to Compose. */
 const COMPOSE = "compose -f docker-compose.yml --env-file .env";
 
@@ -197,8 +270,14 @@ interface Stage {
   readonly redis: Listener;
   /** The command's environment: the stand-in on `PATH`, and where it logs. */
   readonly env: Record<string, string>;
-  /** The listeners' ports, as the variables a first run takes them from. */
-  readonly ports: { readonly POSTGRES_HOST_PORT: string; readonly REDIS_HOST_PORT: string };
+  /** The listeners' ports, as the variables a first run takes them from, and the API's as `PORT`. */
+  readonly ports: {
+    readonly POSTGRES_HOST_PORT: string;
+    readonly REDIS_HOST_PORT: string;
+    readonly PORT: string;
+  };
+  /** The port the API stand-in is told to answer on, in `ports` as `PORT`. */
+  readonly apiPort: number;
 }
 
 const roots: string[] = [];
@@ -208,8 +287,149 @@ afterEach(async () => {
   await Promise.all(
     servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve)))
   );
+  for (const root of roots) endRecordedApi(root);
+  for (const pid of strays.splice(0)) endGroup(pid);
+  // A command under mutation may record no process, or another one, and still start a stand-in.
+  for (const root of roots) endStandIns(root);
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
+
+/**
+ * Ends the API a case left running in a checkout with its whole session, which is what the command
+ * made: the teardown's path for every checkout a case used.
+ */
+function endRecordedApi(root: string): void {
+  const pid = recordedApi(root);
+  if (pid !== null) endGroup(pid);
+}
+
+/**
+ * Ends every process whose command line names a path inside a case's checkout: the stand-ins the
+ * command started there, whatever it recorded about them.
+ */
+function endStandIns(root: string): void {
+  for (const entry of readdirSync("/proc")) {
+    if (!/^\d+$/.test(entry)) continue;
+    try {
+      if (readFileSync(`/proc/${entry}/cmdline`, "utf8").includes(`${root}/`)) {
+        signal(Number(entry), "SIGKILL");
+      }
+    } catch {
+      // It ended between the listing and the read: nothing is left to end.
+    }
+  }
+}
+
+/** Processes a case started itself, to be ended with it. */
+const strays: number[] = [];
+
+/**
+ * The process id the command recorded for its API in a checkout, or `null` when it recorded none or
+ * the record is not a decimal integer greater than 1: `Number` reads an empty text as 0, and a record
+ * a case or a mutation of the command leaves can hold 0, 1, a negative number or text, none of which
+ * names a process of its own.
+ */
+function recordedApi(root: string): number | null {
+  let text: string;
+  try {
+    text = readFileSync(path.join(root, ".tmp", "api.pid"), "utf8").trim();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return null;
+  }
+  return /^[1-9]\d*$/.test(text) && Number(text) > 1 ? Number(text) : null;
+}
+
+/** This process's own process group and session, read once from what the kernel reports. */
+const OWN = (() => {
+  const stat = readFileSync("/proc/self/stat", "utf8");
+  const [, , group, session] = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+  return { group: Number(group), session: Number(session) };
+})();
+
+/**
+ * Whether a signal target names a real, separate process, or the group such a process leads: its
+ * absolute value an integer greater than 1, and neither this suite's process nor its process group
+ * nor its session. `0` is the sender's own process group, `-1` every process the sender may signal
+ * (as root, every process of the host but init) and `1` is init.
+ */
+function separate(target: number): boolean {
+  const id = Math.abs(target);
+  return (
+    Number.isInteger(id) && id > 1 && id !== process.pid && id !== OWN.group && id !== OWN.session
+  );
+}
+
+/**
+ * Every signal this suite sends goes through here: it is sent only to a target `separate` accepts,
+ * and for any other nothing is sent. Returns whether it was sent; a process that is already gone
+ * throws, as `process.kill` does.
+ */
+function signal(target: number, name: NodeJS.Signals): boolean {
+  if (!separate(target)) return false;
+  process.kill(target, name);
+  return true;
+}
+
+/**
+ * Whether a process is running. An orphan that has ended can stay a zombie until its new parent
+ * reaps it, and the system still answers for it, so the state the kernel reports decides first.
+ */
+function alive(pid: number): boolean {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+    return stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3) !== "Z";
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    return false;
+  }
+}
+
+/**
+ * The live processes of a session, whatever process group each is in: what a detached start leaves,
+ * since the process it starts leads a session of its own and every process it runs stays in it.
+ */
+function sessionMembers(session: number): number[] {
+  const members: number[] = [];
+  for (const entry of readdirSync("/proc")) {
+    if (!/^\d+$/.test(entry)) continue;
+    let stat: string;
+    try {
+      stat = readFileSync(`/proc/${entry}/stat`, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      continue;
+    }
+    const [state, , , sid] = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+    if (Number(sid) === session && state !== "Z") members.push(Number(entry));
+  }
+  return members;
+}
+
+/**
+ * Ends a session and its leader's group; a process already gone is fine. A pid that names no
+ * process of its own ends nothing, and its session is not even listed.
+ */
+function endGroup(pid: number): void {
+  if (!separate(pid)) return;
+  for (const target of [-pid, pid, ...sessionMembers(pid)]) {
+    try {
+      signal(target, "SIGKILL");
+    } catch {
+      // Already gone, or never a group leader: nothing is left to end through this target.
+    }
+  }
+}
+
+/** A loopback port nothing holds at the moment it is returned. */
+async function freePort(): Promise<number> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") throw new Error("no port was bound");
+  await new Promise((resolve) => server.close(resolve));
+  return address.port;
+}
 
 /** A checkout of its own for one case, with the path its environment file has. */
 function makeRoot(): { root: string; file: string } {
@@ -268,10 +488,13 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
   mkdirSync(bin);
   writeFileSync(path.join(bin, "docker"), DOCKER_DOUBLE, { mode: 0o755 });
   writeFileSync(path.join(bin, "pnpm"), PNPM_DOUBLE, { mode: 0o755 });
+  writeFileSync(path.join(bin, "api-double.mjs"), API_DOUBLE);
+  writeFileSync(path.join(bin, "api-parent.sh"), API_PARENT);
   const log = path.join(root, "docker.log");
   const pnpmLog = path.join(root, "pnpm.log");
   const postgres = services.postgres ?? (await listen("N"));
   const redis = services.redis ?? (await listen("+PONG\r\n"));
+  const apiPort = await freePort();
   return {
     root,
     file,
@@ -279,9 +502,30 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
     pnpmLog,
     postgres,
     redis,
-    env: { PATH: bin, FAKE_DOCKER_LOG: log, FAKE_PNPM_LOG: pnpmLog },
-    ports: { POSTGRES_HOST_PORT: String(postgres.port), REDIS_HOST_PORT: String(redis.port) },
+    env: {
+      PATH: bin,
+      FAKE_DOCKER_LOG: log,
+      FAKE_PNPM_LOG: pnpmLog,
+      FAKE_NODE: process.execPath,
+      FAKE_API_SCRIPT: path.join(bin, "api-double.mjs"),
+      FAKE_API_PARENT: path.join(bin, "api-parent.sh"),
+      FAKE_API_PORT: String(apiPort),
+    },
+    ports: {
+      POSTGRES_HOST_PORT: String(postgres.port),
+      REDIS_HOST_PORT: String(redis.port),
+      PORT: String(apiPort),
+    },
+    apiPort,
   };
+}
+
+/**
+ * Text to match literally inside a regular expression: every metacharacter is escaped, so a path
+ * holding a backslash, a bracket or a dot matches itself and nothing else.
+ */
+function literal(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** The calls a stand-in logged, one line each; none when it was never run. */
@@ -438,7 +682,7 @@ describe("the start sequence", () => {
     const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
     const before = writeEnvironment(staged.file, [], listening);
 
-    const result = await start(["--root", staged.root], staged.env);
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: staged.ports.PORT });
 
     expect(result).toMatchObject({ code: 0, stderr: "" });
     expect(readFileSync(staged.file, "utf8")).toBe(before);
@@ -740,6 +984,7 @@ describe("the start sequence", () => {
 
     const result = await start(["--root", staged.root], {
       ...staged.env,
+      PORT: staged.ports.PORT,
       PGUSER: "from-the-shell",
       PGPASSWORD: "from-the-shell",
       PGDATABASE: "from-the-shell",
@@ -791,9 +1036,7 @@ describe("the start sequence", () => {
       `--filter @infra/prisma exec prisma db execute --stdin|${staged.root}`,
       `--filter @infra/prisma run migrate|${staged.root}`,
     ]);
-    expect(result.stdout).toMatch(
-      /accept connections\nplatform-start: the database is migrated\n$/
-    );
+    expect(result.stdout).toMatch(/accept connections\nplatform-start: the database is migrated\n/);
   });
 
   it("has the migration's connection prove, before it migrates, that it reached the database the container named", async () => {
@@ -1029,7 +1272,7 @@ describe("the start sequence", () => {
     });
 
     expect(result).toMatchObject({ code: 0, stderr: "" });
-    expect(result.stdout).toMatch(/platform-start: the database is migrated\n$/);
+    expect(result.stdout).toMatch(/platform-start: the database is migrated\n/);
     expect(loggedCalls(staged.pnpmLog)).toHaveLength(2);
   });
 
@@ -1172,7 +1415,7 @@ describe("the start sequence", () => {
     expect(result.code).toBe(0);
     expect(result.stderr).toBe("err: 83 migrations found\n");
     expect(result.stdout).toMatch(
-      /accept connections\nout: 83 migrations found\nplatform-start: the database is migrated\n$/
+      /accept connections\nout: 83 migrations found\nplatform-start: the database is migrated\n/
     );
   });
 
@@ -1213,61 +1456,18 @@ describe("the API's port", () => {
   it("is the calling shell's PORT, else the file's, else 3000", () => {
     expect(core.apiPort("4000", "5000")).toBe(4000);
     expect(core.apiPort(undefined, "5000")).toBe(5000);
-    expect(core.apiPort("", "5000")).toBe(5000);
     expect(core.apiPort(undefined, undefined)).toBe(3000);
+  });
+
+  it("reads an empty PORT as the API does: as absent, so the default, and the file is not consulted behind an empty one in the shell", () => {
+    expect(core.apiPort("", "5000")).toBe(3000);
+    expect(core.apiPort(undefined, "")).toBe(3000);
+    expect(core.apiPort("", undefined)).toBe(3000);
   });
 
   it("is null when the value that wins is not a port", () => {
     expect(core.apiPort("70000", "5000")).toBeNull();
     expect(core.apiPort(undefined, "abc")).toBeNull();
-  });
-
-  it("is reported by the run: the calling shell's PORT first, then the file's, then 3000", async () => {
-    const staged = await stage();
-    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
-
-    const generated = await start(["--root", staged.root], {
-      ...staged.env,
-      ...staged.ports,
-      PORT: "4321",
-    });
-    expect(generated.stdout).toContain("platform-start: the API takes port 4321\n");
-    expect(readFileSync(staged.file, "utf8")).not.toContain("PORT=4321");
-
-    const text = writeEnvironment(staged.file, [], listening);
-    appendFileSync(staged.file, "PORT=5432\n");
-    const fromFile = await start(["--root", staged.root], staged.env);
-    expect(fromFile.stdout).toContain("platform-start: the API takes port 5432\n");
-
-    const overridden = await start(["--root", staged.root], { ...staged.env, PORT: "4321" });
-    expect(overridden.stdout).toContain("platform-start: the API takes port 4321\n");
-
-    writeFileSync(staged.file, text);
-    const byDefault = await start(["--root", staged.root], staged.env);
-    expect(byDefault.stdout).toContain("platform-start: the API takes port 3000\n");
-  });
-
-  it("is refused when it is not a port, before anything is written or started", async () => {
-    const staged = await stage();
-
-    const result = await start(["--root", staged.root], { ...staged.env, PORT: "70000" });
-
-    expect(result.code).toBe(1);
-    expect(result.stderr).toBe("platform-start: PORT=70000 is not a port\n");
-    expect(existsSync(staged.file)).toBe(false);
-    expect(dockerCalls(staged)).toEqual([]);
-  });
-
-  it("is refused, with the file's own value, when the file holds one that is not a port", async () => {
-    const staged = await stage();
-    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
-    appendFileSync(staged.file, "PORT=abc\n");
-
-    const result = await start(["--root", staged.root], staged.env);
-
-    expect(result.code).toBe(1);
-    expect(result.stderr).toBe("platform-start: PORT=abc is not a port\n");
-    expect(dockerCalls(staged)).toEqual([]);
   });
 });
 
@@ -1308,8 +1508,532 @@ describe("the proof and the container's verdict, held further", () => {
     const result = await start(["--root", root, "--help"]);
 
     expect(result.stdout).toContain(
-      "  --wait-seconds <n>   how long each service may take to accept a connection, and Prisma's proof\n" +
-        "                       of the database to answer (default: 60)\n"
+      "  --wait-seconds <n>   how long each service may take to accept a connection, Prisma's proof\n" +
+        "                       of the database to answer and the API to answer /health (default: 60)\n"
     );
+    expect(result.stdout).toContain(
+      "its port is PORT,\nof the calling shell or else of the file, else 3000"
+    );
+    expect(result.stdout).toContain(
+      "An empty PORT in the calling shell counts as set and gives 3000, as it does for\nthe API.\n"
+    );
+  });
+});
+
+describe("the API stage", () => {
+  const apiLog = (staged: Stage) => path.join(staged.root, ".tmp", "api.log");
+
+  /** The process id the command recorded for its API; a case that needs it fails without one. */
+  function apiOf(staged: Stage): number {
+    const pid = recordedApi(staged.root);
+    if (pid === null) throw new Error("the command recorded no API");
+    return pid;
+  }
+
+  const pidFile = (staged: Stage) => path.join(staged.root, ".tmp", "api.pid");
+
+  /**
+   * The line the run prints for the operator, word for word: the signal depends on the API
+   * attending it, how to see whether the API still runs (the port, or the recorded pnpm, which can
+   * end while the API lives on), and that the processes of its session are then ended by hand.
+   */
+  const stopLine = (staged: Stage, pid: number) =>
+    `platform-start: stop it with \`kill -s TERM -- -${pid}\`: a normal termination signal, sent to the process group of pnpm (process ${pid}, which runs the API and leads the session that holds it), which passes it on; it ends the API only if the API attends it, and one that ignores it keeps running. To see whether the API still runs, check whether 127.0.0.1:${staged.apiPort} accepts connections, or whether the pnpm process ${pid}, recorded in ${pidFile(staged)}, still exists (it can end while the API lives on, so only the port settles it); if the API still runs, end the processes of the session by hand (\`ps -s ${pid}\` lists them). pnpm writes a failed-command line in the log when the API ends, which is expected\n`;
+
+  /** The line that says where the API answers, for a run that started it or found it started. */
+  const answersLine = (staged: Stage, pid: number, earlier: boolean) =>
+    `platform-start: the API ${earlier ? "this command started earlier already " : ""}answers /health with 200 on 127.0.0.1:${staged.apiPort} (run by the pnpm process ${pid}, log ${apiLog(staged)})${earlier ? ": no second API was started" : ""}\n`;
+
+  /** What a run says of a recorded process that still exists and starts nothing for. */
+  const recordedLine = (staged: Stage, pid: number) =>
+    `platform-start: the process recorded in ${pidFile(staged)} (${pid}) still exists and may be the pnpm of an API an earlier run started, which is still starting or failed to start: nothing was started and nothing was stopped (\`ps -s ${pid}\` lists its session, ${apiLog(staged)} its output)\n`;
+
+  /** The status `/health` answers with on a port, or `null` when nothing answers. */
+  async function healthStatus(port: number): Promise<number | null> {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/health`, {
+        signal: AbortSignal.timeout(2000),
+      });
+      return response.status;
+    } catch {
+      return null;
+    }
+  }
+
+  /** A socket that holds a port and says nothing, as another program on it would. */
+  async function occupy(port: number): Promise<void> {
+    // Resumed, so the server sees a client that leaves and its own close can finish.
+    const server = createServer((socket) => socket.resume());
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+  }
+
+  const asked = (staged: Stage, more: Record<string, string> = {}) => ({
+    ...staged.env,
+    ...staged.ports,
+    ...more,
+  });
+
+  it("starts the API from source, detached, returns once /health answers 200, and leaves it running", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    const pid = apiOf(staged);
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(alive(pid)).toBe(true);
+    expect(await healthStatus(staged.apiPort)).toBe(200);
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([`--filter @apps/api dev|${staged.root}`]);
+    expect(readFileSync(apiLog(staged), "utf8")).toBe("api double starting in mode ok\n");
+    expect(result.stdout).toMatch(/platform-start: the database is migrated\n/);
+    expect(result.stdout).toContain(answersLine(staged, pid, false) + stopLine(staged, pid));
+  });
+
+  it("stops with the signal the command prints: the API drains and ends", async () => {
+    const staged = await stage();
+    await start(["--root", staged.root], asked(staged));
+    const pid = apiOf(staged);
+
+    expect(signal(-pid, "SIGTERM")).toBe(true);
+
+    await until(() => !alive(pid), { description: "the API to end after SIGTERM" });
+    expect(readFileSync(apiLog(staged), "utf8")).toContain("drained\n");
+    expect(await healthStatus(staged.apiPort)).toBeNull();
+  });
+
+  it("hands the API the calling shell's environment, without the variables the file owns", async () => {
+    const staged = await stage();
+    const refused = [...core.REQUIRED_KEYS, "POSTGRES_HOST_PORT", "REDIS_HOST_PORT"];
+    const fromTheShell = Object.fromEntries(
+      core.REQUIRED_KEYS.map((key) => [key, "from-the-shell"])
+    );
+
+    const result = await start(["--root", staged.root], {
+      ...fromTheShell,
+      ...asked(staged, { KEPT_BY_THE_SHELL: "yes" }),
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    const given = savedEnvironment(`${staged.pnpmLog}.api.env`);
+    expect(refused.filter((key) => key in given)).toEqual([]);
+    expect(given).toMatchObject({ KEPT_BY_THE_SHELL: "yes", PORT: String(staged.apiPort) });
+  });
+
+  it("is reported by the run: the calling shell's PORT first, then the file's, then 3000", async () => {
+    const staged = await stage();
+    const listening = { postgres: staged.postgres.port, redis: staged.redis.port };
+
+    const generated = await start(["--root", staged.root], {
+      ...staged.env,
+      ...staged.ports,
+      PORT: "4321",
+    });
+    expect(generated.stdout).toContain("platform-start: the API takes port 4321\n");
+    expect(readFileSync(staged.file, "utf8")).not.toContain("PORT=4321");
+
+    const text = writeEnvironment(staged.file, [], listening);
+    appendFileSync(staged.file, "PORT=5432\n");
+    const fromFile = await start(["--root", staged.root], staged.env);
+    expect(fromFile.stdout).toContain("platform-start: the API takes port 5432\n");
+
+    const overridden = await start(["--root", staged.root], { ...staged.env, PORT: "4321" });
+    expect(overridden.stdout).toContain("platform-start: the API takes port 4321\n");
+
+    writeFileSync(staged.file, text);
+    const byDefault = await start(["--root", staged.root], staged.env);
+    expect(byDefault.stdout).toContain("platform-start: the API takes port 3000\n");
+  });
+
+  it("starts the API on the calling shell's PORT, and on the file's when the shell has none", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], {
+      postgres: staged.postgres.port,
+      redis: staged.redis.port,
+    });
+    appendFileSync(staged.file, "PORT=1\n");
+
+    const overShell = await start(["--root", staged.root], asked(staged));
+
+    expect(overShell).toMatchObject({ code: 0, stderr: "" });
+    expect(overShell.stdout).toContain(`on 127.0.0.1:${staged.apiPort} (run by the pnpm process`);
+    expect(await healthStatus(staged.apiPort)).toBe(200);
+    const first = apiOf(staged);
+    expect(signal(-first, "SIGTERM")).toBe(true);
+    await until(() => !alive(first), { description: "the first API to end after SIGTERM" });
+    writeEnvironment(staged.file, [], {
+      postgres: staged.postgres.port,
+      redis: staged.redis.port,
+    });
+    appendFileSync(staged.file, `PORT=${staged.apiPort}\n`);
+    const { PORT: _shellPort, ...hostPorts } = staged.ports;
+
+    const overFile = await start(["--root", staged.root], { ...staged.env, ...hostPorts });
+
+    expect(overFile).toMatchObject({ code: 0, stderr: "" });
+    expect(overFile.stdout).toContain(`on 127.0.0.1:${staged.apiPort} (run by the pnpm process`);
+    expect(await healthStatus(staged.apiPort)).toBe(200);
+  });
+
+  it("is refused when it is not a port, before anything is written or started", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], { ...staged.env, PORT: "70000" });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe("platform-start: PORT=70000 is not a port\n");
+    expect(existsSync(staged.file)).toBe(false);
+    expect(dockerCalls(staged)).toEqual([]);
+  });
+
+  it("is refused, with the file's own value, when the file holds one that is not a port", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+    appendFileSync(staged.file, "PORT=abc\n");
+
+    const result = await start(["--root", staged.root], staged.env);
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe("platform-start: PORT=abc is not a port\n");
+    expect(dockerCalls(staged)).toEqual([]);
+  });
+
+  it("starts no service and no API when the file's PORT is not a port", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], { postgres: staged.postgres.port, redis: staged.redis.port });
+    appendFileSync(staged.file, "PORT=abc\n");
+
+    const result = await start(["--root", staged.root], {
+      ...staged.env,
+      POSTGRES_HOST_PORT: staged.ports.POSTGRES_HOST_PORT,
+      REDIS_HOST_PORT: staged.ports.REDIS_HOST_PORT,
+    });
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe("platform-start: PORT=abc is not a port\n");
+    expect(dockerCalls(staged)).toEqual([]);
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([]);
+  });
+
+  it("refuses a port that something else holds, names it, and starts no API", async () => {
+    const staged = await stage();
+    await occupy(staged.apiPort);
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: 127.0.0.1:${staged.apiPort} is already in use, and this command holds no record of a running API it started: the port may be held by anything, an API whose record was removed when its pnpm ended included; no API was started\n`
+    );
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([]);
+    expect(recordedApi(staged.root)).toBeNull();
+    expect(result.stdout).toContain("the database is migrated");
+  });
+
+  it("never signals a process it recorded in an earlier run: it only looks at it", async () => {
+    const staged = await stage();
+    const earlier = spawn("/bin/sleep", ["60"], { detached: true, stdio: "ignore" });
+    earlier.unref();
+    const pid = Number(earlier.pid);
+    strays.push(pid);
+    mkdirSync(path.join(staged.root, ".tmp"));
+    writeFileSync(path.join(staged.root, ".tmp", "api.pid"), `${pid}\n`);
+    await occupy(staged.apiPort);
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: 127.0.0.1:${staged.apiPort} is already in use, and /health does not answer 200 there\n` +
+        recordedLine(staged, pid)
+    );
+    expect(alive(pid)).toBe(true);
+    expect(recordedApi(staged.root)).toBe(pid);
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([]);
+  });
+
+  it("reads a record holding 1 as no record: init is not an API it started, so it starts the API as it does with none", async () => {
+    const staged = await stage();
+    mkdirSync(path.join(staged.root, ".tmp"));
+    writeFileSync(pidFile(staged), "1\n");
+
+    const result = await start(["--root", staged.root, "--wait-seconds", "2"], asked(staged));
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    const pid = apiOf(staged);
+    expect(pid).not.toBe(1);
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([`--filter @apps/api dev|${staged.root}`]);
+    expect(result.stdout).toContain(answersLine(staged, pid, false) + stopLine(staged, pid));
+    expect(await healthStatus(staged.apiPort)).toBe(200);
+  });
+
+  it("goes on as a second run when the API it started earlier still answers: it starts no other", async () => {
+    const staged = await stage();
+    await start(["--root", staged.root], asked(staged));
+    const pid = apiOf(staged);
+
+    const second = await start(["--root", staged.root], asked(staged));
+
+    expect(second).toMatchObject({ code: 0, stderr: "" });
+    expect(second.stdout).toContain(answersLine(staged, pid, true) + stopLine(staged, pid));
+    expect(apiOf(staged)).toBe(pid);
+    expect(alive(pid)).toBe(true);
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toHaveLength(1);
+  });
+
+  it("fails at once, with the last lines of the log, when the API exits while the run waits, and a second run goes on from there", async () => {
+    const staged = await stage();
+    const began = Date.now();
+
+    const failed = await start(
+      ["--root", staged.root, "--wait-seconds", "30"],
+      asked(staged, { FAKE_API_MODE: "exit" })
+    );
+
+    expect(Date.now() - began).toBeLessThan(15_000);
+    expect(failed.code).toBe(1);
+    expect(failed.stderr).toMatch(
+      new RegExp(
+        `^platform-start: the pnpm process this run started to run the API \\(process \\d+\\) exited 1 before /health answered 200\\n` +
+          `platform-start: the other processes of its session, the API among them, were not checked: \`ps -s \\d+\` lists any still running\\n` +
+          `platform-start: the last lines of ${literal(apiLog(staged))}:\\n` +
+          `platform-start:   api double starting in mode exit\\n` +
+          `platform-start:   Error starting server: the port is taken\\n$`
+      )
+    );
+    expect(recordedApi(staged.root)).toBeNull();
+    const environment = readFileSync(staged.file, "utf8");
+
+    const again = await start(["--root", staged.root], asked(staged));
+
+    expect(again).toMatchObject({ code: 0, stderr: "" });
+    expect(readFileSync(staged.file, "utf8")).toBe(environment);
+    expect(dockerCalls(staged).filter((call) => call.includes(" up "))).toHaveLength(2);
+    expect(await healthStatus(staged.apiPort)).toBe(200);
+  });
+
+  it.each(["silent", "503"])(
+    "fails, says by name that the API it started is still running and does not claim to have stopped it, when /health does not answer 200 within the wait (%s)",
+    async (mode) => {
+      const staged = await stage();
+
+      const result = await start(
+        ["--root", staged.root, "--wait-seconds", "1"],
+        asked(staged, { FAKE_API_MODE: mode })
+      );
+
+      const pid = apiOf(staged);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toBe(
+        `platform-start: /health on 127.0.0.1:${staged.apiPort} did not answer 200 within 1 s\n` +
+          `platform-start: the pnpm process this run started to run the API (process ${pid}, recorded in ${pidFile(staged)}) was still running when the wait ended and has not been stopped; its session holds the API: \`ps -s ${pid}\` lists the processes of that session, to end by hand\n` +
+          `platform-start: the last lines of ${apiLog(staged)}:\n` +
+          `platform-start:   api double starting in mode ${mode}\n`
+      );
+      expect(alive(pid)).toBe(true);
+      expect(sessionMembers(pid).length).toBeGreaterThan(0);
+    }
+  );
+
+  it("sends no signal to the API it started when the wait runs out: one that ignores SIGTERM is never asked to end", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "1"],
+      asked(staged, { FAKE_API_MODE: "stubborn" })
+    );
+
+    const pid = apiOf(staged);
+    expect(result.code).toBe(1);
+    // A request made after the run returned: a signal sent before it is handled by then.
+    expect(await healthStatus(staged.apiPort)).toBe(503);
+    expect(readFileSync(apiLog(staged), "utf8")).not.toContain("received SIGTERM");
+    expect(alive(pid)).toBe(true);
+    expect(result.stderr).not.toMatch(/was stopped|were stopped/);
+  });
+
+  it("goes on after a failed wait as a second run that starts no other API, and says the recorded process may be the one left running", async () => {
+    const staged = await stage();
+    await start(
+      ["--root", staged.root, "--wait-seconds", "1"],
+      asked(staged, { FAKE_API_MODE: "503" })
+    );
+    const pid = apiOf(staged);
+
+    const second = await start(["--root", staged.root], asked(staged, { FAKE_API_MODE: "503" }));
+
+    expect(second.code).toBe(1);
+    expect(second.stderr).toBe(
+      `platform-start: 127.0.0.1:${staged.apiPort} is already in use, and /health does not answer 200 there\n` +
+        recordedLine(staged, pid)
+    );
+    expect(alive(pid)).toBe(true);
+    expect(apiOf(staged)).toBe(pid);
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toHaveLength(1);
+  });
+
+  it("does not claim anything about the processes it did not check when pnpm ended first and left the API running, and sends them no signal", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "30"],
+      asked(staged, { FAKE_API_MODE: "stubborn", FAKE_API_ORPHAN: "1" })
+    );
+
+    const pid = Number(/\(process (\d+)\)/.exec(result.stderr)?.[1]);
+    strays.push(pid);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: the pnpm process this run started to run the API (process ${pid}) exited 1 before /health answered 200\n` +
+        `platform-start: the other processes of its session, the API among them, were not checked: \`ps -s ${pid}\` lists any still running\n` +
+        `platform-start: the last lines of ${apiLog(staged)}:\n` +
+        `platform-start:   api double starting in mode stubborn\n`
+    );
+    expect(recordedApi(staged.root)).toBeNull();
+    expect(await healthStatus(staged.apiPort)).toBe(503);
+    expect(readFileSync(apiLog(staged), "utf8")).not.toContain("received SIGTERM");
+    expect(sessionMembers(pid).length).toBeGreaterThan(0);
+
+    const second = await start(
+      ["--root", staged.root],
+      asked(staged, { FAKE_API_MODE: "stubborn" })
+    );
+
+    expect(second.code).toBe(1);
+    expect(second.stderr).toBe(
+      `platform-start: 127.0.0.1:${staged.apiPort} is already in use, and this command holds no record of a running API it started: the port may be held by anything, an API whose record was removed when its pnpm ended included; no API was started\n`
+    );
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toHaveLength(1);
+  });
+
+  describe("a rerun while the API of an earlier run has not bound its port yet", () => {
+    /** An API that binds late, whose first run gave up after a second. */
+    async function firstRunGivenUp(bindDelayMs: number) {
+      const staged = await stage();
+      const late = { FAKE_API_BIND_DELAY_MS: String(bindDelayMs) };
+      await start(["--root", staged.root, "--wait-seconds", "1"], asked(staged, late));
+      const pid = apiOf(staged);
+      appendFileSync(apiLog(staged), "kept by the case\n");
+      return { staged, late, pid };
+    }
+
+    it("starts no second API, leaves the record and the log alone, and goes on as a second run when /health arrives", async () => {
+      const { staged, late, pid } = await firstRunGivenUp(3000);
+      expect(await healthStatus(staged.apiPort)).toBeNull();
+
+      const second = await start(
+        ["--root", staged.root, "--wait-seconds", "30"],
+        asked(staged, late)
+      );
+
+      expect(second.code).toBe(0);
+      expect(second.stderr).toBe("");
+      expect(second.stdout).toContain(
+        `platform-start: the process recorded in ${pidFile(staged)} (${pid}) still exists and nothing accepts connections on 127.0.0.1:${staged.apiPort} yet: no second API is started, and /health is awaited for up to 30 s\n` +
+          answersLine(staged, pid, true) +
+          stopLine(staged, pid)
+      );
+      expect(loggedCalls(`${staged.pnpmLog}.api`)).toHaveLength(1);
+      expect(apiOf(staged)).toBe(pid);
+      expect(readFileSync(apiLog(staged), "utf8")).toBe(
+        "api double starting in mode ok\nkept by the case\n"
+      );
+      expect(await healthStatus(staged.apiPort)).toBe(200);
+    });
+
+    it("starts no second API and says what it knows and no more when the wait runs out too", async () => {
+      const { staged, late, pid } = await firstRunGivenUp(60_000);
+
+      const second = await start(
+        ["--root", staged.root, "--wait-seconds", "1"],
+        asked(staged, late)
+      );
+
+      expect(second.code).toBe(1);
+      expect(second.stderr).toBe(
+        `platform-start: /health on 127.0.0.1:${staged.apiPort} did not answer 200 within 1 s\n` +
+          recordedLine(staged, pid)
+      );
+      expect(loggedCalls(`${staged.pnpmLog}.api`)).toHaveLength(1);
+      expect(apiOf(staged)).toBe(pid);
+      expect(readFileSync(apiLog(staged), "utf8")).toBe(
+        "api double starting in mode ok\nkept by the case\n"
+      );
+      expect(alive(pid)).toBe(true);
+    });
+
+    // Its own time limit outlasts the run's whole wait, so a run that misses the end fails here on
+    // what it prints, not on the limit.
+    it("fails as soon as the recorded process ends during the wait, says that it ended, and leaves the record as it is", async () => {
+      const staged = await stage();
+      const earlier = spawn("/bin/sleep", ["60"], { detached: true, stdio: "ignore" });
+      earlier.unref();
+      const pid = Number(earlier.pid);
+      strays.push(pid);
+      mkdirSync(path.join(staged.root, ".tmp"));
+      writeFileSync(pidFile(staged), `${pid}\n`);
+      const waiting = `platform-start: the process recorded in ${pidFile(staged)} (${pid}) still exists and nothing accepts connections on 127.0.0.1:${staged.apiPort} yet: no second API is started, and /health is awaited for up to 10 s\n`;
+      const run = spawn(
+        process.execPath,
+        [COMMAND, "--root", staged.root, "--wait-seconds", "10"],
+        { env: asked(staged) }
+      );
+      strays.push(Number(run.pid));
+      let stdout = "";
+      let stderr = "";
+      run.stdout.on("data", (chunk) => {
+        stdout += String(chunk);
+      });
+      run.stderr.on("data", (chunk) => {
+        stderr += String(chunk);
+      });
+      let closed = false;
+      const code = new Promise<number | null>((resolve) =>
+        run.once("close", (exitCode) => {
+          closed = true;
+          resolve(exitCode);
+        })
+      );
+      await until(() => closed || stdout.includes(waiting), {
+        description: "the run to wait on the recorded process",
+        timeoutMs: 15_000,
+      });
+      expect(stdout).toContain(waiting);
+
+      expect(signal(pid, "SIGTERM")).toBe(true);
+      const signalledAt = Date.now();
+
+      expect(await code).toBe(1);
+      expect(stderr).toBe(
+        `platform-start: the process recorded in ${pidFile(staged)} (${pid}) ended during the wait without /health on 127.0.0.1:${staged.apiPort} answering 200, and no API was started\n`
+      );
+      expect(Date.now() - signalledAt).toBeLessThan(5_000);
+      expect(alive(pid)).toBe(false);
+      expect(readFileSync(pidFile(staged), "utf8")).toBe(`${pid}\n`);
+      expect(loggedCalls(`${staged.pnpmLog}.api`)).toEqual([]);
+    }, 30_000);
+  });
+});
+
+describe("the suite's teardown", () => {
+  it("sends no signal for a record that names no process of its own: 1, 0, an empty text, -1 or text", () => {
+    const { root } = makeRoot();
+    const record = path.join(root, ".tmp", "api.pid");
+    mkdirSync(path.dirname(record));
+    const sent: Record<string, unknown[][]> = {};
+    // A spy that sends nothing, so even a teardown that would signal -1 or 0 reaches no process.
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    try {
+      for (const text of ["1", "0", "", "-1", "abc"]) {
+        writeFileSync(record, `${text}\n`);
+        endRecordedApi(root);
+        sent[text] = [...kill.mock.calls];
+        kill.mockClear();
+      }
+    } finally {
+      kill.mockRestore();
+      rmSync(record, { force: true });
+    }
+
+    expect(sent).toEqual({ "1": [], "0": [], "": [], "-1": [], abc: [] });
   });
 });
