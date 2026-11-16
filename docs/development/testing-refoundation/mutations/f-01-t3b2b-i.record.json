@@ -1,0 +1,64 @@
+{
+  "base": "9090981300ea0c7aca5f69837a6be4265fe56852",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "a7dff35a4633593f32e5e3543372672506b35f39c13f93dedcb1020739cc4536",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails, says by name that the API it started is still running and does not claim to have stopped it, when /health does not answer 200 within the wait (%s)"
+        },
+        {
+          "bodyHash": {
+            "base": "6d1553be3317f9fd957149db4f8dd01f2115537082e37ca4584cb3169acb9cca",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on after a failed wait as a second run that starts no other API, and says the recorded process may be the one left running"
+        },
+        {
+          "bodyHash": {
+            "base": "a66f8564bf062719c3e859656d8d3ba22e31b8212a139ea2738e6cd2dfcfd4e2",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal to the API it started when the wait runs out: one that ignores SIGTERM is never asked to end"
+        },
+        {
+          "bodyHash": {
+            "base": "221cb01893b119dec36bb87fc6856b4ff4efd58ee89814553c76117a5226b947",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API and says what it knows and no more when the wait runs out too"
+        },
+        {
+          "bodyHash": {
+            "base": "80d6fb6a20ad36114084c934db7fc75bf0feb4b1e7571c16ecfccb089ceea72b",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API, leaves the record and the log alone, and goes on as a second run when /health arrives"
+        }
+      ],
+      "id": "t3b2b-i-01-a-failed-wait-stops-its-session",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > a rerun while the API of an earlier run has not bound its port yet > starts no second API and says what it knows and no more when the wait runs out too",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > a rerun while the API of an earlier run has not bound its port yet > starts no second API, leaves the record and the log alone, and goes on as a second run when /health arrives",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > fails, says by name that the API it started is still running and does not claim to have stopped it, when /health does not answer 200 within the wait (503)",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > fails, says by name that the API it started is still running and does not claim to have stopped it, when /health does not answer 200 within the wait (silent)",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > goes on after a failed wait as a second run that starts no other API, and says the recorded process may be the one left running",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > sends no signal to the API it started when the wait runs out: one that ignores SIGTERM is never asked to end"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/platformStart.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/platformStart.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}

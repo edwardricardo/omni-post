@@ -18,6 +18,12 @@
  *   suite sends goes through one guard, `signal`, which sends nothing to a target that does not name
  *   a real, separate process: 0, 1 and -1 (as root, -1 reaches every process of the host but init),
  *   text read as a number, and the suite's own process, group and session.
+ *
+ *   The stop of a failed start is also imported from the command and driven in this process, for
+ *   what no stand-in makes happen on demand: a target the command's own guard refuses, a read of
+ *   `/proc` that fails with ESRCH while the session is swept, a process that survives SIGKILL. There
+ *   `process.kill` or the stop's read of `/proc` is replaced by a spy, and each spy is restored
+ *   before the case ends, so the teardown signals as it always does.
  * @layer infrastructure
  */
 import { execFile, execFileSync, spawn, spawnSync } from "node:child_process";
@@ -40,7 +46,7 @@ import { createServer, type Server } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { until } from "@packages/vitest-shared/determinism";
+import { until, untilValue } from "@packages/vitest-shared/determinism";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseApiEnv } from "../../../src/config/env.js";
 
@@ -66,6 +72,38 @@ interface EnvironmentModule {
 }
 
 const core = (await import(CORE)) as EnvironmentModule;
+
+/** A process of a session, as the command's stop reads it: its id and the name `/proc` gives it. */
+interface Member {
+  pid: number;
+  name: string;
+}
+
+/** What the stop did to a session: what it found, what it sent SIGTERM and SIGKILL, what is left. */
+interface Swept {
+  found: Member[];
+  termed: Member[];
+  killed: Member[];
+  left: Member[];
+}
+
+/** How long the stop's SIGTERM, and then its SIGKILL, wait for the session to empty. */
+interface Timing {
+  graceMs: number;
+  killWaitMs: number;
+}
+
+/** The stop of a failed start, as the command exports it. */
+interface StopModule {
+  proc: { list(): string[]; read(file: string): string };
+  separate(target: number): boolean;
+  signal(target: number, name: NodeJS.Signals): boolean;
+  endSession(session: number, timing?: Timing): Promise<Swept>;
+  sweepSession(pid: number, pidFile: string, timing?: Timing): Promise<string>;
+}
+
+// The command runs its sequence only as the program, so importing it here starts nothing.
+const command = (await import(COMMAND)) as StopModule;
 
 /**
  * The variables `docker-compose.yml` interpolates with `${NAME:?}`: Compose starts nothing without
@@ -421,6 +459,11 @@ function endGroup(pid: number): void {
   }
 }
 
+/** A text as a regular expression that matches it and nothing else. */
+function literal(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /** A loopback port nothing holds at the moment it is returned. */
 async function freePort(): Promise<number> {
   const server = createServer();
@@ -518,14 +561,6 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
     },
     apiPort,
   };
-}
-
-/**
- * Text to match literally inside a regular expression: every metacharacter is escaped, so a path
- * holding a backslash, a bracket or a dot matches itself and nothing else.
- */
-function literal(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** The calls a stand-in logged, one line each; none when it was never run. */
@@ -1548,6 +1583,11 @@ describe("the API stage", () => {
   const recordedLine = (staged: Stage, pid: number) =>
     `platform-start: the process recorded in ${pidFile(staged)} (${pid}) still exists and may be the pnpm of an API an earlier run started, which is still starting or failed to start: nothing was started and nothing was stopped (\`ps -s ${pid}\` lists its session, ${apiLog(staged)} its output)\n`;
 
+  /** How the sweep names the pnpm stand-in, once it runs as `API_PARENT`, and the API stand-in. */
+  const parentCommand = (staged: Stage) => literal(`/bin/bash ${staged.env.FAKE_API_PARENT}`);
+  const apiCommand = (staged: Stage) =>
+    literal(`${process.execPath} ${staged.env.FAKE_API_SCRIPT}`);
+
   /** The status `/health` answers with on a port, or `null` when nothing answers. */
   async function healthStatus(port: number): Promise<number | null> {
     try {
@@ -1812,7 +1852,7 @@ describe("the API stage", () => {
   });
 
   it.each(["silent", "503"])(
-    "fails, says by name that the API it started is still running and does not claim to have stopped it, when /health does not answer 200 within the wait (%s)",
+    "stops every process of the session it started when /health does not answer 200 within the wait (%s), names each, and removes the record once none is left",
     async (mode) => {
       const staged = await stage();
 
@@ -1821,54 +1861,64 @@ describe("the API stage", () => {
         asked(staged, { FAKE_API_MODE: mode })
       );
 
-      const pid = apiOf(staged);
-      expect(result.code).toBe(1);
-      expect(result.stderr).toBe(
-        `platform-start: /health on 127.0.0.1:${staged.apiPort} did not answer 200 within 1 s\n` +
-          `platform-start: the pnpm process this run started to run the API (process ${pid}, recorded in ${pidFile(staged)}) was still running when the wait ended and has not been stopped; its session holds the API: \`ps -s ${pid}\` lists the processes of that session, to end by hand\n` +
-          `platform-start: the last lines of ${apiLog(staged)}:\n` +
-          `platform-start:   api double starting in mode ${mode}\n`
+      const said = new RegExp(
+        `^platform-start: /health on 127\\.0\\.0\\.1:${staged.apiPort} did not answer 200 within 1 s\\n` +
+          `platform-start: the pnpm process this run started to run the API \\(process (\\d+)\\) was still running when the wait ended\\n` +
+          `platform-start: the session of process \\1 was swept: SIGTERM was sent to \\1 \\(${parentCommand(staged)}\\), \\d+ \\(${apiCommand(staged)}\\); then no process was found in it, and ${literal(pidFile(staged))} was removed\\n` +
+          `platform-start: the last lines of ${literal(apiLog(staged))}:\\n` +
+          `platform-start:   api double starting in mode ${mode}\\n` +
+          `platform-start:   drained\\n$`
       );
-      expect(alive(pid)).toBe(true);
-      expect(sessionMembers(pid).length).toBeGreaterThan(0);
+      expect(result.code).toBe(1);
+      expect(result.stderr).toMatch(said);
+      const pid = Number(said.exec(result.stderr)?.[1]);
+      expect(sessionMembers(pid)).toEqual([]);
+      expect(recordedApi(staged.root)).toBeNull();
+      expect(await healthStatus(staged.apiPort)).toBeNull();
     }
   );
 
-  it("sends no signal to the API it started when the wait runs out: one that ignores SIGTERM is never asked to end", async () => {
+  it(
+    "ends with SIGKILL the processes of its session still running 10 s after SIGTERM when the wait runs out, and removes the record once none is left",
+    { timeout: 30_000 },
+    async () => {
+      const staged = await stage();
+
+      const result = await start(
+        ["--root", staged.root, "--wait-seconds", "1"],
+        asked(staged, { FAKE_API_MODE: "stubborn" })
+      );
+
+      const swept = new RegExp(
+        `^platform-start: the session of process (\\d+) was swept: SIGTERM was sent to \\1 \\(${parentCommand(staged)}\\), (\\d+) \\(${apiCommand(staged)}\\), and SIGKILL to \\1 \\(${parentCommand(staged)}\\), \\2 \\(${apiCommand(staged)}\\), still running 10 s later; then no process was found in it, and ${literal(pidFile(staged))} was removed$`,
+        "m"
+      );
+      expect(result.code).toBe(1);
+      expect(result.stderr).toMatch(swept);
+      const pid = Number(swept.exec(result.stderr)?.[1]);
+      expect(readFileSync(apiLog(staged), "utf8")).toContain("received SIGTERM and ignored it\n");
+      expect(sessionMembers(pid)).toEqual([]);
+      expect(recordedApi(staged.root)).toBeNull();
+      expect(await healthStatus(staged.apiPort)).toBeNull();
+    }
+  );
+
+  it("goes on after a failed wait as a run that starts the API again: the failed run left no process and no record", async () => {
     const staged = await stage();
-
-    const result = await start(
-      ["--root", staged.root, "--wait-seconds", "1"],
-      asked(staged, { FAKE_API_MODE: "stubborn" })
-    );
-
-    const pid = apiOf(staged);
-    expect(result.code).toBe(1);
-    // A request made after the run returned: a signal sent before it is handled by then.
-    expect(await healthStatus(staged.apiPort)).toBe(503);
-    expect(readFileSync(apiLog(staged), "utf8")).not.toContain("received SIGTERM");
-    expect(alive(pid)).toBe(true);
-    expect(result.stderr).not.toMatch(/was stopped|were stopped/);
-  });
-
-  it("goes on after a failed wait as a second run that starts no other API, and says the recorded process may be the one left running", async () => {
-    const staged = await stage();
-    await start(
+    const failed = await start(
       ["--root", staged.root, "--wait-seconds", "1"],
       asked(staged, { FAKE_API_MODE: "503" })
     );
+    expect(failed.code).toBe(1);
+    expect(recordedApi(staged.root)).toBeNull();
+
+    const second = await start(["--root", staged.root], asked(staged));
+
+    expect(second).toMatchObject({ code: 0, stderr: "" });
     const pid = apiOf(staged);
-
-    const second = await start(["--root", staged.root], asked(staged, { FAKE_API_MODE: "503" }));
-
-    expect(second.code).toBe(1);
-    expect(second.stderr).toBe(
-      `platform-start: 127.0.0.1:${staged.apiPort} is already in use, and /health does not answer 200 there\n` +
-        recordedLine(staged, pid)
-    );
-    expect(alive(pid)).toBe(true);
-    expect(apiOf(staged)).toBe(pid);
-    expect(loggedCalls(`${staged.pnpmLog}.api`)).toHaveLength(1);
+    expect(second.stdout).toContain(answersLine(staged, pid, false) + stopLine(staged, pid));
+    expect(loggedCalls(`${staged.pnpmLog}.api`)).toHaveLength(2);
+    expect(await healthStatus(staged.apiPort)).toBe(200);
   });
 
   it("does not claim anything about the processes it did not check when pnpm ended first and left the API running, and sends them no signal", async () => {
@@ -1906,18 +1956,32 @@ describe("the API stage", () => {
   });
 
   describe("a rerun while the API of an earlier run has not bound its port yet", () => {
-    /** An API that binds late, whose first run gave up after a second. */
-    async function firstRunGivenUp(bindDelayMs: number) {
+    /**
+     * An API that binds late, whose first run was ended while it waited, as an operator who stops
+     * the command would end it: the run that started the API is gone, its record and the API stay.
+     */
+    async function firstRunInterrupted(bindDelayMs: number) {
       const staged = await stage();
       const late = { FAKE_API_BIND_DELAY_MS: String(bindDelayMs) };
-      await start(["--root", staged.root, "--wait-seconds", "1"], asked(staged, late));
+      const first = spawn(
+        process.execPath,
+        [COMMAND, "--root", staged.root, "--wait-seconds", "60"],
+        { env: asked(staged, late), stdio: "ignore" }
+      );
+      const ended = new Promise((resolve) => first.once("exit", resolve));
+      // The API's first line comes before the case's, as it does when a run is ended while it waits.
+      await until(() => existsSync(apiLog(staged)) && readFileSync(apiLog(staged), "utf8") !== "", {
+        description: "the first run's API to write its first line",
+      });
+      expect(signal(Number(first.pid), "SIGKILL")).toBe(true);
+      await ended;
       const pid = apiOf(staged);
       appendFileSync(apiLog(staged), "kept by the case\n");
       return { staged, late, pid };
     }
 
-    it("starts no second API, leaves the record and the log alone, and goes on as a second run when /health arrives", async () => {
-      const { staged, late, pid } = await firstRunGivenUp(3000);
+    it("starts no second API after a first run interrupted before its API bound its port, leaves the record and the log alone, and goes on as a second run when /health arrives", async () => {
+      const { staged, late, pid } = await firstRunInterrupted(3000);
       expect(await healthStatus(staged.apiPort)).toBeNull();
 
       const second = await start(
@@ -1940,8 +2004,8 @@ describe("the API stage", () => {
       expect(await healthStatus(staged.apiPort)).toBe(200);
     });
 
-    it("starts no second API and says what it knows and no more when the wait runs out too", async () => {
-      const { staged, late, pid } = await firstRunGivenUp(60_000);
+    it("starts no second API after a first run interrupted before its API bound its port, and says what it knows and no more when its own wait runs out", async () => {
+      const { staged, late, pid } = await firstRunInterrupted(60_000);
 
       const second = await start(
         ["--root", staged.root, "--wait-seconds", "1"],
@@ -2035,5 +2099,371 @@ describe("the suite's teardown", () => {
     }
 
     expect(sent).toEqual({ "1": [], "0": [], "": [], "-1": [], abc: [] });
+  });
+});
+
+describe("the stop of a failed start, driven in this process", () => {
+  /** Timings short enough for a case: SIGTERM, and then SIGKILL, each wait a tenth of a second. */
+  const FAST = { graceMs: 100, killWaitMs: 100 };
+
+  /** What the stop returns for a session it neither lists nor signals. */
+  const UNTOUCHED = { found: [], termed: [], killed: [], left: [] };
+
+  /** A process of a session of its own, the leader: `sleep`, ended by the teardown. */
+  async function sleeper(): Promise<number> {
+    const child = spawn("/bin/sleep", ["60"], { detached: true, stdio: "ignore" });
+    child.unref();
+    await new Promise((resolve) => child.once("spawn", resolve));
+    const pid = Number(child.pid);
+    strays.push(pid);
+    return pid;
+  }
+
+  /** A record of the stop's, in a checkout of its own, naming a process. */
+  function recordOf(pid: number): string {
+    const { root } = makeRoot();
+    const record = path.join(root, ".tmp", "api.pid");
+    mkdirSync(path.dirname(record));
+    writeFileSync(record, `${pid}\n`);
+    return record;
+  }
+
+  /**
+   * Has every read the command's stop makes of `/proc/<pid>/stat` fail with the code given, until
+   * the returned function restores the real read.
+   */
+  function failStatReads(pid: number, code: string): () => void {
+    const real = command.proc.read;
+    const read = vi.spyOn(command.proc, "read").mockImplementation((file: string) => {
+      if (file === `/proc/${pid}/stat`) {
+        throw Object.assign(new Error(`${code}: reading /proc/${pid}/stat`), { code });
+      }
+      return real(file);
+    });
+    return () => read.mockRestore();
+  }
+
+  /**
+   * Has every read and every listing the command's stop makes of `/proc` fail with ENOENT, as on a
+   * host that has no `/proc`, until the returned function restores the real ones.
+   */
+  function hideProc(): () => void {
+    const gone = (file: string) =>
+      Object.assign(new Error(`ENOENT: no such file or directory, open '${file}'`), {
+        code: "ENOENT",
+      });
+    const read = vi.spyOn(command.proc, "read").mockImplementation((file: string) => {
+      throw gone(file);
+    });
+    const list = vi.spyOn(command.proc, "list").mockImplementation(() => {
+      throw gone("/proc");
+    });
+    return () => {
+      read.mockRestore();
+      list.mockRestore();
+    };
+  }
+
+  /** A leader of a session of its own running `/bin/bash -c <script>`, ended by the teardown. */
+  async function bashLeader(script: string): Promise<number> {
+    const leader = spawn("/bin/bash", ["-c", script], { detached: true, stdio: "ignore" });
+    await new Promise((resolve) => leader.once("spawn", resolve));
+    const pid = Number(leader.pid);
+    strays.push(pid);
+    return pid;
+  }
+
+  /** The command line of a process, its arguments joined by spaces, or `null` once it is gone. */
+  function commandLine(pid: number): string | null {
+    try {
+      return readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").filter(Boolean).join(" ");
+    } catch {
+      return null;
+    }
+  }
+
+  /** The processes of a session that have ended and wait to be reaped. */
+  function zombies(session: number): number[] {
+    const found: number[] = [];
+    for (const entry of readdirSync("/proc")) {
+      if (!/^\d+$/.test(entry)) continue;
+      let stat: string;
+      try {
+        stat = readFileSync(`/proc/${entry}/stat`, "utf8");
+      } catch {
+        continue;
+      }
+      const [state, , , sid] = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+      if (Number(sid) === session && state === "Z") found.push(Number(entry));
+    }
+    return found;
+  }
+
+  it("sends no signal, and lists no session, for a target that names no separate process: 0, 1, -1, a fraction, its own process, group or session", async () => {
+    const separate = await sleeper();
+    // The command reads its own group and session from /proc/self/stat. They are stubbed, so the
+    // case does not depend on how its runner was started: a runner that leads its own session
+    // gives a session equal to its pid or its group, and only the own-session clause of the guard
+    // would then go untested. These two ids are apart from this process and from the sleeper.
+    const own = {
+      group: Math.max(process.pid, separate) + 1,
+      session: Math.max(process.pid, separate) + 2,
+    };
+    const real = command.proc.read;
+    const read = vi
+      .spyOn(command.proc, "read")
+      .mockImplementation((file: string) =>
+        file === "/proc/self/stat"
+          ? `${process.pid} (node) S 1 ${own.group} ${own.session} 0 -1 4194304 0 0 0 0 0 0 0 0 20 0 1 0`
+          : real(file)
+      );
+    const refused = [
+      0,
+      1,
+      -1,
+      2.5,
+      process.pid,
+      -process.pid,
+      own.group,
+      -own.group,
+      own.session,
+      -own.session,
+    ];
+    // A spy that sends nothing, so even a guard that let -1 or the suite's own session through
+    // would reach no process.
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    let observed;
+    try {
+      const sent = refused.map((target) => command.signal(target, "SIGKILL"));
+      const swept: Swept[] = [];
+      for (const session of [0, 1, process.pid, own.group, own.session]) {
+        swept.push(await command.endSession(session, FAST));
+      }
+      const refusedCalls = [...kill.mock.calls];
+      const control = command.signal(separate, "SIGTERM");
+      observed = {
+        sent,
+        swept,
+        refusedCalls,
+        control,
+        calls: [...kill.mock.calls],
+        readOwnIds: read.mock.calls.some(([file]) => file === "/proc/self/stat"),
+      };
+    } finally {
+      kill.mockRestore();
+      read.mockRestore();
+    }
+
+    expect(observed).toEqual({
+      sent: refused.map(() => false),
+      swept: [UNTOUCHED, UNTOUCHED, UNTOUCHED, UNTOUCHED, UNTOUCHED],
+      refusedCalls: [],
+      control: true,
+      calls: [[separate, "SIGTERM"]],
+      readOwnIds: true,
+    });
+  });
+
+  it("counts a process whose /proc entry reads ESRCH while the session is swept as one that ended: the stop says its own line, removes the record and names no survivor", async () => {
+    // A leader that passes SIGTERM on to its child, in another group of its session, and ends with it.
+    const script =
+      'set -m; /bin/sleep 60 & child=$!; trap \'kill -s TERM "$child"\' TERM; while kill -0 "$child" 2>/dev/null; do wait "$child"; done';
+    const leader = spawn("/bin/bash", ["-c", script], { detached: true, stdio: "ignore" });
+    await new Promise((resolve) => leader.once("spawn", resolve));
+    const pid = Number(leader.pid);
+    strays.push(pid);
+    const hidden = await untilValue(
+      () => sessionMembers(pid).find((member) => member !== pid && alive(member)) ?? null,
+      { description: "the session's second process to start" }
+    );
+    const record = recordOf(pid);
+
+    const restore = failStatReads(hidden, "ESRCH");
+    let line;
+    try {
+      line = await command.sweepSession(pid, record, FAST);
+    } finally {
+      restore();
+    }
+
+    expect(line).toBe(
+      `the session of process ${pid} was swept: SIGTERM was sent to ${pid} (/bin/bash -c ${script}); then no process was found in it, and ${record} was removed`
+    );
+    expect(existsSync(record)).toBe(false);
+    expect(sessionMembers(pid)).toEqual([]);
+  });
+
+  it("names, with its command, each process still running after SIGKILL, and keeps the record", async () => {
+    const pid = await sleeper();
+    const record = recordOf(pid);
+    // A spy that sends nothing, so the process outlives both signals.
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    let observed;
+    try {
+      const line = await command.sweepSession(pid, record, FAST);
+      observed = { line, calls: [...kill.mock.calls] };
+    } finally {
+      kill.mockRestore();
+    }
+
+    expect(observed).toEqual({
+      line: `the session of process ${pid} was swept: SIGTERM was sent to ${pid} (/bin/sleep 60), and SIGKILL to ${pid} (/bin/sleep 60), still running 0.1 s later; still running: ${pid} (/bin/sleep 60), so ${record} is kept: \`ps -s ${pid}\` lists what is left, to end by hand`,
+      calls: [
+        [pid, "SIGTERM"],
+        [pid, "SIGKILL"],
+      ],
+    });
+    expect(existsSync(record)).toBe(true);
+    expect(alive(pid)).toBe(true);
+  });
+
+  it("says the session could not be swept to the end, and keeps the record, when a read of /proc fails otherwise", async () => {
+    const pid = await sleeper();
+    const record = recordOf(pid);
+
+    const restore = failStatReads(pid, "EACCES");
+    let line;
+    try {
+      line = await command.sweepSession(pid, record, FAST);
+    } finally {
+      restore();
+    }
+
+    expect(line).toBe(
+      `the session of process ${pid} could not be swept to the end (EACCES): ${record} is kept, and \`ps -s ${pid}\` lists any process still running`
+    );
+    expect(existsSync(record)).toBe(true);
+    expect(alive(pid)).toBe(true);
+  });
+
+  it("does not call the session empty, and keeps the record, on a host where /proc cannot be read", async () => {
+    const pid = await sleeper();
+    const record = recordOf(pid);
+    // A spy that sends nothing, so a stop that took the session for empty could reach no process.
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    const restore = hideProc();
+    let observed;
+    try {
+      const line = await command.sweepSession(pid, record, FAST);
+      observed = { line, calls: [...kill.mock.calls] };
+    } finally {
+      restore();
+      kill.mockRestore();
+    }
+
+    expect(observed).toEqual({
+      line: `the session of process ${pid} could not be swept to the end (ENOENT): ${record} is kept, and \`ps -s ${pid}\` lists any process still running`,
+      calls: [],
+    });
+    expect(existsSync(record)).toBe(true);
+    expect(alive(pid)).toBe(true);
+  });
+
+  it("does not call a session whose id the guard refuses empty, and keeps the record", async () => {
+    const record = recordOf(1);
+    // A spy that sends nothing: the guard is the subject, and init is not a process to signal.
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    let observed;
+    try {
+      const line = await command.sweepSession(1, record, FAST);
+      observed = { line, calls: [...kill.mock.calls] };
+    } finally {
+      kill.mockRestore();
+    }
+
+    expect(observed).toEqual({
+      line: `the session of process 1 could not be swept to the end (the guard refuses its id): ${record} is kept, and \`ps -s 1\` lists any process still running`,
+      calls: [],
+    });
+    expect(existsSync(record)).toBe(true);
+  });
+
+  it("names among those it sent SIGTERM and SIGKILL only the processes the signal reached: one it finds gone (ESRCH) is not named", async () => {
+    const script = "/bin/sleep 60 & wait";
+    const pid = await bashLeader(script);
+    const child = await untilValue(
+      () =>
+        sessionMembers(pid).find(
+          (member) => member !== pid && commandLine(member) === "/bin/sleep 60"
+        ) ?? null,
+      { description: "the session's sleep to start" }
+    );
+    const record = recordOf(pid);
+    // A spy that sends nothing, and answers ESRCH for the SIGTERM to the sleep and the SIGKILL to
+    // the leader, as a process that ended between the listing and the signal does.
+    const kill = vi
+      .spyOn(process, "kill")
+      .mockImplementation((target: number, name?: string | number) => {
+        if ((target === child && name === "SIGTERM") || (target === pid && name === "SIGKILL")) {
+          throw Object.assign(new Error(`kill ESRCH`), { code: "ESRCH" });
+        }
+        return true;
+      });
+    let line;
+    try {
+      line = await command.sweepSession(pid, record, FAST);
+    } finally {
+      kill.mockRestore();
+    }
+
+    const leaderName = `${pid} (/bin/bash -c ${script})`;
+    const childName = `${child} (/bin/sleep 60)`;
+    const both = pid < child ? `${leaderName}, ${childName}` : `${childName}, ${leaderName}`;
+    expect(line).toBe(
+      `the session of process ${pid} was swept: SIGTERM was sent to ${leaderName}, and SIGKILL to ${childName}, still running 0.1 s later; still running: ${both}, so ${record} is kept: \`ps -s ${pid}\` lists what is left, to end by hand`
+    );
+  });
+
+  it("does not count a process of the session that has ended and waits to be reaped", async () => {
+    // The leader becomes a sleep that never reaps its child, so the child stays a zombie.
+    const script = "/bin/sleep 0.3 & exec /bin/sleep 60";
+    const pid = await bashLeader(script);
+    const zombie = await untilValue(() => zombies(pid)[0] ?? null, {
+      description: "the leader's child to end unreaped",
+    });
+    const record = recordOf(pid);
+    // A spy that sends nothing, so the leader, and its zombie, outlive both signals.
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    let observed;
+    try {
+      const line = await command.sweepSession(pid, record, FAST);
+      observed = { line, calls: [...kill.mock.calls], zombie: zombies(pid) };
+    } finally {
+      kill.mockRestore();
+    }
+
+    expect(observed).toEqual({
+      line: `the session of process ${pid} was swept: SIGTERM was sent to ${pid} (/bin/sleep 60), and SIGKILL to ${pid} (/bin/sleep 60), still running 0.1 s later; still running: ${pid} (/bin/sleep 60), so ${record} is kept: \`ps -s ${pid}\` lists what is left, to end by hand`,
+      calls: [
+        [pid, "SIGTERM"],
+        [pid, "SIGKILL"],
+      ],
+      zombie: [zombie],
+    });
+  });
+
+  it("sends SIGKILL no sooner than the grace it states after SIGTERM", async () => {
+    const pid = await sleeper();
+    const record = recordOf(pid);
+    const timing = { graceMs: 1000, killWaitMs: 100 };
+    const sent: Array<{ name: string | number | undefined; at: number }> = [];
+    // A spy that sends nothing and notes when each signal would have gone, so the process outlives
+    // SIGTERM and the stop has to wait out its grace.
+    const kill = vi
+      .spyOn(process, "kill")
+      .mockImplementation((_target: number, name?: string | number) => {
+        sent.push({ name, at: Date.now() });
+        return true;
+      });
+    let line;
+    try {
+      line = await command.sweepSession(pid, record, timing);
+    } finally {
+      kill.mockRestore();
+    }
+
+    expect(sent.map(({ name }) => name)).toEqual(["SIGTERM", "SIGKILL"]);
+    expect(Number(sent[1]?.at) - Number(sent[0]?.at)).toBeGreaterThanOrEqual(timing.graceMs);
+    expect(line).toContain(`SIGKILL to ${pid} (/bin/sleep 60), still running 1 s later`);
   });
 });
