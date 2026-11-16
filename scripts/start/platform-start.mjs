@@ -1090,11 +1090,11 @@ function lastAnswer(status) {
 
 /**
  * @function notAnswered
- * @description The line of a wait that ran out, from what its last attempt found: the probe that
- *   did not answer 200, or, once it did, the page that did not, with the port and what that page
- *   answered.
+ * @description The line of a wait that ran out, from what its attempts found: the probe that did
+ *   not answer 200, or, once it did, the page that did not, with the port and the last answer an
+ *   attempt got from that page.
  * @param {App} app - The app, by its descriptor.
- * @param {Missing} missing - What the last attempt found.
+ * @param {Missing} missing - The furthest path the attempts reached, with its last answer.
  * @param {number} waitSeconds - How long the wait was.
  * @returns {string} One failure line.
  */
@@ -1103,9 +1103,13 @@ function notAnswered(app, missing, waitSeconds) {
   if (missing.path === app.probe) {
     return `${app.probe} on ${at} did not answer 200 within ${waitSeconds} s`;
   }
+  const answer =
+    missing.status === null
+      ? "nothing answered it"
+      : `the last answer it gave was ${missing.status}`;
   return (
     `${app.probe} on ${at} answered 200, but ${missing.path} there did not answer 200 within ` +
-    `${waitSeconds} s (the last time it was asked, ${lastAnswer(missing.status)})`
+    `${waitSeconds} s (${answer})`
   );
 }
 
@@ -1494,15 +1498,17 @@ async function startApp(root, app, waitSeconds) {
   const pidFile = path.join(root, app.record);
   const logFile = path.join(root, app.log);
   /**
-   * The furthest path the attempts of a wait reached without a 200, as the latest attempt that
-   * reached it found it; the probe until an attempt is made. An attempt that the end of the wait
-   * cuts short, or that finds the probe down again, says nothing of a page an earlier attempt got
-   * to, so it does not replace that page.
+   * The furthest path the attempts of a wait reached without a 200, with the last answer an
+   * attempt got from it; the probe until an attempt is made. An attempt that finds the probe down
+   * again says nothing of a page an earlier attempt got to, and an attempt that gets no answer
+   * from that path, because the end of the wait cut it short or its peer stayed silent, says
+   * nothing of the answer an earlier attempt got, so neither replaces what was found.
    */
   let last = /** @type {Missing} */ ({ path: probe, status: null });
   const order = [probe, ...(app.pages ?? [])];
   const keep = (/** @type {Missing} */ missing) => {
-    if (order.indexOf(missing.path) >= order.indexOf(last.path)) last = missing;
+    const further = order.indexOf(missing.path) - order.indexOf(last.path);
+    if (further > 0 || (further === 0 && missing.status !== null)) last = missing;
   };
   const ranOut = () => notAnswered(app, last, waitSeconds);
 

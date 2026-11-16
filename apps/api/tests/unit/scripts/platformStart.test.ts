@@ -347,7 +347,9 @@ process.on("SIGTERM", () => {
  * cannot be reached, as the portal's proxy does; every other path is a 404. `page500` is DEF-85's
  * shape, `/api/health` 200 and `/en/login` 500; `redirect307` answers `/en/login` with a 307 whose
  * `Location` is `/api/health`, which answers 200, so only a run that follows redirects would take
- * the page for answered; `backend503` answers `/api/backend/health` with
+ * the page for answered; `page500ThenSilent` answers the first `/en/login` with 500 and leaves every
+ * later one unanswered, as a page whose last attempt the end of a wait cuts short; `backend503`
+ * answers `/api/backend/health` with
  * 503 as an unreachable API makes the proxy do; `silent` takes the connection and never answers;
  * `exit` ends at once with a line on stderr. On SIGTERM it says it stopped and ends with 0.
  */
@@ -370,9 +372,12 @@ async function backend() {
     return 503;
   }
 }
+let pagesAsked = 0;
 const server = createServer(async (request, response) => {
   if (mode === "silent") return;
+  if (request.url === "/en/login" && mode === "page500ThenSilent" && pagesAsked++ > 0) return;
   if (request.url === "/api/health") response.statusCode = 200;
+  else if (request.url === "/en/login" && mode === "page500ThenSilent") response.statusCode = 500;
   else if (request.url === "/en/login" && mode === "redirect307") {
     response.statusCode = 307;
     response.setHeader("Location", "/api/health");
@@ -2709,7 +2714,7 @@ describe("the administration portal stage", () => {
     expect(result.stderr).toMatch(
       ranOutLines(
         staged,
-        `/api/health on ${literal(at(staged))} answered 200, but /api/backend/health there did not answer 200 within 2 s \\(the last time it was asked, it answered 503\\)`,
+        `/api/health on ${literal(at(staged))} answered 200, but /api/backend/health there did not answer 200 within 2 s \\(the last answer it gave was 503\\)`,
         "ok"
       )
     );
@@ -2771,13 +2776,33 @@ describe("the administration portal stage", () => {
     expect(result.code).toBe(1);
     const said = ranOutLines(
       staged,
-      `/api/health on ${literal(at(staged))} answered 200, but /en/login there did not answer 200 within 2 s \\(the last time it was asked, it answered 500\\)`,
+      `/api/health on ${literal(at(staged))} answered 200, but /en/login there did not answer 200 within 2 s \\(the last answer it gave was 500\\)`,
       "page500"
     );
     expect(result.stderr).toMatch(said);
     expect(sessionMembers(Number(said.exec(result.stderr)?.[1]))).toEqual([]);
     expect(recordedIn(staged.root, "admin.pid")).toBeNull();
     expect(await statusOf(staged.adminPort, "/api/health")).toBeNull();
+    expect(await apiAndWorkersAnswer(staged)).toBe(true);
+  });
+
+  it("keeps the last answer the page gave when the wait's last attempt at it gets none: a page that answered 500 and then stays silent is named with the 500, never as unanswered", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "2"],
+      asked(staged, { FAKE_ADMIN_MODE: "page500ThenSilent" })
+    );
+
+    expect(result.code).toBe(1);
+    const said = ranOutLines(
+      staged,
+      `/api/health on ${literal(at(staged))} answered 200, but /en/login there did not answer 200 within 2 s \\(the last answer it gave was 500\\)`,
+      "page500ThenSilent"
+    );
+    expect(result.stderr).toMatch(said);
+    expect(sessionMembers(Number(said.exec(result.stderr)?.[1]))).toEqual([]);
+    expect(recordedIn(staged.root, "admin.pid")).toBeNull();
     expect(await apiAndWorkersAnswer(staged)).toBe(true);
   });
 
@@ -2792,7 +2817,7 @@ describe("the administration portal stage", () => {
     expect(result.code).toBe(1);
     const said = ranOutLines(
       staged,
-      `/api/health on ${literal(at(staged))} answered 200, but /en/login there did not answer 200 within 2 s \\(the last time it was asked, it answered 307\\)`,
+      `/api/health on ${literal(at(staged))} answered 200, but /en/login there did not answer 200 within 2 s \\(the last answer it gave was 307\\)`,
       "redirect307"
     );
     expect(result.stderr).toMatch(said);
@@ -2813,7 +2838,7 @@ describe("the administration portal stage", () => {
     expect(result.stderr).toMatch(
       ranOutLines(
         staged,
-        `/api/health on ${literal(at(staged))} answered 200, but /api/backend/health there did not answer 200 within 2 s \\(the last time it was asked, it answered 503\\)`,
+        `/api/health on ${literal(at(staged))} answered 200, but /api/backend/health there did not answer 200 within 2 s \\(the last answer it gave was 503\\)`,
         "backend503"
       )
     );
