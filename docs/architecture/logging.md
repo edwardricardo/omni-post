@@ -53,7 +53,7 @@ const baseOptions: LoggerOptions = {
 };
 ```
 
-The list itself, with the threat each entry mitigates, is `REDACT_PATHS` in `packages/observability/logger/src/index.ts`: the credential field names at the top level (`password`, `token`, `apiKey`, `appPassword`, `clientSecret`, `botToken`, `mfaSecret`, `webhookUrl`, …), their nested forms (`*.token`, `*.accessToken`, `*.credentials`, `*.*.token`, `*.*.secret`, …) and the request headers (`req.headers.authorization`, `req.headers.cookie`, `res.headers["set-cookie"]`).
+The list itself, with the threat each added entry mitigates, is `REDACT_PATHS` in `packages/observability/logger/src/index.ts`: the credential field names at the top level (`password`, `token`, `apiKey`, `appPassword`, `clientSecret`, `botToken`, `mfaSecret`, `webhookUrl`, …), their nested forms (`*.token`, `*.accessToken`, `*.credentials`, `*.*.token`, `*.*.secret`, …) and the request headers (`req.headers.authorization`, `req.headers.cookie`, `res.headers["set-cookie"]`).
 
 If a developer creates a side `pino()` instance without these paths, **the redaction is silently bypassed**. There's no compile-time check or runtime warning. Logs get aggregated, the secret is in plain text, and the threat-model assumes secrets never reach disk — but they did. That class of bug is exactly OWASP A09:2025 (Security Logging and Alerting Failures).
 
@@ -200,7 +200,7 @@ Hexagonal purity would suggest a `LoggerPort` interface in `apps/api/src/domain/
 
 **Reason 1: domain doesn't log.** CLAUDE.md rule: "Domain layer: zero logging". Domain entities/value-objects don't have a logger dependency to abstract.
 
-**Reason 2: pino types are de-facto canonical.** Hundreds of files in the codebase import `Logger` from `pino`. A formal port abstraction would require touching all of them and the gain is negligible — pino is the implementation, would be the implementation, and the type re-export `lib/logger.ts:198` already keeps callers from coupling to pino's package path directly.
+**Reason 2: pino types are de-facto canonical.** Hundreds of files in the codebase import `Logger` from `pino`. A formal port abstraction would require touching all of them and the gain is negligible — pino is the implementation, would be the implementation, and the type re-export `lib/logger.ts:186` already keeps callers from coupling to pino's package path directly.
 
 **Reason 3: Cockburn alternative.** The hexagonal architecture canon explicitly mentions the **decorator + factory** pattern as a valid alternative for cross-cutting concerns where a full port would add ceremony without payoff. Logging is the textbook example.
 
