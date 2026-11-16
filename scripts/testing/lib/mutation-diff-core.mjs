@@ -29,10 +29,13 @@
  *   deletion is SAFE when the deleted block is red at the base and a scope test is red at the head,
  *   LOST when no scope test is red at the head, VACUOUS when the deleted block is green at the base
  *   under the mutation. A listed block with no passed or failed result is `block-missing`, so it is
- *   never GAIN or SAFE. Either kind is BEHAVIOUR-CHANGED, ahead of `base-red-clean`, when its base
- *   clean run is red on listed blocks alone, at least one of them, and its head clean run is green:
- *   the old test fails on the new code, a fact measured, not declared. Any other clean-run red stays
- *   UNDECIDED.
+ *   never GAIN or SAFE. Either kind is BEHAVIOUR-CHANGED, ahead of `base-red-clean`, when its head
+ *   clean run is green and its base clean run is red on listed blocks alone, at least one of them
+ *   the case's own: a block counts as listed when this case lists it or another case of the same
+ *   case file over the same test file does, also one `--only` leaves out, because a case holds
+ *   one kind and a change that deletes one block and rewrites another fails the old file on both.
+ *   The old test fails on the new code, a fact measured, not declared. Any other clean-run red,
+ *   a red on another case's blocks with none of the case's own among them included, stays UNDECIDED.
  *
  *   DETERMINISTIC. Every object of the record is written with its keys in code-unit order, its
  *   cases by id and every list sorted, with no clock and no path outside the repository, so the
@@ -165,6 +168,9 @@ const MESSAGE_LIMIT = 200;
  * @property {Readonly<Record<string, Readonly<Record<Side, Resolution>>>>} resolutions
  * @property {Readonly<Record<Side, { clean: Run, mutated: Run }>>} runs
  * @property {Readonly<Record<Side, readonly string[]>>} files The scope files that run on each side.
+ * @property {readonly Resolution[]} [peers] The base-side resolutions of the blocks that the other
+ *   cases of the same case file over the same test list, those `--only` leaves out included; a
+ *   red block among them does not keep a behaviour change undecided. None when left out.
  */
 
 /**
@@ -493,7 +499,7 @@ function onlyListedRed(run, files, test, listed) {
  * @param {DecideInput} input
  * @returns {Decided}
  */
-export function decide({ kind, test, blocks, searchFound, resolutions, runs, files }) {
+export function decide({ kind, test, blocks, searchFound, resolutions, runs, files, peers = [] }) {
   /** @type {(reason: string, red?: { base: string[], head: string[] }) => Decided} */
   const undecided = (reason, red = { base: [], head: [] }) => ({
     verdict: "UNDECIDED",
@@ -529,8 +535,16 @@ export function decide({ kind, test, blocks, searchFound, resolutions, runs, fil
   const baseClean = redOf(runs.base.clean, files.base);
   const headClean = redOf(runs.head.clean, files.head);
   if (baseClean.length > 0) {
-    const listed = blocks.map((id) => resolutions[id]?.base);
-    if (headClean.length === 0 && onlyListedRed(runs.base.clean, files.base, test, listed)) {
+    const own = blocks.map((id) => resolutions[id]?.base);
+    const ownRed = own.some(
+      (resolution) =>
+        resolution !== undefined && blockState(runs.base.clean, test, resolution) === "red"
+    );
+    if (
+      headClean.length === 0 &&
+      ownRed &&
+      onlyListedRed(runs.base.clean, files.base, test, [...own, ...peers])
+    ) {
       return { verdict: "BEHAVIOUR-CHANGED", reason: null, red: { base: baseClean, head: [] } };
     }
     return undecided("base-red-clean", { base: baseClean, head: [] });

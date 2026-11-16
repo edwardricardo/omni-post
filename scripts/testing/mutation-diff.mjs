@@ -16,8 +16,10 @@
  *   and the record are `lib/mutation-diff-core.mjs`'s. A rewrite counts (GAIN) only when no scope
  *   test is red at the base under the mutation and every listed block is red at the head; a
  *   deletion counts (SAFE) only when the deleted block is red at the base and a kept test is red at
- *   the head. Either kind is BEHAVIOUR-CHANGED when the base clean run is red on its listed blocks
- *   alone and the head clean run is green: the old test fails on the new code, measured. A scope
+ *   the head. Either kind is BEHAVIOUR-CHANGED when the head clean run is green and the base clean
+ *   run is red on listed blocks alone, at least one of them the case's own, a block that another
+ *   case of the case file over the same test lists counting as listed (`--only` narrows the cases
+ *   that run, never these blocks): the old test fails on the new code, measured. A scope
  *   file that fails to load on a clean run, with no test at all, leaves the case UNDECIDED by the
  *   side it failed on: `base-unreadable`, `head-unreadable`, or `both-unreadable` when it failed on
  *   both, which points at the environment the runs share (a missing test env file, say) rather than
@@ -67,7 +69,9 @@
  *   occurrence; (2) the realistic mutation stays a human choice, and the tool proves only what that
  *   one mutation shows; (3) whole files run, so a test's neighbours run with it; (4) node:test's live tier and a
  *   row no collector runs are refused, never run; (5) a flaky clean run is UNDECIDED, never a verdict, unless its red
- *   falls on the listed blocks alone at the base, which reads as BEHAVIOUR-CHANGED; (6) a test file
+ *   falls at the base on listed blocks alone, the case's own or another case's over the same test,
+ *   one of the case's own among them, which reads as BEHAVIOUR-CHANGED, and the record names each red
+ *   test without saying which case lists it; (6) a test file
  *   the working tree lacks (a test the head deleted whole, say) runs from a copy under the scratch
  *   directory, its imports and mocks resolved from its own path, so `import.meta.url`, `__dirname`
  *   and a path it reads relative to itself see the copy, and a glob character in its path is
@@ -806,12 +810,14 @@ async function scopeRun(
  * @description Decides one case: its scope on each side, its blocks on each side, its four runs (one
  *   side and state each, merged from one run per runner group, the clean ones shared with any case
  *   of the same side, ref, runner and group files) and its verdict. A case whose search, base scope
- *   or blocks already decide it runs nothing.
+ *   or blocks already decide it runs nothing. The blocks the file's other cases over the same test
+ *   list are resolved on this case's base, as the peers its behaviour change reads.
  * @param {Context} context
  * @param {Case} spec
+ * @param {readonly Case[]} cases Every case of the case file, also those `--only` leaves out.
  * @returns {Promise<{ entry: Record<string, unknown>, decided: import("./lib/mutation-diff-core.mjs").Decided }>}
  */
-async function decideCase(context, spec) {
+async function decideCase(context, spec, cases) {
   const { root } = context;
   const baseRef = context.bases.get(spec.base ?? context.base) ?? "";
   const runner = runnerFor(context, spec, baseRef) ?? "";
@@ -836,6 +842,16 @@ async function decideCase(context, spec) {
         head: blocks.head === null ? { state: "missing" } : resolveBlock(blocks.head, id),
       },
     ])
+  );
+  const peerIds = new Set(
+    cases
+      .filter((other) => other !== spec && other.test === spec.test)
+      .flatMap((other) => other.blocks)
+      .filter((id) => !spec.blocks.includes(id))
+  );
+  /** @type {Resolution[]} */
+  const peers = [...peerIds].map((id) =>
+    blocks.base === null ? { state: "missing" } : resolveBlock(blocks.base, id)
   );
   const files = { base: base.files, head: head.files };
   const ready =
@@ -906,6 +922,7 @@ async function decideCase(context, spec) {
     resolutions,
     runs,
     files,
+    peers,
   });
   const ownBase = spec.base === undefined ? null : baseRef;
   return {
@@ -1045,7 +1062,7 @@ async function mutationRun(options, seams) {
   }
   try {
     const results = [];
-    for (const spec of selected) results.push(await decideCase(context, spec));
+    for (const spec of selected) results.push(await decideCase(context, spec, parsed.value));
     const baseSha = bases.get(options.base) ?? "";
     const record = recordOf({
       head: head ?? "worktree",

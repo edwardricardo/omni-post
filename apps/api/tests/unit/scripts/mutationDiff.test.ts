@@ -95,6 +95,8 @@ interface DecideInput {
   readonly resolutions: Readonly<Record<string, Readonly<Record<Side, Resolution>>>>;
   readonly runs: Readonly<Record<Side, { readonly clean: Run; readonly mutated: Run }>>;
   readonly files: Readonly<Record<Side, readonly string[]>>;
+  /** The base-side resolutions of the blocks the file's other cases over the same test list. */
+  readonly peers?: readonly Resolution[];
 }
 
 type MutationDiffCore = {
@@ -837,6 +839,103 @@ describe("decide: a behaviour change measured on the clean runs", () => {
       verdict: "UNDECIDED",
       reason: "base-red-clean",
       red: { base: [`${T}::s > target`, `${O}::(the file failed)`], head: [] },
+    });
+  });
+});
+
+describe("decide: a base red on blocks another case of the file lists", () => {
+  const deleted = `${T}::deleted`;
+  const rewritten = `${T}::rewritten`;
+  /** A base clean run of the test file with `deleted` and `rewritten` at the given states. */
+  const baseOf = (deletedState: string, rewrittenState: string, kept = PASS): Run =>
+    run({
+      [T]: [
+        ["s", "kept", kept],
+        ["s", "deleted", deletedState],
+        ["s", "rewritten", rewrittenState],
+      ],
+      [O]: [["o", "other", PASS]],
+    });
+  const headGreen = (): Run =>
+    run({
+      [T]: [
+        ["s", "kept", PASS],
+        ["s", "rewritten", PASS],
+      ],
+      [O]: [["o", "other", PASS]],
+    });
+  const deletionInput = (base: Run): DecideInput =>
+    input({
+      kind: "deletion",
+      blocks: [deleted],
+      resolutions: { [deleted]: { base: found(["s"], "deleted"), head: MISSING } },
+      peers: [found(["s"], "rewritten")],
+      runs: {
+        base: { clean: base, mutated: base },
+        head: { clean: headGreen(), mutated: headGreen() },
+      },
+    });
+  const rewriteInput = (base: Run): DecideInput =>
+    input({
+      kind: "rewrite",
+      blocks: [rewritten],
+      resolutions: {
+        [rewritten]: { base: found(["s"], "rewritten"), head: found(["s"], "rewritten") },
+      },
+      peers: [found(["s"], "deleted")],
+      runs: {
+        base: { clean: base, mutated: base },
+        head: { clean: headGreen(), mutated: headGreen() },
+      },
+    });
+
+  it("gives a deletion BEHAVIOUR-CHANGED when the base is red on its block and on a rewrite case's block of the same file", () => {
+    const decided = core.decide(deletionInput(baseOf(FAIL, FAIL)));
+
+    expect(decided).toEqual({
+      verdict: "BEHAVIOUR-CHANGED",
+      reason: null,
+      red: { base: [`${T}::s > deleted`, `${T}::s > rewritten`], head: [] },
+    });
+  });
+
+  it("gives a rewrite BEHAVIOUR-CHANGED when the base is red on its block and on a deletion case's block of the same file", () => {
+    const decided = core.decide(rewriteInput(baseOf(FAIL, FAIL)));
+
+    expect(decided).toEqual({
+      verdict: "BEHAVIOUR-CHANGED",
+      reason: null,
+      red: { base: [`${T}::s > deleted`, `${T}::s > rewritten`], head: [] },
+    });
+  });
+
+  it("keeps UNDECIDED base-red-clean when the base is also red on a block no case of the file lists", () => {
+    const decided = core.decide(deletionInput(baseOf(FAIL, FAIL, FAIL)));
+
+    expect(decided).toEqual({
+      verdict: "UNDECIDED",
+      reason: "base-red-clean",
+      red: { base: [`${T}::s > deleted`, `${T}::s > kept`, `${T}::s > rewritten`], head: [] },
+    });
+  });
+
+  it("keeps UNDECIDED base-red-clean when the base is red only on another case's block, none of its own", () => {
+    const decided = core.decide(deletionInput(baseOf(PASS, FAIL)));
+
+    expect(decided).toEqual({
+      verdict: "UNDECIDED",
+      reason: "base-red-clean",
+      red: { base: [`${T}::s > rewritten`], head: [] },
+    });
+  });
+
+  it("does not count a peer block that the base does not hold", () => {
+    const decided = core.decide({ ...deletionInput(baseOf(FAIL, FAIL)), peers: [MISSING] });
+
+    expect(decided).toEqual({
+      verdict: "UNDECIDED",
+      reason: "base-red-clean",
+      red: { base: [`${T}::s > deleted`, `${T}::s > rewritten`], head: [] },
     });
   });
 });
@@ -1671,6 +1770,100 @@ describe("main", () => {
 
     expect([result.code, result.record]).toEqual([3, null]);
     expect(result.output).toContain("the runner did not start: spawn ENOENT");
+  });
+});
+
+describe("main: a base red that falls on the blocks of two cases of one test file", () => {
+  const READS = `${SUBJECT_TEST}::subject > reads the limit`;
+  const PINS = `${SUBJECT_TEST}::subject > pins the limit`;
+  /** The deletion of "reads the limit", beside the rewrite of "pins the limit" `makeCase` gives. */
+  const dropsRead = makeCase({
+    id: "drops-read",
+    kind: "deletion",
+    blocks: [`${SUBJECT_TEST}::reads the limit`],
+  });
+  const baseClean = (titles: readonly string[]) => (vitestRun: VitestRun) =>
+    vitestRun.side === "base" && !vitestRun.mutated ? titles : [];
+  const verdictOf = (record: string | null, id: string): unknown[] => {
+    const entry = caseOf(record, id);
+    return [entry?.["verdict"], entry?.["reason"], entry?.["red"]];
+  };
+
+  it("gives the deletion and the rewrite BEHAVIOUR-CHANGED when the base is red on both cases' blocks alone", async () => {
+    const { root, base } = plantRepository();
+    const vitest = fakeVitest({ failing: baseClean(["reads the limit", "pins the limit"]) });
+
+    const result = await command(root, [makeCase(), dropsRead], vitest.exec, ["--base", base]);
+
+    expect(result.code).toBe(0);
+    expect(verdictOf(result.record, "drops-read")).toEqual([
+      "BEHAVIOUR-CHANGED",
+      undefined,
+      { base: [PINS, READS], head: [] },
+    ]);
+    expect(verdictOf(result.record, "pins-limit")).toEqual([
+      "BEHAVIOUR-CHANGED",
+      undefined,
+      { base: [PINS, READS], head: [] },
+    ]);
+  });
+
+  it("reads the other case's blocks from the whole case file when --only names one case", async () => {
+    const { root, base } = plantRepository();
+    const vitest = fakeVitest({ failing: baseClean(["reads the limit", "pins the limit"]) });
+
+    const result = await command(root, [makeCase(), dropsRead], vitest.exec, [
+      "--base",
+      base,
+      "--only",
+      "drops-read",
+    ]);
+
+    expect(result.code).toBe(0);
+    expect(
+      (JSON.parse(result.record ?? "{}").cases as { id: string }[]).map((entry) => entry.id)
+    ).toEqual(["drops-read"]);
+    expect(verdictOf(result.record, "drops-read")).toEqual([
+      "BEHAVIOUR-CHANGED",
+      undefined,
+      { base: [PINS, READS], head: [] },
+    ]);
+  });
+
+  it("keeps the case whose own block is green at the base UNDECIDED, while the case whose block is red changed", async () => {
+    const { root, base } = plantRepository();
+    const vitest = fakeVitest({ failing: baseClean(["pins the limit"]) });
+
+    const result = await command(root, [makeCase(), dropsRead], vitest.exec, ["--base", base]);
+
+    expect(result.code).toBe(1);
+    expect(verdictOf(result.record, "drops-read")).toEqual([
+      "UNDECIDED",
+      "base-red-clean",
+      { base: [PINS], head: [] },
+    ]);
+    expect(verdictOf(result.record, "pins-limit")).toEqual([
+      "BEHAVIOUR-CHANGED",
+      undefined,
+      { base: [PINS], head: [] },
+    ]);
+  });
+
+  it("keeps both cases UNDECIDED when the base is also red on a test no case of the file lists", async () => {
+    const { root, base } = plantRepository();
+    const vitest = fakeVitest({
+      failing: baseClean(["reads the limit", "pins the limit", "uses the limit"]),
+    });
+
+    const result = await command(root, [makeCase(), dropsRead], vitest.exec, ["--base", base]);
+
+    expect(result.code).toBe(1);
+    const red = {
+      base: ["pkg/tests/other.test.ts::other > uses the limit", PINS, READS],
+      head: [],
+    };
+    expect(verdictOf(result.record, "drops-read")).toEqual(["UNDECIDED", "base-red-clean", red]);
+    expect(verdictOf(result.record, "pins-limit")).toEqual(["UNDECIDED", "base-red-clean", red]);
   });
 });
 
