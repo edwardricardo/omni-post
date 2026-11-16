@@ -142,7 +142,7 @@ type SortDirection = "asc" | "desc";
 /** One `orderBy` clause of `auditLog.groupBy`: a count of the group, or the grouped field. */
 type GroupOrderBy = Record<string, SortDirection | Record<string, SortDirection>>;
 
-/** The arguments of `auditLog.groupBy` the double reads. */
+/** The arguments of `auditLog.groupBy` that the double reads; any other shape is refused. */
 interface GroupByArgs {
   by: string[];
   where?: Record<string, unknown>;
@@ -168,9 +168,12 @@ function compareGroups(a: Group, b: Group, clauses: GroupOrderBy[], groupField: 
     for (const [key, spec] of Object.entries(clause)) {
       let order: number;
       if (key === "_count" && typeof spec === "object") {
-        const [countOrder] = Object.entries(spec);
-        if (countOrder === undefined) throw new Error("auditLogGroupBy double: empty _count order");
-        const [field, direction] = countOrder;
+        const countClauses = Object.entries(spec);
+        const [entry] = countClauses;
+        if (entry === undefined || countClauses.length > 1) {
+          throw new Error("auditLogGroupBy double: a _count order names exactly one field");
+        }
+        const [field, direction] = entry;
         const countA = a._count[field];
         const countB = b._count[field];
         if (countA === undefined || countB === undefined) {
@@ -197,7 +200,10 @@ function compareGroups(a: Group, b: Group, clauses: GroupOrderBy[], groupField: 
  */
 function groupEntries(entries: Array<Record<string, unknown>>, args: GroupByArgs): Group[] {
   const filtered = args.where ? filterEntries(entries, args.where) : [...entries];
-  const groupField = args.by[0] ?? "";
+  const [groupField] = args.by;
+  if (groupField === undefined || args.by.length > 1) {
+    throw new Error("auditLogGroupBy double: groups by exactly one field");
+  }
   const countField = args._count ? (Object.keys(args._count)[0] ?? groupField) : groupField;
   const groups = new Map<unknown, Array<Record<string, unknown>>>();
 
