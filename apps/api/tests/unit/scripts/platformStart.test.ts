@@ -2336,7 +2336,8 @@ describe("the workers stage", () => {
     expect(withPort.stderr).toBe(
       "platform-start: PORT=0 is not a port\nplatform-start: METRICS_PORT=x is not a port\n"
     );
-    expect(existsSync(staged.file)).toBe(false);
+    // Read through the directory listing, not a check of the path the case writes next.
+    expect(readdirSync(staged.root)).not.toContain(path.basename(staged.file));
 
     writeEnvironment(staged.file, [], listening(staged));
     appendFileSync(staged.file, "METRICS_PORT=abc\n");
