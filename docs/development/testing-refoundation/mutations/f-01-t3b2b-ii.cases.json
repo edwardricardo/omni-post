@@ -1,0 +1,27 @@
+[
+  {
+    "id": "t3b2b-ii-01-a-pnpm-that-ended-first-is-swept",
+    "kind": "deletion",
+    "test": "apps/api/tests/unit/scripts/platformStart.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/platformStart.test.ts::does not claim anything about the processes it did not check when pnpm ended first and left the API running, and sends them no signal"
+    ],
+    "subject": "scripts/start/platform-start.mjs",
+    "search": "      lines.push(await sweepSession(pid, pidFile));",
+    "replace": "      if (state.ended === null) lines.push(await sweepSession(pid, pidFile));",
+    "note": "When the pnpm process the run started ends before /health answers 200, the command now sweeps that pnpm's session as it does when the wait runs out: SIGTERM to each process of the session, SIGKILL 10 s later to any still running, each named, and the pid file removed only once none is left. Before, it sent no signal, said that the other processes of the session were not checked and removed the pid file. One block of the base leaves the suite: it expected that line, an API double left running and unsignalled after pnpm ended, and a second run refused by the port that API still held. The head replaces it with a block, under a title that names the sweep, that tests the stop. The base file fails on this block and on the two blocks case t3b2b-ii-02 rewrites, and on nothing else; at the head the suite passes. That result of the clean runs alone gives the verdict, the two rewritten blocks counting as listed because the other case of this file lists them. The suite runs the command as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case are never applied to the runs that decide it."
+  },
+  {
+    "id": "t3b2b-ii-02-the-messages-of-a-pnpm-that-ended-first",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/scripts/platformStart.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, with the last lines of the log, when the API exits while the run waits, and a second run goes on from there",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a port that something else holds, names it, and starts no API"
+    ],
+    "subject": "scripts/start/platform-start.mjs",
+    "search": "the port may be held by anything; no API was started",
+    "replace": "the port may be held by anything, an API whose record was removed when its pnpm ended included; no API was started",
+    "note": "Two blocks keep their titles and change what they expect, because a pnpm that ends first is now swept. The block where the API exits while the run waits expected the line that the other processes of the session were not checked; it now expects the line that the session was swept, found empty, and the pid file removed. The block where something else holds the port expected the refusal to name, among what may hold it, an API whose record was removed when its pnpm ended; no run removes a record that way any more, so the refusal drops that clause. The base file fails on these two blocks and on the block case t3b2b-ii-01 deletes, and on nothing else; at the head the suite passes. That result of the clean runs alone gives the verdict, the deleted block counting as listed because the other case of this file lists it. The suite runs the command as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case are never applied to the runs that decide it."
+  }
+]
