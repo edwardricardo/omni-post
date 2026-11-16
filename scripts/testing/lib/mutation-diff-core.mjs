@@ -32,7 +32,7 @@
  *   never GAIN or SAFE. Either kind is BEHAVIOUR-CHANGED, ahead of `base-red-clean`, when its head
  *   clean run is green and its base clean run is red on listed blocks alone, at least one of them
  *   the case's own: a block counts as listed when this case lists it or another case of the same
- *   case file over the same test file does, whichever cases `--only` selects, because a case holds
+ *   case file over the same test file does, also one `--only` leaves out, because a case holds
  *   one kind and a change that deletes one block and rewrites another fails the old file on both.
  *   The old test fails on the new code, a fact measured, not declared. Any other clean-run red,
  *   a red on another case's blocks with none of the case's own among them included, stays UNDECIDED.
@@ -169,7 +169,7 @@ const MESSAGE_LIMIT = 200;
  * @property {Readonly<Record<Side, { clean: Run, mutated: Run }>>} runs
  * @property {Readonly<Record<Side, readonly string[]>>} files The scope files that run on each side.
  * @property {readonly Resolution[]} [peers] The base-side resolutions of the blocks that the other
- *   cases of the same case file over the same test list, whichever of them `--only` selects; a
+ *   cases of the same case file over the same test list, those `--only` leaves out included; a
  *   red block among them does not keep a behaviour change undecided. None when left out.
  */
 

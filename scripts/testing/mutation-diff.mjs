@@ -814,7 +814,7 @@ async function scopeRun(
  *   list are resolved on this case's base, as the peers its behaviour change reads.
  * @param {Context} context
  * @param {Case} spec
- * @param {readonly Case[]} cases Every case of the case file, whichever `--only` selects.
+ * @param {readonly Case[]} cases Every case of the case file, also those `--only` leaves out.
  * @returns {Promise<{ entry: Record<string, unknown>, decided: import("./lib/mutation-diff-core.mjs").Decided }>}
  */
 async function decideCase(context, spec, cases) {
