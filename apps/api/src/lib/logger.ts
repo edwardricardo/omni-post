@@ -6,42 +6,18 @@
  */
 
 import pino, { Logger, LoggerOptions } from "pino";
+import { REDACT_CENSOR, REDACT_PATHS } from "@observability/logger";
 import { env } from "../config/env.js";
-
-/**
- * Sensitive fields to redact from logs
- */
-const REDACT_PATHS = [
-  "password",
-  "token",
-  "apiKey",
-  "apiSecret",
-  "accessToken",
-  "accessTokenSecret",
-  "refreshToken",
-  "bearerToken",
-  "secret",
-  "credentials",
-  "authorization",
-  "cookie",
-  "*.password",
-  "*.token",
-  "*.apiKey",
-  "*.secret",
-  "req.headers.authorization",
-  "req.headers.cookie",
-  // Use bracket notation for hyphenated keys
-  'res.headers["set-cookie"]',
-];
 
 /**
  * Base logger options
  */
 const baseOptions: LoggerOptions = {
   level: env.LOG_LEVEL || "info",
+  // The one list every logger applies lives in `@observability/logger` (ADR-0034, decision 8).
   redact: {
-    paths: REDACT_PATHS,
-    censor: "[REDACTED]",
+    paths: [...REDACT_PATHS],
+    censor: REDACT_CENSOR,
   },
   formatters: {
     level: (label) => ({ level: label }),

@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1203  |
+| Files                   | 1205  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1039  |
+| KEEP                    | 1041  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1193  |
+| Machine rows            | 1195  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14941 |
+| Blocks                  | 14949 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -867,6 +867,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/lib/hardDeleteErrorMapping.test.ts`                                              | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/loggerPortContract.test.ts`                                                  | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/loggerPortContract.type-test.ts`                                             | helper           | 0      | 0          | KEEP       | machine                     | imported             |
+| `apps/api/tests/unit/lib/loggerRedaction.test.ts`                                                     | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/redisSubscriber.test.ts`                                                     | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/retry/backoff.test.ts`                                                       | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/lib/retry/retryAfter.test.ts`                                                    | test             | 20     | 0          | KEEP       | machine                     | behavioural          |
@@ -1274,6 +1275,7 @@ Deleted: 0 files, 31 blocks.
 | `packages/observability/background-scheduler/tests/noop-scheduler.test.ts`                            | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/browser-logger/tests/console-adapter.test.ts`                                 | test             | 17     | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/browser-logger/tests/port.test.ts`                                            | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
+| `packages/observability/logger/tests/redaction.test.ts`                                               | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fastifyRouteSpans.test.ts`                                | test             | 4      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/fsSpans.test.ts`                                          | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
 | `packages/observability/opentelemetry/tests/httpProviderSpans.test.ts`                                | test             | 8      | 0          | KEEP       | machine                     | behavioural          |

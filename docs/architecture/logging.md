@@ -12,7 +12,7 @@
 │                               (redaction + "omnipost-api" binding)   │
 │                                                                      │
 │  packages/**                → createLogger() from @observability/    │
-│  (shared, no req payloads)    logger (lightweight, no redaction)     │
+│  (shared, no req payloads)    logger (redacts REDACT_PATHS)          │
 │                                                                      │
 │  apps/admin, apps/client    → useLogger() from @observability/       │
 │  (browser code)               browser-logger (Sentry/console adapter)│
@@ -41,32 +41,19 @@ The api process touches:
 
 A single `logger.info({ user })` where `user.apiKey` exists would leak the credential to the log aggregator. Pino's `redact: { paths, censor }` mechanism solves this — but **only if the logger instance is created with the redaction config**.
 
-That's why the api factory enforces:
+That's why the api factory enforces `redact` with `REDACT_PATHS`, the one list it imports from `@observability/logger` (ADR-0034, decision 8):
 
 ```typescript
-// apps/api/src/lib/logger.ts:13-34
-const REDACT_PATHS = [
-  "password",
-  "token",
-  "apiKey",
-  "apiSecret",
-  "accessToken",
-  "accessTokenSecret",
-  "refreshToken",
-  "bearerToken",
-  "secret",
-  "credentials",
-  "authorization",
-  "cookie",
-  "*.password",
-  "*.token",
-  "*.apiKey",
-  "*.secret", // wildcard nested
-  "req.headers.authorization",
-  "req.headers.cookie",
-  'res.headers["set-cookie"]', // bracket syntax for hyphenated
-];
+// apps/api/src/lib/logger.ts
+import { REDACT_CENSOR, REDACT_PATHS } from "@observability/logger";
+
+const baseOptions: LoggerOptions = {
+  // ...
+  redact: { paths: [...REDACT_PATHS], censor: REDACT_CENSOR },
+};
 ```
+
+The list itself, with the threat each entry mitigates, is `REDACT_PATHS` in `packages/observability/logger/src/index.ts`: the credential field names at the top level (`password`, `token`, `apiKey`, `appPassword`, `clientSecret`, `botToken`, `mfaSecret`, `webhookUrl`, …), their nested forms (`*.token`, `*.accessToken`, `*.credentials`, `*.*.token`, `*.*.secret`, …) and the request headers (`req.headers.authorization`, `req.headers.cookie`, `res.headers["set-cookie"]`).
 
 If a developer creates a side `pino()` instance without these paths, **the redaction is silently bypassed**. There's no compile-time check or runtime warning. Logs get aggregated, the secret is in plain text, and the threat-model assumes secrets never reach disk — but they did. That class of bug is exactly OWASP A09:2025 (Security Logging and Alerting Failures).
 
@@ -74,24 +61,24 @@ The factory enforces the redaction at the only layer that's compile-time visible
 
 ### `@observability/logger` — shared packages
 
-Packages like `@adapters/db-prisma`, `@adapters/queue-bullmq`, `@providers/x` don't see request payloads directly. They receive sanitized inputs (e.g. domain objects, queue jobs without auth headers). The redaction overhead would be cosmetic.
-
-These packages also publish to npm in principle (or could), so coupling to `apps/api`-specific config is an anti-pattern. They use the lightweight `@observability/logger` factory:
+Packages like `@adapters/db-prisma`, `@adapters/queue-bullmq`, `@providers/x` use the lightweight `@observability/logger` factory. They were once assumed to receive only sanitized inputs, but provider packages handle tokens and app passwords directly (DEF-42), so since ADR-0034 decision 8 the base logger redacts with the same `REDACT_PATHS` and censor as the api factory:
 
 ```typescript
-// packages/observability/logger/src/index.ts:11-22
+// packages/observability/logger/src/index.ts
+const baseLogger: pino.Logger = pino({
+  level: LOG_LEVEL,
+  redact: { paths: [...REDACT_PATHS], censor: REDACT_CENSOR },
+  ...(process.env.NODE_ENV !== "production" && {
+    transport: { target: "pino/file", options: { destination: 1 } },
+  }),
+});
+
 export function createLogger(name: string): pino.Logger {
-  return pino({
-    name,
-    level: process.env.LOG_LEVEL || "info",
-    ...(process.env.NODE_ENV !== "production" && {
-      transport: { target: "pino/file", options: { destination: 1 } },
-    }),
-  });
+  return baseLogger.child({ name });
 }
 ```
 
-No redaction, no `service` binding, no test-mode sync destination. Pure delegation to pino with two consistent config knobs (`name`, `LOG_LEVEL`).
+One base logger per process, named children, no `service` binding, no test-mode sync destination. A package that builds its own `pino()` instead of calling `createLogger` skips the redaction; moving those files onto the factory is LOGGER-FACTORY-PKGS (`docs/product/plan/cross-cutting.md`).
 
 ### `@observability/browser-logger` — browser code
 
@@ -139,16 +126,16 @@ Convention: scope-prefix the name (`adapter:`, `worker:`, `route:`) so log aggre
 
 ### Adding a new sensitive field to redaction
 
-Edit `apps/api/src/lib/logger.ts:REDACT_PATHS` and **add a comment explaining the threat being mitigated**:
+Edit `REDACT_PATHS` in `packages/observability/logger/src/index.ts` (`@observability/logger`) and **add a comment explaining the threat being mitigated**. The api factory and the packages' base logger both apply it, so one edit covers both:
 
 ```typescript
-const REDACT_PATHS = [
+export const REDACT_PATHS: readonly string[] = Object.freeze([
   "password",
   "token",
   // ...existing paths
   "totpSecret", // 2FA shared secret — leak = full account compromise
   "*.totpSecret", // catch nested user objects
-];
+]);
 ```
 
 Two important gotchas:
