@@ -6,6 +6,7 @@
  */
 
 import { describe, it, beforeEach, expect, vi } from "vitest";
+import assert from "node:assert/strict";
 
 // ---------------------------------------------------------------------------
 // Mock setup — vi.hoisted runs before vi.mock factories
@@ -244,6 +245,22 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
         updatedAt: now,
         user: null,
       },
+      {
+        // A second Post log, of another post: only the resource-id filter tells it from log-q-4.
+        id: "log-q-6",
+        userId: TEST_USER_2_ID,
+        action: "POST_UPDATE",
+        resource: "Post",
+        resourceId: "post-test-2",
+        success: true,
+        error: null,
+        details: null,
+        ipAddress: null,
+        userAgent: null,
+        createdAt: yesterday,
+        updatedAt: yesterday,
+        user: null,
+      },
     ];
 
     // Override findMany to handle complex where + ordering + pagination + include
@@ -308,6 +325,15 @@ describe("AuditService - getLogs() - Query and Filtering", () => {
         .forEach((log) => {
           expect(log.resource).toBe("Session");
         });
+    });
+
+    it("returns the log of the requested resource id and not another log of its resource", async () => {
+      const result = await auditService.getLogs({ resource: "Post", resourceId: "post-test-1" });
+
+      assert.ok(result.ok);
+      expect(result.value.map((log) => [log.id, log.resourceId])).toEqual([
+        ["log-q-4", "post-test-1"],
+      ]);
     });
 
     it("should filter by success=true", async () => {
