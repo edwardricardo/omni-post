@@ -63,8 +63,8 @@ export class EventService extends BaseService {
   /**
    * @method initialize
    * @description Registers the default handlers and marks the service ready. It appends and
-   *              publishes no event: every API boot calls it, and a boot must leave a freshly
-   *              migrated database without a row of the application.
+   *              publishes no event: every API boot calls it, and a boot must not add a row to
+   *              a freshly migrated database.
    * @returns Result<void> that is ok once the service is ready, or the error that stopped it
    */
   async initialize(): Promise<Result<void, string>> {
@@ -489,6 +489,7 @@ export class EventService extends BaseService {
 // Helper functions for common event creation patterns
 
 /**
+ * @method createPostEvent
  * @description Creates a post lifecycle event on the `Post` aggregate, with `postId` and
  *   `projectId` placed ahead of the caller's data in the payload.
  * @param eventType - The post event type
@@ -519,6 +520,7 @@ export function createPostEvent(
 }
 
 /**
+ * @method createChannelEvent
  * @description Creates a channel event on the `Channel` aggregate, with `channelId` and
  *   `projectId` placed ahead of the caller's data in the payload.
  * @param eventType - The channel event type
@@ -549,6 +551,7 @@ export function createChannelEvent(
 }
 
 /**
+ * @method createUserActionEvent
  * @description Creates a user action event on the `User` aggregate, stamped with the current time.
  *   The metadata source is `API`, and the session id is added to the metadata only when given.
  * @param userId - The acting user, used as the aggregate id, in the payload and in the metadata
