@@ -197,6 +197,9 @@
       "path": "../../packages/observability/background-scheduler/tsconfig.build.json"
     },
     {
+      "path": "../../packages/observability/logger/tsconfig.build.json"
+    },
+    {
       "path": "../../packages/observability/opentelemetry/tsconfig.build.json"
     },
     {

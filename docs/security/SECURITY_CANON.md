@@ -625,7 +625,7 @@ On 2026-11-13 a range-scoped CVE floor joined it for GHSA-3v2p-hm54-8qcq, which 
 Adding new security rules:
 
 1. **New required env var** → add to `apps/api/src/config/env.ts` (Zod schema), update `.env.example` AND `.env.test.example`, document in `docs/architecture/secrets-and-env.md`. If secret, use `z.string().min(32)`.
-2. **New sensitive field for logger redaction** → extend `REDACT_PATHS` in `apps/api/src/lib/logger.ts` (case variations explicit — see ADR-0013). Document the threat in `docs/architecture/logging.md`.
+2. **New sensitive field for logger redaction** → extend `REDACT_PATHS` in `@observability/logger` (`packages/observability/logger/src/index.ts`), the one list the API logger and the packages' base logger apply (case variations explicit — see ADR-0013). Document the threat in `docs/architecture/logging.md`.
 3. **New CWE control** → add fitness regex catalog entry in `CLAUDE.md §Automated Compliance Checks`; mirror in `.github/workflows/fitness.yml`.
 4. **New tenant-scoped model** → see §"Multi-Tenant Isolation" above (3-step checklist).
 5. **Amending a rule** → ADR required (see ADR-0001 template).

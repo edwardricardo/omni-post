@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1203,
+      "total": 1205,
       "byShape": {
-        "test": 965,
+        "test": 967,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1039,
+        "KEEP": 1041,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1193,
+      "machine": 1195,
       "confirmed": 10,
-      "total": 1203
+      "total": 1205
     },
     "blocks": {
-      "total": 14941,
+      "total": 14949,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14630
+        "BEHAVIOURAL": 14638
       }
     },
     "deleted": {
@@ -57723,6 +57723,51 @@
       "importers": 1
     },
     {
+      "path": "apps/api/tests/unit/lib/loggerRedaction.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/lib/loggerRedaction.test.ts::masks every credential field the shared list adds when they are logged at the top level",
+          "line": 91,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b8b3c9b93a28d2636b00e414f17c06a1a067e87527f12ac50360ebd4076c07e7"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/loggerRedaction.test.ts::masks one entry of each nested form when the credentials sit below the top level",
+          "line": 101,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "912c5581622be51fce72304c15aa1e2b3dc27f384a2d3e1d61fc1fbf62cbf19e"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/loggerRedaction.test.ts::masks the fields the list held before decision 8 when they are logged",
+          "line": 119,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ee900967de7357ceeca44e1484324b63f68e217fc7b3268426816fd2c3974dc2"
+        },
+        {
+          "id": "apps/api/tests/unit/lib/loggerRedaction.test.ts::writes a field that is not sensitive as given when it sits beside credentials",
+          "line": 141,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e6facf28ef020250fa295ded4f6f86bd6b62b52658d582d2526f28b424993ae4"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/lib/redisSubscriber.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -112839,6 +112884,51 @@
       "basis": "behavioural",
       "status": "machine",
       "sliceId": "2.8.6b",
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "packages/observability/logger/tests/redaction.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:packages/observability/logger/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 4,
+      "blocks": [
+        {
+          "id": "packages/observability/logger/tests/redaction.test.ts::masks every credential field the shared list adds when they are logged at the top level",
+          "line": 91,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b8b3c9b93a28d2636b00e414f17c06a1a067e87527f12ac50360ebd4076c07e7"
+        },
+        {
+          "id": "packages/observability/logger/tests/redaction.test.ts::masks one entry of each nested form when the credentials sit below the top level",
+          "line": 101,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "912c5581622be51fce72304c15aa1e2b3dc27f384a2d3e1d61fc1fbf62cbf19e"
+        },
+        {
+          "id": "packages/observability/logger/tests/redaction.test.ts::masks the fields the list held before decision 8 when they are logged",
+          "line": 119,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ee900967de7357ceeca44e1484324b63f68e217fc7b3268426816fd2c3974dc2"
+        },
+        {
+          "id": "packages/observability/logger/tests/redaction.test.ts::writes a field that is not sensitive as given when it sits beside credentials",
+          "line": 141,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ada78103cc355ff5745028e81bcd324cd825dd0bada96a6d70e491f50ce4b657"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
       "subject": null,
       "duplicate": null,
       "importers": null

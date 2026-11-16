@@ -865,6 +865,9 @@ importers:
       '@observability/background-scheduler':
         specifier: workspace:*
         version: link:../../packages/observability/background-scheduler
+      '@observability/logger':
+        specifier: workspace:*
+        version: link:../../packages/observability/logger
       '@observability/opentelemetry':
         specifier: workspace:*
         version: link:../../packages/observability/opentelemetry
