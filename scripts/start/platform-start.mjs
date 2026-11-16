@@ -95,11 +95,14 @@
  *   page is what fails while a workspace package the portal imports is not built (DEF-85); and
  *   `/api/backend/health`, which the portal forwards to the API, so the run proves the portal
  *   reaches the API it started. For that the portal receives
- *   `API_URL=http://127.0.0.1:<the API's port>`, unless the calling shell sets `API_URL`, whose
- *   value then wins, as a shell's `PORT` does for the API. It receives the API's environment
- *   without `NODE_ENV`, as the workers do: Next.js chooses the portal's own environment files by
- *   it (`apps/admin/.env.test*` under `test`). Its `predev` script builds every workspace package
- *   the portal depends on before `next dev` starts.
+ *   `API_URL=http://127.0.0.1:<the API's port>`, unless the calling shell sets an `API_URL` that is
+ *   not empty, whose value then wins, as a shell's `PORT` does for the API. An empty `API_URL`
+ *   counts as unset, as an empty `PORT` reads as absent to the API's schema: the portal's schema
+ *   reads an empty value as absent too (`emptyStringAsUndefined`) and would fall back to
+ *   `http://localhost:3000`, so the portal is pointed at the run's API. It receives the API's
+ *   environment without `NODE_ENV`, as the workers do: Next.js chooses the portal's own
+ *   environment files by it (`apps/admin/.env.test*` under `test`). Its `predev` script builds
+ *   every workspace package the portal depends on before `next dev` starts.
  *
  *   PORTS. The API, the workers and the portal each take a port of their own: a port two of them
  *   would share is refused with the other problems, before anything is written or started.
@@ -254,7 +257,8 @@ The administration portal is started last, once the workers answer, the same way
 apps/admin/package.json (next dev -p 3100). It must answer /api/health with 200, then /en/login
 with exactly 200 and /api/backend/health, which it forwards to the API, with 200; --wait-seconds
 bounds that too. It receives API_URL=http://127.0.0.1:<the API's port>, unless the calling shell
-sets API_URL, and no NODE_ENV. Its pnpm process's id and its log are under .tmp/ as well, with a
+sets an API_URL that is not empty (an empty one counts as unset), and no NODE_ENV. Its pnpm
+process's id and its log are under .tmp/ as well, with a
 stop line of its own. A run whose start of the portal fails ends its session alone; the API and
 the workers stay up. The API, the workers and the portal each take a port of their own, and the
 run refuses two of them on one port.
@@ -455,10 +459,13 @@ const WORKERS = /** @type {const} */ ({
 /**
  * The administration portal, the app the run starts once the workers answer: every field of an
  * `App` but its port, which its package fixes (`ADMIN_MANIFEST`), and the `API_URL` it receives,
- * which names the API's port (`main`). `/api/health` touches nothing, so it answers 200 while a
- * page still fails; `/en/login` is the page that fails while a workspace package the portal
- * imports is unbuilt (DEF-85), asked rather than `/`, which redirects; `/api/backend/health` is
- * forwarded to `${API_URL}/health`, and answers 200 only when the API does.
+ * which names the API's port (`main`). `/api/health` touches no workspace package, yet it does
+ * not stay at 200 while a page fails: on a real Next.js 16.4.1 run with DEF-85, `/en/login`
+ * answered 500 after 2.94 s and `/api/health` answered 500 from then on, so the probe alone
+ * cannot tell a portal that serves its pages from one that fails them. `/en/login` is the page
+ * that fails while a workspace package the portal imports is unbuilt (DEF-85), asked rather than
+ * `/`, which redirects; `/api/backend/health` is forwarded to `${API_URL}/health`, and answers 200
+ * only when the API does.
  */
 const ADMIN = /** @type {const} */ ({
   name: "administration portal",
@@ -1686,8 +1693,9 @@ async function main(argv) {
       throw new StartFailure([`${manifest} does not exist: no ${ADMIN.name} was started`]);
     }
     // The portal forwards /api/backend/* to API_URL, so it is pointed at the API this run started,
-    // unless the calling shell names another, which wins as a shell's PORT does for the API.
-    const apiUrl = process.env.API_URL ?? `http://${LOOPBACK}:${api}`;
+    // unless the calling shell names another, which wins as a shell's PORT does for the API. An
+    // empty one is unset: the portal's schema reads it as absent and would use localhost:3000.
+    const apiUrl = process.env.API_URL || `http://${LOOPBACK}:${api}`;
     await startApp(
       options.root,
       { ...ADMIN, port: portal.port, with: { API_URL: apiUrl } },

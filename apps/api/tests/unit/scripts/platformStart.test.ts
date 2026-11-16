@@ -345,7 +345,9 @@ process.on("SIGTERM", () => {
  * on any other. `ok` answers `/api/health` and `/en/login` with 200 and forwards
  * `/api/backend/health` to `${API_URL}/health`, answering what the API answers, or 503 when the API
  * cannot be reached, as the portal's proxy does; every other path is a 404. `page500` is DEF-85's
- * shape, `/api/health` 200 and `/en/login` 500; `backend503` answers `/api/backend/health` with
+ * shape, `/api/health` 200 and `/en/login` 500; `redirect307` answers `/en/login` with a 307 whose
+ * `Location` is `/api/health`, which answers 200, so only a run that follows redirects would take
+ * the page for answered; `backend503` answers `/api/backend/health` with
  * 503 as an unreachable API makes the proxy do; `silent` takes the connection and never answers;
  * `exit` ends at once with a line on stderr. On SIGTERM it says it stopped and ends with 0.
  */
@@ -371,7 +373,10 @@ async function backend() {
 const server = createServer(async (request, response) => {
   if (mode === "silent") return;
   if (request.url === "/api/health") response.statusCode = 200;
-  else if (request.url === "/en/login") response.statusCode = mode === "page500" ? 500 : 200;
+  else if (request.url === "/en/login" && mode === "redirect307") {
+    response.statusCode = 307;
+    response.setHeader("Location", "/api/health");
+  } else if (request.url === "/en/login") response.statusCode = mode === "page500" ? 500 : 200;
   else if (request.url === "/api/backend/health") response.statusCode = await backend();
   else response.statusCode = 404;
   response.end("{}");
@@ -2711,6 +2716,21 @@ describe("the administration portal stage", () => {
     expect(await apiAndWorkersAnswer(staged)).toBe(true);
   });
 
+  it("reads an empty API_URL in the calling shell as unset, as an empty PORT reads for the API: the portal is pointed at the API this run started, and the run passes", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "2"],
+      asked(staged, { API_URL: "" })
+    );
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(savedEnvironment(`${staged.pnpmLog}.admin.env`)).toMatchObject({
+      API_URL: `http://127.0.0.1:${staged.apiPort}`,
+    });
+    expect(await statusOf(staged.adminPort, "/api/backend/health")).toBe(200);
+  });
+
   it("hands the portal no NODE_ENV, so a calling shell's NODE_ENV=test does not choose its environment files, and still hands it to the API", async () => {
     const staged = await stage();
 
@@ -2758,6 +2778,26 @@ describe("the administration portal stage", () => {
     expect(sessionMembers(Number(said.exec(result.stderr)?.[1]))).toEqual([]);
     expect(recordedIn(staged.root, "admin.pid")).toBeNull();
     expect(await statusOf(staged.adminPort, "/api/health")).toBeNull();
+    expect(await apiAndWorkersAnswer(staged)).toBe(true);
+  });
+
+  it("holds the run to /en/login answering exactly 200, never a redirect: a page that answers 307 to a path that answers 200 fails the run, named with the 307, and only the portal's session is swept", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "2"],
+      asked(staged, { FAKE_ADMIN_MODE: "redirect307" })
+    );
+
+    expect(result.code).toBe(1);
+    const said = ranOutLines(
+      staged,
+      `/api/health on ${literal(at(staged))} answered 200, but /en/login there did not answer 200 within 2 s \\(the last time it was asked, it answered 307\\)`,
+      "redirect307"
+    );
+    expect(result.stderr).toMatch(said);
+    expect(sessionMembers(Number(said.exec(result.stderr)?.[1]))).toEqual([]);
+    expect(recordedIn(staged.root, "admin.pid")).toBeNull();
     expect(await apiAndWorkersAnswer(staged)).toBe(true);
   });
 
@@ -2999,7 +3039,7 @@ describe("the administration portal stage", () => {
       "It must answer /api/health with 200, then /en/login\nwith exactly 200 and /api/backend/health, which it forwards to the API, with 200; --wait-seconds\nbounds that too."
     );
     expect(result.stdout).toContain(
-      "It receives API_URL=http://127.0.0.1:<the API's port>, unless the calling shell\nsets API_URL, and no NODE_ENV."
+      "It receives API_URL=http://127.0.0.1:<the API's port>, unless the calling shell\nsets an API_URL that is not empty (an empty one counts as unset), and no NODE_ENV."
     );
     expect(result.stdout).toContain(
       "A run whose start of the portal fails ends its session alone; the API and\nthe workers stay up."
