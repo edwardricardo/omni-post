@@ -2844,7 +2844,9 @@ describe("the administration portal stage", () => {
   it("holds a second run to the pages too: a recorded portal that answers /api/health but not /en/login is named, and nothing is started or stopped", async () => {
     const staged = await stage();
     mkdirSync(path.join(staged.root, ".tmp"));
-    const earlier = spawn(process.execPath, [staged.env.FAKE_ADMIN_SCRIPT], {
+    const script = staged.env.FAKE_ADMIN_SCRIPT;
+    if (script === undefined) throw new Error("stage() sets FAKE_ADMIN_SCRIPT");
+    const earlier = spawn(process.execPath, [script], {
       cwd: staged.root,
       env: { FAKE_ADMIN_MODE: "page500", FAKE_ADMIN_PORT: String(staged.adminPort) },
       detached: true,

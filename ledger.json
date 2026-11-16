@@ -75620,137 +75620,137 @@
           "line": 2844,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "b2c6d22d13bfb82c282cc4057a38e504b1e8e49e25bb7ce3f4d6a287eb3c0687"
+          "bodyHash": "7e7952f3fe5460d2d346fd6bd8275b0b77035838cc8f33edb607a91ffb73631c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::waits on a recorded process before the portal binds its port, names every path it awaits, and says only what it knows when the wait runs out",
-          "line": 2872,
+          "line": 2874,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a9a45228145c1fced45198dc2348f943d08ac377e8e2c63f22ac4b8f5ce3b001"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a port that something else holds, names it, starts no portal and leaves the API and the workers running",
-          "line": 2894,
+          "line": 2896,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "20f42efa35eb38be9d5158e8ebddb579033cf00e32d405e14844fd12253a45d3"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no portal when the workers' start fails: the run ends at the workers",
-          "line": 2909,
+          "line": 2911,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e8585b59d9dfc462d6f48818eebd2f852f1c60f2efbed356d9996bb60c6b501a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses, before anything is written or started, a port the portal's package fixes that the API or the workers would take, each pair on its own line",
-          "line": 2928,
+          "line": 2930,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "703b48b9a6e0bc5f30de01b03e676672006d56dd9f07295f79262a03b3db12c6"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a portal package that fixes no port, or one that is not a port, with the other problems and before anything is written or started",
-          "line": 2953,
+          "line": 2955,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a4a73ef32e95a0d20c9feacd3ae54d4955eeb69183577ca834fc028b4451f1fc"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at the portal's stage, naming the file, in a checkout with no apps/admin/package.json, after the API and the workers answered",
-          "line": 2973,
+          "line": 2975,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b401b56d9f925b88c64ddd7ca37acf8e7dbb8b9b104749127a6945400cccfa9b"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage that the portal starts after the workers, on the port its package fixes, with API_URL and without NODE_ENV, held to three paths",
-          "line": 2987,
+          "line": 2989,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f95b5ea6cbbca2c11315936edf99f5e5e5c17fe08fe87fe548835349d31d8b66"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal for a record that names no process of its own: 1, 0, an empty text, -1 or text",
-          "line": 3012,
+          "line": 3014,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba6ff10e6d700fe67d86357d28293bd44c852b601d988ff7e5dc8e554e19647e"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal for a workers record that names no process of its own: 1, 0, an empty text, -1 or text",
-          "line": 3034,
+          "line": 3036,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3d3859a5219c4294ea251c0eae9738daec1edeef76555c22e8bd4c4d6b2a7647"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal for a portal record that names no process of its own, and ends the session of one that does",
-          "line": 3056,
+          "line": 3058,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "591a17091d9b595892ceadc6b6714cfd559b2b0c74891235c963c1759ef6ff20"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal, and lists no session, for a target that names no separate process: 0, 1, -1, a fraction, its own process, group or session",
-          "line": 3182,
+          "line": 3184,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "60241d8fec113e75fec1c0acca2c9abcd2e149c751f48df07ea0a2bc28bada3f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::counts a process whose /proc entry reads ESRCH while the session is swept as one that ended: the stop says its own line, removes the record and names no survivor",
-          "line": 3247,
+          "line": 3249,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c663534c2a08ffa5b8d003ac5582cf36cd04088b0c8ccc9cb34d6395621104ce"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names, with its command, each process still running after SIGKILL, and keeps the record",
-          "line": 3276,
+          "line": 3278,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7d0c49149d49cb48af4c97e9d2e7804dd8212ac1b1c893421601a4472d3f9b63"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says the session could not be swept to the end, and keeps the record, when a read of /proc fails otherwise",
-          "line": 3300,
+          "line": 3302,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4b1fefa555cbcb48f21f377675121ece3dd889573254860d96da6e4d2dfa677f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not call the session empty, and keeps the record, on a host where /proc cannot be read",
-          "line": 3319,
+          "line": 3321,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7c7dc14678d84863aa2f594e2a3b64954b3474dc3589d287a8472bb7578053a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not call a session whose id the guard refuses empty, and keeps the record",
-          "line": 3342,
+          "line": 3344,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4df3576b1d53126b904a75149f0ac8cf432d6db9317215c2d6acd91cd6b8f97c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names among those it sent SIGTERM and SIGKILL only the processes the signal reached: one it finds gone (ESRCH) is not named",
-          "line": 3361,
+          "line": 3363,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1910b243303262c2f815110db1be64aeecef4a58f2608352eff2aa313480c0b7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not count a process of the session that has ended and waits to be reaped",
-          "line": 3397,
+          "line": 3399,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c58ce565c3a3397b316db54228c885386d62f63674ffcdfea68635471f9f13c7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends SIGKILL no sooner than the grace it states after SIGTERM",
-          "line": 3425,
+          "line": 3427,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "07f645a8ba9fcd6f3e7db4d06c0b724ec3b13a91ac70708bb40109e48e9dd56b"
