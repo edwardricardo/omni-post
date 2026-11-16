@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1205,
+      "total": 1206,
       "byShape": {
-        "test": 967,
+        "test": 968,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1041,
+        "KEEP": 1042,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1195,
+      "machine": 1196,
       "confirmed": 10,
-      "total": 1205
+      "total": 1206
     },
     "blocks": {
-      "total": 15005,
+      "total": 15007,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14694
+        "BEHAVIOURAL": 14696
       }
     },
     "deleted": {
@@ -14387,6 +14387,41 @@
       "subject": {
         "stem": "EventPublisher",
         "module": "apps/api/src/events/EventPublisher.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/EventService.initialize.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/EventService.initialize.test.ts::returns ok and appends and publishes no event when the service initializes",
+          "line": 58,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "adbe4843d5fe27e1a656fc1bb77506ee7a8223357b0f18bfbdb3b4c51ed422a1"
+        },
+        {
+          "id": "apps/api/tests/unit/EventService.initialize.test.ts::appends and publishes a caller's event once the service is initialized",
+          "line": 66,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a574e55f410e1e78c3723d5ef02b4c0b456e9f031999b3839dc73c769475840e"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "EventService",
+        "module": "apps/api/src/events/EventService.ts",
         "imported": true
       },
       "duplicate": null,

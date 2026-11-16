@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1205  |
+| Files                   | 1206  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1041  |
+| KEEP                    | 1042  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1195  |
+| Machine rows            | 1196  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15005 |
+| Blocks                  | 15007 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -506,6 +506,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/ContentVersionManager.merge.test.ts`                                             | test             | 13     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ContentVersionManager.test-helpers.ts`                                           | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/DiffCalculator.test.ts`                                                          | test             | 22     | 1          | REWRITE    | machine                     | some-decorative      |
+| `apps/api/tests/unit/EventService.initialize.test.ts`                                                 | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/EventService.post-channel.test.ts`                                               | test             | 27     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/EventService.user-analytics.test.ts`                                             | test             | 33     | 3          | REWRITE    | machine                     | some-decorative      |
 | `apps/api/tests/unit/PlatformContentAdapter-simple.test.ts`                                           | test             | 1      | 0          | KEEP       | machine                     | behavioural          |

@@ -61,7 +61,11 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Initialize the event service
+   * @method initialize
+   * @description Registers the default handlers and marks the service ready. It appends and
+   *              publishes no event: every API boot calls it, and a boot must leave a freshly
+   *              migrated database without a row of the application.
+   * @returns Result<void> that is ok once the service is ready, or the error that stopped it
    */
   async initialize(): Promise<Result<void, string>> {
     return this.executeWithErrorHandling(
@@ -78,26 +82,6 @@ export class EventService extends BaseService {
         this.setupDefaultHandlers();
 
         this.isInitialized = true;
-
-        // Emit system health event
-        await this.publishEvent(
-          createEventStoreEvent(
-            EVENT_TYPES.SYSTEM_HEALTH,
-            "event-service",
-            "EventService",
-            {
-              component: "EventService",
-              status: "healthy",
-              timestamp: new Date(),
-              metrics: {
-                handlersRegistered: this.handlers.size,
-              },
-            },
-            {
-              source: "EventService",
-            }
-          )
-        );
       }
     );
   }
