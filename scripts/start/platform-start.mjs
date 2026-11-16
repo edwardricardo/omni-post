@@ -3,7 +3,8 @@
  * @file platform-start.mjs
  * @description The start sequence of a clean checkout, as far as it goes today: its environment,
  *   then Postgres and Redis from the repository's `docker-compose.yml`, then the database's
- *   migration, then the API, then the workers, then the administration portal.
+ *   migration, then the API, then the workers, then the administration portal, then the client
+ *   portal.
  *
  *   ENVIRONMENT. A checkout with no root environment file receives one, its secrets random
  *   (`lib/start-environment.mjs` says which variables and why). An existing file is never written:
@@ -104,17 +105,27 @@
  *   environment files by it (`apps/admin/.env.test*` under `test`). Its `predev` script builds
  *   every workspace package the portal depends on before `next dev` starts.
  *
- *   PORTS. The API, the workers and the portal each take a port of their own: a port two of them
- *   would share is refused with the other problems, before anything is written or started.
+ *   CLIENT PORTAL. Once the administration portal answers, `pnpm --filter @apps/client dev` starts
+ *   the client portal from source, detached, in the same stage, and everything said of the
+ *   administration portal holds for it: its port is the one `next dev -p 3200` fixes in
+ *   `apps/client/package.json`, it is held to the same three paths, and it receives the same
+ *   `API_URL`, which its proxy (`apps/client/app/api/backend/[...path]/route.ts`) and its server
+ *   actions read, and no `NODE_ENV`. A failed start of the administration portal starts no client
+ *   portal.
+ *
+ *   PORTS. The API, the workers and the two portals each take a port of their own: a port two of
+ *   them would share is refused with the other problems, before anything is written or started.
  *
  *   THE APP DESCRIPTOR. The stage runs over a descriptor of the app it starts (`App`; `API`,
- *   `WORKERS` and `ADMIN` its three values): the name every line of the stage calls the app and the
- *   words that agree with it (the API is named by a singular noun, the workers by a plural one),
- *   what pnpm is asked for, what of the calling shell's environment the app must not receive and
- *   what is added to it, the record and the log under the checkout, the path that must answer 200,
- *   the pages that must answer 200 after it, and the port. What this header says of the API,
- *   `api.pid`, `api.log` and `/health` holds for the workers with `workers.pid`, `workers.log` and
- *   `/health/ready`, and for the portal with `admin.pid`, `admin.log` and its three paths.
+ *   `WORKERS`, `ADMIN` and `CLIENT` its four values): the name every line of the stage calls the
+ *   app and the words that agree with it (the API is named by a singular noun, the workers by a
+ *   plural one), what pnpm is asked for, what of the calling shell's environment the app must not
+ *   receive and what is added to it, the record and the log under the checkout, the path that must
+ *   answer 200, the pages that must answer 200 after it, and the port. What this header says of
+ *   the API, `api.pid`, `api.log` and `/health` holds for the workers with `workers.pid`,
+ *   `workers.log` and `/health/ready`, for the administration portal with `admin.pid`, `admin.log`
+ *   and its three paths, and for the client portal with `client.pid`, `client.log` and the same
+ *   three paths.
  *
  *   WHAT THE RUN STARTS, AND WHAT IT LEAVES. It starts pnpm, detached, so pnpm leads a process
  *   group and a session of its own; its shell and the API's node run in another process group of
@@ -146,8 +157,8 @@
  *   Each app's pnpm leads a session of its own, so the run prints a stop line for each, and each
  *   line ends one app's session: stopping the API leaves the workers running, and the other way
  *   round. A failed start of the workers sweeps their session alone, and the API, which answered
- *   before it, is left running (the sequence is cumulative, below); a failed start of the portal
- *   sweeps its session alone, and leaves the API and the workers running.
+ *   before it, is left running (the sequence is cumulative, below); a failed start of a portal
+ *   sweeps its session alone, and leaves running every app that answered before it.
  *   The process an earlier run recorded is consulted before the port (a record that is not an
  *   integer greater than 1 is read as no record: 1 is init, which always exists). While that
  *   process exists no second API is started and the record and the log are left alone: if the
@@ -172,8 +183,8 @@
  *
  *   Exit codes: 0 both services accept connections, the database is migrated, the API answers
  *   `/health` with 200, the workers answer `/health/ready` with 200 and the administration portal
- *   answers `/api/health`, `/en/login` and `/api/backend/health` with 200; 1 a step failed, each
- *   cause on its own line; 2 a usage error.
+ *   and then the client portal answer `/api/health`, `/en/login` and `/api/backend/health` with
+ *   200; 1 a step failed, each cause on its own line; 2 a usage error.
  *
  *   Usage: `node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]`
  * @layer infrastructure
@@ -217,6 +228,7 @@ const USAGE = `usage: node scripts/start/platform-start.mjs [--root <dir>] [--wa
 Takes a checkout to a generated environment, to Postgres and Redis accepting connections, to a
 migrated database, to an API running from source that answers /health with 200 and then to
 workers running from source that answer /health/ready with 200.
+Last come the administration portal and the client portal, each held to answer through that API.
 
   --root <dir>         the checkout to start (default: the one this script is in)
   --wait-seconds <n>   how long each service may take to accept a connection, Prisma's proof
@@ -252,7 +264,7 @@ They receive the API's environment without NODE_ENV, so that they read the check
 line of their own: each stop line ends one app's session, so stopping the API leaves the workers
 running. A run whose start of the workers fails ends their session alone; the API stays up.
 
-The administration portal is started last, once the workers answer, the same way, with
+The administration portal is started next, once the workers answer, the same way, with
 \`pnpm --filter @apps/admin dev\`, and left running, on the port its dev script fixes in
 apps/admin/package.json (next dev -p 3100). It must answer /api/health with 200, then /en/login
 with exactly 200 and /api/backend/health, which it forwards to the API, with 200; --wait-seconds
@@ -260,8 +272,14 @@ bounds that too. It receives API_URL=http://127.0.0.1:<the API's port>, unless t
 sets an API_URL that is not empty (an empty one counts as unset), and no NODE_ENV. Its pnpm
 process's id and its log are under .tmp/ as well, with a
 stop line of its own. A run whose start of the portal fails ends its session alone; the API and
-the workers stay up. The API, the workers and the portal each take a port of their own, and the
-run refuses two of them on one port.
+the workers stay up.
+
+The client portal is started last, once the administration portal answers, the same way, with
+\`pnpm --filter @apps/client dev\`, on the port its dev script fixes in apps/client/package.json
+(next dev -p 3200), held to the same three paths and given the same API_URL and no NODE_ENV. A
+run whose start of the client portal fails ends its session alone; the API, the workers and the
+administration portal stay up. The API, the workers and the two portals each take a port of their
+own, and the run refuses two of them on one port.
 `;
 
 /** The variable that chooses the host port each service is published on. */
@@ -457,43 +475,61 @@ const WORKERS = /** @type {const} */ ({
 });
 
 /**
- * The administration portal, the app the run starts once the workers answer: every field of an
- * `App` but its port, which its package fixes (`ADMIN_MANIFEST`), and the `API_URL` it receives,
- * which names the API's port (`main`). `/api/health` touches no workspace package, yet it does
- * not stay at 200 while a page fails: on a real Next.js 16.4.1 run with DEF-85, `/en/login`
- * answered 500 after 2.94 s and `/api/health` answered 500 from then on, so the probe alone
- * cannot tell a portal that serves its pages from one that fails them. `/en/login` is the page
- * that fails while a workspace package the portal imports is unbuilt (DEF-85), asked rather than
- * `/`, which redirects; `/api/backend/health` is forwarded to `${API_URL}/health`, and answers 200
- * only when the API does.
+ * @function portal
+ * @description A portal's descriptor: every field of an `App` but its port, which its package fixes
+ *   (`PORTALS`), and the `API_URL` it receives, which names the API's port (`main`). The two
+ *   portals differ only by name and by package. `/api/health` touches no workspace package, yet it
+ *   does not stay at 200 while a page fails: on a real Next.js 16.4.1 run of the administration
+ *   portal with DEF-85, `/en/login` answered 500 after 2.94 s and `/api/health` answered 500 from
+ *   then on, so the probe alone cannot tell a portal that serves its pages from one that fails
+ *   them. `/en/login` is the page that fails while a workspace package the portal imports is
+ *   unbuilt (DEF-85), asked rather than `/`, which redirects; `/api/backend/health` is forwarded to
+ *   `${API_URL}/health`, and answers 200 only when the API does.
+ * @param {string} name - What every line of the stage calls the portal, read after `the`.
+ * @param {string} some - The portal named without `the`, with its article.
+ * @param {string} app - The portal's directory under `apps/`, which names its package, its record
+ *   and its log.
+ * @returns {Omit<App, "port">} The descriptor.
  */
-const ADMIN = /** @type {const} */ ({
-  name: "administration portal",
-  words: {
-    some: "an administration portal",
-    someRunning: "a running administration portal",
-    s: "s",
-    is: "is",
-    was: "was",
-    it: "it",
-    one: "one",
-  },
-  pnpm: ["--filter", "@apps/admin", "dev"],
-  // Next.js chooses the portal's environment files by NODE_ENV: under `test` it loads
-  // `apps/admin/.env.test*` and not the files of a development run, so a calling shell's
-  // NODE_ENV=test would start the portal on other values than a development run reads.
-  without: ["NODE_ENV"],
-  record: ".tmp/admin.pid",
-  log: ".tmp/admin.log",
-  probe: "/api/health",
-  pages: ["/en/login", "/api/backend/health"],
-});
+function portal(name, some, app) {
+  return {
+    name,
+    words: {
+      some,
+      someRunning: `a running ${name}`,
+      s: "s",
+      is: "is",
+      was: "was",
+      it: "it",
+      one: "one",
+    },
+    pnpm: ["--filter", `@apps/${app}`, "dev"],
+    // Next.js chooses the portal's environment files by NODE_ENV: under `test` it loads
+    // `apps/<portal>/.env.test*` and not the files of a development run, so a calling shell's
+    // NODE_ENV=test would start the portal on other values than a development run reads.
+    without: ["NODE_ENV"],
+    record: `.tmp/${app}.pid`,
+    log: `.tmp/${app}.log`,
+    probe: "/api/health",
+    pages: ["/en/login", "/api/backend/health"],
+  };
+}
+
+/** The administration portal, the app the run starts once the workers answer. */
+const ADMIN = portal("administration portal", "an administration portal", "admin");
+
+/** The client portal, the app the run starts once the administration portal answers. */
+const CLIENT = portal("client portal", "a client portal", "client");
 
 /**
- * The administration portal's package, relative to the checkout: its `dev` script (`next dev -p
- * 3100`) fixes the portal's port, and the run reads it there rather than keep a second copy.
+ * The portals, in the order the run starts them, each with its package, relative to the checkout:
+ * its `dev` script (`next dev -p 3100`, `next dev -p 3200`) fixes the portal's port, and the run
+ * reads it there rather than keep a second copy.
  */
-const ADMIN_MANIFEST = "apps/admin/package.json";
+const PORTALS = /** @type {const} */ ([
+  { app: ADMIN, manifest: "apps/admin/package.json" },
+  { app: CLIENT, manifest: "apps/client/package.json" },
+]);
 
 /** The port the workers take when neither the calling shell nor the file sets `METRICS_PORT`. */
 const DEFAULT_WORKERS_PORT = 3300;
@@ -678,15 +714,16 @@ function readIfPresent(file) {
  *   missing one reads as absent, and the write creates it only if nothing is there, so it never
  *   replaces a file that appeared meanwhile and never writes through a link.
  * @param {string} file - The environment file's path.
- * @param {{ port: number | null, problem: string | null }} portal - The port the administration
- *   portal's package fixes (`manifestPort`), or the problem that kept it from being read: the
- *   problem is refused with the others, and a port is held distinct from the API's and the
- *   workers'.
+ * @param {ReadonlyArray<{ app: Omit<App, "port">, manifest: string, port: number | null,
+ *   problem: string | null }>} portals - Each portal, in the order the run starts them, with its
+ *   package relative to the checkout and the port that package fixes (`manifestPort`), or the
+ *   problem that kept it from being read: each problem is refused with the others, and each port is
+ *   held distinct from the API's, the workers' and the other portal's.
  * @returns {{ values: Record<string, string>, ports: { Postgres: number, Redis: number },
  *   api: number, workers: number }} What the file holds, the host port each service is published
  *   on, the port the API takes and the port the workers take.
  */
-function prepareEnvironment(file, portal) {
+function prepareEnvironment(file, portals) {
   const text = readIfPresent(file);
   const values = text === null ? null : readEnvironment(text);
   const problems = values === null ? [] : missingKeys(values).map((key) => `${file} lacks ${key}`);
@@ -717,13 +754,17 @@ function prepareEnvironment(file, portal) {
   if (workers === null) {
     problems.push(`METRICS_PORT=${process.env.METRICS_PORT ?? values?.METRICS_PORT} is not a port`);
   }
-  if (portal.problem !== null) problems.push(portal.problem);
+  for (const { problem } of portals) if (problem !== null) problems.push(problem);
   // Every app the run starts, with where its port comes from: each pair of them that would share a
-  // port is refused, so a fourth app is one more entry here.
+  // port is refused, so another app is one more entry here.
   const takers = [
     { name: `the ${API.name}`, port: api, from: "PORT" },
     { name: `the ${WORKERS.name}`, port: workers, from: "METRICS_PORT" },
-    { name: `the ${ADMIN.name}`, port: portal.port, from: `the dev script of ${ADMIN_MANIFEST}` },
+    ...portals.map(({ app, manifest, port }) => ({
+      name: `the ${app.name}`,
+      port,
+      from: `the dev script of ${manifest}`,
+    })),
   ];
   for (const [index, one] of takers.entries()) {
     for (const other of takers.slice(index + 1)) {
@@ -1467,22 +1508,22 @@ export async function sweepSession(pid, pidFile, timing = STOP_TIMING) {
 
 /**
  * @function startApp
- * @description Starts an app from source, detached, and waits until its probe answers 200, and
- *   then each of its pages. It runs over the app's descriptor (`App`): the run gives it the API
- *   (`API`), whose record, log and probe are `api.pid`, `api.log` and `/health`, then the workers
+ * @description Starts an app from source, detached, and waits until its probe answers 200, and then
+ *   each of its pages. It runs over the app's descriptor (`App`): the run gives it the API (`API`),
+ *   whose record, log and probe are `api.pid`, `api.log` and `/health`, then the workers
  *   (`WORKERS`), whose are `workers.pid`, `workers.log` and `/health/ready`, and then the
- *   administration portal (`ADMIN`), whose are `admin.pid`, `admin.log` and `/api/health`, with
- *   `/en/login` and `/api/backend/health` as its pages. Where these lines say the probe, an app
- *   with pages is held to its probe and to its pages. The process an earlier run recorded is
- *   consulted first: while it exists no second app is started, and the run goes on as a second run
- *   once the probe answers, whether or not the port is bound yet (the real API binds it only at the
- *   end of its boot). While it waits on that process it looks at it again after each attempt: one
- *   that has ended fails the run at once, the record left as it is, and a wait that runs out with
- *   the process still there fails it with a note that says only what is known. With nothing
- *   recorded, nothing is started when something accepts connections on the port. While it waits
- *   the run watches its child: a child that exits fails the run at once, a wait that runs out fails
- *   it too, and either way the run sweeps the session of that child before it ends
- *   (`sweepSession`). The process an earlier run recorded is never signalled.
+ *   administration portal (`ADMIN`) and the client portal (`CLIENT`), each with `/api/health` as
+ *   its probe, `<app>.pid` and `<app>.log` as its record and log, and `/en/login` and
+ *   `/api/backend/health` as its pages. An app with pages is held to them too. The process an
+ *   earlier run recorded is consulted first: while it exists no second app is started, and the run
+ *   goes on as a second run once the probe answers, whether or not the port is bound yet (the real
+ *   API binds it only at the end of its boot). While it waits on that process it looks at it again
+ *   after each attempt: one that has ended fails the run at once, the record left as it is, and a
+ *   wait that runs out with the process still there fails it with a note that says only what is
+ *   known. With nothing recorded, nothing is started when something accepts connections on the
+ *   port. While it waits the run watches its child: a child that exits fails the run at once, a
+ *   wait that runs out fails it too, and either way the run sweeps the session of that child before
+ *   it ends (`sweepSession`). The process an earlier run recorded is never signalled.
  * @param {string} root - The checkout.
  * @param {App} app - The app, by its descriptor: what the lines call it and the words that agree
  *   with that, what pnpm is asked for, what of the calling shell's environment it must not
@@ -1690,25 +1731,29 @@ async function main(argv) {
 
   const file = path.join(options.root, ENVIRONMENT_FILE);
   try {
-    const manifest = path.join(options.root, ADMIN_MANIFEST);
-    const portal = manifestPort(manifest);
-    const { values, ports, api, workers } = prepareEnvironment(file, portal);
+    const portals = PORTALS.map(({ app, manifest }) => {
+      const at = path.join(options.root, manifest);
+      return { app, manifest, at, ...manifestPort(at) };
+    });
+    const { values, ports, api, workers } = prepareEnvironment(file, portals);
     const answered = await startServices(options.root, file, values, ports, options.waitSeconds);
     migrateDatabase(options.root, file, answered, options.waitSeconds);
     await startApp(options.root, { ...API, port: api }, options.waitSeconds);
     await startApp(options.root, { ...WORKERS, port: workers }, options.waitSeconds);
-    if (portal.port === null) {
-      throw new StartFailure([`${manifest} does not exist: no ${ADMIN.name} was started`]);
-    }
-    // The portal forwards /api/backend/* to API_URL, so it is pointed at the API this run started,
-    // unless the calling shell names another, which wins as a shell's PORT does for the API. An
-    // empty one is unset: the portal's schema reads it as absent and would use localhost:3000.
+    // Each portal forwards /api/backend/* to API_URL (its proxy and its server actions read that
+    // key), so it is pointed at the API this run started, unless the calling shell names another,
+    // which wins as a shell's PORT does for the API. An empty one is unset: a portal's schema reads
+    // it as absent and would use localhost:3000.
     const apiUrl = process.env.API_URL || `http://${LOOPBACK}:${api}`;
-    await startApp(
-      options.root,
-      { ...ADMIN, port: portal.port, with: { API_URL: apiUrl } },
-      options.waitSeconds
-    );
+    for (const { app, at, port } of portals) {
+      if (port === null)
+        throw new StartFailure([`${at} does not exist: no ${app.name} was started`]);
+      await startApp(
+        options.root,
+        { ...app, port, with: { API_URL: apiUrl } },
+        options.waitSeconds
+      );
+    }
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);
