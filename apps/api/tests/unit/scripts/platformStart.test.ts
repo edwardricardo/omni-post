@@ -3,8 +3,8 @@
  * @description Pins `scripts/start/platform-start.mjs`, the start sequence of a clean checkout, and
  *   its pure core `scripts/start/lib/start-environment.mjs`: the environment a checkout with no
  *   environment file receives, what the command does with a file that is already there, and the
- *   start of Postgres and Redis from the repository's compose file, the database's migration and the
- *   API's start.
+ *   start of Postgres and Redis from the repository's compose file, the database's migration, the
+ *   API's start and then the workers'.
  *
  *   The generated environment is held to the API's own schema through `parseApiEnv` and to the
  *   variables `docker-compose.yml` refuses to start without, so a variable either of them starts to
@@ -14,7 +14,8 @@
  *   two services are sockets this suite opens, so no container starts here: the run against real
  *   containers is the sequence's own proof. The API is a small Node script that the pnpm stand-in
  *   runs in its place, and the case says whether it answers 200, answers 503, never answers or
- *   exits; every API a case leaves running is stopped by the suite's `afterEach`. Every signal the
+ *   exits; the workers are another, which answers 200 on `/health/ready` alone. Every API and every
+ *   workers stand-in a case leaves running is stopped by the suite's `afterEach`. Every signal the
  *   suite sends goes through one guard, `signal`, which sends nothing to a target that does not name
  *   a real, separate process: 0, 1 and -1 (as root, -1 reaches every process of the host but init),
  *   text read as a number, and the suite's own process, group and session.
@@ -199,7 +200,8 @@ exit 0
  * process that never answers would be), and ends with the exit code or by the signal a case asks for.
  * Asked for the API (`@apps/api dev`), it logs the call and its environment apart from the other two
  * calls and becomes `API_PARENT`, which has the shape the measured pnpm has: it leads its own
- * process group and session, and the API is its child in another group of that session.
+ * process group and session, and the API is its child in another group of that session. Asked for
+ * the workers (`@apps/workers dev`), it does the same apart again and becomes `WORKERS_PARENT`.
  */
 const PNPM_DOUBLE = `#!/bin/sh
 case " $* " in
@@ -207,6 +209,10 @@ case " $* " in
     printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG.api"
     /usr/bin/env > "$FAKE_PNPM_LOG.api.env"
     exec /bin/bash "$FAKE_API_PARENT" ;;
+  *" @apps/workers dev "*)
+    printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG.workers"
+    /usr/bin/env > "$FAKE_PNPM_LOG.workers.env"
+    exec /bin/bash "$FAKE_WORKERS_PARENT" ;;
 esac
 printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG"
 case " $* " in
@@ -232,21 +238,27 @@ exit "\${FAKE_MIGRATE_EXIT:-0}"
 `;
 
 /**
- * What runs in place of pnpm for the API: bash, so that job control puts the API in a process group
- * of its own, as measured on the real pnpm (it leads the group and the session, and its shell and
- * node are in another group of that session). On SIGTERM it passes the signal on to the API and
- * ends when the API has; it does not end it itself, which is the part of the real pnpm that cannot
- * be relied on once pnpm is killed. With `FAKE_API_ORPHAN` it ends at once and leaves the API
- * running, as a pnpm killed first would.
+ * What runs in place of pnpm for an app (`API` reads `FAKE_API_*`, `WORKERS` reads
+ * `FAKE_WORKERS_*`): bash, so that job control puts the app in a process group of its own, as
+ * measured on the real pnpm (it leads the group and the session, and its shell and node are in
+ * another group of that session). On SIGTERM it passes the signal on to the app and ends when the
+ * app has; it does not end it itself, which is the part of the real pnpm that cannot be relied on
+ * once pnpm is killed. With `FAKE_<APP>_ORPHAN` it ends at once and leaves the app running, as a
+ * pnpm killed first would.
  */
-const API_PARENT = `#!/bin/bash
+function parentFor(app: "API" | "WORKERS"): string {
+  return `#!/bin/bash
 set -m
-"$FAKE_NODE" "$FAKE_API_SCRIPT" &
+"$FAKE_NODE" "$FAKE_${app}_SCRIPT" &
 child=$!
-if [ -n "$FAKE_API_ORPHAN" ]; then exit 1; fi
+if [ -n "$FAKE_${app}_ORPHAN" ]; then exit 1; fi
 trap 'kill -s TERM "$child" 2>/dev/null' TERM
 while kill -0 "$child" 2>/dev/null; do wait "$child"; done
 `;
+}
+
+const API_PARENT = parentFor("API");
+const WORKERS_PARENT = parentFor("WORKERS");
 
 /**
  * The API as a case wants it, chosen by `FAKE_API_MODE`: `ok` answers every request with 200, `503`
@@ -287,6 +299,37 @@ process.on("SIGTERM", () => {
 });
 `;
 
+/**
+ * The workers as a case wants them, chosen by `FAKE_WORKERS_MODE`: `ok` answers 200 on
+ * `/health/ready` and 404 on every other path, so a run that asked them anything else would wait
+ * in vain; `503` answers `/health/ready` with 503, and `silent` takes the connection and never
+ * answers. Like the real workers, they load the checkout's environment file themselves, `.env.test`
+ * when `NODE_ENV` is `test` and `.env` otherwise (a variable the process holds wins), and take
+ * `METRICS_PORT` from it, an empty value read as absent, else 3300. They bind only the port the
+ * case made (`FAKE_WORKERS_PORT`) and end at once on any other, and on SIGTERM they say they shut
+ * down and end with 0.
+ */
+const WORKERS_DOUBLE = `import { createServer } from "node:http";
+try { process.loadEnvFile(process.env.NODE_ENV === "test" ? ".env.test" : ".env"); } catch {}
+const mode = process.env.FAKE_WORKERS_MODE ?? "ok";
+console.log("workers double starting in mode " + mode);
+const port = Number(process.env.METRICS_PORT || 3300);
+if (port !== Number(process.env.FAKE_WORKERS_PORT)) {
+  console.error("Error: listen EADDRINUSE on " + port);
+  process.exit(1);
+}
+const server = createServer((request, response) => {
+  if (mode === "silent") return;
+  response.statusCode = request.url !== "/health/ready" ? 404 : mode === "503" ? 503 : 200;
+  response.end("{}");
+});
+server.listen(port, "127.0.0.1");
+process.on("SIGTERM", () => {
+  console.log("Worker shutdown complete");
+  process.exit(0);
+});
+`;
+
 /** How every call after the first names the checkout's two files to Compose. */
 const COMPOSE = "compose -f docker-compose.yml --env-file .env";
 
@@ -316,6 +359,11 @@ interface Stage {
   };
   /** The port the API stand-in is told to answer on, in `ports` as `PORT`. */
   readonly apiPort: number;
+  /**
+   * The port the workers stand-in is told to answer on, in `env` as `METRICS_PORT`, so that no run
+   * of any case takes the workers' default 3300: a case that asks for the default removes it.
+   */
+  readonly workersPort: number;
 }
 
 const roots: string[] = [];
@@ -325,7 +373,10 @@ afterEach(async () => {
   await Promise.all(
     servers.splice(0).map((server) => new Promise((resolve) => server.close(resolve)))
   );
-  for (const root of roots) endRecordedApi(root);
+  for (const root of roots) {
+    endRecordedApi(root);
+    endRecordedWorkers(root);
+  }
   for (const pid of strays.splice(0)) endGroup(pid);
   // A command under mutation may record no process, or another one, and still start a stand-in.
   for (const root of roots) endStandIns(root);
@@ -338,6 +389,12 @@ afterEach(async () => {
  */
 function endRecordedApi(root: string): void {
   const pid = recordedApi(root);
+  if (pid !== null) endGroup(pid);
+}
+
+/** Ends the workers a case left running in a checkout, the same way (`endRecordedApi`). */
+function endRecordedWorkers(root: string): void {
+  const pid = recordedWorkers(root);
   if (pid !== null) endGroup(pid);
 }
 
@@ -361,16 +418,26 @@ function endStandIns(root: string): void {
 /** Processes a case started itself, to be ended with it. */
 const strays: number[] = [];
 
+/** The process id the command recorded for its API in a checkout (`recordedIn`). */
+function recordedApi(root: string): number | null {
+  return recordedIn(root, "api.pid");
+}
+
+/** The process id the command recorded for its workers in a checkout (`recordedIn`). */
+function recordedWorkers(root: string): number | null {
+  return recordedIn(root, "workers.pid");
+}
+
 /**
- * The process id the command recorded for its API in a checkout, or `null` when it recorded none or
- * the record is not a decimal integer greater than 1: `Number` reads an empty text as 0, and a record
- * a case or a mutation of the command leaves can hold 0, 1, a negative number or text, none of which
+ * The process id a record of the command under `.tmp` holds, or `null` when there is none or the
+ * record is not a decimal integer greater than 1: `Number` reads an empty text as 0, and a record a
+ * case or a mutation of the command leaves can hold 0, 1, a negative number or text, none of which
  * names a process of its own.
  */
-function recordedApi(root: string): number | null {
+function recordedIn(root: string, record: "api.pid" | "workers.pid"): number | null {
   let text: string;
   try {
-    text = readFileSync(path.join(root, ".tmp", "api.pid"), "utf8").trim();
+    text = readFileSync(path.join(root, ".tmp", record), "utf8").trim();
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     return null;
@@ -418,7 +485,8 @@ function alive(pid: number): boolean {
     const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
     return stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3) !== "Z";
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    // A process that ends while it is read can fail the read with ESRCH instead of ENOENT.
+    if (!["ENOENT", "ESRCH"].includes(String((error as NodeJS.ErrnoException).code))) throw error;
     return false;
   }
 }
@@ -435,7 +503,10 @@ function sessionMembers(session: number): number[] {
     try {
       stat = readFileSync(`/proc/${entry}/stat`, "utf8");
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      // It ended while it was listed: its entry is gone (ENOENT) or the read fails with ESRCH.
+      if (!["ENOENT", "ESRCH"].includes(String((error as NodeJS.ErrnoException).code))) {
+        throw error;
+      }
       continue;
     }
     const [state, , , sid] = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
@@ -533,11 +604,16 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
   writeFileSync(path.join(bin, "pnpm"), PNPM_DOUBLE, { mode: 0o755 });
   writeFileSync(path.join(bin, "api-double.mjs"), API_DOUBLE);
   writeFileSync(path.join(bin, "api-parent.sh"), API_PARENT);
+  writeFileSync(path.join(bin, "workers-double.mjs"), WORKERS_DOUBLE);
+  writeFileSync(path.join(bin, "workers-parent.sh"), WORKERS_PARENT);
   const log = path.join(root, "docker.log");
   const pnpmLog = path.join(root, "pnpm.log");
   const postgres = services.postgres ?? (await listen("N"));
   const redis = services.redis ?? (await listen("+PONG\r\n"));
   const apiPort = await freePort();
+  // Two ports asked for one after the other can be the same one, since the first is free again.
+  let workersPort = await freePort();
+  while (workersPort === apiPort) workersPort = await freePort();
   return {
     root,
     file,
@@ -553,6 +629,10 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
       FAKE_API_SCRIPT: path.join(bin, "api-double.mjs"),
       FAKE_API_PARENT: path.join(bin, "api-parent.sh"),
       FAKE_API_PORT: String(apiPort),
+      FAKE_WORKERS_SCRIPT: path.join(bin, "workers-double.mjs"),
+      FAKE_WORKERS_PARENT: path.join(bin, "workers-parent.sh"),
+      FAKE_WORKERS_PORT: String(workersPort),
+      METRICS_PORT: String(workersPort),
     },
     ports: {
       POSTGRES_HOST_PORT: String(postgres.port),
@@ -560,6 +640,7 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
       PORT: String(apiPort),
     },
     apiPort,
+    workersPort,
   };
 }
 
@@ -613,6 +694,21 @@ async function start(
     };
   }
 }
+
+/** A socket that holds a port and says nothing, as another program on it would. */
+async function occupy(port: number): Promise<void> {
+  // Resumed, so the server sees a client that leaves and its own close can finish.
+  const server = createServer((socket) => socket.resume());
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+}
+
+/** What a case's calling shell holds: the stand-ins, every port a run takes, and what it adds. */
+const asked = (staged: Stage, more: Record<string, string> = {}) => ({
+  ...staged.env,
+  ...staged.ports,
+  ...more,
+});
 
 describe("the generated environment", () => {
   it("holds every variable Compose and the API require, in values the API's schema accepts", () => {
@@ -1600,20 +1696,6 @@ describe("the API stage", () => {
     }
   }
 
-  /** A socket that holds a port and says nothing, as another program on it would. */
-  async function occupy(port: number): Promise<void> {
-    // Resumed, so the server sees a client that leaves and its own close can finish.
-    const server = createServer((socket) => socket.resume());
-    servers.push(server);
-    await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
-  }
-
-  const asked = (staged: Stage, more: Record<string, string> = {}) => ({
-    ...staged.env,
-    ...staged.ports,
-    ...more,
-  });
-
   it("starts the API from source, detached, returns once /health answers 200, and leaves it running", async () => {
     const staged = await stage();
 
@@ -2064,6 +2146,349 @@ describe("the API stage", () => {
   });
 });
 
+describe("the workers stage", () => {
+  const workersLog = (staged: Stage) => path.join(staged.root, ".tmp", "workers.log");
+  const workersPidFile = (staged: Stage) => path.join(staged.root, ".tmp", "workers.pid");
+  const listening = (staged: Stage) => ({
+    postgres: staged.postgres.port,
+    redis: staged.redis.port,
+  });
+
+  /** The process id the command recorded for its workers; a case that needs it fails without one. */
+  function workersOf(staged: Stage): number {
+    const pid = recordedWorkers(staged.root);
+    if (pid === null) throw new Error("the command recorded no workers");
+    return pid;
+  }
+
+  /** The line that says where the workers answer, for a run that started them or found them started. */
+  const answersLine = (staged: Stage, pid: number, earlier: boolean) =>
+    `platform-start: the workers ${earlier ? "this command started earlier already " : ""}answer /health/ready with 200 on 127.0.0.1:${staged.workersPort} (run by the pnpm process ${pid}, log ${workersLog(staged)})${earlier ? ": no second workers were started" : ""}\n`;
+
+  /** The stop line the run prints for the workers, word for word: their own pnpm, not the API's. */
+  const stopLine = (staged: Stage, pid: number) =>
+    `platform-start: stop them with \`kill -s TERM -- -${pid}\`: a normal termination signal, sent to the process group of pnpm (process ${pid}, which runs the workers and leads the session that holds them), which passes it on; it ends the workers only if the workers attend it, and ones that ignore it keep running. To see whether the workers still run, check whether 127.0.0.1:${staged.workersPort} accepts connections, or whether the pnpm process ${pid}, recorded in ${workersPidFile(staged)}, still exists (it can end while the workers live on, so only the port settles it); if the workers still run, end the processes of the session by hand (\`ps -s ${pid}\` lists them). pnpm writes a failed-command line in the log when the workers end, which is expected\n`;
+
+  /** How the sweep names the pnpm stand-in, once it runs as `WORKERS_PARENT`, and the workers'. */
+  const parentCommand = (staged: Stage) => literal(`/bin/bash ${staged.env.FAKE_WORKERS_PARENT}`);
+  const workersCommand = (staged: Stage) =>
+    literal(`${process.execPath} ${staged.env.FAKE_WORKERS_SCRIPT}`);
+
+  /** The status a path answers with on a port, or `null` when nothing answers. */
+  async function statusOf(port: number, probe: string): Promise<number | null> {
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}${probe}`, {
+        signal: AbortSignal.timeout(2000),
+      });
+      return response.status;
+    } catch {
+      return null;
+    }
+  }
+
+  /** A calling shell without `METRICS_PORT`, for a case that asks the file or the default. */
+  function withoutMetricsPort(env: Record<string, string>): Record<string, string> {
+    const { METRICS_PORT: _workersPort, ...rest } = env;
+    return rest;
+  }
+
+  it("starts the workers from source once the API answers, detached, returns once /health/ready answers 200, and leaves them running", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    const pid = workersOf(staged);
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(alive(pid)).toBe(true);
+    expect(pid).not.toBe(recordedApi(staged.root));
+    expect(await statusOf(staged.workersPort, "/health/ready")).toBe(200);
+    expect(loggedCalls(`${staged.pnpmLog}.workers`)).toEqual([
+      `--filter @apps/workers dev|${staged.root}`,
+    ]);
+    expect(readFileSync(workersLog(staged), "utf8")).toBe("workers double starting in mode ok\n");
+    expect(
+      result.stdout.indexOf("platform-start: the API answers /health with 200 on ")
+    ).toBeGreaterThan(0);
+    expect(result.stdout.endsWith(answersLine(staged, pid, false) + stopLine(staged, pid))).toBe(
+      true
+    );
+  });
+
+  it("stops with the signal the command prints for them: the workers shut down and end, and the API keeps answering", async () => {
+    const staged = await stage();
+    await start(["--root", staged.root], asked(staged));
+    const pid = workersOf(staged);
+
+    expect(signal(-pid, "SIGTERM")).toBe(true);
+
+    await until(() => !alive(pid), { description: "the workers to end after SIGTERM" });
+    expect(readFileSync(workersLog(staged), "utf8")).toContain("Worker shutdown complete\n");
+    expect(await statusOf(staged.workersPort, "/health/ready")).toBeNull();
+    expect(alive(Number(recordedApi(staged.root)))).toBe(true);
+    expect(await statusOf(staged.apiPort, "/health")).toBe(200);
+  });
+
+  it("hands the workers the calling shell's environment, without the variables the file owns", async () => {
+    const staged = await stage();
+    const refused = [...core.REQUIRED_KEYS, "POSTGRES_HOST_PORT", "REDIS_HOST_PORT"];
+    const fromTheShell = Object.fromEntries(
+      core.REQUIRED_KEYS.map((key) => [key, "from-the-shell"])
+    );
+
+    const result = await start(["--root", staged.root], {
+      ...fromTheShell,
+      ...asked(staged, { KEPT_BY_THE_SHELL: "yes" }),
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    const given = savedEnvironment(`${staged.pnpmLog}.workers.env`);
+    expect(refused.filter((key) => key in given)).toEqual([]);
+    expect(given).toMatchObject({
+      KEPT_BY_THE_SHELL: "yes",
+      METRICS_PORT: String(staged.workersPort),
+    });
+  });
+
+  it("hands the workers no NODE_ENV, so a calling shell's NODE_ENV=test leaves them on the checkout's .env, and still hands it to the API", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], listening(staged));
+    appendFileSync(staged.file, `METRICS_PORT=${staged.workersPort}\n`);
+
+    const result = await start(["--root", staged.root], {
+      ...withoutMetricsPort(asked(staged)),
+      NODE_ENV: "test",
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(savedEnvironment(`${staged.pnpmLog}.workers.env`)).not.toHaveProperty("NODE_ENV");
+    expect(savedEnvironment(`${staged.pnpmLog}.api.env`)).toMatchObject({ NODE_ENV: "test" });
+    expect(await statusOf(staged.workersPort, "/health/ready")).toBe(200);
+  });
+
+  it("is reported by the run after the API's port: the calling shell's METRICS_PORT first, then the file's, then 3300", async () => {
+    const staged = await stage();
+    const shell = withoutMetricsPort(asked(staged));
+    const takes = (port: number | string) =>
+      `platform-start: the API takes port ${staged.apiPort}\nplatform-start: the workers take port ${port}\n`;
+
+    const generated = await start(["--root", staged.root], { ...shell, METRICS_PORT: "4321" });
+    expect(generated.stdout).toContain(takes(4321));
+    expect(readFileSync(staged.file, "utf8")).not.toContain("METRICS_PORT");
+
+    const text = writeEnvironment(staged.file, [], listening(staged));
+    appendFileSync(staged.file, "METRICS_PORT=5433\n");
+    const fromFile = await start(["--root", staged.root], shell);
+    expect(fromFile.stdout).toContain(takes(5433));
+
+    const overridden = await start(["--root", staged.root], { ...shell, METRICS_PORT: "4321" });
+    expect(overridden.stdout).toContain(takes(4321));
+
+    writeFileSync(staged.file, text);
+    const byDefault = await start(["--root", staged.root], shell);
+    expect(byDefault.stdout).toContain(takes(3300));
+  });
+
+  it("reads an empty METRICS_PORT as the workers do: as absent, so 3300, and the file is not consulted behind an empty one in the shell", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], listening(staged));
+    appendFileSync(staged.file, "METRICS_PORT=5433\n");
+
+    const emptyInTheShell = await start(["--root", staged.root], {
+      ...asked(staged),
+      METRICS_PORT: "",
+    });
+    expect(emptyInTheShell.stdout).toContain("platform-start: the workers take port 3300\n");
+
+    writeEnvironment(staged.file, [], listening(staged));
+    appendFileSync(staged.file, "METRICS_PORT=\n");
+    const emptyInTheFile = await start(["--root", staged.root], withoutMetricsPort(asked(staged)));
+    expect(emptyInTheFile.stdout).toContain("platform-start: the workers take port 3300\n");
+  });
+
+  it("starts the workers on the file's METRICS_PORT when the calling shell sets none", async () => {
+    const staged = await stage();
+    writeEnvironment(staged.file, [], listening(staged));
+    appendFileSync(staged.file, `METRICS_PORT=${staged.workersPort}\n`);
+
+    const result = await start(["--root", staged.root], withoutMetricsPort(asked(staged)));
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(result.stdout).toContain(answersLine(staged, workersOf(staged), false));
+    expect(await statusOf(staged.workersPort, "/health/ready")).toBe(200);
+  });
+
+  it("is refused when METRICS_PORT is not a port, in the calling shell or in the file, with the other problems and before anything is written or started", async () => {
+    const staged = await stage();
+
+    const fromShell = await start(["--root", staged.root], {
+      ...staged.env,
+      METRICS_PORT: "70000",
+    });
+    expect(fromShell.code).toBe(1);
+    expect(fromShell.stderr).toBe("platform-start: METRICS_PORT=70000 is not a port\n");
+
+    const withPort = await start(["--root", staged.root], {
+      ...staged.env,
+      PORT: "0",
+      METRICS_PORT: "x",
+    });
+    expect(withPort.code).toBe(1);
+    expect(withPort.stderr).toBe(
+      "platform-start: PORT=0 is not a port\nplatform-start: METRICS_PORT=x is not a port\n"
+    );
+    expect(existsSync(staged.file)).toBe(false);
+
+    writeEnvironment(staged.file, [], listening(staged));
+    appendFileSync(staged.file, "METRICS_PORT=abc\n");
+    const fromFile = await start(["--root", staged.root], withoutMetricsPort(staged.env));
+    expect(fromFile.code).toBe(1);
+    expect(fromFile.stderr).toBe("platform-start: METRICS_PORT=abc is not a port\n");
+    expect(dockerCalls(staged)).toEqual([]);
+    expect(loggedCalls(`${staged.pnpmLog}.workers`)).toEqual([]);
+  });
+
+  it("is refused when it is the API's port, whether set or the default, before anything is written or started", async () => {
+    const staged = await stage();
+
+    const set = await start(["--root", staged.root], {
+      ...staged.env,
+      PORT: "4321",
+      METRICS_PORT: "4321",
+    });
+    expect(set.code).toBe(1);
+    expect(set.stderr).toBe(
+      "platform-start: the API and the workers would both take port 4321 (PORT and METRICS_PORT): give each its own\n"
+    );
+
+    const byDefault = await start(["--root", staged.root], {
+      ...withoutMetricsPort(staged.env),
+      PORT: "3300",
+    });
+    expect(byDefault.code).toBe(1);
+    expect(byDefault.stderr).toBe(
+      "platform-start: the API and the workers would both take port 3300 (PORT and METRICS_PORT): give each its own\n"
+    );
+    expect(existsSync(staged.file)).toBe(false);
+    expect(dockerCalls(staged)).toEqual([]);
+  });
+
+  it("goes on as a second run when the workers it started earlier still answer: it starts no others", async () => {
+    const staged = await stage();
+    await start(["--root", staged.root], asked(staged));
+    const pid = workersOf(staged);
+
+    const second = await start(["--root", staged.root], asked(staged));
+
+    expect(second).toMatchObject({ code: 0, stderr: "" });
+    expect(second.stdout.endsWith(answersLine(staged, pid, true) + stopLine(staged, pid))).toBe(
+      true
+    );
+    expect(workersOf(staged)).toBe(pid);
+    expect(alive(pid)).toBe(true);
+    expect(loggedCalls(`${staged.pnpmLog}.workers`)).toHaveLength(1);
+  });
+
+  it("refuses a port that something else holds, names it, starts no workers and leaves the API it started running", async () => {
+    const staged = await stage();
+    await occupy(staged.workersPort);
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: 127.0.0.1:${staged.workersPort} is already in use, and this command holds no record of running workers it started: the port may be held by anything; no workers were started\n`
+    );
+    expect(loggedCalls(`${staged.pnpmLog}.workers`)).toEqual([]);
+    expect(recordedWorkers(staged.root)).toBeNull();
+    expect(result.stdout).toContain("platform-start: the API answers /health with 200 on ");
+    expect(await statusOf(staged.apiPort, "/health")).toBe(200);
+  });
+
+  it("sweeps the session of a pnpm that ended first: it stops what pnpm left running, names it, removes the record once none is left, and leaves the API running", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "30"],
+      asked(staged, { FAKE_WORKERS_MODE: "silent", FAKE_WORKERS_ORPHAN: "1" })
+    );
+
+    const said = new RegExp(
+      `^platform-start: the pnpm process this run started to run the workers \\(process (\\d+)\\) exited 1 before /health/ready answered 200\\n` +
+        `platform-start: the session of process \\1 was swept: SIGTERM was sent to \\d+ \\(${workersCommand(staged)}\\); then no process was found in it, and ${literal(workersPidFile(staged))} was removed\\n`
+    );
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(said);
+    const pid = Number(said.exec(result.stderr)?.[1]);
+    expect(sessionMembers(pid)).toEqual([]);
+    expect(recordedWorkers(staged.root)).toBeNull();
+    expect(await statusOf(staged.workersPort, "/health/ready")).toBeNull();
+    expect(await statusOf(staged.apiPort, "/health")).toBe(200);
+  });
+
+  it("stops every process of the session it started when /health/ready does not answer 200 within the wait, names each, removes the record once none is left, and leaves the API running", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "2"],
+      asked(staged, { FAKE_WORKERS_MODE: "503" })
+    );
+
+    const said = new RegExp(
+      `^platform-start: /health/ready on 127\\.0\\.0\\.1:${staged.workersPort} did not answer 200 within 2 s\\n` +
+        `platform-start: the pnpm process this run started to run the workers \\(process (\\d+)\\) was still running when the wait ended\\n` +
+        `platform-start: the session of process \\1 was swept: SIGTERM was sent to \\1 \\(${parentCommand(staged)}\\), \\d+ \\(${workersCommand(staged)}\\); then no process was found in it, and ${literal(workersPidFile(staged))} was removed\\n` +
+        `platform-start: the last lines of ${literal(workersLog(staged))}:\\n` +
+        `platform-start:   workers double starting in mode 503\\n` +
+        `platform-start:   Worker shutdown complete\\n$`
+    );
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(said);
+    const pid = Number(said.exec(result.stderr)?.[1]);
+    expect(sessionMembers(pid)).toEqual([]);
+    expect(recordedWorkers(staged.root)).toBeNull();
+    expect(await statusOf(staged.workersPort, "/health/ready")).toBeNull();
+    expect(await statusOf(staged.apiPort, "/health")).toBe(200);
+  });
+
+  it("starts no workers when the API's start fails: the run ends at the API, as it did before the workers had a stage", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "30"],
+      asked(staged, { FAKE_API_MODE: "exit" })
+    );
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(
+      /^platform-start: the pnpm process this run started to run the API \(process \d+\) exited 1 before \/health answered 200\n/
+    );
+    expect(result.stdout).not.toContain("the workers answer");
+    expect(loggedCalls(`${staged.pnpmLog}.workers`)).toEqual([]);
+    expect(recordedWorkers(staged.root)).toBeNull();
+  });
+
+  it("says in the usage that the workers start after the API, on METRICS_PORT, without NODE_ENV, and that their stop line ends their session alone", async () => {
+    const { root } = makeRoot();
+
+    const result = await start(["--root", root, "--help"]);
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(result.stdout).toContain(
+      "to an API running from source that answers /health with 200 and then to\nworkers running from source that answer /health/ready with 200.\n"
+    );
+    expect(result.stdout).toContain(
+      "with\n`pnpm --filter @apps/workers dev`, and left running; --wait-seconds bounds their answer on\n/health/ready too."
+    );
+    expect(result.stdout).toContain(
+      "Their port is METRICS_PORT, of the calling shell or else of the file, else 3300\n(an empty METRICS_PORT gives 3300)"
+    );
+    expect(result.stdout).toContain("They receive the API's environment without NODE_ENV");
+    expect(result.stdout).toContain(
+      "each stop line ends one app's session, so stopping the API leaves the workers\nrunning."
+    );
+  });
+});
+
 describe("the suite's teardown", () => {
   it("sends no signal for a record that names no process of its own: 1, 0, an empty text, -1 or text", () => {
     const { root } = makeRoot();
@@ -2076,6 +2501,28 @@ describe("the suite's teardown", () => {
       for (const text of ["1", "0", "", "-1", "abc"]) {
         writeFileSync(record, `${text}\n`);
         endRecordedApi(root);
+        sent[text] = [...kill.mock.calls];
+        kill.mockClear();
+      }
+    } finally {
+      kill.mockRestore();
+      rmSync(record, { force: true });
+    }
+
+    expect(sent).toEqual({ "1": [], "0": [], "": [], "-1": [], abc: [] });
+  });
+
+  it("sends no signal for a workers record that names no process of its own: 1, 0, an empty text, -1 or text", () => {
+    const { root } = makeRoot();
+    const record = path.join(root, ".tmp", "workers.pid");
+    mkdirSync(path.dirname(record));
+    const sent: Record<string, unknown[][]> = {};
+    // A spy that sends nothing, so even a teardown that would signal -1 or 0 reaches no process.
+    const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
+    try {
+      for (const text of ["1", "0", "", "-1", "abc"]) {
+        writeFileSync(record, `${text}\n`);
+        endRecordedWorkers(root);
         sent[text] = [...kill.mock.calls];
         kill.mockClear();
       }
