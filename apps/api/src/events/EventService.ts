@@ -61,7 +61,11 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Initialize the event service
+   * @method initialize
+   * @description Registers the default handlers and marks the service ready. It appends and
+   *              publishes no event: every API boot calls it, and a boot must not add a row to
+   *              a freshly migrated database.
+   * @returns Result<void> that is ok once the service is ready, or the error that stopped it
    */
   async initialize(): Promise<Result<void, string>> {
     return this.executeWithErrorHandling(
@@ -78,36 +82,19 @@ export class EventService extends BaseService {
         this.setupDefaultHandlers();
 
         this.isInitialized = true;
-
-        // Emit system health event
-        await this.publishEvent(
-          createEventStoreEvent(
-            EVENT_TYPES.SYSTEM_HEALTH,
-            "event-service",
-            "EventService",
-            {
-              component: "EventService",
-              status: "healthy",
-              timestamp: new Date(),
-              metrics: {
-                handlersRegistered: this.handlers.size,
-              },
-            },
-            {
-              source: "EventService",
-            }
-          )
-        );
       }
     );
   }
 
   /**
-   * Append an event to the durable EventStore inside an externally-managed
-   * Prisma transaction. Used by callers (e.g. SagaManager) that need the
-   * event log to commit atomically with their own state mutation. The
-   * pub/sub broadcast does NOT happen here — call `broadcastEvent` after
-   * the outer transaction commits (best-effort fan-out).
+   * @method appendEventInTx
+   * @description Appends an event to the durable EventStore inside an externally-managed
+   *   Prisma transaction. Used by callers (e.g. SagaManager) that need the event log to commit
+   *   atomically with their own state mutation. The pub/sub broadcast does NOT happen here: call
+   *   `broadcastEvent` after the outer transaction commits (best-effort fan-out).
+   * @param tx - The Prisma transaction client the append runs in
+   * @param event - The event to append to the stream `<aggregateType>:<aggregateId>`
+   * @returns Resolves once the event is appended; rejects when the service is not initialized
    */
   async appendEventInTx(tx: Prisma.TransactionClient, event: EventStoreEvent): Promise<void> {
     if (!this.isInitialized) {
@@ -117,10 +104,13 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Broadcast an event to in-process Redis pub/sub subscribers without
-   * touching the EventStore. Pair with `appendEventInTx` after the outer
-   * transaction commits to preserve the durable-first / broadcast-after
-   * semantic.
+   * @method broadcastEvent
+   * @description Broadcasts an event to in-process Redis pub/sub subscribers without touching the
+   *   EventStore. Pair with `appendEventInTx` after the outer transaction commits to preserve the
+   *   durable-first / broadcast-after semantic.
+   * @param event - The event to publish to subscribers
+   * @returns Result<void> that is ok once published, or the error message when the service is not
+   *   initialized or the publish fails
    */
   async broadcastEvent(event: EventStoreEvent): Promise<Result<void, string>> {
     return this.executeWithErrorHandling(
@@ -142,7 +132,12 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Publish an event (stores and publishes)
+   * @method publishEvent
+   * @description Publishes an event: appends it to its aggregate stream in the EventStore first,
+   *   then publishes it to subscribers.
+   * @param event - The event to store and publish
+   * @returns Result<void> that is ok once both steps finish, or the error message when the service
+   *   is not initialized or either step fails
    */
   async publishEvent(event: EventStoreEvent): Promise<Result<void, string>> {
     return this.executeWithErrorHandling(
@@ -169,7 +164,13 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Publish multiple events in a batch
+   * @method publishEvents
+   * @description Publishes several events in a batch: groups them by aggregate stream, appends each
+   *   group to the EventStore, then publishes all of them to subscribers in one batch. An empty list
+   *   is a no-op.
+   * @param events - The events to store and publish
+   * @returns Result<void> that is ok once the batch is stored and published, or the error message
+   *   when the service is not initialized or a step fails
    */
   async publishEvents(events: EventStoreEvent[]): Promise<Result<void, string>> {
     return this.executeWithErrorHandling(
@@ -209,7 +210,12 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Register an event handler
+   * @method registerHandler
+   * @description Registers an event handler for an event type, tracking it in the service and
+   *   subscribing it on the publisher.
+   * @param eventType - The event type the handler listens to
+   * @param handler - The handler to invoke for events of that type
+   * @returns Nothing
    */
   registerHandler<T extends EventStoreEvent>(eventType: string, handler: EventHandler<T>): void {
     if (!this.handlers.has(eventType)) {
@@ -221,7 +227,12 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Unregister an event handler
+   * @method unregisterHandler
+   * @description Unregisters an event handler: removes it from the service's tracking (dropping the
+   *   event type once it has no handler left) and unsubscribes it from the publisher.
+   * @param eventType - The event type the handler was registered for
+   * @param handler - The handler to remove
+   * @returns Nothing
    */
   unregisterHandler<T extends EventStoreEvent>(eventType: string, handler: EventHandler<T>): void {
     const handlers = this.handlers.get(eventType);
@@ -236,7 +247,12 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Get events from a specific aggregate
+   * @method getAggregateEvents
+   * @description Reads the events of one aggregate from its stream in the EventStore.
+   * @param aggregateType - The aggregate type that, with the id, names the stream
+   * @param aggregateId - The aggregate id
+   * @param fromVersion - Optional version to start reading from
+   * @returns Result with the aggregate's events, or the error message when the read fails
    */
   async getAggregateEvents(
     aggregateType: string,
@@ -261,7 +277,14 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Replay events for a specific aggregate
+   * @method replayAggregateEvents
+   * @description Replays the stored events of one aggregate to subscribers, tagging each replayed
+   *   event's metadata with the source `EventService:Replay`. Refuses when replay is disabled.
+   * @param aggregateType - The aggregate type that, with the id, names the stream
+   * @param aggregateId - The aggregate id
+   * @param fromVersion - Optional version to start replaying from
+   * @returns Result<void> that is ok once every event is republished, or the error message when
+   *   replay is disabled or the read or a publish fails
    */
   async replayAggregateEvents(
     aggregateType: string,
@@ -303,7 +326,11 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Get events by type (useful for analytics and monitoring)
+   * @method getEventsByType
+   * @description Reads the stored events of one type, useful for analytics and monitoring.
+   * @param eventType - The event type to read
+   * @param fromTimestamp - Optional instant to start reading from
+   * @returns Result with the matching events, or the error message when the read fails
    */
   async getEventsByType(
     eventType: string,
@@ -325,7 +352,11 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Health check
+   * @method healthCheck
+   * @description Reports the service's health: healthy only when it is initialized and both the
+   *   EventStore and the publisher report healthy.
+   * @returns Result with the status and its details (initialization flag, EventStore and publisher
+   *   details, handler count), or the error message when a probe fails
    */
   async healthCheck(): Promise<
     Result<
@@ -368,7 +399,10 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Get service statistics
+   * @method getStatistics
+   * @description Reports the service's statistics: the number of registered handlers, their event
+   *   types and, when metrics are enabled, the publisher's metrics.
+   * @returns Result with the statistics, or the error message when collecting them fails
    */
   async getStatistics(): Promise<
     Result<
@@ -397,7 +431,11 @@ export class EventService extends BaseService {
   }
 
   /**
-   * Graceful shutdown
+   * @method shutdown
+   * @description Shuts the service down gracefully: stops the publisher, clears the tracked
+   *   handlers and marks the service as not initialized.
+   * @returns Result<void> that is ok once the service is stopped, or the error message when the
+   *   publisher fails to stop
    */
   async shutdown(): Promise<Result<void, string>> {
     return this.executeWithErrorHandling(
@@ -451,7 +489,15 @@ export class EventService extends BaseService {
 // Helper functions for common event creation patterns
 
 /**
- * Create a post lifecycle event
+ * @method createPostEvent
+ * @description Creates a post lifecycle event on the `Post` aggregate, with `postId` and
+ *   `projectId` placed ahead of the caller's data in the payload.
+ * @param eventType - The post event type
+ * @param postId - The post id, used as the aggregate id and in the payload
+ * @param projectId - The project the post belongs to
+ * @param data - Extra payload fields merged after `postId` and `projectId`
+ * @param metadata - The event metadata: the source and, optionally, the acting user
+ * @returns The event ready to store or publish
  */
 export function createPostEvent(
   eventType: string,
@@ -474,7 +520,15 @@ export function createPostEvent(
 }
 
 /**
- * Create a channel event
+ * @method createChannelEvent
+ * @description Creates a channel event on the `Channel` aggregate, with `channelId` and
+ *   `projectId` placed ahead of the caller's data in the payload.
+ * @param eventType - The channel event type
+ * @param channelId - The channel id, used as the aggregate id and in the payload
+ * @param projectId - The project the channel belongs to
+ * @param data - Extra payload fields merged after `channelId` and `projectId`
+ * @param metadata - The event metadata: the source and, optionally, the acting user
+ * @returns The event ready to store or publish
  */
 export function createChannelEvent(
   eventType: string,
@@ -497,7 +551,16 @@ export function createChannelEvent(
 }
 
 /**
- * Create a user action event
+ * @method createUserActionEvent
+ * @description Creates a user action event on the `User` aggregate, stamped with the current time.
+ *   The metadata source is `API`, and the session id is added to the metadata only when given.
+ * @param userId - The acting user, used as the aggregate id, in the payload and in the metadata
+ * @param action - The action the user performed
+ * @param resourceType - The type of resource the action targeted
+ * @param resourceId - The id of the resource the action targeted
+ * @param details - Optional extra details about the action
+ * @param sessionId - Optional session the action happened in
+ * @returns The event ready to store or publish
  */
 export function createUserActionEvent(
   userId: string,
