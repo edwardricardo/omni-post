@@ -4,7 +4,7 @@
  *   its pure core `scripts/start/lib/start-environment.mjs`: the environment a checkout with no
  *   environment file receives, what the command does with a file that is already there, and the
  *   start of Postgres and Redis from the repository's compose file, the database's migration, the
- *   API's start, then the workers' and then the administration portal's.
+ *   API's start, then the workers', then the administration portal's and then the client portal's.
  *
  *   The generated environment is held to the API's own schema through `parseApiEnv` and to the
  *   variables `docker-compose.yml` refuses to start without, so a variable either of them starts to
@@ -14,10 +14,11 @@
  *   two services are sockets this suite opens, so no container starts here: the run against real
  *   containers is the sequence's own proof. The API is a small Node script that the pnpm stand-in
  *   runs in its place, and the case says whether it answers 200, answers 503, never answers or
- *   exits; the workers are another, which answers 200 on `/health/ready` alone, and the portal a
- *   third, which takes its port from the checkout's `apps/admin/package.json`, as `next dev -p`
- *   does, and forwards `/api/backend/health` to `API_URL`. Every API, workers and portal stand-in a
- *   case leaves running is stopped by the suite's `afterEach`. Every signal the
+ *   exits; the workers are another, which answers 200 on `/health/ready` alone, and each portal a
+ *   third, made from one script for both (`portalDouble`), which takes its port from the
+ *   checkout's `apps/admin/package.json` or `apps/client/package.json`, as `next dev -p` does, and
+ *   forwards `/api/backend/health` to `API_URL`. Every API, workers and portal stand-in a case
+ *   leaves running is stopped by the suite's `afterEach`. Every signal the
  *   suite sends goes through one guard, `signal`, which sends nothing to a target that does not name
  *   a real, separate process: 0, 1 and -1 (as root, -1 reaches every process of the host but init),
  *   text read as a number, and the suite's own process, group and session.
@@ -204,7 +205,8 @@ exit 0
  * calls and becomes `API_PARENT`, which has the shape the measured pnpm has: it leads its own
  * process group and session, and the API is its child in another group of that session. Asked for
  * the workers (`@apps/workers dev`), it does the same apart again and becomes `WORKERS_PARENT`,
- * and asked for the administration portal (`@apps/admin dev`), it becomes `ADMIN_PARENT`.
+ * asked for the administration portal (`@apps/admin dev`), it becomes `ADMIN_PARENT`, and asked
+ * for the client portal (`@apps/client dev`), `CLIENT_PARENT`.
  */
 const PNPM_DOUBLE = `#!/bin/sh
 case " $* " in
@@ -220,6 +222,10 @@ case " $* " in
     printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG.admin"
     /usr/bin/env > "$FAKE_PNPM_LOG.admin.env"
     exec /bin/bash "$FAKE_ADMIN_PARENT" ;;
+  *" @apps/client dev "*)
+    printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG.client"
+    /usr/bin/env > "$FAKE_PNPM_LOG.client.env"
+    exec /bin/bash "$FAKE_CLIENT_PARENT" ;;
 esac
 printf '%s|%s\\n' "$*" "$PWD" >> "$FAKE_PNPM_LOG"
 case " $* " in
@@ -246,14 +252,14 @@ exit "\${FAKE_MIGRATE_EXIT:-0}"
 
 /**
  * What runs in place of pnpm for an app (`API` reads `FAKE_API_*`, `WORKERS` reads
- * `FAKE_WORKERS_*`, `ADMIN` reads `FAKE_ADMIN_*`): bash, so that job control puts the app in a process group of its own, as
+ * `FAKE_WORKERS_*`, `ADMIN` reads `FAKE_ADMIN_*`, `CLIENT` reads `FAKE_CLIENT_*`): bash, so that job control puts the app in a process group of its own, as
  * measured on the real pnpm (it leads the group and the session, and its shell and node are in
  * another group of that session). On SIGTERM it passes the signal on to the app and ends when the
  * app has; it does not end it itself, which is the part of the real pnpm that cannot be relied on
  * once pnpm is killed. With `FAKE_<APP>_ORPHAN` it ends at once and leaves the app running, as a
  * pnpm killed first would.
  */
-function parentFor(app: "API" | "WORKERS" | "ADMIN"): string {
+function parentFor(app: "API" | "WORKERS" | PortalApp): string {
   return `#!/bin/bash
 set -m
 "$FAKE_NODE" "$FAKE_${app}_SCRIPT" &
@@ -267,6 +273,7 @@ while kill -0 "$child" 2>/dev/null; do wait "$child"; done
 const API_PARENT = parentFor("API");
 const WORKERS_PARENT = parentFor("WORKERS");
 const ADMIN_PARENT = parentFor("ADMIN");
+const CLIENT_PARENT = parentFor("CLIENT");
 
 /**
  * The API as a case wants it, chosen by `FAKE_API_MODE`: `ok` answers every request with 200, `503`
@@ -338,10 +345,15 @@ process.on("SIGTERM", () => {
 });
 `;
 
+/** A portal the command starts, by the name its stand-ins read their variables under. */
+type PortalApp = "ADMIN" | "CLIENT";
+
 /**
- * The administration portal as a case wants it, chosen by `FAKE_ADMIN_MODE`. Like `next dev -p`,
- * it takes its port from the `dev` script of the checkout's `apps/admin/package.json`, never from
- * `PORT`, and binds it only when it is the port the case made (`FAKE_ADMIN_PORT`), ending at once
+ * A portal as a case wants it, chosen by `FAKE_<APP>_MODE` (`FAKE_ADMIN_MODE` for the
+ * administration portal, `FAKE_CLIENT_MODE` for the client portal): one script for both, since the
+ * command starts both through the same stage. Like `next dev -p`, it takes its port from the `dev`
+ * script of the checkout's `apps/admin/package.json` or `apps/client/package.json`, never from
+ * `PORT`, and binds it only when it is the port the case made (`FAKE_<APP>_PORT`), ending at once
  * on any other. `ok` answers `/api/health` and `/en/login` with 200 and forwards
  * `/api/backend/health` to `${API_URL}/health`, answering what the API answers, or 503 when the API
  * cannot be reached, as the portal's proxy does; every other path is a 404. `page500` is DEF-85's
@@ -356,13 +368,15 @@ process.on("SIGTERM", () => {
  * 503 as an unreachable API makes the proxy do; `silent` takes the connection and never answers;
  * `exit` ends at once with a line on stderr. On SIGTERM it says it stopped and ends with 0.
  */
-const ADMIN_DOUBLE = `import { readFileSync } from "node:fs";
+function portalDouble(app: PortalApp): string {
+  const dir = app.toLowerCase();
+  return `import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
-const mode = process.env.FAKE_ADMIN_MODE ?? "ok";
-console.log("admin double starting in mode " + mode);
-const dev = JSON.parse(readFileSync("apps/admin/package.json", "utf8")).scripts.dev;
+const mode = process.env.FAKE_${app}_MODE ?? "ok";
+console.log("${dir} double starting in mode " + mode);
+const dev = JSON.parse(readFileSync("apps/${dir}/package.json", "utf8")).scripts.dev;
 const port = Number(/-p (\\d+)/.exec(dev)?.[1]);
-if (mode === "exit" || port !== Number(process.env.FAKE_ADMIN_PORT)) {
+if (mode === "exit" || port !== Number(process.env.FAKE_${app}_PORT)) {
   console.error("Error: the portal could not start on " + port);
   process.exit(1);
 }
@@ -399,6 +413,10 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 `;
+}
+
+const ADMIN_DOUBLE = portalDouble("ADMIN");
+const CLIENT_DOUBLE = portalDouble("CLIENT");
 
 /** How every call after the first names the checkout's two files to Compose. */
 const COMPOSE = "compose -f docker-compose.yml --env-file .env";
@@ -439,6 +457,8 @@ interface Stage {
    * `apps/admin/package.json` as `next dev -p <port>`, where the command reads it.
    */
   readonly adminPort: number;
+  /** The port the client portal's stand-in is told to answer on, in `apps/client/package.json`. */
+  readonly clientPort: number;
 }
 
 const roots: string[] = [];
@@ -458,7 +478,7 @@ afterEach(async () => {
 });
 
 /** The record of each app the command starts, under the checkout's `.tmp`, in its order. */
-const RECORDS = ["api.pid", "workers.pid", "admin.pid"] as const;
+const RECORDS = ["api.pid", "workers.pid", "admin.pid", "client.pid"] as const;
 
 /** The name of one of the command's records (`RECORDS`). */
 type RecordName = (typeof RECORDS)[number];
@@ -692,6 +712,8 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
   writeFileSync(path.join(bin, "workers-parent.sh"), WORKERS_PARENT);
   writeFileSync(path.join(bin, "admin-double.mjs"), ADMIN_DOUBLE);
   writeFileSync(path.join(bin, "admin-parent.sh"), ADMIN_PARENT);
+  writeFileSync(path.join(bin, "client-double.mjs"), CLIENT_DOUBLE);
+  writeFileSync(path.join(bin, "client-parent.sh"), CLIENT_PARENT);
   const log = path.join(root, "docker.log");
   const pnpmLog = path.join(root, "pnpm.log");
   const postgres = services.postgres ?? (await listen("N"));
@@ -703,6 +725,9 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
   let adminPort = await freePort();
   while (adminPort === apiPort || adminPort === workersPort) adminPort = await freePort();
   writeAdminManifest(root, `next dev -p ${adminPort}`);
+  let clientPort = await freePort();
+  while ([apiPort, workersPort, adminPort].includes(clientPort)) clientPort = await freePort();
+  writeClientManifest(root, `next dev -p ${clientPort}`);
   return {
     root,
     file,
@@ -725,6 +750,9 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
       FAKE_ADMIN_SCRIPT: path.join(bin, "admin-double.mjs"),
       FAKE_ADMIN_PARENT: path.join(bin, "admin-parent.sh"),
       FAKE_ADMIN_PORT: String(adminPort),
+      FAKE_CLIENT_SCRIPT: path.join(bin, "client-double.mjs"),
+      FAKE_CLIENT_PARENT: path.join(bin, "client-parent.sh"),
+      FAKE_CLIENT_PORT: String(clientPort),
     },
     ports: {
       POSTGRES_HOST_PORT: String(postgres.port),
@@ -734,16 +762,28 @@ async function stage(services: { postgres?: Listener; redis?: Listener } = {}): 
     apiPort,
     workersPort,
     adminPort,
+    clientPort,
   };
+}
+
+/** Writes a portal's package in the checkout, `apps/<dir>/package.json`, with a case's `dev` script. */
+function writePortalManifest(root: string, app: PortalApp, dev: string): void {
+  const dir = app.toLowerCase();
+  mkdirSync(path.join(root, "apps", dir), { recursive: true });
+  writeFileSync(
+    path.join(root, "apps", dir, "package.json"),
+    `${JSON.stringify({ name: `@apps/${dir}`, scripts: { dev } }, null, 2)}\n`
+  );
 }
 
 /** Writes the checkout's `apps/admin/package.json` with the `dev` script a case gives it. */
 function writeAdminManifest(root: string, dev: string): void {
-  mkdirSync(path.join(root, "apps", "admin"), { recursive: true });
-  writeFileSync(
-    path.join(root, "apps", "admin", "package.json"),
-    `${JSON.stringify({ name: "@apps/admin", scripts: { dev } }, null, 2)}\n`
-  );
+  writePortalManifest(root, "ADMIN", dev);
+}
+
+/** Writes the checkout's `apps/client/package.json` with the `dev` script a case gives it. */
+function writeClientManifest(root: string, dev: string): void {
+  writePortalManifest(root, "CLIENT", dev);
 }
 
 /** The calls a stand-in logged, one line each; none when it was never run. */
@@ -2592,52 +2632,62 @@ describe("the workers stage", () => {
   });
 });
 
-describe("the administration portal stage", () => {
-  const adminLog = (staged: Stage) => path.join(staged.root, ".tmp", "admin.log");
-  const adminPidFile = (staged: Stage) => path.join(staged.root, ".tmp", "admin.pid");
-  const manifest = (staged: Stage) => path.join(staged.root, "apps", "admin", "package.json");
-  const at = (staged: Stage) => `127.0.0.1:${staged.adminPort}`;
+/** The status a path answers with on a port, or `null` when nothing answers; never a redirect. */
+async function statusOf(port: number, probe: string): Promise<number | null> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}${probe}`, {
+      signal: AbortSignal.timeout(2000),
+      redirect: "manual",
+    });
+    return response.status;
+  } catch {
+    return null;
+  }
+}
 
-  /** The process id the command recorded for its portal; a case that needs it fails without one. */
-  function adminOf(staged: Stage): number {
-    const pid = recordedIn(staged.root, "admin.pid");
-    if (pid === null) throw new Error("the command recorded no administration portal");
+/** Whether the API and the workers a run started still answer, as a failed portal leaves them. */
+async function apiAndWorkersAnswer(staged: Stage): Promise<boolean> {
+  return (
+    (await statusOf(staged.apiPort, "/health")) === 200 &&
+    (await statusOf(staged.workersPort, "/health/ready")) === 200
+  );
+}
+
+/**
+ * What the cases of a portal's stage read of that portal: its record and its log under the
+ * checkout, its package, where it answers, and the lines the command prints of it, word for word.
+ * Both portals start through one stage of the command, so their cases read them through this one
+ * helper, the administration portal's as the client portal's.
+ */
+function portalOf(app: PortalApp) {
+  const dir = app.toLowerCase();
+  const name = app === "ADMIN" ? "administration portal" : "client portal";
+  const log = (staged: Stage) => path.join(staged.root, ".tmp", `${dir}.log`);
+  const record: RecordName = app === "ADMIN" ? "admin.pid" : "client.pid";
+  const pidFile = (staged: Stage) => path.join(staged.root, ".tmp", record);
+  const manifest = (staged: Stage) => path.join(staged.root, "apps", dir, "package.json");
+  const at = (staged: Stage) =>
+    `127.0.0.1:${app === "ADMIN" ? staged.adminPort : staged.clientPort}`;
+
+  /** The process id the command recorded for the portal; a case that needs it fails without one. */
+  function pidOf(staged: Stage): number {
+    const pid = recordedIn(staged.root, record);
+    if (pid === null) throw new Error(`the command recorded no ${name}`);
     return pid;
   }
 
   /** The line that says where the portal answers, for a run that started it or found it started. */
   const answersLine = (staged: Stage, pid: number, earlier: boolean) =>
-    `platform-start: the administration portal ${earlier ? "this command started earlier already " : ""}answers /api/health, /en/login and /api/backend/health with 200 on ${at(staged)} (run by the pnpm process ${pid}, log ${adminLog(staged)})${earlier ? ": no second administration portal was started" : ""}\n`;
+    `platform-start: the ${name} ${earlier ? "this command started earlier already " : ""}answers /api/health, /en/login and /api/backend/health with 200 on ${at(staged)} (run by the pnpm process ${pid}, log ${log(staged)})${earlier ? `: no second ${name} was started` : ""}\n`;
 
   /** The stop line the run prints for the portal, word for word: its own pnpm, its own session. */
   const stopLine = (staged: Stage, pid: number) =>
-    `platform-start: stop it with \`kill -s TERM -- -${pid}\`: a normal termination signal, sent to the process group of pnpm (process ${pid}, which runs the administration portal and leads the session that holds it), which passes it on; it ends the administration portal only if the administration portal attends it, and one that ignores it keeps running. To see whether the administration portal still runs, check whether ${at(staged)} accepts connections, or whether the pnpm process ${pid}, recorded in ${adminPidFile(staged)}, still exists (it can end while the administration portal lives on, so only the port settles it); if the administration portal still runs, end the processes of the session by hand (\`ps -s ${pid}\` lists them). pnpm writes a failed-command line in the log when the administration portal ends, which is expected\n`;
+    `platform-start: stop it with \`kill -s TERM -- -${pid}\`: a normal termination signal, sent to the process group of pnpm (process ${pid}, which runs the ${name} and leads the session that holds it), which passes it on; it ends the ${name} only if the ${name} attends it, and one that ignores it keeps running. To see whether the ${name} still runs, check whether ${at(staged)} accepts connections, or whether the pnpm process ${pid}, recorded in ${pidFile(staged)}, still exists (it can end while the ${name} lives on, so only the port settles it); if the ${name} still runs, end the processes of the session by hand (\`ps -s ${pid}\` lists them). pnpm writes a failed-command line in the log when the ${name} ends, which is expected\n`;
 
-  /** How the sweep names the pnpm stand-in, once it runs as `ADMIN_PARENT`, and the portal's. */
-  const parentCommand = (staged: Stage) => literal(`/bin/bash ${staged.env.FAKE_ADMIN_PARENT}`);
-  const adminCommand = (staged: Stage) =>
-    literal(`${process.execPath} ${staged.env.FAKE_ADMIN_SCRIPT}`);
-
-  /** The status a path answers with on a port, or `null` when nothing answers. */
-  async function statusOf(port: number, probe: string): Promise<number | null> {
-    try {
-      const response = await fetch(`http://127.0.0.1:${port}${probe}`, {
-        signal: AbortSignal.timeout(2000),
-        redirect: "manual",
-      });
-      return response.status;
-    } catch {
-      return null;
-    }
-  }
-
-  /** Whether the API and the workers a run started still answer, as a failed portal leaves them. */
-  async function apiAndWorkersAnswer(staged: Stage): Promise<boolean> {
-    return (
-      (await statusOf(staged.apiPort, "/health")) === 200 &&
-      (await statusOf(staged.workersPort, "/health/ready")) === 200
-    );
-  }
+  /** How the sweep names the pnpm stand-in, once it runs as the portal's parent, and the portal's. */
+  const parentCommand = (staged: Stage) => literal(`/bin/bash ${staged.env[`FAKE_${app}_PARENT`]}`);
+  const command = (staged: Stage) =>
+    literal(`${process.execPath} ${staged.env[`FAKE_${app}_SCRIPT`]}`);
 
   /**
    * The lines of a start of the portal whose wait ran out with the portal still running: the cause
@@ -2646,12 +2696,27 @@ describe("the administration portal stage", () => {
   const ranOutLines = (staged: Stage, cause: string, mode: string) =>
     new RegExp(
       `^platform-start: ${cause}\\n` +
-        `platform-start: the pnpm process this run started to run the administration portal \\(process (\\d+)\\) was still running when the wait ended\\n` +
-        `platform-start: the session of process \\1 was swept: SIGTERM was sent to \\1 \\(${parentCommand(staged)}\\), \\d+ \\(${adminCommand(staged)}\\); then no process was found in it, and ${literal(adminPidFile(staged))} was removed\\n` +
-        `platform-start: the last lines of ${literal(adminLog(staged))}:\\n` +
-        `platform-start:   admin double starting in mode ${mode}\\n` +
+        `platform-start: the pnpm process this run started to run the ${name} \\(process (\\d+)\\) was still running when the wait ended\\n` +
+        `platform-start: the session of process \\1 was swept: SIGTERM was sent to \\1 \\(${parentCommand(staged)}\\), \\d+ \\(${command(staged)}\\); then no process was found in it, and ${literal(pidFile(staged))} was removed\\n` +
+        `platform-start: the last lines of ${literal(log(staged))}:\\n` +
+        `platform-start:   ${dir} double starting in mode ${mode}\\n` +
         `platform-start:   portal stopped\\n$`
     );
+
+  return { name, log, pidFile, manifest, at, pidOf, answersLine, stopLine, ranOutLines };
+}
+
+describe("the administration portal stage", () => {
+  const {
+    log: adminLog,
+    pidFile: adminPidFile,
+    manifest,
+    at,
+    pidOf: adminOf,
+    answersLine,
+    stopLine,
+    ranOutLines,
+  } = portalOf("ADMIN");
 
   it("starts the portal from source once the workers answer, detached, returns once /api/health, /en/login and /api/backend/health answer 200, and leaves it running", async () => {
     const staged = await stage();
@@ -2672,8 +2737,8 @@ describe("the administration portal stage", () => {
     expect(
       result.stdout.indexOf("platform-start: the workers answer /health/ready with 200 on ")
     ).toBeLessThan(result.stdout.indexOf("platform-start: the administration portal answers "));
-    expect(result.stdout.endsWith(answersLine(staged, pid, false) + stopLine(staged, pid))).toBe(
-      true
+    expect(result.stdout).toContain(
+      `${answersLine(staged, pid, false)}${stopLine(staged, pid)}platform-start: the client portal answers `
     );
   });
 
@@ -2941,8 +3006,8 @@ describe("the administration portal stage", () => {
     const second = await start(["--root", staged.root], asked(staged));
 
     expect(second).toMatchObject({ code: 0, stderr: "" });
-    expect(second.stdout.endsWith(answersLine(staged, pid, true) + stopLine(staged, pid))).toBe(
-      true
+    expect(second.stdout).toContain(
+      `${answersLine(staged, pid, true)}${stopLine(staged, pid)}platform-start: the client portal this command started earlier already answers `
     );
     expect(adminOf(staged)).toBe(pid);
     expect(alive(pid)).toBe(true);
@@ -3101,7 +3166,7 @@ describe("the administration portal stage", () => {
 
     expect(result).toMatchObject({ code: 0, stderr: "" });
     expect(result.stdout).toContain(
-      "The administration portal is started last, once the workers answer, the same way, with\n`pnpm --filter @apps/admin dev`, and left running, on the port its dev script fixes in\napps/admin/package.json (next dev -p 3100)."
+      "The administration portal is started next, once the workers answer, the same way, with\n`pnpm --filter @apps/admin dev`, and left running, on the port its dev script fixes in\napps/admin/package.json (next dev -p 3100)."
     );
     expect(result.stdout).toContain(
       "It must answer /api/health with 200, then /en/login\nwith exactly 200 and /api/backend/health, which it forwards to the API, with 200; --wait-seconds\nbounds that too."
@@ -3112,9 +3177,317 @@ describe("the administration portal stage", () => {
     expect(result.stdout).toContain(
       "A run whose start of the portal fails ends its session alone; the API and\nthe workers stay up."
     );
-    expect(result.stdout).toContain(
-      "The API, the workers and the portal each take a port of their own, and the\nrun refuses two of them on one port.\n"
+  });
+});
+
+describe("the client portal stage", () => {
+  const admin = portalOf("ADMIN");
+  const client = portalOf("CLIENT");
+  const { at, ranOutLines } = client;
+
+  /** Whether the apps a run starts before the client portal still answer, as its failure leaves them. */
+  async function earlierAppsAnswer(staged: Stage): Promise<boolean> {
+    return (
+      (await apiAndWorkersAnswer(staged)) &&
+      (await statusOf(staged.adminPort, "/api/health")) === 200
     );
+  }
+
+  it("starts the client portal from source once the administration portal answers, detached, returns once /api/health, /en/login and /api/backend/health answer 200, and leaves it running", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    const pid = client.pidOf(staged);
+    const adminPid = admin.pidOf(staged);
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(alive(pid)).toBe(true);
+    expect([recordedApi(staged.root), recordedWorkers(staged.root), adminPid]).not.toContain(pid);
+    expect(loggedCalls(`${staged.pnpmLog}.client`)).toEqual([
+      `--filter @apps/client dev|${staged.root}`,
+    ]);
+    expect(readFileSync(client.log(staged), "utf8")).toBe("client double starting in mode ok\n");
+    for (const probe of ["/api/health", "/en/login", "/api/backend/health"]) {
+      expect(await statusOf(staged.clientPort, probe)).toBe(200);
+    }
+    expect(result.stdout).toContain(
+      admin.stopLine(staged, adminPid) + client.answersLine(staged, pid, false)
+    );
+    expect(
+      result.stdout.endsWith(client.answersLine(staged, pid, false) + client.stopLine(staged, pid))
+    ).toBe(true);
+  });
+
+  it("stops with the signal the command prints for it: the client portal stops and ends, and the API, the workers and the administration portal keep answering", async () => {
+    const staged = await stage();
+    await start(["--root", staged.root], asked(staged));
+    const pid = client.pidOf(staged);
+
+    expect(signal(-pid, "SIGTERM")).toBe(true);
+
+    await until(() => !alive(pid), { description: "the client portal to end after SIGTERM" });
+    expect(readFileSync(client.log(staged), "utf8")).toContain("portal stopped\n");
+    expect(await statusOf(staged.clientPort, "/api/health")).toBeNull();
+    expect(await earlierAppsAnswer(staged)).toBe(true);
+  });
+
+  it("points the client portal at the API this run started: it hands it API_URL, the key its proxy reads, with the API's port, and /api/backend/health reaches that API through it", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(savedEnvironment(`${staged.pnpmLog}.client.env`)).toMatchObject({
+      API_URL: `http://127.0.0.1:${staged.apiPort}`,
+    });
+    expect(await statusOf(staged.clientPort, "/api/backend/health")).toBe(200);
+    expect(signal(-Number(recordedApi(staged.root)), "SIGTERM")).toBe(true);
+    await until(async () => (await statusOf(staged.apiPort, "/health")) === null, {
+      description: "the API to end after SIGTERM",
+    });
+    expect(await statusOf(staged.clientPort, "/api/backend/health")).toBe(503);
+  });
+
+  it("hands the client portal the calling shell's API_URL when the shell sets one, and holds the run to the API it names", async () => {
+    const staged = await stage();
+    const named = await listen(
+      "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}"
+    );
+    const elsewhere = `http://127.0.0.1:${named.port}`;
+
+    const result = await start(["--root", staged.root], asked(staged, { API_URL: elsewhere }));
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(savedEnvironment(`${staged.pnpmLog}.client.env`)).toMatchObject({ API_URL: elsewhere });
+    const asks =
+      Buffer.concat(named.received)
+        .toString()
+        .match(/^GET \/health /gm) ?? [];
+    expect(asks.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("hands the client portal no NODE_ENV, so a calling shell's NODE_ENV=test does not choose its environment files, and still hands it to the API", async () => {
+    const staged = await stage();
+
+    const result = await start(["--root", staged.root], asked(staged, { NODE_ENV: "test" }));
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(savedEnvironment(`${staged.pnpmLog}.client.env`)).not.toHaveProperty("NODE_ENV");
+    expect(savedEnvironment(`${staged.pnpmLog}.api.env`)).toMatchObject({ NODE_ENV: "test" });
+  });
+
+  it("hands the client portal the calling shell's environment, without the variables the file owns: no required secret reaches it", async () => {
+    const staged = await stage();
+    const refused = [...core.REQUIRED_KEYS, "POSTGRES_HOST_PORT", "REDIS_HOST_PORT"];
+    const fromTheShell = Object.fromEntries(
+      core.REQUIRED_KEYS.map((key) => [key, "from-the-shell"])
+    );
+
+    const result = await start(["--root", staged.root], {
+      ...fromTheShell,
+      ...asked(staged, { KEPT_BY_THE_SHELL: "yes" }),
+    });
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    const given = savedEnvironment(`${staged.pnpmLog}.client.env`);
+    expect(refused.filter((key) => key in given)).toEqual([]);
+    expect(Object.values(given)).not.toContain("from-the-shell");
+    expect(given).toMatchObject({ KEPT_BY_THE_SHELL: "yes" });
+  });
+
+  it.each([
+    {
+      mode: "silent",
+      cause: (where: string) => `/api/health on ${where} did not answer 200 within 2 s`,
+    },
+    {
+      mode: "page500",
+      cause: (where: string) =>
+        `/api/health on ${where} answered 200, but /en/login there did not answer 200 within 2 s \\(the last answer it gave was 500\\)`,
+    },
+    {
+      mode: "backend503",
+      cause: (where: string) =>
+        `/api/health on ${where} answered 200, but /api/backend/health there did not answer 200 within 2 s \\(the last answer it gave was 503\\)`,
+    },
+  ])(
+    "names the path a client portal in mode $mode never answered 200 on within the wait, sweeps its session alone and leaves the API, the workers and the administration portal running",
+    async ({ mode, cause }) => {
+      const staged = await stage();
+
+      const result = await start(
+        ["--root", staged.root, "--wait-seconds", "2"],
+        asked(staged, { FAKE_CLIENT_MODE: mode })
+      );
+
+      expect(result.code).toBe(1);
+      const said = ranOutLines(staged, cause(literal(at(staged))), mode);
+      expect(result.stderr).toMatch(said);
+      expect(sessionMembers(Number(said.exec(result.stderr)?.[1]))).toEqual([]);
+      expect(recordedIn(staged.root, "client.pid")).toBeNull();
+      expect(await statusOf(staged.clientPort, "/api/health")).toBeNull();
+      expect(await earlierAppsAnswer(staged)).toBe(true);
+    }
+  );
+
+  it("fails at once when pnpm ends first, as it does when the client portal's predev build fails, sweeps its session and leaves the earlier apps running", async () => {
+    const staged = await stage();
+    const began = Date.now();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "30"],
+      asked(staged, { FAKE_CLIENT_MODE: "exit" })
+    );
+
+    expect(Date.now() - began).toBeLessThan(15_000);
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(
+      new RegExp(
+        `^platform-start: the pnpm process this run started to run the client portal \\(process (\\d+)\\) exited 1 before /api/health, /en/login and /api/backend/health answered 200\\n` +
+          `platform-start: the session of process \\1 was swept: no process was found in it, and ${literal(client.pidFile(staged))} was removed\\n` +
+          `platform-start: the last lines of ${literal(client.log(staged))}:\\n` +
+          `platform-start:   client double starting in mode exit\\n` +
+          `platform-start:   Error: the portal could not start on ${staged.clientPort}\\n$`
+      )
+    );
+    expect(recordedIn(staged.root, "client.pid")).toBeNull();
+    expect(await earlierAppsAnswer(staged)).toBe(true);
+  });
+
+  it("goes on as a second run when the client portal it started earlier still answers on every path: it starts no other", async () => {
+    const staged = await stage();
+    await start(["--root", staged.root], asked(staged));
+    const pid = client.pidOf(staged);
+
+    const second = await start(["--root", staged.root], asked(staged));
+
+    expect(second).toMatchObject({ code: 0, stderr: "" });
+    expect(
+      second.stdout.endsWith(client.answersLine(staged, pid, true) + client.stopLine(staged, pid))
+    ).toBe(true);
+    expect(client.pidOf(staged)).toBe(pid);
+    expect(alive(pid)).toBe(true);
+    expect(loggedCalls(`${staged.pnpmLog}.client`)).toHaveLength(1);
+  });
+
+  it("refuses a port that something else holds, names it, starts no client portal and leaves the earlier apps running", async () => {
+    const staged = await stage();
+    await occupy(staged.clientPort);
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: ${at(staged)} is already in use, and this command holds no record of a running client portal it started: the port may be held by anything; no client portal was started\n`
+    );
+    expect(loggedCalls(`${staged.pnpmLog}.client`)).toEqual([]);
+    expect(recordedIn(staged.root, "client.pid")).toBeNull();
+    expect(await earlierAppsAnswer(staged)).toBe(true);
+  });
+
+  it("starts no client portal when the administration portal's start fails: the run ends at the administration portal", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "2"],
+      asked(staged, { FAKE_ADMIN_MODE: "page500" })
+    );
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(admin.ranOutLines(staged, ".+", "page500"));
+    expect(result.stderr).not.toContain("client portal");
+    expect(loggedCalls(`${staged.pnpmLog}.client`)).toEqual([]);
+    expect(recordedIn(staged.root, "client.pid")).toBeNull();
+  });
+
+  it("refuses, before anything is written or started, a port two of the four apps would take, each pair on its own line", async () => {
+    const staged = await stage();
+    const port = String(staged.adminPort);
+    const admins = "the dev script of apps/admin/package.json";
+    const clients = "the dev script of apps/client/package.json";
+    writeClientManifest(staged.root, `next dev -p ${port}`);
+
+    const portals = await start(["--root", staged.root], asked(staged));
+    const all = await start(["--root", staged.root], {
+      ...staged.env,
+      PORT: port,
+      METRICS_PORT: port,
+    });
+
+    expect(portals.code).toBe(1);
+    expect(portals.stderr).toBe(
+      `platform-start: the administration portal and the client portal would both take port ${port} (${admins} and ${clients}): give each its own\n`
+    );
+    expect(all.code).toBe(1);
+    expect(all.stderr).toBe(
+      `platform-start: the API and the workers would both take port ${port} (PORT and METRICS_PORT): give each its own\n` +
+        `platform-start: the API and the administration portal would both take port ${port} (PORT and ${admins}): give each its own\n` +
+        `platform-start: the API and the client portal would both take port ${port} (PORT and ${clients}): give each its own\n` +
+        `platform-start: the workers and the administration portal would both take port ${port} (METRICS_PORT and ${admins}): give each its own\n` +
+        `platform-start: the workers and the client portal would both take port ${port} (METRICS_PORT and ${clients}): give each its own\n` +
+        `platform-start: the administration portal and the client portal would both take port ${port} (${admins} and ${clients}): give each its own\n`
+    );
+    expect(existsSync(staged.file)).toBe(false);
+    expect(dockerCalls(staged)).toEqual([]);
+  });
+
+  it("refuses a client portal package that fixes no port, or one that is not a port, after the administration portal's problem and before anything is written or started", async () => {
+    const staged = await stage();
+
+    writeAdminManifest(staged.root, "next dev");
+    writeClientManifest(staged.root, "next dev");
+    const none = await start(["--root", staged.root], asked(staged));
+    expect(none.code).toBe(1);
+    expect(none.stderr).toBe(
+      `platform-start: ${admin.manifest(staged)} fixes no port on its dev script (-p <port>)\n` +
+        `platform-start: ${client.manifest(staged)} fixes no port on its dev script (-p <port>)\n`
+    );
+
+    writeAdminManifest(staged.root, `next dev -p ${staged.adminPort}`);
+    writeClientManifest(staged.root, "next dev --port=70000");
+    const notAPort = await start(["--root", staged.root], asked(staged));
+    expect(notAPort.code).toBe(1);
+    expect(notAPort.stderr).toBe(
+      `platform-start: ${client.manifest(staged)} starts its app on 70000, which is not a port\n`
+    );
+    expect(existsSync(staged.file)).toBe(false);
+    expect(dockerCalls(staged)).toEqual([]);
+  });
+
+  it("fails at the client portal's stage, naming the file, in a checkout with no apps/client/package.json, after the administration portal answered", async () => {
+    const staged = await stage();
+    rmSync(path.join(staged.root, "apps", "client"), { recursive: true });
+
+    const result = await start(["--root", staged.root], asked(staged));
+
+    expect(result.code).toBe(1);
+    expect(result.stderr).toBe(
+      `platform-start: ${client.manifest(staged)} does not exist: no client portal was started\n`
+    );
+    expect(loggedCalls(`${staged.pnpmLog}.client`)).toEqual([]);
+    expect(await earlierAppsAnswer(staged)).toBe(true);
+  });
+
+  it("says in the usage that the client portal starts last, once the administration portal answers, on the port its package fixes, and that the four apps take four ports", async () => {
+    const { root } = makeRoot();
+
+    const result = await start(["--root", root, "--help"]);
+
+    expect(result).toMatchObject({ code: 0, stderr: "" });
+    expect(result.stdout).toContain(
+      "workers running from source that answer /health/ready with 200.\nLast come the administration portal and the client portal, each held to answer through that API.\n"
+    );
+    expect(result.stdout).toContain(
+      "The client portal is started last, once the administration portal answers, the same way, with\n`pnpm --filter @apps/client dev`, on the port its dev script fixes in apps/client/package.json\n(next dev -p 3200), held to the same three paths and given the same API_URL and no NODE_ENV."
+    );
+    expect(result.stdout).toContain(
+      "A\nrun whose start of the client portal fails ends its session alone; the API, the workers and the\nadministration portal stay up."
+    );
+    expect(
+      result.stdout.endsWith(
+        "The API, the workers and the two portals each take a port of their\nown, and the run refuses two of them on one port.\n"
+      )
+    ).toBe(true);
   });
 });
 
