@@ -73409,448 +73409,448 @@
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::accepts a case file whose cases carry every field",
-          "line": 298,
+          "line": 300,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "67200683f3eec23ce2062096ddc6a97e0ab11723e091f4b493e09d0c955e0261"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::refuses %s, naming the field",
-          "line": 308,
+          "line": 310,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "03aea4c112d8101620fe2b8281b95fe501cc1881cf22cbfb7f177748541055b8"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::holds the test, the named files and the tests that import the subject directly",
-          "line": 334,
+          "line": 336,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5910753cc0ffe810d9f6f82d1b484a6d781600f4dedc4b1b7808c2b9a8a570c3"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::resolves a ledger id to the titles around the block and its own",
-          "line": 374,
+          "line": 376,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "651d9bd30205698c3a012f4e880872889363913cd39cb20e9c02a512df41c9ee"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::reads a title two blocks share, under either id, as ambiguous",
-          "line": 378,
+          "line": 380,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "998952f7ea9c00e98570169a7aa3ba693043869aaf0dbf8cb209076fe7b25c24"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::reads an id the file does not hold as missing",
-          "line": 385,
+          "line": 387,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f11689307cdbceadfa966dd6ad13d2e995c25b89852b15a3d02a13e9d47d6198"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::hashes each block with the classifier's bodyHash, the one ledger.json holds",
-          "line": 389,
+          "line": 391,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "451b534c21c269daa1cac7a9a4bd759bbf8c8f42dba9472b58bcba93d49143d9"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives each listed block its hash on each side, null where it does not exist",
-          "line": 402,
+          "line": 404,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "42d45f5e4498b5ee000d4b41e5204d464b0666e2b7123f45338cde75f7141e9b"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::reads each file of a vitest JSON report by its repository-relative path",
-          "line": 414,
+          "line": 416,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c502ce746f68018b098d9da18ec7fa9dd5d2cbfd304052b2c92ac040d2b3b6ff"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::refuses a report with no testResults",
-          "line": 438,
+          "line": 440,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1909950759f2d718fc7e5adb61865b5aca838e0e66c7a949c69df444bc5c06c8"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::returns a file's vitest message when it is a non-empty string, and no message field when it is missing, empty or not a string",
-          "line": 444,
+          "line": 446,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0673dfd0b158f4bf887a129ad47e0d167c696fae9be3752b2f128b8b3c763e16"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::rewrite: %s",
-          "line": 514,
+          "line": 516,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e667916dd24e7098cd0ea75c22b3e35175f8562373f1f12bb18088423260778"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::deletion: %s",
-          "line": 532,
+          "line": 534,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e667916dd24e7098cd0ea75c22b3e35175f8562373f1f12bb18088423260778"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::UNDECIDED on %s",
-          "line": 561,
+          "line": 563,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1a72ca94e9bb3661dc16ade7ecce12185c23099b04edd010939a76dd3d3c10a1"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives a rewrite BEHAVIOUR-CHANGED when only its listed block is red at the base and the head is green",
-          "line": 748,
+          "line": 750,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3ca8d2ae3096b5e0e3a56c8b4faac0d41d5a621a529334bb3d5d975aa0dc22e7"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives a deletion BEHAVIOUR-CHANGED when only its deleted block is red at the base and the head is green",
-          "line": 764,
+          "line": 766,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2a97d4406bd26424ba7f155c688c8c82da78f91be7624fd102b0a6965158f126"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::keeps UNDECIDED base-red-clean when a scope test besides the listed block is red at the base",
-          "line": 782,
+          "line": 784,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b3d34e06fddb687fa28a202fda027831f5698c1832330728f6b881b18de93f5"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::keeps UNDECIDED base-red-clean when the head clean run is red too",
-          "line": 798,
+          "line": 800,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e95c6593ddfae99feb4309cfe329b00b6cdeac620c74a42871b829d0cd2f2b78"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::keeps UNDECIDED base-red-clean when a base file failed with none of its tests failed",
-          "line": 814,
+          "line": 816,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f2cf2b2a11a825428f673415388fe5a2b69dd5c530eca6080a8a604905769cd"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives a deletion BEHAVIOUR-CHANGED when the base is red on its block and on a rewrite case's block of the same file",
-          "line": 890,
+          "line": 892,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "45d23a35590f2098b648098e77e374086085f282cd94e4fa5d048586df6b9d48"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives a rewrite BEHAVIOUR-CHANGED when the base is red on its block and on a deletion case's block of the same file",
-          "line": 900,
+          "line": 902,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8171cb3c081cf93766b294529fa692b1045cafa59c61a498ded23a2cf3d90203"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::keeps UNDECIDED base-red-clean when the base is also red on a block no case of the file lists",
-          "line": 910,
+          "line": 912,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a89cb41e6e1c5144f7d857fa2ff8b70e7fca6b6d1947696ff6c57f54f4b68b5f"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::keeps UNDECIDED base-red-clean when the base is red only on another case's block, none of its own",
-          "line": 920,
+          "line": 922,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2b38f90bf9c5b60160e3b33cd6fd1a8b8066b690e3916b7712f91f05fce3d96b"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::does not count a peer block that the base does not hold",
-          "line": 930,
+          "line": 932,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "89fca983f817db02b31ef35f4a869925cb4e50c1090fa034732c94ad9a6329b8"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::renders the same record whatever order its cases and scope arrive in",
-          "line": 948,
+          "line": 950,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "20ed8f1626b23b50f09d1a88ecdd544506a52c3431b8a272b2cc6fc011fcd88d"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::exits %#: %j under --require %s",
-          "line": 1025,
+          "line": 1027,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e82f307d785563dd4709693c41ddcbf6e85315e3d47438909bd2e5c0dba6cf6e"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::is a pre plugin named mutation-diff",
-          "line": 1059,
+          "line": 1061,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "89ec343327b3a6c4099f99df72f7c1faf70efce797ec736b17e36697a6b2b67f"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::mutates the subject at the first occurrence of the search, literally, and marks it",
-          "line": 1065,
+          "line": 1067,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "237d613fb6b40b3394b24e8dc4e75f7253892bca434679a02d90e780d937da82"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::throws when the search is absent from the subject",
-          "line": 1076,
+          "line": 1078,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6009607417b18f84c7dcdb57c05fc6941fc02703df43f8cd1a6979b579d285aa"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::serves the base content for a test file id and logs it",
-          "line": 1084,
+          "line": 1086,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5fe2d51c9f8176f3be6f76108fab895869244e51a860fc6a46791deb569a8b0d"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::resolves an aliased test file's imports from the file's own path, any other's not at all",
-          "line": 1096,
+          "line": 1098,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8280aa5c0c896ee065cbc43cf64c2056768ad3b2743e76971f655ad85db8932f"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::passes any other module through, and the subject too on a clean run",
-          "line": 1114,
+          "line": 1116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "84890a74113f46d393b5a91dcf026d03071dddbab3fc4c28bd66c7a4fb0c86d5"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::refuses %j as a usage error",
-          "line": 1354,
+          "line": 1356,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "42f030f9800543bab960fe6917e311dba7211835f2f3169eea4246dabf8d4c14"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives GAIN and exit 0, with the base content served at the base",
-          "line": 1367,
+          "line": 1369,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "17d79d31b4c870a8ed0eb276742b1bbcfab555cca6c16e03f2bee7f442e74ede"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::computes the default scope on each side from that side's tree",
-          "line": 1411,
+          "line": 1413,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2c119e0caf75ee2d647d9e361d59a1ec7e1a1328c24f1f410a0c5fec4ad32823"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives NO-GAIN naming the red base tests, exit 0, and exit 1 under --require gain",
-          "line": 1429,
+          "line": 1431,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "52ecaf8dc77ad21fc9f22bac48b7f6331a65c23e025f488f50c9c906a574a42d"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives BROKEN and exit 1 when the head block is green under its own mutation",
-          "line": 1454,
+          "line": 1456,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "db5a6cd0e67b0ca09192402e7313c53425cf0f23a9ca858fb4243512ec3dfd5c"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives UNDECIDED base-empty, running nothing, for a rewrite of a test the base does not hold",
-          "line": 1464,
+          "line": 1466,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "147d35ccbc543e6b28b9aadb8fd4e9b2eabfd49a8773ccc7cfaa4ed1c4b5d2d9"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives UNDECIDED block-missing for a rewrite of a block the base does not hold",
-          "line": 1486,
+          "line": 1488,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dbb643e10a471b1c2a9024a07ca62bf66f4758691aebd752887c9432527efc1b"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives LOST for a deletion, exit 0, and exit 1 under --require safe",
-          "line": 1505,
+          "line": 1507,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2adf9cbd0c45f0aed7c20f987e1b6addf26b9ac5960f38086f131e27a6caf65d"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::runs a whole-file deletion: the base runs the deleted file from a copy, the head runs without it",
-          "line": 1534,
+          "line": 1536,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb1e81685a83abe154483946aa68156a2db65f9db5c4d4a49049fd9b06c50552"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives UNDECIDED block-present-at-head for a deletion whose block the head still holds",
-          "line": 1582,
+          "line": 1584,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eb9d0812b5249ea4aabc353b12733c2f4547f854a9e9cb9d9e9444694cacb127"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives UNDECIDED search-absent and exit 1 without running anything",
-          "line": 1599,
+          "line": 1601,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1baa8fce9a989400ebc124a953797716cd614ceb7555181d8379784b04cf1662"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives UNDECIDED not-applied and exit 1 when a mutated run leaves no marker",
-          "line": 1616,
+          "line": 1618,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a7a4c286f9676e92551e1bed59cd6f3c3255eaef5aaadf87ab2329b105164c9c"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives UNDECIDED not-served and exit 1 when a base file never reaches the plugin",
-          "line": 1626,
+          "line": 1628,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "723c2c9c0846bd78d9c8b7142e6d8a2c92cd6801d9e925da8fbd8f2748c4c829"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::returns UNDECIDED both-unreadable with each side's unloaded file and its message's first line when the test module throws at import without the variable the fixture names",
-          "line": 1639,
+          "line": 1641,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4ed0a2e687ec2547c7c588989a777b3642d4e7f3ec9667844154705160223450"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::shares the clean runs between cases and keeps only the cases --only names",
-          "line": 1663,
+          "line": 1665,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "eff51ea87343f595bed1fed650b6516019094e5be802584c3c0cf035e511c13d"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::serves the head content from --head and records the head's sha",
-          "line": 1683,
+          "line": 1685,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e0fe0d974fb4e864083cad50ef7362b0b3254cd9a1ee25afe7a652295272d098"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::writes the same bytes for the same input",
-          "line": 1701,
+          "line": 1703,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3e12e13a4a79d3b28e3db9069d5476c5337e415ef4f6941b2e97469eed9909b9"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::exits 2 on %s and writes no record",
-          "line": 1712,
+          "line": 1714,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9a054a1e4625c7978c55cb7448074a7516f402e8ef5b68cfc6a8ead581da0e11"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::exits 3 when the case file cannot be read",
-          "line": 1735,
+          "line": 1737,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7dd058f19e9fa33a020965130d1a8a8a507e38f3ca6321a39b8f221f7c76ea48"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::exits 3 when git cannot resolve the base",
-          "line": 1752,
+          "line": 1754,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7029360b69b6651bab5b2d7c1c811029bf8216a188c43d92611ad8ab0b89e24d"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::exits 3 when the runner does not start",
-          "line": 1761,
+          "line": 1763,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ecb61d27d51099d3848157ceea6e4fc271ad2d2f2908db212dd8bf324fa60c16"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::gives the deletion and the rewrite BEHAVIOUR-CHANGED when the base is red on both cases' blocks alone",
-          "line": 1790,
+          "line": 1792,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dd7abd1fcc951812fc6a51ae09054bd096c40eaf06fca58805c3111830d055ae"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::reads the other case's blocks from the whole case file when --only names one case",
-          "line": 1809,
+          "line": 1811,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d35abfbb9310b8b7bd53697fcbf356dad45704930411482e43790bfa69c0f299"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::keeps the case whose own block is green at the base UNDECIDED, while the case whose block is red changed",
-          "line": 1831,
+          "line": 1833,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "67d8e61b640ad121934be6e5a98cba84069f436e4f08b6ef4be98a0d15befc38"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::keeps both cases UNDECIDED when the base is also red on a test no case of the file lists",
-          "line": 1850,
+          "line": 1852,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "90d6c7ec6537079c3e0984127207b00e9951194aeb2a3841fb0ca82ef7eff8f8"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::runs the twin under its own config, rooted at its package, in a run of its own per side and state, and merges its red into the case",
-          "line": 1938,
+          "line": 1940,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "409f9ce1000a753a546ce6264b20b921ad6dcf38d8adc74845b09f8405b14050"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::refuses a scope entry %s with exit 2, naming the case, and runs nothing",
-          "line": 1984,
+          "line": 1986,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4c1ddfbe7e46324b5ed92609f1456c2bad36105e5f25787f4671508f3afb14a4"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::shares the twin's clean runs between two cases whose own runs differ, and spawns every other run",
-          "line": 2013,
+          "line": 2015,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c18d90e2f261c3e3ec4b0d31964bdc29b21e421c10cc0b9bf7768872a54510ba"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::keeps a case with no scope entry of another project to one run per side and state, from its own package",
-          "line": 2046,
+          "line": 2048,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d737b284a5eacf08a7537120efe7522298be33f799eae4be90ed88f0cd92e310"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::refuses a scope entry a runner of another kind collects with exit 2, naming the case and the runner, and runs nothing",
-          "line": 2114,
+          "line": 2116,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d58dbae7749b0b35aadc8fe13b5f2d6f80b71ee01fe1045d7b73ba1d1b91745c"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::spawns nothing for a side whose scope is empty and reads the deletion LOST",
-          "line": 2133,
+          "line": 2135,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f26b617c88339927bc64aee2ef9ba39a1dd08d95100b488ce1074a61ad77867c"
         },
         {
           "id": "apps/api/tests/unit/scripts/mutationDiff.test.ts::reads a mutated side whose one run serves nothing and leaves no marker as UNDECIDED not-applied, the base tool's order",
-          "line": 2166,
+          "line": 2168,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "13cade870ca64e09e908b0242bb2346c0e8d291435fcaebec52b8cf79688f527"

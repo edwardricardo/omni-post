@@ -95,6 +95,8 @@ interface DecideInput {
   readonly resolutions: Readonly<Record<string, Readonly<Record<Side, Resolution>>>>;
   readonly runs: Readonly<Record<Side, { readonly clean: Run; readonly mutated: Run }>>;
   readonly files: Readonly<Record<Side, readonly string[]>>;
+  /** The base-side resolutions of the blocks the file's other cases over the same test list. */
+  readonly peers?: readonly Resolution[];
 }
 
 type MutationDiffCore = {
