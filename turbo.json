@@ -54,6 +54,11 @@
       "dependsOn": ["@shared/types#build"],
       "cache": false,
       "persistent": true
+    },
+    "@apps/admin#dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
     }
   }
 }
