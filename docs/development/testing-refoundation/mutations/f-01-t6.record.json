@@ -1,0 +1,295 @@
+{
+  "base": "32fd8a0b3e7894becdb0fa9212403c6a5b8ad7ba",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "6e8fb5dcc947fadd850273d7a2857a41141201a070bcaee312cd3bdabd1083b9",
+            "head": "6e8fb5dcc947fadd850273d7a2857a41141201a070bcaee312cd3bdabd1083b9"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, with the last lines of the log, when the API exits while the run waits, and a second run goes on from there"
+        },
+        {
+          "bodyHash": {
+            "base": "bef79eed33034ec1d48ce177b984e01981614dd771bb57a2124a2c3a3884db6b",
+            "head": "bef79eed33034ec1d48ce177b984e01981614dd771bb57a2124a2c3a3884db6b"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on after a failed wait as a run that starts the API again: the failed run left no process and no record"
+        },
+        {
+          "bodyHash": {
+            "base": "88c8090abed08d1f582c6833ad22bceec87d47d6f4d602295c122fb7986f71de",
+            "head": "88c8090abed08d1f582c6833ad22bceec87d47d6f4d602295c122fb7986f71de"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on as a second run when the API it started earlier still answers: it starts no other"
+        },
+        {
+          "bodyHash": {
+            "base": "3eec2d78021a637c298b64a6d824849fd083230e68b73b7e126bc58a2f516037",
+            "head": "3ef72edbfa07009e8a14ddd67eb7ef4a5c2ffca9140d863ce82377eb1c2bfff9"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on as a second run when the portal it started earlier still answers on every path: it starts no other"
+        },
+        {
+          "bodyHash": {
+            "base": "e68e0560c54c9fc3ce7c3e0dc0e6482c5f79d9b5e7501ccd0e047e3bc302dba1",
+            "head": "e68e0560c54c9fc3ce7c3e0dc0e6482c5f79d9b5e7501ccd0e047e3bc302dba1"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::goes on as a second run when the workers it started earlier still answer: it starts no others"
+        },
+        {
+          "bodyHash": {
+            "base": "7bff0ce58852043b754c7878d0ebea6e155bd80b13da6fe2a59cc8d50eabf459",
+            "head": "7bff0ce58852043b754c7878d0ebea6e155bd80b13da6fe2a59cc8d50eabf459"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands Compose no variable the file owns, whatever the calling shell holds"
+        },
+        {
+          "bodyHash": {
+            "base": "db5bed1c0c8552b47e88ca8e02ba9ab67bb7839b62037782f5191a461b59d425",
+            "head": "db5bed1c0c8552b47e88ca8e02ba9ab67bb7839b62037782f5191a461b59d425"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the API the calling shell's environment, without the variables the file owns"
+        },
+        {
+          "bodyHash": {
+            "base": "a9e974a5622fea6f0e7601ee579c4753eba40b3bed5f9249ae5d78443b76c300",
+            "head": "a9e974a5622fea6f0e7601ee579c4753eba40b3bed5f9249ae5d78443b76c300"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the portal no NODE_ENV, so a calling shell's NODE_ENV=test does not choose its environment files, and still hands it to the API"
+        },
+        {
+          "bodyHash": {
+            "base": "daa4970317427ef721d39852af784d3e8cf9a231ba179fcdbea22a972c3d8d7c",
+            "head": "daa4970317427ef721d39852af784d3e8cf9a231ba179fcdbea22a972c3d8d7c"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the portal the calling shell's environment, without the variables the file owns: no required secret reaches it"
+        },
+        {
+          "bodyHash": {
+            "base": "9ec255b07737cbbf958f3b89df2f7f5892a8c024d35b322dff55ae97263dcf43",
+            "head": "9ec255b07737cbbf958f3b89df2f7f5892a8c024d35b322dff55ae97263dcf43"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the proof and the migration no variable the file owns and no migration URL of the calling shell"
+        },
+        {
+          "bodyHash": {
+            "base": "865153a0577c2596f216f39573ec660a979d555d1ff9392023b9b5f6b4b052cd",
+            "head": "865153a0577c2596f216f39573ec660a979d555d1ff9392023b9b5f6b4b052cd"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the workers no NODE_ENV, so a calling shell's NODE_ENV=test leaves them on the checkout's .env, and still hands it to the API"
+        },
+        {
+          "bodyHash": {
+            "base": "d713cddddb91773ecfb9ca8d70bdabb9f1bdb4585e24f0a660d02f5e6af3cf4f",
+            "head": "d713cddddb91773ecfb9ca8d70bdabb9f1bdb4585e24f0a660d02f5e6af3cf4f"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::hands the workers the calling shell's environment, without the variables the file owns"
+        },
+        {
+          "bodyHash": {
+            "base": "5b42e431f39292617564e05acab562962d6fcd993eb86ea3f257a1ad5548fcde",
+            "head": "5b42e431f39292617564e05acab562962d6fcd993eb86ea3f257a1ad5548fcde"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::has the migration's connection prove, before it migrates, that it reached the database the container named"
+        },
+        {
+          "bodyHash": {
+            "base": "14379fca9e739faad96b080093d2d67194cc595142c2930739e282a7667c008a",
+            "head": "14379fca9e739faad96b080093d2d67194cc595142c2930739e282a7667c008a"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::keeps asking a service that is not ready until it answers"
+        },
+        {
+          "bodyHash": {
+            "base": "a8482de67c5eced12580b5595052020473595370f50d8f56cd4cce7de735bca2",
+            "head": "a8482de67c5eced12580b5595052020473595370f50d8f56cd4cce7de735bca2"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names"
+        },
+        {
+          "bodyHash": {
+            "base": "034021165989fc4dd248b74183a8b6a58010bcf501ba234f2b4b392fe046239f",
+            "head": "034021165989fc4dd248b74183a8b6a58010bcf501ba234f2b4b392fe046239f"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::lets the migration run past the wait, because a migration stopped half-way is not repaired by a later run"
+        },
+        {
+          "bodyHash": {
+            "base": "ebb3ab8f0caa131c0f67398aada6bf805f6012670ff05238ffa452fd49349956",
+            "head": "ebb3ab8f0caa131c0f67398aada6bf805f6012670ff05238ffa452fd49349956"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::migrates the database with the repository's own script, in the checkout, once both services answer"
+        },
+        {
+          "bodyHash": {
+            "base": "3449ca742e8d32a511e0277511aa00eefb33022b2adaefbba0595a941cf2e896",
+            "head": "3449ca742e8d32a511e0277511aa00eefb33022b2adaefbba0595a941cf2e896"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::points the portal at the API this run started: it hands it API_URL with the API's port, and /api/backend/health reaches that API through the portal"
+        },
+        {
+          "bodyHash": {
+            "base": "3cab1831918d48207391b5b3c8d8f60b9c5d65c3bbc3ebaea7505ddecd3c7211",
+            "head": "3cab1831918d48207391b5b3c8d8f60b9c5d65c3bbc3ebaea7505ddecd3c7211"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::queries Postgres as the user, with the password and for the database of the file"
+        },
+        {
+          "bodyHash": {
+            "base": "c197f5389beff12718f17ec6502fb3654cc6045f431ad2e966e8d8414ddc0a6d",
+            "head": "c197f5389beff12718f17ec6502fb3654cc6045f431ad2e966e8d8414ddc0a6d"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::reads a record holding 1 as no record: init is not an API it started, so it starts the API as it does with none"
+        },
+        {
+          "bodyHash": {
+            "base": "576f95aca2ef65ebf8528922343ed4d79fa11d1e7304a17d46c2887c40853ccf",
+            "head": "576f95aca2ef65ebf8528922343ed4d79fa11d1e7304a17d46c2887c40853ccf"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::reads an empty API_URL in the calling shell as unset, as an empty PORT reads for the API: the portal is pointed at the API this run started, and the run passes"
+        },
+        {
+          "bodyHash": {
+            "base": "7e8ff45eed3ca170a01798935e72388bf1bd9c49c4cc936c6ac6bc6548b6ec48",
+            "head": "60d859dd3ac7334437fe6e7958261f92f079873310e3bf121fc38bc15d027b03"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says in the usage that the portal starts after the workers, on the port its package fixes, with API_URL and without NODE_ENV, held to three paths"
+        },
+        {
+          "bodyHash": {
+            "base": "d9504f4f27235436908a7407681288151c6d990835d6692126b1b34804cc0371",
+            "head": "d9504f4f27235436908a7407681288151c6d990835d6692126b1b34804cc0371"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says nothing of a proof that passes"
+        },
+        {
+          "bodyHash": {
+            "base": "943dd5a251ae5470059725bcdb2366d614fd237a9128015112a73e0535dbd579",
+            "head": "943dd5a251ae5470059725bcdb2366d614fd237a9128015112a73e0535dbd579"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::shows what the migration tool prints, on the stream it printed it on"
+        },
+        {
+          "bodyHash": {
+            "base": "ce94d0b5ebe600d08a550e548e6f953f31343f77160af1c338a81a3b1d8740bc",
+            "head": "ce94d0b5ebe600d08a550e548e6f953f31343f77160af1c338a81a3b1d8740bc"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services from the compose file, the file its only source, and returns once each answers"
+        },
+        {
+          "bodyHash": {
+            "base": "262f43ddff06d4549991c461a0159f593ff10636262164a9c1f6a9b7b0aa1cef",
+            "head": "262f43ddff06d4549991c461a0159f593ff10636262164a9c1f6a9b7b0aa1cef"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API after a first run interrupted before its API bound its port, leaves the record and the log alone, and goes on as a second run when /health arrives"
+        },
+        {
+          "bodyHash": {
+            "base": "13c2f665aabef30e37f0cc1603dd51b98c601c203748e04f437c6c517fafce75",
+            "head": "13c2f665aabef30e37f0cc1603dd51b98c601c203748e04f437c6c517fafce75"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the API from source, detached, returns once /health answers 200, and leaves it running"
+        },
+        {
+          "bodyHash": {
+            "base": "0fd4b12cf7f8f10f3b8ca541639e715830f0201ff15cf4aa54c6544bf0d0852a",
+            "head": "0fd4b12cf7f8f10f3b8ca541639e715830f0201ff15cf4aa54c6544bf0d0852a"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the API on the calling shell's PORT, and on the file's when the shell has none"
+        },
+        {
+          "bodyHash": {
+            "base": "bb0471d51291d2b3494f1d6eba7e295ffe590c149f0ec5b1741d8a115534c188",
+            "head": "378b48545622183dc46685314ad55cb8898adcb5de2a1598fa824f7d7aca4ac4"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the portal from source once the workers answer, detached, returns once /api/health, /en/login and /api/backend/health answer 200, and leaves it running"
+        },
+        {
+          "bodyHash": {
+            "base": "ea139bab9a99ec3eca57ab4ad41d76172bef6f5fdf95d33c180e5c4332ecfe28",
+            "head": "ea139bab9a99ec3eca57ab4ad41d76172bef6f5fdf95d33c180e5c4332ecfe28"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the workers from source once the API answers, detached, returns once /health/ready answers 200, and leaves them running"
+        },
+        {
+          "bodyHash": {
+            "base": "c4e4f5daf777eb5fd6dab2e8ef55274718f44faa15aca248e7b5d3b49b221f96",
+            "head": "c4e4f5daf777eb5fd6dab2e8ef55274718f44faa15aca248e7b5d3b49b221f96"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts the workers on the file's METRICS_PORT when the calling shell sets none"
+        },
+        {
+          "bodyHash": {
+            "base": "5c0de59185cd45d1572dbfa54355db23e3eaa0d3131f019a4820879afaa61dbb",
+            "head": "5c0de59185cd45d1572dbfa54355db23e3eaa0d3131f019a4820879afaa61dbb"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes a Postgres that offers TLS as one that answers the protocol"
+        },
+        {
+          "bodyHash": {
+            "base": "878579396ff5d6361f865a270f25784a4fa2deed50572d0ec291dc9e3795554e",
+            "head": "878579396ff5d6361f865a270f25784a4fa2deed50572d0ec291dc9e3795554e"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::takes the proof's limit in seconds: a proof that takes one second passes with three allowed"
+        },
+        {
+          "bodyHash": {
+            "base": "fef3097f4d47a53c4b376f7ac81996fde90c16a307db1687aec67ad030f4938a",
+            "head": "fef3097f4d47a53c4b376f7ac81996fde90c16a307db1687aec67ad030f4938a"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret"
+        }
+      ],
+      "id": "t6-01-the-administration-portal-lines-are-no-longer-the-last",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > a rerun while the API of an earlier run has not bound its port yet > starts no second API after a first run interrupted before its API bound its port, leaves the record and the log alone, and goes on as a second run when /health arrives",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > fails at once, with the last lines of the log, when the API exits while the run waits, and a second run goes on from there",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > goes on after a failed wait as a run that starts the API again: the failed run left no process and no record",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > goes on as a second run when the API it started earlier still answers: it starts no other",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > hands the API the calling shell's environment, without the variables the file owns",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > reads a record holding 1 as no record: init is not an API it started, so it starts the API as it does with none",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > starts the API from source, detached, returns once /health answers 200, and leaves it running",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > starts the API on the calling shell's PORT, and on the file's when the shell has none",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the administration portal stage > goes on as a second run when the portal it started earlier still answers on every path: it starts no other",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the administration portal stage > hands the portal no NODE_ENV, so a calling shell's NODE_ENV=test does not choose its environment files, and still hands it to the API",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the administration portal stage > hands the portal the calling shell's environment, without the variables the file owns: no required secret reaches it",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the administration portal stage > points the portal at the API this run started: it hands it API_URL with the API's port, and /api/backend/health reaches that API through the portal",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the administration portal stage > reads an empty API_URL in the calling shell as unset, as an empty PORT reads for the API: the portal is pointed at the API this run started, and the run passes",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the administration portal stage > says in the usage that the portal starts after the workers, on the port its package fixes, with API_URL and without NODE_ENV, held to three paths",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the administration portal stage > starts the portal from source once the workers answer, detached, returns once /api/health, /en/login and /api/backend/health answer 200, and leaves it running",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the proof and the container's verdict, held further > takes the proof's limit in seconds: a proof that takes one second passes with three allowed",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > hands Compose no variable the file owns, whatever the calling shell holds",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > hands the proof and the migration no variable the file owns and no migration URL of the calling shell",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > has the migration's connection prove, before it migrates, that it reached the database the container named",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > keeps asking a service that is not ready until it answers",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > leaves a complete environment file untouched and reports the ports it names",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > lets the migration run past the wait, because a migration stopped half-way is not repaired by a later run",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > migrates the database with the repository's own script, in the checkout, once both services answer",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > queries Postgres as the user, with the password and for the database of the file",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > says nothing of a proof that passes",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > shows what the migration tool prints, on the stream it printed it on",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > starts both services from the compose file, the file its only source, and returns once each answers",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > takes a Postgres that offers TLS as one that answers the protocol",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the start sequence > writes the environment a checkout lacks, for its owner only, and shows no secret",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the workers stage > goes on as a second run when the workers it started earlier still answer: it starts no others",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the workers stage > hands the workers no NODE_ENV, so a calling shell's NODE_ENV=test leaves them on the checkout's .env, and still hands it to the API",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the workers stage > hands the workers the calling shell's environment, without the variables the file owns",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the workers stage > starts the workers from source once the API answers, detached, returns once /health/ready answers 200, and leaves them running",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the workers stage > starts the workers on the file's METRICS_PORT when the calling shell sets none"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/platformStart.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/platformStart.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}
