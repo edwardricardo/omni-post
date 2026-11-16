@@ -1,0 +1,66 @@
+{
+  "base": "e46e8e2dc1590f4a46df5d1f5be5c71e1dd15f16",
+  "cases": [
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "008e3a0b9cd01799eb3883ed8a390c90047e97bb2622c4910be4bb4785f9eccc",
+            "head": null
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not claim anything about the processes it did not check when pnpm ended first and left the API running, and sends them no signal"
+        }
+      ],
+      "id": "t3b2b-ii-01-a-pnpm-that-ended-first-is-swept",
+      "kind": "deletion",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > does not claim anything about the processes it did not check when pnpm ended first and left the API running, and sends them no signal",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > fails at once, with the last lines of the log, when the API exits while the run waits, and a second run goes on from there",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > refuses a port that something else holds, names it, and starts no API"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/platformStart.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/platformStart.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    },
+    {
+      "blocks": [
+        {
+          "bodyHash": {
+            "base": "1d675632787d362082e6b8d9e8dab083715fc5e7cd7641ea1f913bf1fbcfc2ff",
+            "head": "6e8fb5dcc947fadd850273d7a2857a41141201a070bcaee312cd3bdabd1083b9"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, with the last lines of the log, when the API exits while the run waits, and a second run goes on from there"
+        },
+        {
+          "bodyHash": {
+            "base": "0f22e56246d9fd4cb5328df955427e80a1ac49f76263777f2cda6401f8c21a12",
+            "head": "a7c7f7bcc05513157c75566bedf41ffd9f3212503de5a48744fd5c70cc5eebb4"
+          },
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::refuses a port that something else holds, names it, and starts no API"
+        }
+      ],
+      "id": "t3b2b-ii-02-the-messages-of-a-pnpm-that-ended-first",
+      "kind": "rewrite",
+      "red": {
+        "base": [
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > does not claim anything about the processes it did not check when pnpm ended first and left the API running, and sends them no signal",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > fails at once, with the last lines of the log, when the API exits while the run waits, and a second run goes on from there",
+          "apps/api/tests/unit/scripts/platformStart.test.ts::the API stage > refuses a port that something else holds, names it, and starts no API"
+        ],
+        "head": []
+      },
+      "scope": {
+        "base": ["apps/api/tests/unit/scripts/platformStart.test.ts"],
+        "head": ["apps/api/tests/unit/scripts/platformStart.test.ts"]
+      },
+      "verdict": "BEHAVIOUR-CHANGED"
+    }
+  ],
+  "head": "worktree",
+  "version": 1
+}

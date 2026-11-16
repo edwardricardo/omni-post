@@ -75354,7 +75354,7 @@
           "line": 1757,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "0f22e56246d9fd4cb5328df955427e80a1ac49f76263777f2cda6401f8c21a12"
+          "bodyHash": "a7c7f7bcc05513157c75566bedf41ffd9f3212503de5a48744fd5c70cc5eebb4"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::never signals a process it recorded in an earlier run: it only looks at it",
@@ -75382,7 +75382,7 @@
           "line": 1823,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "1d675632787d362082e6b8d9e8dab083715fc5e7cd7641ea1f913bf1fbcfc2ff"
+          "bodyHash": "6e8fb5dcc947fadd850273d7a2857a41141201a070bcaee312cd3bdabd1083b9"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::stops every process of the session it started when /health does not answer 200 within the wait (%s), names each, and removes the record once none is left",
@@ -75406,99 +75406,99 @@
           "bodyHash": "bef79eed33034ec1d48ce177b984e01981614dd771bb57a2124a2c3a3884db6b"
         },
         {
-          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not claim anything about the processes it did not check when pnpm ended first and left the API running, and sends them no signal",
+          "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sweeps the session of a pnpm that ended first: it stops what pnpm left running, names it, and removes the record once none is left",
           "line": 1924,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "008e3a0b9cd01799eb3883ed8a390c90047e97bb2622c4910be4bb4785f9eccc"
+          "bodyHash": "882fb8f2d16020051785ab862e6fcfe646e6e6aceba2def800b8f2822618f479"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API after a first run interrupted before its API bound its port, leaves the record and the log alone, and goes on as a second run when /health arrives",
-          "line": 1983,
+          "line": 1969,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "262f43ddff06d4549991c461a0159f593ff10636262164a9c1f6a9b7b0aa1cef"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API after a first run interrupted before its API bound its port, and says what it knows and no more when its own wait runs out",
-          "line": 2007,
+          "line": 1993,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5a79a1453f68653caa7ac8a26a27ec026744a9f85b8ef401945bca97abf94ace"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::fails as soon as the recorded process ends during the wait, says that it ended, and leaves the record as it is",
-          "line": 2030,
+          "line": 2016,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d64058523d35454d97860095932740a8ff16d8ccaf9134827b34ba6dfaea1e3"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal for a record that names no process of its own: 1, 0, an empty text, -1 or text",
-          "line": 2082,
+          "line": 2068,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ba6ff10e6d700fe67d86357d28293bd44c852b601d988ff7e5dc8e554e19647e"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends no signal, and lists no session, for a target that names no separate process: 0, 1, -1, a fraction, its own process, group or session",
-          "line": 2202,
+          "line": 2188,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "60241d8fec113e75fec1c0acca2c9abcd2e149c751f48df07ea0a2bc28bada3f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::counts a process whose /proc entry reads ESRCH while the session is swept as one that ended: the stop says its own line, removes the record and names no survivor",
-          "line": 2267,
+          "line": 2253,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c663534c2a08ffa5b8d003ac5582cf36cd04088b0c8ccc9cb34d6395621104ce"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names, with its command, each process still running after SIGKILL, and keeps the record",
-          "line": 2296,
+          "line": 2282,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7d0c49149d49cb48af4c97e9d2e7804dd8212ac1b1c893421601a4472d3f9b63"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::says the session could not be swept to the end, and keeps the record, when a read of /proc fails otherwise",
-          "line": 2320,
+          "line": 2306,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4b1fefa555cbcb48f21f377675121ece3dd889573254860d96da6e4d2dfa677f"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not call the session empty, and keeps the record, on a host where /proc cannot be read",
-          "line": 2339,
+          "line": 2325,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d7c7dc14678d84863aa2f594e2a3b64954b3474dc3589d287a8472bb7578053a"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not call a session whose id the guard refuses empty, and keeps the record",
-          "line": 2362,
+          "line": 2348,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4df3576b1d53126b904a75149f0ac8cf432d6db9317215c2d6acd91cd6b8f97c"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::names among those it sent SIGTERM and SIGKILL only the processes the signal reached: one it finds gone (ESRCH) is not named",
-          "line": 2381,
+          "line": 2367,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1910b243303262c2f815110db1be64aeecef4a58f2608352eff2aa313480c0b7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::does not count a process of the session that has ended and waits to be reaped",
-          "line": 2417,
+          "line": 2403,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c58ce565c3a3397b316db54228c885386d62f63674ffcdfea68635471f9f13c7"
         },
         {
           "id": "apps/api/tests/unit/scripts/platformStart.test.ts::sends SIGKILL no sooner than the grace it states after SIGTERM",
-          "line": 2445,
+          "line": 2431,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "07f645a8ba9fcd6f3e7db4d06c0b724ec3b13a91ac70708bb40109e48e9dd56b"
