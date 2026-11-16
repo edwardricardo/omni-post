@@ -72,6 +72,11 @@
  *   too). A value that is not a port is refused with the other problems, before anything is written
  *   or started, and the run says which port it settled on.
  *
+ *   THE APP DESCRIPTOR. The stage that starts the API runs over a descriptor of the app it starts
+ *   (`App`, and `API` its one value): the name every line of the stage calls the app, what pnpm is
+ *   asked for, the record and the log under the checkout, the path that must answer 200 and the
+ *   port. What this header says of the API, `api.pid`, `api.log` and `/health` is that descriptor's.
+ *
  *   WHAT THE RUN STARTS, AND WHAT IT LEAVES. It starts pnpm, detached, so pnpm leads a process
  *   group and a session of its own; its shell and the API's node run in another process group of
  *   that session (measured on the real pnpm). What the run records in `api.pid`, and names in its
@@ -301,11 +306,33 @@ const PROVE = ["--filter", "@infra/prisma", "exec", "prisma", "db", "execute", "
 /** What pnpm is asked for then: the migration script of that package. */
 const MIGRATE = ["--filter", "@infra/prisma", "run", "migrate"];
 
-/** What pnpm is asked for last: the script that starts the API from source. */
-const API = ["--filter", "@apps/api", "dev"];
+/**
+ * @typedef {object} App An app the run starts from source, detached, and leaves running: what the
+ *   stage that starts it (`startApp`) needs to know of it, and nothing else.
+ * @property {string} name - What every line the stage prints calls the app: a singular noun, read
+ *   after `the`, `no` and `second` (`API`).
+ * @property {string} article - The indefinite article the name takes (`an`, for `an API`).
+ * @property {readonly string[]} pnpm - What pnpm is asked for: the script that starts the app from
+ *   source.
+ * @property {string} record - Where the id of the pnpm process that runs the app is kept, relative
+ *   to the checkout, in a directory git ignores.
+ * @property {string} log - Where the app's output goes, relative to the checkout, beside the record.
+ * @property {string} probe - The path that answers 200 on the app's port once the app is up.
+ * @property {number} port - The loopback port the app takes.
+ */
 
-/** Where the API's process group id and output go, in a directory git ignores. */
-const API_DIRECTORY = ".tmp";
+/**
+ * The API, the one app the run starts: every field of an `App` but its port, which the run settles
+ * from the environment (`apiPort`).
+ */
+const API = /** @type {const} */ ({
+  name: "API",
+  article: "an",
+  pnpm: ["--filter", "@apps/api", "dev"],
+  record: ".tmp/api.pid",
+  log: ".tmp/api.log",
+  probe: "/health",
+});
 
 /** How many of the log's last lines a failure shows. */
 const LOG_LINES = 10;
@@ -744,15 +771,17 @@ function accepts(port) {
 
 /**
  * @function healthy
- * @description Whether `/health` answers 200 on a loopback port.
+ * @description Whether a path answers 200 on a loopback port: the probe of an app (`App.probe`,
+ *   `/health` for the API).
  * @param {number} port - The port.
+ * @param {string} probe - The path asked for.
  * @param {number} msLeft - How long the whole wait has left, to bound the attempt by.
  * @returns {Promise<boolean>} `false` on a refused connection, a silent peer or another status.
  */
-function healthy(port, msLeft) {
+function healthy(port, probe, msLeft) {
   return new Promise((resolve) => {
     const request = get(
-      { host: LOOPBACK, port, path: "/health", timeout: Math.min(PROBE_TIMEOUT_MS, msLeft) },
+      { host: LOOPBACK, port, path: probe, timeout: Math.min(PROBE_TIMEOUT_MS, msLeft) },
       (response) => {
         response.resume();
         resolve(response.statusCode === 200);
@@ -805,48 +834,52 @@ function exists(pid) {
 }
 
 /**
- * @function reportApi
- * @description Says where the API answers, where its output goes and how to stop it.
- * @param {boolean} earlier - Whether the API is one this command started in an earlier run.
- * @param {number} port - The port.
- * @param {number} pid - The pnpm process that runs the API: it leads the process group the stop
- *   signal is sent to and the session that holds the API, and it is what `api.pid` records.
+ * @function reportApp
+ * @description Says where an app answers its probe, where its output goes and how to stop it.
+ * @param {App} app - The app, by its descriptor: the lines name it and its probe, on its port.
+ * @param {boolean} earlier - Whether the app is one this command started in an earlier run.
+ * @param {number} pid - The pnpm process that runs the app: it leads the process group the stop
+ *   signal is sent to and the session that holds the app, and it is what the app's record holds.
  * @param {string} logFile - The log's path.
  * @param {string} pidFile - The path of the file that records the process.
  * @returns {void}
  */
-function reportApi(earlier, port, pid, logFile, pidFile) {
+function reportApp(app, earlier, pid, logFile, pidFile) {
+  const { name, probe, port } = app;
   const where = `on ${LOOPBACK}:${port} (run by the pnpm process ${pid}, log ${logFile})`;
   process.stdout.write(
     earlier
-      ? `${NAME}: the API this command started earlier already answers /health with 200 ${where}: no second API was started\n`
-      : `${NAME}: the API answers /health with 200 ${where}\n`
+      ? `${NAME}: the ${name} this command started earlier already answers ${probe} with 200 ${where}: no second ${name} was started\n`
+      : `${NAME}: the ${name} answers ${probe} with 200 ${where}\n`
   );
-  // The signal reaches pnpm alone, and pnpm passes it on: whether the API ends depends on the API.
+  // The signal reaches pnpm alone, and pnpm passes it on: whether the app ends depends on the app.
   process.stdout.write(
     `${NAME}: stop it with \`kill -s TERM -- -${pid}\`: a normal termination signal, sent to the ` +
-      `process group of pnpm (process ${pid}, which runs the API and leads the session that holds ` +
-      `it), which passes it on; it ends the API only if the API attends it, and one that ignores ` +
-      `it keeps running. To see whether the API still runs, check whether ${LOOPBACK}:${port} ` +
-      `accepts connections, or whether the pnpm process ${pid}, recorded in ${pidFile}, still ` +
-      `exists (it can end while the API lives on, so only the port settles it); if the API still ` +
-      `runs, end the processes of the session by hand (\`ps -s ${pid}\` lists them). pnpm writes a ` +
-      `failed-command line in the log when the API ends, which is expected\n`
+      `process group of pnpm (process ${pid}, which runs the ${name} and leads the session that ` +
+      `holds it), which passes it on; it ends the ${name} only if the ${name} attends it, and one ` +
+      `that ignores it keeps running. To see whether the ${name} still runs, check whether ` +
+      `${LOOPBACK}:${port} accepts connections, or whether the pnpm process ${pid}, recorded in ` +
+      `${pidFile}, still exists (it can end while the ${name} lives on, so only the port settles ` +
+      `it); if the ${name} still runs, end the processes of the session by hand (\`ps -s ${pid}\` ` +
+      `lists them). pnpm writes a failed-command line in the log when the ${name} ends, which is ` +
+      `expected\n`
   );
 }
 
 /**
  * @function recordedNote
  * @description What the run says of a recorded process that still exists and that it starts no
- *   second API for: only what it knows. The id could also have been given to another process.
+ *   second app for: only what it knows. The id could also have been given to another process.
+ * @param {App} app - The app, by its descriptor: the line names it with its article.
  * @param {string} pidFile - The file the process is recorded in.
  * @param {string} logFile - The log's path.
  * @param {number} recorded - The recorded process.
  * @returns {string} One failure line.
  */
-function recordedNote(pidFile, logFile, recorded) {
+function recordedNote(app, pidFile, logFile, recorded) {
   return (
-    `the process recorded in ${pidFile} (${recorded}) still exists and may be the pnpm of an API ` +
+    `the process recorded in ${pidFile} (${recorded}) still exists and may be the pnpm of ` +
+    `${app.article} ${app.name} ` +
     `an earlier run started, which is still starting or failed to start: nothing was started and ` +
     `nothing was stopped (\`ps -s ${recorded}\` lists its session, ${logFile} its output)`
   );
@@ -1113,59 +1146,61 @@ export async function sweepSession(pid, pidFile, timing = STOP_TIMING) {
 }
 
 /**
- * @function startApi
- * @description Starts the API from source, detached, and waits until `/health` answers 200. The
- *   process an earlier run recorded is consulted first: while it exists no second API is started,
- *   and the run goes on as a second run once `/health` answers, whether or not the port is bound
- *   yet (the real API binds it only at the end of its boot). While it waits on that process it
- *   looks at it again after each attempt: one that has ended fails the run at once, the record
- *   left as it is, and a wait that runs out with the process still there fails it with a note that
- *   says only what is known. With nothing recorded, nothing is started when something accepts
- *   connections on the port. While it waits the run watches its child: a child that exits fails
- *   the run at once, a wait that runs out fails it too, and either way the run sweeps the session
- *   of that child before it ends (`sweepSession`). The process an earlier run recorded is never
- *   signalled.
+ * @function startApp
+ * @description Starts an app from source, detached, and waits until its probe answers 200. It runs
+ *   over the app's descriptor (`App`): the API is the one app it is given (`API`), whose record,
+ *   log and probe are `api.pid`, `api.log` and `/health`. The process an earlier run recorded is
+ *   consulted first: while it exists no second app is started, and the run goes on as a second run
+ *   once the probe answers, whether or not the port is bound yet (the real API binds it only at the
+ *   end of its boot). While it waits on that process it looks at it again after each attempt: one
+ *   that has ended fails the run at once, the record left as it is, and a wait that runs out with
+ *   the process still there fails it with a note that says only what is known. With nothing
+ *   recorded, nothing is started when something accepts connections on the port. While it waits
+ *   the run watches its child: a child that exits fails the run at once, a wait that runs out fails
+ *   it too, and either way the run sweeps the session of that child before it ends
+ *   (`sweepSession`). The process an earlier run recorded is never signalled.
  * @param {string} root - The checkout.
- * @param {number} port - The port the API takes.
- * @param {number} waitSeconds - How long `/health` may take to answer 200.
- * @returns {Promise<void>} Resolves once the API answers, or once the earlier one is found to.
+ * @param {App} app - The app, by its descriptor: what the lines call it, what pnpm is asked for,
+ *   its record and its log under the checkout, the path it must answer 200 on and its port.
+ * @param {number} waitSeconds - How long the probe may take to answer 200.
+ * @returns {Promise<void>} Resolves once the app answers, or once the earlier one is found to.
  */
-async function startApi(root, port, waitSeconds) {
-  const directory = path.join(root, API_DIRECTORY);
-  const pidFile = path.join(directory, "api.pid");
-  const logFile = path.join(directory, "api.log");
+async function startApp(root, app, waitSeconds) {
+  const { name, probe, port } = app;
+  const pidFile = path.join(root, app.record);
+  const logFile = path.join(root, app.log);
 
   const recorded = recordedProcess(pidFile);
   const bound = await accepts(port);
   if (recorded !== null) {
     if (bound) {
-      if (await healthy(port, PROBE_TIMEOUT_MS)) {
-        reportApi(true, port, recorded, logFile, pidFile);
+      if (await healthy(port, probe, PROBE_TIMEOUT_MS)) {
+        reportApp(app, true, recorded, logFile, pidFile);
         return;
       }
       throw new StartFailure([
-        `${LOOPBACK}:${port} is already in use, and /health does not answer 200 there`,
-        recordedNote(pidFile, logFile, recorded),
+        `${LOOPBACK}:${port} is already in use, and ${probe} does not answer 200 there`,
+        recordedNote(app, pidFile, logFile, recorded),
       ]);
     }
     process.stdout.write(
       `${NAME}: the process recorded in ${pidFile} (${recorded}) still exists and nothing ` +
-        `accepts connections on ${LOOPBACK}:${port} yet: no second API is started, and /health ` +
-        `is awaited for up to ${waitSeconds} s\n`
+        `accepts connections on ${LOOPBACK}:${port} yet: no second ${name} is started, and ` +
+        `${probe} is awaited for up to ${waitSeconds} s\n`
     );
     // The process was found to exist before the wait, and it can end during it: looked at only
     // then, an ended one would be waited on to the end and said to still exist. The id itself is
     // asked, not the record, which a removed or rewritten file would make read as an ended process.
     const ended =
-      `the process recorded in ${pidFile} (${recorded}) ended during the wait without /health ` +
-      `on ${LOOPBACK}:${port} answering 200, and no API was started`;
+      `the process recorded in ${pidFile} (${recorded}) ended during the wait without ${probe} ` +
+      `on ${LOOPBACK}:${port} answering 200, and no ${name} was started`;
     let gone = false;
     try {
       await waitFor(
-        `/health on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
+        `${probe} on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
         waitSeconds,
         async (msLeft) => {
-          if (await healthy(port, msLeft())) return true;
+          if (await healthy(port, probe, msLeft())) return true;
           gone = !exists(recorded);
           if (gone) throw new StartFailure([ended]);
           return false;
@@ -1174,26 +1209,26 @@ async function startApi(root, port, waitSeconds) {
     } catch (error) {
       if (!(error instanceof StartFailure) || gone) throw error;
       // It can end between the last attempt and the end of the wait.
-      const note = exists(recorded) ? recordedNote(pidFile, logFile, recorded) : ended;
+      const note = exists(recorded) ? recordedNote(app, pidFile, logFile, recorded) : ended;
       throw new StartFailure([...error.lines, note]);
     }
-    reportApi(true, port, recorded, logFile, pidFile);
+    reportApp(app, true, recorded, logFile, pidFile);
     return;
   }
   if (bound) {
     throw new StartFailure([
-      `${LOOPBACK}:${port} is already in use, and this command holds no record of a running API ` +
-        `it started: the port may be held by anything; no API was started`,
+      `${LOOPBACK}:${port} is already in use, and this command holds no record of a running ` +
+        `${name} it started: the port may be held by anything; no ${name} was started`,
     ]);
   }
 
-  mkdirSync(directory, { recursive: true });
+  for (const file of [pidFile, logFile]) mkdirSync(path.dirname(file), { recursive: true });
   // Opened for reading as well and held until this stage returns: the tail a failure shows is
   // read through this descriptor, from the file the child writes, never from whatever the path
   // names by then.
   const log = openSync(logFile, "w+");
   try {
-    const child = spawn("pnpm", API, {
+    const child = spawn("pnpm", app.pnpm, {
       cwd: root,
       env: shellEnvironment(),
       detached: true,
@@ -1214,7 +1249,7 @@ async function startApi(root, port, waitSeconds) {
       throw couldNotStart(
         "pnpm",
         /** @type {Error} */ (notRun),
-        "pnpm is not on PATH: the API starts through it"
+        `pnpm is not on PATH: the ${name} starts through it`
       );
     }
     const pid = /** @type {number} */ (child.pid);
@@ -1222,16 +1257,16 @@ async function startApi(root, port, waitSeconds) {
 
     try {
       await waitFor(
-        `/health on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
+        `${probe} on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
         waitSeconds,
         async (msLeft) => {
           if (state.ended !== null) {
             throw new StartFailure([
-              `the pnpm process this run started to run the API (process ${pid}) ` +
-                `${endOf(state.ended)} before /health answered 200`,
+              `the pnpm process this run started to run the ${name} (process ${pid}) ` +
+                `${endOf(state.ended)} before ${probe} answered 200`,
             ]);
           }
-          return healthy(port, msLeft());
+          return healthy(port, probe, msLeft());
         }
       );
     } catch (error) {
@@ -1242,8 +1277,8 @@ async function startApi(root, port, waitSeconds) {
       // Read before the sweep: ending the session ends the child too.
       if (state.ended === null) {
         lines.push(
-          `the pnpm process this run started to run the API (process ${pid}) was still running ` +
-            `when the wait ended`
+          `the pnpm process this run started to run the ${name} (process ${pid}) was still ` +
+            `running when the wait ended`
         );
       }
       lines.push(await sweepSession(pid, pidFile));
@@ -1259,7 +1294,7 @@ async function startApi(root, port, waitSeconds) {
       throw new StartFailure(lines);
     }
     child.unref();
-    reportApi(false, port, pid, logFile, pidFile);
+    reportApp(app, false, pid, logFile, pidFile);
   } finally {
     closeSync(log);
   }
@@ -1313,7 +1348,7 @@ async function main(argv) {
     const { values, ports, api } = prepareEnvironment(file);
     const answered = await startServices(options.root, file, values, ports, options.waitSeconds);
     migrateDatabase(options.root, file, answered, options.waitSeconds);
-    await startApi(options.root, api, options.waitSeconds);
+    await startApp(options.root, { ...API, port: api }, options.waitSeconds);
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);
