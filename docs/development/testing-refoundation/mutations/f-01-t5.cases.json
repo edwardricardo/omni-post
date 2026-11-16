@@ -1,0 +1,40 @@
+[
+  {
+    "id": "t5-01-the-workers-lines-are-followed-by-the-portals",
+    "kind": "rewrite",
+    "test": "apps/api/tests/unit/scripts/platformStart.test.ts",
+    "blocks": [
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts the workers from source once the API answers, detached, returns once /health/ready answers 200, and leaves them running",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::goes on as a second run when the workers it started earlier still answer: it starts no others",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::fails at once, with the last lines of the log, when the API exits while the run waits, and a second run goes on from there",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::goes on after a failed wait as a run that starts the API again: the failed run left no process and no record",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::goes on as a second run when the API it started earlier still answers: it starts no other",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::hands Compose no variable the file owns, whatever the calling shell holds",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::hands the API the calling shell's environment, without the variables the file owns",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::hands the proof and the migration no variable the file owns and no migration URL of the calling shell",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::hands the workers no NODE_ENV, so a calling shell's NODE_ENV=test leaves them on the checkout's .env, and still hands it to the API",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::hands the workers the calling shell's environment, without the variables the file owns",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::has the migration's connection prove, before it migrates, that it reached the database the container named",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::keeps asking a service that is not ready until it answers",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::leaves a complete environment file untouched and reports the ports it names",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::lets the migration run past the wait, because a migration stopped half-way is not repaired by a later run",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::migrates the database with the repository's own script, in the checkout, once both services answer",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::queries Postgres as the user, with the password and for the database of the file",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::reads a record holding 1 as no record: init is not an API it started, so it starts the API as it does with none",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::says nothing of a proof that passes",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::shows what the migration tool prints, on the stream it printed it on",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts both services from the compose file, the file its only source, and returns once each answers",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts no second API after a first run interrupted before its API bound its port, leaves the record and the log alone, and goes on as a second run when /health arrives",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts the API from source, detached, returns once /health answers 200, and leaves it running",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts the API on the calling shell's PORT, and on the file's when the shell has none",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::starts the workers on the file's METRICS_PORT when the calling shell sets none",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::takes a Postgres that offers TLS as one that answers the protocol",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::takes the proof's limit in seconds: a proof that takes one second passes with three allowed",
+      "apps/api/tests/unit/scripts/platformStart.test.ts::writes the environment a checkout lacks, for its owner only, and shows no secret"
+    ],
+    "subject": "scripts/start/platform-start.mjs",
+    "search": "    await startApp(options.root, { ...WORKERS, port: workers }, options.waitSeconds);",
+    "replace": "    await startApp(options.root, { ...WORKERS, port: workers }, options.waitSeconds);\n    return 0;",
+    "note": "Two blocks of the workers stage keep their titles and change one assertion each, because the run now starts the administration portal once the workers answer, so the workers' answers line and stop line are no longer the last lines it prints: each block expected stdout to end with them, and now expects them followed by the portal's answers line (for the second run, the line of a portal this command started earlier). The base file of 2dee8416 fails against this command on these two blocks and on 25 others, every one a block whose run reaches the end of the sequence and expects it to succeed: the base suite's checkout holds no apps/admin/package.json, from which the command now reads the portal's port, and its pnpm stand-in has no branch for the portal, so each of those runs ends at the portal's stage with exit 1. Those blocks are listed here, with their bodies unchanged at the head, so that the clean runs alone give the verdict; at the head the suite passes. The suite runs the command as a child process, which this tool's in-memory mutation does not reach, so the search and replace of this case, which would stop the run after the workers as the base command did, are never applied to the runs that decide it."
+  }
+]

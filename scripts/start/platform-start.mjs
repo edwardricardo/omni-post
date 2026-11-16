@@ -3,7 +3,7 @@
  * @file platform-start.mjs
  * @description The start sequence of a clean checkout, as far as it goes today: its environment,
  *   then Postgres and Redis from the repository's `docker-compose.yml`, then the database's
- *   migration, then the API, then the workers.
+ *   migration, then the API, then the workers, then the administration portal.
  *
  *   ENVIRONMENT. A checkout with no root environment file receives one, its secrets random
  *   (`lib/start-environment.mjs` says which variables and why). An existing file is never written:
@@ -84,13 +84,37 @@
  *   well: a calling shell's `NODE_ENV=test` would send them to another file, which a clean checkout
  *   lacks, while the run generated and checked `.env`. The API still receives it.
  *
- *   THE APP DESCRIPTOR. The stage runs over a descriptor of the app it starts (`App`; `API` and
- *   `WORKERS` its two values): the name every line of the stage calls the app and the words that
- *   agree with it (the API is named by a singular noun, the workers by a plural one), what pnpm is
- *   asked for, what of the calling shell's environment the app must not receive, the record and the
- *   log under the checkout, the path that must answer 200 and the port. What this header says of
- *   the API, `api.pid`, `api.log` and `/health` holds for the workers with `workers.pid`,
- *   `workers.log` and `/health/ready`.
+ *   ADMINISTRATION PORTAL. Once the workers answer, `pnpm --filter @apps/admin dev` starts the
+ *   administration portal from source, detached, in the same stage again. Its port is the one its
+ *   package fixes on that script (`next dev -p 3100` in `apps/admin/package.json`, read from the
+ *   checkout's own file), never one settled from the environment, since `-p` wins over `PORT`; a
+ *   checkout whose file names no port that is a port is refused with the other problems, and one
+ *   with no such file fails at this stage, before anything is started for the portal. The run
+ *   returns once three paths answer 200 on that port, each asked once the one before it does:
+ *   `/api/health`, which touches nothing; `/en/login`, exactly 200 and never a redirect, since a
+ *   page is what fails while a workspace package the portal imports is not built (DEF-85); and
+ *   `/api/backend/health`, which the portal forwards to the API, so the run proves the portal
+ *   reaches the API it started. For that the portal receives
+ *   `API_URL=http://127.0.0.1:<the API's port>`, unless the calling shell sets an `API_URL` that is
+ *   not empty, whose value then wins, as a shell's `PORT` does for the API. An empty `API_URL`
+ *   counts as unset, as an empty `PORT` reads as absent to the API's schema: the portal's schema
+ *   reads an empty value as absent too (`emptyStringAsUndefined`) and would fall back to
+ *   `http://localhost:3000`, so the portal is pointed at the run's API. It receives the API's
+ *   environment without `NODE_ENV`, as the workers do: Next.js chooses the portal's own
+ *   environment files by it (`apps/admin/.env.test*` under `test`). Its `predev` script builds
+ *   every workspace package the portal depends on before `next dev` starts.
+ *
+ *   PORTS. The API, the workers and the portal each take a port of their own: a port two of them
+ *   would share is refused with the other problems, before anything is written or started.
+ *
+ *   THE APP DESCRIPTOR. The stage runs over a descriptor of the app it starts (`App`; `API`,
+ *   `WORKERS` and `ADMIN` its three values): the name every line of the stage calls the app and the
+ *   words that agree with it (the API is named by a singular noun, the workers by a plural one),
+ *   what pnpm is asked for, what of the calling shell's environment the app must not receive and
+ *   what is added to it, the record and the log under the checkout, the path that must answer 200,
+ *   the pages that must answer 200 after it, and the port. What this header says of the API,
+ *   `api.pid`, `api.log` and `/health` holds for the workers with `workers.pid`, `workers.log` and
+ *   `/health/ready`, and for the portal with `admin.pid`, `admin.log` and its three paths.
  *
  *   WHAT THE RUN STARTS, AND WHAT IT LEAVES. It starts pnpm, detached, so pnpm leads a process
  *   group and a session of its own; its shell and the API's node run in another process group of
@@ -122,7 +146,8 @@
  *   Each app's pnpm leads a session of its own, so the run prints a stop line for each, and each
  *   line ends one app's session: stopping the API leaves the workers running, and the other way
  *   round. A failed start of the workers sweeps their session alone, and the API, which answered
- *   before it, is left running (the sequence is cumulative, below).
+ *   before it, is left running (the sequence is cumulative, below); a failed start of the portal
+ *   sweeps its session alone, and leaves the API and the workers running.
  *   The process an earlier run recorded is consulted before the port (a record that is not an
  *   integer greater than 1 is read as no record: 1 is init, which always exists). While that
  *   process exists no second API is started and the record and the log are left alone: if the
@@ -146,8 +171,9 @@
  *   goes on from there.
  *
  *   Exit codes: 0 both services accept connections, the database is migrated, the API answers
- *   `/health` with 200 and the workers answer `/health/ready` with 200; 1 a step failed, each cause
- *   on its own line; 2 a usage error.
+ *   `/health` with 200, the workers answer `/health/ready` with 200 and the administration portal
+ *   answers `/api/health`, `/en/login` and `/api/backend/health` with 200; 1 a step failed, each
+ *   cause on its own line; 2 a usage error.
  *
  *   Usage: `node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]`
  * @layer infrastructure
@@ -225,6 +251,17 @@ They receive the API's environment without NODE_ENV, so that they read the check
 .env.test. Their pnpm process's id and their log are under .tmp/ as well, and the run prints a stop
 line of their own: each stop line ends one app's session, so stopping the API leaves the workers
 running. A run whose start of the workers fails ends their session alone; the API stays up.
+
+The administration portal is started last, once the workers answer, the same way, with
+\`pnpm --filter @apps/admin dev\`, and left running, on the port its dev script fixes in
+apps/admin/package.json (next dev -p 3100). It must answer /api/health with 200, then /en/login
+with exactly 200 and /api/backend/health, which it forwards to the API, with 200; --wait-seconds
+bounds that too. It receives API_URL=http://127.0.0.1:<the API's port>, unless the calling shell
+sets an API_URL that is not empty (an empty one counts as unset), and no NODE_ENV. Its pnpm
+process's id and its log are under .tmp/ as well, with a
+stop line of its own. A run whose start of the portal fails ends its session alone; the API and
+the workers stay up. The API, the workers and the portal each take a port of their own, and the
+run refuses two of them on one port.
 `;
 
 /** The variable that chooses the host port each service is published on. */
@@ -358,10 +395,14 @@ const MIGRATE = ["--filter", "@infra/prisma", "run", "migrate"];
  *   source.
  * @property {readonly string[]} without - The variables of the calling shell the app's process
  *   must not receive, besides those the environment file owns.
+ * @property {Readonly<Record<string, string>>} [with] - Variables added to the environment the
+ *   app's process receives, after those it must not receive are removed.
  * @property {string} record - Where the id of the pnpm process that runs the app is kept, relative
  *   to the checkout, in a directory git ignores.
  * @property {string} log - Where the app's output goes, relative to the checkout, beside the record.
  * @property {string} probe - The path that answers 200 on the app's port once the app is up.
+ * @property {readonly string[]} [pages] - Paths that must answer exactly 200 too, each asked once
+ *   the probe and the pages before it do: what the app is held to beyond the probe.
  * @property {number} port - The loopback port the app takes.
  */
 
@@ -414,6 +455,45 @@ const WORKERS = /** @type {const} */ ({
   log: ".tmp/workers.log",
   probe: "/health/ready",
 });
+
+/**
+ * The administration portal, the app the run starts once the workers answer: every field of an
+ * `App` but its port, which its package fixes (`ADMIN_MANIFEST`), and the `API_URL` it receives,
+ * which names the API's port (`main`). `/api/health` touches no workspace package, yet it does
+ * not stay at 200 while a page fails: on a real Next.js 16.4.1 run with DEF-85, `/en/login`
+ * answered 500 after 2.94 s and `/api/health` answered 500 from then on, so the probe alone
+ * cannot tell a portal that serves its pages from one that fails them. `/en/login` is the page
+ * that fails while a workspace package the portal imports is unbuilt (DEF-85), asked rather than
+ * `/`, which redirects; `/api/backend/health` is forwarded to `${API_URL}/health`, and answers 200
+ * only when the API does.
+ */
+const ADMIN = /** @type {const} */ ({
+  name: "administration portal",
+  words: {
+    some: "an administration portal",
+    someRunning: "a running administration portal",
+    s: "s",
+    is: "is",
+    was: "was",
+    it: "it",
+    one: "one",
+  },
+  pnpm: ["--filter", "@apps/admin", "dev"],
+  // Next.js chooses the portal's environment files by NODE_ENV: under `test` it loads
+  // `apps/admin/.env.test*` and not the files of a development run, so a calling shell's
+  // NODE_ENV=test would start the portal on other values than a development run reads.
+  without: ["NODE_ENV"],
+  record: ".tmp/admin.pid",
+  log: ".tmp/admin.log",
+  probe: "/api/health",
+  pages: ["/en/login", "/api/backend/health"],
+});
+
+/**
+ * The administration portal's package, relative to the checkout: its `dev` script (`next dev -p
+ * 3100`) fixes the portal's port, and the run reads it there rather than keep a second copy.
+ */
+const ADMIN_MANIFEST = "apps/admin/package.json";
 
 /** The port the workers take when neither the calling shell nor the file sets `METRICS_PORT`. */
 const DEFAULT_WORKERS_PORT = 3300;
@@ -512,6 +592,43 @@ function workersPort(fromShell, fromFile) {
 }
 
 /**
+ * @function manifestPort
+ * @description The port an app's package fixes on its `dev` script (`-p <port>` or `--port
+ *   <port>`), read from the checkout's own manifest: the port the app takes whatever the
+ *   environment says, since the flag wins over `PORT`.
+ * @param {string} manifest - The manifest's path.
+ * @returns {{ port: number | null, problem: string | null }} The port; or a problem when the
+ *   manifest cannot be read or parsed, has no `dev` script with a port, or names one that is not a
+ *   port; or neither when the manifest does not exist (`ENOENT`, `ENOTDIR`), which the stage that
+ *   would start the app reports, as a checkout that does not exist is reported where it is used.
+ */
+function manifestPort(manifest) {
+  let text;
+  try {
+    text = readFileSync(manifest, "utf8");
+  } catch (error) {
+    const { code, message } = /** @type {NodeJS.ErrnoException} */ (error);
+    if (code === "ENOENT" || code === "ENOTDIR") return { port: null, problem: null };
+    return { port: null, problem: `cannot use ${manifest}: ${message}` };
+  }
+  let dev;
+  try {
+    dev = JSON.parse(text)?.scripts?.dev;
+  } catch {
+    return { port: null, problem: `${manifest} is not JSON` };
+  }
+  const flag = typeof dev === "string" ? /(?:^|\s)(?:-p|--port)(?:\s+|=)(\S+)/.exec(dev) : null;
+  if (flag === null) {
+    return { port: null, problem: `${manifest} fixes no port on its dev script (-p <port>)` };
+  }
+  const port = parsePort(/** @type {string} */ (flag[1]));
+  if (port === null) {
+    return { port: null, problem: `${manifest} starts its app on ${flag[1]}, which is not a port` };
+  }
+  return { port, problem: null };
+}
+
+/**
  * @function startFailureFor
  * @description Turns what a read or a write of the environment file threw into a one-line failure,
  *   in words the operator can act on for the three error codes whose cause is known.
@@ -561,11 +678,15 @@ function readIfPresent(file) {
  *   missing one reads as absent, and the write creates it only if nothing is there, so it never
  *   replaces a file that appeared meanwhile and never writes through a link.
  * @param {string} file - The environment file's path.
+ * @param {{ port: number | null, problem: string | null }} portal - The port the administration
+ *   portal's package fixes (`manifestPort`), or the problem that kept it from being read: the
+ *   problem is refused with the others, and a port is held distinct from the API's and the
+ *   workers'.
  * @returns {{ values: Record<string, string>, ports: { Postgres: number, Redis: number },
  *   api: number, workers: number }} What the file holds, the host port each service is published
  *   on, the port the API takes and the port the workers take.
  */
-function prepareEnvironment(file) {
+function prepareEnvironment(file, portal) {
   const text = readIfPresent(file);
   const values = text === null ? null : readEnvironment(text);
   const problems = values === null ? [] : missingKeys(values).map((key) => `${file} lacks ${key}`);
@@ -595,11 +716,23 @@ function prepareEnvironment(file) {
   const workers = workersPort(process.env.METRICS_PORT, values?.METRICS_PORT);
   if (workers === null) {
     problems.push(`METRICS_PORT=${process.env.METRICS_PORT ?? values?.METRICS_PORT} is not a port`);
-  } else if (workers === api) {
-    problems.push(
-      `the API and the workers would both take port ${api} (PORT and METRICS_PORT): give each ` +
-        `its own`
-    );
+  }
+  if (portal.problem !== null) problems.push(portal.problem);
+  // Every app the run starts, with where its port comes from: each pair of them that would share a
+  // port is refused, so a fourth app is one more entry here.
+  const takers = [
+    { name: `the ${API.name}`, port: api, from: "PORT" },
+    { name: `the ${WORKERS.name}`, port: workers, from: "METRICS_PORT" },
+    { name: `the ${ADMIN.name}`, port: portal.port, from: `the dev script of ${ADMIN_MANIFEST}` },
+  ];
+  for (const [index, one] of takers.entries()) {
+    for (const other of takers.slice(index + 1)) {
+      if (one.port === null || one.port !== other.port) continue;
+      problems.push(
+        `${one.name} and ${other.name} would both take port ${one.port} (${one.from} and ` +
+          `${other.from}): give each its own`
+      );
+    }
   }
   if (problems.length > 0 || api === null || workers === null) throw new StartFailure(problems);
   const settled = `${NAME}: the API takes port ${api}\n${NAME}: the workers take port ${workers}\n`;
@@ -655,7 +788,8 @@ function answers(port, message, accept) {
  * @function waitFor
  * @description Repeats a probe, with a pause after each failed attempt, until it succeeds or its
  *   time runs out. At least one attempt is made.
- * @param {string} failure - What to report when the time runs out.
+ * @param {string | (() => string)} failure - What to report when the time runs out, or how to
+ *   say it then, from what the last attempt found.
  * @param {number} seconds - How long the probe may keep failing.
  * @param {(msLeft: () => number) => Promise<boolean>} probe - One attempt; it is handed a reading
  *   of the time left, never less than a millisecond, to bound what it waits for.
@@ -665,7 +799,9 @@ async function waitFor(failure, seconds, probe) {
   const deadline = Date.now() + seconds * 1000;
   const msLeft = () => Math.max(deadline - Date.now(), 1);
   while (!(await probe(msLeft))) {
-    if (Date.now() >= deadline) throw new StartFailure([failure]);
+    if (Date.now() >= deadline) {
+      throw new StartFailure([typeof failure === "string" ? failure : failure()]);
+    }
     await sleep(POLL_INTERVAL_MS);
   }
 }
@@ -880,29 +1016,101 @@ function accepts(port) {
 }
 
 /**
- * @function healthy
- * @description Whether a path answers 200 on a loopback port: the probe of an app (`App.probe`,
- *   `/health` for the API).
+ * @function statusOf
+ * @description What a path answers on a loopback port: the probe of an app (`App.probe`, `/health`
+ *   for the API) or one of its pages. A redirect is not followed: it is its own status.
  * @param {number} port - The port.
- * @param {string} probe - The path asked for.
+ * @param {string} asked - The path asked for.
  * @param {number} msLeft - How long the whole wait has left, to bound the attempt by.
- * @returns {Promise<boolean>} `false` on a refused connection, a silent peer or another status.
+ * @returns {Promise<number | null>} The status, or `null` on a refused connection or a silent peer.
  */
-function healthy(port, probe, msLeft) {
+function statusOf(port, asked, msLeft) {
   return new Promise((resolve) => {
     const request = get(
-      { host: LOOPBACK, port, path: probe, timeout: Math.min(PROBE_TIMEOUT_MS, msLeft) },
+      { host: LOOPBACK, port, path: asked, timeout: Math.min(PROBE_TIMEOUT_MS, msLeft) },
       (response) => {
         response.resume();
-        resolve(response.statusCode === 200);
+        resolve(response.statusCode ?? null);
       }
     );
     request.once("timeout", () => {
       request.destroy();
-      resolve(false);
+      resolve(null);
     });
-    request.once("error", () => resolve(false));
+    request.once("error", () => resolve(null));
   });
+}
+
+/**
+ * @typedef {object} Missing The first path of an app that did not answer 200 when asked.
+ * @property {string} path - The probe, or one of the pages.
+ * @property {number | null} status - What it answered, `null` when nothing did.
+ */
+
+/**
+ * @function lacking
+ * @description What of an app does not answer 200 yet: its probe, then each of its pages in turn,
+ *   each asked only once the one before it answered 200. An app with no pages is asked its probe
+ *   alone, once.
+ * @param {App} app - The app, by its descriptor: its probe, its pages and its port.
+ * @param {() => number} msLeft - A reading of how long the whole wait has left, taken before each
+ *   path is asked.
+ * @returns {Promise<Missing | null>} The first path that did not answer 200, or `null` when every
+ *   one did.
+ */
+async function lacking(app, msLeft) {
+  for (const asked of [app.probe, ...(app.pages ?? [])]) {
+    const status = await statusOf(app.port, asked, msLeft());
+    if (status !== 200) return { path: asked, status };
+  }
+  return null;
+}
+
+/**
+ * @function everyPath
+ * @description The paths an app must answer 200 on, as the lines name them: its probe alone, or
+ *   its probe and its pages (`/api/health, /en/login and /api/backend/health`).
+ * @param {App} app - The app, by its descriptor.
+ * @returns {string} The paths, in the order they are asked.
+ */
+function everyPath(app) {
+  const paths = [app.probe, ...(app.pages ?? [])];
+  return paths.length === 1 ? app.probe : `${paths.slice(0, -1).join(", ")} and ${paths.at(-1)}`;
+}
+
+/**
+ * @function lastAnswer
+ * @description What a path that did not answer 200 answered, for a failure line.
+ * @param {number | null} status - The status it answered with, `null` when nothing answered.
+ * @returns {string} `it answered <status>`, or `nothing answered it`.
+ */
+function lastAnswer(status) {
+  return status === null ? "nothing answered it" : `it answered ${status}`;
+}
+
+/**
+ * @function notAnswered
+ * @description The line of a wait that ran out, from what its attempts found: the probe that did
+ *   not answer 200, or, once it did, the page that did not, with the port and the last answer an
+ *   attempt got from that page.
+ * @param {App} app - The app, by its descriptor.
+ * @param {Missing} missing - The furthest path the attempts reached, with its last answer.
+ * @param {number} waitSeconds - How long the wait was.
+ * @returns {string} One failure line.
+ */
+function notAnswered(app, missing, waitSeconds) {
+  const at = `${LOOPBACK}:${app.port}`;
+  if (missing.path === app.probe) {
+    return `${app.probe} on ${at} did not answer 200 within ${waitSeconds} s`;
+  }
+  const answer =
+    missing.status === null
+      ? "nothing answered it"
+      : `the last answer it gave was ${missing.status}`;
+  return (
+    `${app.probe} on ${at} answered 200, but ${missing.path} there did not answer 200 within ` +
+    `${waitSeconds} s (${answer})`
+  );
 }
 
 /**
@@ -955,13 +1163,14 @@ function exists(pid) {
  * @returns {void}
  */
 function reportApp(app, earlier, pid, logFile, pidFile) {
-  const { name, probe, port } = app;
+  const { name, port } = app;
   const { s, was, it, one } = app.words;
+  const paths = everyPath(app);
   const where = `on ${LOOPBACK}:${port} (run by the pnpm process ${pid}, log ${logFile})`;
   process.stdout.write(
     earlier
-      ? `${NAME}: the ${name} this command started earlier already answer${s} ${probe} with 200 ${where}: no second ${name} ${was} started\n`
-      : `${NAME}: the ${name} answer${s} ${probe} with 200 ${where}\n`
+      ? `${NAME}: the ${name} this command started earlier already answer${s} ${paths} with 200 ${where}: no second ${name} ${was} started\n`
+      : `${NAME}: the ${name} answer${s} ${paths} with 200 ${where}\n`
   );
   // The signal reaches pnpm alone, and pnpm passes it on: whether the app ends depends on the app.
   process.stdout.write(
@@ -1258,10 +1467,13 @@ export async function sweepSession(pid, pidFile, timing = STOP_TIMING) {
 
 /**
  * @function startApp
- * @description Starts an app from source, detached, and waits until its probe answers 200. It runs
- *   over the app's descriptor (`App`): the run gives it the API (`API`), whose record, log and
- *   probe are `api.pid`, `api.log` and `/health`, and then the workers (`WORKERS`), whose are
- *   `workers.pid`, `workers.log` and `/health/ready`. The process an earlier run recorded is
+ * @description Starts an app from source, detached, and waits until its probe answers 200, and
+ *   then each of its pages. It runs over the app's descriptor (`App`): the run gives it the API
+ *   (`API`), whose record, log and probe are `api.pid`, `api.log` and `/health`, then the workers
+ *   (`WORKERS`), whose are `workers.pid`, `workers.log` and `/health/ready`, and then the
+ *   administration portal (`ADMIN`), whose are `admin.pid`, `admin.log` and `/api/health`, with
+ *   `/en/login` and `/api/backend/health` as its pages. Where these lines say the probe, an app
+ *   with pages is held to its probe and to its pages. The process an earlier run recorded is
  *   consulted first: while it exists no second app is started, and the run goes on as a second run
  *   once the probe answers, whether or not the port is bound yet (the real API binds it only at the
  *   end of its boot). While it waits on that process it looks at it again after each attempt: one
@@ -1274,53 +1486,72 @@ export async function sweepSession(pid, pidFile, timing = STOP_TIMING) {
  * @param {string} root - The checkout.
  * @param {App} app - The app, by its descriptor: what the lines call it and the words that agree
  *   with that, what pnpm is asked for, what of the calling shell's environment it must not
- *   receive, its record and its log under the checkout, the path it must answer 200 on and its
- *   port.
+ *   receive and what is added to it, its record and its log under the checkout, the paths it must
+ *   answer 200 on and its port.
  * @param {number} waitSeconds - How long the probe may take to answer 200.
  * @returns {Promise<void>} Resolves once the app answers, or once the earlier one is found to.
  */
 async function startApp(root, app, waitSeconds) {
   const { name, probe, port } = app;
   const { s, is, was, someRunning } = app.words;
+  const paths = everyPath(app);
   const pidFile = path.join(root, app.record);
   const logFile = path.join(root, app.log);
+  /**
+   * The furthest path the attempts of a wait reached without a 200, with the last answer an
+   * attempt got from it; the probe until an attempt is made. An attempt that finds the probe down
+   * again says nothing of a page an earlier attempt got to, and an attempt that gets no answer
+   * from that path says nothing of the answer an earlier attempt got, so neither replaces what was
+   * found. An attempt gets no answer when the connection is refused or reset, when the peer stays
+   * silent past the attempt's own limit (`PROBE_TIMEOUT_MS`, which a first compile outlasts), and
+   * when the end of the wait cuts it short.
+   */
+  let last = /** @type {Missing} */ ({ path: probe, status: null });
+  const order = [probe, ...(app.pages ?? [])];
+  const keep = (/** @type {Missing} */ missing) => {
+    const further = order.indexOf(missing.path) - order.indexOf(last.path);
+    if (further > 0 || (further === 0 && missing.status !== null)) last = missing;
+  };
+  const ranOut = () => notAnswered(app, last, waitSeconds);
 
   const recorded = recordedProcess(pidFile);
   const bound = await accepts(port);
   if (recorded !== null) {
     if (bound) {
-      if (await healthy(port, probe, PROBE_TIMEOUT_MS)) {
+      const missing = await lacking(app, () => PROBE_TIMEOUT_MS);
+      if (missing === null) {
         reportApp(app, true, recorded, logFile, pidFile);
         return;
       }
       throw new StartFailure([
-        `${LOOPBACK}:${port} is already in use, and ${probe} does not answer 200 there`,
+        missing.path === probe
+          ? `${LOOPBACK}:${port} is already in use, and ${probe} does not answer 200 there`
+          : `${LOOPBACK}:${port} is already in use, and ${probe} answers 200 there but ` +
+            `${missing.path} does not (${lastAnswer(missing.status)})`,
         recordedNote(app, pidFile, logFile, recorded),
       ]);
     }
     process.stdout.write(
       `${NAME}: the process recorded in ${pidFile} (${recorded}) still exists and nothing ` +
         `accepts connections on ${LOOPBACK}:${port} yet: no second ${name} ${is} started, and ` +
-        `${probe} is awaited for up to ${waitSeconds} s\n`
+        `${paths} ${app.pages === undefined ? "is" : "are"} awaited for up to ${waitSeconds} s\n`
     );
     // The process was found to exist before the wait, and it can end during it: looked at only
     // then, an ended one would be waited on to the end and said to still exist. The id itself is
     // asked, not the record, which a removed or rewritten file would make read as an ended process.
     const ended =
-      `the process recorded in ${pidFile} (${recorded}) ended during the wait without ${probe} ` +
+      `the process recorded in ${pidFile} (${recorded}) ended during the wait without ${paths} ` +
       `on ${LOOPBACK}:${port} answering 200, and no ${name} ${was} started`;
     let gone = false;
     try {
-      await waitFor(
-        `${probe} on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
-        waitSeconds,
-        async (msLeft) => {
-          if (await healthy(port, probe, msLeft())) return true;
-          gone = !exists(recorded);
-          if (gone) throw new StartFailure([ended]);
-          return false;
-        }
-      );
+      await waitFor(ranOut, waitSeconds, async (msLeft) => {
+        const missing = await lacking(app, msLeft);
+        if (missing === null) return true;
+        keep(missing);
+        gone = !exists(recorded);
+        if (gone) throw new StartFailure([ended]);
+        return false;
+      });
     } catch (error) {
       if (!(error instanceof StartFailure) || gone) throw error;
       // It can end between the last attempt and the end of the wait.
@@ -1345,7 +1576,7 @@ async function startApp(root, app, waitSeconds) {
   try {
     const child = spawn("pnpm", app.pnpm, {
       cwd: root,
-      env: shellEnvironment(...app.without),
+      env: { ...shellEnvironment(...app.without), ...app.with },
       detached: true,
       stdio: ["ignore", log, log],
     });
@@ -1371,19 +1602,18 @@ async function startApp(root, app, waitSeconds) {
     writeFileSync(pidFile, `${pid}\n`);
 
     try {
-      await waitFor(
-        `${probe} on ${LOOPBACK}:${port} did not answer 200 within ${waitSeconds} s`,
-        waitSeconds,
-        async (msLeft) => {
-          if (state.ended !== null) {
-            throw new StartFailure([
-              `the pnpm process this run started to run the ${name} (process ${pid}) ` +
-                `${endOf(state.ended)} before ${probe} answered 200`,
-            ]);
-          }
-          return healthy(port, probe, msLeft());
+      await waitFor(ranOut, waitSeconds, async (msLeft) => {
+        if (state.ended !== null) {
+          throw new StartFailure([
+            `the pnpm process this run started to run the ${name} (process ${pid}) ` +
+              `${endOf(state.ended)} before ${paths} answered 200`,
+          ]);
         }
-      );
+        const missing = await lacking(app, msLeft);
+        if (missing === null) return true;
+        keep(missing);
+        return false;
+      });
     } catch (error) {
       if (!(error instanceof StartFailure)) throw error;
       // So the run can end even when a process of the session outlives the sweep below.
@@ -1460,11 +1690,25 @@ async function main(argv) {
 
   const file = path.join(options.root, ENVIRONMENT_FILE);
   try {
-    const { values, ports, api, workers } = prepareEnvironment(file);
+    const manifest = path.join(options.root, ADMIN_MANIFEST);
+    const portal = manifestPort(manifest);
+    const { values, ports, api, workers } = prepareEnvironment(file, portal);
     const answered = await startServices(options.root, file, values, ports, options.waitSeconds);
     migrateDatabase(options.root, file, answered, options.waitSeconds);
     await startApp(options.root, { ...API, port: api }, options.waitSeconds);
     await startApp(options.root, { ...WORKERS, port: workers }, options.waitSeconds);
+    if (portal.port === null) {
+      throw new StartFailure([`${manifest} does not exist: no ${ADMIN.name} was started`]);
+    }
+    // The portal forwards /api/backend/* to API_URL, so it is pointed at the API this run started,
+    // unless the calling shell names another, which wins as a shell's PORT does for the API. An
+    // empty one is unset: the portal's schema reads it as absent and would use localhost:3000.
+    const apiUrl = process.env.API_URL || `http://${LOOPBACK}:${api}`;
+    await startApp(
+      options.root,
+      { ...ADMIN, port: portal.port, with: { API_URL: apiUrl } },
+      options.waitSeconds
+    );
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);
