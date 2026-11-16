@@ -3,7 +3,7 @@
  * @file platform-start.mjs
  * @description The start sequence of a clean checkout, as far as it goes today: its environment,
  *   then Postgres and Redis from the repository's `docker-compose.yml`, then the database's
- *   migration, then the API.
+ *   migration, then the API, then the workers.
  *
  *   ENVIRONMENT. A checkout with no root environment file receives one, its secrets random
  *   (`lib/start-environment.mjs` says which variables and why). An existing file is never written:
@@ -72,10 +72,25 @@
  *   too). A value that is not a port is refused with the other problems, before anything is written
  *   or started, and the run says which port it settled on.
  *
- *   THE APP DESCRIPTOR. The stage that starts the API runs over a descriptor of the app it starts
- *   (`App`, and `API` its one value): the name every line of the stage calls the app, what pnpm is
- *   asked for, the record and the log under the checkout, the path that must answer 200 and the
- *   port. What this header says of the API, `api.pid`, `api.log` and `/health` is that descriptor's.
+ *   WORKERS. Once the API answers, `pnpm --filter @apps/workers dev` starts the workers from
+ *   source, detached, in the same stage the API went through: the run returns once
+ *   `/health/ready` answers 200 on their port and leaves them running. Their port is `METRICS_PORT`,
+ *   read as `PORT` is: of the calling shell if the shell sets it, else of the file, else 3300, the
+ *   workers' own default, and an empty value in the shell or in the file gives 3300 too. A value
+ *   that is not a port is refused, and so is a port equal to the API's, both with the other
+ *   problems, before anything is written or started; the run says which port they take. The
+ *   workers load the checkout's environment file themselves, and they choose it by `NODE_ENV`
+ *   (`.env.test` when it is `test`), so they receive the API's environment without `NODE_ENV` as
+ *   well: a calling shell's `NODE_ENV=test` would send them to another file, which a clean checkout
+ *   lacks, while the run generated and checked `.env`. The API still receives it.
+ *
+ *   THE APP DESCRIPTOR. The stage runs over a descriptor of the app it starts (`App`; `API` and
+ *   `WORKERS` its two values): the name every line of the stage calls the app and the words that
+ *   agree with it (the API is named by a singular noun, the workers by a plural one), what pnpm is
+ *   asked for, what of the calling shell's environment the app must not receive, the record and the
+ *   log under the checkout, the path that must answer 200 and the port. What this header says of
+ *   the API, `api.pid`, `api.log` and `/health` holds for the workers with `workers.pid`,
+ *   `workers.log` and `/health/ready`.
  *
  *   WHAT THE RUN STARTS, AND WHAT IT LEAVES. It starts pnpm, detached, so pnpm leads a process
  *   group and a session of its own; its shell and the API's node run in another process group of
@@ -104,6 +119,10 @@
  *   id is free again, and a new session leader given it before the sweep reads `/proc` would be
  *   swept, a limit. The SIGTERM that Node's own timeout sends to the Docker query and to Prisma's
  *   proof when `--wait-seconds` runs out belongs to the steps before.
+ *   Each app's pnpm leads a session of its own, so the run prints a stop line for each, and each
+ *   line ends one app's session: stopping the API leaves the workers running, and the other way
+ *   round. A failed start of the workers sweeps their session alone, and the API, which answered
+ *   before it, is left running (the sequence is cumulative, below).
  *   The process an earlier run recorded is consulted before the port (a record that is not an
  *   integer greater than 1 is read as no record: 1 is init, which always exists). While that
  *   process exists no second API is started and the record and the log are left alone: if the
@@ -126,8 +145,9 @@
  *   environment file, the running services, the migrations already applied), and a second run
  *   goes on from there.
  *
- *   Exit codes: 0 both services accept connections, the database is migrated and the API answers
- *   `/health` with 200; 1 a step failed, each cause on its own line; 2 a usage error.
+ *   Exit codes: 0 both services accept connections, the database is migrated, the API answers
+ *   `/health` with 200 and the workers answer `/health/ready` with 200; 1 a step failed, each cause
+ *   on its own line; 2 a usage error.
  *
  *   Usage: `node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]`
  * @layer infrastructure
@@ -169,7 +189,8 @@ const NAME = "platform-start";
 const USAGE = `usage: node scripts/start/platform-start.mjs [--root <dir>] [--wait-seconds <n>]
 
 Takes a checkout to a generated environment, to Postgres and Redis accepting connections, to a
-migrated database and to an API running from source that answers /health with 200.
+migrated database, to an API running from source that answers /health with 200 and then to
+workers running from source that answer /health/ready with 200.
 
   --root <dir>         the checkout to start (default: the one this script is in)
   --wait-seconds <n>   how long each service may take to accept a connection, Prisma's proof
@@ -195,6 +216,15 @@ removes the pid file only when none is left, and names any that is. It lists the
 a host without one it ends none, says so and keeps the pid file.
 An empty PORT in the calling shell counts as set and gives 3000, as it does for
 the API.
+
+The workers are started next, once the API answers, the same way, with
+\`pnpm --filter @apps/workers dev\`, and left running; --wait-seconds bounds their answer on
+/health/ready too. Their port is METRICS_PORT, of the calling shell or else of the file, else 3300
+(an empty METRICS_PORT gives 3300), and the run refuses one that is not a port or that is the API's.
+They receive the API's environment without NODE_ENV, so that they read the checkout's .env and not
+.env.test. Their pnpm process's id and their log are under .tmp/ as well, and the run prints a stop
+line of their own: each stop line ends one app's session, so stopping the API leaves the workers
+running. A run whose start of the workers fails ends their session alone; the API stays up.
 `;
 
 /** The variable that chooses the host port each service is published on. */
@@ -307,13 +337,27 @@ const PROVE = ["--filter", "@infra/prisma", "exec", "prisma", "db", "execute", "
 const MIGRATE = ["--filter", "@infra/prisma", "run", "migrate"];
 
 /**
+ * @typedef {object} Words The words of the stage's lines that agree with the name of the app they
+ *   speak of: those of a singular noun for the API, those of a plural one for the workers.
+ * @property {string} some - The app named without `the` (`an API`, `workers`).
+ * @property {string} someRunning - The same, as running (`a running API`, `running workers`).
+ * @property {string} s - The ending a verb in the present takes after the name (`s`, none).
+ * @property {string} is - `is` or `are`.
+ * @property {string} was - `was` or `were`.
+ * @property {string} it - The pronoun that stands for the app (`it`, `them`).
+ * @property {string} one - The pronoun for any app of the kind (`one`, `ones`).
+ */
+
+/**
  * @typedef {object} App An app the run starts from source, detached, and leaves running: what the
  *   stage that starts it (`startApp`) needs to know of it, and nothing else.
- * @property {string} name - What every line the stage prints calls the app: a singular noun, read
- *   after `the`, `no` and `second` (`API`).
- * @property {string} article - The indefinite article the name takes (`an`, for `an API`).
+ * @property {string} name - What every line the stage prints calls the app, read after `the`, `no`
+ *   and `second` (`API`, `workers`).
+ * @property {Words} words - The words of those lines that agree with the name.
  * @property {readonly string[]} pnpm - What pnpm is asked for: the script that starts the app from
  *   source.
+ * @property {readonly string[]} without - The variables of the calling shell the app's process
+ *   must not receive, besides those the environment file owns.
  * @property {string} record - Where the id of the pnpm process that runs the app is kept, relative
  *   to the checkout, in a directory git ignores.
  * @property {string} log - Where the app's output goes, relative to the checkout, beside the record.
@@ -322,17 +366,57 @@ const MIGRATE = ["--filter", "@infra/prisma", "run", "migrate"];
  */
 
 /**
- * The API, the one app the run starts: every field of an `App` but its port, which the run settles
- * from the environment (`apiPort`).
+ * The API, the first app the run starts: every field of an `App` but its port, which the run
+ * settles from the environment (`apiPort`).
  */
 const API = /** @type {const} */ ({
   name: "API",
-  article: "an",
+  words: {
+    some: "an API",
+    someRunning: "a running API",
+    s: "s",
+    is: "is",
+    was: "was",
+    it: "it",
+    one: "one",
+  },
   pnpm: ["--filter", "@apps/api", "dev"],
+  without: [],
   record: ".tmp/api.pid",
   log: ".tmp/api.log",
   probe: "/health",
 });
+
+/**
+ * The workers, the app the run starts once the API answers: every field of an `App` but its port,
+ * which the run settles from the environment (`workersPort`). `/health/ready` answers 200 only
+ * once their database, Redis and publish consumer checks pass (`apps/workers/src/bootstrap.ts`).
+ */
+const WORKERS = /** @type {const} */ ({
+  name: "workers",
+  words: {
+    some: "workers",
+    someRunning: "running workers",
+    s: "",
+    is: "are",
+    was: "were",
+    it: "them",
+    one: "ones",
+  },
+  pnpm: ["--filter", "@apps/workers", "dev"],
+  // The workers pick the environment file they load by NODE_ENV (`apps/workers/src/config/env.ts`
+  // loads `.env.test` when it is `test`), and their `dev` script names no file, so a calling
+  // shell's NODE_ENV=test would send them to another file than the `.env` this run generated or
+  // checked: one a clean checkout lacks, or one that names another database and Redis. Without it
+  // they read `.env`. The API names its file on its command line, and keeps the shell's NODE_ENV.
+  without: ["NODE_ENV"],
+  record: ".tmp/workers.pid",
+  log: ".tmp/workers.log",
+  probe: "/health/ready",
+});
+
+/** The port the workers take when neither the calling shell nor the file sets `METRICS_PORT`. */
+const DEFAULT_WORKERS_PORT = 3300;
 
 /** How many of the log's last lines a failure shows. */
 const LOG_LINES = 10;
@@ -412,6 +496,22 @@ function portOrProblem(key, raw, problems) {
 }
 
 /**
+ * @function workersPort
+ * @description The port the workers alone would listen on, read as `apiPort` reads the API's: they
+ *   load the environment file without overriding a variable their process already holds, so a
+ *   `METRICS_PORT` the calling shell sets wins over the file's, and with neither they take 3300.
+ *   Their schema reads an empty value as absent, so an empty one, in either place, gives 3300, and
+ *   the file is not consulted behind an empty one in the shell.
+ * @param {string | undefined} fromShell - `METRICS_PORT` in the calling shell.
+ * @param {string | undefined} fromFile - `METRICS_PORT` in the environment file.
+ * @returns {number | null} The port, or `null` when the value that wins is not a port.
+ */
+function workersPort(fromShell, fromFile) {
+  const raw = fromShell ?? fromFile;
+  return raw ? parsePort(raw) : DEFAULT_WORKERS_PORT;
+}
+
+/**
  * @function startFailureFor
  * @description Turns what a read or a write of the environment file threw into a one-line failure,
  *   in words the operator can act on for the three error codes whose cause is known.
@@ -462,8 +562,8 @@ function readIfPresent(file) {
  *   replaces a file that appeared meanwhile and never writes through a link.
  * @param {string} file - The environment file's path.
  * @returns {{ values: Record<string, string>, ports: { Postgres: number, Redis: number },
- *   api: number }} What the file holds, the host port each service is published on and the port the
- *   API takes.
+ *   api: number, workers: number }} What the file holds, the host port each service is published
+ *   on, the port the API takes and the port the workers take.
  */
 function prepareEnvironment(file) {
   const text = readIfPresent(file);
@@ -492,12 +592,22 @@ function prepareEnvironment(file) {
   }
   const api = apiPort(process.env.PORT, values?.PORT);
   if (api === null) problems.push(`PORT=${process.env.PORT ?? values?.PORT} is not a port`);
-  if (problems.length > 0) throw new StartFailure(problems);
+  const workers = workersPort(process.env.METRICS_PORT, values?.METRICS_PORT);
+  if (workers === null) {
+    problems.push(`METRICS_PORT=${process.env.METRICS_PORT ?? values?.METRICS_PORT} is not a port`);
+  } else if (workers === api) {
+    problems.push(
+      `the API and the workers would both take port ${api} (PORT and METRICS_PORT): give each ` +
+        `its own`
+    );
+  }
+  if (problems.length > 0 || api === null || workers === null) throw new StartFailure(problems);
+  const settled = `${NAME}: the API takes port ${api}\n${NAME}: the workers take port ${workers}\n`;
 
   if (values !== null) {
     process.stdout.write(`${NAME}: ${file} holds every required variable\n`);
-    process.stdout.write(`${NAME}: the API takes port ${api}\n`);
-    return { values, ports, api };
+    process.stdout.write(settled);
+    return { values, ports, api, workers };
   }
   const entries = generateEnvironment({
     randomBytes,
@@ -512,8 +622,8 @@ function prepareEnvironment(file) {
   process.stdout.write(
     `${NAME}: wrote ${file} with ${entries.length} variables, its secrets random\n`
   );
-  process.stdout.write(`${NAME}: the API takes port ${api}\n`);
-  return { values: Object.fromEntries(entries), ports, api };
+  process.stdout.write(settled);
+  return { values: Object.fromEntries(entries), ports, api, workers };
 }
 
 /**
@@ -846,23 +956,24 @@ function exists(pid) {
  */
 function reportApp(app, earlier, pid, logFile, pidFile) {
   const { name, probe, port } = app;
+  const { s, was, it, one } = app.words;
   const where = `on ${LOOPBACK}:${port} (run by the pnpm process ${pid}, log ${logFile})`;
   process.stdout.write(
     earlier
-      ? `${NAME}: the ${name} this command started earlier already answers ${probe} with 200 ${where}: no second ${name} was started\n`
-      : `${NAME}: the ${name} answers ${probe} with 200 ${where}\n`
+      ? `${NAME}: the ${name} this command started earlier already answer${s} ${probe} with 200 ${where}: no second ${name} ${was} started\n`
+      : `${NAME}: the ${name} answer${s} ${probe} with 200 ${where}\n`
   );
   // The signal reaches pnpm alone, and pnpm passes it on: whether the app ends depends on the app.
   process.stdout.write(
-    `${NAME}: stop it with \`kill -s TERM -- -${pid}\`: a normal termination signal, sent to the ` +
-      `process group of pnpm (process ${pid}, which runs the ${name} and leads the session that ` +
-      `holds it), which passes it on; it ends the ${name} only if the ${name} attends it, and one ` +
-      `that ignores it keeps running. To see whether the ${name} still runs, check whether ` +
-      `${LOOPBACK}:${port} accepts connections, or whether the pnpm process ${pid}, recorded in ` +
-      `${pidFile}, still exists (it can end while the ${name} lives on, so only the port settles ` +
-      `it); if the ${name} still runs, end the processes of the session by hand (\`ps -s ${pid}\` ` +
-      `lists them). pnpm writes a failed-command line in the log when the ${name} ends, which is ` +
-      `expected\n`
+    `${NAME}: stop ${it} with \`kill -s TERM -- -${pid}\`: a normal termination signal, sent to ` +
+      `the process group of pnpm (process ${pid}, which runs the ${name} and leads the session ` +
+      `that holds ${it}), which passes it on; it ends the ${name} only if the ${name} attend${s} ` +
+      `it, and ${one} that ignore${s} it keep${s} running. To see whether the ${name} still ` +
+      `run${s}, check whether ${LOOPBACK}:${port} accepts connections, or whether the pnpm process ` +
+      `${pid}, recorded in ${pidFile}, still exists (it can end while the ${name} live${s} on, so ` +
+      `only the port settles it); if the ${name} still run${s}, end the processes of the session ` +
+      `by hand (\`ps -s ${pid}\` lists them). pnpm writes a failed-command line in the log when ` +
+      `the ${name} end${s}, which is expected\n`
   );
 }
 
@@ -870,7 +981,7 @@ function reportApp(app, earlier, pid, logFile, pidFile) {
  * @function recordedNote
  * @description What the run says of a recorded process that still exists and that it starts no
  *   second app for: only what it knows. The id could also have been given to another process.
- * @param {App} app - The app, by its descriptor: the line names it with its article.
+ * @param {App} app - The app, by its descriptor: the line names it without `the`.
  * @param {string} pidFile - The file the process is recorded in.
  * @param {string} logFile - The log's path.
  * @param {number} recorded - The recorded process.
@@ -879,8 +990,8 @@ function reportApp(app, earlier, pid, logFile, pidFile) {
 function recordedNote(app, pidFile, logFile, recorded) {
   return (
     `the process recorded in ${pidFile} (${recorded}) still exists and may be the pnpm of ` +
-    `${app.article} ${app.name} ` +
-    `an earlier run started, which is still starting or failed to start: nothing was started and ` +
+    `${app.words.some} an earlier run started, which ${app.words.is} still starting or failed to ` +
+    `start: nothing was started and ` +
     `nothing was stopped (\`ps -s ${recorded}\` lists its session, ${logFile} its output)`
   );
 }
@@ -1148,8 +1259,9 @@ export async function sweepSession(pid, pidFile, timing = STOP_TIMING) {
 /**
  * @function startApp
  * @description Starts an app from source, detached, and waits until its probe answers 200. It runs
- *   over the app's descriptor (`App`): the API is the one app it is given (`API`), whose record,
- *   log and probe are `api.pid`, `api.log` and `/health`. The process an earlier run recorded is
+ *   over the app's descriptor (`App`): the run gives it the API (`API`), whose record, log and
+ *   probe are `api.pid`, `api.log` and `/health`, and then the workers (`WORKERS`), whose are
+ *   `workers.pid`, `workers.log` and `/health/ready`. The process an earlier run recorded is
  *   consulted first: while it exists no second app is started, and the run goes on as a second run
  *   once the probe answers, whether or not the port is bound yet (the real API binds it only at the
  *   end of its boot). While it waits on that process it looks at it again after each attempt: one
@@ -1160,13 +1272,16 @@ export async function sweepSession(pid, pidFile, timing = STOP_TIMING) {
  *   it too, and either way the run sweeps the session of that child before it ends
  *   (`sweepSession`). The process an earlier run recorded is never signalled.
  * @param {string} root - The checkout.
- * @param {App} app - The app, by its descriptor: what the lines call it, what pnpm is asked for,
- *   its record and its log under the checkout, the path it must answer 200 on and its port.
+ * @param {App} app - The app, by its descriptor: what the lines call it and the words that agree
+ *   with that, what pnpm is asked for, what of the calling shell's environment it must not
+ *   receive, its record and its log under the checkout, the path it must answer 200 on and its
+ *   port.
  * @param {number} waitSeconds - How long the probe may take to answer 200.
  * @returns {Promise<void>} Resolves once the app answers, or once the earlier one is found to.
  */
 async function startApp(root, app, waitSeconds) {
   const { name, probe, port } = app;
+  const { s, is, was, someRunning } = app.words;
   const pidFile = path.join(root, app.record);
   const logFile = path.join(root, app.log);
 
@@ -1185,7 +1300,7 @@ async function startApp(root, app, waitSeconds) {
     }
     process.stdout.write(
       `${NAME}: the process recorded in ${pidFile} (${recorded}) still exists and nothing ` +
-        `accepts connections on ${LOOPBACK}:${port} yet: no second ${name} is started, and ` +
+        `accepts connections on ${LOOPBACK}:${port} yet: no second ${name} ${is} started, and ` +
         `${probe} is awaited for up to ${waitSeconds} s\n`
     );
     // The process was found to exist before the wait, and it can end during it: looked at only
@@ -1193,7 +1308,7 @@ async function startApp(root, app, waitSeconds) {
     // asked, not the record, which a removed or rewritten file would make read as an ended process.
     const ended =
       `the process recorded in ${pidFile} (${recorded}) ended during the wait without ${probe} ` +
-      `on ${LOOPBACK}:${port} answering 200, and no ${name} was started`;
+      `on ${LOOPBACK}:${port} answering 200, and no ${name} ${was} started`;
     let gone = false;
     try {
       await waitFor(
@@ -1217,8 +1332,8 @@ async function startApp(root, app, waitSeconds) {
   }
   if (bound) {
     throw new StartFailure([
-      `${LOOPBACK}:${port} is already in use, and this command holds no record of a running ` +
-        `${name} it started: the port may be held by anything; no ${name} was started`,
+      `${LOOPBACK}:${port} is already in use, and this command holds no record of ` +
+        `${someRunning} it started: the port may be held by anything; no ${name} ${was} started`,
     ]);
   }
 
@@ -1230,7 +1345,7 @@ async function startApp(root, app, waitSeconds) {
   try {
     const child = spawn("pnpm", app.pnpm, {
       cwd: root,
-      env: shellEnvironment(),
+      env: shellEnvironment(...app.without),
       detached: true,
       stdio: ["ignore", log, log],
     });
@@ -1249,7 +1364,7 @@ async function startApp(root, app, waitSeconds) {
       throw couldNotStart(
         "pnpm",
         /** @type {Error} */ (notRun),
-        `pnpm is not on PATH: the ${name} starts through it`
+        `pnpm is not on PATH: the ${name} start${s} through it`
       );
     }
     const pid = /** @type {number} */ (child.pid);
@@ -1345,10 +1460,11 @@ async function main(argv) {
 
   const file = path.join(options.root, ENVIRONMENT_FILE);
   try {
-    const { values, ports, api } = prepareEnvironment(file);
+    const { values, ports, api, workers } = prepareEnvironment(file);
     const answered = await startServices(options.root, file, values, ports, options.waitSeconds);
     migrateDatabase(options.root, file, answered, options.waitSeconds);
     await startApp(options.root, { ...API, port: api }, options.waitSeconds);
+    await startApp(options.root, { ...WORKERS, port: workers }, options.waitSeconds);
   } catch (error) {
     if (!(error instanceof StartFailure)) throw error;
     for (const line of error.lines) process.stderr.write(`${NAME}: ${line}\n`);
