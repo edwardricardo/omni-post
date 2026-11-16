@@ -27,7 +27,7 @@
       "total": 1203
     },
     "blocks": {
-      "total": 14927,
+      "total": 14932,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14616
+        "BEHAVIOURAL": 14621
       }
     },
     "deleted": {
@@ -32666,95 +32666,102 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 13,
+      "blockCount": 14,
       "blocks": [
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by userId exactly",
-          "line": 284,
+          "line": 301,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "60f4603da2fe103ae1783d532dafa5beb681ad384811991a1287b60379a2b0d9"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by action with case-insensitive contains",
-          "line": 294,
+          "line": 311,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b2f2f6ce6490a9396a8742357d6c3196237931ada543866488712c4db50d99cd"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by resource exactly",
-          "line": 302,
+          "line": 319,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f47ed068b34bd7b14d39f72a4e7192e8f2a051b62e2702af809ba43878019e4d"
         },
         {
+          "id": "apps/api/tests/unit/auditService.query.test.ts::returns the log of the requested resource id and not another log of its resource",
+          "line": 330,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a259c006515a121a39f2092dac928e52abf719f1babd5e0485de11ef4f2729d0"
+        },
+        {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by success=true",
-          "line": 313,
+          "line": 339,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b5a225281a1cb091620ac94bc959e42708a2e663ec04523848fd6e5e968e267d"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by success=false",
-          "line": 327,
+          "line": 353,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a733a403087f3ca651b94196ad48aee421ea43fe088a20246c89b59b3cd5ab1f"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by startDate (gte)",
-          "line": 344,
+          "line": 370,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bee6d44df928358f552cdfb8687393401a143813abeb487d9606b73b2d0c5c2f"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by endDate (lte)",
-          "line": 359,
+          "line": 385,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7f3e09d022108d3642b04c732cd50198ea2bc59fed3ad4cc4b6de0dcc7948a8b"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should filter by date range (both startDate and endDate)",
-          "line": 373,
+          "line": 399,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "bbc066691c6b6efd5458fac15afb19c0969dcc7b5f8fda41e2824d04ccb98638"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should respect limit parameter",
-          "line": 394,
+          "line": 420,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "6a4a2d6647245eb537d176a876976e85a3cebc7f7da12cad796edaa267413ace"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should respect offset parameter",
-          "line": 404,
+          "line": 430,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "95cf3b986bf4abb4724fbc3f573f51b4508450e432ba5644046f4ba86b0c331a"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should cap limit at 1000 for performance",
-          "line": 425,
+          "line": 451,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "1df33526aa7049cdb038452f523570d4fbdb56a32929f2803a6608584e840f42"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should use default limit of 50 when not specified",
-          "line": 434,
+          "line": 460,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "503be8b393062fbe4676f63e89946bd140d83ff7cd65c2b4a4369913497074ab"
         },
         {
           "id": "apps/api/tests/unit/auditService.query.test.ts::should order results by createdAt descending (newest first)",
-          "line": 443,
+          "line": 469,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e56d4b4eb6664ef98001fbc7c47be9fd8e9065c8354b31fc0de1d0390d040009"
@@ -32869,98 +32876,126 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 13,
+      "blockCount": 17,
       "blocks": [
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should count total logs matching filter",
-          "line": 296,
+          "line": 355,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "78520b8386998e626979ab71ded64e27f72f3a938ccdffb2f0622cf479632667"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should count successful and failed separately",
-          "line": 305,
+          "line": 364,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3b705b10b712fe4e6f59dd160dae2f5ede782e7a78e425e69e99627a41bcceae"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should return top actions sorted by count descending",
-          "line": 318,
+          "line": 377,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "31a89a542b7b1a4d244bab36e8803386778361dfaf2b3ac1c947744463229002"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should limit top actions to 10",
-          "line": 333,
+          "line": 392,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2b3c68f65081e9e6b2ce6743979571697f4f3a081df4ae4a8da03824c8f2a01a"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should include action name and count",
-          "line": 340,
+          "line": 399,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c4c35bd2018733239b0475615038117ea69b06920689f6d7b3cf3c484b38fb8"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::names each top resource after the resource its logs record",
-          "line": 353,
+          "line": 412,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0dc2326d80097669f87a579f75a8639d7bd3f096d927561932d7c2a0aae7be53"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should return top resources sorted by count descending",
-          "line": 367,
+          "line": 426,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8ca981cf63adc686cf30474a69de166960a12e24575b52ca98572a5b7a55cee0"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should limit top resources to 10",
-          "line": 382,
+          "line": 441,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "69b616cb3a94a94881b88d28f281a2286906431e5d2923ec0cc6fb144f18143f"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should return top users with name and email",
-          "line": 391,
+          "line": 450,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9efa0309cac8d641233c6f695f287ce7abc34d40981b8060cea0b3333041b4e5"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should filter out null userIds",
-          "line": 405,
+          "line": 464,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e5c997c350f8769c9a3bb3e157cb2d1a983a8ff076082abe01f009795dc77db1"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should limit top users to 10",
-          "line": 416,
+          "line": 475,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "77d0c828fba039d6366eec8c38efbfbc3140a037579d95156d0a3bb7de482f07"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should apply filters to all aggregations",
-          "line": 425,
+          "line": 484,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5cdf7944994058a6f28104d9937afa79aecaf3930c2658121a4adeaedc02ace7"
         },
         {
           "id": "apps/api/tests/unit/auditService.stats.test.ts::should apply date range to stats",
-          "line": 434,
+          "line": 493,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "25f322466d1cee7cff109a4c018b86ed2df610736f48769e75257cbbf80a63ff"
+        },
+        {
+          "id": "apps/api/tests/unit/auditService.stats.test.ts::returns the top users in descending order of their log count",
+          "line": 557,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "15468cdb65e4a41c3cd70032d9b057da5075be286804153e662c8fb4b2ebd37c"
+        },
+        {
+          "id": "apps/api/tests/unit/auditService.stats.test.ts::returns the top resources in descending order of their log count",
+          "line": 568,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fcab334797066fc6cc5a3716b172191540e78b80af8ba4b160b3a42ebe2be90d"
+        },
+        {
+          "id": "apps/api/tests/unit/auditService.stats.test.ts::leaves the logs with no user out of the top users",
+          "line": 579,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2bbb7f80b2cba5db95305b88b9e6bb0190a22fca63a188cd960ab14563f67bbb"
+        },
+        {
+          "id": "apps/api/tests/unit/auditService.stats.test.ts::leaves the logs with no resource out of the top resources",
+          "line": 590,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "4ad1924b786cfdcfd94a4880ffef2c685f8f5727f42947f37d0fa813cb50ed59"
         }
       ],
       "verdict": "KEEP",

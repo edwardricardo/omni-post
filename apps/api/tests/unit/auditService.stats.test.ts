@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => {
   const auditLogFindUnique = vi.fn();
   const auditLogCount = vi.fn();
   const auditLogDeleteMany = vi.fn();
-  const auditLogGroupBy = vi.fn(async () => []);
+  const auditLogGroupBy = vi.fn(async (_args: GroupByArgs): Promise<Group[]> => []);
   const adminUserFindMany = vi.fn();
 
   const prismaClient: any = {
@@ -137,6 +137,96 @@ function filterEntries(
   });
 }
 
+type SortDirection = "asc" | "desc";
+
+/** One `orderBy` clause of `auditLog.groupBy`: a count of the group, or the grouped field. */
+type GroupOrderBy = Record<string, SortDirection | Record<string, SortDirection>>;
+
+/** The arguments of `auditLog.groupBy` that the double reads; any other shape is refused. */
+interface GroupByArgs {
+  by: string[];
+  where?: Record<string, unknown>;
+  _count?: Record<string, true>;
+  orderBy?: GroupOrderBy | GroupOrderBy[];
+  take?: number;
+}
+
+type Group = Record<string, unknown> & { _count: Record<string, number> };
+
+/** Compares two group keys the way Postgres does by default: nulls last ascending, first descending. */
+function compareKeys(a: unknown, b: unknown, direction: SortDirection): number {
+  if (a === b) return 0;
+  if (a === null) return direction === "asc" ? 1 : -1;
+  if (b === null) return direction === "asc" ? -1 : 1;
+  const order = String(a) < String(b) ? -1 : 1;
+  return direction === "asc" ? order : -order;
+}
+
+/** Compares two groups by every `orderBy` clause in turn; a clause the double does not model throws. */
+function compareGroups(a: Group, b: Group, clauses: GroupOrderBy[], groupField: string): number {
+  for (const clause of clauses) {
+    for (const [key, spec] of Object.entries(clause)) {
+      let order: number;
+      if (key === "_count" && typeof spec === "object") {
+        const countClauses = Object.entries(spec);
+        const [entry] = countClauses;
+        if (entry === undefined || countClauses.length > 1) {
+          throw new Error("auditLogGroupBy double: a _count order names exactly one field");
+        }
+        const [field, direction] = entry;
+        const countA = a._count[field];
+        const countB = b._count[field];
+        if (countA === undefined || countB === undefined) {
+          throw new Error(`auditLogGroupBy double: no _count of ${field} to order by`);
+        }
+        order = direction === "asc" ? countA - countB : countB - countA;
+      } else if (key === groupField && typeof spec === "string") {
+        order = compareKeys(a[groupField], b[groupField], spec);
+      } else {
+        throw new Error(`auditLogGroupBy double: orderBy ${key} is not modelled`);
+      }
+      if (order !== 0) return order;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Groups entries the way Prisma's `groupBy` does: the `where` is applied, a null key is a group of
+ * its own, `_count.<field>` counts the group's non-null values of that field (SQL `COUNT(field)`),
+ * the groups come in the `orderBy` given, and in first-seen order without one, since Postgres
+ * promises no order without `ORDER BY`. A seed first seen in ascending count therefore reads an
+ * `orderBy` the service drops.
+ */
+function groupEntries(entries: Array<Record<string, unknown>>, args: GroupByArgs): Group[] {
+  const filtered = args.where ? filterEntries(entries, args.where) : [...entries];
+  const [groupField] = args.by;
+  if (groupField === undefined || args.by.length > 1) {
+    throw new Error("auditLogGroupBy double: groups by exactly one field");
+  }
+  const countField = args._count ? (Object.keys(args._count)[0] ?? groupField) : groupField;
+  const groups = new Map<unknown, Array<Record<string, unknown>>>();
+
+  for (const entry of filtered) {
+    const key = entry[groupField] ?? null;
+    groups.set(key, [...(groups.get(key) ?? []), entry]);
+  }
+
+  const result: Group[] = Array.from(groups.entries()).map(([key, members]) => ({
+    [groupField]: key,
+    _count: {
+      [countField]: members.filter((member) => (member[countField] ?? null) !== null).length,
+    },
+  }));
+
+  if (args.orderBy) {
+    const clauses = Array.isArray(args.orderBy) ? args.orderBy : [args.orderBy];
+    result.sort((a, b) => compareGroups(a, b, clauses, groupField));
+  }
+
+  return args.take === undefined ? result : result.slice(0, args.take);
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -246,41 +336,10 @@ describe("AuditService - getStats()", () => {
       return filterEntries(seedRecords, where).length;
     });
 
-    // Mock groupBy — aggregates from seed data
-    mocks.auditLogGroupBy.mockImplementation(async ({ by, where, _count, take }: any) => {
-      let entries = [...seedRecords];
-      if (where) {
-        entries = filterEntries(entries, where);
-      }
-
-      const groupField = by[0] as string;
-      const countField = _count ? Object.keys(_count)[0] : groupField;
-      const groups = new Map<string, number>();
-
-      for (const entry of entries) {
-        const key = entry[groupField];
-        if (key === null || key === undefined) continue;
-        const keyStr = String(key);
-        groups.set(keyStr, (groups.get(keyStr) ?? 0) + 1);
-      }
-
-      let result = Array.from(groups.entries())
-        .map(([key, count]) => ({
-          [groupField]: key,
-          _count: { [countField]: count },
-        }))
-        .sort((a, b) => {
-          const ca = a._count[countField] as number;
-          const cb = b._count[countField] as number;
-          return cb - ca;
-        });
-
-      if (take) {
-        result = result.slice(0, take);
-      }
-
-      return result;
-    });
+    // Mock groupBy — aggregates from seed data with the where, null groups and orderBy it receives
+    mocks.auditLogGroupBy.mockImplementation(async (args: GroupByArgs) =>
+      groupEntries(seedRecords, args)
+    );
 
     // Mock adminUser.findMany — returns matching users
     mocks.adminUserFindMany.mockImplementation(async ({ where }: any = {}) => {
@@ -442,6 +501,101 @@ describe("AuditService - getStats()", () => {
 
       expect(result.ok).toBeTruthy();
       expect(result.value.total >= 0).toBeTruthy();
+    });
+  });
+
+  describe("getStats() - Ranking Order and Null Groups", () => {
+    // Every user and resource is first seen in ascending count, and in ascending id, so a ranking
+    // that loses its count order, or orders by the grouped field, reads back in the wrong order.
+    const RANK_USER_A = { id: "audit-rank-user-a", email: "rank-a@example.com", name: "Rank A" };
+    const RANK_USER_B = { id: "audit-rank-user-b", email: "rank-b@example.com", name: "Rank B" };
+    const RANK_USER_C = { id: "audit-rank-user-c", email: "rank-c@example.com", name: "Rank C" };
+
+    const makeLog = (
+      id: string,
+      userId: string | null,
+      resource: string | null
+    ): Record<string, unknown> => ({
+      id,
+      userId,
+      action: "RANK_EVENT",
+      resource,
+      resourceId: null,
+      success: true,
+      error: null,
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
+    });
+
+    const rankingRecords = [
+      makeLog("log-r-1", RANK_USER_A.id, "Campaign"),
+      makeLog("log-r-2", RANK_USER_B.id, "Channel"),
+      makeLog("log-r-3", RANK_USER_B.id, "Channel"),
+      makeLog("log-r-4", RANK_USER_C.id, "Post"),
+      makeLog("log-r-5", RANK_USER_C.id, "Post"),
+      makeLog("log-r-6", RANK_USER_C.id, "Post"),
+      makeLog("log-r-7", null, null),
+      makeLog("log-r-8", null, null),
+    ];
+
+    const rankingUsers = [RANK_USER_A, RANK_USER_B, RANK_USER_C];
+
+    beforeEach(() => {
+      mocks.auditLogCount.mockImplementation(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          filterEntries(rankingRecords, where).length
+      );
+      mocks.auditLogGroupBy.mockImplementation(async (args: GroupByArgs) =>
+        groupEntries(rankingRecords, args)
+      );
+      mocks.adminUserFindMany.mockImplementation(
+        async ({ where }: { where: { id: { in: Array<string | null> } } }) =>
+          rankingUsers.filter((user) => where.id.in.includes(user.id))
+      );
+    });
+
+    it("returns the top users in descending order of their log count", async () => {
+      const result = await auditService.getStats({});
+
+      assert.ok(result.ok);
+      expect(result.value.topUsers).toEqual([
+        { user: "Rank C", email: "rank-c@example.com", count: 3 },
+        { user: "Rank B", email: "rank-b@example.com", count: 2 },
+        { user: "Rank A", email: "rank-a@example.com", count: 1 },
+      ]);
+    });
+
+    it("returns the top resources in descending order of their log count", async () => {
+      const result = await auditService.getStats({});
+
+      assert.ok(result.ok);
+      expect(result.value.topResources).toEqual([
+        { resource: "Post", count: 3 },
+        { resource: "Channel", count: 2 },
+        { resource: "Campaign", count: 1 },
+      ]);
+    });
+
+    it("leaves the logs with no user out of the top users", async () => {
+      const result = await auditService.getStats({});
+
+      assert.ok(result.ok);
+      expect(result.value.topUsers.map((entry) => entry.email).sort()).toEqual([
+        "rank-a@example.com",
+        "rank-b@example.com",
+        "rank-c@example.com",
+      ]);
+    });
+
+    it("leaves the logs with no resource out of the top resources", async () => {
+      const result = await auditService.getStats({});
+
+      assert.ok(result.ok);
+      expect(result.value.topResources.map((entry) => entry.resource).sort()).toEqual([
+        "Campaign",
+        "Channel",
+        "Post",
+      ]);
     });
   });
 });

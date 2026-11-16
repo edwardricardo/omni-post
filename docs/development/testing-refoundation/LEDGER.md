@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1193  |
 | Confirmed rows          | 10    |
-| Blocks                  | 14927 |
+| Blocks                  | 14932 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -114,8 +114,8 @@ Deleted: 0 files, 55 blocks. Floors lowered: functions from 60.4 to 60.3, branch
 | `apps/api/tests/unit/apiMetrics.http.test.ts`                      | test  | 13     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/approvalWorkflowUseCases.test.ts`             | test  | 15     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/auditLogger.test.ts`                          | test  | 37     | 1          | REWRITE | machine | some-decorative |
-| `apps/api/tests/unit/auditService.query.test.ts`                   | test  | 13     | 0          | KEEP    | machine | behavioural     |
-| `apps/api/tests/unit/auditService.stats.test.ts`                   | test  | 13     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/auditService.query.test.ts`                   | test  | 14     | 0          | KEEP    | machine | behavioural     |
+| `apps/api/tests/unit/auditService.stats.test.ts`                   | test  | 17     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/autoCacheMiddleware.registration-get.test.ts` | test  | 7      | 1          | REWRITE | machine | some-decorative |
 | `apps/api/tests/unit/cacheStatsRoutes.test.ts`                     | test  | 22     | 0          | KEEP    | machine | behavioural     |
 | `apps/api/tests/unit/correlationMiddleware.test.ts`                | test  | 9      | 0          | KEEP    | machine | behavioural     |
