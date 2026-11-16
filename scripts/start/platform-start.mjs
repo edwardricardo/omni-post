@@ -1501,8 +1501,10 @@ async function startApp(root, app, waitSeconds) {
    * The furthest path the attempts of a wait reached without a 200, with the last answer an
    * attempt got from it; the probe until an attempt is made. An attempt that finds the probe down
    * again says nothing of a page an earlier attempt got to, and an attempt that gets no answer
-   * from that path, because the end of the wait cut it short or its peer stayed silent, says
-   * nothing of the answer an earlier attempt got, so neither replaces what was found.
+   * from that path says nothing of the answer an earlier attempt got, so neither replaces what was
+   * found. An attempt gets no answer when the connection is refused or reset, when the peer stays
+   * silent past the attempt's own limit (`PROBE_TIMEOUT_MS`, which a first compile outlasts), and
+   * when the end of the wait cuts it short.
    */
   let last = /** @type {Missing} */ ({ path: probe, status: null });
   const order = [probe, ...(app.pages ?? [])];

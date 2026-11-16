@@ -348,7 +348,10 @@ process.on("SIGTERM", () => {
  * shape, `/api/health` 200 and `/en/login` 500; `redirect307` answers `/en/login` with a 307 whose
  * `Location` is `/api/health`, which answers 200, so only a run that follows redirects would take
  * the page for answered; `page500ThenSilent` answers the first `/en/login` with 500 and leaves every
- * later one unanswered, as a page whose last attempt the end of a wait cuts short; `backend503`
+ * later one unanswered, as a page whose last attempt the end of a wait cuts short;
+ * `page500AfterSilent` leaves the first `/en/login` unanswered and answers every later one with 500,
+ * as a page whose first compile outlasts one attempt; `pageSilent` answers `/api/health` and never
+ * `/en/login`; `backend503`
  * answers `/api/backend/health` with
  * 503 as an unreachable API makes the proxy do; `silent` takes the connection and never answers;
  * `exit` ends at once with a line on stderr. On SIGTERM it says it stopped and ends with 0.
@@ -375,9 +378,13 @@ async function backend() {
 let pagesAsked = 0;
 const server = createServer(async (request, response) => {
   if (mode === "silent") return;
+  if (request.url === "/en/login" && mode === "pageSilent") return;
   if (request.url === "/en/login" && mode === "page500ThenSilent" && pagesAsked++ > 0) return;
+  if (request.url === "/en/login" && mode === "page500AfterSilent" && pagesAsked++ === 0) return;
   if (request.url === "/api/health") response.statusCode = 200;
-  else if (request.url === "/en/login" && mode === "page500ThenSilent") response.statusCode = 500;
+  else if (request.url === "/en/login" && /^page500(ThenSilent|AfterSilent)$/.test(mode)) {
+    response.statusCode = 500;
+  }
   else if (request.url === "/en/login" && mode === "redirect307") {
     response.statusCode = 307;
     response.setHeader("Location", "/api/health");
@@ -2804,6 +2811,42 @@ describe("the administration portal stage", () => {
     expect(sessionMembers(Number(said.exec(result.stderr)?.[1]))).toEqual([]);
     expect(recordedIn(staged.root, "admin.pid")).toBeNull();
     expect(await apiAndWorkersAnswer(staged)).toBe(true);
+  });
+
+  it("names the answer a page gave once an attempt got one: a page whose first attempt gets none and a later attempt gets a 500 is named with the 500, never as unanswered", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "5"],
+      asked(staged, { FAKE_ADMIN_MODE: "page500AfterSilent" })
+    );
+
+    expect(result.code).toBe(1);
+    const said = ranOutLines(
+      staged,
+      `/api/health on ${literal(at(staged))} answered 200, but /en/login there did not answer 200 within 5 s \\(the last answer it gave was 500\\)`,
+      "page500AfterSilent"
+    );
+    expect(result.stderr).toMatch(said);
+    expect(recordedIn(staged.root, "admin.pid")).toBeNull();
+  }, 30_000);
+
+  it("names the page, not the probe, when the probe answers 200 and the page never answers: the line says nothing answered /en/login", async () => {
+    const staged = await stage();
+
+    const result = await start(
+      ["--root", staged.root, "--wait-seconds", "2"],
+      asked(staged, { FAKE_ADMIN_MODE: "pageSilent" })
+    );
+
+    expect(result.code).toBe(1);
+    const said = ranOutLines(
+      staged,
+      `/api/health on ${literal(at(staged))} answered 200, but /en/login there did not answer 200 within 2 s \\(nothing answered it\\)`,
+      "pageSilent"
+    );
+    expect(result.stderr).toMatch(said);
+    expect(recordedIn(staged.root, "admin.pid")).toBeNull();
   });
 
   it("holds the run to /en/login answering exactly 200, never a redirect: a page that answers 307 to a path that answers 200 fails the run, named with the 307, and only the portal's session is swept", async () => {
