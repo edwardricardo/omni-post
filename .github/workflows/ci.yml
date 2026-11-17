@@ -950,12 +950,13 @@ jobs:
   platform-start:
     name: Platform Start
     runs-on: ubuntu-latest
-    # The command waits at most --wait-seconds for each of the four applications, and a failing
-    # stage ends the run, so the worst case is about 4 x 180 s of waits plus setup (checkout, Node,
-    # pnpm, the install), the image pulls and the migration, about 5 minutes on a cold runner:
-    # 20 minutes lets a run whose last stage runs out of time print its own failure line and the
-    # logs below instead of being cancelled.
-    timeout-minutes: 20
+    # --wait-seconds bounds seven waits of the command: Postgres, Redis, Prisma's proof of the
+    # migrated database, and each of the four applications. A failing stage ends the run, so the
+    # worst case is seven waits of 180 s, 21 minutes, plus setup (checkout, Node, pnpm, the
+    # install), the image pulls and the migration, about 5 minutes on a cold runner: 30 minutes
+    # lets a run whose last stage runs out of time print its own failure line and the logs below
+    # instead of being cancelled.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code

@@ -1,45 +1,60 @@
 # Environment Variables Reference
 
-Complete reference for all OmniPost environment variables. Organized by category with defaults and required status per deployment target.
+Reference for the environment variables of the API, the workers and the two portals. Organized by category with defaults and required status.
+
+The four schemas are the source: [`apps/api/src/config/env.ts`](../../apps/api/src/config/env.ts) (the API), [`apps/workers/src/config/env.ts`](../../apps/workers/src/config/env.ts) (the workers), [`apps/admin/lib/env.ts`](../../apps/admin/lib/env.ts) and [`apps/client/lib/env.ts`](../../apps/client/lib/env.ts) (the portals). A variable is **required** when its schema entry has neither `.optional()` nor a default: the process refuses to boot without it, naming each variable that is missing or malformed. Where this page and a schema disagree, the schema wins. A variable marked **read outside the schemas** is read from `process.env` by the code its row names and is not validated at boot.
+
+`apps/api/tests/unit/scripts/environmentVariablesPage.test.ts` fails when this page does not name a key the API's or the workers' schema requires, or a key a portal's schema declares.
+
+What an operator configures for a deployment, and the evidence for each requirement, is [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md). For development, `pnpm start:platform` writes every required variable into the root `.env` of a checkout that has none ([getting-started.md](../development/getting-started.md#quick-start)).
 
 ---
 
 ## Quick Reference: Required Variables
 
-Every deployment **must** configure these variables. The application will not start correctly without them.
+The API refuses to boot without these twelve, and the workers without three of them. The portals require none. `pnpm start:platform` generates all twelve, each secret random, in a checkout with no `.env` (`scripts/start/lib/start-environment.mjs`).
 
-| Variable             | Example                                       |
-| -------------------- | --------------------------------------------- |
-| `NODE_ENV`           | `production`                                  |
-| `PORT`               | `3000`                                        |
-| `DATABASE_URL`       | `postgresql://user:pass@host:5432/omnipostdb` |
-| `REDIS_URL`          | `redis://host:6379`                           |
-| `JWT_SECRET`         | 64-byte hex string                            |
-| `JWT_REFRESH_SECRET` | 64-byte hex string                            |
-| `API_BASE_URL`       | `https://api.yourdomain.com`                  |
-| `CLIENT_URL`         | `https://app.yourdomain.com`                  |
-| `ADMIN_URL`          | `https://admin.yourdomain.com`                |
+| Variable                        | Deployables                   | Example                                              |
+| ------------------------------- | ----------------------------- | ---------------------------------------------------- |
+| `DATABASE_URL`                  | api, workers                  | `postgresql://user:pass@host:5432/omnipostdb`        |
+| `SHADOW_DATABASE_URL`           | api                           | `postgresql://user:pass@host:5432/omnipostdb_shadow` |
+| `REDIS_URL`                     | api, workers                  | `redis://host:6379`                                  |
+| `JWT_ACCESS_SECRET`             | api                           | 32 characters or more                                |
+| `JWT_REFRESH_SECRET`            | api                           | 32 characters or more                                |
+| `CUSTOMER_JWT_SECRET`           | api                           | 32 characters or more                                |
+| `ADMIN_JWT_ACCESS_SECRET`       | api                           | 32 characters or more                                |
+| `ADMIN_JWT_REFRESH_SECRET`      | api                           | 32 characters or more                                |
+| `COOKIE_SECRET`                 | api                           | 32 characters or more                                |
+| `PLATFORM_ENCRYPTION_KEY`       | api, workers, the same values | 32 characters or more                                |
+| `OAUTH_ENCRYPTION_KEY`          | api                           | 32 characters or more; no code reads it (DEF-44)     |
+| `DELETION_NAME_DIGEST_KEY_RING` | api                           | `{"1":"<64 lowercase hex characters>"}`              |
+
+`NODE_ENV` and `PORT` are not required: unset, they are `development` and `3000`. The URL variables (`API_BASE_URL`, `CLIENT_URL`, `ADMIN_URL`, `APP_BASE_URL`) are optional in the schema and wrong when unset in production ([DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md#optional-in-the-schema-wrong-when-unset-in-production)).
 
 ---
 
 ## Core Application
 
-| Variable       | Required | Default       | Description                            |
-| -------------- | -------- | ------------- | -------------------------------------- |
-| `NODE_ENV`     | Yes      | `development` | `development`, `production`, or `test` |
-| `PORT`         | Yes      | `3000`        | API server listening port              |
-| `API_BASE_URL` | Yes      | --            | Public URL of the API server           |
-| `CLIENT_URL`   | Yes      | --            | Public URL of the client application   |
-| `ADMIN_URL`    | Yes      | --            | Public URL of the admin dashboard      |
-| `APP_BASE_URL` | Yes      | --            | Base URL for OAuth callbacks and SAML  |
+| Variable       | Required | Default       | Description                                                                                                                         |
+| -------------- | -------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`     | No       | `development` | `development`, `production`, `test` or `staging` for the API and the workers; `development`, `production` or `test` for the portals |
+| `PORT`         | No       | `3000`        | API server listening port                                                                                                           |
+| `API_BASE_URL` | No       | --            | Public URL of the API server                                                                                                        |
+| `CLIENT_URL`   | No       | --            | Public URL of the client application                                                                                                |
+| `ADMIN_URL`    | No       | --            | Public URL of the admin dashboard                                                                                                   |
+| `APP_BASE_URL` | No       | --            | Base URL for OAuth callbacks and SAML                                                                                               |
+
+The four URL variables are optional in the schema; unset, each reader falls back to a localhost or placeholder host, so a production deployment sets them.
 
 ---
 
 ## Database
 
-| Variable       | Required | Default | Description                                   |
-| -------------- | -------- | ------- | --------------------------------------------- |
-| `DATABASE_URL` | Yes      | --      | PostgreSQL connection string with SSL in prod |
+| Variable               | Required | Default        | Description                                                                                                                                                                                  |
+| ---------------------- | -------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`         | Yes      | --             | The application's PostgreSQL connection, for the API and the workers; SSL in production                                                                                                      |
+| `SHADOW_DATABASE_URL`  | Yes      | --             | A separate, empty database. Only `prisma migrate dev` uses it (`infra/prisma/prisma.config.ts`), and the API requires it at boot all the same (CRED-1 makes it optional)                     |
+| `MIGRATE_DATABASE_URL` | No       | `DATABASE_URL` | The owner channel the migrations connect over; `infra/prisma/prisma.config.ts` uses `DATABASE_URL` when it is absent or empty ([ADR-0022](../technical/ADR-0022-rls-enforcement-posture.md)) |
 
 ### Connection String Format
 
@@ -59,12 +74,12 @@ postgresql://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=require
 
 ## Redis
 
-| Variable         | Required | Default     | Description                    |
-| ---------------- | -------- | ----------- | ------------------------------ |
-| `REDIS_URL`      | Yes      | --          | Redis connection string        |
-| `REDIS_HOST`     | No       | `localhost` | Used if `REDIS_URL` is not set |
-| `REDIS_PORT`     | No       | `6379`      | Used if `REDIS_URL` is not set |
-| `REDIS_PASSWORD` | No       | --          | Used if `REDIS_URL` is not set |
+| Variable         | Required | Default | Description                                                                                                                                                                                               |
+| ---------------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `REDIS_URL`      | Yes      | --      | Redis connection string, for the API and the workers                                                                                                                                                      |
+| `REDIS_HOST`     | No       | --      | Kept for compatibility. `getRedisUrl` (`apps/api/src/lib/redis.ts`) builds a URL from these three, with `localhost` and `6379` when unset, only when `REDIS_URL` is empty, which the API's schema refuses |
+| `REDIS_PORT`     | No       | --      | As `REDIS_HOST`                                                                                                                                                                                           |
+| `REDIS_PASSWORD` | No       | --      | As `REDIS_HOST`                                                                                                                                                                                           |
 
 ### Connection String Format
 
@@ -86,26 +101,36 @@ rediss://:PASSWORD@HOST:PORT         # TLS (managed services)
 
 ## Authentication and Security
 
-| Variable                   | Required   | Default                           | Description                                |
-| -------------------------- | ---------- | --------------------------------- | ------------------------------------------ |
-| `JWT_SECRET`               | Production | auto-generated (dev only)         | Access token signing secret                |
-| `JWT_REFRESH_SECRET`       | Production | auto-generated (dev only)         | Refresh token signing secret               |
-| `ADMIN_JWT_ACCESS_SECRET`  | Production | `admin-jwt-access-dev-only`       | Admin panel access token secret            |
-| `ADMIN_JWT_REFRESH_SECRET` | Production | `admin-jwt-refresh-dev-only`      | Admin panel refresh token secret           |
-| `CUSTOMER_JWT_SECRET`      | Production | `customer-jwt-dev-only-change-me` | Customer-facing JWT secret                 |
-| `OAUTH_ENCRYPTION_KEY`     | Production | auto-generated (dev only)         | 32-byte hex key for OAuth token encryption |
+| Variable                              | Required | Default | Description                                                                                                                                                           |
+| ------------------------------------- | -------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `JWT_ACCESS_SECRET`                   | Yes      | --      | Access token signing secret; 32 characters or more                                                                                                                    |
+| `JWT_REFRESH_SECRET`                  | Yes      | --      | Refresh token signing secret; 32 characters or more                                                                                                                   |
+| `ADMIN_JWT_ACCESS_SECRET`             | Yes      | --      | Admin panel access token secret; 32 characters or more                                                                                                                |
+| `ADMIN_JWT_REFRESH_SECRET`            | Yes      | --      | Admin panel refresh token secret; 32 characters or more                                                                                                               |
+| `CUSTOMER_JWT_SECRET`                 | Yes      | --      | Customer-facing JWT secret; 32 characters or more                                                                                                                     |
+| `COOKIE_SECRET`                       | Yes      | --      | Cookie signing secret; 32 characters or more                                                                                                                          |
+| `JWT_SECRET`                          | No       | --      | Declared by the schema and read by no code; CRED-1 removes it                                                                                                         |
+| `PLATFORM_ENCRYPTION_KEY`             | Yes      | --      | Encrypts channel and platform credentials; 32 characters or more. The API and the workers hold the same value                                                         |
+| `PLATFORM_ENCRYPTION_KEY_VERSION`     | No       | `1`     | The key version the API stamps and the workers resolve                                                                                                                |
+| `PLATFORM_ENCRYPTION_KEY_V1`          | No       | --      | With `PLATFORM_ENCRYPTION_KEY_V2` and `PLATFORM_ENCRYPTION_KEY_V3`, the prior-version keys of a rotation window (`packages/shared/src/platformEncryptionKeyEnv.ts`)   |
+| `OAUTH_ENCRYPTION_KEY`                | Yes      | --      | Required at boot, 32 characters or more, and read by no code (DEF-44; DC-3 deletes it)                                                                                |
+| `DELETION_NAME_DIGEST_KEY_RING`       | Yes      | --      | The HMAC key ring that turns a tombstone's plaintext name into a keyed digest when its retention closes: JSON, one 64-lowercase-hex entry per generation, append-only |
+| `DELETION_NAME_DIGEST_ACTIVE_VERSION` | No       | `1`     | The ring generation new digests are computed under; it must name an entry of the ring                                                                                 |
 
 ### Generating Secrets
 
 ```bash
-# JWT secrets (64 bytes)
-openssl rand -hex 64
-
-# OAuth encryption key (32 bytes)
+# The six signing secrets and OAUTH_ENCRYPTION_KEY (32 characters or more each)
 openssl rand -hex 32
+
+# PLATFORM_ENCRYPTION_KEY
+openssl rand -base64 32
+
+# DELETION_NAME_DIGEST_KEY_RING, with its first generation
+printf '{"1":"%s"}\n' "$(openssl rand -hex 32)"
 ```
 
-**Warning**: In development, fallback secrets are used automatically. In production (`NODE_ENV=production`), the application logs warnings for missing secrets and some features may fail. Always set explicit secrets in production.
+**No fallback**: no required secret has a default in any environment. A missing value, or one shorter than 32 characters, stops the API at boot with the name of each offending variable.
 
 ---
 
@@ -113,30 +138,28 @@ openssl rand -hex 32
 
 The `STORAGE_PROVIDER` variable selects the storage backend. Each provider requires its own set of configuration variables.
 
-| Variable           | Required | Default | Description                                        |
-| ------------------ | -------- | ------- | -------------------------------------------------- |
-| `STORAGE_PROVIDER` | No       | `s3`    | Storage backend: `s3`, `do-spaces`, `azure`, `gcs` |
+| Variable           | Required | Default | Description                                   |
+| ------------------ | -------- | ------- | --------------------------------------------- |
+| `STORAGE_PROVIDER` | No       | `local` | Storage backend: `s3`, `local` or `do-spaces` |
 
 ### S3 (AWS or S3-compatible)
 
-Used when `STORAGE_PROVIDER=s3` (default).
+Used when `STORAGE_PROVIDER=s3`, and by `local` (the default), which builds the same adapter and takes the bucket and region below when they are unset (`apps/api/src/infrastructure/storage/createStorageAdapter.ts`).
 
-| Variable               | Required | Default           | Description                   |
-| ---------------------- | -------- | ----------------- | ----------------------------- |
-| `S3_BUCKET`            | No       | `omni-post-media` | S3 bucket name                |
-| `S3_REGION`            | No       | `us-east-1`       | AWS region                    |
-| `S3_ACCESS_KEY_ID`     | Yes      | --                | IAM access key                |
-| `S3_SECRET_ACCESS_KEY` | Yes      | --                | IAM secret key                |
-| `S3_ENDPOINT`          | No       | AWS default       | Custom endpoint (MinIO, etc.) |
+| Variable               | Required  | Default                        | Description                                                                                              |
+| ---------------------- | --------- | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `S3_BUCKET`            | With `s3` | `omni-post-media` with `local` | S3 bucket name                                                                                           |
+| `S3_REGION`            | With `s3` | `us-east-1` with `local`       | AWS region                                                                                               |
+| `S3_ACCESS_KEY_ID`     | No        | --                             | IAM access key. Both keys or neither: with neither, the AWS SDK's default credential chain resolves them |
+| `S3_SECRET_ACCESS_KEY` | No        | --                             | IAM secret key. Both keys or neither                                                                     |
+| `S3_ENDPOINT`          | No        | AWS default                    | Custom endpoint (MinIO, etc.); it switches the adapter to path-style addressing                          |
 
-For local development with MinIO:
+For local development with MinIO, which `pnpm start:platform` does not start (`docker compose up -d minio minio-init` starts it and creates the `omni-post-media` bucket), with the MinIO root credentials of `.env`:
 
 ```env
-STORAGE_PROVIDER=s3
-S3_BUCKET=omni-post-media
-S3_REGION=us-east-1
-S3_ACCESS_KEY_ID=minioadmin
-S3_SECRET_ACCESS_KEY=minioadmin123
+STORAGE_PROVIDER=local
+S3_ACCESS_KEY_ID=<MINIO_ROOT_USER>
+S3_SECRET_ACCESS_KEY=<MINIO_ROOT_PASSWORD>
 S3_ENDPOINT=http://localhost:9000
 ```
 
@@ -161,47 +184,13 @@ DO_SPACES_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 DO_SPACES_ENDPOINT=nyc3.digitaloceanspaces.com
 ```
 
-### Azure Blob Storage
+### Azure Blob Storage and Google Cloud Storage
 
-Used when `STORAGE_PROVIDER=azure`.
-
-| Variable                     | Required | Description                |
-| ---------------------------- | -------- | -------------------------- |
-| `AZURE_STORAGE_ACCOUNT_NAME` | Yes      | Storage account name       |
-| `AZURE_STORAGE_ACCOUNT_KEY`  | Yes      | Storage account access key |
-| `AZURE_STORAGE_CONTAINER`    | Yes      | Blob container name        |
-
-```env
-STORAGE_PROVIDER=azure
-AZURE_STORAGE_ACCOUNT_NAME=omnipostmedia
-AZURE_STORAGE_ACCOUNT_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx==
-AZURE_STORAGE_CONTAINER=media
-```
-
-### Google Cloud Storage
-
-Used when `STORAGE_PROVIDER=gcs`.
-
-| Variable          | Required | Description               |
-| ----------------- | -------- | ------------------------- |
-| `GCS_PROJECT_ID`  | Yes      | GCP project ID            |
-| `GCS_BUCKET_NAME` | Yes      | Cloud Storage bucket name |
-
-GCS uses Application Default Credentials (ADC). On Cloud Run, the service account provides credentials automatically. Locally, use:
-
-```bash
-gcloud auth application-default login
-```
-
-```env
-STORAGE_PROVIDER=gcs
-GCS_PROJECT_ID=my-project-id
-GCS_BUCKET_NAME=my-project-id-omnipost-media
-```
+Not selectable. `packages/adapters/storage-azure` and `packages/adapters/storage-gcs` hold adapters, but no app declares them, `createStorageAdapter` builds only the S3 and DigitalOcean Spaces adapters, and the API's schema accepts only `s3`, `local` and `do-spaces`: `STORAGE_PROVIDER=azure` or `gcs` stops the API at boot.
 
 ### Instagram Provider (AWS S3)
 
-The Instagram provider uses separate S3 variables for media processing:
+The Instagram provider uses separate S3 variables for media processing, read outside the schemas (`packages/providers/instagram/src/mediaProcessor.ts`):
 
 | Variable        | Required           | Description                   |
 | --------------- | ------------------ | ----------------------------- |
@@ -212,14 +201,12 @@ The Instagram provider uses separate S3 variables for media processing:
 
 ## Email
 
-| Variable              | Required   | Default                | Description                    |
-| --------------------- | ---------- | ---------------------- | ------------------------------ |
-| `RESEND_API_KEY`      | Production | --                     | Resend API key for email       |
-| `RESEND_FROM_ADDRESS` | No         | `reports@omnipost.app` | Default sender email address   |
-| `SMTP_HOST`           | No         | --                     | SMTP host (for Mailhog in dev) |
-| `SMTP_PORT`           | No         | --                     | SMTP port (1025 for Mailhog)   |
+| Variable              | Required   | Default                | Description                  |
+| --------------------- | ---------- | ---------------------- | ---------------------------- |
+| `RESEND_API_KEY`      | Production | --                     | Resend API key for email     |
+| `RESEND_FROM_ADDRESS` | No         | `reports@omnipost.app` | Default sender email address |
 
-If `RESEND_API_KEY` is not set, the email adapter logs a warning and skips delivery (useful for development).
+If `RESEND_API_KEY` is not set, the email adapter logs a warning and skips delivery (useful for development). No code sends over SMTP.
 
 ---
 
@@ -236,19 +223,19 @@ All AI keys are optional. The AI orchestrator auto-detects available providers b
 | `PERPLEXITY_API_KEY` | No       | --                                  | Perplexity API key    |
 | `PERPLEXITY_MODEL`   | No       | `llama-3.1-sonar-small-128k-online` | Perplexity model name |
 
-Provider priority order: OpenAI > Perplexity > Gemini (first available is used as primary).
+The three model defaults are the orchestrator's fallbacks (`apps/api/src/ai/orchestrator.ts`), not defaults of the schema. Provider priority order: OpenAI > Perplexity > Gemini (first available is used as primary).
 
 ---
 
 ## Payment Processing
 
-| Variable           | Required | Default  | Description                           |
-| ------------------ | -------- | -------- | ------------------------------------- |
-| `PAYMENT_PROVIDER` | No       | `stripe` | Payment backend: `stripe` or `paddle` |
+| Variable           | Required | Default | Description                                   |
+| ------------------ | -------- | ------- | --------------------------------------------- |
+| `PAYMENT_PROVIDER` | No       | `none`  | Payment backend: `stripe`, `paddle` or `none` |
 
 ### Stripe
 
-Used when `PAYMENT_PROVIDER=stripe` (default).
+Used when `PAYMENT_PROVIDER=stripe`.
 
 | Variable                | Required     | Description                   |
 | ----------------------- | ------------ | ----------------------------- |
@@ -269,25 +256,57 @@ Used when `PAYMENT_PROVIDER=paddle`.
 
 ## Observability and Logging
 
-| Variable                      | Required | Default                 | Description                                      |
-| ----------------------------- | -------- | ----------------------- | ------------------------------------------------ |
-| `TRACING_ENABLED`             | No       | `false`                 | Enable OpenTelemetry tracing                     |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | No       | `http://localhost:4318` | OTLP HTTP endpoint (Jaeger, etc.)                |
-| `OTEL_SERVICE_NAME`           | No       | `omnipost-api`          | Service name in traces                           |
-| `LOG_LEVEL`                   | No       | `info`                  | Pino log level: `debug`, `info`, `warn`, `error` |
+| Variable                      | Required | Default                 | Description                                                                                                       |
+| ----------------------------- | -------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `TRACING_ENABLED`             | No       | `false`                 | Enable OpenTelemetry tracing, in the API and the workers                                                          |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | No       | `http://localhost:4318` | OTLP HTTP endpoint (Jaeger, etc.); read outside the schemas (`packages/observability/opentelemetry/src/index.ts`) |
+| `OTEL_SERVICE_NAME`           | No       | `omnipost-api`          | Service name in traces; read outside the schemas. Unset, the workers report as `omnipost-worker`                  |
+| `LOG_LEVEL`                   | No       | `info`                  | Pino log level, in the API and the workers: `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`        |
 
 Set `TRACING_ENABLED=true` to activate OpenTelemetry SDK initialization. The tracing SDK must initialize before any other imports (handled by the API entry point).
 
 ---
 
+## Workers
+
+The workers validate their variables through their own schema, [`apps/workers/src/config/env.ts`](../../apps/workers/src/config/env.ts), and load the root `.env` when it is present, or `.env.test` when `NODE_ENV` is `test`.
+
+| Variable                  | Required | Default       | Description                                                                                                                                                                                   |
+| ------------------------- | -------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`            | Yes      | --            | The API's database                                                                                                                                                                            |
+| `REDIS_URL`               | Yes      | --            | The API's Redis: the queues the workers consume                                                                                                                                               |
+| `PLATFORM_ENCRYPTION_KEY` | Yes      | --            | The API's value, with `PLATFORM_ENCRYPTION_KEY_VERSION` and `PLATFORM_ENCRYPTION_KEY_V1` to `PLATFORM_ENCRYPTION_KEY_V3` as in the API, so the workers resolve the key version the API stamps |
+| `METRICS_PORT`            | No       | `3300`        | The port of the workers' `/metrics` and health routes (`apps/workers/src/bootstrap.ts`)                                                                                                       |
+| `TRACING_ENABLED`         | No       | `false`       | As in the API                                                                                                                                                                                 |
+| `LOG_LEVEL`               | No       | `info`        | As in the API                                                                                                                                                                                 |
+| `NODE_ENV`                | No       | `development` | As in the API; it also chooses the environment file the workers load                                                                                                                          |
+
+---
+
+## Portals (Next.js)
+
+The administration portal ([`apps/admin/lib/env.ts`](../../apps/admin/lib/env.ts)) and the client portal ([`apps/client/lib/env.ts`](../../apps/client/lib/env.ts)) validate their variables through `@t3-oss/env-nextjs`, and neither requires any: each variable has a default or is optional. A `NEXT_PUBLIC_` variable is exposed to the browser bundle.
+
+| Variable                 | Portals       | Required | Default                 | Description                                                                                                                                                                                |
+| ------------------------ | ------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `API_URL`                | admin, client | No       | `http://localhost:3000` | The API the portal's server-side code calls (its backend proxy and its server actions). `pnpm start:platform` passes `http://127.0.0.1:<the API's port>` unless the calling shell sets one |
+| `SENTRY_DSN`             | admin, client | No       | --                      | Server-side Sentry DSN ([Sentry, end to end](DEPLOYMENT_CHECKLIST.md#sentry-end-to-end))                                                                                                   |
+| `NEXT_PUBLIC_API_URL`    | admin, client | No       | `http://localhost:3000` | The API URL exposed to the browser bundle                                                                                                                                                  |
+| `NEXT_PUBLIC_URL`        | admin         | No       | `http://localhost:3100` | The administration portal's public origin, used for self-redirects and link generation                                                                                                     |
+| `NEXT_PUBLIC_SENTRY_DSN` | admin, client | No       | --                      | Browser Sentry DSN                                                                                                                                                                         |
+| `API_BASE_URL`           | client        | No       | `http://localhost:3000` | Declared beside `API_URL` with the same default; no module of the portal reads it (plan row CLIENT-API-BASE-URL-UNREAD, `docs/product/plan/cross-cutting.md`)                              |
+| `NODE_ENV`               | admin, client | No       | `development`           | `development`, `production` or `test`                                                                                                                                                      |
+
+---
+
 ## Video Processing
 
-| Variable             | Required | Default                        | Description                       |
-| -------------------- | -------- | ------------------------------ | --------------------------------- |
-| `FFMPEG_PATH`        | No       | `ffmpeg`                       | Path to ffmpeg binary             |
-| `FFPROBE_PATH`       | No       | `ffprobe`                      | Path to ffprobe binary            |
-| `VIDEO_TEMP_DIR`     | No       | `/tmp/claude/video-processing` | Temp dir for video processing     |
-| `THUMBNAIL_TEMP_DIR` | No       | `/tmp/claude/thumbnails`       | Temp dir for thumbnail generation |
+| Variable             | Required | Default                  | Description                       |
+| -------------------- | -------- | ------------------------ | --------------------------------- |
+| `FFMPEG_PATH`        | No       | `ffmpeg`                 | Path to ffmpeg binary             |
+| `FFPROBE_PATH`       | No       | `ffprobe`                | Path to ffprobe binary            |
+| `VIDEO_TEMP_DIR`     | No       | `/tmp/claude/video`      | Temp dir for video processing     |
+| `THUMBNAIL_TEMP_DIR` | No       | `/tmp/claude/thumbnails` | Temp dir for thumbnail generation |
 
 Ensure ffmpeg is installed on the host or in the Docker image for video features.
 
@@ -328,13 +347,13 @@ Ensure ffmpeg is installed on the host or in the Docker image for video features
 
 Quick reference for which `STORAGE_PROVIDER` and related vars to use per cloud:
 
-| Cloud         | STORAGE_PROVIDER | Key Variables                                                                                     |
-| ------------- | ---------------- | ------------------------------------------------------------------------------------------------- |
-| Local (MinIO) | `s3`             | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_ENDPOINT`               |
-| AWS           | `s3`             | `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`                              |
-| Azure         | `azure`          | `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY`, `AZURE_STORAGE_CONTAINER`              |
-| GCP           | `gcs`            | `GCS_PROJECT_ID`, `GCS_BUCKET_NAME`                                                               |
-| DigitalOcean  | `do-spaces`      | `DO_SPACES_BUCKET`, `DO_SPACES_REGION`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_ENDPOINT` |
+| Cloud         | STORAGE_PROVIDER    | Key Variables                                                                                          |
+| ------------- | ------------------- | ------------------------------------------------------------------------------------------------------ |
+| Local (MinIO) | `local`             | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_ENDPOINT`                                              |
+| AWS           | `s3`                | `S3_BUCKET`, `S3_REGION`, and `S3_ACCESS_KEY_ID` with `S3_SECRET_ACCESS_KEY` or the host's credentials |
+| Azure         | -- (not selectable) | --                                                                                                     |
+| GCP           | -- (not selectable) | --                                                                                                     |
+| DigitalOcean  | `do-spaces`         | `DO_SPACES_BUCKET`, `DO_SPACES_REGION`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_ENDPOINT`      |
 
 ---
 
@@ -343,9 +362,9 @@ Quick reference for which `STORAGE_PROVIDER` and related vars to use per cloud:
 Governs how Turbopack/Next resolves modules when building/serving `apps/admin` and
 `apps/client`. See [ADR-0017 §4](../technical/ADR-0017-production-build-bundler.md).
 
-| Variable              | Required | Default        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| --------------------- | -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_TURBOPACK_ROOT` | No       | `os.homedir()` | Overrides `turbopack.root` / `outputFileTracingRoot` for the Next apps. Must be an ancestor of the app, the `packages/ui` source it imports, AND the pnpm store where `next` resolves. Dev/CI leave it UNSET (defaults to `os.homedir()`, which covers the repo + the `$HOME/.local/share/pnpm` store). The Docker build sets it to `/app` (container workspace root; home=`/root` is not an ancestor of `/app/apps/<svc>` → `Invalid distDirRoot`). |
+| Variable              | Required | Default             | Description                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NEXT_TURBOPACK_ROOT` | No       | the repository root | Overrides `turbopack.root` and `outputFileTracingRoot` of `apps/admin/next.config.mjs` and `apps/client/next.config.mjs`; read outside the schemas. Unset, both are the repository root (`path.resolve(import.meta.dirname, "../..")`). The Dockerfiles set it to `/app`, the container's workspace root (`apps/admin/Dockerfile:69`, `apps/client/Dockerfile:69`) |
 
 ---
 
@@ -353,16 +372,28 @@ Governs how Turbopack/Next resolves modules when building/serving `apps/admin` a
 
 ### Minimal Local Development
 
+`pnpm start:platform` writes it. In a checkout with no `.env`, the command generates one with these variables, every secret random, adding `POSTGRES_HOST_PORT` and `REDIS_HOST_PORT` (and their ports in the URLs) when the calling shell sets them, and it never rewrites an existing file (`scripts/start/lib/start-environment.mjs`). Docker Compose requires the Grafana and MinIO variables whatever services it starts; the API requires the twelve after them.
+
 ```env
-NODE_ENV=development
-PORT=3000
-DATABASE_URL=postgresql://postgres:password123@localhost:5432/omnipostdb
-REDIS_URL=redis://localhost:6379
-STORAGE_PROVIDER=s3
-S3_BUCKET=omni-post-media
-S3_ACCESS_KEY_ID=minioadmin
-S3_SECRET_ACCESS_KEY=minioadmin123
-S3_ENDPOINT=http://localhost:9000
+POSTGRES_USER=omnipost
+POSTGRES_PASSWORD=<random>
+POSTGRES_DB=omnipostdb
+GF_SECURITY_ADMIN_USER=admin
+GF_SECURITY_ADMIN_PASSWORD=<random>
+MINIO_ROOT_USER=omnipost
+MINIO_ROOT_PASSWORD=<random>
+DATABASE_URL=postgresql://omnipost:<POSTGRES_PASSWORD>@127.0.0.1:5432/omnipostdb
+SHADOW_DATABASE_URL=postgresql://omnipost:<POSTGRES_PASSWORD>@127.0.0.1:5432/omnipostdb_shadow
+REDIS_URL=redis://127.0.0.1:6379
+JWT_ACCESS_SECRET=<random>
+JWT_REFRESH_SECRET=<random>
+CUSTOMER_JWT_SECRET=<random>
+ADMIN_JWT_ACCESS_SECRET=<random>
+ADMIN_JWT_REFRESH_SECRET=<random>
+COOKIE_SECRET=<random>
+PLATFORM_ENCRYPTION_KEY=<random>
+OAUTH_ENCRYPTION_KEY=<random>
+DELETION_NAME_DIGEST_KEY_RING='{"1":"<random>"}'
 ```
 
 ### Production (Generic)
@@ -371,17 +402,21 @@ S3_ENDPOINT=http://localhost:9000
 NODE_ENV=production
 PORT=3000
 DATABASE_URL=postgresql://user:STRONG_PASSWORD@db-host:5432/omnipostdb?sslmode=require
+SHADOW_DATABASE_URL=postgresql://user:STRONG_PASSWORD@db-host:5432/omnipostdb_shadow?sslmode=require
 REDIS_URL=rediss://:REDIS_PASSWORD@redis-host:6379
 API_BASE_URL=https://api.yourdomain.com
 CLIENT_URL=https://app.yourdomain.com
 ADMIN_URL=https://admin.yourdomain.com
 APP_BASE_URL=https://api.yourdomain.com
-JWT_SECRET=<openssl rand -hex 64>
+JWT_ACCESS_SECRET=<openssl rand -hex 64>
 JWT_REFRESH_SECRET=<openssl rand -hex 64>
 ADMIN_JWT_ACCESS_SECRET=<openssl rand -hex 64>
 ADMIN_JWT_REFRESH_SECRET=<openssl rand -hex 64>
 CUSTOMER_JWT_SECRET=<openssl rand -hex 64>
+COOKIE_SECRET=<openssl rand -hex 64>
+PLATFORM_ENCRYPTION_KEY=<openssl rand -base64 32>
 OAUTH_ENCRYPTION_KEY=<openssl rand -hex 32>
+DELETION_NAME_DIGEST_KEY_RING='{"1":"<openssl rand -hex 32>"}'
 STORAGE_PROVIDER=s3
 S3_BUCKET=your-media-bucket
 S3_REGION=us-east-1

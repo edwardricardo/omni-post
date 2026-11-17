@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1206,
+      "total": 1207,
       "byShape": {
-        "test": 968,
+        "test": 969,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1042,
+        "KEEP": 1043,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1196,
+      "machine": 1197,
       "confirmed": 10,
-      "total": 1206
+      "total": 1207
     },
     "blocks": {
-      "total": 15007,
+      "total": 15008,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14696
+        "BEHAVIOURAL": 14697
       }
     },
     "deleted": {
@@ -70657,6 +70657,30 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "aeddaf2e4ab6cdf44424be95d0d8d49dc2b204ef55c41deb762453008407756f"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/scripts/environmentVariablesPage.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 1,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/environmentVariablesPage.test.ts::names every key the API's and the workers' schemas require and every key a portal declares",
+          "line": 115,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cc9461a7e8fee02575ed5907f368318e7b687e1a84120f1fece22e059c860bf2"
         }
       ],
       "verdict": "KEEP",
