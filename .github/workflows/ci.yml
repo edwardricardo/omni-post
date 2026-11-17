@@ -932,3 +932,107 @@ jobs:
 
       - name: Run the stories (vitest browser mode)
         run: pnpm --filter @apps/client test:stories
+
+  # ── The documented start, repeated on a clean checkout ──
+  # A job of its own, and not a step of `Integration Tests`, whose service containers, synthesized
+  # environment files and application role are exactly what this job must not have: the start
+  # command brings up Postgres and Redis from docker-compose.yml, generates its own environment
+  # file with random secrets and migrates the database as its owner, as a developer's checkout
+  # does. So no `services:` block, no environment file, no secret and no `vars` prepare the run.
+  # Its exit 0 is the command's own proof: the API answers /health, the workers /health/ready, and
+  # both portals /api/health, /en/login and /api/backend/health, each with 200.
+  #
+  # Removed or loosened when: `start:platform` leaves the root package.json, so no documented
+  # start sequence is left to repeat; or another required job starts the same four applications
+  # from the same compose file on a database migrated from empty on every pull request. The
+  # empty-database step is loosened only by a recorded decision of the Product Owner that names
+  # each table allowed to hold rows after a start.
+  platform-start:
+    name: Platform Start
+    runs-on: ubuntu-latest
+    # The command waits at most --wait-seconds for each of the four applications, and a failing
+    # stage ends the run, so the worst case is about 4 x 180 s of waits plus setup (checkout, Node,
+    # pnpm, the install), the image pulls and the migration, about 5 minutes on a cold runner:
+    # 20 minutes lets a run whose last stage runs out of time print its own failure line and the
+    # logs below instead of being cancelled.
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js with pnpm and cache
+        uses: ./.github/actions/setup-node-pnpm-cache
+
+      - name: Start the platform from the documented sequence
+        # 180 s for each application, where the command's default is 60: on a CI runner the
+        # portals' predev builds every workspace package each portal imports, cold, and Next.js
+        # compiles /en/login on its first request, inside the same wait, and `Integration Tests`
+        # already gives the workers 120 s to answer /health/ready from source.
+        run: pnpm start:platform --wait-seconds 180
+
+      - name: Assert that no table of the application holds a row
+        # An empty database is one that is migrated and holds no row of the application, and it
+        # must still be empty once every application has started: Prisma's own record of the
+        # migrations it applied, `_prisma_migrations`, is not data of the application. Each count
+        # is exact (count(*) through query_to_xml, never the planner's estimate). psql runs inside
+        # the Postgres container on its local socket, which the image trusts, as the user and the
+        # database the container was created with, so no password is read, passed or printed, and
+        # Compose reads the generated environment file only to interpolate the compose file.
+        run: |
+          set -euo pipefail
+          read -r -d '' query <<'SQL' || true
+          SELECT format('%I.%I', table_schema, table_name),
+                 (xpath('/row/n/text()', query_to_xml(
+                   format('SELECT count(*) AS n FROM %I.%I', table_schema, table_name),
+                   false, true, '')))[1]::text
+          FROM information_schema.tables
+          WHERE table_type = 'BASE TABLE'
+            AND table_schema NOT IN ('pg_catalog', 'information_schema')
+          ORDER BY 1;
+          SQL
+          if ! counts=$(printf '%s\n' "$query" | docker compose -f docker-compose.yml --env-file .env \
+            exec -T postgres sh -c 'psql -X -q -v ON_ERROR_STOP=1 -tA -U "$POSTGRES_USER" -d "$POSTGRES_DB"'); then
+            echo "::error title=Empty database::the query that counts the rows of each table did not run"
+            exit 1
+          fi
+          listed=0
+          held=()
+          while IFS='|' read -r table count; do
+            [ -n "$table" ] || continue
+            listed=$((listed + 1))
+            if ! printf '%s' "$count" | grep -Eq '^[0-9]+$'; then
+              echo "::error title=Empty database::the row count of $table is not a number: '$count'"
+              exit 1
+            fi
+            if [ "$table" != "public._prisma_migrations" ] && [ "$count" -gt 0 ]; then
+              held+=("$table: $count")
+            fi
+          done <<< "$counts"
+          # A listing with no table says nothing of the database, so it fails instead of passing.
+          if [ "$listed" -eq 0 ]; then
+            echo "::error title=Empty database::the listing of the database's tables returned no table"
+            exit 1
+          fi
+          if [ "${#held[@]}" -gt 0 ]; then
+            printf '%s\n' "${held[@]}"
+            echo "::error title=Empty database::after the start, ${#held[@]} table(s) of the application hold rows (table: rows): $(IFS=';'; echo "${held[*]}")"
+            exit 1
+          fi
+          echo "no table of the application holds a row: $listed tables counted, _prisma_migrations aside"
+
+      - name: Print the logs the start left under .tmp
+        # The command writes each application's output to .tmp/<app>.log; only those files are
+        # printed, never the generated environment file at the checkout's root.
+        if: always()
+        run: |
+          shopt -s nullglob
+          logs=(.tmp/*.log)
+          if [ "${#logs[@]}" -eq 0 ]; then
+            echo "no log under .tmp: the start ended before it started an application"
+          fi
+          for log in "${logs[@]}"; do
+            echo "::group::$log"
+            cat "$log"
+            echo "::endgroup::"
+          done
