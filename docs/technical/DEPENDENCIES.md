@@ -160,7 +160,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 | -------------------- | -------- | ------------------------------------------------- |
 | zod                  | 4.6.5    | Schema validation — TypeScript-native, composable |
 | validator            | 13.15.35 | String validation utilities                       |
-| isomorphic-dompurify | 4.6.0    | HTML sanitization                                 |
+| isomorphic-dompurify | 4.7.0    | HTML sanitization                                 |
 
 ### Observability
 
@@ -190,8 +190,8 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 | Package    | Version | Purpose                                         |
 | ---------- | ------- | ----------------------------------------------- |
 | next       | 16.4.5  | React framework (App Router, server components) |
-| react      | 19.2.7  | UI library                                      |
-| react-dom  | 19.2.7  | DOM rendering                                   |
+| react      | 19.3.1  | UI library                                      |
+| react-dom  | 19.3.1  | DOM rendering                                   |
 | typescript | 6.0.3   | Language                                        |
 
 ### Data Fetching & State
@@ -218,16 +218,17 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 | Package                           | Version | Purpose                    |
 | --------------------------------- | ------- | -------------------------- |
-| @tiptap/core                      | 3.30.5  | Rich text editor framework |
-| @tiptap/react                     | 3.30.5  | React integration          |
-| @tiptap/starter-kit               | 3.30.5  | Basic editor features      |
-| @tiptap/extension-character-count | 3.30.5  | Character counting         |
-| @tiptap/extension-color           | 3.30.5  | Text color                 |
-| @tiptap/extension-highlight       | 3.30.5  | Text highlighting          |
-| @tiptap/extension-link            | 3.30.5  | Link handling              |
-| @tiptap/extension-placeholder     | 3.30.5  | Placeholder text           |
-| @tiptap/extension-text-style      | 3.30.5  | Text styling               |
-| @tiptap/extension-typography      | 3.30.5  | Smart typography           |
+| @tiptap/core                      | 3.33.1  | Rich text editor framework |
+| @tiptap/react                     | 3.33.1  | React integration          |
+| @tiptap/pm                        | 3.33.1  | ProseMirror wrapper        |
+| @tiptap/starter-kit               | 3.33.1  | Basic editor features      |
+| @tiptap/extension-character-count | 3.33.1  | Character counting         |
+| @tiptap/extension-color           | 3.33.1  | Text color                 |
+| @tiptap/extension-highlight       | 3.33.1  | Text highlighting          |
+| @tiptap/extension-link            | 3.33.1  | Link handling              |
+| @tiptap/extension-placeholder     | 3.33.1  | Placeholder text           |
+| @tiptap/extension-text-style      | 3.33.1  | Text styling               |
+| @tiptap/extension-typography      | 3.33.1  | Smart typography           |
 
 ### Utilities
 
@@ -241,7 +242,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 ## Frontend — Owner Portal (apps/admin)
 
-Same core stack as apps/client (Next.js 16.4.5, React 19.2.7, Tailwind, Recharts). 13 pages focused on platform administration: accounts, subscriptions, pricing, security, compliance, audit logs, webhooks, executive dashboard.
+Same core stack as apps/client (Next.js 16.4.5, React 19.3.1, Tailwind, Recharts). 13 pages focused on platform administration: accounts, subscriptions, pricing, security, compliance, audit logs, webhooks, executive dashboard.
 
 ---
 
@@ -269,13 +270,13 @@ Each platform is a separate workspace package implementing `IProviderAdapter` fr
 | X (Twitter) | twitter-api-v2 1.27.0                                                                       | Publish, analytics, inbox, threads           |
 | Instagram   | Direct API (fetch)                                                                          | Publish, stories, analytics, inbox, carousel |
 | Facebook    | Direct API (fetch)                                                                          | Publish, analytics, inbox                    |
-| YouTube     | @googleapis/youtube 39.0.1, @googleapis/youtubeanalytics 11.0.1, google-auth-library 11.1.0 | Publish, analytics                           |
+| YouTube     | @googleapis/youtube 40.0.2, @googleapis/youtubeanalytics 11.0.1, google-auth-library 11.3.4 | Publish, analytics                           |
 | TikTok      | axios 1.20.0                                                                                | Publish, analytics, hashtag discovery        |
 | LinkedIn    | Direct API (fetch)                                                                          | Publish, analytics, inbox                    |
 | Pinterest   | Direct API (fetch)                                                                          | Publish, analytics                           |
 | Snapchat    | Direct API (fetch)                                                                          | Publish, analytics                           |
 | Telegram    | Direct API (fetch)                                                                          | Publish, inbox                               |
-| Bluesky     | @atproto/api 0.27.0                                                                         | Publish, mention search                      |
+| Bluesky     | @atproto/api 0.30.3                                                                         | Publish, mention search                      |
 
 ---
 
@@ -312,7 +313,7 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @testing-library/react    | 16.3.3  | Component testing                    |
 | @testing-library/dom      | 10.4.2  | DOM utilities                        |
 | @testing-library/jest-dom | 7.0.1   | Custom matchers                      |
-| jsdom                     | 30.1.3  | Browser environment simulation       |
+| jsdom                     | 31.0.0  | Browser environment simulation       |
 | @playwright/test          | 1.65.0  | E2E testing                          |
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
 | fast-check                | 4.10.2  | Property-based testing               |

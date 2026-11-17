@@ -50,35 +50,6 @@
       }
     },
     {
-      "kind": "package",
-      "name": "@googleapis/youtube",
-      "version": "39.0.1",
-      "published": "2026-09-24T02:04:16.483Z",
-      "members": ["@googleapis/youtubeanalytics@11.0.1"],
-      "entered": {
-        "date": "2026-09-25",
-        "commit": "feb371ae",
-        "pr": 305,
-        "via": "packages/providers/youtube, replacing the googleapis monolith, 1.1 days after publication"
-      },
-      "milestones": {
-        "maturity": "2026-10-01",
-        "final": "2026-10-08"
-      },
-      "reviews": {
-        "maturity": {
-          "date": "2026-10-05",
-          "outcome": "clean",
-          "note": "Reviewed 2026-10-05, four days late: the reminder workflow started on 2026-10-03 and carried no day over. OSV: nothing for @googleapis/youtube 39.0.1 or @googleapis/youtubeanalytics 11.0.1. Changelog: 39.0.1 (2026-09-23) is 'Bug Fixes: update the API'. Upstream issues: none opened against the youtube client since 39.0.0 (googleapis/google-api-nodejs-client, searched 2026-10-05). Works here: @providers/youtube typechecks, builds and passes its 84 tests on it (measured 2026-10-04 with google-auth-library 11.1.0). Noted: 40.0.0 (2026-10-03T03:50Z) is a breaking major ('update the API') with the same googleapis-common ^9.0.0 and Node >=22; it matures 2026-10-10T03:50Z and moves in its own PR with the provider's typecheck, build and tests."
-        },
-        "final": {
-          "date": "2026-10-11",
-          "outcome": "flagged",
-          "note": "Reviewed 2026-10-11, three days after the 2026-10-08 milestone, the last day of the check's 3-day grace. The reminder held this time: issue #484 opened 2026-10-08T00:43Z, the milestone day, and was commented at each run through 2026-10-11T17:54Z; the review was taken up late, not missed by the workflow. Registry, read 2026-10-11T18:31Z: @googleapis/youtube latest is 40.0.0 (2026-10-03T03:50:16Z), mature since 2026-10-10T03:50Z, and nothing newer is published; @googleapis/youtubeanalytics latest is still 11.0.1 (2026-09-24T02:05:29Z). 40.0.0 declares the same googleapis-common ^9.0.0 and node >=22.0.0 as 39.0.1. OSV, the same instant: nothing for @googleapis/youtube 39.0.1 or 40.0.0, nor @googleapis/youtubeanalytics 11.0.1, nor either package at any version; GitHub lists no repository security advisory for googleapis/google-api-nodejs-client and no global advisory affecting either package. Release notes: no youtube release after 40.0.0 and no youtubeanalytics release after 11.0.1; 40.0.0 is 'BREAKING CHANGES' plus 'update the API' (06d08ca), whose src/apis/youtube/v3.ts diff (+9 -45) removes favorite and like from Schema$ActivityContentDetails, postId from Schema$CommentSnippet and Schema$CommentThreadSnippet and the postId parameter of commentThreads.list, and adds CommentSnippet.imageUrl; packages/providers/youtube, src and tests, names none of postId, ActivityContentDetails or .activities. Upstream issues: none opened in googleapis/google-api-nodejs-client since 39.0.1; the newest youtube issue is #3932 (2026-06-24), and every entry the issues API lists as created since 2026-09-24 is a pull request. Lockfile, parsed with yaml.safe_load_all: one copy each, @googleapis/youtube 39.0.1 and @googleapis/youtubeanalytics 11.0.1, through the catalog, consumed only by the dependencies of packages/providers/youtube. Works here: pnpm --filter @providers/youtube test passes 84 of 84 in 4 files (2026-10-11T18:33Z); main 00f57868's CI step 'TypeScript type check (full monorepo)', pnpm exec turbo run typecheck, succeeded at 2026-10-11T18:32:06Z (run 38163686883), and the previous main run (38159237360, 47230884) lists @providers/youtube:typecheck among its 179 of 179 successful tasks. Open follow-up: the move to 40.0.0, a breaking major mature since 2026-10-10T03:50Z, is owed in its own PR with the provider's typecheck, build and tests (ADR-0018 keeps a direct dependency at its latest mature release); nothing gates that lag today: the holds gate's population does not hold the package, no hold row names it, and the catalog comment beside the pin in pnpm-workspace.yaml, which said 40.0.0 was inside the buffer, is refreshed in this change to state the owed move. Flagged, not clean: 39.0.1 and 11.0.1 carry no advisory and pass here, but the move to 40.0.0, mature since 2026-10-10T03:50Z, is owed in its own PR; the entry stays until that PR takes 39.0.1 out of the tree and records it."
-        }
-      }
-    },
-    {
       "kind": "date",
       "id": "contract-0.16-node-26",
       "title": "Re-check the Node 26 move once its 2026-10-28 LTS promotion is published: LTS status, distroless digest, pins",
@@ -136,6 +107,20 @@
         "Upstream, read 2026-11-17: npm latest is 4.0.7 (published 2026-08-24T14:36Z, the registry document's last modification), the newest 3.x and 2.x are 3.0.2 and 2.3.2 (2026-03-23), and micromatch/picomatch was last pushed 2026-10-08T04:42Z. Three candidate fixes are open with no review: #237 (master, opened 2026-10-22, \"fix: CVE-2026-112366 prevent ReDoS in single-branch repeated extglobs\"), #238 (master, opened 2026-10-22, \"fix: literalize single-branch extglobs with a leading bare quantifier (CVE-2026-112366)\") and #246 (v2, opened 2026-10-31, \"[v2] Guard single-branch repeated-star extglobs against ReDoS\")",
         "Reachability, why the entry ignores instead of blocking: the lockfile holds one copy, picomatch 4.0.7; `pnpm why picomatch --prod` is empty for @apps/api and @apps/workers and reaches the portals only through build tooling (next-intl → @parcel/watcher, @sentry/nextjs → @rollup/plugin-commonjs). The trigger is the pattern, and every pattern that reaches a picomatch copy is a literal of tracked configuration or a library's own constant, never a request; the record's row holds the measurement",
         "The review, on the due date: read `gh pr view <n> --repo micromatch/picomatch` for #237, #238 and #246 (state, merge, reviews), `pnpm view picomatch time --json` for a release after 4.0.7, and `gh api /advisories/GHSA-fc5q-39xc-vjpf` for a patched version. A release outside <= 4.0.7 that carries the fix is a security-tied move, taken once mature (7 days after publication) or earlier as a deviation the Maintainer decides: the lockfile resolves it, the entry leaves auditConfig.ignoreGhsas, the record's row moves to the section's history, and `pnpm audit --audit-level low` verifies the tree without the entry; this entry leaves the list with that change. While none exists, `due` moves to the next Tuesday window with a dated line here. A pattern that a request, a tenant or a provider controls reaching a picomatch copy in a production process makes the advisory reachable, which is a decision at once, not a wait"
+      ],
+      "reviews": {}
+    },
+    {
+      "kind": "date",
+      "id": "dompurify-ghsa-qm7q",
+      "title": "Is dompurify 3.4.18, the fix of GHSA-qm7q-q8h9-jg8q, mature, so it is taken as the dompurify security floor?",
+      "due": "2026-11-21",
+      "refs": [
+        "Opened 2026-11-17 by the change that recorded GHSA-qm7q-q8h9-jg8q in docs/security/DEPENDENCY_AUDIT_RECORD.md §\"Floor history\", block `dompurify`; the floor's row is §\"CVE-floor pins\", `dompurify`. The advisory (medium, CWE-79 and CWE-1336, no CVE; a cure53/DOMPurify repository advisory published 2026-11-14T15:08:05Z) is a SAFE_FOR_TEMPLATES bypass: template expressions reassemble when the sanitized string is parsed again, so a template engine that compiles that DOM evaluates them. It covers dompurify < 3.4.18, patched in 3.4.18; the lockfile's one copy is 3.4.17, through isomorphic-dompurify 4.7.0",
+        "Why no gate sees it, read 2026-11-17T21:29Z: GitHub's global endpoint (`gh api advisories/GHSA-qm7q-q8h9-jg8q`) answers 404, npm's bulk endpoint, which pnpm audit reads, answers {} for dompurify 3.4.17, and OSV answers 404 for the id and {} for dompurify 3.4.17, so pnpm audit is silent",
+        "Upstream, read 2026-11-17: npm latest is 3.4.18, published 2026-11-14T14:18:25Z and mature from 2026-11-21T14:18Z; isomorphic-dompurify latest is 4.7.0 (2026-11-07T06:19Z), which declares dompurify ^3.4.17, a range that admits 3.4.18",
+        "Reachability, why the entry waits for maturity instead of moving at once: the one call, apps/api/src/lib/templates/ServerTemplateEngine.ts:190, is `DOMPurify.sanitize(content)` with the default profile; no file under apps/ or packages/ sets SAFE_FOR_TEMPLATES, and none of the 101 tracked package.json files declares vue or angular, the template engines the advisory's trigger compiles the output with; the record's block holds the measurement",
+        "The review, on the due date: read `pnpm view dompurify time --json` for a release after 3.4.18 and OSV for the version to take, then take 3.4.18 as the security floor: the lockfile resolves it inside isomorphic-dompurify's ^3.4.17 or, if a consumer's range does not admit it by then, an override band holds it (`\"dompurify@<3.4.18\": 3.4.18`); re-measure the lockfile's copies, the reachability and `pnpm audit --audit-level low`, raise the record's row to the new floor, and delete this entry with that change. Taking it before 2026-11-21T14:18Z is a deviation the Maintainer decides. A call that sets SAFE_FOR_TEMPLATES, or a template engine that compiles sanitized output, makes the advisory reachable, which is a move at once, not a wait"
       ],
       "reviews": {}
     },
