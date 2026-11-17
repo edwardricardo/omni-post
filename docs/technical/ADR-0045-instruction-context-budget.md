@@ -108,6 +108,70 @@ feedback files, the enforcement) follow as their own units.
   `pnpm-workspace.yaml`, the policy and plan documents. Dated records, such as accepted ADRs,
   keep their old citation, which resolves through the canon's section "Dependency audit record".
 
+## Amendment of 2026-11-17: the budget check and its manifest
+
+Decision 4 is in force. Decision 3 stands as written and is not yet in force: the session check
+and the edit guard are not part of this amendment.
+
+1. **The manifest.** `.claude/instruction-manifest.json` names the instruction files a session
+   loads by itself: `tracked`, the files every checkout loads (`CLAUDE.md` and the four canon
+   documents it imports); `local`, the files only the main checkout holds and git ignores
+   (`CLAUDE.local.md`, `.claude/CLAUDE.md`); `records`, each moved record with its path-scoped
+   rule and, in `emptyGlobs`, each glob of the rule that matches nothing today with the reason;
+   and `budget`.
+2. **The check.** `scripts/testing/instruction-context-gate.mjs`, run as
+   `pnpm check:instruction-context` and as the static battery step `instruction-context`,
+   derives a set that is never smaller than what the harness loads at session start, and holds it
+   to the manifest in both directions. It does not copy the harness's loader, whose next version
+   could move away from a copy; where it cannot derive exactly, it counts the file, so its errors
+   are false reds and never false greens.
+   - **Derived exactly:** the entry files the harness reads from the project root, each when git
+     tracks it: `CLAUDE.md`, `.claude/CLAUDE.md` and `CLAUDE.local.md`.
+   - **Over-counted on purpose:** a tracked `AGENTS.md` or `.claude/AGENTS.md`, which the harness
+     reads beside `CLAUDE.md` only under a per-user setting; every `@` token of a loaded file and
+     of every rule, path-scoped ones included, since an import loads at session start whatever
+     its rule's scope, wherever it is written (code spans, fenced blocks and comments included),
+     read with every prefix, so an import next to Markdown markup or with a `#` fragment is never
+     missed, and followed with no depth limit, past the harness's four hops; every rule under
+     `.claude/rules/` whose front matter does not prove it path-scoped (`paths:` and a block list
+     of double-quoted globs, at least one glob with no comma and no brace that, trimmed and once a
+     trailing `/**` is cut, is neither empty nor `**`), since the harness loads at session start a
+     rule whose `paths:` is null, all `**` or not valid YAML. A symbolic link or a submodule at
+     `.claude`, at `.claude/rules` or under `.claude/rules/` is refused, because git's listing
+     does not show the rules behind it.
+   - **Not counted:** what the harness loads on a match after session start, a path-scoped rule's
+     body, a `CLAUDE.md` in a subdirectory and the rules of a `.claude/rules` directory inside a
+     subdirectory; files git does not track, those of the main checkout named by the manifest's
+     `local` list; the files
+     of a session started in a subdirectory; and the user's and the organization's instruction
+     files.
+
+   It holds the budget, and it holds each record: its rule is a tracked rule under
+   `.claude/rules/` whose front matter proves it path-scoped, that imports nothing and names the
+   record, the record is tracked and never loaded, and every glob of the rule matches a tracked
+   file unless `emptyGlobs` says why not. It exits 0 clean, 1 on a verdict, 2 on a usage error and
+   3 on an input it could not read, a file git tracks and the checkout lacks included; 3 wins.
+
+3. **The figure.** The budget counts tracked files only, because a local file exists in one
+   checkout and neither CI nor a worktree can read it; the local files are measured by the
+   closing measurement of this feature. Measured at `253b2413` with `wc -c`: `CLAUDE.md` 201,668,
+   `ARCHITECTURE_CANON.md` 18,519, `CODING_STANDARDS.md` 30,762, `SECURITY_CANON.md` 24,776,
+   `LOGGING_CANON.md` 13,172; 288,897 bytes in all, which is `budget.bytes`. The target stays
+   250,000 bytes (the plan row TOKEN-1), and `budget.targetOwedBy` names the plan item that brings
+   the context under it.
+4. **A ceiling with a slack, not an exact figure.** The context may not exceed `budget.bytes`,
+   and `budget.bytes` may not sit more than 1,024 bytes above the context: a larger gap is a stale
+   ceiling, which `--write` lowers and never raises. An exact figure would conflict on its one line
+   at every merge of two branches that both touch a loaded document; the ceiling still makes any
+   growth above the recorded figure a red that only a visible, hand-made edit of `budget.bytes`
+   clears. Growth back into the slack a reduction leaves, at most 1,024 bytes, passes with no edit
+   until `--write` lowers the figure. While `budget.bytes` is above the target, `targetOwedBy` is required; once the context
+   meets the target it must be deleted, and the target then holds as a hard cap.
+5. **The risk row on the rule's `paths:`** is closed in one direction: the rule's `paths:` is the
+   one list of governed files, and the check refuses a glob that matches no tracked file unless
+   the manifest gives the reason. The reverse direction, a governed file the list does not name,
+   stays with review: no source states which files the record governs except the rule itself.
+
 ## Legal impact
 
 `none — documentation and tooling; no personal data, cookie or storage key, OAuth scope,
@@ -132,12 +196,12 @@ check is added, changed or retired`
 
 ## Risks and Mitigations
 
-| Risk                                                   | Mitigation                                                                               |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| A record nobody reads                                  | The path-scoped rule loads on the governed files; decision 3 blocks an edit with no read |
-| The rule's `paths` list drifts from the governed files | The enforcement task derives the list from the files the record governs and checks it    |
-| A moved citation is left pointing at the canon         | The canon's section lists every moved title, so an old citation resolves in one hop      |
-| The canon or the record grows past the budget          | The budget check of decision 4                                                           |
+| Risk                                                   | Mitigation                                                                                                                                                         |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A record nobody reads                                  | The path-scoped rule loads on the governed files; decision 3 blocks an edit with no read                                                                           |
+| The rule's `paths` list drifts from the governed files | The budget check refuses a glob that matches no tracked file without a stated reason (amendment, item 5); a governed file the list does not name is left to review |
+| A moved citation is left pointing at the canon         | The canon's section lists every moved title, so an old citation resolves in one hop                                                                                |
+| The canon or the record grows past the budget          | The budget check of decision 4                                                                                                                                     |
 
 ## References
 

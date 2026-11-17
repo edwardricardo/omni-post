@@ -520,6 +520,11 @@
 | SB-499 | TOKEN-1 T1, review-47203780a8cfd5e6                                                   | R3-usage-record-flag-help-consistency                            | scripts/testing/holds-gate.mjs:884-889                                                                                                      | reliability                  | implemented: a case gives --canon and reads the usage text                                                                                                      |
 | SB-500 | TOKEN-1 T1, review-2790ea6364eb86da                                                   | R2-canon-self-reference-ambiguity                                | docs/security/SECURITY_CANON.md:306                                                                                                         | readability                  | implemented: the sentence says the audit record                                                                                                                 |
 | SB-501 | TOKEN-1 T1, review-2790ea6364eb86da                                                   | R2-canon-path-inline-long                                        | docs/security/SECURITY_CANON.md:322                                                                                                         | readability                  | implemented: the step names the audit record, not its path                                                                                                      |
+| SB-502 | TOKEN-1 T2a, review-09eb97e8b2975b89                                                  | R4-write-not-atomic                                              | `scripts/testing/instruction-context-gate.mjs` (`--write`)                                                                                  | resilience                   | closed: the manifest is tracked, so a write cut short is restored from git (see Closed with a reason)                                                           |
+| SB-503 | same                                                                                  | R4-git-maxbuffer-silent-cap                                      | `scripts/testing/instruction-context-gate.mjs` (`trackedFiles`)                                                                             | resilience                   | open                                                                                                                                                            |
+| SB-504 | same                                                                                  | R2-unused-isEntryPoint-initial                                   | `scripts/testing/instruction-context-gate.mjs` (the entry-point guard)                                                                      | readability                  | open                                                                                                                                                            |
+| SB-505 | same                                                                                  | R2-truthy-targetOwedBy-trim                                      | `scripts/testing/instruction-context-gate.mjs` (`budgetProblems`, `checkBudget`)                                                            | readability                  | open                                                                                                                                                            |
+| SB-506 | same                                                                                  | R2-emptyGlobs-reason-whitespace                                  | `scripts/testing/instruction-context-gate.mjs` (`recordProblems`, `checkRecord`)                                                            | readability                  | closed: a shape that cannot be read is exit 3 and a blank reason that is read is a verdict (see Closed with a reason)                                           |
 
 ## Entries — code and prose
 
@@ -1427,6 +1432,30 @@
 - **Suggestion:** confirm that the script treats the appended paths as the authoritative scope and runs from the repository root, so the pre-commit verdict matches CI's.
 - **Why justified:** measured, not inferred. Files mode lints exactly the named files, resolved against the repository root (commit B, `jsdocTouchedGate.test.ts` pins it, with a case refusing a path outside the root); a planted undocumented export run through that mode exits 1 naming the file, lint-staged in a scratch clone exits 1 on the same plant, and a real `git commit` on a detached HEAD at the wiring commit was refused by husky with the rule's line (`errorPlugin.ts:35 jsdoc/require-jsdoc`). CI's #47 runs the default (merge-base) mode over the same config, so the two verdicts share the rules and differ only in how the file list is obtained.
 - **To implement:** nothing.
+
+### SB-503 — a listing past the buffer cap fails without naming the cap
+
+- **Source:** the native review of TOKEN-1 T2a's gate commit, lineage `review-09eb97e8b2975b89`, finding `R4-git-maxbuffer-silent-cap` (SUGGESTION).
+- **Location:** `scripts/testing/instruction-context-gate.mjs`, `trackedFiles`.
+- **Suggestion:** when `git ls-files -z --stage` overflows the 64 MiB buffer, the failure message names the cap, so the cause is read from the message.
+- **Why justified:** the gate fails closed on it (exit 3), and the listing of this repository is about 0.4 MiB, so the cap is 160 times above what is read today; the suggestion changes a message, not a verdict.
+- **To implement:** in the change that next edits the gate (the wiring rule of the instruction-context hooks): name the cap in the message of that failure, with a case that plants the error.
+
+### SB-504 — an initial value that both branches overwrite
+
+- **Source:** the same review, finding `R2-unused-isEntryPoint-initial` (SUGGESTION).
+- **Location:** `scripts/testing/instruction-context-gate.mjs`, the guard that decides whether the file runs as a command.
+- **Suggestion:** declare `isEntryPoint` with the value the `try` block assigns and reset it only in the `catch`, so no value reads as meaningful that is never used.
+- **Why justified:** the initial `false` is overwritten on every path, so the code does the same either way.
+- **To implement:** in the change that next edits the gate.
+
+### SB-505 — a blank `targetOwedBy` is refused one layer late
+
+- **Source:** the same review, finding `R2-truthy-targetOwedBy-trim` (SUGGESTION).
+- **Location:** `scripts/testing/instruction-context-gate.mjs`, `budgetProblems` and `checkBudget`.
+- **Suggestion:** the shape check refuses an empty or blank `targetOwedBy`, so the message names a malformed value instead of a missing plan item id.
+- **Why justified:** a blank value is already refused, by B3 with exit 1; the suggestion moves the refusal to the shape check and rewords it, and no blank value passes today.
+- **To implement:** in the change that next edits the gate, with a case for the blank string; it moves that input from exit 1 to exit 3, so the suite's B3 case for it moves too.
 
 ## Entries — tests
 
@@ -2339,3 +2368,5 @@
 | SB-499 | A case runs the gate with --canon, the name the option had before: it exits 1 and prints the usage text, which names --record.                                                                         |
 | SB-500 | The canon's section defines the audit record and links it, so the rule names it by that term where it said this document.                                                                              |
 | SB-501 | The patch procedure names the audit record by its term; the path stays in the section that defines it.                                                                                                 |
+| SB-502 | The manifest is a tracked file: a write cut short is restored with `git checkout`, and until then the gate exits 3 on a manifest that is not JSON, so nothing passes on a partial file.                |
+| SB-506 | The two exits follow the gate's rule: a manifest whose shape cannot be read is exit 3, and a reason that is read and is blank is an R3 verdict, exit 1, whose message says to write the reason.        |
