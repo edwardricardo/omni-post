@@ -2,15 +2,15 @@
  * @file holdsGate.test.ts
  * @description Pins `scripts/testing/holds-gate.mjs`, the gate that refuses an undocumented
  *   toolchain lag past its budget: a direct testing dependency sitting below a release that has been
- *   mature for 30 days or more, with no row in `docs/security/SECURITY_CANON.md` §"Build-tool version
- *   holds & dated-debt overrides". A younger lag is reported and never red (ADR-0036), so the
+ *   mature for 30 days or more, with no row in `docs/security/DEPENDENCY_AUDIT_RECORD.md` §"Build-tool
+ *   version holds & dated-debt overrides". A younger lag is reported and never red (ADR-0036), so the
  *   budget's two sides and the second it turns are driven here with an injected instant, as is the
  *   refusal of a row that still describes itself as a scheduled hold.
  *
  *   Every input of the gate is injected from a fixture here — the installed set, the outdated
  *   document, the registry publish times, the measurement instant, the holds table and the
  *   population. That is what makes this suite HERMETIC: it never reaches the npm registry, never
- *   runs `pnpm`, and never reads the repository's own canon, so it measures the gate's RULE rather
+ *   runs `pnpm`, and never reads the repository's own record, so it measures the gate's RULE rather
  *   than today's dependency tree. A suite that read the live tree would go green or red for reasons
  *   that have nothing to do with the code under test, and would stop being able to prove the red
  *   path at all once the tree was clean. Two cases read a tracked file, the population itself, to
@@ -33,7 +33,7 @@
  *   The TABLE'S OWN SHAPE is driven separately, through `Fixture.table`, because reading the
  *   remove-when from a fixed column INDEX fails SILENTLY rather than loudly: a table that grows a
  *   column keeps parsing, and the gate then tests whichever cell moved into that position — which in
- *   the real canon was the reason, so a row with an empty remove-when passed. Those cases render the
+ *   the real record was the reason, so a row with an empty remove-when passed. Those cases render the
  *   header and the rows verbatim, so a header with no `Remove-when` column, a row whose cell count
  *   disagrees with the header, and an escaped pipe inside a cell can each be presented to the gate
  *   exactly as markdown would present them.
@@ -113,8 +113,10 @@ interface Fixture {
   readonly holds: readonly HoldRow[];
   /** Replaces the rendered table, header included, for the cases about its shape. */
   readonly table?: RawTable;
-  /** Replaces the whole canon fixture, for the unreadable-table cases. */
-  readonly canonOverride?: string;
+  /** Replaces the whole record fixture, for the unreadable-table cases. */
+  readonly recordOverride?: string;
+  /** Omits `--record`, so the gate reads the repository's own record from its default path. */
+  readonly defaultRecord?: boolean;
   /** Runs against the fixture directory after it is written, to remove an input. */
   readonly mutate?: (dir: string) => void;
   /** Replaces `INSTANT`, for the cases whose subject is the second the budget runs out. */
@@ -140,9 +142,9 @@ afterEach(() => {
 const registryFileName = (name: string): string =>
   `${name.replaceAll("@", "_").replaceAll("/", "_")}.json`;
 
-const renderCanonTable = (table: RawTable): string =>
+const renderRecordTable = (table: RawTable): string =>
   [
-    "# Security Canon — fixture",
+    "# Dependency Audit Record — fixture",
     "",
     "## Audited audit-ignores",
     "",
@@ -158,8 +160,8 @@ const renderCanonTable = (table: RawTable): string =>
     "",
   ].join("\n");
 
-const renderCanon = (holds: readonly HoldRow[]): string =>
-  renderCanonTable({
+const renderRecord = (holds: readonly HoldRow[]): string =>
+  renderRecordTable({
     header: ["Package", "Hold / floor", "Where", "Remove-when"],
     rows: holds.map((row) => [row.packages, row.hold, row.where, row.removeWhen]),
   });
@@ -241,9 +243,9 @@ const runGate = (fixture: Fixture): GateResult => {
       ...fixture.populationExtra,
     })
   );
-  const canon =
-    fixture.table === undefined ? renderCanon(fixture.holds) : renderCanonTable(fixture.table);
-  writeFileSync(inFixture("canon.md"), fixture.canonOverride ?? canon);
+  const record =
+    fixture.table === undefined ? renderRecord(fixture.holds) : renderRecordTable(fixture.table);
+  writeFileSync(inFixture("record.md"), fixture.recordOverride ?? record);
   fixture.mutate?.(dir);
 
   const result = spawnSync(
@@ -258,8 +260,7 @@ const runGate = (fixture: Fixture): GateResult => {
       registryDir,
       "--population",
       inFixture("population.json"),
-      "--canon",
-      inFixture("canon.md"),
+      ...(fixture.defaultRecord === true ? [] : ["--record", inFixture("record.md")]),
       "--instant",
       fixture.instant ?? INSTANT,
     ],
@@ -875,14 +876,48 @@ describe("testing toolchain holds gate", () => {
     });
   });
 
+  describe("where the hold table is read", () => {
+    it("reads it from the dependency audit record when no path is given", () => {
+      // The one case that reads the repository's own record: it pins the gate's default path, so a
+      // move of the table that leaves the gate reading its old home fails here and in CI at once.
+      const result = runGate({
+        installed: {},
+        published: {},
+        population: [],
+        holds: [],
+        defaultRecord: true,
+      });
+
+      expect(result.stderr).not.toContain("zero hold rows parsed");
+      expect(result.stderr).not.toContain("ENOENT");
+    });
+
+    it("exits 1 and names the path when the record given does not exist", () => {
+      const result = runGate({
+        installed: { widget: "2.0.0" },
+        published: WIDGET_MATURE_LAG,
+        population: [{ name: "widget" }],
+        holds: [WIDGET_HOLD],
+        mutate: (dir) => {
+          rmSync(path.join(dir, "record.md"), { force: true });
+        },
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("record.md");
+    });
+  });
+
   describe("failing closed", () => {
-    it("exits 1 when zero hold rows parse from the canon table", () => {
+    it("exits 1 when zero hold rows parse from the record table", () => {
       const result = runGate({
         installed: { widget: "2.0.0" },
         published: WIDGET_MATURE_LAG,
         population: [{ name: "widget" }],
         holds: [],
-        canonOverride: ["# Security Canon — fixture", "", "## How to extend", ""].join("\n"),
+        recordOverride: ["# Dependency Audit Record — fixture", "", "## How to extend", ""].join(
+          "\n"
+        ),
       });
 
       expect(result.status).toBe(1);
@@ -945,7 +980,7 @@ describe("testing toolchain holds gate", () => {
         population: [{ name: "widget" }],
         holds: [WIDGET_HOLD],
         mutate: (dir) => {
-          rmSync(path.join(dir, "canon.md"), { force: true });
+          rmSync(path.join(dir, "record.md"), { force: true });
         },
       });
 
@@ -1115,7 +1150,7 @@ describe("testing toolchain holds gate", () => {
     });
 
     it("exits 0 when a cell carries an escaped pipe", () => {
-      // `engines.node: ^22 \|\| ^24` is a real cell in the canon. An escaped pipe is cell CONTENT,
+      // `engines.node: ^22 \|\| ^24` is a real cell in the record. An escaped pipe is cell CONTENT,
       // not a delimiter, so a splitter that cannot tell them apart turns one whole row into a ragged
       // one and fails the tree over markdown that is correct.
       const result = runGate({

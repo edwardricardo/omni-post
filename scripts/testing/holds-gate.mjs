@@ -6,8 +6,8 @@
  *   version against the latest MATURE published version (stable, and at least 7 days old —
  *   ADR-0018's buffer). A lag needs no row for 30 days, the staleness budget of ADR-0036, because
  *   the weekly dependency window takes it inside that time. Past the budget it needs a row naming
- *   the package in `docs/security/SECURITY_CANON.md` §"Build-tool version holds & dated-debt
- *   overrides", and a lag past the budget with no row exits 1.
+ *   the package in `docs/security/DEPENDENCY_AUDIT_RECORD.md` §"Build-tool version holds &
+ *   dated-debt overrides", and a lag past the budget with no row exits 1.
  *
  *   The comparator is "latest mature", never `latest`: the newest release is frequently younger
  *   than the buffer, and pulling it converts the buffer into decoration.
@@ -42,7 +42,7 @@
  *   that reports a clean zero over inputs it never read asserts an invariant nobody measured.
  *
  *   Every input is injectable so the suite can drive the rule with fixtures and never touch the
- *   registry: `--installed`, `--outdated`, `--registry`, `--population`, `--canon`, `--instant`.
+ *   registry: `--installed`, `--outdated`, `--registry`, `--population`, `--record`, `--instant`.
  *   With none of them the live inputs are read from pnpm and the clock. An unrecognised flag exits 1
  *   rather than being ignored, because an ignored flag would silently read the live tree in a suite
  *   that must not reach it.
@@ -113,7 +113,7 @@ function repoRoot() {
  * @property {string | null} outdated
  * @property {string | null} registry
  * @property {string | null} population
- * @property {string | null} canon
+ * @property {string | null} record
  * @property {string | null} instant
  */
 
@@ -197,7 +197,7 @@ function tokenToPattern(token) {
 
 /**
  * Splits one markdown table row into trimmed cells. An ESCAPED pipe (`\|`) is cell CONTENT — the
- * canon's jsdom row carries `engines.node: ^22 \|\| ^24` — so only an unescaped pipe delimits, and a
+ * record's jsdom row carries `engines.node: ^22 \|\| ^24` — so only an unescaped pipe delimits, and a
  * splitter that cannot tell them apart reports a whole row as ragged.
  *
  * @param {string} line
@@ -211,8 +211,8 @@ function splitCells(line) {
 }
 
 /**
- * Reads the hold rows of the canon's build-tool section. Only the FIRST markdown table after the
- * heading counts, so prose between the two is skipped rather than parsed.
+ * Reads the hold rows of the dependency audit record's build-tool section. Only the FIRST markdown
+ * table after the heading counts, so prose between the two is skipped rather than parsed.
  *
  * Both columns it needs are located BY HEADER NAME, never by index, and the table is refused when
  * either is missing or when a row's cell count disagrees with the header's. Index reading failed
@@ -656,7 +656,7 @@ function parseOptions(argv) {
     outdated: null,
     registry: null,
     population: null,
-    canon: null,
+    record: null,
     instant: null,
   };
   for (let i = 0; i < argv.length; i += 2) {
@@ -687,15 +687,16 @@ function evaluate(options) {
   /** @type {string[]} */
   const violations = [];
 
-  const canonPath = options.canon ?? path.join(repoRoot(), "docs", "security", "SECURITY_CANON.md");
+  const recordPath =
+    options.record ?? path.join(repoRoot(), "docs", "security", "DEPENDENCY_AUDIT_RECORD.md");
   const populationPath =
     options.population ?? path.join(repoRoot(), "scripts", "testing", "toolchain-population.json");
 
-  const { rows: holds, refusals } = parseHolds(readFileSync(canonPath, "utf8"));
+  const { rows: holds, refusals } = parseHolds(readFileSync(recordPath, "utf8"));
   violations.push(...refusals);
   if (holds.length === 0) {
     violations.push(
-      `zero hold rows parsed from ${canonPath} §"${HOLDS_HEADING.replace(/^#+\s*/, "")}" — the ` +
+      `zero hold rows parsed from ${recordPath} §"${HOLDS_HEADING.replace(/^#+\s*/, "")}" — the ` +
         `heading moved, the table moved, or it was commented out. Failing closed rather than ` +
         `reporting a clean zero over a table that was never read.`
     );
@@ -856,7 +857,7 @@ function evaluate(options) {
       violations.push(
         `${name} is installed at ${installed}, below its latest-mature target ${target}, and ` +
           `${budgetFloor} has been mature for ${String(BUDGET_DAYS)} days or more with no hold row ` +
-          `naming ${name} in ${canonPath} §"${HOLDS_HEADING.replace(/^#+\s*/, "")}".`
+          `naming ${name} in ${recordPath} §"${HOLDS_HEADING.replace(/^#+\s*/, "")}".`
       );
       lines.push(`${name}\t${installed}\t${target}\tlag: UNDOCUMENTED`);
       continue;
@@ -884,7 +885,7 @@ function main(argv) {
     process.stderr.write(
       "usage: node scripts/testing/holds-gate.mjs " +
         "[--installed <path>] [--outdated <path>] [--registry <dir>] [--population <path>] " +
-        "[--canon <path>] [--instant <iso>]\n"
+        "[--record <path>] [--instant <iso>]\n"
     );
     return 1;
   }

@@ -1730,10 +1730,11 @@ jobs:
         # dependency window takes it inside that time, and the gate prints it `within budget`. The
         # budget counts from the maturity of the OLDEST unmet release, so a lag turns red 37 days
         # after that release was published. Past the budget it is legal only while a row in
-        # docs/security/SECURITY_CANON.md names it with a measured reason, a date and a remove-when
-        # that can actually fire; a row that still describes a scheduled hold is refused. The
-        # comparator is "latest mature", never `latest`: the newest release is frequently younger
-        # than the buffer, and targeting it would convert the buffer into decoration.
+        # docs/security/DEPENDENCY_AUDIT_RECORD.md names it with a measured reason, a date and a
+        # remove-when that can actually fire; a row that still describes a scheduled hold is
+        # refused. The comparator is "latest mature", never `latest`: the newest release is
+        # frequently younger than the buffer, and targeting it would convert the buffer into
+        # decoration.
         #
         # It lives in THIS job because the job already installs the workspace and already talks to
         # the registry (syncpack), which is what the maturity measurement needs.
@@ -1748,7 +1749,7 @@ jobs:
         run: |
           set -uo pipefail
           if ! node scripts/testing/holds-gate.mjs; then
-            echo "::error title=Toolchain holds violation::A testing dependency has been below a mature release for 30 days or more with no hold row naming it in docs/security/SECURITY_CANON.md (Build-tool version holds & dated-debt overrides), a hold row still describes a scheduled hold, a family's members (scripts/testing/toolchain-population.json families) do not resolve to one version, or the gate could not read one of its inputs. The holds-gate lines above name each package with its installed version and its target, and each diverging family member with its version and importer: bump it in the weekly dependency window, move every member of a family in one change, or add a row carrying a measured reason, today's date and an observable remove-when (ADR-0036)."
+            echo "::error title=Toolchain holds violation::A testing dependency has been below a mature release for 30 days or more with no hold row naming it in docs/security/DEPENDENCY_AUDIT_RECORD.md (Build-tool version holds & dated-debt overrides), a hold row still describes a scheduled hold, a family's members (scripts/testing/toolchain-population.json families) do not resolve to one version, or the gate could not read one of its inputs. The holds-gate lines above name each package with its installed version and its target, and each diverging family member with its version and importer: bump it in the weekly dependency window, move every member of a family in one change, or add a row carrying a measured reason, today's date and an observable remove-when (ADR-0036)."
             exit 1
           fi
 
@@ -1889,7 +1890,7 @@ jobs:
           # apps/api/tests/unit/scripts/patchedDependenciesGate.test.ts.
           set -euo pipefail
           if ! pnpm check:patched-deps; then
-            echo "::error title=Fitness #48 violation::A patched dependency is inconsistent: a patchedDependencies key with no record or no exact version, a record with no key, a missing patch file or ADR, a file under patches/ no record names, a record missing a field, or a resolvedBy range that does not parse. The patched-dependencies-gate lines above name each one. A patch exists only by a Maintainer's decision in its own ADR (docs/security/SECURITY_CANON.md, Patched dependencies), with its record in scripts/testing/patched-dependencies.json."
+            echo "::error title=Fitness #48 violation::A patched dependency is inconsistent: a patchedDependencies key with no record or no exact version, a record with no key, a missing patch file or ADR, a file under patches/ no record names, a record missing a field, or a resolvedBy range that does not parse. The patched-dependencies-gate lines above name each one. A patch exists only by a Maintainer's decision in its own ADR (docs/security/DEPENDENCY_AUDIT_RECORD.md, Patched dependencies), with its record in scripts/testing/patched-dependencies.json."
             exit 1
           fi
 
