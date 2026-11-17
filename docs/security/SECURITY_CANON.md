@@ -303,7 +303,7 @@ Adding new security rules:
    same edit, so the band's exclusive upper bound stays the target
    (`"pkg@<X": X`). Raising only the value leaves the tree resolved to the
    PREVIOUS target — a version the old band no longer selects — so the override
-   applies to nothing while `docs/security/DEPENDENCY_AUDIT_RECORD.md` still reads as holding the floor, and
+   applies to nothing while the audit record still reads as holding the floor, and
    the audit goes green because the advisory's range stopped matching. Never an
    inclusive bound (`<=W`): it names a different number from the target and
    therefore cannot move with it. A band that genuinely cannot take that shape
@@ -319,7 +319,7 @@ Adding new security rules:
    `pnpm patch-commit`), read the generated file and keep only the intended
    hunks (pnpm lists the edited package through its `files` field, so a file
    the tarball ships outside that field is recorded as deleted; then
-   `pnpm install` records the new hash), add its entry to the §"Patched dependencies" of `docs/security/DEPENDENCY_AUDIT_RECORD.md`, add
+   `pnpm install` records the new hash), add its entry to §"Patched dependencies" of the audit record, add
    its record to `scripts/testing/patched-dependencies.json` with a `resolvedBy`
    range whose first stable release ends it (fitness #48 refuses a key without
    one, and the patched-dependencies workflow then watches the registry for it

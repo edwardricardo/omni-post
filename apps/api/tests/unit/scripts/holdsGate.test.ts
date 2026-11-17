@@ -878,18 +878,32 @@ describe("testing toolchain holds gate", () => {
 
   describe("where the hold table is read", () => {
     it("reads it from the dependency audit record when no path is given", () => {
-      // The one case that reads the repository's own record: it pins the gate's default path, so a
-      // move of the table that leaves the gate reading its old home fails here and in CI at once.
+      // The one case that reads the repository's own record. No row there names `widget`, so its
+      // lag fails and the failure names the document the gate read: a move of the table that
+      // leaves the gate reading its old home fails here and in CI at once.
       const result = runGate({
-        installed: {},
-        published: {},
-        population: [],
+        installed: { widget: "1.0.0" },
+        published: WIDGET_MATURE_LAG,
+        population: [{ name: "widget" }],
         holds: [],
         defaultRecord: true,
       });
 
+      expect(result.status).toBe(1);
+      expect(result.stderr).toMatch(
+        /naming widget in \S*docs\/security\/DEPENDENCY_AUDIT_RECORD\.md §/
+      );
       expect(result.stderr).not.toContain("zero hold rows parsed");
-      expect(result.stderr).not.toContain("ENOENT");
+    });
+
+    it("exits 1 with the usage text when given --canon, the name the option had before", () => {
+      const result = spawnSync(process.execPath, [GATE_SCRIPT, "--canon", "record.md"], {
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("usage: node scripts/testing/holds-gate.mjs");
+      expect(result.stderr).toContain("[--record <path>]");
     });
 
     it("exits 1 and names the path when the record given does not exist", () => {

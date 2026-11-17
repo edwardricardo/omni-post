@@ -27,7 +27,7 @@
       "total": 1207
     },
     "blocks": {
-      "total": 15010,
+      "total": 15011,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14699
+        "BEHAVIOURAL": 14700
       }
     },
     "deleted": {
@@ -71403,7 +71403,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 47,
+      "blockCount": 48,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 naming the package, its installed version and its latest-mature target",
@@ -71620,116 +71620,123 @@
           "line": 880,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
-          "bodyHash": "4906b2e72c43b81d60be9f576f7c86ed34d5c7f5de17b8be13b678350d23bfb9"
+          "bodyHash": "7740bb19c10960595d71cff9f0537584a9fee037321f4f8963f916687aa600e1"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 with the usage text when given --canon, the name the option had before",
+          "line": 899,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3e80ea5e09c95b5d4e2c1f17a8e4cf0f1faa5d34177a3c0b952df29657a961ea"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 and names the path when the record given does not exist",
-          "line": 895,
+          "line": 909,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2a6943857ada4ba22b700126a2a52fc2677e1324f7d81a4c7a15ef6fe4c2cea8"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 when zero hold rows parse from the record table",
-          "line": 912,
+          "line": 926,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9fe0e70375a8699c24e42d77c45ee20df3802b420fbf97f6955ca5d348562355"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 when a hold row carries no remove-when",
-          "line": 927,
+          "line": 941,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e31142f7a9600461860bb790938e05eda45ad8f7ecf6e63e4afff95a66f2748"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 naming a population package that is not installed and declares no absence",
-          "line": 939,
+          "line": 953,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8e823b956a462c8e2032a97447fe115faf0eb36b44f84f63771bcce87348076b"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 when the registry document of a reported lag cannot be read",
-          "line": 952,
+          "line": 966,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0e060dd9f727fd0d9e9368bba8f381d38fefa2f611ee0f12ac128d471fe4c664"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 without printing a summary when the holds table cannot be read at all",
-          "line": 973,
+          "line": 987,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "376400b34685e94fcb68c0057f7d90c8d0496a5a3705e461e0d64b6872548919"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 when the population file lists no packages",
-          "line": 992,
+          "line": 1006,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0bb87b892528991a7e400ee35d221843493eae3ac54e8e6e2aaa2dab33ae2ad0"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 when one direct dependency is installed at two different versions",
-          "line": 1004,
+          "line": 1018,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "770f08135a8436ef17c9ab5622c66497a401f171490f50cba2096c50f8750199"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::accepts a candidate that is deliberately not installed yet",
-          "line": 1023,
+          "line": 1037,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2f8c946596a8657718615eb1fa6fa71ae82bee37063c41f315cc6db958ff7836"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 when a declared absence is stale because the package is installed",
-          "line": 1036,
+          "line": 1050,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7b8a23bf96a8ec89a3dc61e0b8fd607112a8f571aa1b9e476a3efde9c4130d41"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 on an absence reason the gate does not recognise",
-          "line": 1048,
+          "line": 1062,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2146c9d4fe3d3853b31aa170cb586e7c0849c560589d868e1311df65266ac81"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 when a five-column row's remove-when cell is empty",
-          "line": 1066,
+          "line": 1080,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4e34ea2623b5858ad203746f3599808b780ee5bb237570cf6c495b22fb1a7f9b"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 naming the header when the table declares no remove-when column",
-          "line": 1086,
+          "line": 1100,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae9b4466a97795cef4effc362a16d3283b845853880604e4ddfd219f25502781"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 naming a row whose cell count disagrees with the header",
-          "line": 1106,
+          "line": 1120,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb9b1227592ec1ad2a219d486a6d78a32aec01f6055c5347205bc6f45cba8622"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 1 naming the separator when its cell count disagrees with the header",
-          "line": 1127,
+          "line": 1141,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb4ce16ad92405b830cfe9a13f953b75202c01b556619b1744b815509009cee9"
         },
         {
           "id": "apps/api/tests/unit/scripts/holdsGate.test.ts::exits 0 when a cell carries an escaped pipe",
-          "line": 1152,
+          "line": 1166,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5904a86cce3b22a10ef2f009d41e18d1b54783d28083e31f8a7bdaaca494c21b"
