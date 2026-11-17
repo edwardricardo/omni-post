@@ -18,9 +18,9 @@ At the baseline (2026-09-27T17:55:14Z) the 52 rows below accounted for themselve
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-11-17T18:54:56Z by `node scripts/testing/holds-gate.mjs` under Node 26.12.1,
+**CURRENT, re-measured 2026-11-17T19:00:40Z by `node scripts/testing/holds-gate.mjs` under Node 26.12.1,
 exit 0 with EMPTY stderr: of the 48 packages in `scripts/testing/toolchain-population.json` (47 direct, 1
-named transitive, no declared-absent candidate left), 26 sit below latest mature: 18 within the 30-day
+named transitive, no declared-absent candidate left), 24 sit below latest mature: 16 within the 30-day
 budget of ADR-0036, 0 past it unheld, 8 held.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
@@ -82,6 +82,7 @@ and what moved it. A slice that moves the count appends its own line, re-measure
 53. `2026-11-17T18:49:39Z` — **28** (20 within budget, 8 held, 0 undocumented): the `@typescript-eslint` pair 8.72.0 → 8.72.2, `eslint-plugin-jsdoc` 65.4.0 → 65.4.5 and `@vitest/eslint-plugin` 1.6.27 → 1.6.28, four lags at once, from 32 measured at `main` `253b2413` before this window: releases that matured after entry 52 raised the count with no slice. `pnpm lint` exits 0 with 0 errors and 0 warnings, and `check:jsdoc --all` reads the same 927 of 2151 files and 8564 violations on 65.4.0 and on 65.4.5.
 54. `2026-11-17T18:52:44Z` — **27** (19 within budget, 8 held, 0 undocumented): `dependency-cruiser` 18.7.0 → 18.7.2, which pins `ignore` 7.0.14 and `semver` 7.8.6; `check:architecture` reads the same 123 known violations, none new and none stale, so the shrink-only baseline does not move.
 55. `2026-11-17T18:54:56Z` — **26** (18 within budget, 8 held, 0 undocumented): `knip` 6.42.1 → 6.45.0, with `oxc-parser` 0.154.0 → 0.156.0, `unbash` 6.0.1 → 6.0.4 and `smol-toml` 1.9.0 → 1.9.1; 6.45.0 no longer depends on `zod`. Its 285 findings are the baseline's, so the ratchet's ledger does not move.
+56. `2026-11-17T19:00:40Z` — **24** (16 within budget, 8 held, 0 undocumented): `vite` 8.3.4 → 8.3.7 and `@vitejs/plugin-react` 6.1.2 → 6.3.0, with `rolldown` 1.2.12 → 1.2.18 and `postcss` 8.5.29 → 8.5.32; the client suite runs 666 of 666 tests in 54 files and the admin suite 222 of 222 in 24.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
