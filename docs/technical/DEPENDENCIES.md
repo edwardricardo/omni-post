@@ -220,6 +220,7 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 | --------------------------------- | ------- | -------------------------- |
 | @tiptap/core                      | 3.33.1  | Rich text editor framework |
 | @tiptap/react                     | 3.33.1  | React integration          |
+| @tiptap/pm                        | 3.33.1  | ProseMirror wrapper        |
 | @tiptap/starter-kit               | 3.33.1  | Basic editor features      |
 | @tiptap/extension-character-count | 3.33.1  | Character counting         |
 | @tiptap/extension-color           | 3.33.1  | Text color                 |
