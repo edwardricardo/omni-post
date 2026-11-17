@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1207  |
+| Files                   | 1208  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1043  |
+| KEEP                    | 1044  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1197  |
+| Machine rows            | 1198  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15011 |
+| Blocks                  | 15074 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -947,6 +947,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/hardProbe.test.ts`                                                       | test             | 63     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/holdsGate.test.ts`                                                       | test             | 48     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/i18nLint.test.ts`                                                        | test             | 27     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/instructionContextGate.test.ts`                                          | test             | 63     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/jscpdBaselineGate.test.ts`                                               | test             | 13     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/jsdocRules.test.ts`                                                      | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/jsdocTouchedGate.test.ts`                                                | test             | 18     | 0          | ADJUDICATE | machine                     | opaque               |

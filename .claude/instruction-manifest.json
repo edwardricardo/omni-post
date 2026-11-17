@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "tracked": [
+    "CLAUDE.md",
+    "docs/architecture/ARCHITECTURE_CANON.md",
+    "docs/development/CODING_STANDARDS.md",
+    "docs/security/SECURITY_CANON.md",
+    "docs/observability/LOGGING_CANON.md"
+  ],
+  "local": ["CLAUDE.local.md", ".claude/CLAUDE.md"],
+  "records": [
+    {
+      "rule": ".claude/rules/dependency-audit-record.md",
+      "document": "docs/security/DEPENDENCY_AUDIT_RECORD.md",
+      "emptyGlobs": {
+        "patches/**": "no patch exists today; fitness #48 owns the directory"
+      }
+    }
+  ],
+  "budget": {
+    "bytes": 288897,
+    "target": 250000,
+    "targetOwedBy": "TOKEN-1 T3"
+  }
+}
