@@ -313,12 +313,12 @@ Built with: radix-ui 1.4.3, class-variance-authority 0.7.1, clsx 2.1.1, tailwind
 | @testing-library/dom      | 10.4.2  | DOM utilities                        |
 | @testing-library/jest-dom | 7.0.1   | Custom matchers                      |
 | jsdom                     | 30.1.3  | Browser environment simulation       |
-| @playwright/test          | 1.64.1  | E2E testing                          |
+| @playwright/test          | 1.65.0  | E2E testing                          |
 | @faker-js/faker           | 10.6.0  | Test data generation                 |
 | fast-check                | 4.10.2  | Property-based testing               |
 | yaml                      | 2.9.1   | Workflow parsing in the reach engine |
 
-Component stories run on the Storybook 10.6.3 family, unpatched since 2026-10-21: 10.6.3 carries Storybook's fix for next 16.4, which `@storybook/nextjs-vite` 10.6.1 needed as a patch ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)). No dependency is patched today. Every patched dependency has a record in `scripts/testing/patched-dependencies.json`, which `scripts/testing/patched-dependencies-gate.mjs` holds consistent with `pnpm-workspace.yaml` (fitness #48) and checks against the registry every 6 hours.
+Component stories run on the Storybook 10.6.7 family (since 2026-11-17), unpatched since 2026-10-21: 10.6.3 and later carry Storybook's fix for next 16.4, which `@storybook/nextjs-vite` 10.6.1 needed as a patch ([ADR-0037](ADR-0037-storybook-nextjs-vite-patch-for-next-16-4.md)). No dependency is patched today. Every patched dependency has a record in `scripts/testing/patched-dependencies.json`, which `scripts/testing/patched-dependencies-gate.mjs` holds consistent with `pnpm-workspace.yaml` (fitness #48) and checks against the registry every 6 hours.
 
 ### Update cadence
 
@@ -357,14 +357,14 @@ How a dependency moves, since 2026-10-14 ([ADR-0036](ADR-0036-dependency-update-
 | Tool                             | Version | Purpose                                                     |
 | -------------------------------- | ------- | ----------------------------------------------------------- |
 | eslint                           | 9.39.5  | Static analysis (flat config, v9)                           |
-| eslint-plugin-jsdoc              | 65.4.0  | JSDoc rules for the touched-files gate (`pnpm check:jsdoc`) |
-| @typescript-eslint/parser        | 8.72.0  | TypeScript parser for ESLint                                |
-| @typescript-eslint/eslint-plugin | 8.72.0  | TypeScript lint rules; moves with the parser as one pair    |
+| eslint-plugin-jsdoc              | 65.4.5  | JSDoc rules for the touched-files gate (`pnpm check:jsdoc`) |
+| @typescript-eslint/parser        | 8.72.2  | TypeScript parser for ESLint                                |
+| @typescript-eslint/eslint-plugin | 8.72.2  | TypeScript lint rules; moves with the parser as one pair    |
 | prettier                         | 3.9.10  | Code formatting                                             |
 | husky                            | 9.1.7   | Git hooks                                                   |
 | lint-staged                      | 17.6.0  | Pre-commit staged file linting                              |
-| knip                             | 6.42.1  | Dead code detection                                         |
-| dependency-cruiser               | 18.7.0  | Architecture rules and circular dependency detection        |
+| knip                             | 6.45.0  | Dead code detection                                         |
+| dependency-cruiser               | 18.7.2  | Architecture rules and circular dependency detection        |
 | jscpd                            | 5.4.3   | Copy-paste detection                                        |
 
 ### Standards

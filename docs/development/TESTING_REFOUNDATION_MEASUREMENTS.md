@@ -18,10 +18,10 @@ At the baseline (2026-09-27T17:55:14Z) the 52 rows below accounted for themselve
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-10-27T22:08:02Z by `node scripts/testing/holds-gate.mjs` under Node 26.12.1,
+**CURRENT, re-measured 2026-11-17T19:10:43Z by `node scripts/testing/holds-gate.mjs` under Node 26.12.1,
 exit 0 with EMPTY stderr: of the 48 packages in `scripts/testing/toolchain-population.json` (47 direct, 1
-named transitive, no declared-absent candidate left), 8 sit below latest mature: 1 within the 30-day
-budget of ADR-0036, 0 past it unheld, 7 held.**
+named transitive, no declared-absent candidate left), 14 sit below latest mature: 6 within the 30-day
+budget of ADR-0036, 0 past it unheld, 8 held.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
 and what moved it. A slice that moves the count appends its own line, re-measured with
@@ -79,6 +79,13 @@ and what moved it. A slice that moves the count appends its own line, re-measure
 50. `2026-10-27T21:55:45Z` — **12** (5 within budget, 7 held, 0 undocumented): `dependency-cruiser` 18.6.0 → 18.7.0; `check:architecture` reads the same 123 known violations, none new and none stale, so the shrink-only baseline does not move.
 51. `2026-10-27T22:01:59Z` — **9** (2 within budget, 7 held, 0 undocumented): the `@typescript-eslint` pair 8.71.2 → 8.72.0 and `eslint-plugin-jsdoc` 65.3.4 → 65.4.0, three lags at once; `pnpm lint` reads 3349 files with 0 errors and 0 warnings, and `check:jsdoc --all` reads the same 948 of 2162 files and 8837 violations on 65.3.4 and on 65.4.0.
 52. `2026-10-27T22:08:02Z` — **8** (1 within budget, 7 held, 0 undocumented): `@axe-core/playwright` 4.13.0 → 4.14.0 with one `axe-core` 4.14.0 tree-wide; its `label-content-name-mismatch` rule failed one story, `Components/UI/Button` › Accessibility Features, fixed in the story, and the client stories run 68 of 68 green.
+53. `2026-11-17T18:49:39Z` — **28** (20 within budget, 8 held, 0 undocumented): the `@typescript-eslint` pair 8.72.0 → 8.72.2, `eslint-plugin-jsdoc` 65.4.0 → 65.4.5 and `@vitest/eslint-plugin` 1.6.27 → 1.6.28, four lags at once (the pair is two packages), from 32 measured at `main` `253b2413` before this window: releases that matured after entry 52 raised the count with no slice. `pnpm lint` exits 0 with 0 errors and 0 warnings, and `check:jsdoc --all` reads the same 927 of 2151 files and 8564 violations on 65.4.0 and on 65.4.5. `eslint-plugin-jsdoc` 65.4.5 declares `semver ^7.8.6`, and the dedupe that `pnpm dedupe --check` requires moved the nine `^7` edges still on 7.8.5 to 7.8.6, so every `^7` consumer resolves 7.8.6, among them the production packages `fastify`, `bullmq` and `jsonwebtoken` (direct dependencies of `apps/api`) and `sharp` (under `next` in both portals); only the exact pins kept theirs, `dependency-cruiser` 18.7.0 on 7.8.5 until entry 54 and `@hey-api/shared` 0.5.0 on 7.8.4. 7.8.6 was published 2026-11-02T17:05Z, OSV lists nothing for it, and its one code change (npm/node-semver#918) rewrites the whitespace normalization of range parsing as a scanner, with no intended change of behaviour.
+54. `2026-11-17T18:52:44Z` — **27** (19 within budget, 8 held, 0 undocumented): `dependency-cruiser` 18.7.0 → 18.7.2, which pins `ignore` 7.0.14 and `semver` 7.8.6; `check:architecture` reads the same 123 known violations, none new and none stale, so the shrink-only baseline does not move.
+55. `2026-11-17T18:54:56Z` — **26** (18 within budget, 8 held, 0 undocumented): `knip` 6.42.1 → 6.45.0, with `oxc-parser` 0.154.0 → 0.156.0, `unbash` 6.0.1 → 6.0.4 and `smol-toml` 1.9.0 → 1.9.1; 6.45.0 no longer depends on `zod`. Its 285 findings are the baseline's, so the ratchet's ledger does not move.
+56. `2026-11-17T19:00:40Z` — **24** (16 within budget, 8 held, 0 undocumented): `vite` 8.3.4 → 8.3.7 and `@vitejs/plugin-react` 6.1.2 → 6.3.0, with `rolldown` 1.2.12 → 1.2.18 and `postcss` 8.5.29 → 8.5.32; the client suite runs 666 of 666 tests in 54 files and the admin suite 222 of 222 in 24.
+57. `2026-11-17T19:05:13Z` — **19** (11 within budget, 8 held, 0 undocumented): the Storybook family 10.6.3 → 10.6.7, five lags at once, with the four packages it pins exactly (`@storybook/builder-vite`, `@storybook/react-dom-shim`, `@storybook/react-vite`, `vite-plugin-storybook-nextjs`); the client stories run 68 of 68 green in 9 files.
+58. `2026-11-17T19:09:05Z` — **16** (8 within budget, 8 held, 0 undocumented): `@playwright/test` and `playwright` 1.64.1 → 1.65.0, `@testing-library/user-event` 14.6.8 → 14.6.9; 1.65.0 drives Chromium 158.0.8127.18 (revision 1254), installed with `playwright install chromium`. The client stories run 68 of 68 green in 9 files and the client suite 666 of 666 in 54.
+59. `2026-11-17T19:10:43Z` — **14** (6 within budget, 8 held, 0 undocumented): `size-limit` and `@size-limit/preset-small-lib` 14.2.0 → 14.3.0, with `lilconfig` 3.1.3 → 3.1.5; the six lags left within budget are the `secretlint` pair, `@types/node`, `autocannon`, `jsdom` and `isomorphic-dompurify`, none of them a move of this window's toolchain pass.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
