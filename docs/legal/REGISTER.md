@@ -122,7 +122,8 @@ Pending within this section: the retention period per data class (Product Owner)
 | Source                                                                  | What it settles                                                                                                                                                                      |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [ADR-0034: Credential model](../technical/ADR-0034-credential-model.md) | Where each credential lives, the one encryption seam, key custody, hashed verifiers and rotation; its `## Legal impact` section states the art. 32 and breach-notification position. |
-| [Security canon](../security/SECURITY_CANON.md)                         | Secrets read only through validated env modules with no fallbacks, client-IP derivation behind proxies, and the dependency CVE floors.                                               |
+| [Security canon](../security/SECURITY_CANON.md)                         | Secrets read only through validated env modules with no fallbacks, and client-IP derivation behind proxies.                                                                          |
+| [Dependency audit record](../security/DEPENDENCY_AUDIT_RECORD.md)       | The dependency CVE floors, ignored advisories and image CVEs, patched dependencies and holds, each with its reason and remove-when.                                                  |
 | [Multi-tenant guards](../security/MULTI_TENANT_GUARDS.md)               | Tenant isolation in three layers (the Prisma tenant guard, PostgreSQL row-level security, the raw-query fitness check) and the global tables outside it.                             |
 
 ## 10. Cookies and browser storage

@@ -29,23 +29,24 @@ pnpm dev               # API (port 3000) and workers; pnpm dev:admin (3100), pnp
 
 The four canon documents are loaded into every agent session by `CLAUDE.md`.
 
-| Document                                                           | What it covers                                                    |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| [Architecture Canon](architecture/ARCHITECTURE_CANON.md)           | Hexagonal, DDD, CQRS, Unit of Work, saga, dependency injection    |
-| [Coding Standards](development/CODING_STANDARDS.md)                | TypeScript, testing, naming, JSDoc                                |
-| [Security Canon](security/SECURITY_CANON.md)                       | Secrets, environment, tenant isolation, rate limiting, CVE floors |
-| [Logging Canon](observability/LOGGING_CANON.md)                    | Logger factories, background tasks, caching                       |
-| [Bounded Contexts](architecture/BOUNDED_CONTEXTS.md)               | The core packages and what each context owns                      |
-| [Admin and Customer Parity](architecture/ADMIN_CUSTOMER_PARITY.md) | Ledger of admin and customer behaviour that must match            |
-| [Schema Conventions](architecture/schema-conventions.md)           | Prisma schema conventions                                         |
-| [Caching](architecture/caching.md)                                 | Why one cache port with two adapters; the HTTP response cache     |
-| [Logging](architecture/logging.md)                                 | Logger threat model and redaction                                 |
-| [Secrets and Environment](architecture/secrets-and-env.md)         | Typed env modules, test environment, secret handling rationale    |
-| [OpenAPI Migration](architecture/openapi-migration.md)             | Route schemas to OpenAPI to the generated TypeScript types        |
-| [Canon Research Index](architecture/CANON_RESEARCH_INDEX.md)       | The research sources behind each canon rule                       |
-| [Service Level Objectives](observability/SLO.md)                   | SLOs and the Prometheus queries behind them                       |
-| [React Standards](frontend/REACT_STANDARDS.md)                     | Story requirement and the map to the frontend rules               |
-| [Frontend Standards](standards/frontend-standards.md)              | Detailed rules for `apps/admin` and `apps/client`                 |
+| Document                                                           | What it covers                                                  |
+| ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| [Architecture Canon](architecture/ARCHITECTURE_CANON.md)           | Hexagonal, DDD, CQRS, Unit of Work, saga, dependency injection  |
+| [Coding Standards](development/CODING_STANDARDS.md)                | TypeScript, testing, naming, JSDoc                              |
+| [Security Canon](security/SECURITY_CANON.md)                       | Secrets, environment, tenant isolation, rate limiting           |
+| [Dependency Audit Record](security/DEPENDENCY_AUDIT_RECORD.md)     | CVE floors, ignored advisories, patches, holds (read as a file) |
+| [Logging Canon](observability/LOGGING_CANON.md)                    | Logger factories, background tasks, caching                     |
+| [Bounded Contexts](architecture/BOUNDED_CONTEXTS.md)               | The core packages and what each context owns                    |
+| [Admin and Customer Parity](architecture/ADMIN_CUSTOMER_PARITY.md) | Ledger of admin and customer behaviour that must match          |
+| [Schema Conventions](architecture/schema-conventions.md)           | Prisma schema conventions                                       |
+| [Caching](architecture/caching.md)                                 | Why one cache port with two adapters; the HTTP response cache   |
+| [Logging](architecture/logging.md)                                 | Logger threat model and redaction                               |
+| [Secrets and Environment](architecture/secrets-and-env.md)         | Typed env modules, test environment, secret handling rationale  |
+| [OpenAPI Migration](architecture/openapi-migration.md)             | Route schemas to OpenAPI to the generated TypeScript types      |
+| [Canon Research Index](architecture/CANON_RESEARCH_INDEX.md)       | The research sources behind each canon rule                     |
+| [Service Level Objectives](observability/SLO.md)                   | SLOs and the Prometheus queries behind them                     |
+| [React Standards](frontend/REACT_STANDARDS.md)                     | Story requirement and the map to the frontend rules             |
+| [Frontend Standards](standards/frontend-standards.md)              | Detailed rules for `apps/admin` and `apps/client`               |
 
 ## Security
 

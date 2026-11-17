@@ -426,7 +426,7 @@ request that brought `production-ci.yml` to the branch list of `ci.yml`.
    pull requests as superseded.
 4. **A base CVE with no fix in the current generation** → the choice is wait,
    move generation, or accept. Accepting goes through
-   `docs/security/SECURITY_CANON.md` §"Audited audit-ignores" and its projection
+   `docs/security/DEPENDENCY_AUDIT_RECORD.md` §"Audited audit-ignores" and its projection
    in `.trivyignore`, never a silent suppression.
 5. **Moving the Node major** → both `FROM` lines of all four Dockerfiles move in
    the change that raises `.nvmrc`, every `engines.node` and the `@types/node`

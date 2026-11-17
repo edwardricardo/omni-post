@@ -5,7 +5,7 @@
  *   resolved (the owner's rule of 2026-10-15: every patch is monitored all the time until it is
  *   resolved). A patched dependency is a package whose installed files pnpm changes at install time,
  *   through `patchedDependencies` in `pnpm-workspace.yaml` and a file under `patches/`, and each one
- *   exists only by an owner's decision recorded in its own ADR (`docs/security/SECURITY_CANON.md`
+ *   exists only by an owner's decision recorded in its own ADR (`docs/security/DEPENDENCY_AUDIT_RECORD.md`
  *   §"Patched dependencies"). Its record lives in `scripts/testing/patched-dependencies.json`: the
  *   exact version, the patch file, the upstream pull request, merge commit and release, `resolvedBy`
  *   (the package and the version range whose first stable release ends the patch), the ADR, `since`,
