@@ -36,6 +36,25 @@
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/pre_edit_planmode_guard.py"
           }
         ]
+      },
+      {
+        "matcher": "Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/pre_tool_record_guard.py record"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/pre_tool_record_guard.py judge",
+            "onFailure": "block"
+          }
+        ]
       }
     ],
 
@@ -66,6 +85,23 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/user_prompt_submit.py"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/user_prompt_instruction_check.py",
+            "timeout": 20,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ],
+
+    "InstructionsLoaded": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks-py/instructions_loaded.py"
           }
         ]
       }
