@@ -87,13 +87,13 @@ catalog:
   "@langchain/langgraph": 1.4.4 # taken 2026-06-20 (`7d9da4aa`), not moved since; 1.4.19 is newer, 1.4.18 the newest mature (registry, 2026-10-03)
 
   # ── Google API clients ──
-  google-auth-library: 11.1.0 # raised 2026-10-04 from 10.7.0 (MAJOR 10->11): published 2026-09-16T14:49Z and `latest` on 2026-10-04 (registry). 11.x is the line googleapis-common ^9 declares (`google-auth-library ^11.0.0`, 9.0.4 and 9.1.0 alike), so the googleapis-common and google-auth-library@10 compatibility pins left with this raise (DEPENDENCY_AUDIT_RECORD §"Compatibility pins"); engines.node >=22; was 10.7.0, before that 9.14.1 (MAJOR 9->10)
+  google-auth-library: 11.3.4 # latest stable AND latest mature, measured 2026-11-17T20:50Z: published 2026-11-09T17:09Z, mature since 2026-11-16T17:09Z; OSV lists nothing. Weekly-window bump from 11.1.0 (ADR-0036); 11.2.0 to 11.3.4 carry bug fixes and tooling features (Bun shims, regenerated API sources), and 11.3.2 adds credential deprecation and validation warnings. 11.3.4 declares `gaxios ^8.3.1` (11.1.0 declared `^7.1.4`) and `gcp-metadata ^9.2.1`. Raised 2026-10-04 from 10.7.0 (MAJOR 10->11): 11.x is the line googleapis-common ^9 declares (`google-auth-library ^11.0.0`, 9.0.4 and 9.1.0 alike), so the googleapis-common and google-auth-library@10 compatibility pins left with that raise (DEPENDENCY_AUDIT_RECORD §"Compatibility pins"); engines.node >=22; was 10.7.0, before that 9.14.1 (MAJOR 9->10)
   # The per-API packages, NOT the `googleapis` monolith this replaced: that one
   # ships EVERY Google API and weighs 204MB, of which this repository uses two
   # surfaces. Measured in a `pnpm deploy --prod` of the API: 204MB of 998MB.
   # These two are NOT an atomic family — they version independently and share no
   # advisory, so each is pinned on its own evidence.
-  "@googleapis/youtube": 39.0.1 # taken 2026-09-25 (`feb371ae`), a day after its publication, so the maturity watchlist reviews it; its final review (2026-10-11) is flagged, not clean: 40.0.0, a breaking major published 2026-10-03T03:50Z and mature since 2026-10-10, is owed in its own PR with the provider's typecheck, build and tests
+  "@googleapis/youtube": 40.0.2 # latest mature, measured 2026-11-17T20:50Z: published 2026-10-22T23:27Z, mature since 2026-10-29T23:27Z; `latest` 40.1.0 (2026-11-12T21:23Z) matures 2026-11-19T21:23Z; OSV lists nothing. Weekly-window bump from 39.0.1 (ADR-0036), the major the watchlist's final review of 2026-10-11 left owed, taken with the provider's typecheck and tests: 40.0.0 removes `favorite` and `like` from `Schema$ActivityContentDetails` and `postId` from the comment snippets and from `commentThreads.list`, none of which packages/providers/youtube or apps/api names; 40.0.1 and 40.0.2 update the API. It declares `googleapis-common ^9.0.0`, as 39.0.1 did; 39.0.1 was taken 2026-09-25 (`feb371ae`)
   "@googleapis/youtubeanalytics": 11.0.1 # the newest release on 2026-10-03
 
   # ── Build/test toolchain ──

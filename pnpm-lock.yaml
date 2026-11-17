@@ -193,8 +193,8 @@ catalogs:
       specifier: 4.14.0
       version: 4.14.0
     '@googleapis/youtube':
-      specifier: 39.0.1
-      version: 39.0.1
+      specifier: 40.0.2
+      version: 40.0.2
     '@googleapis/youtubeanalytics':
       specifier: 11.0.1
       version: 11.0.1
@@ -325,8 +325,8 @@ catalogs:
       specifier: 4.0.6
       version: 4.0.6
     google-auth-library:
-      specifier: 11.1.0
-      version: 11.1.0
+      specifier: 11.3.4
+      version: 11.3.4
     ioredis:
       specifier: 5.11.1
       version: 5.11.1
@@ -3823,7 +3823,7 @@ importers:
         version: link:../../adapters/external-apis
       '@googleapis/youtube':
         specifier: 'catalog:'
-        version: 39.0.1(supports-color@10.2.2)
+        version: 40.0.2(supports-color@10.2.2)
       '@googleapis/youtubeanalytics':
         specifier: 'catalog:'
         version: 11.0.1(supports-color@10.2.2)
@@ -3841,7 +3841,7 @@ importers:
         version: link:../../shared
       google-auth-library:
         specifier: 'catalog:'
-        version: 11.1.0(supports-color@10.2.2)
+        version: 11.3.4(supports-color@10.2.2)
       pino:
         specifier: 'catalog:'
         version: 10.3.1
@@ -4685,8 +4685,8 @@ packages:
       '@modelcontextprotocol/sdk':
         optional: true
 
-  '@googleapis/youtube@39.0.1':
-    resolution: {integrity: sha512-k6G0U/EeCrhzC18tguCLL9xMiEM/Z/xOOsOha+BC9oo30njyX6TaODZEHjz93DdYa1ouW32QZSybqvZadxYDiw==}
+  '@googleapis/youtube@40.0.2':
+    resolution: {integrity: sha512-kbm+3uRcezP5skGBIBAaQKDRzla+LQWh9rRXbTyzpuXxBmJQKKLHkZMBwvYwkWQ5+RiVgEvLBvPPgs3FTiu3PA==}
     engines: {node: '>=22.0.0'}
 
   '@googleapis/youtubeanalytics@11.0.1':
@@ -9745,6 +9745,10 @@ packages:
     resolution: {integrity: sha512-kB3rzJV7d9juLZh8/56QTXCwQfxyhdOMdyYk1HdQKFtF8TJTDTZQJtixWIwXdE9Jji91mC41DUNpjleo4L4eAQ==}
     engines: {node: '>=18'}
 
+  gaxios@8.3.2:
+    resolution: {integrity: sha512-7VsaTExxjbDv2ZK1YuC4jbgfN33NI/6/7zdYWUHB6mcg51v4tCBZe+xzjqPzOpVzI+C5k1Kk9OQ80WVrXAHOqw==}
+    engines: {node: '>=22'}
+
   gcp-metadata@6.1.1:
     resolution: {integrity: sha512-a4tiq7E0/5fTjxPAaH4jpjkSv/uCaU2p5KC6HVGrvl0cDjA8iBZv4vv1gyzlmK0ZUKqwpOyQMKzZQe3lTit77A==}
     engines: {node: '>=14'}
@@ -9753,8 +9757,8 @@ packages:
     resolution: {integrity: sha512-ziTrzUhhpL9Zk5k0HHzgP/KIpWDJT0VMBC/ynt/QIBvTW+UUcSivQRl6VlwTf/EilDxtSWklHoRsKy1c4k+59w==}
     engines: {node: '>=18'}
 
-  gcp-metadata@9.0.4:
-    resolution: {integrity: sha512-p6WvbXOhfwnVtv/MyPq5kBiVhfV/qglMIxwwTVNEI1Ha1HmOgz5uHYHtYO6SfGckFaXe8blA11IJJ3wqXmvmBA==}
+  gcp-metadata@9.2.3:
+    resolution: {integrity: sha512-d2OI/dJJ3IIaeOz3c9jvr5j5G5beI5fQzbgilNiWhDKGwvJN9o10Qub70NkbF6PNJSUoNKZ77JKYGz0Fs4+9Lg==}
     engines: {node: '>=22'}
 
   generate-function@2.3.1:
@@ -9824,8 +9828,8 @@ packages:
   globrex@0.1.2:
     resolution: {integrity: sha512-uHJgbwAMwNFf5mLst7IWLNg14x1CkeqglJb/K3doi4dw6q2IvAAmM/Y81kevy83wP+Sst+nutFTYOGg3d1lsxg==}
 
-  google-auth-library@11.1.0:
-    resolution: {integrity: sha512-YIBq5KNoHQrZ9PM4PeodDBqqBGlSTIxh1zibN8u3zNIO9UJg8gvKuCpdKV7fWXhsZ2zRkU6FhGrgKNgLJ2IRgw==}
+  google-auth-library@11.3.4:
+    resolution: {integrity: sha512-RaYCDoeYIIFTRgH8hesSxqLrmtC2l+DB3cSCS/SN1TPGjI2VpPdJmF3bfRLUn8VvP/4I2Af9fsktw2f9SvVSVg==}
     engines: {node: '>=22'}
 
   google-auth-library@9.15.1:
@@ -9840,8 +9844,8 @@ packages:
     resolution: {integrity: sha512-eAmLkjDjAFCVXg7A1unxHsLf961m6y17QFqXqAXGj/gVkKFrEICfStRfwUlGNfeCEjNRa32JEWOUTlYXPyyKvA==}
     engines: {node: '>=14'}
 
-  google-logging-utils@2.0.1:
-    resolution: {integrity: sha512-HMhaQghlOTvbcb3c4T5jmmOMtG3JUF1iOQMezaJXL86CDS+Tm2vHd0IeLFRAx3+ewd+bo9E1HFHoy17X5aJa9A==}
+  google-logging-utils@2.2.0:
+    resolution: {integrity: sha512-Q6HuSEyoaxi0AgqUrOYb2gc77fDl4QugRoHpreI8VpW/VzPsoKyxjL8tGKLmZpWlvC1uVBXM85tykoQpCGBF5g==}
     engines: {node: '>=22'}
 
   googleapis-common@9.1.0:
@@ -13574,7 +13578,7 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  '@googleapis/youtube@39.0.1(supports-color@10.2.2)':
+  '@googleapis/youtube@40.0.2(supports-color@10.2.2)':
     dependencies:
       googleapis-common: 9.1.0(supports-color@10.2.2)
     transitivePeerDependencies:
@@ -18892,6 +18896,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  gaxios@8.3.2(supports-color@10.2.2):
+    dependencies:
+      extend: 3.0.2
+      https-proxy-agent: 7.0.6(supports-color@10.2.2)
+      node-fetch: 3.3.2
+    transitivePeerDependencies:
+      - supports-color
+
   gcp-metadata@6.1.1(supports-color@10.2.2):
     dependencies:
       gaxios: 6.7.1(supports-color@10.2.2)
@@ -18909,10 +18921,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  gcp-metadata@9.0.4(supports-color@10.2.2):
+  gcp-metadata@9.2.3(supports-color@10.2.2):
     dependencies:
-      gaxios: 7.3.1(supports-color@10.2.2)
-      google-logging-utils: 2.0.1
+      gaxios: 8.3.2(supports-color@10.2.2)
+      google-logging-utils: 2.2.0
       json-bigint: 1.0.0
     transitivePeerDependencies:
       - supports-color
@@ -18988,13 +19000,13 @@ snapshots:
 
   globrex@0.1.2: {}
 
-  google-auth-library@11.1.0(supports-color@10.2.2):
+  google-auth-library@11.3.4(supports-color@10.2.2):
     dependencies:
       base64-js: 1.5.1
       ecdsa-sig-formatter: 1.0.11
-      gaxios: 7.3.1(supports-color@10.2.2)
-      gcp-metadata: 9.0.4(supports-color@10.2.2)
-      google-logging-utils: 2.0.1
+      gaxios: 8.3.2(supports-color@10.2.2)
+      gcp-metadata: 9.2.3(supports-color@10.2.2)
+      google-logging-utils: 2.2.0
       jws: 4.0.1
     transitivePeerDependencies:
       - supports-color
@@ -19015,14 +19027,14 @@ snapshots:
 
   google-logging-utils@1.1.3: {}
 
-  google-logging-utils@2.0.1: {}
+  google-logging-utils@2.2.0: {}
 
   googleapis-common@9.1.0(supports-color@10.2.2):
     dependencies:
       extend: 3.0.2
       gaxios: 7.3.1(supports-color@10.2.2)
-      google-auth-library: 11.1.0(supports-color@10.2.2)
-      google-logging-utils: 2.0.1
+      google-auth-library: 11.3.4(supports-color@10.2.2)
+      google-logging-utils: 2.2.0
       qs: 6.16.1
       url-template: 2.0.8
     transitivePeerDependencies:
