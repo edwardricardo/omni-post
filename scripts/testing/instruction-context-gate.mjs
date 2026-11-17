@@ -122,7 +122,15 @@
  * @layer infrastructure
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -848,8 +856,12 @@ export function evaluate({ root, manifestText, tracked, links = [], readFile, ho
  * @returns {FileRead} Its bytes, its absence, or why it could not be read.
  */
 function readFromDisk(absolutePath) {
+  /** @type {number} */
+  let descriptor;
   try {
-    if (!statSync(absolutePath).isFile()) return { kind: "not-file" };
+    // One descriptor serves the kind check and the read, so the path cannot name a different
+    // file between the two; O_NONBLOCK keeps the open from waiting on a named pipe.
+    descriptor = openSync(absolutePath, constants.O_RDONLY | constants.O_NONBLOCK);
   } catch (error) {
     const code = /** @type {{ code?: unknown }} */ (error).code;
     if (code === "ENOENT" || code === "ENOTDIR" || code === "ENAMETOOLONG")
@@ -857,9 +869,12 @@ function readFromDisk(absolutePath) {
     return { kind: "error", message: messageOf(error) };
   }
   try {
-    return { kind: "file", buffer: readFileSync(absolutePath) };
+    if (!fstatSync(descriptor).isFile()) return { kind: "not-file" };
+    return { kind: "file", buffer: readFileSync(descriptor) };
   } catch (error) {
     return { kind: "error", message: messageOf(error) };
+  } finally {
+    closeSync(descriptor);
   }
 }
 

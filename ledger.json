@@ -27,7 +27,7 @@
       "total": 1208
     },
     "blocks": {
-      "total": 15074,
+      "total": 15075,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14763
+        "BEHAVIOURAL": 14764
       }
     },
     "deleted": {
@@ -71962,7 +71962,7 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 63,
+      "blockCount": 64,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::derives CLAUDE.md and its import, and reports the bytes against the budget and the target",
@@ -72404,6 +72404,13 @@
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c813fbddc14aa93522c468c8efb5fdc09e73ae01dc3515a683442c6f854d1d48"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 without waiting when CLAUDE.md is a named pipe, saying it is not a regular file",
+          "line": 1178,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "b23162f2b189f0ad20590fe4e82e8e53081bba71c6f6099c46f1901a3be3e2cf"
         }
       ],
       "verdict": "KEEP",

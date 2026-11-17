@@ -1174,5 +1174,17 @@ describe("instruction-context gate", () => {
         "instruction-context-gate: CLAUDE.md is not a regular file in"
       );
     });
+
+    it("exits 3 without waiting when CLAUDE.md is a named pipe, saying it is not a regular file", () => {
+      writeRepo(without(makeTree(), "CLAUDE.md"));
+      execFileSync("mkfifo", [path.join(root, "CLAUDE.md")]);
+
+      const result = gate("--root", root);
+
+      expect(result.status).toBe(EXIT.UNREAD);
+      expect(result.stderr).toContain(
+        "instruction-context-gate: CLAUDE.md is not a regular file in"
+      );
+    });
   });
 });
