@@ -127,6 +127,19 @@
       "reviews": {}
     },
     {
+      "kind": "date",
+      "id": "picomatch-ghsa-fc5q",
+      "title": "Is there a picomatch release outside <= 4.0.7 that fixes GHSA-fc5q-39xc-vjpf, so its entry can leave auditConfig.ignoreGhsas?",
+      "due": "2026-11-24",
+      "refs": [
+        "Opened 2026-11-17 by the change that added GHSA-fc5q-39xc-vjpf to auditConfig.ignoreGhsas in pnpm-workspace.yaml, by the Maintainer's decision of 2026-11-17; its row is docs/security/DEPENDENCY_AUDIT_RECORD.md §\"Ignored GHSAs\". The advisory (high, CVE-2026-112366, CWE-1333: denial of service through a single-branch repeated extglob pattern such as `+(*)`) covers picomatch <= 4.0.7 with no patched version; GitHub reviewed it at 2026-11-17T15:56:42Z, which turned pnpm audit red with no change in the tree. Measured that day: without the entry `pnpm audit --json` exits 1 naming this advisory and no other; with it, it exits 0 with an empty advisories map",
+        "Upstream, read 2026-11-17: npm latest is 4.0.7 (published 2026-08-24T14:36Z, the registry document's last modification), the newest 3.x and 2.x are 3.0.2 and 2.3.2 (2026-03-23), and micromatch/picomatch was last pushed 2026-10-08T04:42Z. Three candidate fixes are open with no review: #237 (master, opened 2026-10-22, \"fix: CVE-2026-112366 prevent ReDoS in single-branch repeated extglobs\"), #238 (master, opened 2026-10-22, \"fix: literalize single-branch extglobs with a leading bare quantifier (CVE-2026-112366)\") and #246 (v2, opened 2026-10-31, \"[v2] Guard single-branch repeated-star extglobs against ReDoS\")",
+        "Reachability, why the entry ignores instead of blocking: the lockfile holds one copy, picomatch 4.0.7; `pnpm why picomatch --prod` is empty for @apps/api and @apps/workers and reaches the portals only through build tooling (next-intl → @parcel/watcher, @sentry/nextjs → @rollup/plugin-commonjs). The trigger is the pattern, and every pattern that reaches a picomatch copy is a literal of tracked configuration or a library's own constant, never a request; the record's row holds the measurement",
+        "The review, on the due date: read `gh pr view <n> --repo micromatch/picomatch` for #237, #238 and #246 (state, merge, reviews), `pnpm view picomatch time --json` for a release after 4.0.7, and `gh api /advisories/GHSA-fc5q-39xc-vjpf` for a patched version. A release outside <= 4.0.7 that carries the fix is a security-tied move, taken once mature (7 days after publication) or earlier as a deviation the Maintainer decides: the lockfile resolves it, the entry leaves auditConfig.ignoreGhsas, the record's row moves to the section's history, and `pnpm audit --audit-level low` verifies the tree without the entry; this entry leaves the list with that change. While none exists, `due` moves to the next Tuesday window with a dated line here. A pattern that a request, a tenant or a provider controls reaching a picomatch copy in a production process makes the advisory reachable, which is a decision at once, not a wait"
+      ],
+      "reviews": {}
+    },
+    {
       "kind": "package",
       "name": "glob",
       "version": "14.0.2",
