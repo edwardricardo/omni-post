@@ -172,6 +172,178 @@ and the edit guard are not part of this amendment.
    the manifest gives the reason. The reverse direction, a governed file the list does not name,
    stays with review: no source states which files the record governs except the rule itself.
 
+## Amendment of 2026-11-17: the enforcement
+
+Decision 3 is in force, with one correction of its wording: the loads are compared with the
+manifest at every prompt, not at session start.
+
+1. **The prompt, not the session start.** No event at session start can block: `SessionStart`
+   shows its stderr and goes on, and `InstructionsLoaded`, which reports each instruction file the
+   harness loads, runs asynchronously and ignores its exit code
+   ([hooks reference](https://code.claude.com/docs/en/hooks)). `UserPromptSubmit` can block, and a
+   prompt it refuses never reaches the model (measured: a refused headless prompt ends with
+   `num_turns: 0` and no cost). So `.claude/hooks-py/instructions_loaded.py` records each reported
+   load, per session, under `.claude/state/instruction-context/`, which git ignores, and
+   `.claude/hooks-py/user_prompt_instruction_check.py` compares that record with the manifest at
+   every prompt. The loads arrive asynchronously, one of them measured 1 ms after the first prompt
+   hook started, so the check reads the record for at most 5 seconds and then blocks.
+2. **What a session must have loaded.** Every `tracked` entry, and every `local` entry when the
+   checkout's marker stands or when the checkout is a main checkout (its `.git` is a directory)
+   that holds any `local` entry. The recorder writes the marker the first time it records a `local`
+   file loaded in a checkout: one file under `~/.claude/instruction-context-markers/`, named by the
+   sha256 of the checkout's real path, outside the checkout, so that deleting every local file (as
+   `git clean -fdX` does) cannot silence their requirement. A linked worktree and a clone the local
+   files were never copied to have no marker and require the tracked set alone. A checkout meant to
+   hold no local file drops its marker by hand: the refusal prints its path and `rm <marker>`. A
+   marker directory the check cannot read blocks, since the check cannot then tell, and so does a
+   marker path that holds a symbolic link, a directory or anything but a regular file, whose
+   refusal prints `rm -r <marker>`. Residual limits of the marker: a checkout that moves to another
+   real path starts with no marker, so the requirement of its local files restarts at its next load
+   of one; and a session can remove the marker with a Bash command, which no hook refuses, a
+   deliberate act on a file outside the checkout, the same class as a line forged into a reads file
+   (item 5). A required file
+   must stand on disk as a non-empty regular file, which is decided at once, and must be in the
+   session's record. The record only grows: a file that stops loading after the session's first
+   load of it (its import removed, then a compaction) passes until the session ends, and only what
+   stands on disk is checked again at every prompt.
+3. **Fail-closed.** The check and the guard's judging entry are wired with `"onFailure": "block"`
+   ([hooks reference](https://code.claude.com/docs/en/hooks): from Claude Code 2.1.295, a hook that
+   cannot start, exits with a code other than 0 or 2, or times out then refuses its prompt or call,
+   where without the key the harness lets it through). Measured on 2.1.326 with a check that lost
+   its executable bit: the prompt was blocked with the key (0 turns, no cost) and answered without
+   it. Inside its process the check turns each failure of its own into exit 2 with its repair:
+   input that is not JSON, a missing or malformed manifest, a marker or a record it cannot read, no
+   record after the wait, and any exception, a failure to import its shared module included. The
+   key has no effect before 2.1.295 (measured on 2.1.143: the prompt went through), so the check
+   refuses a harness that does not name 2.1.295 or later in its `AI_AGENT` variable, with the
+   upgrade to make; the variable is not in the hooks reference and was measured
+   (`claude-code_2-1-326_harness`, `claude-code_2-1-143_harness`); an empty value is reported as
+   empty. Residual: on an older harness a check that cannot start lets the prompt through; the
+   gate's rule W1 (item 7) holds each hook tracked, executable and wired with the key. The value can
+   be forged: an `env` block in a settings source overrides the `AI_AGENT` the harness sets
+   (measured with a `--settings` file on 2.1.143, whose forged value passed the check). W1 refuses
+   the key in the tracked settings, and a settings source the hooks do not guard (item 6) can still
+   set it; what a forged value gains is, on an old harness, the fail-open of a check that cannot
+   start, and nothing else. The recovery when a blocking hook cannot start,
+   measured on a fixture: a session starts meanwhile with `--settings '{"disableAllHooks": true}'`
+   (measured with the key in the same settings source as the hooks; the reference gives a
+   `--settings` value precedence over project and local settings), which turns every hook off, the
+   other guards included, so it serves the repair alone; the hook is restored from a plain terminal
+   with `git -C <root> checkout -- .claude/hooks-py/<hook>.py`, which writes the file and its
+   executable bit back from git's index; the next session passes.
+4. **Subagents.** A subagent's hook input carries its parent's session id, and no load event fires
+   for the files it receives at its start (measured), so the session covers its subagents: a
+   subagent runs only under a session whose prompt passed. The built-in Explore and Plan agents
+   receive no instruction files by design.
+5. **The write guard.** `.claude/hooks-py/pre_tool_record_guard.py` runs on `PreToolUse` twice,
+   keyed by session and by agent (`main` for the session). As `record`, on Read and Grep and with
+   no `onFailure`, so that a guard that cannot run never refuses a read, it records each opening
+   of a record document, and an opening is a tool call the harness performed: the Read tool on it,
+   or the Grep tool whose path (the working directory when absent) is the record or a directory
+   that holds it, when its `glob` and `type` still select it. A Bash command opens nothing, `rg` and
+   `bat` included: its text says what it would run, not what ran (`false && rg x <record>`,
+   `exit 0; rg …` and a failing `cd X && rg …` name searches that never happen), so the guard does
+   not read it. The natural sequence is to find the row's lines with `rg -n '<package>' <record>`,
+   then Read that range. As `judge`, on Edit, Write, MultiEdit and Bash and with
+   `"onFailure": "block"`, it refuses a write of a file the record's rule governs until the same
+   agent has opened the record in an earlier call of this session. It judges an Edit, Write or
+   MultiEdit of its file; in a Bash command, and in every script it hands to a shell, every
+   destination `pre_bash.effective_write_targets` derives, every word of a command that holds an
+   in-place writer whose file is a word of it (pre-bash's `COARSE_WRITE_RES`, and `sd`), and
+   `package.json`, `pnpm-lock.yaml` and `pnpm-workspace.yaml` for a pnpm command that writes them,
+   run directly or through a launcher (`corepack pnpm`, `npx pnpm`, `env … pnpm`). Every builtin and
+   alias pnpm 12.6.0's `pnpm help` lists (it refuses `pnpm help -a`) is in exactly one class, by what
+   `pnpm help <command>` says it writes and, for `lane`, `prune`, `change`, `clean --lockfile` and
+   `config set`, by a measurement in a scratch workspace: it writes, and is judged under the flags
+   that decide it (`install` unless `--frozen-lockfile` and no flag that writes the lockfile, `ci`
+   only with one, `audit` only with `--fix` or `--interactive`, `dedupe` unless `--check`, `clean`
+   only with `--lockfile`, `config set` and `config delete` only with `--location project`, `pkg`
+   only with `set`, `delete` or `fix`); it writes none of the three files; or it runs code. A test
+   reads the installed pnpm's list and fails naming a command in no class, so a pnpm that adds one
+   goes red until it is classified. "Writes none of the three" holds where the lockfile already
+   records pnpm itself, as this repository's does: measured, pnpm 12.6.0 writes `pnpm-lock.yaml` on
+   most commands (`list`, `why`, `view`, `outdated`, `root`, `pkg get`) when it does not. A write
+   the guard cannot derive passes unjudged: a script or a pnpm command that runs code, an
+   interpreter one-liner (`python3 -c`, `node -e`, `perl -pi`), another package manager, a path
+   built from a variable, `git apply`, and a checkout or a rebase that names no governed file. A
+   Bash command the guard cannot read as shell words is refused only when its text holds the word
+   `pnpm` or a name the last named segment of a governed glob matches, the names read from the
+   rules' `paths:`; two commands are refused that write no governed file, and each costs one Read of
+   the record: `git restore --staged package.json` and `CI=true pnpm install`. The refusal prints
+   the rule's body, how to open the record and the forms that count. It judges a file by the
+   manifest and the rule of the checkout that holds it, because a path-scoped rule loads neither for
+   a file in a sibling worktree nor before the first write of a new file (both measured), and it
+   keys on tool calls rather than on the transcript, which a subagent shares with its parent and
+   which may lag behind the conversation. The manifest and a broken rule stay editable, so the
+   repair is never locked out. A line written into a reads file by hand counts as an opening:
+   `.claude/state/` is not a guarded path, so only a deliberate act gets there. Measured costs, a
+   median of ten runs on 2026-11-17: 36 ms for `record` on a Read of a Markdown file that is not a
+   record (a Read of any other file returns before an import), and 39 ms for `judge` on a Bash call
+   that writes nothing and on one that cannot be parsed; a Bash call no longer starts `record`.
+6. **The switch.** By the Maintainer's decision of 2026-11-17,
+   `MAINTAINER_DISABLE_INSTRUCTION_CHECK=yes` in the environment the hooks run with turns the check
+   and the guard off. An `env` block in a settings source reaches the hooks too (measured with a
+   `--settings` file). The pre-edit and pre-bash gates guard every file whose path holds
+   `/.claude/settings.json` or `/.claude/settings.local.json` (`SENSITIVE_PATTERNS`,
+   `.claude/hooks-py/pre_edit.py:29-39`, which `pre_bash.py:40` imports): the project's settings,
+   the local settings and the user's `~/.claude/settings.json`. They do not guard the managed
+   settings file, `/etc/claude-code/managed-settings.json`, which the harness reads (its debug log
+   names the path), and a `--settings` file or argument and the terminal's environment are chosen by
+   whoever launches the session. So the switch is not the Maintainer's alone to set; what keeps it
+   from staying on unseen, whoever sets it, is the condition of the Maintainer's decision: every
+   prompt shows the person and the model a warning that the check is off and how to switch it back
+   on, and every prompt and every write it lets through unjudged writes a line to
+   `.claude/hooks.log`. W1 refuses the switch in the tracked settings' `env` block (item 7). The
+   unguarded source is the plan row INSTRUCTION-SETTINGS-UNGUARDED.
+7. **The wiring rule.** The gate's rule W1 refuses a tree whose `.claude/settings.json` is not
+   tracked, sets `disableAllHooks`, sets `MAINTAINER_DISABLE_INSTRUCTION_CHECK` or `AI_AGENT` in its
+   `env` block with any value, or does not run four entries: the recorder on `InstructionsLoaded`
+   and the check on `UserPromptSubmit`, each in a group with no matcher, the guard's `record` on
+   `PreToolUse` in a group whose matcher names Read and Grep and no other tool (a Bash call opens
+   no record, so a matcher that still names Bash is refused), and its `judge` for Edit, Write,
+   MultiEdit and Bash. W1 reads the tracked settings only: the same keys set in any other settings
+   source are not held. Each entry is an allowlist: `type: "command"`, its command, an optional
+   timeout of at least 10 seconds (the check may wait 5), and, on the check and the judging guard,
+   `"onFailure": "block"`, which the recording entries may not carry; every other key (`async`,
+   `asyncRewake`, `if`, `shell`, `args` and any unknown one) is refused, since each changes whether
+   the hook runs or blocks, and so is a second copy that breaks the allowlist. It also refuses a
+   tree whose three hooks or shared module `_instruction_context.py` are not tracked, or whose hooks
+   are not executable in git's index and in the checkout. The gate runs in CI as an
+   un-numbered step of the fitness job; it takes a number when the fitness section of `CLAUDE.md` is
+   rewritten (plan row TOKEN-1), since a numbered check adds its block to the file whose bytes the
+   gate holds.
+8. **The rollout.** A session already running when the hooks reach its checkout has no record of
+   its loads, so its next prompt is blocked, and the message gives the repair: end the session and
+   resume it once (`claude --resume <id>`); the harness reports every instruction file again on
+   resume (measured), and the session passes. The same repair serves a session whose record was
+   cleaned away. State files no session has written for 30 days are removed. By harness, measured
+   on a fixture: a session of the VS Code extension's Claude Code 2.1.326 passes; a session of the
+   `claude` on this machine's path, 2.1.143, is refused at its first prompt with the upgrade to
+   make, and lets the prompt through if its check cannot start. A session of that 2.1.143 `claude`
+   that is already running when the hooks reach its checkout gets the version refusal at its next
+   prompt, not the no-record message: the check reads the harness version before the record.
+9. **Not covered, stated.** A required file deleted between two prompts, by a compaction, a built-in
+   slash command or in the middle of a turn, is caught at the next prompt; a file that is still on
+   disk but stops loading after the session's first load of it is not (item 2). A session started
+   in a subdirectory of the project runs none of the hooks of the tracked `.claude/settings.json`,
+   these included: measured on 2.1.326 from `docs/` of a linked worktree (debug log
+   `525014ad-f1fa-41c1-b974-a45dbf427608`), the harness looked for the project settings at
+   `docs/.claude/settings.json` and `docs/.claude/settings.local.json` and found neither (lines 3-4),
+   never at the worktree root's `.claude/settings.json`, and watched `docs/` for a `.claude` to
+   appear (line 168); the local settings it read and watched were the main checkout's
+   `/root/omni-post/.claude/settings.local.json` (lines 23-30 and 169), which holds no `hooks` today;
+   and `$CLAUDE_PROJECT_DIR` named `docs/` (plan row SUBDIRECTORY-SESSION-RUNS-NO-PROJECT-HOOK). The
+   memory index is not reported by the harness and
+   stays outside the manifest; a session started with
+   `--setting-sources` that leaves out the project, or with `--bare`, runs none of the project's
+   hooks; and the review tool's native reviewers run in an empty temporary directory with
+   `--setting-sources ""` (its Claude adapter, gentle-ai 4.2.0), so no hook of this project runs
+   there and none can block them.
+10. **Retirement.** The check retires when the harness itself refuses a session that lacks a
+    required instruction file, or when `CLAUDE.md` imports nothing and no local file remains; the
+    guard, per record, when its document leaves the tree or every row of it is derived by a gate
+    from machine-readable data, so that a skipped search cannot lose a fact.
+
 ## Legal impact
 
 `none — documentation and tooling; no personal data, cookie or storage key, OAuth scope,
@@ -193,6 +365,8 @@ check is added, changed or retired`
   re-measured.
 - A moved record stops being consulted: a measurement of edits that skipped the search decides
   whether decision 3's block is enough.
+- The harness gains an event at session start that can block, or refuses by itself a session that
+  lacks a required instruction file: the check at the prompt moves there, or retires.
 
 ## Risks and Mitigations
 
@@ -209,5 +383,5 @@ check is added, changed or retired`
   canon's section "Dependency audit record" in
   [`SECURITY_CANON.md`](../security/SECURITY_CANON.md)
 - [ADR-0018](ADR-0018-dependency-freshness-canon.md): the dependency freshness canon
-- [FOUNDATION_PRACTICES.md](../development/FOUNDATION_PRACTICES.md): FP-033
+- [FOUNDATION_PRACTICES.md](../development/FOUNDATION_PRACTICES.md): FP-033, FP-034
 - The plan row TOKEN-1 in [`cross-cutting.md`](../product/plan/cross-cutting.md)
