@@ -5,8 +5,8 @@
  *   connect and query span, and the override bands that hold the OpenTelemetry instrumentations
  *   at their fixed releases never reach the copy Sentry vendors; `stripDatabaseUser`, which
  *   `scrubSpanForSentry`, the `beforeSendSpan` hook `initSentry` passes, calls first, is the only
- *   thing that keeps the name out (docs/security/SECURITY_CANON.md, row `@sentry/node` +
- *   `@sentry/nextjs`).
+ *   thing that keeps the name out (docs/security/DEPENDENCY_AUDIT_RECORD.md, row
+ *   `@sentry/node` + `@sentry/nextjs`).
  *
  *   The suite runs the order that activates Sentry's pg instrumentation, and so the order that
  *   leaks without the hook: the real `initSentry` first, then `@infra/prisma`, which loads

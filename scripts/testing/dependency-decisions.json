@@ -26,7 +26,7 @@
     "@opentelemetry/core": {
       "status": "kept",
       "grounds": "planned",
-      "utility": "No file imports it: the declaration satisfies the @opentelemetry/core peer of auto-instrumentations-node and is the catalog pin that holds the GHSA-8988-4f7v-96qf floor (SECURITY_CANON CVE-floor row). The stack that loads it starts only when TRACING_ENABLED is on, which defaults to false.",
+      "utility": "No file imports it: the declaration satisfies the @opentelemetry/core peer of auto-instrumentations-node and is the catalog pin that holds the GHSA-8988-4f7v-96qf floor (DEPENDENCY_AUDIT_RECORD CVE-floor row). The stack that loads it starts only when TRACING_ENABLED is on, which defaults to false.",
       "replacement": "Dropping the declaration was weighed, since sdk-node, both exporters and resources depend on core 2.8.0 exactly; the floor it holds only rises.",
       "decidedOn": "2026-11-13",
       "note": "The OpenTelemetry requirement row of docs/product/plan/cross-cutting.md (no id, MP:884), which depends on DEF-148, DEF-149 and DEF-150, describes the stack it serves. Kept as planned by the Maintainer's decision of 2026-11-13: it runs only behind an operator switch that is off by default. Declared in packages/observability/opentelemetry through the otel catalog."
@@ -162,7 +162,7 @@
     "validator": {
       "status": "remove",
       "utility": "isEmail, isUUID and isIP inside SecurityValidatedSchemas (apps/api/src/validation/secureSchemas.ts), a file with no importer but its three tests.",
-      "replacement": "Zod's own string validators where a schema needs them. DC-3 deletes secureSchemas.ts except SecurityValidatedSchemas.password, kept verbatim for N-SEC-6 and free of validator, and the validator-using tests except the password cases; the catalog entry, the override and the SECURITY_CANON floor row leave with the package.",
+      "replacement": "Zod's own string validators where a schema needs them. DC-3 deletes secureSchemas.ts except SecurityValidatedSchemas.password, kept verbatim for N-SEC-6 and free of validator, and the validator-using tests except the password cases; the catalog entry, the override and the DEPENDENCY_AUDIT_RECORD floor row leave with the package.",
       "decidedOn": "2026-10-25",
       "note": "Plan rows DC-3 and DC-4 name validator and @types/validator as leaving once both are in main; DC-4 group (a) is in main since 2026-10-06 (#436, enhancedValidator.ts gone in f83000c3) while its other modules are still tracked, so the last import leaves with DC-3. Declared in apps/api (dependencies).",
       "slice": "DC-3"
@@ -845,7 +845,7 @@
       "utility": "Spreads flatConfigs.strict.rules in eslint.config.ts.",
       "replacement": "None: the accessibility rules of pnpm lint.",
       "decidedOn": "2026-10-25",
-      "note": "Declared in the root manifest (devDependencies). One of the two peers holding eslint below 10 (SECURITY_CANON hold row), and the only one since eslint-plugin-react left on 2026-10-25 (deps-remove-2)."
+      "note": "Declared in the root manifest (devDependencies). One of the two peers holding eslint below 10 (DEPENDENCY_AUDIT_RECORD hold row), and the only one since eslint-plugin-react left on 2026-10-25 (deps-remove-2)."
     },
     "eslint-plugin-react-hooks": {
       "status": "kept",

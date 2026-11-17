@@ -18,7 +18,7 @@ CI runs `pnpm audit --audit-level moderate`. It must exit 0.
   with NO upstream fix available** (no patched release published on the registry), or
   whose only patched release sits on a major line that no consumer of the advisory in the
   lockfile can take, measured and recorded as a Blocked floor in
-  [`SECURITY_CANON.md` §"Blocked floors"](SECURITY_CANON.md#blocked-floors--a-patch-we-cannot-take-without-a-decision),
+  [`DEPENDENCY_AUDIT_RECORD.md` §"Blocked floors"](DEPENDENCY_AUDIT_RECORD.md#blocked-floors--a-patch-we-cannot-take-without-a-decision),
   while the advisory is not reachable (the Maintainer's decision of 2026-10-31 on
   `minimatch` 3.x). It is not a suppression list
   for inconvenient advisories. Growing it to silence a fixable or newly
@@ -31,7 +31,7 @@ CI runs `pnpm audit --audit-level moderate`. It must exit 0.
 
 The list lives in two places and nowhere else: `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml`
 is the machine list `pnpm audit` reads, and
-[`SECURITY_CANON.md` §"Audited audit-ignores"](SECURITY_CANON.md#audited-audit-ignores) › "Ignored
+[`DEPENDENCY_AUDIT_RECORD.md` §"Audited audit-ignores"](DEPENDENCY_AUDIT_RECORD.md#audited-audit-ignores) › "Ignored
 GHSAs" is the authoritative record of each entry's chain, reason and remove-when. This page keeps no
 copy of either, because a copy drifts: the table that stood here on 2026-10-02 still listed two ignores
 already removed and omitted two that had been added.

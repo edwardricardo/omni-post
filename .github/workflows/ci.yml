@@ -772,7 +772,7 @@ jobs:
             fi
             if [ "$KIND" = FOUND ]; then
               printf '%s\n' "$VERDICT" | tail -n +3
-              echo "::error title=Security audit: vulnerabilities found::pnpm audit MEASURED the tree (attempt $i/$ATTEMPTS) and found $SUMMARY. Raise the CVE floors per docs/security/SECURITY_CANON.md §Audited audit-ignores — never ignore a reachable, un-mitigated advisory."
+              echo "::error title=Security audit: vulnerabilities found::pnpm audit MEASURED the tree (attempt $i/$ATTEMPTS) and found $SUMMARY. Raise the CVE floors per docs/security/DEPENDENCY_AUDIT_RECORD.md §Audited audit-ignores — never ignore a reachable, un-mitigated advisory."
               exit 1
             fi
             if [ "$CODE" -eq 124 ]; then

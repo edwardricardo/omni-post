@@ -92,7 +92,7 @@ const MANIFEST = fileURLToPath(new URL("../../pnpm-workspace.yaml", import.meta.
  *
  * Empty since 2026-10-15: its last entry, `find-my-way@<9.6.1`, left with its override, which
  * pinned nothing — removing it changed no lockfile snapshot, and a resolution with no lockfile took
- * find-my-way 9.7.0 and 9.9.0 (SECURITY_CANON.md §"Override audit"). The suite drives the two
+ * find-my-way 9.7.0 and 9.9.0 (DEPENDENCY_AUDIT_RECORD.md §"Override audit"). The suite drives the two
  * branches only an entry reaches through a copy of this file whose literal it rewrites.
  *
  * @type {Map<string, string>}

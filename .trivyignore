@@ -1,10 +1,10 @@
 # Trivy suppressions — every entry MUST already be adjudicated in
-# docs/security/SECURITY_CANON.md §"Audited audit-ignores". This file is a
+# docs/security/DEPENDENCY_AUDIT_RECORD.md §"Audited audit-ignores". This file is a
 # PROJECTION of that table into a second scanner's vocabulary, never a second
 # place to decide things.
 #
 # WHY IT EXISTS. The repository already adjudicates accepted dependency risk, in
-# one place, with evidence and a remove-when: the canon table, enforced through
+# one place, with evidence and a remove-when: the audit record, enforced through
 # `auditConfig.ignoreGhsas` in pnpm-workspace.yaml. That allowlist is pnpm's.
 # Trivy never reads it, so the same accepted risk was being re-reported as a red
 # gate by a second scanner — one decision, two tools, one allowlist. A gate that
@@ -13,12 +13,12 @@
 # recorded for them was wrong.
 #
 # THE DRIFT THIS FILE INTRODUCES, stated because it is real. These are now THREE
-# lists that must agree: the canon table, `ignoreGhsas`, and this file. Nothing
-# mechanically checks that they do. Each entry below therefore cites its canon
+# lists that must agree: the audit record, `ignoreGhsas`, and this file. Nothing
+# mechanically checks that they do. Each entry below therefore cites its record
 # row by GHSA so a reader can verify the pairing by hand, and each carries an
 # `exp:` date so a suppression cannot outlive attention by default — an expiry
-# is the canon's prose "remove-when" made self-revoking. A fitness check that
-# asserts every id here maps to a canon row is the durable fix and is not in
+# is the record's prose "remove-when" made self-revoking. A fitness check that
+# asserts every id here maps to a record row is the durable fix and is not in
 # this change.
 #
 # THE EXPIRY IS MEASURED, not assumed — and so is the fact that this file is read
@@ -47,15 +47,15 @@
 # unpinned action is its own supply-chain question and is not this file's to
 # answer.
 #
-# ADDING AN ENTRY. Adjudicate it in the canon FIRST, with its reachability
+# ADDING AN ENTRY. Adjudicate it in the record FIRST, with its reachability
 # argument and its remove-when. Then project it here. Never the other way round:
-# the canon is explicit that a reachable, un-mitigated advisory is not something
+# the record is explicit that a reachable, un-mitigated advisory is not something
 # this kind of list may close.
 #
 # The earlier entries, CVE-2025-71330 and CVE-2025-71329 (image-size 2.0.2,
 # GHSA-w3rx-r6r6-pgpr and GHSA-5p2g-fcmc-qvqq), left on 2026-10-06: their
 # remove-when fired on 2026-10-03, when the catalog moved image-size to 2.0.4,
-# outside both advisories' `<=2.0.2` range (canon row `image-size`, decision
+# outside both advisories' `<=2.0.2` range (record row `image-size`, decision
 # D37), and the lockfile holds no 2.0.2 copy.
 #
 # CVE-2026-76844 (zlib1g) left on 2026-11-07: Debian fixed it in DSA-6613-1, and
