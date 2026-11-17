@@ -218,16 +218,16 @@ Both behind `IPaymentAdapter` port. Switching providers = one environment variab
 
 | Package                           | Version | Purpose                    |
 | --------------------------------- | ------- | -------------------------- |
-| @tiptap/core                      | 3.30.5  | Rich text editor framework |
-| @tiptap/react                     | 3.30.5  | React integration          |
-| @tiptap/starter-kit               | 3.30.5  | Basic editor features      |
-| @tiptap/extension-character-count | 3.30.5  | Character counting         |
-| @tiptap/extension-color           | 3.30.5  | Text color                 |
-| @tiptap/extension-highlight       | 3.30.5  | Text highlighting          |
-| @tiptap/extension-link            | 3.30.5  | Link handling              |
-| @tiptap/extension-placeholder     | 3.30.5  | Placeholder text           |
-| @tiptap/extension-text-style      | 3.30.5  | Text styling               |
-| @tiptap/extension-typography      | 3.30.5  | Smart typography           |
+| @tiptap/core                      | 3.33.1  | Rich text editor framework |
+| @tiptap/react                     | 3.33.1  | React integration          |
+| @tiptap/starter-kit               | 3.33.1  | Basic editor features      |
+| @tiptap/extension-character-count | 3.33.1  | Character counting         |
+| @tiptap/extension-color           | 3.33.1  | Text color                 |
+| @tiptap/extension-highlight       | 3.33.1  | Text highlighting          |
+| @tiptap/extension-link            | 3.33.1  | Link handling              |
+| @tiptap/extension-placeholder     | 3.33.1  | Placeholder text           |
+| @tiptap/extension-text-style      | 3.33.1  | Text styling               |
+| @tiptap/extension-typography      | 3.33.1  | Smart typography           |
 
 ### Utilities
 

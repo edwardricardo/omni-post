@@ -66,12 +66,21 @@ catalog:
   # against the registry), and the apps/client single-manifest literals
   # (extension-color/-highlight/-link/-text-style/-typography) move in the same
   # commit, so no member can drag a pre-3.30.5 @tiptap/core back in transitively.
-  "@tiptap/core": 3.30.5
-  "@tiptap/react": 3.30.5
-  "@tiptap/pm": 3.30.5
-  "@tiptap/starter-kit": 3.30.5
-  "@tiptap/extension-character-count": 3.30.5
-  "@tiptap/extension-placeholder": 3.30.5
+  # Weekly-window bump 3.30.5 → 3.33.1 on 2026-11-17 (ADR-0036), above the floor:
+  # 3.33.1 is the latest mature (all 11 published 2026-11-10T13:58Z–14:01Z, mature
+  # since 2026-11-17T14:01Z; 3.34.0 matures 2026-11-20T13:25Z); OSV lists nothing.
+  # Each extension peers @tiptap/core at its own exact version, so the 11 move
+  # together. 3.31.0–3.33.1 carry patch and minor changes and no breaking change;
+  # two minor ones change a default, neither of them used here: 3.31.0 aligns a
+  # React node view's `selected` with node selections (no file of apps/client or
+  # packages/ui renders a React node view), and 3.33.0 makes collaboration's
+  # `enableContentCheck` emit `contentError` (no collaboration extension declared).
+  "@tiptap/core": 3.33.1
+  "@tiptap/react": 3.33.1
+  "@tiptap/pm": 3.33.1
+  "@tiptap/starter-kit": 3.33.1
+  "@tiptap/extension-character-count": 3.33.1
+  "@tiptap/extension-placeholder": 3.33.1
 
   # ── LangChain family (atomic) ──
   "@langchain/core": 1.2.0 # taken 2026-06-20 (`7d9da4aa`), not moved since; 1.2.14 is newer, 1.2.12 the newest mature (registry, 2026-10-03)
