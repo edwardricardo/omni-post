@@ -111,6 +111,20 @@
       "reviews": {}
     },
     {
+      "kind": "date",
+      "id": "dompurify-ghsa-qm7q",
+      "title": "Is dompurify 3.4.18, the fix of GHSA-qm7q-q8h9-jg8q, mature, so it is taken as the dompurify security floor?",
+      "due": "2026-11-21",
+      "refs": [
+        "Opened 2026-11-17 by the change that recorded GHSA-qm7q-q8h9-jg8q in docs/security/DEPENDENCY_AUDIT_RECORD.md §\"Floor history\", block `dompurify`; the floor's row is §\"CVE-floor pins\", `dompurify`. The advisory (medium, CWE-79 and CWE-1336, no CVE; a cure53/DOMPurify repository advisory published 2026-11-14T15:08:05Z) is a SAFE_FOR_TEMPLATES bypass: template expressions reassemble when the sanitized string is parsed again, so a template engine that compiles that DOM evaluates them. It covers dompurify < 3.4.18, patched in 3.4.18; the lockfile's one copy is 3.4.17, through isomorphic-dompurify 4.7.0",
+        "Why no gate sees it, read 2026-11-17T21:29Z: GitHub's global endpoint (`gh api advisories/GHSA-qm7q-q8h9-jg8q`) answers 404, npm's bulk endpoint, which pnpm audit reads, answers {} for dompurify 3.4.17, and OSV answers 404 for the id and {} for dompurify 3.4.17, so pnpm audit is silent",
+        "Upstream, read 2026-11-17: npm latest is 3.4.18, published 2026-11-14T14:18:25Z and mature from 2026-11-21T14:18Z; isomorphic-dompurify latest is 4.7.0 (2026-11-07T06:19Z), which declares dompurify ^3.4.17, a range that admits 3.4.18",
+        "Reachability, why the entry waits for maturity instead of moving at once: the one call, apps/api/src/lib/templates/ServerTemplateEngine.ts:190, is `DOMPurify.sanitize(content)` with the default profile; no file under apps/ or packages/ sets SAFE_FOR_TEMPLATES, and none of the 101 tracked package.json files declares vue or angular, the template engines the advisory's trigger compiles the output with; the record's block holds the measurement",
+        "The review, on the due date: read `pnpm view dompurify time --json` for a release after 3.4.18 and OSV for the version to take, then take 3.4.18 as the security floor: the lockfile resolves it inside isomorphic-dompurify's ^3.4.17 or, if a consumer's range does not admit it by then, an override band holds it (`\"dompurify@<3.4.18\": 3.4.18`); re-measure the lockfile's copies, the reachability and `pnpm audit --audit-level low`, raise the record's row to the new floor, and delete this entry with that change. Taking it before 2026-11-21T14:18Z is a deviation the Maintainer decides. A call that sets SAFE_FOR_TEMPLATES, or a template engine that compiles sanitized output, makes the advisory reachable, which is a move at once, not a wait"
+      ],
+      "reviews": {}
+    },
+    {
       "kind": "package",
       "name": "glob",
       "version": "14.0.2",
