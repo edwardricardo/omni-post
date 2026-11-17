@@ -78,8 +78,16 @@ function spreadModule(file: string, name: string, text: string): string {
   if (alias === undefined || target === undefined) {
     throw new Error(`${file}: ${name} resolves to no module`);
   }
+  // TypeScript allows one `*` in a path target, so the target is the text before it and after it.
+  const halves = target.split("*");
+  if (halves.length !== 2) {
+    throw new Error(
+      `${file}: the path target "${target}" of ${alias} does not hold exactly one "*"`
+    );
+  }
+  const [before = "", after = ""] = halves;
   const rest = specifier.slice(alias.length - 1);
-  return target.replace("*", rest).replace(/\.js$/, ".ts");
+  return `${before}${rest}${after}`.replace(/\.js$/, ".ts");
 }
 
 /**
