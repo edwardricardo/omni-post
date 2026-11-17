@@ -69,7 +69,7 @@ set -uo pipefail
 # The verdict refuses a steps.tsv holding any other number of rows, so a step
 # added below without raising this number turns the battery RED, loudly. A full
 # run hands it to battery-state.mjs as --expected-steps, at the end of this file.
-PLANNED_STEPS=34
+PLANNED_STEPS=35
 
 USAGE="usage: scripts/testing/battery.sh [--static] [--list] [<worktree>]"
 usage() {
@@ -212,6 +212,10 @@ battery_steps() {
   # Fitness #53: per tracked file, its Spanish lines and its personal-name mentions equal
   # scripts/testing/artifact-language-baseline.json in both directions. It reads git's listing only.
   step static artifact-language pnpm check:artifact-language
+  # The instruction files every session loads by itself, derived from CLAUDE.md, its imports and
+  # the rules, equal .claude/instruction-manifest.json and fit its byte budget, and each moved record
+  # keeps a live path-scoped rule and is never loaded. It reads git's listing and the files only.
+  step static instruction-context pnpm check:instruction-context
   # Every client story as a vitest browser test in headless Chromium: it renders,
   # its play function runs, and axe at `error` and the console contract can fail it.
   # The preflight turns a missing browser into a one-line verdict instead of a
