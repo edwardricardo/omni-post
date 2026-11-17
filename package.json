@@ -85,7 +85,7 @@
     "@typescript-eslint/parser": "catalog:",
     "@vitest/eslint-plugin": "1.6.28",
     "autocannon": "8.0.0",
-    "dependency-cruiser": "18.7.0",
+    "dependency-cruiser": "18.7.2",
     "eslint": "catalog:",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-jsdoc": "65.4.5",
