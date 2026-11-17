@@ -17,33 +17,30 @@ git clone <repository-url>
 cd omni-post
 pnpm install
 
-# 2. Configure environment
-cp .env.example .env
-# Fill in every value marked (required); docker compose refuses to start Grafana
-# until GF_SECURITY_ADMIN_USER and GF_SECURITY_ADMIN_PASSWORD are set
-
-# 3. Start infrastructure (PostgreSQL, Redis, MinIO, Prometheus, Grafana, Jaeger)
-docker compose up -d
-
-# 4. Check that the database and Redis in .env are reachable
-pnpm db:up
-
-# 5. Run database migrations
-pnpm db:migrate
-
-# 6. Start development servers
-pnpm dev:api      # API on http://localhost:3000
-pnpm dev:admin    # Admin on http://localhost:3100
-pnpm dev:client   # Client on http://localhost:3200
+# 2. Start the platform: environment, Postgres and Redis, migration, API, workers, both portals
+pnpm start:platform
 ```
+
+`pnpm start:platform` (`scripts/start/platform-start.mjs`) takes a clean checkout, with an empty database, to the four applications running from source, one stage after the other; each stage starts only once the one before it answers:
+
+1. **Environment.** A checkout with no root `.env` receives one, every secret random. An existing `.env` is never written: the run reads it and fails naming each required variable it lacks.
+2. **Postgres and Redis**, with `docker compose up -d postgres redis` from the repository's `docker-compose.yml`, published on `127.0.0.1` at 5432 and 6379 unless `POSTGRES_HOST_PORT` and `REDIS_HOST_PORT` are set when the `.env` is generated.
+3. **Migration**, with `pnpm --filter @infra/prisma run migrate` (`prisma migrate deploy`), only after Prisma proves it reaches the database the run started. Nothing is seeded: after the start no table holds a row but `_prisma_migrations`, Prisma's record of the migrations it applied.
+4. **The API**, with `pnpm --filter @apps/api dev`, until `http://127.0.0.1:3000/health` answers 200 (its port is `PORT`, of the calling shell or else of `.env`, else 3000).
+5. **The workers**, with `pnpm --filter @apps/workers dev`, until `http://127.0.0.1:3300/health/ready` answers 200 (their port is `METRICS_PORT`, read the same way, else 3300).
+6. **The administration portal**, with `pnpm --filter @apps/admin dev`, on port 3100, and then **the client portal**, with `pnpm --filter @apps/client dev`, on port 3200: the ports their `dev` scripts fix (`next dev -p`). Each must answer `/api/health`, `/en/login` and `/api/backend/health` with 200; the portal forwards the last one to the run's API, at which the command points its `API_URL` unless the calling shell sets one.
+
+The command leaves the four applications running and exits 0. For each one it prints where it answers, its log and the file that records its pnpm process, both under `.tmp/` (`.tmp/api.log` and `.tmp/api.pid`, then `workers`, `admin` and `client`), and a stop line of its own, `kill -s TERM -- -<id>`, which ends that application only: stopping the API leaves the workers running. A second run finds each application an earlier run started still answering, says so, and starts no second one. The sequence is cumulative: a stage that fails, exit 1 with each cause on its own line, leaves what the stages before it did (the `.env`, the running services, the applied migrations), and a second run goes on from there. `--wait-seconds <n>` bounds each wait (default 60); `node scripts/start/platform-start.mjs --help` prints every option. To start again from an empty database, stop the applications and delete `.env` together with the volumes (`docker compose down --volumes`).
+
+The CI job `Platform Start` (`.github/workflows/ci.yml`, job `platform-start`) runs the same command on a clean runner, with `--wait-seconds 180`, and then fails if any table but `_prisma_migrations` holds a row.
 
 ## Environment Configuration
 
-`.env.example` at the repository root lists every variable, each marked `(required)` or `(optional)`; the root `.env` is the only env file for development, and `.env.test` (from `.env.test.example`) the only one for tests. The API validates its variables at boot through `apps/api/src/config/env.ts` and refuses to start when a required one is missing or malformed. Rules for adding a variable: [SECURITY_CANON.md §Secrets and Environment](../security/SECURITY_CANON.md#secrets-and-environment).
+`pnpm start:platform` generates the root `.env` with the variables Docker Compose and the API require. `.env.example` at the repository root lists every variable, each marked `(required)` or `(optional)`; the root `.env` is the only env file for development, and `.env.test` (from `.env.test.example`) the only one for tests. The API validates its variables at boot through `apps/api/src/config/env.ts` and refuses to start when a required one is missing or malformed; every variable, with its default and the schema that reads it, is in [ENVIRONMENT_VARIABLES.md](../deployment/ENVIRONMENT_VARIABLES.md). Rules for adding a variable: [SECURITY_CANON.md §Secrets and Environment](../security/SECURITY_CANON.md#secrets-and-environment).
 
 ## Docker Services
 
-The `docker-compose.yml` starts these services, each bound to `127.0.0.1`:
+The `docker-compose.yml` starts these services, each bound to `127.0.0.1`. `pnpm start:platform` starts PostgreSQL and Redis only; `docker compose up -d` starts every one:
 
 | Service    | Port        | Description                                         |
 | ---------- | ----------- | --------------------------------------------------- |
@@ -152,7 +149,7 @@ Code standards are not restated here: [CODING_STANDARDS.md](./CODING_STANDARDS.m
 
 ```bash
 docker compose ps
-# All services should show "running"
+# After pnpm start:platform, postgres and redis show "running"; the other services after docker compose up -d
 ```
 
 ### 2. Check API Health
@@ -163,6 +160,10 @@ curl http://localhost:3000/health
 
 curl http://localhost:3000/health/full
 # Shows database and Redis status
+
+curl http://localhost:3300/health/ready   # the workers
+curl http://localhost:3100/api/health     # the administration portal
+curl http://localhost:3200/api/health     # the client portal
 ```
 
 ### 3. Check Metrics
@@ -209,7 +210,7 @@ omni-post/
 docker compose ps postgres
 
 # Check connection
-docker exec -it omnipost-postgres psql -U postgres -d omnipostdb -c "SELECT 1"
+docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT 1"'
 ```
 
 ### Redis Connection Failed
