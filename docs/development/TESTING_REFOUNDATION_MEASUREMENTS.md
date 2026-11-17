@@ -18,9 +18,9 @@ At the baseline (2026-09-27T17:55:14Z) the 52 rows below accounted for themselve
 already at their latest mature, 1 candidate that is not installed at all, and k6, whose floating
 container tag makes the maturity rule inapplicable rather than satisfied.
 
-**CURRENT, re-measured 2026-11-17T19:09:05Z by `node scripts/testing/holds-gate.mjs` under Node 26.12.1,
+**CURRENT, re-measured 2026-11-17T19:10:43Z by `node scripts/testing/holds-gate.mjs` under Node 26.12.1,
 exit 0 with EMPTY stderr: of the 48 packages in `scripts/testing/toolchain-population.json` (47 direct, 1
-named transitive, no declared-absent candidate left), 16 sit below latest mature: 8 within the 30-day
+named transitive, no declared-absent candidate left), 14 sit below latest mature: 6 within the 30-day
 budget of ADR-0036, 0 past it unheld, 8 held.**
 
 The count's history, one measurement per line, oldest first — the instant, the number below latest mature,
@@ -85,6 +85,7 @@ and what moved it. A slice that moves the count appends its own line, re-measure
 56. `2026-11-17T19:00:40Z` — **24** (16 within budget, 8 held, 0 undocumented): `vite` 8.3.4 → 8.3.7 and `@vitejs/plugin-react` 6.1.2 → 6.3.0, with `rolldown` 1.2.12 → 1.2.18 and `postcss` 8.5.29 → 8.5.32; the client suite runs 666 of 666 tests in 54 files and the admin suite 222 of 222 in 24.
 57. `2026-11-17T19:05:13Z` — **19** (11 within budget, 8 held, 0 undocumented): the Storybook family 10.6.3 → 10.6.7, five lags at once, with the four packages it pins exactly (`@storybook/builder-vite`, `@storybook/react-dom-shim`, `@storybook/react-vite`, `vite-plugin-storybook-nextjs`); the client stories run 68 of 68 green in 9 files.
 58. `2026-11-17T19:09:05Z` — **16** (8 within budget, 8 held, 0 undocumented): `@playwright/test` and `playwright` 1.64.1 → 1.65.0, `@testing-library/user-event` 14.6.8 → 14.6.9; 1.65.0 drives Chromium 158.0.8127.18 (revision 1254), installed with `playwright install chromium`. The client stories run 68 of 68 green in 9 files and the client suite 666 of 666 in 54.
+59. `2026-11-17T19:10:43Z` — **14** (6 within budget, 8 held, 0 undocumented): `size-limit` and `@size-limit/preset-small-lib` 14.2.0 → 14.3.0, with `lilconfig` 3.1.3 → 3.1.5; the six lags left within budget are the `secretlint` pair, `@types/node`, `autocannon`, `jsdom` and `isomorphic-dompurify`, none of them a move of this window's toolchain pass.
 
 **The `documented hold` column cites each row by PACKAGE IDENTITY — the first name in the canon row's own
 `Package` cell — and never by canon line number.** A line number is wrong the next time anything above the
