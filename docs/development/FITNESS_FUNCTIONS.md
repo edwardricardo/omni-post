@@ -1474,7 +1474,7 @@ echo "${TST_BAD:-0}"   # expect 0 — every harness goes through the seam
 # inventory is COMPLETE, never that a listed check still measures what its prose claims.
 set -euo pipefail
 if ! node scripts/testing/fitness-inventory-gate.mjs --summary "${GITHUB_STEP_SUMMARY:-/dev/null}"; then
-  echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate, fitness.yml and CLAUDE.md §Automated Compliance Checks disagree on its set, the stated count is not the derived N, or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
+  echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate; fitness.yml, the blocks of docs/development/FITNESS_FUNCTIONS.md and the list of CLAUDE.md §Automated Compliance Checks disagree on its set, on a check's name or on its command; the stated count is not the derived N; or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
   exit 1
 fi
 
@@ -2127,6 +2127,78 @@ node scripts/testing/artifact-language-gate.mjs --write   # rewrites the baselin
 # row RECORD-COVERAGE-EACH-TABLES); (7) a live-tier or no-collector block is listed, never measured.
 pnpm check:record-coverage   # expect exit 0, 0 refused, and first one line:
 #   record-coverage-gate: <n> bound blocks against <base> (<sha>): <c> covered, <m> moved, <l> live, <q> no-collector, <b> behaviour change, <r> refused
+
+# 55. The auto-loaded instruction files match their manifest and budget, and the hooks that enforce them are wired.
+# Threat: the instruction content every session loads by itself grows with nothing counting it,
+# until the model refuses the project. Measured (ADR-0045): the loaded project instruction files
+# grew from 449 KB on 2026-10-15 to 572 KB on 2026-11-14, and the largest model then refused every
+# request of the project because of the instruction content alone. Moving the records out was the
+# repair; this check keeps the context from growing back unnoticed, and keeps wired the hooks that
+# hold the manifest in every session.
+# WHAT IT RUNS: `pnpm check:instruction-context`, which is `node
+# scripts/testing/instruction-context-gate.mjs`, pinned by
+# apps/api/tests/unit/scripts/instructionContextGate.test.ts. The script's header states the rule
+# in full, and this block summarises it. It reads git's listing with its file modes, the manifest
+# .claude/instruction-manifest.json, the entry files the harness reads from the project root
+# (CLAUDE.md always; .claude/CLAUDE.md, CLAUDE.local.md, AGENTS.md and .claude/AGENTS.md when git
+# tracks them), every file an `@` token of a loaded file or of any tracked rule names, followed
+# with no depth limit, and every tracked rule under .claude/rules/. A rule is path-scoped, and its
+# body uncounted, only when its front matter proves it under a narrow grammar: `paths:` and a block
+# list of double-quoted globs, at least one of which, trimmed and with one trailing `/**` cut, is
+# neither empty nor `**`; any other rule counts as loaded. The manifest is `{ version: 1, tracked,
+# local, records, budget }`: the files every checkout loads, the files only the main checkout
+# holds, each record moved out of the loaded files with its rule and the globs of that rule that
+# match nothing today (`emptyGlobs`, glob to reason), and the byte ceiling (`bytes`) with its
+# target (`target`).
+# WHERE IT RUNS, and why: in the `fitness` job of fitness.yml, which installs nothing: the gate
+# reads git's listing and the tracked files and imports nothing beyond Node's own modules. The
+# static battery runs the same command as its step `instruction-context`.
+# WHAT FAILS, exit 1, each line naming its rule: A1 an import that resolves to a file outside the
+# repository; L1 a path git tracks as a symbolic link or a submodule at .claude, at .claude/rules
+# or under it; M1 the tracked list differs from the derived set in either direction, names a file
+# git does not track, or names one twice; M2 a local entry git tracks, one the tracked set loads,
+# or one named twice; B1 the derived set's bytes above budget.bytes; B2 budget.bytes more than
+# 1,024 bytes above them, a stale ceiling (`--write` lowers it and never raises it); B3
+# budget.bytes above the target with no targetOwedBy, a targetOwedBy that does not start with a
+# plan item id, or one left once the context meets the target; R1 a record's rule that is not a
+# tracked Markdown file under .claude/rules/, whose front matter does not prove it path-scoped,
+# that imports a file, or that does not name its document; R2 a record git does not track, one the
+# context loads, or one that is not a Markdown file; R3 a glob of the rule that matches no tracked
+# file and no emptyGlobs entry explains, an emptyGlobs entry whose glob matches a file or that the
+# rule does not list, and an entry with no reason; W1 the hooks that enforce the manifest at run
+# time are not in place: .claude/settings.json tracked, setting no disableAllHooks and no
+# MAINTAINER_DISABLE_INSTRUCTION_CHECK or AI_AGENT in its env, and running the four entries (the
+# instruction recorder, the check at UserPromptSubmit, and the record guard's record and judge
+# modes), each an allowlist of keys, with the hook files tracked and the hooks executable.
+# FAIL-CLOSED, exit 3, which wins over 1: git's listing failing, longer than the buffer the gate
+# reads it into, or listing no file; a manifest that cannot be read, is not JSON or is not the
+# shape above; a CLAUDE.md that is missing, unreadable or not a regular file; an entry file, a
+# rule, an imported file or the settings that cannot be read; and a file the derivation or W1
+# reads that git tracks and the checkout lacks. A usage error exits 2.
+# FALSE REDS, the over-counts kept on purpose, each cleared by listing the file or rewording:
+# every `@` token is read wherever it is written, code and comments included, and every prefix of
+# it; imports are followed past the harness's hops and its skips are not applied; a tracked
+# AGENTS.md counts; a rule the harness would read as scoped but outside the grammar counts as
+# loaded; every link under .claude/rules/ is refused; the bytes are the files' bytes, front matter
+# and HTML comments included.
+# RESIDUAL LIMITS, stated rather than implied: (1) content the harness loads on a match, after
+# session start, is not counted: a path-scoped rule's body, a subdirectory's instruction files and
+# the rules of a subdirectory's .claude/rules; (2) a session started in a subdirectory also loads
+# the files between it and the root; (3) only tracked rules and tracked entry files are read, so
+# the local list names what one checkout holds; (4) the user's and the organization's instruction
+# files and auto memory belong to the machine, not the checkout; (5) B3 checks the shape of
+# targetOwedBy, not that a plan document names that item; (6) matching is Node's
+# path.matchesGlob, whose wildcards skip dot-named segments, so a glob whose only files sit under a
+# dot-named directory reads as matching nothing, a false red; (7) W1 proves the hooks are in place,
+# not that they behave, which their own suites under .claude/hooks-py/tests/ hold; (8) W1 reads the
+# tracked .claude/settings.json only; (9) onFailure has effect from Claude Code 2.1.295, and an
+# older harness lets the call through when a hook cannot start.
+# RETIRES WHEN: targetOwedBy left the manifest on 2026-11-18, once the check blocks left CLAUDE.md
+# and the context fell under its target, which now holds as a hard cap; the check itself retires
+# only by an ADR that records a measurement of the model provider's limit on instruction content
+# showing no budget is needed.
+node scripts/testing/instruction-context-gate.mjs   # expect exit 0 and one line:
+#   instruction-context-gate: <F> auto-loaded files, <B> bytes of a budget of <B> (within the target of 250000); <R> records, <G> globs (<E> empty by entry); 4 of 4 hook entries wired; 0 violations
 ````
 
 ## Not a numbered check

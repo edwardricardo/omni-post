@@ -1,7 +1,7 @@
 name: Architectural Fitness Functions
 
-# Wires the fitness greps documented in CLAUDE.md §Automated Compliance
-# Checks to CI (the step summary enumerates the current set). Any new
+# Wires the fitness greps of docs/development/FITNESS_FUNCTIONS.md, listed in CLAUDE.md
+# §Automated Compliance Checks, to CI (the step summary enumerates the set). Any new
 # occurrence of any pattern fails the workflow and is annotated on the PR diff.
 #
 # Strategy: hard-zero (each returns count = 0), with the documented ratchets that
@@ -28,7 +28,7 @@ name: Architectural Fitness Functions
 #
 # Design: one named step per check with `if: always()` so a violation in one
 # step does NOT mask later violations — every PR sees every check. The greps, and
-# the node scripts of #37, #44, #53 and #54, which read only tracked files, run in the
+# the node scripts of #37, #44, #53, #54 and #55, which read only tracked files, run in the
 # `fitness` job, which installs nothing; a check that needs the installed
 # tree runs in a job that installs it: #45 to #48, #50 and #51 in `dependency-consistency`,
 # #30, #36 and #52 in `test-contracts`. Three exceptions to `if: always()` alone: #37,
@@ -63,7 +63,7 @@ jobs:
         uses: actions/checkout@v7
 
       # #41 runs a node heredoc, expanding its scope with node's fs.glob
-      # (node >= 22; stable on 24), and #37, #44, #53 and #54 run node scripts. The runner's default
+      # (node >= 22; stable on 24), and #37, #44, #53, #54 and #55 run node scripts. The runner's default
       # node is not version-pinned, so pin it here to the version .nvmrc names. This job
       # sets up Node directly rather than through the setup-node-pnpm-cache action, because
       # that action installs pnpm and the dependency tree, and the fitness job runs zero
@@ -104,7 +104,7 @@ jobs:
           # because a per-context package is added by creating a directory — a
           # scope that names them one by one goes stale the same way the old path
           # did. Tests are out: they are @layer infrastructure and legitimately
-          # name the technologies they replace with doubles. Mirrors CLAUDE.md #2.
+          # name the technologies they replace with doubles. Mirrors docs/development/FITNESS_FUNCTIONS.md #2.
           for d in packages/core; do
             [ -d "$d" ] || { echo "::error title=Fitness #2 scope missing::'$d' does not exist, so this check would scan nothing and pass. Repoint the scope to where the layer lives now."; exit 1; }
           done
@@ -127,7 +127,7 @@ jobs:
           # carried the whole check while the annotation still claimed all three
           # layers. Excludes JSDoc/comment lines and tests — a negative test may
           # need `as any` to construct invalid state, which is the `test-fixture`
-          # scenario in CLAUDE.md §Pragmatic Exceptions. Mirrors CLAUDE.md #3.
+          # scenario in CLAUDE.md §Pragmatic Exceptions. Mirrors docs/development/FITNESS_FUNCTIONS.md #3.
           # packages/adapters/db-prisma joined the scope with the Post persistence relocation
           # (measured 0 at entry); its tests/ are excluded by the same /tests/ filter as
           # everywhere else.
@@ -169,7 +169,7 @@ jobs:
           #     unchanged, with no throw in the core. Migrating these 15 throws
           #     onto it is a NAMED SEPARATE CHANGE (own bounded context, own
           #     regressions), so the exception stays listed until it lands — it is
-          #     now scheduled debt, not open-ended debt. Mirrors CLAUDE.md #4.
+          #     now scheduled debt, not open-ended debt. Mirrors docs/development/FITNESS_FUNCTIONS.md #4.
           #   - DeletePostUseCase.ts: exhaustiveness guard on a `never`,
           #     unreachable by construction. Remove-when: the caller union is
           #     closed by a compiler-checked schema.
@@ -179,7 +179,7 @@ jobs:
           #     DO escape the application layer — a live canon violation the dead
           #     scope was concealing. Remove-when: both getters return
           #     Result<T, DomainError> and every caller narrows on .ok.
-          # Mirrors CLAUDE.md #4.
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #4.
           for d in packages/core; do
             [ -d "$d" ] || { echo "::error title=Fitness #4 scope missing::'$d' does not exist, so this check would scan nothing and pass. Repoint the scope to where the layer lives now."; exit 1; }
           done
@@ -620,7 +620,7 @@ jobs:
           # synthetic receipt ({id:"queued",status:"pending"}) instead of
           # surfacing an error — silently losing the post. Locks the two
           # CB-fallback invariants: the breaker default stays fail-fast, and no
-          # write-verb operation opts in to a fallback. Mirrors CLAUDE.md #25.
+          # write-verb operation opts in to a fallback. Mirrors docs/development/FITNESS_FUNCTIONS.md #25.
           A=$(grep -nA6 "DEFAULT_EXTERNAL_API_OPTIONS: ExternalApiOptions = {" \
                 packages/adapters/external-apis/src/circuitBreaker.ts 2>/dev/null | \
                 grep -E "fallbackEnabled:\s*true" || true)
@@ -648,7 +648,7 @@ jobs:
           # Next 16 Turbopack can't resolve a written ./x.js to its ./x.ts source
           # (vercel/next.js #82945 OPEN); the NodeNext .js convention is backend-only.
           # The Next apps + frontend-only packages use moduleResolution:bundler =
-          # extensionless. A .js here silently breaks next dev/build. Mirrors CLAUDE.md #26.
+          # extensionless. A .js here silently breaks next dev/build. Mirrors docs/development/FITNESS_FUNCTIONS.md #26.
           COUNT=$(grep -rnE 'from "\.\.?/[^"]*\.js"' \
                     apps/admin apps/client packages/ui/src packages/api-errors/src \
                     packages/query-client/src packages/observability/browser-logger/src \
@@ -674,7 +674,7 @@ jobs:
           # during boot, so the readiness gate reports "not ready" for a reason that has
           # nothing to do with the queue it exists to prove. Part B: the size-limit job
           # must build the Next apps via turbo (^build -> @shared/types dist first), not
-          # a bare pnpm --filter. Mirrors CLAUDE.md #27.
+          # a bare pnpm --filter. Mirrors docs/development/FITNESS_FUNCTIONS.md #27.
           A=$(grep -rnE "node ([^|&]*)--import tsx" \
                 apps/api/package.json apps/api/scripts/run-tests.sh infra/prisma/package.json \
                 apps/workers/package.json 2>/dev/null | \
@@ -717,7 +717,7 @@ jobs:
           # `trustProxy:` MUST be the single derived binding FASTIFY_TRUST_PROXY,
           # computed by apps/api/src/security/trustedProxy.ts from the boot-validated
           # TRUSTED_PROXY_MODE + TRUSTED_PROXY_RANGES pair. See ADR-0021 and
-          # SECURITY_CANON.md §Rate Limiting. Mirrors CLAUDE.md #28.
+          # SECURITY_CANON.md §Rate Limiting. Mirrors docs/development/FITNESS_FUNCTIONS.md #28.
           V=$(grep -rnE "trustProxy:" apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
                 grep -vE "/tests/|\.test\.|/security/trustedProxy\.ts:" | \
                 grep -vE "trustProxy:\s*FASTIFY_TRUST_PROXY\b" || true)
@@ -736,7 +736,7 @@ jobs:
           # throttle, audit IP) MUST go through resolveClientIp(); a direct
           # x-forwarded-for / x-real-ip read is the carrier for the leftmost-entry
           # spoof (see SECURITY_CANON.md §Rate Limiting). Excludes the resolver file
-          # itself + tests. Mirrors CLAUDE.md #29.
+          # itself + tests. Mirrors docs/development/FITNESS_FUNCTIONS.md #29.
           V=$(grep -rniE '"x-forwarded-for"|"x-real-ip"|headers\[.x-forwarded-for|headers\[.x-real-ip' \
                 apps/api/src apps/workers/src --include="*.ts" 2>/dev/null | \
                 grep -vE "resolveClientIp|/tests/|\.test\." || true)
@@ -776,7 +776,7 @@ jobs:
           # on the total. Both zero terms are pinned because deleting either
           # restores the silent green with nothing left to notice it; the reporter
           # assignment is pinned, and the TAP reporter must be gone. Mirrors
-          # CLAUDE.md #31.
+          # docs/development/FITNESS_FUNCTIONS.md #31.
           # GitHub runs this body under `bash -e`: each status is captured with `||`, so
           # git grep's exit 1, which means "no match", is read rather than ending the step.
           # The repository tracks about 3,100 JSON, TypeScript and workflow files (3132 on
@@ -835,7 +835,7 @@ jobs:
           #     run-tests.sh fails any TIER-driven batch reporting a non-zero
           #     skip count, which is the only place the distinction (was the
           #     service supposed to be there?) is actually knowable.
-          # Mirrors CLAUDE.md #32.
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #32.
           MATCHES=$(grep -rnE "\b(it|test|describe|suite)\.(skip|only)\(" \
             apps/ packages/ --include="*.test.ts" --include="*.test.tsx" | \
             grep -vE "node_modules|/dist/" || true)
@@ -871,7 +871,7 @@ jobs:
           # targets that resolve inside a workspace directory stay covered by
           # that package's own input hash — in-tree today every relative target
           # resolves to a root config, so this second skip currently matches
-          # nothing. Hard-zero. Mirrors CLAUDE.md #33.
+          # nothing. Hard-zero. Mirrors docs/development/FITNESS_FUNCTIONS.md #33.
           GLOBALS=$(tr -d ' \n' < turbo.json | grep -oE '"globalDependencies":\[[^]]*\]' | \
             grep -oE '"[^"]*"' | tr -d '"' | grep -v '^globalDependencies$' || true)
           listed() {
@@ -931,7 +931,7 @@ jobs:
           # emission not written as `echo "::error` (printf, github-script
           # core.error) is invisible to it, and a mechanism named only in a
           # comment inside the step satisfies the pairing. Hard-zero.
-          # Mirrors CLAUDE.md #34.
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #34.
           VIOLATIONS=$(for wf in .github/workflows/*.yml; do
             awk -v f="$wf" '
               /^[[:space:]]*-[[:space:]]+(name|uses):/ {
@@ -963,7 +963,7 @@ jobs:
           # no-output-files gate). The override is legitimate ONLY while the
           # build is verdict-only (tsc --noEmit); a build that starts emitting
           # must delete the override in the same change. Hard-zero.
-          # Mirrors CLAUDE.md #35.
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #35.
           VIOLATIONS=""
           for tj in $(find apps packages infra -name 'turbo.json' -not -path '*/node_modules/*' 2>/dev/null); do
             tr -d ' \n' < "$tj" | grep -q '"build":{[^}]*"outputs":\[\]' || continue
@@ -992,7 +992,7 @@ jobs:
           # in this pull request, with this descent (ADR-0039). The rule is
           # scripts/testing/coverage-floor-gate.mjs, pinned by
           # apps/api/tests/unit/scripts/coverageFloorGate.test.ts; this step and
-          # CLAUDE.md #37 run the same command. pull_request only: the subject is
+          # docs/development/FITNESS_FUNCTIONS.md #37 run the same command. pull_request only: the subject is
           # the PR's delta against its base — on push there is no base and this
           # step is skipped by its `if`. The checkout is shallow, so the base is
           # fetched here, in up to three bounded attempts, before the script
@@ -1017,7 +1017,7 @@ jobs:
       - name: "#38 Soft-delete read coherence: no read of a swept soft-deletable model without its deletedAt filter"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #38. Closes the CLASS behind B-READS: the delete went
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #38. Closes the CLASS behind B-READS: the delete went
           # soft and ~90 read sites kept returning rows the tenant had deleted —
           # including getProjectAccess, an access GATE — while every suite stayed
           # green. Two streams from ONE detection: the swept tree is hard-zero;
@@ -1087,7 +1087,7 @@ jobs:
       - name: "#39 Every accountId-bearing model is tenant-guard-enrolled or in the documented denylist"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #39. The gate whose absence let DeletionRecord land
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #39. The gate whose absence let DeletionRecord land
           # carrying accountId with neither TENANT_SCOPED_MODELS nor any documented
           # denylist knowing it existed: the $extends guard silently SKIPS a model
           # it does not know (fail-open by construction), so an unenrolled
@@ -1123,7 +1123,7 @@ jobs:
       - name: "#40 One transaction seam (allowlist) + the scope it binds is derived"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #40. Layer 2 of tenant isolation is a transaction-local
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #40. Layer 2 of tenant isolation is a transaction-local
           # GUC, so a statement is covered only if the transaction it runs in bound
           # `app.account_id` first — and an operation that opens a transaction of its
           # own leaves its caller's connection, taking its caller's rollback with it.
@@ -1211,7 +1211,7 @@ jobs:
             printf "%s\n" "$UNDERIVED"
             exit 1
           fi
-          # RESIDUAL LIMITS, stated rather than implied — mirrors CLAUDE.md #40 verbatim.
+          # RESIDUAL LIMITS, stated rather than implied — mirrors docs/development/FITNESS_FUNCTIONS.md #40 verbatim.
           # (1) Textual, not a parser: a call reached through an alias
           # (`const t = prisma.$transaction`) or built by string is invisible — the floors above
           # turn a wholesale rename into a red, but not a single deliberately obfuscated call.
@@ -1241,7 +1241,7 @@ jobs:
       - name: "#41 Single-use claim shape: a consumption marker in data names its credential in where"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #41.
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #41.
           # 41. Single-use claim shape. An ALLOWLIST-by-shape gate in the #28/#40 form, and the CLASS gate the
           # admin reset/rotation slice (SMELL-97) owes: a Prisma write whose `data` carries a CONSUMPTION MARKER
           # for a single-use credential must name that credential's prior state in the SAME call's `where`.
@@ -1431,7 +1431,7 @@ jobs:
       - name: "#42 No install-lifecycle script in a workspace package (one named exception)"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #42.
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #42.
           # 42. No install-lifecycle script in a workspace package, except the ONE named.
           # The gate the `pnpm deploy` switch owes: both image pipelines now deploy with
           # `--ignore-scripts`, because @infra/prisma's `postinstall: prisma generate` has
@@ -1506,7 +1506,7 @@ jobs:
       - name: "#43 One route-test composition root: every harness composes through the seam"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #43.
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #43.
           # 43. One route-test composition root. An ALLOWLIST (the #28/#40 form), two arms.
           # Threat: `setupContainer` requires `apiMetrics`, and `apps/api/tests` is opened by NO
           # compiler — `tsconfig.json` includes `src` only, `tsconfig.type-tests.json` includes only
@@ -1563,20 +1563,20 @@ jobs:
       - name: "#44 Fitness inventory is contiguous and its count is derived"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #44. The rule, its fail-closed paths and its residual limits live in
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #44. The rule, its fail-closed paths and its residual limits live in
           # scripts/testing/fitness-inventory-gate.mjs, pinned by
           # apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts. This step only runs it; the
           # script derives N from the step names above and writes the job summary from it.
           set -euo pipefail
           if ! node scripts/testing/fitness-inventory-gate.mjs --summary "${GITHUB_STEP_SUMMARY:-/dev/null}"; then
-            echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate, fitness.yml and CLAUDE.md §Automated Compliance Checks disagree on its set, the stated count is not the derived N, or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
+            echo "::error title=Fitness #44 violation::The fitness inventory has a hole or a duplicate; fitness.yml, the blocks of docs/development/FITNESS_FUNCTIONS.md and the list of CLAUDE.md §Automated Compliance Checks disagree on its set, on a check's name or on its command; the stated count is not the derived N; or the gate could not read one of its inputs. The fitness-inventory-gate lines above name each violation with its file and line."
             exit 1
           fi
 
       - name: "#49 Every test-block lint rule stays at error and no inline directive turns one off"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #49. eslint-suppressions.json holds the tree's test blocks that cannot
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #49. eslint-suppressions.json holds the tree's test blocks that cannot
           # fail at the count they had when their rules landed, and lets it only shrink; that holds
           # only while each rule is an error. Part A pins each rule's error line in
           # eslint.config.ts, exactly as prettier writes it: no-console's line in the test-files
@@ -1646,7 +1646,7 @@ jobs:
       - name: "#53 Every tracked artifact is in English and names roles, never a person"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #53. The rule, its exemptions, its fail-closed paths and its residual
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #53. The rule, its exemptions, its fail-closed paths and its residual
           # limits live in scripts/testing/artifact-language-gate.mjs, pinned by
           # apps/api/tests/unit/scripts/artifactLanguageGate.test.ts. It reads git's listing and the
           # tracked files only, so it runs here, in the job that installs nothing.
@@ -1656,17 +1656,17 @@ jobs:
             exit 1
           fi
 
-      - name: "Instruction context: the auto-loaded instruction files match their manifest and budget, and the hooks that enforce them are wired"
+      - name: "#55 The auto-loaded instruction files match their manifest and budget, and the hooks that enforce them are wired"
         if: always()
         run: |
-          # Un-numbered until the fitness section of CLAUDE.md is rewritten: a numbered check adds its
-          # block to the very file whose bytes this gate holds (ADR-0045). The rule, its fail-closed
-          # paths and its residual limits live in scripts/testing/instruction-context-gate.mjs, pinned
-          # by apps/api/tests/unit/scripts/instructionContextGate.test.ts. It reads git's listing and
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #55, a reference no session loads, so
+          # CLAUDE.md carries only its list line (ADR-0045). The rule, its fail-closed paths and its
+          # residual limits live in scripts/testing/instruction-context-gate.mjs, pinned by
+          # apps/api/tests/unit/scripts/instructionContextGate.test.ts. It reads git's listing and
           # the tracked files only, so it runs here, in the job that installs nothing.
           set -euo pipefail
           if ! node scripts/testing/instruction-context-gate.mjs; then
-            echo "::error title=Instruction context violation::The instruction files every session loads by itself differ from .claude/instruction-manifest.json or exceed its byte budget, a moved record's rule is not live, the hooks that enforce the manifest are not tracked, executable and wired in .claude/settings.json, or the gate could not read one of its inputs. The instruction-context-gate lines above name each rule broken (A1, L1, M1, M2, B1 to B3, R1 to R3, W1) with its repair."
+            echo "::error title=Fitness #55 violation::The instruction files every session loads by itself differ from .claude/instruction-manifest.json or exceed its byte budget, a moved record's rule is not live, the hooks that enforce the manifest are not tracked, executable and wired in .claude/settings.json, or the gate could not read one of its inputs. The instruction-context-gate lines above name each rule broken (A1, L1, M1, M2, B1 to B3, R1 to R3, W1) with its repair."
             exit 1
           fi
 
@@ -1675,7 +1675,7 @@ jobs:
         env:
           FITNESS_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: |
-          # Mirrors CLAUDE.md #54. scripts/testing/record-coverage-gate.mjs, pinned by
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #54. scripts/testing/record-coverage-gate.mjs, pinned by
           # apps/api/tests/unit/scripts/recordCoverageGate.test.ts, binds every test block the pull
           # request deletes or rewrites, read from the base and head ledger.json, and refuses one with
           # no committed mutation-diff record that covers it. It imports Node's own modules only, so
@@ -1838,7 +1838,7 @@ jobs:
       - name: "#45 Legal inventories are current and every row is classified"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #45. Every legal inventory generator under scripts/legal/ regenerates
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #45. Every legal inventory generator under scripts/legal/ regenerates
           # its page in memory and compares it with the committed one under docs/legal/inventories/;
           # a stale page, a candidate with no entry in docs/legal/classification/, a stale entry, or
           # a pending count off its baseline exits 1. It lives in this job because the generators
@@ -1853,7 +1853,7 @@ jobs:
       - name: "#46 Support documents are current and every tree candidate is classified"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #46, the support twin of #45. scripts/support/run.mjs --check
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #46, the support twin of #45. scripts/support/run.mjs --check
           # re-renders docs/support/README.md (the index of the support documents, each held to
           # docs/support/_TEMPLATE.md) and docs/support/NON_FEATURES.md (every route, package,
           # worker, queue and portal page the tree yields, classified in
@@ -1873,7 +1873,7 @@ jobs:
         env:
           FITNESS_BASE_REF: ${{ github.event.pull_request.base.sha }}
         run: |
-          # Mirrors CLAUDE.md #47. scripts/testing/jsdoc-touched-gate.mjs lints, with
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #47. scripts/testing/jsdoc-touched-gate.mjs lints, with
           # eslint.jsdoc.config.ts, every .ts/.tsx source file under apps/ and packages/ that this
           # pull request adds or modifies against its base (the merge base of the base sha and HEAD),
           # the whole file; a file the pull request does not touch is never read. A violation exits
@@ -1891,7 +1891,7 @@ jobs:
       - name: "#48 Every patched dependency has its record, its patch file and its ADR"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #48. `pnpm check:patched-deps` runs the consistency half of the gate,
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #48. `pnpm check:patched-deps` runs the consistency half of the gate,
           # `node scripts/testing/patched-dependencies-gate.mjs --check`. It reads two files: the
           # patchedDependencies block of pnpm-workspace.yaml, as text, through the reader the engines
           # and override-bands steps above share; and scripts/testing/patched-dependencies.json. Every
@@ -1911,7 +1911,7 @@ jobs:
       - name: "#50 The dependency-usage record is current and every name under the floor is decided or counted pending"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #50. `pnpm check:deps-ledger` runs
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #50. `pnpm check:deps-ledger` runs
           # `node scripts/testing/dependency-ledger.mjs --check`: it rebuilds the dependency-usage
           # record from the tree (every direct dependency's declarations; for each name under the
           # floor of 3 real sites, its sites by kind and path class), compares it byte for byte with
@@ -1931,7 +1931,7 @@ jobs:
       - name: "#51 Every portal's message catalogs are complete and valid ICU for every declared locale"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #51. `pnpm check:i18n` runs `node scripts/testing/i18n-lint.mjs`. It
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #51. `pnpm check:i18n` runs `node scripts/testing/i18n-lint.mjs`. It
           # discovers every portal (a directory directly under apps/ holding i18n/routing.ts and
           # messages/), reads each portal's `locales` and `defaultLocale` from routing.ts and its
           # catalogs from messages/<locale>.json, and holds the two locale sets equal. Every leaf of
@@ -1986,7 +1986,7 @@ jobs:
           # the commit before it.
           FITNESS_BASE_REF: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
         run: |
-          # Mirrors CLAUDE.md #30. packages/test-contracts/src/reach.ts lists every test-shaped
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #30. packages/test-contracts/src/reach.ts lists every test-shaped
           # tracked file, asks the four collectors (vitest, node:test through run-tests.sh --list,
           # Playwright, k6) what each one runs, and reads collectors.json, the workflows it names and
           # .github/rulesets/main.json to decide which sources a required check runs. It fails on R1
@@ -2021,7 +2021,7 @@ jobs:
       - name: "#36 Every positive scope glob of every vitest config matches a tracked file"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #36. packages/test-contracts/src/scopes.ts lists the tracked files and
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #36. packages/test-contracts/src/scopes.ts lists the tracked files and
           # resolves every tracked vitest.config.* with vitest's own config loader, so it reads the
           # globs a run applies: the shared factory's merge, projects and vitest's defaults
           # included. Each positive glob of every project's test.include, and of the root config's
@@ -2041,7 +2041,7 @@ jobs:
       - name: "#52 The committed test ledger is what the tree yields"
         if: always()
         run: |
-          # Mirrors CLAUDE.md #52. `pnpm check:ledger` runs `node scripts/testing/ledger.mjs
+          # Mirrors docs/development/FITNESS_FUNCTIONS.md #52. `pnpm check:ledger` runs `node scripts/testing/ledger.mjs
           # --check`: it rebuilds the test ledger from the tree (every test-shaped file, runner,
           # helper and dead-suffix file, each file's blocks classified and joined to the reach
           # engine's sources and the quarantine), applies the Maintainer's overlay in

@@ -29,9 +29,9 @@ WHAT OPENS A RECORD: a tool call the harness performed on it, and nothing else:
   A Bash command opens nothing, `rg` and `bat` included: its text says what it
   would run, not what ran (`false && rg x <record>` names a search that never
   happens), so the guard does not read it. The natural sequence is to find the
-  row's lines with `rg -n '<package>' <record>`, then Read that range. Opening
-  counts, not reading the record whole: it is large, and its rule says to
-  search it by package. An opening by the session does not count for an agent,
+  lines you need with `rg -n '<term>' <record>`, then Read that range. Opening
+  counts, not reading the record whole: a record is large, and its rule says
+  how to search it. An opening by the session does not count for an agent,
   nor an agent's for the session.
 
 WHAT IS JUDGED: an Edit, Write or MultiEdit of its file. In a Bash command, and
@@ -710,7 +710,7 @@ def _refusal(tool: str, relative: str, record, body: str, root: Path, agent: str
             f"The rule {record.rule} says:",
             body.strip(),
             "",
-            f"Open the record before the write: find the row's lines with rg -n '<package>' {root}/{record.document}, "
+            f"Open the record before the write: find the lines you need with rg -n '<term>' {root}/{record.document}, "
             "then Read that range with the Read tool, or search the record with the Grep tool. Then make the write "
             "again. An opening by the session does not count for an agent, nor an agent's for the session: each "
             "opens the record itself.",
