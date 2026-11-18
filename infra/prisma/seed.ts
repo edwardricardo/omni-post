@@ -1,5 +1,25 @@
+/**
+ * @file seed.ts
+ * @description The development seed. It fills a development or test database with demonstration
+ *   data: accounts, projects and their customer users, channels with encrypted credentials,
+ *   subscriptions and pricing, AI prompt templates, tracked terms, the administration and customer
+ *   roles with their permissions, and an administrator. It runs through `pnpm db:seed`, or through
+ *   `prisma db seed`, which runs the command `prisma.config.ts` names. It loads its env file from
+ *   the repository root, then refuses to run, before it builds its database client, when the
+ *   environment it ends up with is a production one.
+ * @layer infrastructure
+ */
 import { existsSync } from "fs";
 import path from "path";
+import { PrismaClient } from "./generated/prisma/client/client.js";
+import { Provider, TrackedTermKind } from "./generated/prisma/client/client.js";
+import type { Prisma } from "./generated/prisma/client/client.js";
+import argon2 from "argon2";
+import { randomBytes, createCipheriv } from "node:crypto";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { createLogger } from "@observability/logger";
+import { evaluateSeedEnvironment } from "./src/seedGuard.js";
+import { SUPER_ADMIN_ROLE } from "./src/adminSystemRoles.js";
 
 // Load env from project root. Mirror apps/api/src/config/env.ts: under
 // NODE_ENV=test load `.env.test` (CI synthesizes it via
@@ -8,13 +28,16 @@ const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
 const envPath = path.join(import.meta.dirname, "../..", envFile);
 if (existsSync(envPath)) process.loadEnvFile(envPath);
 
-import { PrismaClient } from "./generated/prisma/client/client.js";
-import { Provider, TrackedTermKind } from "./generated/prisma/client/client.js";
-import type { Prisma } from "./generated/prisma/client/client.js";
-import argon2 from "argon2";
-import { randomBytes, createCipheriv } from "node:crypto";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { createLogger } from "@observability/logger";
+// The guard runs here, once the env file is loaded and before the seed builds its database
+// client: the file fills a variable the process left unset, so it may be what sets
+// NODE_ENV=production. The modules imported above are evaluated before any statement of this
+// file, and none of them opens a connection, so a refused seed reaches no database. A module that
+// cannot be loaded ends the run with the loader's error before this point.
+const seedVerdict = evaluateSeedEnvironment(process.env);
+if (!seedVerdict.allowed) {
+  process.stderr.write(`${seedVerdict.reason}\n`);
+  process.exit(1);
+}
 
 const logger = createLogger("seed");
 
@@ -445,33 +468,7 @@ async function main() {
 
   // Upsert system roles and their permissions before creating the admin user
   const systemRoles = [
-    {
-      id: "role-super-admin",
-      name: "SUPER_ADMIN",
-      description: "Full system access with all permissions",
-      level: 100,
-      isSystem: true,
-      permissions: [
-        "user:read",
-        "user:manage",
-        "user:manage_roles",
-        "account:read",
-        "account:manage",
-        "billing:read",
-        "billing:manage",
-
-        "pricing:manage",
-        "analytics:read",
-        "analytics:export",
-        "system:configure",
-        "system:monitor",
-        "audit:read",
-        "audit:export",
-        "webhook:manage",
-        "dashboard:view",
-        "post:manage",
-      ],
-    },
+    SUPER_ADMIN_ROLE,
     {
       id: "role-admin",
       name: "ADMIN",

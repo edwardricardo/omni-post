@@ -6,15 +6,15 @@
 
 | Measure                 | Count |
 | ----------------------- | ----- |
-| Files                   | 1208  |
+| Files                   | 1211  |
 | DELETE                  | 19    |
 | REWRITE                 | 54    |
-| KEEP                    | 1044  |
+| KEEP                    | 1047  |
 | ADJUDICATE              | 91    |
 | unmeasured              | 0     |
-| Machine rows            | 1198  |
+| Machine rows            | 1201  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15131 |
+| Blocks                  | 15142 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -537,6 +537,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/admin/secretsRotationRoutes.test.ts`                                             | test             | 4      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/admin/webhookAdminRoutes.test.ts`                                                | test             | 8      | 0          | ADJUDICATE | machine                     | title-contradiction  |
 | `apps/api/tests/unit/adminAuthRoutes.resetConfirm.test.ts`                                            | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/adminSystemRoles.test.ts`                                                        | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/agent/LangGraphAgentOrchestrationAdapter.test.ts`                             | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/agent/repurposeGraph.test.ts`                                                 | test             | 3      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/ai/aiLocalizedRoutes.test.ts`                                                    | test             | 15     | 0          | KEEP       | machine                     | behavioural          |
@@ -965,6 +966,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/personalDataInventory.test.ts`                                           | test             | 11     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/platformStart.test.ts`                                                   | test             | 145    | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/recordCoverageGate.test.ts`                                              | test             | 35     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/seedProductionRefusal.test.ts`                                           | test             | 2      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/shardReporters.test.ts`                                                  | test             | 5      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/storyPerComponentGate.test.ts`                                           | test             | 13     | 0          | ADJUDICATE | machine                     | opaque               |
 | `apps/api/tests/unit/scripts/subprocessorsInventory.test.ts`                                          | test             | 14     | 0          | KEEP       | machine                     | behavioural          |
@@ -997,6 +999,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/security/tenantScopedQueryContract.type-test.ts`                                 | helper           | 0      | 0          | KEEP       | machine                     | imported             |
 | `apps/api/tests/unit/security/trustedProxy.test.ts`                                                   | test             | 26     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/securityHeaders.mutations.test.ts`                                               | test             | 36     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/seedGuard.test.ts`                                                               | test             | 6      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/AnalyticsStreamBroadcaster.test.ts`                                     | test             | 10     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/NotificationBroadcaster.test.ts`                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/services/StreamConnectionTracker.test.ts`                                        | test             | 7      | 0          | KEEP       | machine                     | behavioural          |

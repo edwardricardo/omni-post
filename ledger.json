@@ -2,9 +2,9 @@
   "version": 2,
   "summary": {
     "files": {
-      "total": 1208,
+      "total": 1211,
       "byShape": {
-        "test": 970,
+        "test": 973,
         "integration-test": 87,
         "live-test": 17,
         "spec": 9,
@@ -16,18 +16,18 @@
       "byVerdict": {
         "DELETE": 19,
         "REWRITE": 54,
-        "KEEP": 1044,
+        "KEEP": 1047,
         "ADJUDICATE": 91,
         "unmeasured": 0
       }
     },
     "rows": {
-      "machine": 1198,
+      "machine": 1201,
       "confirmed": 10,
-      "total": 1208
+      "total": 1211
     },
     "blocks": {
-      "total": 15131,
+      "total": 15142,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14820
+        "BEHAVIOURAL": 14831
       }
     },
     "deleted": {
@@ -18363,6 +18363,48 @@
       "subject": {
         "stem": "adminAuthRoutes",
         "module": "apps/api/src/admin/auth/adminAuthRoutes.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/adminSystemRoles.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 3,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/adminSystemRoles.test.ts::holds only values of the Permission enum when its permissions are read",
+          "line": 24,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d9ebd44d27a2b1a1e220beff6944d0b43772e3c9bc41dc91645f4f5ff60df837"
+        },
+        {
+          "id": "apps/api/tests/unit/adminSystemRoles.test.ts::holds no permission twice when its permissions are read",
+          "line": 34,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9760ef9427141ce19552b4f0275220855846868b9e26afd60f823d17d966a2a3"
+        },
+        {
+          "id": "apps/api/tests/unit/adminSystemRoles.test.ts::keeps the id, name and level the seed wrote when the role is read",
+          "line": 42,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "7d1ca06aa5410d95baf297f594a572c93e144273490810dd90a4142e21ee2565"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "adminSystemRoles",
+        "module": "infra/prisma/src/adminSystemRoles.ts",
         "imported": true
       },
       "duplicate": null,
@@ -77104,6 +77146,37 @@
       "importers": null
     },
     {
+      "path": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 2,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with the guard's reason and no connection, when NODE_ENV is production",
+          "line": 186,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "945647d8446c1d1fcecba534be7576a596fc97483e34e8f358d36ba4ab443335"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/seedProductionRefusal.test.ts::refuses to run, with the guard's reason and no connection, when only the env file sets NODE_ENV to production",
+          "line": 198,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ed4e0cafa28662f07199dbf6899ef19c86dc31549ad7790a01417a0eea631012"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": null,
+      "duplicate": null,
+      "importers": null
+    },
+    {
       "path": "apps/api/tests/unit/scripts/shardReporters.test.ts",
       "shape": "test",
       "framework": "vitest",
@@ -83713,6 +83786,69 @@
       "subject": {
         "stem": "securityHeaders",
         "module": "apps/api/src/security/securityHeaders.ts",
+        "imported": true
+      },
+      "duplicate": null,
+      "importers": null
+    },
+    {
+      "path": "apps/api/tests/unit/seedGuard.test.ts",
+      "shape": "test",
+      "framework": "vitest",
+      "collectors": ["vitest:apps/api/vitest.config.ts"],
+      "quarantined": null,
+      "blockCount": 6,
+      "blocks": [
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the production reason when NODE_ENV is production",
+          "line": 31,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "49efd0053e1cc6a40aee3460f6db2106b307d071a85564aca75d46789cb49a40"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::refuses the seed with the production reason when NODE_ENV is %j, production by casing or surrounding whitespace",
+          "line": 38,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "e719a224d5213a637abe9f15f7d3abf6ff77403433beaa28c502abcb0d39ee77"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is %j",
+          "line": 48,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "13f7bf9d01cb61cbb64621d88cf331d3adf36eed1f4e78a354666ea5dfcf7ffd"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is absent",
+          "line": 52,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "d88773739b8f3f53e2eba636d731d41fd0a3c95e0b4982c7d42f3d0141019fd8"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV is empty",
+          "line": 56,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "fdc0930b2ce43d16d1354ed8803211e0c638ffb4e4e88826c2d943af1de3f021"
+        },
+        {
+          "id": "apps/api/tests/unit/seedGuard.test.ts::allows the seed when NODE_ENV only contains production inside a longer value",
+          "line": 60,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0a3113d1da36069149a59624b039615809e8a028f04697d10c39541ed2450050"
+        }
+      ],
+      "verdict": "KEEP",
+      "basis": "behavioural",
+      "status": "machine",
+      "sliceId": null,
+      "subject": {
+        "stem": "seedGuard",
+        "module": "infra/prisma/src/seedGuard.ts",
         "imported": true
       },
       "duplicate": null,
