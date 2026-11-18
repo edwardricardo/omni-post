@@ -1765,5 +1765,5 @@ async function main(argv) {
 // Only a run of this file as the program starts the sequence: the suite imports the stop of a
 // failed start, to drive it with spies in place of `process.kill` and of the reads of `/proc`.
 // `import.meta.main` is a boolean on the Node.js line the repository requires (`engines.node`
-// `>=26.12.1 <27`, `.nvmrc` 26); on a runtime without it the gate is false and nothing runs.
+// `>=26.13.1 <27`, `.nvmrc` 26); on a runtime without it the gate is false and nothing runs.
 if (import.meta.main) process.exitCode = await main(process.argv.slice(2));
