@@ -172,6 +172,70 @@ const withUnnamedStep = (unnamed: readonly string[]): string =>
     "",
   ].join("\n");
 
+/**
+ * A workflow whose only check, #1, holds the given lines under `with:` (on line 12 onward), with its
+ * `run: |` body after them. A `name:` among those lines belongs to something the step holds, so a
+ * reader that let it end the step or open one would take #1's body away from it.
+ */
+const withNestedName = (nested: readonly string[]): string =>
+  [
+    renderWorkflow([]),
+    `      - name: ${stepName(1)}`,
+    "        with:",
+    ...nested,
+    "        run: |",
+    `          ${stepCommand(1)}`,
+    "",
+  ].join("\n");
+
+/** A list under `with:` whose item carries the given `name:` value, on line 13. */
+const nestedListItem = (value: string): string[] => [
+  "          items:",
+  `            - name: ${value}`,
+  "              value: one",
+];
+
+/** A mapping under `with:` that carries the given `name:` value, on line 12. */
+const nestedMappingKey = (value: string): string[] => [`          name: ${value}`];
+
+/** The refusal of `#2 Check number 2` named inside a list or mapping a step holds. */
+const nestedNameRefusal = (label: string, line: number): string =>
+  `${label}:${String(line)} names \`#2 Check number 2\` inside a list or mapping that an entry ` +
+  "of a steps list holds (a `with:` value, say), not as a key of the entry itself, so it names no " +
+  "step and no step's run body can be told to be its. A check is a step: name it on the step, or " +
+  "drop the number.";
+
+/**
+ * A workflow whose only check, #1, opens on the dash line `dash` (line 10), which holds no key, and
+ * has its keys, its name first (line 11), at the indentation `keys`; then, when given, the lines
+ * nested under its `with:` (from line 13), and its `run: |` body.
+ */
+const withKeysBelowDash = (dash: string, keys: string, nested: readonly string[] = []): string =>
+  [
+    renderWorkflow([]),
+    dash,
+    `${keys}name: ${stepName(1)}`,
+    ...(nested.length === 0 ? [] : [`${keys}with:`, ...nested.map((line) => `${keys}  ${line}`)]),
+    `${keys}run: |`,
+    `${keys}  ${stepCommand(1)}`,
+    "",
+  ].join("\n");
+
+/**
+ * A workflow whose only check, #1, has the given comment line between its keys and its `run: |`
+ * body. A comment ends no YAML structure, so the body after it is still #1's.
+ */
+const withCommentBeforeRun = (comment: string): string =>
+  [
+    renderWorkflow([]),
+    `      - name: ${stepName(1)}`,
+    "        if: always()",
+    comment,
+    "        run: |",
+    `          ${stepCommand(1)}`,
+    "",
+  ].join("\n");
+
 const countSentence = (n: number): string =>
   `There are **${String(n)} checks, numbered #1-#${String(n)}**`;
 
@@ -687,6 +751,57 @@ describe("fitness inventory gate (#44)", () => {
       expect(verdict.inventory?.steps[0]?.body).toEqual([`          ${stepCommand(1)}`, ""]);
     });
 
+    // A comment at or left of the entry's column would end the step if it were read as a key, and
+    // the run body after it would then belong to no step, so the list command would not be found.
+    it.each([
+      ["column 0", "# a comment at column 0"],
+      ["the entry's column", "      # a comment at the entry's column"],
+    ])(
+      "keeps a step's body its own across a comment at %s between its keys and its run body",
+      async (_column, comment) => {
+        const verdict = await evaluate(
+          withCommentBeforeRun(comment),
+          renderCanon({
+            list: [listLine(1, `\`${stepCommand(1)}\``)],
+            sentence: countSentence(1),
+          }),
+          renderReference({ headings: [1] })
+        );
+
+        expect(verdict.violations).toEqual([]);
+        expect(verdict.inventory?.steps.map((step) => step.number)).toEqual([1]);
+        expect(verdict.inventory?.steps[0]?.body).toEqual([`          ${stepCommand(1)}`, ""]);
+      }
+    );
+
+    // A dash line that holds no key (bare, a comment, or only an anchor or a tag) does not say where
+    // the entry's keys start, so the first key line does: its name is the step's own.
+    it.each([
+      ["a bare dash, keys two columns in", "      -", "        "],
+      ["a dash and a comment", "      - # the check", "        "],
+      ["an anchor, keys two columns in", "      - &check", "        "],
+      ["an anchor after two spaces, keys two columns in", "      -  &check", "        "],
+      ["an anchor, keys four columns in", "      - &check", "          "],
+      ["a tag, keys four columns in", "      - !!map", "          "],
+      ["an anchor, a tag and a comment", "      - &check !!map # the check", "          "],
+    ])(
+      "reads the name on the first key line as the step's own when the dash line holds %s",
+      async (_shape, dash, keys) => {
+        const verdict = await evaluate(
+          withKeysBelowDash(dash, keys),
+          renderCanon({
+            list: [listLine(1, `\`${stepCommand(1)}\``)],
+            sentence: countSentence(1),
+          }),
+          renderReference({ headings: [1] })
+        );
+
+        expect(verdict.violations).toEqual([]);
+        expect(verdict.inventory?.steps.map((step) => [step.number, step.line])).toEqual([[1, 11]]);
+        expect(verdict.inventory?.steps[0]?.body).toEqual([`${keys}  ${stepCommand(1)}`, ""]);
+      }
+    );
+
     it("refuses a list line that states neither shell nor a command", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
@@ -996,6 +1111,75 @@ describe("fitness inventory gate (#44)", () => {
       expect(verdict.inventory?.steps.map((step) => step.number)).toEqual([1]);
     });
 
+    // A numbered name below the keys of a step's entry is the name of something the step holds, so
+    // it names no step: it is refused rather than counted, and the step's body stays the step's.
+    it.each([
+      ["an item of a list under `with:`", nestedListItem(stepName(2)), 13],
+      ["a key of a mapping under `with:`", nestedMappingKey(stepName(2)), 12],
+    ])(
+      "refuses a numbered name nested inside an entry of a steps list: %s",
+      async (_shape, nested, line) => {
+        const verdict = await evaluate(
+          withNestedName(nested),
+          renderCanon({
+            list: [listLine(1, `\`${stepCommand(1)}\``)],
+            sentence: countSentence(1),
+          }),
+          renderReference({ headings: [1] })
+        );
+
+        expect(verdict.violations).toEqual([nestedNameRefusal(WORKFLOW_LABEL, line)]);
+        expect(verdict.inventory?.steps.map((step) => step.number)).toEqual([1]);
+        expect(verdict.inventory?.steps[0]?.body).toEqual([`          ${stepCommand(1)}`, ""]);
+      }
+    );
+
+    // The first key line of an entry whose dash line holds no key sets the entry's key column, so
+    // a numbered name further in is still something the step holds.
+    it.each([
+      ["a bare dash", "      -", "        "],
+      ["a dash and a comment", "      - # the check", "        "],
+      ["an anchor after two spaces", "      -  &check", "        "],
+      ["an anchor, keys four columns in", "      - &check", "          "],
+    ])(
+      "refuses a numbered name nested inside an entry whose dash line holds %s",
+      async (_shape, dash, keys) => {
+        const verdict = await evaluate(
+          withKeysBelowDash(dash, keys, [`name: ${stepName(2)}`]),
+          renderCanon({
+            list: [listLine(1, `\`${stepCommand(1)}\``)],
+            sentence: countSentence(1),
+          }),
+          renderReference({ headings: [1] })
+        );
+
+        expect(verdict.violations).toEqual([nestedNameRefusal(WORKFLOW_LABEL, 13)]);
+        expect(verdict.inventory?.steps.map((step) => step.number)).toEqual([1]);
+        expect(verdict.inventory?.steps[0]?.body).toEqual([`${keys}  ${stepCommand(1)}`, ""]);
+      }
+    );
+
+    it.each([
+      ["an item of a list under `with:`", nestedListItem('"Unnumbered item"')],
+      ["a key of a mapping under `with:`", nestedMappingKey('"Unnumbered item"')],
+    ])(
+      "reads an unnumbered name nested inside an entry as nothing, so the step keeps its body: %s",
+      async (_shape, nested) => {
+        const verdict = await evaluate(
+          withNestedName(nested),
+          renderCanon({
+            list: [listLine(1, `\`${stepCommand(1)}\``)],
+            sentence: countSentence(1),
+          }),
+          renderReference({ headings: [1] })
+        );
+
+        expect(verdict.violations).toEqual([]);
+        expect(verdict.inventory?.steps.map((step) => step.number)).toEqual([1]);
+        expect(verdict.inventory?.steps[0]?.body).toEqual([`          ${stepCommand(1)}`, ""]);
+      }
+    );
+
     it("refuses a check number with a leading zero", async () => {
       const verdict = await evaluate(
         renderWorkflow([stepName(1), '"#02 Leading zero"']),
@@ -1183,6 +1367,29 @@ describe("fitness inventory gate (#44)", () => {
           `body of its step at ${files.workflow}:10 does not contain that text. Name the command the ` +
           "step runs, or `shell` for an inline check.\n"
       );
+    });
+
+    // Every side carries #2 here, so a reader that counted the nested name as a step would pass the
+    // inventory with no step that runs #2.
+    it("exits 1 on a numbered name nested inside a step, even when every side carries its number", () => {
+      const dir = scratch("fitness-inventory-gate-");
+      const files = writeInputs(dir, [
+        withNestedName(nestedListItem(stepName(2))),
+        renderCanon({ list: numbered(2) }),
+        renderReference({ headings: numbered(2) }),
+      ]);
+
+      const result = runGate(flags(files));
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe(
+        "fitness-inventory-gate: derived N=1 from 1 numbered workflow steps, 2 reference headings and 2 list lines\n"
+      );
+      expect(result.stderr).toContain(
+        `fitness-inventory-gate: ${nestedNameRefusal(files.workflow, 13)}\n`
+      );
+      expect(result.stderr).toContain("documented but unwired: #2");
+      expect(result.stderr).toContain("listed but unwired: #2");
     });
 
     it("exits 1 on an unknown argument instead of ignoring it", () => {
