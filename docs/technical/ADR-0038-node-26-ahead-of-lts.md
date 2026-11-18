@@ -12,7 +12,8 @@
 - **Amended**: 2026-11-14, §"Amendment of 2026-11-14: Node 26.13.1" (both image stages move to
   26.13.1, the security release of 2026-11-11; `engines.node` stays at 26.12.1)
 - **Amended**: 2026-11-18, §"Amendment of 2026-11-18: the `engines.node` floor at 26.13.1" (the
-  `engines.node` floor moves to 26.13.1, the release both image stages run)
+  `engines.node` floor moves to 26.13.1, the release both image stages run, and `@types/node` to
+  26.6.6)
 - **Amends**: slice `0.16` of `openspec/changes/testing-refoundation/tasks.md` ("the runtime follows
   LTS, never Current") and its dating to 2026-10-28 by tracker decisions D46 and D51 (entries of the tracker's Decisions log, removed from the tree on 2026-11-10)
 - **Related**: [ADR-0017](ADR-0017-production-build-bundler.md) (the image build model);
@@ -359,8 +360,9 @@ Taken on 2026-11-18 by the Maintainer's decision: `engines.node` moves from `>=2
 2026-11-11 as the lowest runtime it accepts. It is the clause of the case "A 26.x security release"
 of §"Revisit if" that the amendment of 2026-11-14 left untaken, the floor "when CI must not resolve
 below it". 26.13.1 was published at 2026-11-11T16:44:25Z and is mature from 2026-11-18T16:44Z, so
-the floor is taken inside the 7-day buffer. `.nvmrc` stays `26`, and the four Dockerfiles, which run
-26.13.1 since the amendment of 2026-11-14, do not change. The sentences of this ADR that name
+the floor is taken inside the 7-day buffer. `@types/node` moves from 26.6.5 to 26.6.6 in the same
+change (`latest`, published 2026-10-28T18:36Z, mature since 2026-11-04T18:36Z). `.nvmrc` stays `26`,
+and the four Dockerfiles, which run 26.13.1 since the amendment of 2026-11-14, do not change. The sentences of this ADR that name
 26.12.1 as the `engines.node` floor describe the state before this amendment.
 
 The floor is a declaration and fails nothing by itself, measured on 2026-11-18: this repository sets
