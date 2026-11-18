@@ -114,13 +114,71 @@ class EditJudgementTests(unittest.TestCase):
         self.assertIn(f"deps/workspace.yaml is governed by the record {DOCUMENT}", refusal)
         self.assertIn(f"The rule {RULE} says:", refusal)
         self.assertIn(RULE_BODY.strip(), refusal)
-        self.assertIn(f"rg -n '<package>' {self.checkout.root}/{DOCUMENT}", refusal)
+        self.assertIn(f"find the lines you need with rg -n '<term>' {self.checkout.root}/{DOCUMENT}", refusal)
+        self.assertNotIn("<package>", refusal)
         self.assertIn("then Read that range", refusal)
         self.assertIn(guard.OPENING_FORMS, refusal)
         self.assertIn("the Read tool on it", guard.OPENING_FORMS)
         self.assertIn("the Grep tool", guard.OPENING_FORMS)
         self.assertIn("A Bash command does not count", guard.OPENING_FORMS)
         self.assertIn("MAINTAINER_DISABLE_INSTRUCTION_CHECK=yes", refusal)
+
+    def test_with_two_records_a_file_both_govern_needs_both_opened_and_a_file_one_governs_needs_only_that_one(self):
+        second_rule, second_document = ".claude/rules/second.md", "docs/second.md"
+        self.checkout.write(
+            ic.MANIFEST,
+            json.dumps(
+                {
+                    "version": 1,
+                    "tracked": ["CLAUDE.md"],
+                    "local": [],
+                    "records": [{"rule": RULE, "document": DOCUMENT}, {"rule": second_rule, "document": second_document}],
+                }
+            ),
+        )
+        self.checkout.write(second_rule, rule_text("deps/*.yaml", "scripts/*.mjs", body="Search the second record by number.\n"))
+        self.checkout.write(second_document, "# Second record\n")
+        both, second_only = "deps/workspace.yaml", "scripts/gate.mjs"
+
+        first_refusal = self._judge(self.checkout.edit(both))
+        self.assertIn(f"{both} is governed by the record {DOCUMENT}", first_refusal)
+        self.assertIsNone(self._judge(self.checkout.edit("src/app.ts")))
+        second_refusal = self._judge(self.checkout.edit(second_only))
+        self.assertIn(f"{second_only} is governed by the record {second_document}", second_refusal)
+        self.assertIn("Search the second record by number.", second_refusal)
+        self.assertIn(f"rg -n '<term>' {self.checkout.root}/{second_document}", second_refusal)
+
+        self._note(self.checkout.payload("Read", {"file_path": str(self.checkout.root / second_document)}))
+        self.assertIsNone(self._judge(self.checkout.edit(second_only)))
+        refusal = self._judge(self.checkout.edit(both))
+        self.assertIn(f"{both} is governed by the record {DOCUMENT}", refusal)
+        self.assertNotIn(second_document, refusal.splitlines()[0])
+
+        self._note(self.checkout.payload("Read", {"file_path": str(self.checkout.root / DOCUMENT)}))
+        self.assertIsNone(self._judge(self.checkout.edit(both)))
+        self.assertIsNone(self._judge(self.checkout.edit(second_only)))
+
+    def test_with_two_records_an_opening_of_the_first_alone_does_not_open_a_file_both_govern(self):
+        second_rule, second_document = ".claude/rules/second.md", "docs/second.md"
+        self.checkout.write(
+            ic.MANIFEST,
+            json.dumps(
+                {
+                    "version": 1,
+                    "tracked": ["CLAUDE.md"],
+                    "local": [],
+                    "records": [{"rule": RULE, "document": DOCUMENT}, {"rule": second_rule, "document": second_document}],
+                }
+            ),
+        )
+        self.checkout.write(second_rule, rule_text("deps/*.yaml"))
+        self.checkout.write(second_document, "# Second record\n")
+
+        self._note(self.checkout.payload("Read", {"file_path": str(self.checkout.root / DOCUMENT)}))
+        refusal = self._judge(self.checkout.edit("deps/workspace.yaml"))
+
+        self.assertIn(f"deps/workspace.yaml is governed by the record {second_document}", refusal)
+        self.assertIn(f"The rule {second_rule} says:", refusal)
 
     def test_a_write_and_a_multi_edit_are_judged_as_an_edit(self):
         root = self.checkout.root

@@ -1,26 +1,31 @@
 /**
  * @file fitnessInventoryGate.test.ts
  * @description Pins `scripts/testing/fitness-inventory-gate.mjs`, fitness check #44: the numbered
- *   steps of the fitness workflow form the set `1..N` with no hole and no duplicate, the canon's
- *   `# N.` check headings carry the same set, and the one count sentence states the derived `N`.
+ *   steps of the fitness workflow form the set `1..N` with no hole and no duplicate, the `# N.`
+ *   check headings of the reference carry the same set, the list of `CLAUDE.md` §Automated
+ *   Compliance Checks carries it too, one line per check with its step's name and how it runs, and
+ *   the one count sentence states the derived `N`.
  *
  *   WHY THE GATE EXISTS, and therefore what this suite has to hold: the suite's own inventory was
- *   the one invariant nothing measured. A duplicated number, a heading deleted from the canon, a
- *   step deleted from the workflow and a stale count sentence each read as a complete inventory, and
- *   the summary printed a typed count that agreed with the document whatever actually ran.
+ *   the one invariant nothing measured. A duplicated number, a block deleted from the reference, a
+ *   step deleted from the workflow, a list line that drifted from its step and a stale count
+ *   sentence each read as a complete inventory, and the summary printed a typed count that agreed
+ *   with the document whatever actually ran.
  *
  *   Every input is a fixture string or a fixture file in a scratch directory, so the suite never
- *   reads the repository's own workflow or canon: it measures the gate's RULE rather than today's
- *   files, and it can prove each red path while the real files are clean. The rules are driven
- *   through the exported `evaluateInventory`; the CLI is driven as a process for what only a
- *   process can show — the exit code, where the inputs are found, and that the job summary is
- *   written from the derived count and only on a clean verdict.
+ *   reads the repository's own workflow, reference or canon: it measures the gate's RULE rather
+ *   than today's files, and it can prove each red path while the real files are clean. The rules
+ *   are driven through the exported `evaluateInventory`; the CLI is driven as a process for what
+ *   only a process can show — the exit code, where the inputs are found, and that the job summary
+ *   is written from the derived count and only on a clean verdict.
  *
- *   The heading convention is pinned on purpose. A check heading in the canon is a `# N.` line at
- *   column 0 that follows the fence or a blank line; the canon's check blocks are shell, so a shell
+ *   The heading convention is pinned on purpose. A check heading in the reference is a `# N.` line
+ *   at column 0 that follows the fence or a blank line; the check blocks are shell, so a shell
  *   comment of that shape inside a block LOOKS like a heading. The suite holds that such a comment
  *   is reported by its line number, or, when it follows a blank line, surfaces as a duplicate or an
- *   unwired number — never silently counted and never silently ignored.
+ *   unwired number — never silently counted and never silently ignored. The list form is pinned
+ *   the same way: a line that opens like a list entry and is not exactly
+ *   `- **#N** <step name> — <how>` is reported by its line number.
  * @layer infrastructure
  */
 import { spawnSync } from "node:child_process";
@@ -47,6 +52,7 @@ interface Step {
   readonly number: number;
   readonly name: string;
   readonly line: number;
+  readonly body: readonly string[];
 }
 
 interface Heading {
@@ -54,10 +60,18 @@ interface Heading {
   readonly line: number;
 }
 
+interface Entry {
+  readonly number: number;
+  readonly name: string;
+  readonly command: string | null;
+  readonly line: number;
+}
+
 interface Inventory {
   readonly n: number;
   readonly steps: readonly Step[];
   readonly headings: readonly Heading[];
+  readonly entries: readonly Entry[];
 }
 
 interface Verdict {
@@ -68,8 +82,10 @@ interface Verdict {
 interface InventoryInput {
   readonly workflowText: string;
   readonly canonText: string;
+  readonly referenceText: string;
   readonly workflowLabel: string;
   readonly canonLabel: string;
+  readonly referenceLabel: string;
 }
 
 /**
@@ -89,19 +105,39 @@ interface GateResult {
 
 const WORKFLOW_LABEL = "fixture/fitness.yml";
 const CANON_LABEL = "fixture/CLAUDE.md";
+const REFERENCE_LABEL = "fixture/FITNESS_FUNCTIONS.md";
 
 /** A numbered step name as the workflow writes it, double-quoted. */
 const stepName = (number: number): string => `"#${String(number)} Check number ${String(number)}"`;
 
 /**
+ * The command the default body of the step at a one-based position runs. Each step's is its own, so
+ * a list command found in the wrong step's body is told apart from one found in its own.
+ */
+const stepCommand = (position: number): string => `node scripts/check-${String(position)}.mjs`;
+
+/** The command only a step with no `name:` key runs, in the fixtures that hold one. */
+const UNNAMED_COMMAND = "node scripts/only-unnamed.mjs";
+
+/** A steps entry with no `name:` key whose first key opens a block scalar. */
+const UNNAMED_RUN_STEP = ["      - run: |", `          ${UNNAMED_COMMAND}`, ""];
+
+/** A steps entry with no `name:` key whose block scalar sits under a later key. */
+const UNNAMED_USES_STEP = [
+  "      - uses: actions/github-script@v8",
+  "        with:",
+  "          script: |",
+  `            ${UNNAMED_COMMAND}`,
+  "",
+];
+
+/**
  * A fitness workflow whose steps carry the given raw `name:` values, in order, each with a `run: |`
  * body. An unnumbered checkout step leads, as in the real file, so a reader that counted every step
- * would turn a clean fixture red.
+ * would turn a clean fixture red. With no `runBody`, each step runs a command of its own,
+ * `stepCommand(<its position>)`; a given `runBody` is written into every step.
  */
-const renderWorkflow = (
-  names: readonly string[],
-  runBody: readonly string[] = ['echo "ok"']
-): string =>
+const renderWorkflow = (names: readonly string[], runBody?: readonly string[]): string =>
   [
     "name: Fixture fitness",
     "on: [push]",
@@ -112,41 +148,57 @@ const renderWorkflow = (
     "      - name: Checkout code",
     "        uses: actions/checkout@v7",
     "",
-    ...names.flatMap((name) => [
+    ...names.flatMap((name, index) => [
       `      - name: ${name}`,
       "        if: always()",
       "        run: |",
       "          set -euo pipefail",
-      ...runBody.map((line) => `          ${line}`),
+      ...(runBody ?? [stepCommand(index + 1)]).map((line) => `          ${line}`),
       "",
     ]),
   ].join("\n");
 
-interface CanonFixture {
-  /** Check headings, in declaration order; each opens its own block after a blank line. */
-  readonly headings: readonly number[];
-  /** The count sentence; `null` leaves it out. Defaults to the one matching `headings`. */
-  readonly sentence?: string | null;
-  /** Extra lines appended to a check's body, by check number. */
-  readonly bodies?: Readonly<Record<number, readonly string[]>>;
-  /** Lines written after the section ends, under a later level-2 heading. */
-  readonly after?: readonly string[];
-  /** Leaves the code block unclosed. */
-  readonly unclosed?: boolean;
-}
+/**
+ * A workflow whose check #1 is followed by the given unnamed step, then by check #2. The unnamed
+ * step's body is its own: none of its lines is check #1's.
+ */
+const withUnnamedStep = (unnamed: readonly string[]): string =>
+  [
+    renderWorkflow([stepName(1)]),
+    ...unnamed,
+    `      - name: ${stepName(2)}`,
+    "        run: |",
+    `          ${stepCommand(2)}`,
+    "",
+  ].join("\n");
 
 const countSentence = (n: number): string =>
   `There are **${String(n)} checks, numbered #1-#${String(n)}**`;
 
+/** The list line the canon carries for a fixture step named by `stepName`. */
+const listLine = (number: number, how = "shell"): string =>
+  `- **#${String(number)}** Check number ${String(number)} — ${how}`;
+
+interface CanonFixture {
+  /** The list, in order: a number renders its default line, a string is written as it stands. */
+  readonly list: readonly (number | string)[];
+  /** The count sentence; `null` leaves it out. Defaults to one stating the length of the list. */
+  readonly sentence?: string | null;
+  /** A code block written inside the section, after the list. */
+  readonly fence?: readonly string[];
+  /** Leaves that code block unclosed. */
+  readonly unclosed?: boolean;
+  /** Lines written after the section ends, under a later level-2 heading. */
+  readonly after?: readonly string[];
+}
+
+/**
+ * `CLAUDE.md` as the gate reads it: the section heading on line 3, the governing paragraph with the
+ * count sentence on line 5, and the list from line 7, one line per entry.
+ */
 const renderCanon = (fixture: CanonFixture): string => {
   const sentence =
-    fixture.sentence === undefined ? countSentence(fixture.headings.length) : fixture.sentence;
-  const blocks = fixture.headings.flatMap((number, index) => [
-    ...(index === 0 ? [] : [""]),
-    `# ${String(number)}. Check number ${String(number)}.`,
-    `echo "check ${String(number)}"`,
-    ...(fixture.bodies?.[number] ?? []),
-  ]);
+    fixture.sentence === undefined ? countSentence(fixture.list.length) : fixture.sentence;
   return [
     "# Fixture canon",
     "",
@@ -154,11 +206,58 @@ const renderCanon = (fixture: CanonFixture): string => {
     "",
     `**Wired to CI.** Every check below runs in the workflow.${sentence === null ? "" : ` ${sentence}.`} Run them locally.`,
     "",
+    ...fixture.list.map((entry) => (typeof entry === "number" ? listLine(entry) : entry)),
+    "",
+    ...(fixture.fence === undefined
+      ? []
+      : ["````bash", ...fixture.fence, ...(fixture.unclosed === true ? [] : ["````", ""])]),
+    "**Extending the suite.** Add the check's line to the list above.",
+    "",
+    "## Problem-Solving Standards",
+    "",
+    ...(fixture.after ?? []),
+    "",
+  ].join("\n");
+};
+
+interface ReferenceFixture {
+  /** Check headings, in declaration order; each opens its own block after a blank line. */
+  readonly headings: readonly number[];
+  /** Extra lines appended to a check's body, by check number. */
+  readonly bodies?: Readonly<Record<number, readonly string[]>>;
+  /** A prose line written above the code block; defaults to a line that states no count. */
+  readonly prose?: string;
+  /** The heading of the section that holds the blocks; defaults to `## Check blocks`. */
+  readonly section?: string;
+  /** Lines written after the section ends, under a later level-2 heading. */
+  readonly after?: readonly string[];
+  /** Leaves the code block unclosed. */
+  readonly unclosed?: boolean;
+}
+
+/**
+ * The reference as the gate reads it: the section heading on line 3, a prose line on line 5, the
+ * fence on line 7 and the first heading on line 8.
+ */
+const renderReference = (fixture: ReferenceFixture): string => {
+  const blocks = fixture.headings.flatMap((number, index) => [
+    ...(index === 0 ? [] : [""]),
+    `# ${String(number)}. Check number ${String(number)}.`,
+    `echo "check ${String(number)}"`,
+    ...(fixture.bodies?.[number] ?? []),
+  ]);
+  return [
+    "# Fixture reference",
+    "",
+    fixture.section ?? "## Check blocks",
+    "",
+    fixture.prose ?? "Each check's block follows, under its number.",
+    "",
     "````bash",
     ...blocks,
     ...(fixture.unclosed === true ? [] : ["````"]),
     "",
-    "## Problem-Solving Standards",
+    "## Not a numbered check",
     "",
     ...(fixture.after ?? []),
     "",
@@ -168,18 +267,31 @@ const renderCanon = (fixture: CanonFixture): string => {
 const loadGate = async (): Promise<FitnessInventoryGateModule> =>
   (await import(GATE_SCRIPT)) as FitnessInventoryGateModule;
 
-const evaluate = async (workflowText: string, canonText: string): Promise<Verdict> => {
+const evaluate = async (
+  workflowText: string,
+  canonText: string,
+  referenceText: string
+): Promise<Verdict> => {
   const gate = await loadGate();
   return gate.evaluateInventory({
     workflowText,
     canonText,
+    referenceText,
     workflowLabel: WORKFLOW_LABEL,
     canonLabel: CANON_LABEL,
+    referenceLabel: REFERENCE_LABEL,
   });
 };
 
 const numbered = (count: number): number[] =>
   Array.from({ length: count }, (_, index) => index + 1);
+
+/** The three inputs of a clean inventory of `count` checks. */
+const cleanInputs = (count: number): [string, string, string] => [
+  renderWorkflow(numbered(count).map(stepName)),
+  renderCanon({ list: numbered(count) }),
+  renderReference({ headings: numbered(count) }),
+];
 
 const scratchDirs: string[] = [];
 
@@ -204,23 +316,28 @@ const toResult = (result: ReturnType<typeof spawnSync>): GateResult => ({
 
 describe("fitness inventory gate (#44)", () => {
   describe("a clean inventory", () => {
-    it("derives N from the workflow and reports no violation when both sides carry 1..N", async () => {
-      const verdict = await evaluate(
-        renderWorkflow(numbered(3).map(stepName)),
-        renderCanon({ headings: numbered(3) })
-      );
+    it("derives N from the workflow and reports no violation when all three sides carry 1..N", async () => {
+      const verdict = await evaluate(...cleanInputs(3));
 
       expect(verdict.violations).toEqual([]);
       expect(verdict.inventory?.n).toBe(3);
       expect(verdict.inventory?.steps.map((step) => step.number)).toEqual([1, 2, 3]);
       expect(verdict.inventory?.headings.map((heading) => heading.number)).toEqual([1, 2, 3]);
+      expect(verdict.inventory?.entries.map((entry) => entry.number)).toEqual([1, 2, 3]);
+      expect(verdict.inventory?.entries[0]).toEqual({
+        number: 1,
+        name: "Check number 1",
+        command: null,
+        line: 7,
+      });
     });
 
-    // Both real files declare their checks out of numeric order, and that placement changes nothing.
-    it("compares sets, so checks declared out of numeric order on either side are not a violation", async () => {
+    // The real files declare their checks out of numeric order, and that placement changes nothing.
+    it("compares sets, so checks declared out of numeric order on all three sides are not a violation", async () => {
       const verdict = await evaluate(
         renderWorkflow([1, 2, 4, 3].map(stepName)),
-        renderCanon({ headings: [1, 3, 2, 4] })
+        renderCanon({ list: [2, 1, 4, 3] }),
+        renderReference({ headings: [1, 3, 2, 4] })
       );
 
       expect(verdict.violations).toEqual([]);
@@ -238,7 +355,18 @@ describe("fitness inventory gate (#44)", () => {
         "",
       ].join("\n");
 
-      const verdict = await evaluate(workflow, renderCanon({ headings: numbered(3) }));
+      const verdict = await evaluate(
+        workflow,
+        renderCanon({
+          list: [
+            1,
+            "- **#2** It's single-quoted — shell",
+            "- **#3** Name after the condition — shell",
+          ],
+          sentence: countSentence(3),
+        }),
+        renderReference({ headings: numbered(3) })
+      );
 
       expect(verdict.violations).toEqual([]);
       expect(verdict.inventory?.steps.map((step) => step.name)).toEqual([
@@ -254,7 +382,8 @@ describe("fitness inventory gate (#44)", () => {
           'name: "#7 a line of shell, not a step"',
           "# 7. a comment",
         ]),
-        renderCanon({ headings: numbered(2) })
+        renderCanon({ list: numbered(2) }),
+        renderReference({ headings: numbered(2) })
       );
 
       expect(verdict.violations).toEqual([]);
@@ -267,7 +396,8 @@ describe("fitness inventory gate (#44)", () => {
           ...numbered(2).map(stepName),
           '|\n          name: "#7 a line of a block-scalar name, not a step"',
         ]),
-        renderCanon({ headings: numbered(2) })
+        renderCanon({ list: numbered(2) }),
+        renderReference({ headings: numbered(2) })
       );
 
       expect(verdict.violations).toEqual([]);
@@ -277,18 +407,44 @@ describe("fitness inventory gate (#44)", () => {
     it("tolerates a count sentence wrapped across lines", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({ headings: numbered(2), sentence: "There are **2\nchecks, numbered #1-#2**" })
+        renderCanon({ list: numbered(2), sentence: "There are **2\nchecks, numbered #1-#2**" }),
+        renderReference({ headings: numbered(2) })
       );
 
       expect(verdict.violations).toEqual([]);
     });
+
+    it("gives each numbered step the lines of its run body, and ends a step's body at the next step", async () => {
+      const workflow = [
+        renderWorkflow([stepName(1)], ["node scripts/one.mjs"]),
+        "      - name: Unnumbered step",
+        "        run: |",
+        "          node scripts/not-a-check.mjs",
+        "",
+      ].join("\n");
+
+      const verdict = await evaluate(
+        workflow,
+        renderCanon({ list: [listLine(1, "`node scripts/one.mjs`")], sentence: countSentence(1) }),
+        renderReference({ headings: [1] })
+      );
+
+      expect(verdict.violations).toEqual([]);
+      expect(verdict.inventory?.steps[0]?.body).toEqual([
+        "          set -euo pipefail",
+        "          node scripts/one.mjs",
+        "",
+      ]);
+      expect(verdict.inventory?.entries[0]?.command).toBe("node scripts/one.mjs");
+    });
   });
 
-  describe("the five violation kinds", () => {
+  describe("the workflow, the reference and the count", () => {
     it("refuses a check number two steps claim, naming the number and both lines", async () => {
       const verdict = await evaluate(
         renderWorkflow([1, 2, 2, 3].map(stepName)),
-        renderCanon({ headings: numbered(3) })
+        renderCanon({ list: numbered(3) }),
+        renderReference({ headings: numbered(3) })
       );
 
       expect(verdict.violations).toHaveLength(1);
@@ -298,7 +454,8 @@ describe("fitness inventory gate (#44)", () => {
     it("refuses a hole below the derived maximum", async () => {
       const verdict = await evaluate(
         renderWorkflow([1, 2, 4].map(stepName)),
-        renderCanon({ headings: [1, 2, 4], sentence: countSentence(4) })
+        renderCanon({ list: [1, 2, 4], sentence: countSentence(4) }),
+        renderReference({ headings: [1, 2, 4] })
       );
 
       expect(verdict.violations).toHaveLength(1);
@@ -307,41 +464,47 @@ describe("fitness inventory gate (#44)", () => {
     });
 
     // The set starts at 1, not at the lowest number declared: a suite whose first check was
-    // deleted on both sides still has a hole.
-    it("refuses a hole at #1, even when both sides agree on the rest", async () => {
+    // deleted on every side still has a hole.
+    it("refuses a hole at #1, even when every side agrees on the rest", async () => {
       const verdict = await evaluate(
         renderWorkflow([2, 3].map(stepName)),
-        renderCanon({ headings: [2, 3], sentence: countSentence(3) })
+        renderCanon({ list: [2, 3], sentence: countSentence(3) }),
+        renderReference({ headings: [2, 3] })
       );
 
       expect(verdict.violations).toHaveLength(1);
       expect(verdict.violations[0]).toContain("hole: #1 declared by no step");
     });
 
-    it("refuses a step with no canon heading as wired but undocumented", async () => {
+    it("refuses a step with no block in the reference as wired but undocumented", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(3).map(stepName)),
-        renderCanon({ headings: [1, 3], sentence: countSentence(3) })
+        renderCanon({ list: numbered(3) }),
+        renderReference({ headings: [1, 3] })
       );
 
       expect(verdict.violations).toHaveLength(1);
       expect(verdict.violations[0]).toContain("wired but undocumented: #2");
+      expect(verdict.violations[0]).toContain(`no \`# <number>.\` heading in ${REFERENCE_LABEL}`);
     });
 
-    it("refuses a canon heading with no step as documented but unwired", async () => {
+    it("refuses a reference block with no step as documented but unwired", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(3).map(stepName)),
-        renderCanon({ headings: numbered(4), sentence: countSentence(3) })
+        renderCanon({ list: numbered(3) }),
+        renderReference({ headings: numbered(4) })
       );
 
       expect(verdict.violations).toHaveLength(1);
       expect(verdict.violations[0]).toContain("documented but unwired: #4");
+      expect(verdict.violations[0]).toContain(`has a heading in ${REFERENCE_LABEL}`);
     });
 
     it("refuses a count sentence left at the previous value", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(3).map(stepName)),
-        renderCanon({ headings: numbered(3), sentence: countSentence(2) })
+        renderCanon({ list: numbered(3), sentence: countSentence(2) }),
+        renderReference({ headings: numbered(3) })
       );
 
       expect(verdict.violations).toHaveLength(1);
@@ -352,7 +515,8 @@ describe("fitness inventory gate (#44)", () => {
     it("refuses a count sentence whose range disagrees with its own count", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(3).map(stepName)),
-        renderCanon({ headings: numbered(3), sentence: "There are **3 checks, numbered #1-#4**" })
+        renderCanon({ list: numbered(3), sentence: "There are **3 checks, numbered #1-#4**" }),
+        renderReference({ headings: numbered(3) })
       );
 
       expect(verdict.violations).toHaveLength(1);
@@ -362,7 +526,8 @@ describe("fitness inventory gate (#44)", () => {
     it("refuses two count sentences, since which one is the canon's is ambiguous", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({ headings: numbered(2), sentence: `${countSentence(2)}. ${countSentence(2)}` })
+        renderCanon({ list: numbered(2), sentence: `${countSentence(2)}. ${countSentence(2)}` }),
+        renderReference({ headings: numbered(2) })
       );
 
       expect(verdict.violations).toHaveLength(1);
@@ -370,18 +535,288 @@ describe("fitness inventory gate (#44)", () => {
     });
   });
 
-  describe("what counts as a check heading", () => {
-    it("reports a `# N.` comment that does not open a block by its line, instead of counting it", async () => {
+  describe("the list of CLAUDE.md", () => {
+    it("refuses a step the list leaves out as wired but unlisted", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(3).map(stepName)),
+        renderCanon({ list: [1, 3], sentence: countSentence(3) }),
+        renderReference({ headings: numbered(3) })
+      );
+
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain("wired but unlisted: #2 has a step in");
+      expect(verdict.violations[0]).toContain(`no line in the list of ${CANON_LABEL}`);
+    });
+
+    it("refuses a list line with no step as listed but unwired", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(3).map(stepName)),
+        renderCanon({
+          list: [1, 2, 3, "- **#4** Check number 4 — shell"],
+          sentence: countSentence(3),
+        }),
+        renderReference({ headings: numbered(3) })
+      );
+
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain("listed but unwired: #4 has a line in the list of");
+    });
+
+    it("refuses a check listed twice, naming the number and both lines", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(3).map(stepName)),
+        renderCanon({ list: [1, 2, 2, 3], sentence: countSentence(3) }),
+        renderReference({ headings: numbered(3) })
+      );
+
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain("lists a check more than once: 2 (lines 8, 9)");
+    });
+
+    it("refuses a list line whose name differs from its step's, printing the line as it must read", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: [1, "- **#2** Check number two — shell"], sentence: countSentence(2) }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(
+        `${CANON_LABEL}:8 names #2 \`Check number two\`, but its step at ${WORKFLOW_LABEL}:16 is named \`Check number 2\``
+      );
+      expect(verdict.violations[0]).toContain("must read: `- **#2** Check number 2 — shell`");
+    });
+
+    it("refuses a list command its step does not run", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: [1, listLine(2, "`pnpm check:nothing`")], sentence: countSentence(2) }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(
+        `${CANON_LABEL}:8 says #2 runs \`pnpm check:nothing\`, but the run body of its step at ${WORKFLOW_LABEL}:16 does not contain that text`
+      );
+    });
+
+    it("accepts a list command its own step runs", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
         renderCanon({
+          list: [listLine(1, `\`${stepCommand(1)}\``), listLine(2, `\`${stepCommand(2)}\``)],
+          sentence: countSentence(2),
+        }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toEqual([]);
+      expect(verdict.inventory?.entries.map((entry) => entry.command)).toEqual([
+        stepCommand(1),
+        stepCommand(2),
+      ]);
+    });
+
+    // The command is held against the check's OWN step: a command only another step runs says the
+    // listed check applies a rule it does not, so it is refused although the workflow contains it.
+    it("refuses a list command that only another check's step runs", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({
+          list: [listLine(1, `\`${stepCommand(2)}\``), 2],
+          sentence: countSentence(2),
+        }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toEqual([
+        `${CANON_LABEL}:7 says #1 runs \`${stepCommand(2)}\`, but the run body of its step at ` +
+          `${WORKFLOW_LABEL}:10 does not contain that text. Name the command the step runs, or ` +
+          "`shell` for an inline check.",
+      ]);
+    });
+
+    // An entry of the steps list ends the step before it whether or not it has a name, so the body
+    // of a step with no `name:` key is never credited to the numbered step above it.
+    it.each([
+      ["a bare `- run: |` entry", UNNAMED_RUN_STEP],
+      ["a `- uses:` entry whose `with:` holds a block scalar", UNNAMED_USES_STEP],
+    ])(
+      "refuses a list command that only the unnamed step after the check runs: %s",
+      async (_shape, unnamed) => {
+        const verdict = await evaluate(
+          withUnnamedStep(unnamed),
+          renderCanon({
+            list: [listLine(1, `\`${UNNAMED_COMMAND}\``), 2],
+            sentence: countSentence(2),
+          }),
+          renderReference({ headings: numbered(2) })
+        );
+
+        expect(verdict.violations).toEqual([
+          `${CANON_LABEL}:7 says #1 runs \`${UNNAMED_COMMAND}\`, but the run body of its step at ` +
+            `${WORKFLOW_LABEL}:10 does not contain that text. Name the command the step runs, or ` +
+            "`shell` for an inline check.",
+        ]);
+        expect(verdict.inventory?.steps[0]?.body.join("\n")).not.toContain(UNNAMED_COMMAND);
+      }
+    );
+
+    // A list nested inside a step (a `with:` value) is not an entry of the steps list: the step's
+    // body after it is still the step's own.
+    it("keeps a step's body its own across a list nested inside the step", async () => {
+      const workflow = [
+        renderWorkflow([]),
+        `      - name: ${stepName(1)}`,
+        "        with:",
+        "          args:",
+        "            - one",
+        "            - two",
+        "        run: |",
+        `          ${stepCommand(1)}`,
+        "",
+      ].join("\n");
+
+      const verdict = await evaluate(
+        workflow,
+        renderCanon({ list: [listLine(1, `\`${stepCommand(1)}\``)], sentence: countSentence(1) }),
+        renderReference({ headings: [1] })
+      );
+
+      expect(verdict.violations).toEqual([]);
+      expect(verdict.inventory?.steps[0]?.body).toEqual([`          ${stepCommand(1)}`, ""]);
+    });
+
+    it("refuses a list line that states neither shell nor a command", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: [1, "- **#2** Check number 2"], sentence: countSentence(2) }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(`${CANON_LABEL}:8 lists #2 with no way it runs`);
+    });
+
+    it("refuses a line that opens like an entry without the bold number, by its line, and counts it as no entry", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: [1, "- #2 Check number 2 — shell"], sentence: countSentence(2) }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toHaveLength(2);
+      expect(verdict.violations[0]).toContain(
+        `${CANON_LABEL}:8 reads \`- #2 Check number 2 — shell\`, which opens like a line of the check list`
+      );
+      expect(verdict.violations[1]).toContain("wired but unlisted: #2");
+    });
+
+    it("refuses a list number with a leading zero as a line not in the list's form", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: [1, "- **#02** Check number 2 — shell"], sentence: countSentence(2) }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toHaveLength(2);
+      expect(verdict.violations[0]).toContain(`${CANON_LABEL}:8 reads \`- **#02** Check number 2`);
+      expect(verdict.violations[1]).toContain("wired but unlisted: #2");
+    });
+
+    it("refuses a check block left in a code block of the section", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(3).map(stepName)),
+        renderCanon({
+          list: numbered(3),
+          fence: ["# 3. A check block left behind.", 'echo "check 3"'],
+        }),
+        renderReference({ headings: numbered(3) })
+      );
+
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(
+        `${CANON_LABEL}:12 holds the check heading \`# 3. A check block left behind.\` in a code block`
+      );
+      expect(verdict.violations[0]).toContain(`The check blocks live in ${REFERENCE_LABEL}`);
+    });
+
+    it("does not read a list-shaped line after the section ends", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: numbered(2), after: ["- **#9** A later section's list — shell"] }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toEqual([]);
+      expect(verdict.inventory?.entries).toHaveLength(2);
+    });
+
+    it("refuses a section that holds no list line", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: [], sentence: countSentence(2) }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.inventory).toBeNull();
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(
+        `zero list lines were read from ${CANON_LABEL} §Automated Compliance Checks`
+      );
+    });
+
+    it("refuses a section whose code block never closes", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: numbered(2), fence: ["echo open"], unclosed: true }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.inventory).toBeNull();
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(
+        `${CANON_LABEL}:10 opens a code block that never closes`
+      );
+    });
+
+    it("refuses a canon with no Automated Compliance Checks section", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: numbered(2) }).replace("## Automated Compliance Checks", "## Renamed"),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.inventory).toBeNull();
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain("has no `## Automated Compliance Checks` section");
+    });
+
+    it("refuses a section that states no count sentence", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: numbered(2), sentence: null }),
+        renderReference({ headings: numbered(2) })
+      );
+
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain("states no count in the form");
+    });
+  });
+
+  describe("what counts as a check heading in the reference", () => {
+    it("reports a `# N.` comment that does not open a block by its line, instead of counting it", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: numbered(2) }),
+        renderReference({
           headings: numbered(2),
           bodies: { 1: ["# 2. a shell comment shaped like a heading"] },
         })
       );
 
       expect(verdict.violations).toHaveLength(1);
-      expect(verdict.violations[0]).toContain("fixture/CLAUDE.md:10 reads `# 2. a shell comment");
+      expect(verdict.violations[0]).toContain(`${REFERENCE_LABEL}:10 reads \`# 2. a shell comment`);
       expect(verdict.inventory?.headings.map((heading) => heading.number)).toEqual([1, 2]);
     });
 
@@ -390,7 +825,8 @@ describe("fitness inventory gate (#44)", () => {
     it("reports a look-alike after a blank line as a duplicate heading when its number exists", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({
+        renderCanon({ list: numbered(2) }),
+        renderReference({
           headings: numbered(2),
           bodies: { 2: ["", "# 1. a comment after a blank line"] },
         })
@@ -405,7 +841,8 @@ describe("fitness inventory gate (#44)", () => {
     it("reports a look-alike after a blank line as documented but unwired when its number does not", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({
+        renderCanon({ list: numbered(2) }),
+        renderReference({
           headings: numbered(2),
           bodies: { 2: ["", "# 9. a comment after a blank line"] },
         })
@@ -415,11 +852,12 @@ describe("fitness inventory gate (#44)", () => {
       expect(verdict.violations[0]).toContain("documented but unwired: #9");
     });
 
-    // Measured in the real canon: `# 11 once …` and `# 22 harnesses …` sit inside check bodies.
+    // Measured in the real blocks: `# 11 once …` and `# 22 harnesses …` sit inside check bodies.
     it("does not read a comment that starts with a number but no period as a heading", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({
+        renderCanon({ list: numbered(2) }),
+        renderReference({
           headings: numbered(2),
           bodies: { 1: ["# 11 once a gate marked its read —"] },
         })
@@ -431,7 +869,8 @@ describe("fitness inventory gate (#44)", () => {
     it("does not end the section at a column-0 `## ` comment inside the code block", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({
+        renderCanon({ list: numbered(2) }),
+        renderReference({
           headings: numbered(2),
           bodies: { 1: ["## a shell comment with two hashes"] },
         })
@@ -444,7 +883,8 @@ describe("fitness inventory gate (#44)", () => {
     it("stops at the next level-2 heading, so a `# N.` line in a later section is not read", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({
+        renderCanon({ list: numbered(2) }),
+        renderReference({
           headings: numbered(2),
           after: ["````bash", "# 3. a later section's block", "````"],
         })
@@ -455,21 +895,112 @@ describe("fitness inventory gate (#44)", () => {
     });
   });
 
+  describe("the reference", () => {
+    it("refuses a count sentence in the reference, since the count is stated once, in CLAUDE.md", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: numbered(2) }),
+        renderReference({ headings: numbered(2), prose: `${countSentence(2)}.` })
+      );
+
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(
+        `${REFERENCE_LABEL} states the check count ("There are **2 checks, numbered #1-#2**")`
+      );
+      expect(verdict.violations[0]).toContain(`stated once, in ${CANON_LABEL}`);
+    });
+
+    it("refuses a reference with no `## Check blocks` section", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: numbered(2) }),
+        renderReference({ headings: numbered(2), section: "## Blocks" })
+      );
+
+      expect(verdict.inventory).toBeNull();
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(
+        `${REFERENCE_LABEL} has no \`## Check blocks\` section`
+      );
+    });
+
+    it("refuses a reference with zero check headings", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: numbered(2) }),
+        renderReference({ headings: [] })
+      );
+
+      expect(verdict.inventory).toBeNull();
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(
+        `zero check headings were read from ${REFERENCE_LABEL}`
+      );
+    });
+
+    it("refuses a reference whose code block never closes", async () => {
+      const verdict = await evaluate(
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({ list: numbered(2) }),
+        renderReference({ headings: numbered(2), unclosed: true })
+      );
+
+      expect(verdict.inventory).toBeNull();
+      expect(verdict.violations).toHaveLength(1);
+      expect(verdict.violations[0]).toContain(
+        `${REFERENCE_LABEL}:7 opens a code block that never closes`
+      );
+    });
+  });
+
   describe("malformed step names", () => {
     it("refuses an unquoted `#N` name, which YAML reads as a comment", async () => {
       const verdict = await evaluate(
         renderWorkflow([stepName(1), "#2 Unquoted"]),
-        renderCanon({ headings: [1], sentence: countSentence(1) })
+        renderCanon({ list: [1] }),
+        renderReference({ headings: [1] })
       );
 
       expect(verdict.violations).toHaveLength(1);
       expect(verdict.violations[0]).toContain("declares the step name `#2 Unquoted` unquoted");
     });
 
+    // A numbered name that no entry of a steps list holds (here a job's) names no step, so the
+    // reader cannot tell whose run body is its: it is refused, never counted as a check.
+    it("refuses a numbered name outside an entry of a steps list", async () => {
+      const workflow = [
+        "name: Fixture fitness",
+        "on: [push]",
+        "jobs:",
+        "  fitness:",
+        '    name: "#2 A job named like a check"',
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        `      - name: ${stepName(1)}`,
+        "        run: |",
+        `          ${stepCommand(1)}`,
+        "",
+      ].join("\n");
+
+      const verdict = await evaluate(
+        workflow,
+        renderCanon({ list: [1] }),
+        renderReference({ headings: [1] })
+      );
+
+      expect(verdict.violations).toEqual([
+        `${WORKFLOW_LABEL}:5 names \`#2 A job named like a check\` outside an entry of a steps list ` +
+          "(a line that starts `- `), so no step's run body can be told to be its. A check is a step: " +
+          "name it on the step, or drop the number.",
+      ]);
+      expect(verdict.inventory?.steps.map((step) => step.number)).toEqual([1]);
+    });
+
     it("refuses a check number with a leading zero", async () => {
       const verdict = await evaluate(
         renderWorkflow([stepName(1), '"#02 Leading zero"']),
-        renderCanon({ headings: [1], sentence: countSentence(1) })
+        renderCanon({ list: [1] }),
+        renderReference({ headings: [1] })
       );
 
       expect(verdict.violations).toHaveLength(1);
@@ -479,61 +1010,17 @@ describe("fitness inventory gate (#44)", () => {
 
   describe("fail-closed", () => {
     it("refuses a workflow with zero numbered steps", async () => {
-      const verdict = await evaluate(renderWorkflow([]), renderCanon({ headings: numbered(2) }));
+      const verdict = await evaluate(
+        renderWorkflow([]),
+        renderCanon({ list: numbered(2) }),
+        renderReference({ headings: numbered(2) })
+      );
 
       expect(verdict.inventory).toBeNull();
       expect(verdict.violations).toHaveLength(1);
       expect(verdict.violations[0]).toContain(
         "zero numbered steps were read from fixture/fitness.yml"
       );
-    });
-
-    it("refuses a canon with no Automated Compliance Checks section", async () => {
-      const verdict = await evaluate(
-        renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({ headings: numbered(2) }).replace(
-          "## Automated Compliance Checks",
-          "## Renamed"
-        )
-      );
-
-      expect(verdict.inventory).toBeNull();
-      expect(verdict.violations).toHaveLength(1);
-      expect(verdict.violations[0]).toContain("has no `## Automated Compliance Checks` section");
-    });
-
-    it("refuses a section with zero check headings", async () => {
-      const verdict = await evaluate(
-        renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({ headings: [] })
-      );
-
-      expect(verdict.inventory).toBeNull();
-      expect(verdict.violations).toHaveLength(1);
-      expect(verdict.violations[0]).toContain("zero check headings were read");
-    });
-
-    it("refuses a code block that never closes", async () => {
-      const verdict = await evaluate(
-        renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({ headings: numbered(2), unclosed: true })
-      );
-
-      expect(verdict.inventory).toBeNull();
-      expect(verdict.violations).toHaveLength(1);
-      expect(verdict.violations[0]).toContain(
-        "fixture/CLAUDE.md:7 opens a code block that never closes"
-      );
-    });
-
-    it("refuses a section that states no count sentence", async () => {
-      const verdict = await evaluate(
-        renderWorkflow(numbered(2).map(stepName)),
-        renderCanon({ headings: numbered(2), sentence: null })
-      );
-
-      expect(verdict.violations).toHaveLength(1);
-      expect(verdict.violations[0]).toContain("states no count in the form");
     });
   });
 
@@ -542,14 +1029,19 @@ describe("fitness inventory gate (#44)", () => {
       const gate = await loadGate();
       const verdict = await evaluate(
         renderWorkflow(['"#2 Second | piped"', stepName(1)]),
-        renderCanon({ headings: [1, 2] })
+        renderCanon({ list: [1, "- **#2** Second | piped — shell"] }),
+        renderReference({ headings: [1, 2] })
       );
+      expect(verdict.violations).toEqual([]);
       expect(verdict.inventory).not.toBeNull();
       if (verdict.inventory === null) return;
 
       const summary = gate.renderSummary(verdict.inventory);
 
       expect(summary).toContain("2 checks (#1-#2), derived from the numbered steps");
+      expect(summary).toContain(
+        "matched against the list of CLAUDE.md §Automated Compliance Checks and the blocks of docs/development/FITNESS_FUNCTIONS.md"
+      );
       expect(summary.indexOf("| 1 | Check number 1 |")).toBeLessThan(
         summary.indexOf("| 2 | Second \\| piped |")
       );
@@ -559,14 +1051,27 @@ describe("fitness inventory gate (#44)", () => {
   describe("the command line", () => {
     const writeInputs = (
       dir: string,
-      workflow: string,
-      canon: string
-    ): { workflow: string; canon: string } => {
-      const files = { workflow: path.join(dir, "fitness.yml"), canon: path.join(dir, "CLAUDE.md") };
+      [workflow, canon, reference]: readonly [string, string, string]
+    ): { workflow: string; canon: string; reference: string } => {
+      const files = {
+        workflow: path.join(dir, "fitness.yml"),
+        canon: path.join(dir, "CLAUDE.md"),
+        reference: path.join(dir, "FITNESS_FUNCTIONS.md"),
+      };
       writeFileSync(files.workflow, workflow);
       writeFileSync(files.canon, canon);
+      writeFileSync(files.reference, reference);
       return files;
     };
+
+    const flags = (files: { workflow: string; canon: string; reference: string }): string[] => [
+      "--workflow",
+      files.workflow,
+      "--canon",
+      files.canon,
+      "--reference",
+      files.reference,
+    ];
 
     const runGate = (args: readonly string[], cwd?: string): GateResult =>
       toResult(
@@ -578,27 +1083,16 @@ describe("fitness inventory gate (#44)", () => {
 
     it("exits 0, prints the derived N and appends the summary on a clean inventory", () => {
       const dir = scratch("fitness-inventory-gate-");
-      const files = writeInputs(
-        dir,
-        renderWorkflow(numbered(3).map(stepName)),
-        renderCanon({ headings: numbered(3) })
-      );
+      const files = writeInputs(dir, cleanInputs(3));
       const summary = path.join(dir, "summary.md");
       writeFileSync(summary, "previous step's summary\n");
 
-      const result = runGate([
-        "--workflow",
-        files.workflow,
-        "--canon",
-        files.canon,
-        "--summary",
-        summary,
-      ]);
+      const result = runGate([...flags(files), "--summary", summary]);
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain(
-        "derived N=3 from 3 numbered workflow steps and 3 canon headings"
+      expect(result.stdout).toBe(
+        "fitness-inventory-gate: derived N=3 from 3 numbered workflow steps, 3 reference headings and 3 list lines\n"
       );
       const written = readFileSync(summary, "utf8");
       expect(written.startsWith("previous step's summary\n## Fitness Functions")).toBe(true);
@@ -607,21 +1101,14 @@ describe("fitness inventory gate (#44)", () => {
 
     it("exits 1 with each violation on stderr and writes no summary when the inventory is red", () => {
       const dir = scratch("fitness-inventory-gate-");
-      const files = writeInputs(
-        dir,
+      const files = writeInputs(dir, [
         renderWorkflow([1, 1].map(stepName)),
-        renderCanon({ headings: [1] })
-      );
+        renderCanon({ list: [1] }),
+        renderReference({ headings: [1] }),
+      ]);
       const summary = path.join(dir, "summary.md");
 
-      const result = runGate([
-        "--workflow",
-        files.workflow,
-        "--canon",
-        files.canon,
-        "--summary",
-        summary,
-      ]);
+      const result = runGate([...flags(files), "--summary", summary]);
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(
@@ -632,13 +1119,70 @@ describe("fitness inventory gate (#44)", () => {
 
     it("exits 1 naming an input file that cannot be read", () => {
       const dir = scratch("fitness-inventory-gate-");
-      const files = writeInputs(dir, renderWorkflow([stepName(1)]), renderCanon({ headings: [1] }));
+      const files = writeInputs(dir, cleanInputs(1));
       const missing = path.join(dir, "absent.yml");
 
-      const result = runGate(["--workflow", missing, "--canon", files.canon]);
+      const result = runGate([...flags({ ...files, workflow: missing })]);
 
       expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
       expect(result.stderr).toContain(`${missing} could not be read`);
+    });
+
+    it("exits 1 naming a reference that cannot be read", () => {
+      const dir = scratch("fitness-inventory-gate-");
+      const files = writeInputs(dir, cleanInputs(1));
+      const missing = path.join(dir, "absent.md");
+
+      const result = runGate([...flags({ ...files, reference: missing })]);
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain(`fitness-inventory-gate: ${missing} could not be read`);
+    });
+
+    it("exits 1 when a list command occurs only in another check's step, naming the check and its step", () => {
+      const dir = scratch("fitness-inventory-gate-");
+      const files = writeInputs(dir, [
+        renderWorkflow(numbered(2).map(stepName)),
+        renderCanon({
+          list: [1, listLine(2, `\`${stepCommand(1)}\``)],
+          sentence: countSentence(2),
+        }),
+        renderReference({ headings: numbered(2) }),
+      ]);
+      const summary = path.join(dir, "summary.md");
+
+      const result = runGate([...flags(files), "--summary", summary]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe(
+        `fitness-inventory-gate: ${files.canon}:8 says #2 runs \`${stepCommand(1)}\`, but the run ` +
+          `body of its step at ${files.workflow}:16 does not contain that text. Name the command the ` +
+          "step runs, or `shell` for an inline check.\n"
+      );
+      expect(existsSync(summary)).toBe(false);
+    });
+
+    it("exits 1 when a list command occurs only in an unnamed step after the check", () => {
+      const dir = scratch("fitness-inventory-gate-");
+      const files = writeInputs(dir, [
+        withUnnamedStep(UNNAMED_RUN_STEP),
+        renderCanon({
+          list: [listLine(1, `\`${UNNAMED_COMMAND}\``), 2],
+          sentence: countSentence(2),
+        }),
+        renderReference({ headings: numbered(2) }),
+      ]);
+
+      const result = runGate(flags(files));
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe(
+        `fitness-inventory-gate: ${files.canon}:7 says #1 runs \`${UNNAMED_COMMAND}\`, but the run ` +
+          `body of its step at ${files.workflow}:10 does not contain that text. Name the command the ` +
+          "step runs, or `shell` for an inline check.\n"
+      );
     });
 
     it("exits 1 on an unknown argument instead of ignoring it", () => {
@@ -646,22 +1190,23 @@ describe("fitness inventory gate (#44)", () => {
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("usage: node scripts/testing/fitness-inventory-gate.mjs");
+      expect(result.stderr).toContain("[--reference <path>]");
     });
 
     // A copy of the gate in a scratch tree, run from a different directory with no flags: the only
     // files it can measure are the ones beside its own `scripts/` directory, so a lookup that leaned
     // on git or on the working directory would read another tree or fail here.
-    it("reads the workflow and the canon beside its own scripts directory, needing neither git nor the working directory", () => {
+    it("reads the workflow, the canon and the reference beside its own scripts directory, needing neither git nor the working directory", () => {
       const tree = scratch("fitness-inventory-gate-tree-");
       mkdirSync(path.join(tree, "scripts", "testing"), { recursive: true });
       mkdirSync(path.join(tree, ".github", "workflows"), { recursive: true });
+      mkdirSync(path.join(tree, "docs", "development"), { recursive: true });
       const script = path.join(tree, "scripts", "testing", "fitness-inventory-gate.mjs");
       copyFileSync(GATE_SCRIPT, script);
-      writeFileSync(
-        path.join(tree, ".github", "workflows", "fitness.yml"),
-        renderWorkflow(numbered(5).map(stepName))
-      );
-      writeFileSync(path.join(tree, "CLAUDE.md"), renderCanon({ headings: numbered(5) }));
+      const [workflow, canon, reference] = cleanInputs(5);
+      writeFileSync(path.join(tree, ".github", "workflows", "fitness.yml"), workflow);
+      writeFileSync(path.join(tree, "CLAUDE.md"), canon);
+      writeFileSync(path.join(tree, "docs", "development", "FITNESS_FUNCTIONS.md"), reference);
       const elsewhere = scratch("fitness-inventory-gate-cwd-");
 
       const result = toResult(
@@ -670,7 +1215,9 @@ describe("fitness inventory gate (#44)", () => {
 
       expect(result.stderr).toBe("");
       expect(result.status).toBe(0);
-      expect(result.stdout).toContain("derived N=5");
+      expect(result.stdout).toContain(
+        "derived N=5 from 5 numbered workflow steps, 5 reference headings and 5 list lines"
+      );
     });
   });
 });

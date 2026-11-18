@@ -14,7 +14,7 @@
 | unmeasured              | 0     |
 | Machine rows            | 1198  |
 | Confirmed rows          | 10    |
-| Blocks                  | 15102 |
+| Blocks                  | 15125 |
 | Blocks with a criterion | 300   |
 
 ## Slice 2.6a
@@ -943,7 +943,7 @@ Deleted: 0 files, 31 blocks.
 | `apps/api/tests/unit/scripts/dependencySites.test.ts`                                                 | test             | 23     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/enginesNodeGate.test.ts`                                                 | test             | 21     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/environmentVariablesPage.test.ts`                                        | test             | 1      | 0          | KEEP       | machine                     | behavioural          |
-| `apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts`                                            | test             | 33     | 0          | KEEP       | machine                     | behavioural          |
+| `apps/api/tests/unit/scripts/fitnessInventoryGate.test.ts`                                            | test             | 56     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/hardProbe.test.ts`                                                       | test             | 63     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/holdsGate.test.ts`                                                       | test             | 48     | 0          | KEEP       | machine                     | behavioural          |
 | `apps/api/tests/unit/scripts/i18nLint.test.ts`                                                        | test             | 27     | 0          | KEEP       | machine                     | behavioural          |

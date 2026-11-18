@@ -35,6 +35,7 @@ The four canon documents are loaded into every agent session by `CLAUDE.md`.
 | [Coding Standards](development/CODING_STANDARDS.md)                | TypeScript, testing, naming, JSDoc                              |
 | [Security Canon](security/SECURITY_CANON.md)                       | Secrets, environment, tenant isolation, rate limiting           |
 | [Dependency Audit Record](security/DEPENDENCY_AUDIT_RECORD.md)     | CVE floors, ignored advisories, patches, holds (read as a file) |
+| [Fitness Functions](development/FITNESS_FUNCTIONS.md)              | The block of every fitness check, by number (read as a file)    |
 | [Logging Canon](observability/LOGGING_CANON.md)                    | Logger factories, background tasks, caching                     |
 | [Bounded Contexts](architecture/BOUNDED_CONTEXTS.md)               | The core packages and what each context owns                    |
 | [Admin and Customer Parity](architecture/ADMIN_CUSTOMER_PARITY.md) | Ledger of admin and customer behaviour that must match          |

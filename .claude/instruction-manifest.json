@@ -15,11 +15,15 @@
       "emptyGlobs": {
         "patches/**": "no patch exists today; fitness #48 owns the directory"
       }
+    },
+    {
+      "rule": ".claude/rules/fitness-functions.md",
+      "document": "docs/development/FITNESS_FUNCTIONS.md",
+      "emptyGlobs": {}
     }
   ],
   "budget": {
-    "bytes": 288897,
-    "target": 250000,
-    "targetOwedBy": "TOKEN-1 T3"
+    "bytes": 135623,
+    "target": 250000
   }
 }
