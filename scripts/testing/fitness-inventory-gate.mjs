@@ -17,10 +17,14 @@
  *
  *   THE THREE SOURCES. The workflow side is every step whose `name:` value starts with `#<number>`,
  *   double- or single-quoted, in any job of `.github/workflows/fitness.yml`, with the lines of the
- *   block scalars read while that step is the current one (its `run: |` body; a step whose name is
- *   not numbered ends it). Block scalars are never read as keys, so a shell line shaped like a step
- *   name is never read as one. An UNQUOTED `name: #N …` is refused: YAML reads it as a comment, so
- *   the step has no name and its number would be invisible. The reference side is every line of
+ *   block scalars its own entry of the steps list holds (its `run: |` body). An entry opens at a
+ *   line that starts `- ` and ends at the next line, outside a block scalar and not a comment, at
+ *   its column or to its left: the next entry, named or not, or a key that leaves the list. So the
+ *   body of a step with no numbered name is never credited to the numbered step before it. Block
+ *   scalars are never read as keys, so a shell line shaped like a step name is never read as one.
+ *   An UNQUOTED `name: #N …` is refused: YAML reads it as a comment, so the step has no name and
+ *   its number would be invisible. A numbered name that no open entry holds (a job's, say) is
+ *   refused too: no step's body can be told to be its. The reference side is every line of
  *   the form `# N.` at column 0 inside a fenced code block of the section `## Check blocks` of
  *   `docs/development/FITNESS_FUNCTIONS.md`. The list side is every line of `CLAUDE.md` §Automated
  *   Compliance Checks, outside code blocks, of the form `- **#N** <name> — <how>`, where `<how>` is
@@ -52,10 +56,10 @@
  *   blocks live in the reference); and a count sentence in the reference (the count is stated once,
  *   in the canon).
  *
- *   FAIL-CLOSED. An unreadable file, zero numbered steps, a missing section in the canon or the
- *   reference, zero reference headings, zero list lines, a fence that never closes, and a missing
- *   count sentence each exit 1 with a message naming the cause. A scan that read nothing must never
- *   render as a clean inventory.
+ *   FAIL-CLOSED. An unreadable file, zero numbered steps, a numbered name outside an entry of a
+ *   steps list, a missing section in the canon or the reference, zero reference headings, zero list
+ *   lines, a fence that never closes, and a missing count sentence each exit 1 with a message naming
+ *   the cause. A scan that read nothing must never render as a clean inventory.
  *
  *   RESIDUAL LIMITS, stated rather than implied. (1) Textual, not a YAML or Markdown parser: a step
  *   whose name is assembled by a matrix, a composite action or a flow-style `{ name: … }` mapping is
@@ -98,6 +102,10 @@ const NAME_KEY = /^(\s*)(-\s+)?name:\s*(.*)$/;
  * `"#N …"` form a check step uses, so it declares no check and its lines are skipped as text.
  */
 const BLOCK_SCALAR_KEY = /^(\s*)(-\s+)?[A-Za-z_][\w-]*:\s*[|>][+-]?\d*\s*(?:#.*)?$/;
+/** A line that opens an entry of a block sequence: its indentation, then `-` and a space or the end. */
+const SEQUENCE_ENTRY = /^(\s*)-(?:\s|$)/;
+/** A comment line, which ends no YAML structure whatever its indentation. */
+const COMMENT_LINE = /^\s*#/;
 const DOUBLE_QUOTED = /^"((?:[^"\\]|\\.)*)"/;
 const SINGLE_QUOTED = /^'((?:[^']|'')*)'/;
 /** The number at the start of a step name: digits not followed by another digit. */
@@ -191,8 +199,13 @@ function countSentencesOf(text) {
 }
 
 /**
- * The numbered steps of a workflow, read as text, each with the lines of its run body.
- *
+ * @description The numbered steps of a workflow, read as text, each with the lines of its run body.
+ *   A step is an entry of a steps list: a line that opens a block sequence entry (`- `) starts it,
+ *   and the next line outside a block scalar at that entry's column or to its left (the next entry,
+ *   named or not, or a key that leaves the list) ends it. A block scalar's lines belong to the step
+ *   whose entry holds them, so the body of a step with no numbered name is never credited to the
+ *   numbered step before it. A numbered name that no open entry holds names no step whose body can
+ *   be told, so it is refused rather than counted. Comment lines end nothing.
  * @param {string} text
  * @param {string} label How the file is named in a violation.
  * @returns {{ steps: Step[], violations: string[] }}
@@ -204,6 +217,8 @@ function readWorkflowSteps(text, label) {
   const violations = [];
   /** @type {number | null} */
   let blockKeyColumn = null;
+  /** @type {number | null} The column of the `-` of the open sequence entry. */
+  let entryColumn = null;
   /** @type {Step | null} */
   let current = null;
 
@@ -216,6 +231,15 @@ function readWorkflowSteps(text, label) {
         continue;
       }
       blockKeyColumn = null;
+    }
+
+    if (line.trim().length > 0 && !COMMENT_LINE.test(line)) {
+      if (entryColumn !== null && indentOf(line) <= entryColumn) {
+        entryColumn = null;
+        current = null;
+      }
+      const entry = SEQUENCE_ENTRY.exec(line);
+      if (entry !== null && entryColumn === null) entryColumn = (entry[1] ?? "").length;
     }
 
     const scalar = BLOCK_SCALAR_KEY.exec(line);
@@ -247,6 +271,14 @@ function readWorkflowSteps(text, label) {
       violations.push(
         `${label}:${String(lineNumber)} names the step \`${name}\`, whose number is not a check ` +
           `number: checks are numbered from 1, without a leading zero.`
+      );
+      continue;
+    }
+    if (entryColumn === null) {
+      violations.push(
+        `${label}:${String(lineNumber)} names \`${name}\` outside an entry of a steps list (a line ` +
+          "that starts `- `), so no step's run body can be told to be its. A check is a step: name " +
+          "it on the step, or drop the number."
       );
       continue;
     }

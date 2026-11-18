@@ -116,6 +116,21 @@ const stepName = (number: number): string => `"#${String(number)} Check number $
  */
 const stepCommand = (position: number): string => `node scripts/check-${String(position)}.mjs`;
 
+/** The command only a step with no `name:` key runs, in the fixtures that hold one. */
+const UNNAMED_COMMAND = "node scripts/only-unnamed.mjs";
+
+/** A steps entry with no `name:` key whose first key opens a block scalar. */
+const UNNAMED_RUN_STEP = ["      - run: |", `          ${UNNAMED_COMMAND}`, ""];
+
+/** A steps entry with no `name:` key whose block scalar sits under a later key. */
+const UNNAMED_USES_STEP = [
+  "      - uses: actions/github-script@v8",
+  "        with:",
+  "          script: |",
+  `            ${UNNAMED_COMMAND}`,
+  "",
+];
+
 /**
  * A fitness workflow whose steps carry the given raw `name:` values, in order, each with a `run: |`
  * body. An unnumbered checkout step leads, as in the real file, so a reader that counted every step
@@ -141,6 +156,20 @@ const renderWorkflow = (names: readonly string[], runBody?: readonly string[]): 
       ...(runBody ?? [stepCommand(index + 1)]).map((line) => `          ${line}`),
       "",
     ]),
+  ].join("\n");
+
+/**
+ * A workflow whose check #1 is followed by the given unnamed step, then by check #2. The unnamed
+ * step's body is its own: none of its lines is check #1's.
+ */
+const withUnnamedStep = (unnamed: readonly string[]): string =>
+  [
+    renderWorkflow([stepName(1)]),
+    ...unnamed,
+    `      - name: ${stepName(2)}`,
+    "        run: |",
+    `          ${stepCommand(2)}`,
+    "",
   ].join("\n");
 
 const countSentence = (n: number): string =>
@@ -607,6 +636,57 @@ describe("fitness inventory gate (#44)", () => {
       ]);
     });
 
+    // An entry of the steps list ends the step before it whether or not it has a name, so the body
+    // of a step with no `name:` key is never credited to the numbered step above it.
+    it.each([
+      ["a bare `- run: |` entry", UNNAMED_RUN_STEP],
+      ["a `- uses:` entry whose `with:` holds a block scalar", UNNAMED_USES_STEP],
+    ])(
+      "refuses a list command that only the unnamed step after the check runs: %s",
+      async (_shape, unnamed) => {
+        const verdict = await evaluate(
+          withUnnamedStep(unnamed),
+          renderCanon({
+            list: [listLine(1, `\`${UNNAMED_COMMAND}\``), 2],
+            sentence: countSentence(2),
+          }),
+          renderReference({ headings: numbered(2) })
+        );
+
+        expect(verdict.violations).toEqual([
+          `${CANON_LABEL}:7 says #1 runs \`${UNNAMED_COMMAND}\`, but the run body of its step at ` +
+            `${WORKFLOW_LABEL}:10 does not contain that text. Name the command the step runs, or ` +
+            "`shell` for an inline check.",
+        ]);
+        expect(verdict.inventory?.steps[0]?.body.join("\n")).not.toContain(UNNAMED_COMMAND);
+      }
+    );
+
+    // A list nested inside a step (a `with:` value) is not an entry of the steps list: the step's
+    // body after it is still the step's own.
+    it("keeps a step's body its own across a list nested inside the step", async () => {
+      const workflow = [
+        renderWorkflow([]),
+        `      - name: ${stepName(1)}`,
+        "        with:",
+        "          args:",
+        "            - one",
+        "            - two",
+        "        run: |",
+        `          ${stepCommand(1)}`,
+        "",
+      ].join("\n");
+
+      const verdict = await evaluate(
+        workflow,
+        renderCanon({ list: [listLine(1, `\`${stepCommand(1)}\``)], sentence: countSentence(1) }),
+        renderReference({ headings: [1] })
+      );
+
+      expect(verdict.violations).toEqual([]);
+      expect(verdict.inventory?.steps[0]?.body).toEqual([`          ${stepCommand(1)}`, ""]);
+    });
+
     it("refuses a list line that states neither shell nor a command", async () => {
       const verdict = await evaluate(
         renderWorkflow(numbered(2).map(stepName)),
@@ -885,6 +965,37 @@ describe("fitness inventory gate (#44)", () => {
       expect(verdict.violations[0]).toContain("declares the step name `#2 Unquoted` unquoted");
     });
 
+    // A numbered name that no entry of a steps list holds (here a job's) names no step, so the
+    // reader cannot tell whose run body is its: it is refused, never counted as a check.
+    it("refuses a numbered name outside an entry of a steps list", async () => {
+      const workflow = [
+        "name: Fixture fitness",
+        "on: [push]",
+        "jobs:",
+        "  fitness:",
+        '    name: "#2 A job named like a check"',
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        `      - name: ${stepName(1)}`,
+        "        run: |",
+        `          ${stepCommand(1)}`,
+        "",
+      ].join("\n");
+
+      const verdict = await evaluate(
+        workflow,
+        renderCanon({ list: [1] }),
+        renderReference({ headings: [1] })
+      );
+
+      expect(verdict.violations).toEqual([
+        `${WORKFLOW_LABEL}:5 names \`#2 A job named like a check\` outside an entry of a steps list ` +
+          "(a line that starts `- `), so no step's run body can be told to be its. A check is a step: " +
+          "name it on the step, or drop the number.",
+      ]);
+      expect(verdict.inventory?.steps.map((step) => step.number)).toEqual([1]);
+    });
+
     it("refuses a check number with a leading zero", async () => {
       const verdict = await evaluate(
         renderWorkflow([stepName(1), '"#02 Leading zero"']),
@@ -1051,6 +1162,27 @@ describe("fitness inventory gate (#44)", () => {
           "step runs, or `shell` for an inline check.\n"
       );
       expect(existsSync(summary)).toBe(false);
+    });
+
+    it("exits 1 when a list command occurs only in an unnamed step after the check", () => {
+      const dir = scratch("fitness-inventory-gate-");
+      const files = writeInputs(dir, [
+        withUnnamedStep(UNNAMED_RUN_STEP),
+        renderCanon({
+          list: [listLine(1, `\`${UNNAMED_COMMAND}\``), 2],
+          sentence: countSentence(2),
+        }),
+        renderReference({ headings: numbered(2) }),
+      ]);
+
+      const result = runGate(flags(files));
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toBe(
+        `fitness-inventory-gate: ${files.canon}:7 says #1 runs \`${UNNAMED_COMMAND}\`, but the run ` +
+          `body of its step at ${files.workflow}:10 does not contain that text. Name the command the ` +
+          "step runs, or `shell` for an inline check.\n"
+      );
     });
 
     it("exits 1 on an unknown argument instead of ignoring it", () => {

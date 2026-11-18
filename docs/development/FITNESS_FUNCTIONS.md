@@ -1435,9 +1435,12 @@ echo "${TST_BAD:-0}"   # expect 0 — every harness goes through the seam
 # invocation and is the workflow step's body line for line; the script derives N and writes the
 # job summary from it, so no count is typed anywhere outside the sentence it checks.
 # WHAT IT READS. Workflow side: every step whose `name:` value starts with `#<number>`, double-
-# or single-quoted, in any job of fitness.yml, with the lines of its `run: |` body; block scalars
-# are never read as keys, and an UNQUOTED `name: #N` is refused because YAML reads it as a
-# comment. Reference side: every `# N.` line at column 0 inside a fenced block of the section
+# or single-quoted, in any job of fitness.yml, with the lines of the block scalars its own entry
+# of the steps list holds (its `run: |` body); an entry opens at a line that starts `- ` and ends
+# at the next line, outside a block scalar and not a comment, at its column or to its left, so the
+# body of a step with no numbered name, a bare `- run:` or `- uses:` entry included, is never
+# credited to the numbered step before it. Block scalars are never read as keys, and an UNQUOTED
+# `name: #N` is refused because YAML reads it as a comment. Reference side: every `# N.` line at column 0 inside a fenced block of the section
 # `## Check blocks` of this document, which ends at the next level-1 or level-2 heading OUTSIDE a
 # fence, so a column-0 `## ` comment inside a block does not truncate it. List side: every line
 # of CLAUDE.md §Automated Compliance Checks, outside code blocks, of the form
@@ -1461,9 +1464,11 @@ echo "${TST_BAD:-0}"   # expect 0 — every harness goes through the seam
 # occur in its step's run body; a `# N.` heading inside a code block of the CLAUDE.md section,
 # since the blocks live here; and a count sentence in this document, since the count is stated
 # once, in CLAUDE.md.
-# FAIL-CLOSED: an unreadable file, zero numbered steps, a missing section in CLAUDE.md or here,
-# zero headings, zero list lines, a fence that never closes, and no count sentence each exit 1
-# naming the cause — a scan that read nothing must never render as a clean inventory.
+# FAIL-CLOSED: an unreadable file, zero numbered steps, a numbered name that no entry of a steps
+# list holds (a job's, say, whose body no step can be told to own), a missing section in
+# CLAUDE.md or here, zero headings, zero list lines, a fence that never closes, and no count
+# sentence each exit 1 naming the cause — a scan that read nothing must never render as a clean
+# inventory.
 # RESIDUAL LIMITS, stated rather than implied: (1) textual over the three files, so a step whose
 # name is assembled by a matrix, a composite action or a flow-style mapping is invisible to it,
 # and a YAML escape in a quoted name is compared as written; (2) a look-alike comment that
