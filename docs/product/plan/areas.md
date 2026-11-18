@@ -319,6 +319,11 @@ Old plan rows attached to this area (26):
 - **FN-023** (MP:412): Predictive features are unfinished; NEEDS_PRODUCT_OWNER. Where: not stated. Done: not stated.
 - **FN-025** (MP:412): AI quality features are unfinished; NEEDS_PRODUCT_OWNER. Where: not stated. Done: not stated.
 
+Findings since the area entered:
+
+- **AI-ROUTES-PROVIDER-NOT-VALIDATED**: Five AI routes accept `provider` in the body as an optional free string, and their handlers read the body without it, so a request that names any provider, or any other text, is accepted and runs on the providers the routing picks. Where: `apps/api/src/ai/routes.ts:37,57,65,73,83` (the schemas), `:206,237,259,292,319` (the handlers). Done: not stated. Found by: the removal of `@anthropic-ai/sdk` (DEP-OUT-ANTHROPIC), measured again on `main` by the review of open items of 2026-11-18.
+- **AI-ORCHESTRATOR-SCHEDULER-NOT-READ**: The orchestrator's constructor takes a `BackgroundTaskScheduler`, documented as registering the rate-limit-reset background task and as required, and no method of the class reads it; the metrics set-up states that no reset task is registered. Where: `apps/api/src/ai/orchestrator.ts:86`, `:93`, `:174-177`. Done: not stated. Found by: the removal of `@anthropic-ai/sdk` (DEP-OUT-ANTHROPIC), measured again on `main` by the review of open items of 2026-11-18.
+
 Testing refoundation units: 4.2 (`trendRadarRoutes.live.test.ts` creates `trendRadarResult` rows without `dayKey`, so the suite fails.).
 
 ## A-ANALYTICS Analytics and reports beyond the basic dashboard
