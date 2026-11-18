@@ -27,7 +27,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import _common  # noqa: E402
 from _common import (  # noqa: E402
-    PROJECT_ROOT,
     canon_index_path,
     canon_research_index_path,
     commit_repos,
@@ -385,7 +384,12 @@ class CurrentBranchTests(unittest.TestCase):
             self.assertEqual(current_branch(Path(tmp)), "")
 
 
-HOOKS_DIR = PROJECT_ROOT / ".claude" / "hooks-py"
+# The hooks directory this suite runs from, and the settings.json beside it, as
+# test_canon_scripts reads them: the suite holds the copy it runs in, wherever
+# that copy sits. In the repository they are .claude/hooks-py and .claude/settings.json.
+HOOKS_DIR = Path(__file__).resolve().parents[1]
+SETTINGS_PATH = HOOKS_DIR.parent / "settings.json"
+HOOK_COMMAND_PREFIX = "$CLAUDE_PROJECT_DIR/.claude/hooks-py/"
 
 
 class HookScriptsTests(unittest.TestCase):
@@ -400,10 +404,12 @@ class HookScriptsTests(unittest.TestCase):
     """
 
     def _hook_scripts(self) -> list[Path]:
-        return sorted(p for p in HOOKS_DIR.glob("*.py") if p.name != "_common.py")
+        # A module whose name starts with `_` (`_common.py`, `_instruction_context.py`)
+        # is imported by the hooks and never run by the harness.
+        return sorted(p for p in HOOKS_DIR.glob("*.py") if not p.name.startswith("_"))
 
     def _wired_commands(self) -> list[str]:
-        settings_path = PROJECT_ROOT / ".claude" / "settings.json"
+        settings_path = SETTINGS_PATH
         try:
             settings = json.loads(settings_path.read_text())
             return [
@@ -425,8 +431,12 @@ class HookScriptsTests(unittest.TestCase):
 
     def test_settings_wires_exactly_the_scripts_in_the_hooks_dir_by_path(self):
         # An unwired script is dead code; a command without a file is a hook
-        # that never fires. The two lists have to be the same.
-        wired = {PROJECT_ROOT / c.replace("$CLAUDE_PROJECT_DIR/", "") for c in self._wired_commands()}
+        # that never fires. The two lists have to be the same. A command may
+        # pass the script one argument (the record guard's mode), so the
+        # script is the command's first word.
+        commands = self._wired_commands()
+        self.assertEqual([c for c in commands if not c.startswith(HOOK_COMMAND_PREFIX)], [])
+        wired = {HOOKS_DIR / c[len(HOOK_COMMAND_PREFIX):].split(" ")[0] for c in commands}
         self.assertEqual(wired, set(self._hook_scripts()))
 
 

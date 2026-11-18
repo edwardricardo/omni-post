@@ -27,7 +27,7 @@
       "total": 1208
     },
     "blocks": {
-      "total": 15075,
+      "total": 15102,
       "decorative": 300,
       "byClass": {
         "EMPTY": 6,
@@ -37,7 +37,7 @@
         "SELF-SKIP": 98,
         "PRINTS-SUCCESS": 7,
         "TITLE-CONTRADICTION": 11,
-        "BEHAVIOURAL": 14764
+        "BEHAVIOURAL": 14791
       }
     },
     "deleted": {
@@ -71962,452 +71962,641 @@
       "framework": "vitest",
       "collectors": ["vitest:apps/api/vitest.config.ts"],
       "quarantined": null,
-      "blockCount": 64,
+      "blockCount": 91,
       "blocks": [
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::derives CLAUDE.md and its import, and reports the bytes against the budget and the target",
-          "line": 257,
+          "line": 360,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "a363cd97379eefa44ce3a48aaa410bec8086345868f7b339ff009d4457524d7c"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::does not count a token that names a directory or no file",
-          "line": 267,
+          "line": 370,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2e6f14bc7f9bcb4d5c1dcb5195ecf47d8b33412daa4d84eaf7610aa879d00275"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::resolves an import from the directory of the file that holds it, and reads an escaped space",
-          "line": 282,
+          "line": 385,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "fbc905b233c8df302de93b34ba3470cb58815ca0f5dde11d84769070db7d32ca"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::follows imports at any depth, past the four hops the harness follows",
-          "line": 302,
+          "line": 405,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "d08f05532d8e278f5fc5f3be193c6f23c4589ef02271af455dc4d9001e776ecc"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::loads a rule without paths: and the imports of every rule, but not a path-scoped rule's body",
-          "line": 331,
+          "line": 434,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "610c91c1db78919b5353d3685863409a4462fb3af96b389231bae0678edf756f"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::states the target as met once the budget is at or under it and no item is owed",
-          "line": 352,
+          "line": 455,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5c1d2ba2ebfab9e701d592c98a3166128f7df14caebbbc699404bed0c077e9f4"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::counts an import written %s",
-          "line": 378,
+          "line": 481,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c15122769303cbb2b6889779b01b4e895ab5f86bd52d7ffaad3af9ee0bbe940c"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses an import with a fragment that the tracked list does not name",
-          "line": 394,
+          "line": 497,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "17e58d275610aa571bb5f7ce8fb4ec623531810e233909e2e53a7a8200135ff7"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::derives %s and its imports when git tracks it",
-          "line": 412,
+          "line": 515,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b8c5b6fedafb607afa1c5d5a5599793e368153b52e1f36e252ccdd70bfff3305"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a tracked .claude/CLAUDE.md that the tracked list does not name",
-          "line": 431,
+          "line": 534,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f7843b414f8a06be5718e9a01193748383955b51b109f37caed716aa0cbb7672"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::does not derive an entry file git does not track, which only one checkout holds",
-          "line": 448,
+          "line": 551,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ff36a33dcb233134e415fd7960963f84d0c6b64c6b5d29af1176bf10eec549b6"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::counts a rule with %s as loaded at session start",
-          "line": 482,
+          "line": 585,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e33f1a388423f37dc9ae986dca87d876a5877fcc45f1311ea48663d262e3a82d"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::reads a rule with %s as path-scoped",
-          "line": 502,
+          "line": 605,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "98fd896838258b9e6c3c06bc7ace5a38be7b0babadfc6433f5dae1f574b8175d"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses %s tracked as a link, whose rules the harness reads and the gate cannot see",
-          "line": 517,
+          "line": 620,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "beec94b4e9a25bda464c2f503e6ec01b6e980a18e84743717617049455b3e855"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::accepts a link outside .claude/rules/",
-          "line": 534,
+          "line": 637,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c38ee01fb0e9855fabc5f954e92ca943d4409492c7240ea00be9dd3e74f4fa6c"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses an auto-loaded file the tracked list does not name",
-          "line": 546,
+          "line": 649,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "dab25188e0bb49b78d6f5c079ee5e2e205acdfe49aed000058d24d8351a1194d"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a tracked entry that nothing loads at session start",
-          "line": 555,
+          "line": 658,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "459725c1f594c474e312fe246eb25f536bbb1f55f75fa8197952a911c24b56cf"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a tracked entry git does not track",
-          "line": 563,
+          "line": 666,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "427d65bc7116904caa2c24de980942fae1dbb6ca56b39fdc7c6b7cba871ce15d"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a path listed twice in tracked",
-          "line": 571,
+          "line": 674,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c1d470cf56c66ae7c403445919f338cd301c10479ed67823853d1b09118daf00"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a local entry git tracks",
-          "line": 581,
+          "line": 684,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b74ad923ef2b98ae5f7d2e4aac322d60b618b4de17f04cac4ad2c76ecce1a6c9"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a path listed twice in local",
-          "line": 589,
+          "line": 692,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "326d9034fb3e8006c41533ae40c2a47e2d459d1f0893232e7c555eb7a482d130"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a local entry the tracked set loads",
-          "line": 597,
+          "line": 700,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f63a2574a4c1812b21ab95305445a350d0278e0f0b52d130b00bfc9aa318f60"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses an import that resolves to a file outside the repository",
-          "line": 617,
+          "line": 720,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "75a9061866de6b28a607cac074ac5396e69371ae76d08594ec2a4939866f170f"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a context one byte above its budget, naming the growth",
-          "line": 639,
+          "line": 742,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c40c18986a0db9b817ffab4cd5d6c4c2e91b87fd973300406e6ef52a39bc12e6"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a budget more than the slack above the context, naming the figure to lower it to",
-          "line": 648,
+          "line": 751,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "14692ffca947e700c998792eecf1af649a8546aa4c84b9a4ee34597b34df64f3"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::accepts a budget exactly the slack above the context",
-          "line": 661,
+          "line": 764,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c3f64204d37f9e4a8864ed24608dcf585476686e118934cce7636ac4e5e0a2f7"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a budget above the target when no plan item owes the target",
-          "line": 671,
+          "line": 774,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0aa81e04612a1913ba37c694aaadecd51ce0d186a3fcdb784eb68dae00f571f4"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses an owed target once the context meets it",
-          "line": 680,
+          "line": 783,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e2c0d5168392f83c0b0ff01da0d9e27ec6c13d4296e3f98e40f2da6660ce47a0"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a targetOwedBy that does not start with a plan item id",
-          "line": 689,
+          "line": 792,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7e7554e0803a30c6dfef3b51d127455a6016e8876b6bc37323fcd471c338e6ad"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a rule outside .claude/rules/",
-          "line": 699,
+          "line": 802,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3a2074ca31c04218a721f72de1419844c8da7fee2282e2a89095664befef78b1"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a rule git does not track, saying what to do",
-          "line": 712,
+          "line": 815,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ab94cf0800005e1685b41bf45edb03d901710714c4ff186e405b253f3aa21d29"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a rule whose front matter does not prove it path-scoped, which then loads in every session",
-          "line": 720,
+          "line": 823,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "74e9e31e15e2a2ab9b1e0481828478ea8694c9b305f24bded5d727ea88b614e0"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a rule that imports a file",
-          "line": 738,
+          "line": 841,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "96d6413e53ae6be9933add80fa65317dae98d33c9884f7cfd83bca41b0b67ad6"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a rule that does not name its document",
-          "line": 744,
+          "line": 847,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "260052dcf363b84e5896793537317e995aabdabc26185a60207465fd03e68b0e"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a record git does not track, saying what to do",
-          "line": 754,
+          "line": 857,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "9aeedd717fd458a455ce841ac241e7fbc6d5f89c809e9efbbf37406930b45c0f"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a record the context imports, beside the growth it causes",
-          "line": 762,
+          "line": 865,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8b58451766e5a4152e9836312554d7ed491ccc1f15129e2a1fc5dfb0b2e585b8"
         },
         {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a record that is not a Markdown file",
+          "line": 881,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "5d2d1f2150b861e30d8829c48529d7cc333732641cb2c67b0dc4387bdb148f1d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses settings git does not track, since no checkout would run the hooks",
+          "line": 897,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "de0bb060649769abeceb6623f91103ec56769a95563b801d9a5de9129824f97b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses settings that do not run the %s hook %s, naming the line to add",
+          "line": 905,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "cfe98372df047d4013c60f03ec6c8e8fcbd4e2e325fa7afd08c73cdf3b1dfc7b"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a guard whose matcher leaves out a tool it must see",
+          "line": 922,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "c43580b417471829b7db498a363d80aae8220e35c5d61d2e11bc33c625d1d1ee"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::accepts a judging guard whose matcher covers every tool it must see: %s",
+          "line": 933,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "ceef1e21b34a1d64aab4e332d2efe07f7520f1d164d35c6f9705ea4cc5d08c73"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a matcher on the recorder, which would drop the loads it does not name",
+          "line": 953,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "20b09aee952d1ce0ba5de39ba26e41282f4eda7169324c3e139c541f1ed6aa40"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a timeout under the floor, at which the harness would kill the check and let the prompt through",
+          "line": 966,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "bfb213b33a6c0f96d5fb95e6fd392ef7b66c0b3f97390451d1cc026f3b637198"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::accepts a hook with no timeout, which takes the harness's default",
+          "line": 982,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "1be580844273a368f9e642faea0edbf946e1af31e334e96b6a9cfb7e6d5c2ddf"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses %s, which lets the call through when the hook cannot run",
+          "line": 988,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "449693ffc0f0cbb873d873bb8efc04c541bcc194be42b2a51eebff0cc15c878f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses the key %s on a blocking hook, naming why",
+          "line": 1026,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "25c7e6f66fac0968e8b839d3875c31b64c881529dad11ae7cfb91317212f8188"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses onFailure on the recording guard, which would refuse a read when it cannot run",
+          "line": 1045,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "6b08b5d1d25e36a92c0eb3fa567cf5b1534df71a4d6f47cc270a3f7bce8c2195"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a recording guard in a group with %s, since it opens a record only on Read and Grep",
+          "line": 1056,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "2335a3c78b602bd13d03e42e0be530ea59228bdd0b97dc6d4b369e8caf3b565f"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::accepts a recording guard whose matcher names Read and Grep in another order",
+          "line": 1077,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "a02a119b0c7b7462aef03ad8e16c6679ba101a7ed39485606cdeedbcfe025ac3"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses an env block that sets %s, here to %j, whatever its value",
+          "line": 1084,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "67a0060a9e8061cd1d48711128288cfdecbfd4e565fb5a98013edfff23177ec8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::accepts an env block that sets neither the switch nor the harness version",
+          "line": 1115,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "87a5fddacd672bbd8bcc5181149ae0e7724883a1628384472f8987cf325b5fb2"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a second copy of a hook that does not hold to the allowlist, beside a good one",
+          "line": 1123,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8d5edbe81a53e085af7eda004238c75c7a9fe47a4e41c6939e89823cadede91d"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses %s",
+          "line": 1135,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9363ea84d790ad966d8a4301239490d78c30682ec3c6f47d8b61bd16c33ba766"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses disableAllHooks set to %s, which turns every hook off",
+          "line": 1156,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "eba486863a39e918374177c6392ffcfc57f455b29fd233349096ee27595dee20"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::accepts disableAllHooks set to false",
+          "line": 1172,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "19673e5672283c4a79be1248fdc74eeee0e16cafa3c022e28df353f4cfeef366"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses %s when git does not track it",
+          "line": 1178,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "0c7705b50a65d21afc6c3231b820aec8c92fd266717d8a3ce6a96c03424661a2"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a hook git does not record as executable, naming the command that marks it",
+          "line": 1189,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "3bb4fab3dac9ea61f2204f452048e50271344329ce4a02a0382f55beb68f34c0"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a hook that lost its executable bit in the checkout",
+          "line": 1198,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "990c17b49212d9e6c2a090db40758e9375200457b17bf99f5629ded42ddcd9d8"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 on %s",
+          "line": 1206,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9cd0edae4640e3a811dbbce04043d5b7d6d5d45b0690492d3b50673d320487d0"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 on a hook git tracks and the checkout lacks",
+          "line": 1213,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "94891f0d70a222445cd947109275af5173f9838103290ec17f4938e59c583376"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a glob that matches no tracked file and no entry explains",
-          "line": 778,
+          "line": 1222,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "19057037fd00d5dd1bb473485a0b04f9aa5898697a5fd8e5723ac0b17d57df42"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::matches a glob with no slash at any depth, as the harness does",
-          "line": 791,
+          "line": 1235,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f0595c53f40fa0d6e51bdd4ec0c811668c0229387fc4bbc95aa7c146d937cbe8"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::anchors a glob with a leading slash to the root, as the harness does",
-          "line": 806,
+          "line": 1250,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4caf770f8eb67f3ce2cc0f40a2aefa33b4ada511b8b524102c5f56cbb060dad2"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses an emptyGlobs entry whose glob matches a tracked file",
-          "line": 823,
+          "line": 1267,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "848f78269b8f590b7f8cb01296eb4b4ffad6c3e8b684c979fa1d00e12ee11618"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses an emptyGlobs entry for a glob the rule does not list",
-          "line": 833,
+          "line": 1277,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cb951d24efcdd91c94f0a871200eeac2fd311fdc567f98b0ea9c448f1dc6932b"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses an emptyGlobs entry with no reason",
-          "line": 849,
+          "line": 1293,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "f67b185c9b4569120711fdc3ab9d743a68378ec3b9753f75573b17c085d211a7"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a manifest that is not JSON",
-          "line": 861,
+          "line": 1305,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c71bae9c2c1b948692e59c47f79e1f87c6a06a8e67b4cc06bfda2058e90a5d94"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a manifest with %s",
-          "line": 903,
+          "line": 1352,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5370732c64361c6308fbfedcff5219fc082884fb271d504bb7472063b539462e"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses a tree with no CLAUDE.md, rather than a context derived from nothing",
-          "line": 907,
+          "line": 1356,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "18c9b70f4b9681976848ddc277355b9d2a1f59a0a3743e5dbadd7cdf60239bf6"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses %s when it cannot be read",
-          "line": 911,
+          "line": 1360,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "e0018c9a18ed0f84e27a16474bf8aa9980a2117c634fb5f7fb9fcc232ae39558"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses %s git tracks and the checkout lacks, whose bytes it cannot count",
-          "line": 915,
+          "line": 1364,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "3f24abfa563e0d62daae3bf273205f808a5c3ce76c5c35953f721501b1bbca1e"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses an unreadable import once per token, not once per prefix of it",
-          "line": 931,
+          "line": 1380,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cf7c1e62e74be75ebd07405eed18ee8010837413f960568f71cc21ddc5d5004f"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 when an unread input meets a verdict, so a partial read never reads as a verdict",
-          "line": 942,
+          "line": 1391,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "caa95c250ebeec34ec4a9992051acaf22555a9666ef9897d149df2e63e4d62e7"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 0 and prints the summary on a clean repository",
-          "line": 1002,
+          "line": 1457,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "0c8a71268b8c9938f0bc6c4a21149e19b466290bda6390f742ecc3a9010b395a"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 1 with each violation and the summary on stderr",
-          "line": 1014,
+          "line": 1469,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "5cea9a22b739523e037a2f9bf8c846afc1b8a903a4a795fabf7d0b09030e5099"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 when the manifest is missing",
-          "line": 1026,
+          "line": 1481,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "289784225a2490e97840bb8399c0fcde01cd71899e60658205062c20f6d58c8d"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 when git cannot list the root",
-          "line": 1035,
+          "line": 1490,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "ae9a4a29d5207983b6222a2cecad9bf731dae9ae8783ad2ca429cdcf0e672b61"
         },
         {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 naming the listing buffer when git's listing does not fit in it",
+          "line": 1499,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9c4a4c112ee256e1ddfbe8f821e0e1f22faa30d5a3438189fa76bbd1f6525ea6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 1 when the settings do not run the recorder, naming the event",
+          "line": 1510,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "9cc836e010a6db2e9a8ea907f641910109e123c52604bcaefeffac9acc48ceb6"
+        },
+        {
+          "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 1 when a hook is committed without its executable bit",
+          "line": 1526,
+          "blockClass": "BEHAVIOURAL",
+          "criteria": [],
+          "bodyHash": "8b140273b99778dc08f7b18a483b2c25b68a77968f81ea67fde222866d8a5230"
+        },
+        {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 when git tracks no file",
-          "line": 1044,
+          "line": 1538,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "800c13cec8b86bf8dfbefe675b915daf773dc267d32efc9ffc07e0557bc93b6f"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 2 on %s",
-          "line": 1054,
+          "line": 1548,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "2eff54ef81ab2538f2dae4b14475ccc64cc642c4ff9c5e19409db00b4c770179"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::lowers budget.bytes to the context with --write, keeping every other byte of the manifest",
-          "line": 1067,
+          "line": 1561,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "7ea8ae9ae13b7075303bc45bbcf10c1e04913dd710a2da34b11f0217ba04418f"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::refuses to raise budget.bytes with --write, and leaves the manifest unchanged",
-          "line": 1086,
+          "line": 1580,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "4214a917219898f9786e6bc04d8bb12c672371520e958acee8126432aba0e2b0"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::writes nothing with --write when budget.bytes already equals the context",
-          "line": 1098,
+          "line": 1592,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "453331a3708c057eaafd9d920e89a7b692111b05d36f091cce192a56cd658342"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 with --write when budget.bytes is not written where it can place the figure",
-          "line": 1111,
+          "line": 1605,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "cadc5867fa05b0865b43210a5488b207ce44acd402a5b29f043d3549d3c4c48a"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 1 when git tracks a symbolic link under .claude/rules/, naming the link",
-          "line": 1125,
+          "line": 1619,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "8d14de249b81ffa6ff840081574290e02a0608e7f6869fe2f9748e3e9920f5ef"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 1 when git tracks a submodule under .claude/rules/, naming it",
-          "line": 1138,
+          "line": 1632,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "197fba5465d6623efea8a60e418710cd4a62008c39b76ff75b4c544c54375503"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::skips an import whose name is too long for any file to have, as the harness does",
-          "line": 1153,
+          "line": 1647,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c159d9690bd447feee71d221646465250d21e497bbc5e0bab95e9ee54ef81332"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 when CLAUDE.md is a directory, saying it is not a regular file",
-          "line": 1165,
+          "line": 1659,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "c813fbddc14aa93522c468c8efb5fdc09e73ae01dc3515a683442c6f854d1d48"
         },
         {
           "id": "apps/api/tests/unit/scripts/instructionContextGate.test.ts::exits 3 without waiting when CLAUDE.md is a named pipe, saying it is not a regular file",
-          "line": 1178,
+          "line": 1672,
           "blockClass": "BEHAVIOURAL",
           "criteria": [],
           "bodyHash": "b23162f2b189f0ad20590fe4e82e8e53081bba71c6f6099c46f1901a3be3e2cf"

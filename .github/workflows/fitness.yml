@@ -1656,6 +1656,20 @@ jobs:
             exit 1
           fi
 
+      - name: "Instruction context: the auto-loaded instruction files match their manifest and budget, and the hooks that enforce them are wired"
+        if: always()
+        run: |
+          # Un-numbered until the fitness section of CLAUDE.md is rewritten: a numbered check adds its
+          # block to the very file whose bytes this gate holds (ADR-0045). The rule, its fail-closed
+          # paths and its residual limits live in scripts/testing/instruction-context-gate.mjs, pinned
+          # by apps/api/tests/unit/scripts/instructionContextGate.test.ts. It reads git's listing and
+          # the tracked files only, so it runs here, in the job that installs nothing.
+          set -euo pipefail
+          if ! node scripts/testing/instruction-context-gate.mjs; then
+            echo "::error title=Instruction context violation::The instruction files every session loads by itself differ from .claude/instruction-manifest.json or exceed its byte budget, a moved record's rule is not live, the hooks that enforce the manifest are not tracked, executable and wired in .claude/settings.json, or the gate could not read one of its inputs. The instruction-context-gate lines above name each rule broken (A1, L1, M1, M2, B1 to B3, R1 to R3, W1) with its repair."
+            exit 1
+          fi
+
       - name: "#54 Every deleted or rewritten test block has a committed mutation-diff record (pull_request only)"
         if: ${{ always() && github.event_name == 'pull_request' }}
         env:
