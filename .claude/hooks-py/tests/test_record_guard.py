@@ -62,6 +62,26 @@ class Checkout:
         path.write_text(text)
         return path
 
+    def add_second_record(self, *globs: str, body: str = RULE_BODY) -> tuple[str, str]:
+        """Gives the checkout a second record beside the first: the manifest
+        lists both, the second rule governs `globs` and says `body`, and its
+        document exists. Returns the second record's rule and document."""
+        rule, document = ".claude/rules/second.md", "docs/second.md"
+        self.write(
+            ic.MANIFEST,
+            json.dumps(
+                {
+                    "version": 1,
+                    "tracked": ["CLAUDE.md"],
+                    "local": [],
+                    "records": [{"rule": RULE, "document": DOCUMENT}, {"rule": rule, "document": document}],
+                }
+            ),
+        )
+        self.write(rule, rule_text(*globs, body=body))
+        self.write(document, "# Second record\n")
+        return rule, document
+
     def payload(self, tool: str, tool_input: dict, *, agent: str | None = None, cwd: Path | None = None) -> dict:
         data = {"session_id": SESSION, "hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": tool_input, "cwd": str(cwd or self.root)}
         if agent is not None:
@@ -124,20 +144,9 @@ class EditJudgementTests(unittest.TestCase):
         self.assertIn("MAINTAINER_DISABLE_INSTRUCTION_CHECK=yes", refusal)
 
     def test_with_two_records_a_file_both_govern_needs_both_opened_and_a_file_one_governs_needs_only_that_one(self):
-        second_rule, second_document = ".claude/rules/second.md", "docs/second.md"
-        self.checkout.write(
-            ic.MANIFEST,
-            json.dumps(
-                {
-                    "version": 1,
-                    "tracked": ["CLAUDE.md"],
-                    "local": [],
-                    "records": [{"rule": RULE, "document": DOCUMENT}, {"rule": second_rule, "document": second_document}],
-                }
-            ),
+        _, second_document = self.checkout.add_second_record(
+            "deps/*.yaml", "scripts/*.mjs", body="Search the second record by number.\n"
         )
-        self.checkout.write(second_rule, rule_text("deps/*.yaml", "scripts/*.mjs", body="Search the second record by number.\n"))
-        self.checkout.write(second_document, "# Second record\n")
         both, second_only = "deps/workspace.yaml", "scripts/gate.mjs"
 
         first_refusal = self._judge(self.checkout.edit(both))
@@ -159,20 +168,7 @@ class EditJudgementTests(unittest.TestCase):
         self.assertIsNone(self._judge(self.checkout.edit(second_only)))
 
     def test_with_two_records_an_opening_of_the_first_alone_does_not_open_a_file_both_govern(self):
-        second_rule, second_document = ".claude/rules/second.md", "docs/second.md"
-        self.checkout.write(
-            ic.MANIFEST,
-            json.dumps(
-                {
-                    "version": 1,
-                    "tracked": ["CLAUDE.md"],
-                    "local": [],
-                    "records": [{"rule": RULE, "document": DOCUMENT}, {"rule": second_rule, "document": second_document}],
-                }
-            ),
-        )
-        self.checkout.write(second_rule, rule_text("deps/*.yaml"))
-        self.checkout.write(second_document, "# Second record\n")
+        second_rule, second_document = self.checkout.add_second_record("deps/*.yaml")
 
         self._note(self.checkout.payload("Read", {"file_path": str(self.checkout.root / DOCUMENT)}))
         refusal = self._judge(self.checkout.edit("deps/workspace.yaml"))
