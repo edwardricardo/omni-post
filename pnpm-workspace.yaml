@@ -296,14 +296,16 @@ overrides:
   "glob@<14.0.2": 14.0.2
   # CVE floor added 2026-10-31 for GHSA-g3hv-75wg-m249 (moderate, CVE-2026-118764): the `**/..`
   # pass of firstPhasePreProcess() at optimizationLevel >= 2 grows the glob parts of an
-  # attacker-supplied pattern, then compares them pairwise. OSV `introduced 0, fixed 11.0.1`,
-  # GitHub's first_patched_version and upstream (isaacs/minimatch 77a0f5c4) agree, with no
+  # attacker-supplied pattern, then compares them pairwise. OSV (`introduced 7.0.0, fixed 11.0.1`
+  # since its record of 2026-11-04T17:01Z, `introduced 0` before), GitHub's first_patched_version
+  # and upstream (isaacs/minimatch 77a0f5c4) agree on 11.0.1, with no
   # backport below 11. The band lifts the 10.x copy of @fastify/otel 0.21.2 (`^10.2.4`) and
   # @typescript-eslint/typescript-estree 8.72.0 (`^10.2.2`), a forced major 10 -> 11. It starts
   # at 9.0.0, not 0: the full band fails `pnpm lint` (`_minimatch.default is not a function` in
   # eslint-plugin-jsx-a11y 6.10.2), so the 3.x copy of eslint 9.39.5, @eslint/eslintrc 3.3.7,
   # @eslint/config-array 0.21.2 (`^3.1.5`) and jsx-a11y (`^3.1.2`) stays on 3.1.5, a Blocked
-  # floor. Measured, with the remove-when, in DEPENDENCY_AUDIT_RECORD §"CVE-floor pins", row `minimatch`,
+  # floor until GitHub narrowed the advisory to >=7.0.0 <11.0.1 on 2026-11-04, outside 3.1.5.
+  # Measured, with the remove-when, in DEPENDENCY_AUDIT_RECORD §"CVE-floor pins", row `minimatch`,
   # and §"Blocked floors".
   "minimatch@>=9.0.0 <11.0.1": 11.0.1
 
@@ -313,20 +315,13 @@ overrides:
 # Empty from 2026-10-06 to 2026-10-31: the last two entries of that time, GHSA-848j-6mx2-7j84
 # (elliptic) and GHSA-vfj7-8cjw-p6xm (braces), left with @storybook/nextjs, the only package
 # whose chains carried either, so neither suppressed anything any more. One entry from
-# 2026-10-31, two since 2026-11-17, both below.
+# 2026-10-31, two from 2026-11-17, one since 2026-11-18, below. GHSA-g3hv-75wg-m249 (minimatch)
+# left on 2026-11-18: GitHub narrowed its range to >=7.0.0 <11.0.1 on 2026-11-04, outside the
+# 3.1.5 copy of the lint toolchain, so it suppressed nothing from then on, and `pnpm audit
+# --audit-level low` gives the same exit code and advisories without it (DEPENDENCY_AUDIT_RECORD
+# §"Ignored GHSAs").
 auditConfig:
-  # GHSA-g3hv-75wg-m249 (minimatch, moderate: denial of service via globparts amplification),
-  # ignored since 2026-10-31 by the Maintainer's decision. Its only fixed line is 11.x, and the
-  # 3.1.5 copy the lint toolchain holds (eslint, @eslint/eslintrc, @eslint/config-array `^3.1.5`,
-  # eslint-plugin-jsx-a11y `^3.1.2`) cannot take it: jsx-a11y reads the callable default export
-  # minimatch 11 no longer has, so the forced band fails `pnpm lint`; no 3.x backport exists
-  # (isaacs/minimatch#333). Dev-only: no production chain reaches 3.1.5, and the patterns it
-  # matches come from eslint.config.ts and the plugins' own configuration, never a request.
-  # The 9.x and 10.x copies are forced to 11.0.1 by the band above. Row: DEPENDENCY_AUDIT_RECORD.md
-  # §"Ignored GHSAs"; the Blocked floor it closes: §"Blocked floors". Remove-when: a 3.x release
-  # that carries the fix, or every one of the four consumers admitting 11.x unaided.
   ignoreGhsas:
-    - GHSA-g3hv-75wg-m249
     # GHSA-fc5q-39xc-vjpf (picomatch, high, CVE-2026-112366: denial of service through a
     # single-branch repeated extglob pattern such as `+(*)`, whose compiled expression backtracks
     # exponentially), ignored since 2026-11-17 by the Maintainer's decision. No fix exists on any
