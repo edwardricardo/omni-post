@@ -186,6 +186,8 @@ graphify-out/
 
 # CLAUDE.local.md — per-dev personal Claude memory
 CLAUDE.local.md
+# The feedback files CLAUDE.local.md imports — per-dev, held by the main checkout only
+.claude/feedback/
 
 # CodeGraph local index (per-target, never committed)
 .codegraph/

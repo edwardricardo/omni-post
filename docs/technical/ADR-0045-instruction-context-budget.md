@@ -387,6 +387,28 @@ Compliance Checks`. The block now goes to the reference, and that section takes 
    refused by R1 and R2, and `@docs/development/FITNESS_FUNCTIONS.md` written in `CLAUDE.md` by R2
    and M1.
 
+## Amendment of 2026-11-18: the feedback files
+
+1. **The five files live in the project.** `CLAUDE.local.md` imports five feedback files
+   (`workflow.md`, `canon-research.md`, `audit-deletion.md`, `runtime-contract.md` and
+   `tools-infra.md`, 71,143 bytes together). They lived in the user's directory, and an import that
+   resolves outside the project loads only once the harness holds an approval for the project
+   (`hasClaudeMdExternalIncludesApproved`), which is `false` for this one: measured on 2026-11-17,
+   a session loaded 8 instruction files and none of the five. They now live under
+   `.claude/feedback/`, which git ignores, and `CLAUDE.local.md` imports them by a path relative
+   to itself.
+2. **The manifest's `local` list names them.** The session check of decision 3 therefore requires
+   them of a session in the main checkout, as it requires `CLAUDE.local.md` and
+   `.claude/CLAUDE.md`: 12 files where it required 7, and a session whose record lacks one is
+   refused at its next prompt. The budget check cannot read a file git ignores, so of the five it
+   holds what rule M2 holds of every local entry: git tracks none of them, and the tracked set
+   loads none.
+3. **The measurement.** On 2026-11-18 a headless session in the main checkout reported 13
+   instruction files as loaded (the 12 and the user's own file), the five among them, each as an
+   `include` with `CLAUDE.local.md` as its parent. The session check, run over that session's
+   record with this manifest, passes; run over the record of a session started before the move, it
+   refuses and names the five.
+
 ## Legal impact
 
 `none — documentation and tooling; no personal data, cookie or storage key, OAuth scope,

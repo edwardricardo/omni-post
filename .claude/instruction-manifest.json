@@ -7,7 +7,15 @@
     "docs/security/SECURITY_CANON.md",
     "docs/observability/LOGGING_CANON.md"
   ],
-  "local": ["CLAUDE.local.md", ".claude/CLAUDE.md"],
+  "local": [
+    "CLAUDE.local.md",
+    ".claude/CLAUDE.md",
+    ".claude/feedback/workflow.md",
+    ".claude/feedback/canon-research.md",
+    ".claude/feedback/audit-deletion.md",
+    ".claude/feedback/runtime-contract.md",
+    ".claude/feedback/tools-infra.md"
+  ],
   "records": [
     {
       "rule": ".claude/rules/dependency-audit-record.md",
