@@ -14,7 +14,7 @@ This page indexes the living documents under `docs/`. [`CLAUDE.md`](../CLAUDE.md
 | [Coding Standards](development/CODING_STANDARDS.md)             | TypeScript, Result, error handling, testing, naming, JSDoc (canon)                                                                  |
 | [Governance](GOVERNANCE.md)                                     | The two roles, Product Owner and Maintainer, who holds each and since when, and where decisions are recorded                        |
 
-Quick start, with the versions `package.json` pins (Node `>=26.12.1 <27`, pnpm 12.6.0):
+Quick start, with the versions `package.json` pins (Node `>=26.13.1 <27`, pnpm 12.6.0):
 
 ```bash
 pnpm install
