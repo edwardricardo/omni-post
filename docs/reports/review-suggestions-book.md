@@ -532,6 +532,13 @@
 | SB-511 | DEPS-WINDOW-2026-11-17 T4 (`b29f3505`, `4469fb7b`), review-e576e9c2bd54552e           | R1-nonexistent-download-artifact-v8 (WARNING)                    | `.github/workflows/ci.yml:259` (`actions/download-artifact@v8`)                                                                             | risk                         | closed: refuted; the tag `v8` resolves to a commit, and v8.0.2 was published 2026-10-07 (see Closed with a reason)                                              |
 | SB-512 | DEPS-WINDOW-2026-11-17 T2 (`e27dcdd8`), review-78f6d051744fd6db                       | R2-001                                                           | `docs/security/DEPENDENCY_AUDIT_RECORD.md:240` (the `zod` floor history, the 2026-11-17 entry)                                              | readability                  | implemented in this change: the entry says the 0.27.0 unit merged with #700 on 2026-10-24 (see Implemented)                                                     |
 | SB-513 | same                                                                                  | R2-002                                                           | `docs/security/DEPENDENCY_AUDIT_RECORD.md:57` (the `zod` row)                                                                               | readability                  | implemented in this change: the row says 94 of 94 in 4 files, one of which runs the installed SDK (see Implemented)                                             |
+| SB-514 | TOKEN-1 T2b (`d7e94dd6`), review-4e4ab77c84611447                                     | R2-whereHookRuns-trailing-empty                                  | `scripts/testing/instruction-context-gate.mjs` (`whereHookRuns`)                                                                            | readability                  | deferred: handle a hook that names one tool explicitly, so a future one does not print a dangling `and`                                                         |
+| SB-515 | same                                                                                  | R2-env-refused-message-reads-env-key                             | `scripts/testing/instruction-context-gate.mjs` (the W1 refusal of an `env` key)                                                             | readability                  | deferred: say in the refusal that an empty value is refused as well                                                                                             |
+| SB-516 | same                                                                                  | R2-isEntryPoint-no-initializer                                   | `scripts/testing/instruction-context-gate.mjs` (the entry-point guard)                                                                      | readability                  | closed: SB-504 removed that initial value, which both branches overwrite (see Closed with a reason)                                                             |
+| SB-517 | TOKEN-1 T2b (`ad6a8fa5`), review-3d1b8ce7e86ba9f0                                     | R4-user-prompt-wait-exceeds-harness-timeout (WARNING)            | `.claude/hooks-py/user_prompt_instruction_check.py` (`WAIT_SECONDS`, the settings `timeout`)                                                | resilience                   | closed: refuted by measurement; a record of 1,000,000 lines is read in 1.6 s (see Closed with a reason)                                                         |
+| SB-518 | same                                                                                  | R4-recorder-marker-write-non-atomic-on-partial-write (WARNING)   | `.claude/hooks-py/_instruction_context.py` (`mark_local_files_seen`, `local_files_seen`)                                                    | resilience                   | closed: refuted; the marker's existence is the fact, and nothing reads its bytes (see Closed with a reason)                                                     |
+| SB-519 | same                                                                                  | R4-record-guard-judge-reparses-every-call                        | `.claude/hooks-py/pre_tool_record_guard.py` (`Judge._opened`)                                                                               | resilience                   | closed: the reads file gains a line only when a call opens a record (see Closed with a reason)                                                                  |
+| SB-520 | same                                                                                  | R4-recorder-swallows-all-exceptions-silently-on-oserror-…        | `.claude/hooks-py/instructions_loaded.py` (`main`, the `except` arms)                                                                       | resilience                   | deferred: a line on stderr when the log itself cannot be written (the finding's id ends in `-after-log-fails`)                                                  |
 
 ## Entries — code and prose
 
@@ -1464,6 +1471,30 @@
 - **Why justified:** a blank value is already refused, by B3 with exit 1; the suggestion moves the refusal to the shape check and rewords it, and no blank value passes today.
 - **To implement:** in the change that next edits the gate, with a case for the blank string; it moves that input from exit 1 to exit 3, so the suite's B3 case for it moves too.
 
+### SB-514 — the sentence that names a hook's tools assumes at least two
+
+- **Source:** the native review of TOKEN-1 T2b's third commit (`d7e94dd6`, review-4e4ab77c84611447), finding `R2-whereHookRuns-trailing-empty` (SUGGESTION).
+- **Location:** `scripts/testing/instruction-context-gate.mjs`, `whereHookRuns`.
+- **Suggestion:** handle a required hook that names one tool explicitly, and drop the `?? ""` fallback, so such a hook does not print a dangling `and`.
+- **Why justified:** no entry of `REQUIRED_HOOKS` names one tool: the two that name tools list two and four, so the branch is unreachable today and no message changes.
+- **To implement:** with the next edit of the gate, which TOKEN-1 T3 makes when the fitness section leaves `CLAUDE.md`.
+
+### SB-515 — the refusal of an `env` key does not say an empty value is refused too
+
+- **Source:** the same review, finding `R2-env-refused-message-reads-env-key` (SUGGESTION).
+- **Location:** `scripts/testing/instruction-context-gate.mjs`, the W1 refusal built from `ENV_REFUSED`.
+- **Suggestion:** say in the message for `AI_AGENT` that any assignment replaces the value the harness sets, an empty one included.
+- **Why justified:** the refusal fires for an empty value and names the key and the repair (delete it); the suite holds that case. Only the reason's wording is at stake.
+- **To implement:** with the next edit of the gate (TOKEN-1 T3).
+
+### SB-520 — the recorder leaves no trace when its log cannot be written either
+
+- **Source:** the native review of TOKEN-1 T2b's second commit (`ad6a8fa5`, review-3d1b8ce7e86ba9f0), finding `R4-recorder-swallows-all-exceptions-silently-on-oserror-after-log-fails` (SUGGESTION).
+- **Location:** `.claude/hooks-py/instructions_loaded.py`, the `except` arms of `main`.
+- **Suggestion:** write one line to stderr when the load cannot be recorded and the log line cannot be written.
+- **Why justified:** the event cannot block and its exit code is ignored, so the recorder's silence loses a diagnostic, never the block: with no record the check refuses the next prompt and its message names a full disk and an unwritable state directory among the causes.
+- **To implement:** with the next edit of the hooks.
+
 ## Entries — tests
 
 ### SB-T01 — a bare repository's `--git-common-dir` is not named `.git`
@@ -2386,3 +2417,7 @@
 | SB-509 | Refuted: `pnpm view eslint-plugin-jsdoc@65.4.5 dependencies` declares `@typescript-eslint/utils` `^8.72.1`, which is what the comment says.                                                            |
 | SB-510 | The count is right: the parenthesis that fixed R2-entry53-four-lags-count (WARNING) says the pair is two packages; a second rewording of a dated entry changes nothing a reader acts on.               |
 | SB-511 | Refuted: `gh api repos/actions/download-artifact/git/ref/tags/v8` returns commit `9000827c`, and v8.0.2 was published 2026-10-07T10:09:51Z; the reviewer has no network.                               |
+| SB-516 | SB-504 removed that initial value at a reviewer's request: the `try` and the `catch` both assign the name before its one read, so the value was a store nothing reads. Restoring it reopens SB-504.    |
+| SB-517 | Refuted by measurement: `read_entries` reads 1,000 lines in 1.7 ms, 100,000 in 161 ms and 1,000,000 (199 MB) in 1.6 s. A session start writes about 8 lines, so the 20 s timeout is out of reach.      |
+| SB-518 | Refuted: the recorder writes the marker only after it appended a local file's load, and `local_files_seen` reads the marker's kind, never its bytes, so an empty marker states the same fact.          |
+| SB-519 | The guard appends to the reads file at one site, only when a call opens a record, so a session's file holds a few lines; `read_entries` reads 1,000 lines in 1.7 ms.                                   |
